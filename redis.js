@@ -17,14 +17,10 @@ function RedisReplyParser() {
 }
 sys.inherits(RedisReplyParser, events.EventEmitter);
 
-function state_from_type(type_char) {
-}
-
 RedisReplyParser.prototype.execute = function (incoming_buf) {
     var pos = 0;
 
     while (pos < incoming_buf.length) {
-//        console.log("execute: " + this.state + " <" + incoming_buf[pos] + ">");
         switch (this.state) {
         case "type":
             this.type = incoming_buf[pos];
@@ -74,7 +70,6 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
                 this.return_buffer.end += 1;
             }
-
             pos += 1;
             break;
         case "single line":
@@ -86,7 +81,6 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.return_buffer.end += 1;
                 // TODO - check for return_buffer overflow and then grow, copy, continue, and drink.
             }
-            
             pos += 1;
             break;
         case "multi bulk count":
