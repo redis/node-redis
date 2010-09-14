@@ -47,6 +47,10 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.state = "bulk length";
                 this.tmp_buffer.end = 0;
                 break;
+            case 45: // -
+                this.state = "error line";
+                this.return_buffer.end = 0;
+                break;
             default:
                 this.state = "unknown type";
             }
@@ -60,6 +64,17 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.return_buffer.end += 1;
                 // TODO - check for return_buffer overflow and then grow, copy, continue, and drink.
             }
+            pos += 1;
+            break;
+        case "error line":
+            if (incoming_buf[pos] === 13) {
+                this.emit("error reply", new Error(this.return_buffer.slice(0, this.return_buffer.end)));
+                this.state = "final lf";
+            } else {
+                this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
+                this.return_buffer.end += 1;
+            }
+
             pos += 1;
             break;
         case "single line":
@@ -222,6 +237,9 @@ RedisClient.prototype.on_connect = function () {
     
     this.reply_parser = new RedisReplyParser();
     var self = this;
+    this.reply_parser.on("error reply", function (err) {
+        self.return_error(err);
+    });
     this.reply_parser.on("null reply", function () {
         self.return_reply(null);
     });
@@ -251,6 +269,13 @@ RedisClient.prototype.on_data = function (data) {
         console.log("Exception in RedisReplyParser: " + err.stack);
     }
 };
+
+RedisClient.prototype.return_error = function (err) {
+    var command_obj = this.command_queue.shift();
+
+    console.log("Error on " + command_obj.command + " " + command_obj.args + ": " + err);
+    command_obj.callback(err);
+}
 
 RedisClient.prototype.return_reply = function (response_buffer) {
     var command_obj = this.command_queue.shift();
@@ -303,7 +328,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             }
             command_str += "$" + arg.length + "\r\n" + arg + "\r\n";
         });
-        console.log("non-buffer full command: " + command_str);
+//        console.log("non-buffer full command: " + command_str);
         if (stream.write(command_str) === false) {
             console.log("Buffered write 0");
         }
@@ -330,24 +355,42 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 };
 
 // http://code.google.com/p/redis/wiki/CommandReference
-[   // Commands operating on all value types
-    "EXISTS", "DEL", "TYPE", "KEYS", "RANDOMKEY", "RENAME", "RENAMENX", "DBSIZE", "EXPIRE", "PERSIST", "TTL", "SELECT", 
-    "MOVE", "FLUSHDB", "FLUSHALL", "INFO", "SET",
+exports.commands = [
+    // Commands operating on all value types
+    "EXISTS", "DEL", "TYPE", "KEYS", "RANDOMKEY", "RENAME", "RENAMENX", "DBSIZE", "EXPIRE", "TTL", "SELECT",
+    "MOVE", "FLUSHDB", "FLUSHALL",
     // Commands operating on string values
     "SET", "GET", "GETSET", "MGET", "SETNX", "SETEX", "MSET", "MSETNX", "INCR", "INCRBY", "DECR", "DECRBY", "APPEND", "SUBSTR",
     // Commands operating on lists
-    "RPUSH", "LPUSH", "LLEN", "LRANGE", "LTRIM", "LINDEX", "LSET", "LREM", "LPOP", "RPOP", "BLPOP", "BRPOP", "RPOPLPUSH"
+    "RPUSH", "LPUSH", "LLEN", "LRANGE", "LTRIM", "LINDEX", "LSET", "LREM", "LPOP", "RPOP", "BLPOP", "BRPOP", "RPOPLPUSH",
     // Commands operating on sets
-    // TODO - type all of these in
- ]
-    .forEach(function (command) {
-        RedisClient.prototype[command] = function (args, callback) {
-            this.send_command(command, args, callback)
-        };
-        RedisClient.prototype[command.toLowerCase()] = function (args, callback) {
-            this.send_command(command, args, callback)
-        };
-    });
+    "SADD", "SREM", "SPOP", "SMOVE", "SCARD", "SISMEMBER", "SINTER", "SINTERSTORE", "SUNION", "SUNIONSTORE", "SDIFF", "SDIFFSTORE",
+    "SMEMBERS", "SRANDMEMBER",
+    // Commands operating on sorted zsets (sorted sets)
+    "ZADD", "ZREM", "ZINCRBY", "ZRANK", "ZREVRANK", "ZRANGE", "ZREVRANGE", "ZRANGEBYSCORE", "ZCOUNT", "ZCARD", "ZSCORE",
+    "ZREMRANGEBYRANK", "ZREMRANGEBYSCORE", "ZUNIONSTORE", "ZINTERSTORE",
+    // Commands operating on hashes
+    "HSET", "HGET", "HMGET", "HMSET", "HINCRBY", "HEXISTS", "HDEL", "HLEN", "HKEYS", "HVALS", "HGETALL",
+    // Sorting
+    "SORT",
+    // Transactions
+    "MULTI", "EXEC", "DISCARD", "WATCH", "UNWATCH",
+    // Publish/Subscribe
+    "SUBSCRIBE", "UNSUBSCRIBE", "PUBLISH",
+    // Persistence control commands
+    "SAVE", "BGSAVE", "LASTSAVE", "SHUTDOWN", "BGREWRITEAOF",
+    // Remote server control commands
+    "INFO", "MONITOR", "SLAVEOF", "CONFIG"
+];
+
+exports.commands.forEach(function (command) {
+    RedisClient.prototype[command] = function (args, callback) {
+        this.send_command(command, args, callback)
+    };
+    RedisClient.prototype[command.toLowerCase()] = function (args, callback) {
+        this.send_command(command, args, callback)
+    };
+});
 
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,
