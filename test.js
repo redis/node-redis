@@ -1,3 +1,4 @@
+/*global require console setTimeout process */
 var redis = require("./index"),
     client = redis.createClient(),
     assert = require("assert"),
@@ -42,7 +43,7 @@ function require_error(label) {
     return function (err, results) {
         assert.notEqual(err, null, label + " err is null, but an error is expected here.");
         return true;
-    }
+    };
 }
 
 function last(name, fn) {
@@ -59,28 +60,28 @@ function next(name) {
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
-    client.mset(["flush keys 1", "flush val 1", "flush keys 2", "flush val 2"], require_string("OK", name));
-    client.FLUSHDB([], require_string("OK", name));
-    client.dbsize([], last(name, require_number(0, name)));
+    client.mset("flush keys 1", "flush val 1", "flush keys 2", "flush val 2", require_string("OK", name));
+    client.FLUSHDB(require_string("OK", name));
+    client.dbsize(last(name, require_number(0, name)));
 };
 
 tests.EXISTS = function () {
     var name = "EXISTS";
-    client.del(["foo", "foo2"], require_number_any(name));
-    client.set(['foo', 'bar'], require_string("OK", name));
-    client.EXISTS(['foo'], require_number(1, name));
-    client.EXISTS(['foo2'], last(name, require_number(0, name)));
+    client.del("foo", "foo2", require_number_any(name));
+    client.set("foo", "bar", require_string("OK", name));
+    client.EXISTS("foo", require_number(1, name));
+    client.EXISTS("foo2", last(name, require_number(0, name)));
 };
 
 tests.DEL = function () {
     var name = "DEL";
-    client.DEL(["delkey"], require_number_any(name));
-    client.set(["delkey", "delvalue"], require_string("OK", name));
-    client.DEL(["delkey"], require_number(1, name));
-    client.exists(["delkey"], require_number(0, name));
-    client.DEL(["delkey"], require_number(0, name));
-    client.mset(["delkey", "delvalue", "delkey2", "delvalue2"], require_string("OK", name));
-    client.DEL(["delkey", "delkey2"], last(name, require_number(2, name)));
+    client.DEL("delkey", require_number_any(name));
+    client.set("delkey", "delvalue", require_string("OK", name));
+    client.DEL("delkey", require_number(1, name));
+    client.exists("delkey", require_number(0, name));
+    client.DEL("delkey", require_number(0, name));
+    client.mset("delkey", "delvalue", "delkey2", "delvalue2", require_string("OK", name));
+    client.DEL("delkey", "delkey2", last(name, require_number(2, name)));
 };
 
 tests.TYPE = function () {
@@ -237,7 +238,7 @@ tests.MSETNX = function () {
 };
 
 tests.MULTI = function () {
-    name = "MULTI";
+    var name = "MULTI";
     client.multi([
         ["mset", ["multifoo", "10", "multibar", "20"], require_string("OK", name)],
         ["set", ["foo2"], require_error(name)],
@@ -252,7 +253,7 @@ tests.MULTI = function () {
 };
 
 tests.HGETALL = function () {
-    name = "HGETALL";
+    var name = "HGETALL";
     client.hmset(["hosts", "mjr", "1", "another", "23", "home", "1234"], require_string("OK", name));
     client.HGETALL(["hosts"], function (err, results) {
         assert.strictEqual(null, err, name + " result sent back unexpected error");
