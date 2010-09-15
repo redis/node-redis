@@ -48,9 +48,9 @@ to `127.0.0.1`.  If you have Redis running on the same computer as node, then th
 ### Sending Commands
 
 Each Redis command is exposed as a function on the `client` object.
-All functions take either take either `args` Array and `callback` Function or
-a variable number of individual arguments followed by an optional callback.  Here is an example of passing an array of arguments
-and a callback:
+All functions take either take either an `args` Array plus optional `callback` Function or
+a variable number of individual arguments followed by an optional callback.
+Here is an example of passing an array of arguments and a callback:
 
     client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
 
