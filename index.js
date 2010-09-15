@@ -1,3 +1,5 @@
+/*global Buffer require exports console setTimeout */
+
 var net = require("net"),
     sys = require("sys"),
     events = require("events"),
@@ -52,7 +54,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "integer line":
             if (incoming_buf[pos] === 13) {
-                this.send_reply(parseInt(this.return_buffer.slice(0, this.return_buffer.end)),10);
+                this.send_reply(parseInt(this.return_buffer.slice(0, this.return_buffer.end) ,10));
                 this.state = "final lf";
             } else {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
@@ -178,7 +180,7 @@ RedisReplyParser.prototype.send_error = function (reply) {
     } else {
         this.emit("reply error", reply);
     }
-}
+};
 
 RedisReplyParser.prototype.send_reply = function (reply) {
     if (this.multi_bulk_length > 0) {
@@ -289,7 +291,7 @@ RedisClient.prototype.connection_gone = function () {
         self.stream.destroy();
         self.stream.connect(self.port, self.host);
     }, self.retry_delay);
-}
+};
 
 RedisClient.prototype.on_data = function (data) {
     if (exports.debug_mode) {
@@ -313,7 +315,7 @@ RedisClient.prototype.return_error = function (err) {
         // this will probably not make it anywhere useful, but we might as well try
         throw err;
     }
-}
+};
 
 RedisClient.prototype.return_reply = function (reply_buffer) {
     var command_obj = this.command_queue.shift();
@@ -327,23 +329,32 @@ RedisClient.prototype.return_reply = function (reply_buffer) {
     }
 };
 
-RedisClient.prototype.send_command = function (command, args, callback) {
-    if (! command) {
-        throw new Error("First argument of send_command must be the command name");
-        return;
+RedisClient.prototype.send_command = function () {
+    var command, callback, args, this_args;
+
+    this_args = Array.prototype.slice.call(arguments); // convert arguments into real array
+
+    command = this_args[0];
+    if (this_args[1] && Array.isArray(this_args[1])) { 
+        args = this_args[1];
+        if (typeof this_args[2] === "function") {
+            callback = this_args[2];
+        }
+    } else {
+        if (typeof this_args[this_args.length - 1] === "function") {
+            callback = this_args[this_args.length - 1];
+            args = this_args.slice(1, this_args.length - 1);
+        } else {
+            args = this_args.slice(1, this_args.length);
+        }
     }
     
-    if (! Array.isArray(args)) {
-        throw new Error("Second argument of send_command must an array of arguments");
-        return;
-    }
-
-    if (callback !== undefined && typeof callback !== "function") {
-        throw new Error("Third argument of send_command must a results callback function, or omitted");
-        return;
+    if (typeof command !== "string") {
+        throw new Error("First argument of send_command must be the command name");
     }
 
     if (! this.connected) {
+        // TODO - queue this command and send it once we are connected.
         callback(new Error("Redis client is not connected"));
         return;
     }
@@ -386,18 +397,18 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         
         args.forEach(function (arg) {
             if (arg.length === undefined) {
-                arg = String(number);
+                arg = String(arg);
             }
             
             if (arg instanceof Buffer) {
-                stream.write("$" + arg.length + "\r\n")
+                stream.write("$" + arg.length + "\r\n");
                 stream.write(arg);
                 stream.write("\r\n");
             } else {
                 stream.write("$" + arg.length + "\r\n" + arg + "\r\n");
             }
         });
-    };
+    }
 };
 
 // http://code.google.com/p/redis/wiki/CommandReference
@@ -426,11 +437,15 @@ exports.commands = [
 ];
 
 exports.commands.forEach(function (command) {
-    RedisClient.prototype[command] = function (args, callback) {
-        this.send_command(command, args, callback)
+    RedisClient.prototype[command] = function () {
+        var args = Array.prototype.slice.call(arguments); // convert "arguments" into a real Array
+        args.unshift(command); // put command at the beginning
+        this.send_command.apply(this, args);
     };
     RedisClient.prototype[command.toLowerCase()] = function (args, callback) {
-        this.send_command(command, args, callback)
+        var args = Array.prototype.slice.call(arguments); // convert "arguments" into a real Array
+        args.unshift(command); // put command at the beginning
+        this.send_command.apply(this, args);
     };
 });
 
@@ -442,38 +457,34 @@ exports.commands.forEach(function (command) {
 RedisClient.prototype.multi = function (commands) {
     var self = this;
 
-    try {
-        this.send_command("MULTI", [], function (err, reply) {
+    this.send_command("MULTI", function (err, reply) {
+        if (err) {
+            console.warn("Error starting MULTI request: " + err.stack);
+        }
+    });
+    commands.forEach(function (args, command_num) {
+        self.send_command(args[0], args[1], function (err, reply) {
             if (err) {
-                console.warn("Error starting MULTI request: " + err.stack);
+                args[2](err);
+                commands.splice(command_num, 1); // what if this runs before all commands are sent?
+            } else {
+                if (reply !== "QUEUED") {
+                    console.warn("Unexpected MULTI reply: " + reply + " instead of 'QUEUED'");
+                }
             }
         });
-        commands.forEach(function (args, command_num) {
-            self.send_command(args[0], args[1], function (err, reply) {
-                if (err) {
-                    args[2](err);
-                    commands.splice(command_num, 1); // what if this runs before all commands are sent?
-                } else {
-                    if (reply !== "QUEUED") {
-                        console.warn("Unexpected MULTI reply: " + reply + " instead of 'QUEUED'");
-                    }
+    });
+    this.send_command("EXEC", function (err, replies) {
+        replies.forEach(function (reply, reply_num) {
+            if (typeof commands[reply_num][2] === "function") {
+                commands[reply_num][2](null, reply);
+            } else {
+                if (exports.debug_mode) {
+                    console.log("no callback for multi response " + reply_num + ", skipping.");
                 }
-            });
+            }
         });
-        this.send_command("EXEC", [], function (err, replies) {
-            replies.forEach(function (reply, reply_num) {
-                if (typeof commands[reply_num][2] === "function") {
-                    commands[reply_num][2](null, reply)
-                } else {
-                    if (exports.debug_mode) {
-                        console.log("no callback for multi response " + reply_num + ", skipping.");
-                    }
-                }
-            });
-        });
-    } catch (err) {
-        console.log("Caught exception in MULTI: " + err.stack);
-    }
+    });
 };
 
 exports.createClient = function (port_arg, host_arg, options) {
@@ -481,7 +492,7 @@ exports.createClient = function (port_arg, host_arg, options) {
         host = host || default_host,
         red_client, net_client;
 
-    net_client = net.createConnection(port, host)
+    net_client = net.createConnection(port, host);
         
     red_client = new RedisClient(net_client);
 
