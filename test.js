@@ -1,4 +1,4 @@
-var redis = require("./redis"),
+var redis = require("./index"),
     client = redis.createClient(),
     assert = require("assert"),
     tests = {};
