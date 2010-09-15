@@ -14,17 +14,18 @@ Simple example:
         client = redis.createClient();
 
     client.on("connect", function () {
-        client.set(["string key", "string val"], function (err, results) {
+        client.set("string key", "string val", function (err, results) {
             console.log("SET: " + results);
         });
-        client.hset(["hash key", "hashtest 1", "should be a hash"], function (err, results) {
+        client.hset("hash key", "hashtest 1", "should be a hash", function (err, results) {
             console.log("HSET: " + results);
         });
         client.hset(["hash key", "hashtest 2", "should be a hash"], function (err, results) {
             console.log("HSET: " + results);
         });
-        client.hkeys(["hash key"], function (err, results) {
+        client.hkeys("hash key", function (err, results) {
             console.log("HKEYS: " + results);
+            process.exit();
         });
     });
 
@@ -35,9 +36,17 @@ This will display:
     HSET: 1
     HKEYS: hashtest 1,hashtest 2
 
-Each Redis command is exposed as a function.  All functions take two arguments: an array of arguments to send to 
-Redis, and a callback to invoke when Redis sends a reply.  Future versions will support a variable argument
-scheme.
+Each Redis command is exposed as a function.  All functions take either take either `args` Array and `callback` Function or
+a variable number of individual arguments followed by an optional callback.  Here is an example of passing an array of arguments
+and a callback:
+
+    client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+
+Here is that same call in the second style:
+
+    client.mset("test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
+    
+Note that in either form the `callback` is optional.
 
 For a list of Redis commands, see [Redis Command Reference](http://code.google.com/p/redis/wiki/CommandReference)
 
@@ -73,8 +82,6 @@ Need to implement PUBLISH/SUBSCRIBE
 Need to implement WATCH/UNWATCH
 
 Queue new commands that are sent before a connection has been established.
-
-Sweeten up the syntax to support variable arguments.
 
 Stream binary data into and out of Redis.
 
