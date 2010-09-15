@@ -1,7 +1,6 @@
 var redis = require("./redis"),
     client = redis.createClient(),
     assert = require("assert"),
-    inspector = require("eyes").inspector(),
     tests = {};
 
 redis.debug_mode = false;
