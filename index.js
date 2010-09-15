@@ -2,9 +2,7 @@ var net = require("net"),
     sys = require("sys"),
     events = require("events"),
     default_port = 6379,
-    default_host = "127.0.0.1",
-    sym = {},
-    inspector = require("eyes").inspector();
+    default_host = "127.0.0.1";
 
 exports.debug_mode = false;
     
