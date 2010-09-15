@@ -76,6 +76,8 @@ Queue new commands that are sent before a connection has been established.
 
 Sweeten up the syntax to support variable arguments.
 
+Stream binary data into and out of Redis.
+
 ## Also
 
 Redis is pretty great.  This library still needs a lot of work, but it is useful for many things.  Patches welcome.
