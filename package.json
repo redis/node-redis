@@ -1,10 +1,10 @@
 {   "name" : "redis",
-    "version" : "0.0.2",
+    "version" : "0.0.3",
     "description" : "Redis client library",
     "author": "Matt Ranney <mjr@ranney.com>",
     "main": "./index.js",
     "repository": {
         "type": "git",
-        "url": "git://github.com/mranney/redis.git"
+        "url": "git://github.com/mranney/node_redis.git"
     }
 }
