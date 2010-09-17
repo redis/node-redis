@@ -412,6 +412,16 @@ RedisClient.prototype.return_reply = function (reply_buffer) {
     var command_obj = this.command_queue.shift();
     
     if (command_obj && typeof command_obj.callback === "function") {
+        // HGETALL special case replies with keyed Buffers
+        if ('HGETALL' == command_obj.command) {
+            var obj = {};
+            for (var i = 0, len = reply_buffer.length; i < len; ++i) {
+                var key = reply_buffer[i].toString(),
+                    val = reply_buffer[++i];
+                obj[key] = val;
+            }
+            reply_buffer = obj;
+        }
         command_obj.callback(null, reply_buffer);
     } else {
         if (this.debug_mode) {

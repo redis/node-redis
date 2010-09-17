@@ -355,7 +355,7 @@ tests.HGETALL = function () {
     client.hmset(["hosts", "mjr", "1", "another", "23", "home", "1234"], require_string("OK", name));
     client.HGETALL(["hosts"], function (err, obj) {
         assert.strictEqual(null, err, name + " result sent back unexpected error");
-        assert.strictEqual(6, Object.keys(obj).length, name);
+        assert.strictEqual(3, Object.keys(obj).length, name);
         assert.ok(Buffer.isBuffer(obj.mjr), name);
         assert.strictEqual("1", obj.mjr.toString(), name);
         assert.strictEqual("23", obj.another.toString(), name);
