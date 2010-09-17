@@ -218,7 +218,7 @@ tests.MULTIBULK_ZERO_LENGTH = function () {
     var name = "MULTIBULK_ZERO_LENGTH";
     client.KEYS(['users:*'], function(err, results){
         assert.strictEqual(null, err, 'error on empty multibulk reply');
-        assert.strictEqual(0, results.length);
+        assert.strictEqual(null, results);
         next(name);
     });
 };
