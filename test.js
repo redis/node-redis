@@ -149,14 +149,14 @@ tests.LRANGE_10K_100 = function () {
     });
 };
 
-tests.LRANGE_10K_500 = function () {
-    var name = "LRANGE_10K_500", i = 1000;
+tests.LRANGE_10K_450 = function () {
+    var name = "LRANGE_10K_450", i = 1000;
     
     do {
-        client.LRANGE("mylist", 0, 499);
+        client.LRANGE("mylist", 0, 449);
         i -= 1;
     } while (i > 1);
-    client.LRANGE("mylist", 0, 499, function (err, res) {
+    client.LRANGE("mylist", 0, 449, function (err, res) {
 //        assert.strictEqual("bar", res.toString());
         console.log(name + " " + (1000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
         next(name);
@@ -378,7 +378,7 @@ function run_next_test() {
         tests[test_name]();
     } else {
         console.log(test_count + " tests completed in " + (Date.now() - all_start));
-        process.exit();
+        client.end();
     }
 }
 
