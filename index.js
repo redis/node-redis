@@ -18,10 +18,13 @@ function RedisReplyParser() {
 sys.inherits(RedisReplyParser, events.EventEmitter);
 
 RedisReplyParser.prototype.execute = function (incoming_buf) {
-    var pos = 0;
+    var pos = 0, state_times = {};
+    //, start_execute = new Date(), start_switch, end_switch, old_state;
+    //start_switch = new Date();
 
     while (pos < incoming_buf.length) {
-//        console.log("execute " + this.state + " " + pos + " " + String.fromCharCode(incoming_buf[pos]));
+        old_state = this.state;
+
         switch (this.state) {
         case "type":
             this.type = incoming_buf[pos];
@@ -65,7 +68,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "error line":
             if (incoming_buf[pos] === 13) {
-                this.send_error(this.return_buffer.toString("utf8", 0, this.return_buffer.end));
+                this.send_error(this.return_buffer.toString("ascii", 0, this.return_buffer.end));
                 this.state = "final lf";
             } else {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
@@ -95,7 +98,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "multi bulk count lf":
             if (incoming_buf[pos] === 10) { // \n
-                this.multi_bulk_length = parseInt(this.tmp_buffer.toString("utf8", 0, this.tmp_buffer.end), 10);
+                this.multi_bulk_length = parseInt(this.tmp_buffer.toString("ascii", 0, this.tmp_buffer.end), 10);
                 this.multi_bulk_replies = [];
                 this.state = "type";
             } else {
@@ -116,7 +119,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "bulk lf":
             if (incoming_buf[pos] === 10) { // \n
-                this.bulk_length = parseInt(this.tmp_buffer.toString("utf8", 0, this.tmp_buffer.end), 10);
+                this.bulk_length = parseInt(this.tmp_buffer.toString("ascii", 0, this.tmp_buffer.end), 10);
                 if (this.bulk_length === -1) {
                     this.send_reply(null);
                     this.state = "type";
@@ -139,6 +142,8 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
             this.return_buffer.end += 1;
             pos += 1;
+            // TODO - should be faster to use Bufer.copy() here, especially if the response is large.
+            // However, when the response is small, Buffer.copy() seems a lot slower.  Computers are hard.
             if (this.return_buffer.end === this.bulk_length) {
                 // this ugilness could go away if we gave the user a volatile buffer, but that seems dangerous
                 var bd_tmp = new Buffer(this.bulk_length);
@@ -170,7 +175,17 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
         default:
             throw new Error("invalid state " + this.state);
         }
+        // end_switch = new Date();
+        // if (state_times[old_state] === undefined) {
+        //     state_times[old_state] = 0;
+        // }
+        // state_times[old_state] += (end_switch - start_switch);
+        // start_switch = end_switch;
     }
+    // console.log("execute ran for " + (Date.now() - start_execute) + " ms, on " + incoming_buf.length + " Bytes. ");
+    // Object.keys(state_times).forEach(function (state) {
+    //     console.log("    " + state + ": " + state_times[state]);
+    // });
 };
 
 RedisReplyParser.prototype.send_error = function (reply) {
