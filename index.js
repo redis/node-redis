@@ -477,7 +477,7 @@ RedisClient.prototype.send_command = function () {
     }
 };
 
-RedisClient.prototype.close = function close () {
+RedisClient.prototype.end = function () {
     this.stream._events = {};
     return this.stream.end();
 };
