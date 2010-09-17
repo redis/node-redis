@@ -199,6 +199,40 @@ RedisReplyParser.prototype.add_multi_bulk_reply = function (reply) {
     }
 };
 
+// Queue class adapted from Tim Caswell's pattern library
+// http://github.com/creationix/pattern/blob/master/lib/pattern/queue.js
+var Queue = function () {
+    this.tail = [];
+    this.head = Array.prototype.slice.call(arguments);
+    this.offset = 0;
+};
+
+Queue.prototype.shift = function () {
+    if (this.offset === this.head.length) {
+        var tmp = this.head;
+        tmp.length = 0;
+        this.head = this.tail;
+        this.tail = tmp;
+        this.offset = 0;
+        if (this.head.length === 0) return;
+    }
+    return this.head[this.offset++];
+}
+
+Queue.prototype.push = function (item) {
+    return this.tail.push(item);
+};
+
+Queue.prototype.length = function () {
+    return this.head.length - this.offset + this.tail.length;
+};
+
+Object.defineProperty(Queue.prototype, 'length', {
+    get: function () {
+        return this.array.length;
+    }
+});
+
 function RedisClient(stream) {
     events.EventEmitter.call(this);
 
@@ -206,7 +240,7 @@ function RedisClient(stream) {
     this.connected = false;
     this.connections = 0;
     this.attempts = 1;
-    this.command_queue = [];
+    this.command_queue = new Queue;
     this.commands_sent = 0;
     this.retry_delay = 250;
     this.retry_backoff = 1.7;
@@ -216,7 +250,7 @@ function RedisClient(stream) {
     this.stream.on("connect", function () {
         self.connected = true;
         self.connections += 1;
-        self.command_queue = [];
+        self.command_queue = new Queue();
 
         self.reply_parser = new RedisReplyParser();
         self.reply_parser.on("reply error", function (reply) {
@@ -433,7 +467,9 @@ exports.commands = [
     // Persistence control commands
     "SAVE", "BGSAVE", "LASTSAVE", "SHUTDOWN", "BGREWRITEAOF",
     // Remote server control commands
-    "INFO", "MONITOR", "SLAVEOF", "CONFIG"
+    "INFO", "MONITOR", "SLAVEOF", "CONFIG",
+    // Undocumented commands
+    "PING"
 ];
 
 exports.commands.forEach(function (command) {
