@@ -17,6 +17,16 @@ function RedisReplyParser() {
 }
 sys.inherits(RedisReplyParser, events.EventEmitter);
 
+function small_toString(buf) {
+    var tmp = "", i = 0, end = buf.end;
+    
+    while (i < end) {
+        tmp += String.fromCharCode(buf[i]);
+        i += 1;
+    }
+    return tmp;
+}
+
 RedisReplyParser.prototype.execute = function (incoming_buf) {
     var pos = 0, state_times = {}, bd_tmp, bd_str, i;
     //, start_execute = new Date(), start_switch, end_switch, old_state;
@@ -57,11 +67,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "integer line":
             if (incoming_buf[pos] === 13) {
-                bd_str = "";
-                for (i = 0 ; i < this.return_buffer.end ; i += 1) {
-                    bd_str += String.fromCharCode(this.return_buffer[i]);
-                }
-                this.send_reply(parseInt(bd_str, 10));
+                this.send_reply(parseInt(small_toString(this.return_buffer), 10));
                 this.state = "final lf";
             } else {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
@@ -82,7 +88,13 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "single line":
             if (incoming_buf[pos] === 13) {
-                this.send_reply(this.return_buffer.toString("utf8", 0, this.return_buffer.end));
+                if (this.return_buffer.end > 10) {
+                    bd_str = this.return_buffer.toString("utf8", 0, this.return_buffer.end);
+                } else {
+                    bd_str = small_toString(this.return_buffer);
+                    
+                }
+                this.send_reply(bd_str);
                 this.state = "final lf";
             } else {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
@@ -102,11 +114,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "multi bulk count lf":
             if (incoming_buf[pos] === 10) { // \n
-                bd_str = "";
-                for (i = 0 ; i < this.tmp_buffer.end ; i += 1) {
-                    bd_str += String.fromCharCode(this.tmp_buffer[i]);
-                }
-                this.multi_bulk_length = parseInt(bd_str, 10);
+                this.multi_bulk_length = parseInt(small_toString(this.tmp_buffer), 10);
                 this.multi_bulk_replies = [];
                 this.state = "type";
             } else {
@@ -127,11 +135,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "bulk lf":
             if (incoming_buf[pos] === 10) { // \n
-                bd_str = "";
-                for (i = 0 ; i < this.tmp_buffer.end ; i += 1) {
-                    bd_str += String.fromCharCode(this.tmp_buffer[i]);
-                }
-                this.bulk_length = parseInt(bd_str, 10);
+                this.bulk_length = parseInt(small_toString(this.tmp_buffer), 10);
                 if (this.bulk_length === -1) {
                     this.send_reply(null);
                     this.state = "type";
@@ -255,12 +259,14 @@ Queue.prototype.push = function (item) {
     return this.tail.push(item);
 };
 
+// Thanks Tim-Smart
 Queue.prototype.forEach = function () {
     var array = this.head.slice(this.offset);
     array.push.apply(array, this.tail);
     return array.forEach.apply(array, arguments);
 };
 
+// Thanks Tim-Smart
 Object.defineProperty(Queue.prototype, 'length', {
     get: function () {
         return this.head.length - this.offset + this.tail.length;
