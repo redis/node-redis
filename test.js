@@ -209,6 +209,15 @@ tests.KEYS = function () {
     });
 };
 
+tests.MULTIBULK_ZERO_LENGTH = function () {
+    var name = "MULTIBULK_ZERO_LENGTH";
+    client.KEYS(['users:*'], function(err, results){
+        assert.strictEqual(null, err, 'error on empty multibulk reply');
+        assert.strictEqual(0, results.length);
+        next(name);
+    });
+};
+
 tests.RANDOMKEY = function () {
     var name = "RANDOMKEY";
     client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], require_string("OK", name));
