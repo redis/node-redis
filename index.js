@@ -479,6 +479,11 @@ RedisClient.prototype.send_command = function () {
     }
 };
 
+RedisClient.prototype.end = function () {
+    this.stream._events = {};
+    return this.stream.end();
+};
+
 // http://code.google.com/p/redis/wiki/CommandReference
 exports.commands = [
     // Commands operating on all value types
