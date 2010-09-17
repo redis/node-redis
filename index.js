@@ -403,7 +403,7 @@ RedisClient.prototype.return_error = function (err) {
         command_obj.callback(err);
     } else {
         console.log("no callback to send error: " + err.stack);
-        // this will probably not make it anywhere useful, but we might as well try
+        // this will probably not make it anywhere useful, but we might as well throw
         throw err;
     }
 };
@@ -424,7 +424,7 @@ RedisClient.prototype.return_reply = function (reply_buffer) {
         }
         command_obj.callback(null, reply_buffer);
     } else {
-        if (this.debug_mode) {
+        if (exports.debug_mode) {
             console.log("no callback for reply: " + reply_buffer.toString());
         }
     }
@@ -562,10 +562,8 @@ exports.commands.forEach(function (command) {
     };
 });
 
-// Transactions
-// "MULTI", "EXEC", "DISCARD", "WATCH", "UNWATCH",
-// Publish/Subscribe
-// "SUBSCRIBE", "UNSUBSCRIBE", "PUBLISH",
+// Transactions - "DISCARD", "WATCH", "UNWATCH",
+// Publish/Subscribe - "SUBSCRIBE", "UNSUBSCRIBE", "PUBLISH",
 
 RedisClient.prototype.multi = function (commands) {
     var self = this;
