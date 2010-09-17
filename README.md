@@ -201,8 +201,6 @@ Add callback for MULTI completion.
 
 Support variable argument style for MULTI commands.
 
-Queue new commands that are sent before a connection has been established.
-
 Stream binary data into and out of Redis.
 
 
