@@ -14,38 +14,40 @@ The most popular Redis client, `redis-node-client` by fictorial, is very mature 
 of node or value the maturity and stability of `redis-node-client`, I encourage you to use that one instead.
 
 `node_redis` is designed with performance in mind.  The included `test.js` runs similar tests to `redis-benchmark`, included with the Redis 
-distribution, and `test.js` is faster for some patterns and slower for others.  `node_redis` is roughly 6X faster at these benchmarks
-than `redis-node-client`.
+distribution, and `test.js` is faster than `redis-benchmarks` for some patterns and slower for others.  `node_redis` is roughly 6X faster at
+these benchmarks than `redis-node-client`.
 
 ## Usage
 
-Simple example:
+Simple example, included as `example.js`:
 
     var redis = require("redis"),
         client = redis.createClient();
 
     client.on("connect", function () {
-        client.set("string key", "string val", function (err, results) {
-            console.log("SET: " + results);
-        });
-        client.hset("hash key", "hashtest 1", "should be a hash", function (err, results) {
-            console.log("HSET: " + results);
-        });
-        client.hset(["hash key", "hashtest 2", "should be a hash"], function (err, results) {
-            console.log("HSET: " + results);
-        });
-        client.hkeys("hash key", function (err, results) {
-            console.log("HKEYS: " + results);
-            process.exit();
+        client.set("string key", "string val", redis.print);
+        client.hset("hash key", "hashtest 1", "some value", redis.print);
+        client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
+        client.hkeys("hash key", function (err, replies) {
+            console.log(replies.length + " replies:");
+            replies.forEach(function (reply, i) {
+                console.log("    " + i + ": " + reply);
+            });
+            client.end();
         });
     });
 
 This will display:
 
-    SET: OK
-    HSET: 1
-    HSET: 1
-    HKEYS: hashtest 1,hashtest 2
+    mjr:~/work/node_redis (master)$ node example.js 
+    Reply: OK
+    Reply: 0
+    Reply: 0
+    2 replies:
+        0: hashtest 1
+        1: hashtest 2
+    mjr:~/work/node_redis (master)$ 
+
 
 ### Sending Commands
 
@@ -97,15 +99,15 @@ I guess we also need a callback when `MULTI` finishes, in case the last command 
 
 `client` will emit some events about the state of the connection to the Redis server.
 
-### `connect`
+### "connect"
 
 `client` will emit `connect` when a connection is established to the Redis server.
 
-### `error`
+### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
 
-### `end`
+### "end"
 
 `client` will emit `end` when an established Redis server connection has closed.
 
