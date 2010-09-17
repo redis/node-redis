@@ -15,4 +15,6 @@ client.on("connect", function () {
         console.log("HKEYS: " + results);
         process.exit();
     });
+    client.set("some key", "some val");
+    client.set(["some other key", "some val"]);
 });
