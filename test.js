@@ -3,7 +3,7 @@ var redis = require("./index"),
     client = redis.createClient(),
     assert = require("assert"),
     sys = require('sys'),
-    tests = {};
+    tests = {}, iterations = 10000;
 
 redis.debug_mode = false;
 
@@ -60,7 +60,7 @@ function next(name) {
 }
 
 function reportRPS() {
-    sys.print(" \x1b[33m" + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + "\x1b[0m reqs/sec,");
+    sys.print(" \x1b[33m" + (iterations / ((Date.now() - cur_start)/1000)).toFixed(2) + "\x1b[0m reqs/sec,");
 }
 
 tests.FLUSHDB = function () {
@@ -71,7 +71,7 @@ tests.FLUSHDB = function () {
 };
 
 tests.PING_10K = function () {
-    var name = "PING_10K", i = 10000;
+    var name = "PING_10K", i = iterations;
     
     do {
         client.PING();
@@ -85,7 +85,7 @@ tests.PING_10K = function () {
 };
 
 tests.SET_10K = function () {
-    var name = "SET_10K", i = 10000;
+    var name = "SET_10K", i = iterations;
     
     do {
         client.SET("foo_rand000000000000", "xxx");
@@ -99,7 +99,7 @@ tests.SET_10K = function () {
 };
 
 tests.GET_10K = function () {
-    var name = "GET_10K", i = 10000;
+    var name = "GET_10K", i = iterations;
     
     do {
         client.GET("foo_rand000000000000");
@@ -113,56 +113,56 @@ tests.GET_10K = function () {
 };
 
 tests.INCR_10K = function () {
-    var name = "INCR_10K", i = 10000;
+    var name = "INCR_10K", i = iterations;
     
     do {
         client.INCR("counter_rand000000000000");
         i -= 1;
     } while (i > 1);
     client.INCR("counter_rand000000000000", function (err, res) {
-        assert.strictEqual(10000, res);
+        assert.strictEqual(iterations, res);
         reportRPS();
         next(name);
     });
 };
 
 tests.LPUSH_10K = function () {
-    var name = "LPUSH_10K", i = 10000;
+    var name = "LPUSH_10K", i = iterations;
     
     do {
         client.LPUSH("mylist", "bar");
         i -= 1;
     } while (i > 1);
     client.LPUSH("mylist", "bar", function (err, res) {
-        assert.strictEqual(10000, res);
+        assert.strictEqual(iterations, res);
         reportRPS();
         next(name);
     });
 };
 
 tests.LRANGE_10K_100 = function () {
-    var name = "LRANGE_10K_100", i = 1000;
+    var name = "LRANGE_10K_100", i = iterations;
     
     do {
         client.LRANGE("mylist", 0, 99);
         i -= 1;
     } while (i > 1);
     client.LRANGE("mylist", 0, 99, function (err, res) {
-//        assert.strictEqual("bar", res.toString());
+        assert.strictEqual("bar", res[0].toString());
         reportRPS();
         next(name);
     });
 };
 
 tests.LRANGE_10K_450 = function () {
-    var name = "LRANGE_10K_450", i = 1000;
+    var name = "LRANGE_10K_450", i = iterations;
     
     do {
         client.LRANGE("mylist", 0, 449);
         i -= 1;
     } while (i > 1);
     client.LRANGE("mylist", 0, 449, function (err, res) {
-//        assert.strictEqual("bar", res.toString());
+        assert.strictEqual("bar", res[0].toString());
         reportRPS();
         next(name);
     });
