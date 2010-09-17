@@ -10,8 +10,8 @@ exports.debug_mode = false;
     
 function RedisReplyParser() {
     this.state = "type";
-    this.return_buffer = new Buffer(16384);
-    this.tmp_buffer = new Buffer(512);
+    this.return_buffer = new Buffer(16384); // for holding replies, might grow
+    this.tmp_buffer = new Buffer(128); // for holding size fields
 
     events.EventEmitter.call(this);
 }
@@ -73,7 +73,6 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             } else {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
                 this.return_buffer.end += 1;
-                // TODO - check for return_buffer overflow and then grow, copy, continue, and drink.
             }
             pos += 1;
             break;
@@ -146,8 +145,11 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 } else {
                     this.state = "bulk data";
                     if (this.bulk_length > this.return_buffer.length) {
-                        console.log("Ran out of receive buffer space.  Need to fix this.");
-                        // TODO - fix this
+                        if (exports.debug_mode) {
+                            console.log("Growing return_buffer from " + this.return_buffer.length + " to " + this.bulk_length);
+                        }
+                        this.return_buffer = new Buffer(this.bulk_length);
+                        // home the old one gets cleaned up somehow
                     }
                     this.return_buffer.end = 0;
                 }
