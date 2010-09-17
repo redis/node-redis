@@ -209,10 +209,10 @@ tests.KEYS = function () {
     });
 };
 
-tests.KEYS_EMPTY = function () {
-    var name = "KEYS_EMPTY";
+tests.MULTIBULK_ZERO_LENGTH = function () {
+    var name = "MULTIBULK_ZERO_LENGTH";
     client.KEYS(['users:*'], function(err, results){
-        assert.strictEqual(null, err, 'error on empty KEYS');
+        assert.strictEqual(null, err, 'error on empty multibulk reply');
         assert.strictEqual(0, results.length);
         next(name);
     });

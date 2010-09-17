@@ -118,6 +118,9 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.multi_bulk_length = parseInt(small_toString(this.tmp_buffer), 10);
                 this.multi_bulk_replies = [];
                 this.state = "type";
+                if (0 == this.multi_bulk_length) {
+                    this.send_reply([]);
+                }
             } else {
                 this.emit("error", new Error("didn't see LF after NL reading multi bulk count"));
                 this.state = "type"; // try to start over with next data chunk
