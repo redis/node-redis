@@ -2,6 +2,7 @@
 var redis = require("./index"),
     client = redis.createClient(),
     assert = require("assert"),
+    sys = require('sys'),
     tests = {};
 
 redis.debug_mode = false;
@@ -54,8 +55,12 @@ function last(name, fn) {
 }
 
 function next(name) {
-    console.log(name + " passed " + (Date.now() - cur_start) + " ms");
+    console.log(" \x1b[33m" + (Date.now() - cur_start) + "\x1b[0m ms");
     run_next_test();
+}
+
+function reportRPS() {
+    sys.print(" \x1b[33m" + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + "\x1b[0m reqs/sec,");
 }
 
 tests.FLUSHDB = function () {
@@ -74,7 +79,7 @@ tests.PING_10K = function () {
     } while (i > 1);
     client.PING([], function (err, res) {
         assert.strictEqual("PONG", res);
-        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -88,7 +93,7 @@ tests.SET_10K = function () {
     } while (i > 1);
     client.SET("foo_rand000000000000", "xxx", function (err, res) {
         assert.strictEqual("OK", res);
-        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -102,7 +107,7 @@ tests.GET_10K = function () {
     } while (i > 1);
     client.GET("foo_rand000000000000", function (err, res) {
         assert.strictEqual("xxx", res.toString());
-        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -116,7 +121,7 @@ tests.INCR_10K = function () {
     } while (i > 1);
     client.INCR("counter_rand000000000000", function (err, res) {
         assert.strictEqual(10000, res);
-        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -130,7 +135,7 @@ tests.LPUSH_10K = function () {
     } while (i > 1);
     client.LPUSH("mylist", "bar", function (err, res) {
         assert.strictEqual(10000, res);
-        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -144,7 +149,7 @@ tests.LRANGE_10K_100 = function () {
     } while (i > 1);
     client.LRANGE("mylist", 0, 99, function (err, res) {
 //        assert.strictEqual("bar", res.toString());
-        console.log(name + " " + (1000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -158,7 +163,7 @@ tests.LRANGE_10K_450 = function () {
     } while (i > 1);
     client.LRANGE("mylist", 0, 449, function (err, res) {
 //        assert.strictEqual("bar", res.toString());
-        console.log(name + " " + (1000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        reportRPS();
         next(name);
     });
 };
@@ -259,7 +264,6 @@ tests.EXPIRE = function () {
     var name = "EXPIRE";
     client.set(['expiry key', 'bar'], require_string("OK", name));
     client.EXPIRE(["expiry key", "1"], require_number_pos(name));
-    console.log("setTimeout 2000...");
     setTimeout(function () {
         client.exists(["expiry key"], last(name, require_number(0, name)));
     }, 2000);
@@ -269,7 +273,6 @@ tests.TTL = function () {
     var name = "TTL";
     client.set(["ttl key", "ttl val"], require_string("OK", name));
     client.expire(["ttl key", "100"], require_number_pos(name));
-    console.log("setTimeout 500...");
     setTimeout(function () {
         client.TTL(["ttl key"], last(name, require_number_pos(0, name)));
     }, 500);
@@ -379,18 +382,17 @@ var all_tests = Object.keys(tests),
 function run_next_test() {
     var test_name = all_tests.shift();
     if (typeof tests[test_name] === "function") {
-        console.log(test_name + " started");
+        sys.print('- \x1b[1m' + test_name.toLowerCase() + '\x1b[0m:');
         cur_start = new Date();
         test_count += 1;
         tests[test_name]();
     } else {
-        console.log(test_count + " tests completed in " + (Date.now() - all_start));
+        console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date - all_start);
         client.end();
     }
 }
 
 client.on("connect", function () {
-    console.log("Tester got connection, initializing database for tests.");
     run_next_test();
 });
 
