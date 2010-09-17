@@ -1,5 +1,5 @@
 {   "name" : "redis",
-    "version" : "0.0.6",
+    "version" : "0.0.7",
     "description" : "Redis client library",
     "author": "Matt Ranney <mjr@ranney.com>",
     "main": "./index.js",
