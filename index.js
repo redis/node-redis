@@ -255,13 +255,15 @@ Queue.prototype.push = function (item) {
     return this.tail.push(item);
 };
 
-Queue.prototype.length = function () {
-    return this.head.length - this.offset + this.tail.length;
+Queue.prototype.forEach = function () {
+    var array = this.head.slice(this.offset);
+    array.push.apply(array, this.tail);
+    return array.forEach.apply(array, arguments);
 };
 
 Object.defineProperty(Queue.prototype, 'length', {
     get: function () {
-        return this.array.length;
+        return this.head.length - this.offset + this.tail.length;
     }
 });
 
