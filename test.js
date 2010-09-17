@@ -353,15 +353,13 @@ tests.MULTI = function () {
 tests.HGETALL = function () {
     var name = "HGETALL";
     client.hmset(["hosts", "mjr", "1", "another", "23", "home", "1234"], require_string("OK", name));
-    client.HGETALL(["hosts"], function (err, results) {
+    client.HGETALL(["hosts"], function (err, obj) {
         assert.strictEqual(null, err, name + " result sent back unexpected error");
-        assert.strictEqual(6, results.length, name);
-        assert.strictEqual("mjr", results[0].toString(), name);
-        assert.strictEqual("1", results[1].toString(), name);
-        assert.strictEqual("another", results[2].toString(), name);
-        assert.strictEqual("23", results[3].toString(), name);
-        assert.strictEqual("home", results[4].toString(), name);
-        assert.strictEqual("1234", results[5].toString(), name);
+        assert.strictEqual(6, Object.keys(obj).length, name);
+        assert.ok(Buffer.isBuffer(obj.mjr), name);
+        assert.strictEqual("1", obj.mjr.toString(), name);
+        assert.strictEqual("23", obj.another.toString(), name);
+        assert.strictEqual("1234", obj.home.toString(), name);
         next(name);
     });
 };
