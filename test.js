@@ -65,6 +65,104 @@ tests.FLUSHDB = function () {
     client.dbsize(last(name, require_number(0, name)));
 };
 
+tests.PING_10K = function () {
+    var name = "PING_10K", i = 10000;
+    
+    do {
+        client.PING();
+        i -= 1;
+    } while (i > 1);
+    client.PING([], function (err, res) {
+        assert.strictEqual("PONG", res);
+        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
+tests.SET_10K = function () {
+    var name = "SET_10K", i = 10000;
+    
+    do {
+        client.SET("foo_rand000000000000", "xxx");
+        i -= 1;
+    } while (i > 1);
+    client.SET("foo_rand000000000000", "xxx", function (err, res) {
+        assert.strictEqual("OK", res);
+        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
+tests.GET_10K = function () {
+    var name = "GET_10K", i = 10000;
+    
+    do {
+        client.GET("foo_rand000000000000");
+        i -= 1;
+    } while (i > 1);
+    client.GET("foo_rand000000000000", function (err, res) {
+        assert.strictEqual("xxx", res.toString());
+        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
+tests.INCR_10K = function () {
+    var name = "INCR_10K", i = 10000;
+    
+    do {
+        client.INCR("counter_rand000000000000");
+        i -= 1;
+    } while (i > 1);
+    client.INCR("counter_rand000000000000", function (err, res) {
+        assert.strictEqual(10000, res);
+        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
+tests.LPUSH_10K = function () {
+    var name = "LPUSH_10K", i = 10000;
+    
+    do {
+        client.LPUSH("mylist", "bar");
+        i -= 1;
+    } while (i > 1);
+    client.LPUSH("mylist", "bar", function (err, res) {
+        assert.strictEqual(10000, res);
+        console.log(name + " " + (10000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
+tests.LRANGE_10K_100 = function () {
+    var name = "LRANGE_10K_100", i = 1000;
+    
+    do {
+        client.LRANGE("mylist", 0, 99);
+        i -= 1;
+    } while (i > 1);
+    client.LRANGE("mylist", 0, 99, function (err, res) {
+//        assert.strictEqual("bar", res.toString());
+        console.log(name + " " + (1000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
+tests.LRANGE_10K_500 = function () {
+    var name = "LRANGE_10K_500", i = 1000;
+    
+    do {
+        client.LRANGE("mylist", 0, 499);
+        i -= 1;
+    } while (i > 1);
+    client.LRANGE("mylist", 0, 499, function (err, res) {
+//        assert.strictEqual("bar", res.toString());
+        console.log(name + " " + (1000 / ((Date.now() - cur_start)/1000)).toFixed(2) + " reqs/sec");
+        next(name);
+    });
+};
+
 tests.EXISTS = function () {
     var name = "EXISTS";
     client.del("foo", "foo2", require_number_any(name));
