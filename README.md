@@ -119,7 +119,7 @@ to `127.0.0.1`.  If you have Redis running on the same computer as node, then th
 `createClient` returns a `RedisClient` object that is named `client` in all of the examples here.
 
 
-## `client.end()`
+## client.end()
 
 Close the connection to the Redis server.  Note that this does not wait until all replies have been parsed.
 If you want to exit cleanly, call `client.end()` in the reply callback of your last command:
@@ -135,7 +135,7 @@ If you want to exit cleanly, call `client.end()` in the reply callback of your l
         });
     });
 
-## `redis.print()`
+## redis.print()
 
 A handy callback function for displaying return values when testing.  Example:
 
@@ -154,7 +154,7 @@ This will print:
 
 Note that this program will not exit cleanly because the client is still connected.
 
-## `redis.debug_mode`
+## redis.debug_mode
 
 Boolean to enable debug mode and protocol tracing.
 
@@ -182,7 +182,7 @@ This will display:
 
 `send command` is data sent into Redis and `on_data` is data received from Redis.
 
-## `client.send_command(command_name, args, callback)`
+## client.send_command(command_name, args, callback)
 
 Used internally to send commands to Redis.  For convenience, nearly all commands that are published on the Redis 
 Wiki have been added to the `client` object.  However, if I missed any, or if new commands are introduced before
