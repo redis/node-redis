@@ -59,10 +59,6 @@ function next(name) {
     run_next_test();
 }
 
-function reportRPS() {
-    sys.print(" \x1b[33m" + (iterations / ((Date.now() - cur_start)/1000)).toFixed(2) + "\x1b[0m reqs/sec,");
-}
-
 // Tests are run in the order they are defined.  So FLUSHDB should be stay first.
 
 tests.FLUSHDB = function () {
@@ -93,104 +89,6 @@ tests.HSET = function () {
     // 
     // client.HSET(key, field2, value1, require_number(1, name)); // empty key is valid
     // client.HSET(key, field2, value2, require_number(11, name)); // empty key empty val
-};
-
-tests.PING_10K = function () {
-    var name = "PING_10K", i = iterations;
-    
-    do {
-        client.PING();
-        i -= 1;
-    } while (i > 1);
-    client.PING([], function (err, res) {
-        assert.strictEqual("PONG", res);
-        reportRPS();
-        next(name);
-    });
-};
-
-tests.SET_10K = function () {
-    var name = "SET_10K", i = iterations;
-    
-    do {
-        client.SET("foo_rand000000000000", "xxx");
-        i -= 1;
-    } while (i > 1);
-    client.SET("foo_rand000000000000", "xxx", function (err, res) {
-        assert.strictEqual("OK", res);
-        reportRPS();
-        next(name);
-    });
-};
-
-tests.GET_10K = function () {
-    var name = "GET_10K", i = iterations;
-    
-    do {
-        client.GET("foo_rand000000000000");
-        i -= 1;
-    } while (i > 1);
-    client.GET("foo_rand000000000000", function (err, res) {
-        assert.strictEqual("xxx", res.toString());
-        reportRPS();
-        next(name);
-    });
-};
-
-tests.INCR_10K = function () {
-    var name = "INCR_10K", i = iterations;
-    
-    do {
-        client.INCR("counter_rand000000000000");
-        i -= 1;
-    } while (i > 1);
-    client.INCR("counter_rand000000000000", function (err, res) {
-        assert.strictEqual(iterations, res);
-        reportRPS();
-        next(name);
-    });
-};
-
-tests.LPUSH_10K = function () {
-    var name = "LPUSH_10K", i = iterations;
-    
-    do {
-        client.LPUSH("mylist", "bar");
-        i -= 1;
-    } while (i > 1);
-    client.LPUSH("mylist", "bar", function (err, res) {
-        assert.strictEqual(iterations, res);
-        reportRPS();
-        next(name);
-    });
-};
-
-tests.LRANGE_10K_100 = function () {
-    var name = "LRANGE_10K_100", i = iterations;
-    
-    do {
-        client.LRANGE("mylist", 0, 99);
-        i -= 1;
-    } while (i > 1);
-    client.LRANGE("mylist", 0, 99, function (err, res) {
-        assert.strictEqual("bar", res[0].toString());
-        reportRPS();
-        next(name);
-    });
-};
-
-tests.LRANGE_10K_450 = function () {
-    var name = "LRANGE_10K_450", i = iterations;
-    
-    do {
-        client.LRANGE("mylist", 0, 449);
-        i -= 1;
-    } while (i > 1);
-    client.LRANGE("mylist", 0, 449, function (err, res) {
-        assert.strictEqual("bar", res[0].toString());
-        reportRPS();
-        next(name);
-    });
 };
 
 tests.EXISTS = function () {
@@ -418,6 +316,7 @@ function run_next_test() {
 }
 
 client.on("connect", function () {
+    console.log();
     run_next_test();
 });
 
