@@ -29,11 +29,11 @@ function small_toString(buf) {
 }
 
 function toArray(args) {
-  var arr = new Array(args.length);
-  for (var i = 0, len = args.length; i < len; ++i) {
-    arr[i] = args[i];
-  }
-  return arr;
+    var arr = new Array(args.length);
+    for (var i = 0, len = args.length; i < len; ++i) {
+        arr[i] = args[i];
+    }
+    return arr;
 }
 
 RedisReplyParser.prototype.execute = function (incoming_buf) {
