@@ -24,17 +24,15 @@ Simple example, included as `example.js`:
     var redis = require("redis"),
         client = redis.createClient();
 
-    client.on("connect", function () {
-        client.set("string key", "string val", redis.print);
-        client.hset("hash key", "hashtest 1", "some value", redis.print);
-        client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
-        client.hkeys("hash key", function (err, replies) {
-            console.log(replies.length + " replies:");
-            replies.forEach(function (reply, i) {
-                console.log("    " + i + ": " + reply);
-            });
-            client.end();
+    client.set("string key", "string val", redis.print);
+    client.hset("hash key", "hashtest 1", "some value", redis.print);
+    client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
+    client.hkeys("hash key", function (err, replies) {
+        console.log(replies.length + " replies:");
+        replies.forEach(function (reply, i) {
+            console.log("    " + i + ": " + reply);
         });
+        client.end();
     });
 
 This will display:
@@ -73,7 +71,7 @@ The commands can be specified in uppercase or lowercase for convenience.  `clien
 
 Minimal parsing is done on the replies.  Commands that return a single line reply return JavaScript Strings, 
 integer replies return JavaScript Numbers, "bulk" replies return node Buffers, and "multi bulk" replies return a 
-JavaScript Array of node Buffers.
+JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keyed by the hash keys.
 
 `MULTI` is supported.  The syntax is a little awkward:
 
