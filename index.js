@@ -77,7 +77,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "integer line":
             if (incoming_buf[pos] === 13) {
-                this.send_reply(parseInt(small_toString(this.return_buffer), 10));
+                this.send_reply(+small_toString(this.return_buffer));
                 this.state = "final lf";
             } else {
                 this.return_buffer[this.return_buffer.end] = incoming_buf[pos];
@@ -123,7 +123,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "multi bulk count lf":
             if (incoming_buf[pos] === 10) { // \n
-                this.multi_bulk_length = parseInt(small_toString(this.tmp_buffer), 10);
+                this.multi_bulk_length = +small_toString(this.tmp_buffer);
                 this.multi_bulk_replies = [];
                 this.state = "type";
                 if (0 == this.multi_bulk_length) {
@@ -147,10 +147,13 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "bulk lf":
             if (incoming_buf[pos] === 10) { // \n
-                this.bulk_length = parseInt(small_toString(this.tmp_buffer), 10);
+                this.bulk_length = +small_toString(this.tmp_buffer);
                 if (this.bulk_length === -1) {
                     this.send_reply(null);
                     this.state = "type";
+                } else if (this.bulk_length === 0) {
+                  this.send_reply(new Buffer(""));
+                  this.state = "final cr";
                 } else {
                     this.state = "bulk data";
                     if (this.bulk_length > this.return_buffer.length) {
