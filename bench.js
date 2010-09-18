@@ -87,7 +87,7 @@ function report(label) {
   var c = curr[label]
     , p = prev[label] || c
     , col = c > p
-      ? c > p + 50
+      ? c > p + 100
         ? 31
         : 33
       : 32
