@@ -65,8 +65,12 @@ function report() {
   for (var label in curr) {
     var p = prev[label] || 0
       , c = curr[label]
-      , col = c > p ? 31 : 32;
-    console.log('    \x1b[' + col + 'm%s\x1b[0m:', label);
+      , col = c > p
+        ? c > p + 50
+          ? 31
+          : 33
+        : 32;
+    console.log('    \x1b[' + col + ';1m%s\x1b[0m:', label);
     console.log('      \x1b[33mprev\x1b[0m: %d ms', p);
     console.log('      \x1b[33mcurr\x1b[0m: %d ms', c);
     if (c > p) {
