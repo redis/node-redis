@@ -295,6 +295,9 @@ function RedisClient(stream) {
     var self = this;
 
     this.stream.on("connect", function () {
+        if (exports.debug_mode) {
+            console.log("Stream connected");
+        }
         self.connected = true;
         self.connections += 1;
         self.command_queue = new Queue();
@@ -310,6 +313,7 @@ function RedisClient(stream) {
             console.log("Redis reply parser error: " + err.stack);
         });
 
+        self.retry_timer = null;
         self.retry_delay = 250;
         self.stream.setNoDelay();
         self.stream.setTimeout(0);
@@ -382,7 +386,6 @@ RedisClient.prototype.connection_gone = function () {
         if (exports.debug_mode) {
             console.log("Retrying conneciton...");
         }
-        self.retry_timer = null;
         self.retry_delay = self.retry_delay * self.retry_backoff;
         self.stream.destroy();
         self.stream.connect(self.port, self.host);
