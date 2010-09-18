@@ -8,7 +8,7 @@ var redis = require('./index')
 
 var client = redis.createClient()
   , path = '/tmp/redis-bench'
-  , times = 10000
+  , times = 20000
   , curr = {}
   , prev;
 
