@@ -12,25 +12,35 @@ var client = redis.createClient()
   , curr = {}
   , prev;
 
+function next(){
+  queue.shift()();
+}
+
+var queue = [
+  function(){
+    client.flushall(next);
+  },
+  function(){
+    var n = times
+      , start = new Date;
+    while (n--) client.lpush('list', 'foo');
+    client.lpush("list", "bar", function(err, res) {
+        curr.lpush = new Date - start;
+        next();
+    });
+  },
+  report
+];
+
 client.on('connect', function(){
   try {
     prev = JSON.parse(fs.readFileSync(path, 'ascii'));
   } catch (err) {
     prev = {};
   }
-  benchmark();
-});
-
-function benchmark() {
-  var n = times
-    , start = new Date;
   console.log('\n  %d:', times);
-  while (n--) client.lpush('list', 'foo');
-  client.lpush("list", "bar", function(err, res) {
-      curr.lpush = new Date - start;
-      report();
-  });
-}
+  next();
+});
 
 function report() {
   for (var label in curr) {
