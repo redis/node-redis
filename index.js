@@ -513,7 +513,9 @@ RedisClient.prototype.send_command = function () {
             
             if (arg instanceof Buffer) {
                 if (arg.length === 0) {
-                    console.log("Using empty string for 0 length buffer");
+                    if (exports.debug_mode) {
+                      console.log("Using empty string for 0 length buffer");
+                    }
                     stream.write("$0\r\n\r\n");
                 } else {
                     stream.write("$" + arg.length + "\r\n");
