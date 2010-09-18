@@ -38,6 +38,9 @@ function report(prev, curr) {
     console.log('    \x1b[' + col + 'm%s\x1b[0m:', label);
     console.log('      \x1b[33mprev\x1b[0m: %d ms', p);
     console.log('      \x1b[33mcurr\x1b[0m: %d ms', c);
+    if (c > p) {
+      console.log('      previously was \x1b[33m%d\x1b[0m ms faster', c - p);
+    }
   }
   fs.writeFileSync(path, JSON.stringify(curr), 'ascii');
   console.log();
