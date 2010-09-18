@@ -8,12 +8,30 @@ var redis = require('./index')
 
 var client = redis.createClient()
   , path = '/tmp/redis-bench'
-  , times = 20000
+  , times = 10000
   , curr = {}
   , prev;
 
+var buffers = [
+    new Buffer('hello')
+  , new Buffer(Array(129).join('-'))
+  , new Buffer(Array(257).join('-'))
+  , new Buffer(Array(1025).join('-'))
+  , new Buffer(Array(1025 * 4).join('-'))
+];
+
 function next(){
-  queue.shift()();
+  var fn = queue.shift();
+  if (fn.length) {
+    var pending = buffers.length;
+    buffers.forEach(function(buf){
+      fn(buf, function(){
+        --pending || next();
+      });
+    });
+  } else {
+    fn();
+  }
 }
 
 var queue = [
@@ -26,24 +44,24 @@ var queue = [
 
   // LPUSH
 
-  function(){
+  function(buf, next){
     var n = times
       , start = new Date;
     while (n--) client.lpush('list', 'foo');
-    client.lpush("list", "bar", function(err, res) {
-        curr.lpush = new Date - start;
+    client.lpush("list", buf, function(err, res) {
+        curr['lpush ' + buf.length] = new Date - start;
         next();
     });
   },
   
   // LRANGE
 
-  function(){
+  function(buf, next){
     var n = times
       , start = new Date;
     while (n--) client.lrange("mylist", 0, 99);
     client.lrange("mylist", 0, 99, function (err, res) {
-        curr.lrange = new Date - start;
+        curr['lrange ' + buf.length] = new Date - start;
         next();
     });
   },
