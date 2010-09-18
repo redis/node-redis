@@ -92,8 +92,8 @@ function report(label) {
         : 33
       : 32
     , synopsis = c > p
-      ? '-' + (c - p)
-      : '+' + (p - c);
+      ? '+' + (c - p)
+      : '-' + (p - c);
   while (synopsis.length + label.length < 20) synopsis = ' ' + synopsis;
   console.log('    \x1b[' + col + ';1m%s\x1b[0m: %s', label, synopsis);
   console.log('      \x1b[33mprev\x1b[0m: %d ms', p);
