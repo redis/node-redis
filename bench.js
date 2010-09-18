@@ -84,8 +84,8 @@ client.on('connect', function(){
 });
 
 function report(label) {
-  var p = prev[label] || 0
-    , c = curr[label]
+  var c = curr[label]
+    , p = prev[label] || c
     , col = c > p
       ? c > p + 50
         ? 31
