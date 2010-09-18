@@ -63,11 +63,36 @@ function reportRPS() {
     sys.print(" \x1b[33m" + (iterations / ((Date.now() - cur_start)/1000)).toFixed(2) + "\x1b[0m reqs/sec,");
 }
 
+// Tests are run in the order they are defined.  So FLUSHDB should be stay first.
+
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
     client.mset("flush keys 1", "flush val 1", "flush keys 2", "flush val 2", require_string("OK", name));
     client.FLUSHDB(require_string("OK", name));
     client.dbsize(last(name, require_number(0, name)));
+};
+
+tests.HSET = function () {
+    var key = "test hash",
+        field1 = new Buffer(10),
+        value1 = new Buffer(10),
+        field2 = new Buffer(0),
+        value2 = new Buffer(0),
+        name = "HSET";
+
+    field1.write("0123456789");
+    value1.write("abcdefghij");
+        
+    client.HSET(key, field1, value1, require_number(1, name));
+    client.HGET(key, field1, last(name, require_string(value1.toString(), name)));
+
+    // TODO - this triggers a bug in the reply parser for 0 length bulk data
+    
+    // client.HSET(key, field1, value2, require_number(0, name));
+    // client.HGET(key, field1, require_string("", name));
+    // 
+    // client.HSET(key, field2, value1, require_number(1, name)); // empty key is valid
+    // client.HSET(key, field2, value2, require_number(11, name)); // empty key empty val
 };
 
 tests.PING_10K = function () {
