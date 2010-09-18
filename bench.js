@@ -17,9 +17,15 @@ function next(){
 }
 
 var queue = [
+
+  // FLUSHALL
+
   function(){
     client.flushall(next);
   },
+
+  // LPUSH
+
   function(){
     var n = times
       , start = new Date;
@@ -29,6 +35,19 @@ var queue = [
         next();
     });
   },
+  
+  // LRANGE
+
+  function(){
+    var n = times
+      , start = new Date;
+    while (n--) client.lrange("mylist", 0, 99);
+    client.lrange("mylist", 0, 99, function (err, res) {
+        curr.lrange = new Date - start;
+        next();
+    });
+  },
+
   report
 ];
 
