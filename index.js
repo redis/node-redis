@@ -29,8 +29,9 @@ function small_toString(buf) {
 }
 
 function toArray(args) {
-    var arr = new Array(args.length);
-    for (var i = 0, len = args.length; i < len; ++i) {
+    var len = args.length,
+        arr = new Array(len);
+    for (var i = 0; i < len; ++i) {
         arr[i] = args[i];
     }
     return arr;
