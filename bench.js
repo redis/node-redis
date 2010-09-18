@@ -25,7 +25,8 @@ function next(){
   if (fn.length) {
     var pending = buffers.length;
     buffers.forEach(function(buf){
-      fn(buf, function(){
+      fn(buf, function(label){
+        report(label);
         --pending || next();
       });
     });
@@ -50,7 +51,7 @@ var queue = [
     while (n--) client.lpush('list', 'foo');
     client.lpush("list", buf, function(err, res) {
         curr['lpush ' + buf.length] = new Date - start;
-        next();
+        next('lpush ' + buf.length);
     });
   },
   
@@ -62,11 +63,15 @@ var queue = [
     while (n--) client.lrange("mylist", 0, 99);
     client.lrange("mylist", 0, 99, function (err, res) {
         curr['lrange ' + buf.length] = new Date - start;
-        next();
+        next('lrange ' + buf.length);
     });
   },
 
-  report
+  function(){
+    fs.writeFileSync(path, JSON.stringify(curr), 'ascii');
+    console.log();
+    client.end();
+  }
 ];
 
 client.on('connect', function(){
@@ -79,23 +84,18 @@ client.on('connect', function(){
   next();
 });
 
-function report() {
-  for (var label in curr) {
-    var p = prev[label] || 0
-      , c = curr[label]
-      , col = c > p
-        ? c > p + 50
-          ? 31
-          : 33
-        : 32;
-    console.log('    \x1b[' + col + ';1m%s\x1b[0m:', label);
-    console.log('      \x1b[33mprev\x1b[0m: %d ms', p);
-    console.log('      \x1b[33mcurr\x1b[0m: %d ms', c);
-    if (c > p) {
-      console.log('      previously was \x1b[33m%d\x1b[0m ms faster', c - p);
-    }
+function report(label) {
+  var p = prev[label] || 0
+    , c = curr[label]
+    , col = c > p
+      ? c > p + 50
+        ? 31
+        : 33
+      : 32;
+  console.log('    \x1b[' + col + ';1m%s\x1b[0m:', label);
+  console.log('      \x1b[33mprev\x1b[0m: %d ms', p);
+  console.log('      \x1b[33mcurr\x1b[0m: %d ms', c);
+  if (c > p) {
+    console.log('      previously was \x1b[33m%d\x1b[0m ms faster', c - p);
   }
-  fs.writeFileSync(path, JSON.stringify(curr), 'ascii');
-  console.log();
-  client.end();
 }
