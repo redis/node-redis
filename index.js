@@ -28,6 +28,14 @@ function small_toString(buf) {
     return tmp;
 }
 
+function toArray(args) {
+  var arr = new Array(args.length);
+  for (var i = 0, len = args.length; i < len; ++i) {
+    arr[i] = args[i];
+  }
+  return arr;
+}
+
 RedisReplyParser.prototype.execute = function (incoming_buf) {
     var pos = 0, state_times = {}, bd_tmp, bd_str, i;
     //, start_execute = new Date(), start_switch, end_switch, old_state;
@@ -245,7 +253,7 @@ RedisReplyParser.prototype.add_multi_bulk_reply = function (reply) {
 // http://github.com/creationix/pattern/blob/master/lib/pattern/queue.js
 var Queue = function () {
     this.tail = [];
-    this.head = Array.prototype.slice.call(arguments);
+    this.head = toArray(arguments);
     this.offset = 0;
 };
 
@@ -438,7 +446,7 @@ RedisClient.prototype.return_reply = function (reply_buffer) {
 RedisClient.prototype.send_command = function () {
     var command, callback, args, this_args, command_obj;
 
-    this_args = Array.prototype.slice.call(arguments); // convert arguments into real array
+    this_args = toArray(arguments); // convert arguments into real array
 
     command = this_args[0];
     if (this_args[1] && Array.isArray(this_args[1])) { 
@@ -562,12 +570,12 @@ exports.commands = [
 
 exports.commands.forEach(function (command) {
     RedisClient.prototype[command] = function () {
-        var args = Array.prototype.slice.call(arguments); // convert "arguments" into a real Array
+        var args = toArray(arguments); // convert "arguments" into a real Array
         args.unshift(command); // put command at the beginning
         this.send_command.apply(this, args);
     };
     RedisClient.prototype[command.toLowerCase()] = function (args, callback) {
-        var args = Array.prototype.slice.call(arguments); // convert "arguments" into a real Array
+        var args = toArray(arguments); // convert "arguments" into a real Array
         args.unshift(command); // put command at the beginning
         this.send_command.apply(this, args);
     };
