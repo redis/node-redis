@@ -512,9 +512,14 @@ RedisClient.prototype.send_command = function () {
             }
             
             if (arg instanceof Buffer) {
-                stream.write("$" + arg.length + "\r\n");
-                stream.write(arg);
-                stream.write("\r\n");
+                if (arg.length === 0) {
+                    console.log("Using empty string for 0 length buffer");
+                    stream.write("$0\r\n\r\n");
+                } else {
+                    stream.write("$" + arg.length + "\r\n");
+                    stream.write(arg);
+                    stream.write("\r\n");
+                }
             } else {
                 stream.write("$" + arg.length + "\r\n" + arg + "\r\n");
             }
@@ -524,6 +529,7 @@ RedisClient.prototype.send_command = function () {
 
 RedisClient.prototype.end = function () {
     this.stream._events = {};
+    this.connected = false;
     return this.stream.end();
 };
 
