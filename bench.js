@@ -8,29 +8,31 @@ var redis = require('./index')
 
 var client = redis.createClient()
   , path = '/tmp/redis-bench'
-  , times = 20000;
+  , times = 20000
+  , curr = {}
+  , prev;
 
 client.on('connect', function(){
   try {
-    var prev = JSON.parse(fs.readFileSync(path, 'ascii'));
+    prev = JSON.parse(fs.readFileSync(path, 'ascii'));
   } catch (err) {
-    var prev = {};
+    prev = {};
   }
-  benchmark(prev, {});
+  benchmark();
 });
 
-function benchmark(prev, curr) {
+function benchmark() {
   var n = times
     , start = new Date;
   console.log('\n  %d:', times);
   while (n--) client.lpush('list', 'foo');
   client.lpush("list", "bar", function(err, res) {
       curr.lpush = new Date - start;
-      report(prev, curr);
+      report();
   });
 }
 
-function report(prev, curr) {
+function report() {
   for (var label in curr) {
     var p = prev[label] || 0
       , c = curr[label]
