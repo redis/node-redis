@@ -81,11 +81,23 @@ tests.HSET = function () {
 
     // Empty value
     client.HSET(key, field1, value2, require_number(0, name));
-    client.HGET(key, field1, require_string("", name));
+    client.HGET([key, field1], require_string("", name));
 
     // Empty key, empty value
-    client.HSET(key, field2, value1, require_number(1, name));
+    client.HSET([key, field2, value1], require_number(1, name));
     client.HSET(key, field2, value2, require_number(0, name));
+};
+
+tests.HMGET = function () {
+    var key = "test hash", name = "HMGET";
+
+    client.HMSET(key, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
+
+    client.HMGET(key, "0123456789", "some manner of key", function (err, reply) {
+        assert.strictEqual("abcdefghij", reply[0].toString(), name);
+        assert.strictEqual("a type of value", reply[1].toString(), name);
+        next(name);
+    });
 };
 
 tests.EXISTS = function () {
