@@ -70,25 +70,22 @@ tests.FLUSHDB = function () {
 
 tests.HSET = function () {
     var key = "test hash",
-        field1 = new Buffer(10),
-        value1 = new Buffer(10),
+        field1 = new Buffer("0123456789"),
+        value1 = new Buffer("abcdefghij"),
         field2 = new Buffer(0),
         value2 = new Buffer(0),
         name = "HSET";
 
-    field1.write("0123456789");
-    value1.write("abcdefghij");
-        
     client.HSET(key, field1, value1, require_number(1, name));
     client.HGET(key, field1, last(name, require_string(value1.toString(), name)));
 
-    // TODO - this triggers a bug in the reply parser for 0 length bulk data
-    
-    // client.HSET(key, field1, value2, require_number(0, name));
-    // client.HGET(key, field1, require_string("", name));
-    // 
-    // client.HSET(key, field2, value1, require_number(1, name)); // empty key is valid
-    // client.HSET(key, field2, value2, require_number(11, name)); // empty key empty val
+    // Empty value
+    client.HSET(key, field1, value2, require_number(0, name));
+    client.HGET(key, field1, require_string("", name));
+
+    // Empty key, empty value
+    client.HSET(key, field2, value1, require_number(1, name));
+    client.HSET(key, field2, value2, require_number(0, name));
 };
 
 tests.EXISTS = function () {
