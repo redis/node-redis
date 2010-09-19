@@ -100,6 +100,13 @@ tests.HMGET = function () {
     });
 };
 
+tests.HINCRBY = function () {
+    var name = "HINCRBY";
+    client.hset("hash incr", "value", 10, require_number(1, name));
+    client.HINCRBY("hash incr", "value", 1, require_number(11, name));
+    client.HINCRBY("hash incr", "value 2", 1, last(name, require_number(1, name)));
+};
+
 tests.EXISTS = function () {
     var name = "EXISTS";
     client.del("foo", "foo2", require_number_any(name));
