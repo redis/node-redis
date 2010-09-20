@@ -347,6 +347,16 @@ tests.HGETALL = function () {
     });
 };
 
+tests.HGETALL_NULL = function () {
+    var name = "HGETALL_NULL";
+    client.hgetall('missing', function(err, obj){
+        console.log(err);
+        console.log(obj);
+        next(name);
+    });
+};
+
+
 var all_tests = Object.keys(tests),
     all_start = new Date(), cur_start, test_count = 0;
 

@@ -436,7 +436,7 @@ RedisClient.prototype.return_reply = function (reply) {
     if (command_obj) {
         if (typeof command_obj.callback === "function") {
             // HGETALL special case replies with keyed Buffers
-            if ('HGETALL' === command_obj.command) {
+            if (reply && 'HGETALL' === command_obj.command) {
                 var obj = {};
                 for (var i = 0, len = reply.length; i < len; i += 2) {
                     var key = reply[i].toString(),
