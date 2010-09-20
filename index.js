@@ -390,7 +390,7 @@ RedisClient.prototype.connection_gone = function () {
         console.warn("Redis connection is gone.");
     }
     self.connected = false;
-    self.emit("close");
+    self.emit("end");
     self.command_queue.forEach(function (args) {
         if (typeof args[2] === "function") {
             args[2]("Server connection closed");
@@ -410,7 +410,7 @@ RedisClient.prototype.connection_gone = function () {
     self.emit("reconnecting", "delay " + self.retry_delay + ", attempt " + self.attempts);
     self.retry_timer = setTimeout(function () {
         if (exports.debug_mode) {
-            console.log("Retrying conneciton...");
+            console.log("Retrying connection...");
         }
         self.retry_delay = self.retry_delay * self.retry_backoff;
         self.stream.destroy();

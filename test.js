@@ -374,9 +374,16 @@ function run_next_test() {
     }
 }
 
+var connected = false;
+var ended = false;
 client.on("connect", function () {
+    connected = true;
     console.log();
     run_next_test();
+});
+
+client.on('end', function() {
+  ended = true;
 });
 
 client.on("error", function (err) {
@@ -389,4 +396,9 @@ client.on("reconnecting", function (msg) {
 
 process.on('uncaughtException', function (err) {
     console.log("Uncaught exception: " + err.stack);
+});
+
+process.on('exit', function(code) {
+    assert.equal(true, connected);
+    assert.equal(true, ended);
 });
