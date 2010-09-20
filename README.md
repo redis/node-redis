@@ -100,6 +100,8 @@ I guess we also need a callback when `MULTI` finishes, in case the last command 
 
 `client` will emit `connect` when a connection is established to the Redis server.
 
+Commands issued before the `connect` event are queued, then replayed when a connection is established.
+
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
@@ -121,19 +123,42 @@ to `127.0.0.1`.  If you have Redis running on the same computer as node, then th
 
 ## client.end()
 
-Close the connection to the Redis server.  Note that this does not wait until all replies have been parsed.
-If you want to exit cleanly, call `client.end()` in the reply callback of your last command:
+Forcibly close the connection to the Redis server.  Note that this does not wait until all replies have been parsed.
+If you want to exit cleanly, call `client.quit()` to send the `QUIT` command.
 
     var redis = require("redis"),
         client = redis.createClient();
 
-    client.on("connect", function () {
-        client.set("foo_rand000000000000", "some fantastic value");
-        client.get("foo_rand000000000000", function (err, reply) {
-            console.log(reply.toString());
-            client.end();
-        });
+    client.set("foo_rand000000000000", "some fantastic value");
+    client.get("foo_rand000000000000", function (err, reply) {
+      console.log(reply.toString());
     });
+    client.quit();
+    
+## client.connected
+
+Boolean tracking the state of the connection to the Redis server.
+
+## client.command_queue.length
+
+The number of commands that have been sent to the Redis server but not yet replied to.  You can use this to 
+enforce some kind of maximum queue depth for commands while connected.
+
+Don't mess with `client.command_queue` though unless you really know what you are doing.
+
+## client.offline_queue.length
+
+The number of commands that have been queued up for a future connection.  You can use this to enforce
+some kind of maximum queue depth for pre-connection commands.
+
+## client.retry_delay
+
+Current delay in milliseconds before a connection retry will be attempted.  This starts at `250`.
+
+## client.retry_backoff
+
+Multiplier for future retry timeouts.  This should be larger than 1 to add more time between retries.
+Defaults to 1.7.  The default initial connection retry is 250, so the second retry will be 425, followed by 723.5, etc.
 
 ## Publish / Subscribe
 
