@@ -1,10 +1,9 @@
 redis - a node redis client
 ===========================
 
-This is a Redis client for node.  It is designed for node 0.2.1+ and redis 2.0.1+.  It probably won't work on earlier versions of either.
+This is a Redis client for node.  It is designed for node 0.2.2+ and redis 2.0.1+.  It probably won't work on earlier versions of either.
 
-Most Redis commands are implemented, including MULTI.  The notable exceptions are PUBLISH/SUBSCRIBE, and WATCH/UNWATCH.
-These should be coming soon.
+Most Redis commands are implemented, including MULTI and PUBLISH/SUBSCRIBE.
 
 ## Why?
 
@@ -13,8 +12,8 @@ These should be coming soon.
 The most popular Redis client, `redis-node-client` by fictorial, is very mature and well tested.  If you are running an older version
 of node or value the maturity and stability of `redis-node-client`, I encourage you to use that one instead.
 
-`node_redis` is designed with performance in mind.  The included `test.js` runs similar tests to `redis-benchmark`, included with the Redis 
-distribution, and `test.js` is faster than `redis-benchmarks` for some patterns and slower for others.  `node_redis` is roughly 6X faster at
+`node_redis` is designed with performance in mind.  The included `bench.js` runs similar tests to `redis-benchmark`, included with the Redis 
+distribution, and `bench.js` is faster than `redis-benchmarks` for some patterns and slower for others.  `node_redis` is roughly 6X faster at
 these benchmarks than `redis-node-client`.
 
 ## Usage
@@ -93,7 +92,7 @@ I guess we also need a callback when `MULTI` finishes, in case the last command 
 
 # API
 
-## Events
+## Connection Events
 
 `client` will emit some events about the state of the connection to the Redis server.
 
@@ -104,6 +103,9 @@ I guess we also need a callback when `MULTI` finishes, in case the last command 
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
+
+_This may change at some point, because it would be nice to send back error events for
+things in the reply parser._
 
 ### "end"
 
@@ -132,6 +134,82 @@ If you want to exit cleanly, call `client.end()` in the reply callback of your l
             client.end();
         });
     });
+
+## Publish / Subscribe
+
+Here is a simple example of the API for publish / subscribe.  This program opens two
+client connections, subscribes to a channel on one of them, and publishes to that 
+channel on the other:
+
+    var redis = require("redis"),
+        client1 = redis.createClient(), client2 = redis.createClient(),
+        msg_count = 0;
+
+    client1.on("subscribe", function (channel, count) {
+        client2.publish("a nice channel", "I am sending a message.");
+        client2.publish("a nice channel", "I am sending a second message.");
+        client2.publish("a nice channel", "I am sending my last message.");
+    });
+
+    client1.on("message", function (channel, message) {
+        console.log("client1 channel " + channel + ": " + message);
+        msg_count += 1;
+        if (msg_count === 3) {
+            client1.unsubscribe();
+            client1.end();
+            client2.end();
+        }
+    });
+
+    client1.incr("did a thing");
+    client1.subscribe("a nice channel");
+
+When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into "pub/sub" mode.
+At that point, only commands that modify the subscription set are valid.  When the subscription 
+set is empty, the connection is put back into regular mode.
+
+If you need to send regular commands to Redis while in pub/sub mode, just open another connection.
+
+## Pub / Sub Events
+
+If a client has subscriptions active, it may emit these events:
+
+### "message" (channel, message)
+
+Client will emit `message` for every message received that matches an active subscription.
+Listeners are passed the channel name as `channel` and the message Buffer as `message`.
+
+### "pmessage" (pattern, channel, message)
+
+Client will emit `pmessage` for every message received that matches an active subscription pattern.
+Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
+name as `channel`, and the message Buffer as `message`.
+
+### "subscribe" (channel, count)
+
+Client will emit `subscribe` in response to a `SUBSCRIBE` command.  Listeners are passed the 
+channel name as `channel` and the new count of subscriptions for this client as `count`.
+
+### "psubscribe" (pattern, count) 
+
+Client will emit `psubscribe` in response to a `PSUBSCRIBE` command.  Listeners are passed the
+original pattern as `pattern`, and the new count of subscriptions for this client as `count`.
+
+### "unsubscribe" (channel, count)
+
+Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command.  Listeners are passed the 
+channel name as `channel` and the new count of subscriptions for this client as `count`.  When
+`count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
+
+### "punsubscribe" (pattern, count)
+
+Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.  Listeners are passed the 
+channel name as `channel` and the new count of subscriptions for this client as `count`.  When
+`count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
+
+# Extras
+
+Some other things you might like to know about.
 
 ## redis.print()
 
@@ -191,9 +269,7 @@ or omitted completely.
 
 ## TODO
 
-Need to implement PUBLISH/SUBSCRIBE
-
-Need to implement WATCH/UNWATCH
+Need to implement WATCH/UNWATCH and progressive MULTI commands.
 
 Add callback for MULTI completion.
 
