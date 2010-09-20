@@ -410,7 +410,7 @@ RedisClient.prototype.connection_gone = function () {
     self.emit("reconnecting", "delay " + self.retry_delay + ", attempt " + self.attempts);
     self.retry_timer = setTimeout(function () {
         if (exports.debug_mode) {
-            console.log("Retrying conneciton...");
+            console.log("Retrying connection...");
         }
         self.retry_delay = self.retry_delay * self.retry_backoff;
         self.stream.destroy();
