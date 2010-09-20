@@ -1,6 +1,7 @@
 /*global require console setTimeout process */
 var redis = require("./index"),
     client = redis.createClient(),
+    client2 = redis.createClient(),
     assert = require("assert"),
     sys = require('sys'),
     tests = {}, iterations = 10000;
@@ -105,6 +106,37 @@ tests.HINCRBY = function () {
     client.hset("hash incr", "value", 10, require_number(1, name));
     client.HINCRBY("hash incr", "value", 1, require_number(11, name));
     client.HINCRBY("hash incr", "value 2", 1, last(name, require_number(1, name)));
+};
+
+tests.SUBSCRIBE = function () {
+    var client1 = client, msg_count = 0, name = "SUBSCRIBE";
+    
+    client1.on("subscribe", function (channel, count) {
+        if (channel === "chan1") {
+            client2.publish("chan1", "message 1", require_number(1, name));
+            client2.publish("chan2", "message 2", require_number(1, name));
+            client2.publish("chan1", "message 3", require_number(1, name));
+        }
+    });
+
+    client1.on("unsubscribe", function (channel, count) {
+        if (count === 0) {
+            // make sure this connection can go into and out of pub/sub mode
+            client1.incr("did a thing", last(name, require_number(2, name)));
+        }
+    });
+
+    client1.on("message", function (channel, message) {
+        msg_count += 1;
+        assert.strictEqual("message " + msg_count, message.toString());
+        if (msg_count === 3) {
+            client1.unsubscribe("chan1", "chan2");
+        }
+    });
+
+    // make sure this connection can go into and out of pub/sub mode
+    client1.set("did a thing", 1, require_string("OK", name));
+    client1.subscribe("chan1", "chan2");
 };
 
 tests.EXISTS = function () {
@@ -328,6 +360,7 @@ function run_next_test() {
     } else {
         console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date - all_start);
         client.end();
+        client2.end();
     }
 }
 
