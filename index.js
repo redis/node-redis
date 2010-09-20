@@ -305,6 +305,7 @@ function RedisClient(stream) {
     this.retry_delay = 250;
     this.retry_backoff = 1.7;
     this.subscriptions = false;
+    this.closing = false;
 
     var self = this;
 
@@ -349,6 +350,9 @@ function RedisClient(stream) {
     });
 
     this.stream.on("error", function (msg) {
+        if (this.closing) {
+            return;
+        }
         if (exports.debug_mode) {
             console.warn("Connecting to redis server: " + msg);
         }
@@ -377,6 +381,7 @@ sys.inherits(RedisClient, events.EventEmitter);
 RedisClient.prototype.connection_gone = function () {
     var self = this;
 
+    // If a retry is already in progress, just let that happen
     if (self.retry_timer) {
         return;
     }
@@ -391,6 +396,13 @@ RedisClient.prototype.connection_gone = function () {
             args[2]("Server connection closed");
         }
     });
+
+    // If this is a requested shutdown, then don't retry
+    if (self.closing) {
+        self.retry_timer = null;
+        return;
+    }
+    
     if (exports.debug_mode) {
         console.log("Retry conneciton in " + self.retry_delay + " ms");
     }
@@ -526,6 +538,9 @@ RedisClient.prototype.send_command = function () {
         if (this.subscriptions === true) {
             throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
         }
+        if (command === "QUIT") {
+            this.closing = true;
+        }
         this.command_queue.push(command_obj);
     }
     this.commands_sent += 1;
@@ -592,6 +607,8 @@ RedisClient.prototype.end = function () {
 
 // http://code.google.com/p/redis/wiki/CommandReference
 exports.commands = [
+    // Connection handling
+    "QUIT", "AUTH",
     // Commands operating on all value types
     "EXISTS", "DEL", "TYPE", "KEYS", "RANDOMKEY", "RENAME", "RENAMENX", "DBSIZE", "EXPIRE", "TTL", "SELECT",
     "MOVE", "FLUSHDB", "FLUSHALL",

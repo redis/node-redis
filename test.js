@@ -369,8 +369,8 @@ function run_next_test() {
         tests[test_name]();
     } else {
         console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date - all_start);
-        client.end();
-        client2.end();
+        client.quit();
+        client2.quit();
     }
 }
 
