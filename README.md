@@ -66,7 +66,7 @@ Note that in either form the `callback` is optional:
 
 For a list of Redis commands, see [Redis Command Reference](http://code.google.com/p/redis/wiki/CommandReference)
 
-The commands can be specified in uppercase or lowercase for convenience.  `client.get()` is the same as `clieint.GET()`.
+The commands can be specified in uppercase or lowercase for convenience.  `client.get()` is the same as `client.GET()`.
 
 Minimal parsing is done on the replies.  Commands that return a single line reply return JavaScript Strings, 
 integer replies return JavaScript Numbers, "bulk" replies return node Buffers, and "multi bulk" replies return a 
