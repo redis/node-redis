@@ -696,7 +696,7 @@ RedisClient.prototype.MULTI = function (commands) {
 
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,
-        host = host || default_host,
+        host = host_arg || default_host,
         red_client, net_client;
 
     net_client = net.createConnection(port, host);
