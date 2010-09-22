@@ -39,12 +39,12 @@ function to_array(args) {
 }
 
 RedisReplyParser.prototype.execute = function (incoming_buf) {
-    var pos = 0, state_times = {}, bd_tmp, bd_str, i;
-    //, start_execute = new Date(), start_switch, end_switch, old_state;
+    var pos = 0, bd_tmp, bd_str, i;
+    //, state_times = {}, start_execute = new Date(), start_switch, end_switch, old_state;
     //start_switch = new Date();
 
     while (pos < incoming_buf.length) {
-        old_state = this.state;
+    //    old_state = this.state;
 
         switch (this.state) {
         case "type":
@@ -127,7 +127,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.multi_bulk_length = +small_toString(this.tmp_buffer);
                 this.multi_bulk_replies = [];
                 this.state = "type";
-                if (0 == this.multi_bulk_length) {
+                if (0 === this.multi_bulk_length) {
                     this.send_reply(null);
                 }
             } else {
@@ -153,8 +153,8 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                     this.send_reply(null);
                     this.state = "type";
                 } else if (this.bulk_length === 0) {
-                  this.send_reply(new Buffer(""));
-                  this.state = "final cr";
+                    this.send_reply(new Buffer(""));
+                    this.state = "final cr";
                 } else {
                     this.state = "bulk data";
                     if (this.bulk_length > this.return_buffer.length) {
@@ -269,10 +269,12 @@ Queue.prototype.shift = function () {
         this.head = this.tail;
         this.tail = tmp;
         this.offset = 0;
-        if (this.head.length === 0) return;
+        if (this.head.length === 0) {
+            return;
+        }
     }
     return this.head[this.offset++];
-}
+};
 
 Queue.prototype.push = function (item) {
     return this.tail.push(item);
@@ -443,16 +445,17 @@ RedisClient.prototype.return_error = function (err) {
 };
 
 RedisClient.prototype.return_reply = function (reply) {
-    var command_obj = this.command_queue.shift();
+    var command_obj = this.command_queue.shift(),
+        obj, i, len, key, val, type;
     
     if (command_obj) {
         if (typeof command_obj.callback === "function") {
             // HGETALL special case replies with keyed Buffers
             if (reply && 'HGETALL' === command_obj.command) {
-                var obj = {};
-                for (var i = 0, len = reply.length; i < len; i += 2) {
-                    var key = reply[i].toString(),
-                        val = reply[i + 1];
+                obj = {};
+                for (i = 0, len = reply.length; i < len; i += 2) {
+                    key = reply[i].toString();
+                    val = reply[i + 1];
                     obj[key] = val;
                 }
                 reply = obj;
@@ -464,7 +467,7 @@ RedisClient.prototype.return_reply = function (reply) {
         }
     } else if (this.subscriptions) {
         if (Array.isArray(reply)) {
-            var type = reply[0].toString();
+            type = reply[0].toString();
 
             if (type === "message") {
                 this.emit("message", reply[1].toString(), reply[2]); // channel, message
@@ -488,7 +491,8 @@ RedisClient.prototype.return_reply = function (reply) {
 };
 
 RedisClient.prototype.send_command = function () {
-    var command, callback, args, this_args, command_obj, self = this;
+    var command, callback, args, this_args, command_obj,
+        elem_count, stream = this.stream, buffer_args, command_str = "";
 
     this_args = to_array(arguments);
 
@@ -545,10 +549,12 @@ RedisClient.prototype.send_command = function () {
     }
     this.commands_sent += 1;
 
-    var elem_count = 1, stream = this.stream, buffer_args = false, command_str = "";
+    elem_count = 1;
+    buffer_args = false;
 
     elem_count += args.length;
     buffer_args = args.some(function (arg) {
+        // this is clever, but might be slow
         return arg instanceof Buffer;
     });
 
@@ -584,7 +590,7 @@ RedisClient.prototype.send_command = function () {
             if (arg instanceof Buffer) {
                 if (arg.length === 0) {
                     if (exports.debug_mode) {
-                      console.log("Using empty string for 0 length buffer");
+                        console.log("Using empty string for 0 length buffer");
                     }
                     stream.write("$0\r\n\r\n");
                 } else {
@@ -633,7 +639,7 @@ exports.commands = [
     // Publish/Subscribe
     "PUBLISH", "SUBSCRIBE", "PSUBSCRIBE", "UNSUBSCRIBE", "PUNSUBSCRIBE",
     // Undocumented commands
-    "PING",
+    "PING"
 ];
 
 exports.commands.forEach(function (command) {
@@ -642,7 +648,8 @@ exports.commands.forEach(function (command) {
         args.unshift(command); // put command at the beginning
         this.send_command.apply(this, args);
     };
-    RedisClient.prototype[command.toLowerCase()] = function (args, callback) {
+    // same as above, but command is lower case
+    RedisClient.prototype[command.toLowerCase()] = function () {
         var args = to_array(arguments);
         args.unshift(command); // put command at the beginning
         this.send_command.apply(this, args);
