@@ -1,10 +1,11 @@
 {   "name" : "redis",
-    "version" : "0.2.2",
+    "version" : "0.2.3",
     "description" : "Redis client library",
     "author": "Matt Ranney <mjr@ranney.com>",
     "contributors": [
         "TJ Holowaychuk",
-        "Tim-Smart"
+        "Tim-Smart",
+        "Orion Henry"
     ],
     "main": "./index.js",
     "scripts": {
