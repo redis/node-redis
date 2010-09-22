@@ -10,7 +10,7 @@ redis.debug_mode = false;
 
 function require_number(expected, label) {
     return function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(expected, results, label + " " + expected + " !== " + results);
         assert.strictEqual(typeof results, "number", label);
         return true;
@@ -19,7 +19,7 @@ function require_number(expected, label) {
 
 function require_number_any(label) {
     return function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(typeof results, "number", label + " " + results + " is not a number");
         return true;
     };
@@ -27,7 +27,7 @@ function require_number_any(label) {
 
 function require_number_pos(label) {
     return function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(true, (results > 0), label + " " + results + " is not a positive number");
         return true;
     };
@@ -35,7 +35,7 @@ function require_number_pos(label) {
 
 function require_string(str, label) {
     return function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.equal(str, results, label + " " + str + " does not match " + results);
         return true;
     };
@@ -87,6 +87,25 @@ tests.HSET = function () {
     // Empty key, empty value
     client.HSET([key, field2, value1], require_number(1, name));
     client.HSET(key, field2, value2, require_number(0, name));
+};
+
+tests.BLPOP = function () {
+    var name = "BLPOP";
+    
+    client.rpush("blocking list", "initial value", function (err, res) {
+        client2.BLPOP("blocking list", 0, function (err, res) {
+            assert.strictEqual("blocking list", res[0].toString());
+            assert.strictEqual("initial value", res[1].toString());
+        });
+        client2.BLPOP("blocking list", 0, function (err, res) {
+            assert.strictEqual("blocking list", res[0].toString());
+            assert.strictEqual("wait for this value", res[1].toString());
+            next(name);
+        });
+    });
+    setTimeout(function () {
+        client.rpush("blocking list", "wait for this value");
+    }, 500);
 };
 
 tests.HMGET = function () {
@@ -177,7 +196,7 @@ tests.KEYS = function () {
     var name = "KEYS";
     client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], require_string("OK", name));
     client.KEYS(["test keys*"], function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(2, results.length, name);
         assert.strictEqual("test keys 1", results[0].toString(), name);
         assert.strictEqual("test keys 2", results[1].toString(), name);
@@ -198,7 +217,7 @@ tests.RANDOMKEY = function () {
     var name = "RANDOMKEY";
     client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], require_string("OK", name));
     client.RANDOMKEY([], function (err, results) {
-        assert.strictEqual(null, err, name + " result sent back unexpected error");
+        assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
         assert.strictEqual(true, /\w+/.test(results), name);
         next(name);
     });
@@ -272,14 +291,14 @@ tests.MGET = function () {
     var name = "MGET";
     client.mset(["mget keys 1", "mget val 1", "mget keys 2", "mget val 2", "mget keys 3", "mget val 3"], require_string("OK", name));
     client.MGET(["mget keys 1", "mget keys 2", "mget keys 3"], function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(3, results.length, name);
         assert.strictEqual("mget val 1", results[0].toString(), name);
         assert.strictEqual("mget val 2", results[1].toString(), name);
         assert.strictEqual("mget val 3", results[2].toString(), name);
     });
     client.MGET(["mget keys 1", "some random shit", "mget keys 2", "mget keys 3"], function (err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error");
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(4, results.length, name);
         assert.strictEqual("mget val 1", results[0].toString(), name);
         assert.strictEqual(null, results[1], name);
@@ -337,7 +356,7 @@ tests.HGETALL = function () {
     var name = "HGETALL";
     client.hmset(["hosts", "mjr", "1", "another", "23", "home", "1234"], require_string("OK", name));
     client.HGETALL(["hosts"], function (err, obj) {
-        assert.strictEqual(null, err, name + " result sent back unexpected error");
+        assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
         assert.strictEqual(3, Object.keys(obj).length, name);
         assert.ok(Buffer.isBuffer(obj.mjr), name);
         assert.strictEqual("1", obj.mjr.toString(), name);
