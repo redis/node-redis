@@ -253,7 +253,8 @@ RedisReplyParser.prototype.send_reply = function (reply) {
 RedisReplyParser.prototype.add_multi_bulk_reply = function (reply) {
     if (this.multi_bulk_replies) {
         this.multi_bulk_replies.push(reply);
-        if (this.multi_bulk_replies.length !== this.multi_bulk_length) {
+        // use "less than" here because a nil mb reply claims "0 length", but we need 1 slot to hold it
+        if (this.multi_bulk_replies.length < this.multi_bulk_length) {
             return;
         }
     } else {
