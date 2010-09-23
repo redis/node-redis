@@ -390,18 +390,18 @@ function RedisClient(stream) {
     });
 
     this.stream.on("close", function () {
-        self.connection_gone();
+        self.connection_gone("close");
     });
 
     this.stream.on("end", function () {
-        self.connection_gone();
+        self.connection_gone("end");
     });
     
     events.EventEmitter.call(this);
 }
 sys.inherits(RedisClient, events.EventEmitter);
 
-RedisClient.prototype.connection_gone = function () {
+RedisClient.prototype.connection_gone = function (why) {
     var self = this;
 
     // If a retry is already in progress, just let that happen
@@ -409,8 +409,11 @@ RedisClient.prototype.connection_gone = function () {
         return;
     }
 
+    // Note that this may trigger another "close" or "end" event
+    self.stream.destroy();
+
     if (exports.debug_mode) {
-        console.warn("Redis connection is gone.");
+        console.warn("Redis connection is gone from " + why + " event.");
     }
     self.connected = false;
     self.emit("end");
@@ -436,8 +439,8 @@ RedisClient.prototype.connection_gone = function () {
             console.log("Retrying connection...");
         }
         self.retry_delay = self.retry_delay * self.retry_backoff;
-        self.stream.destroy();
         self.stream.connect(self.port, self.host);
+        self.retry_timer = null;
     }, self.retry_delay);
 };
 
