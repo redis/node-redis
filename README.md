@@ -7,14 +7,13 @@ This client supports MULTI and PUBLISH/SUBSCRIBE.
 
 ## Why?
 
-`node_redis` works in the latest versions of node, is published in `npm`, and is very fast.
+`node_redis` works in the latest versions of node, is published in `npm`, and is very fast, particularly for small responses.
 
 The most popular Redis client, `redis-node-client` by fictorial, is very mature and well tested.  If you are running an older version
 of node or value the maturity and stability of `redis-node-client`, I encourage you to use that one instead.
 
 `node_redis` is designed with performance in mind.  The included `bench.js` runs similar tests to `redis-benchmark`, included with the Redis 
-distribution, and `bench.js` is faster than `redis-benchmarks` for some patterns and slower for others.  `node_redis` is roughly 6X faster at
-these benchmarks than `redis-node-client`.
+distribution, and `bench.js` is as fast as `redis-benchmark` for some patterns and slower for others.
 
 ## Usage
 
