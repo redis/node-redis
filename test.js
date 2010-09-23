@@ -89,23 +89,59 @@ tests.HSET = function () {
     client.HSET(key, field2, value2, require_number(0, name));
 };
 
-tests.BLPOP = function () {
-    var name = "BLPOP";
-    
-    client.rpush("blocking list", "initial value", function (err, res) {
-        client2.BLPOP("blocking list", 0, function (err, res) {
-            assert.strictEqual("blocking list", res[0].toString());
-            assert.strictEqual("initial value", res[1].toString());
-        });
-        client2.BLPOP("blocking list", 0, function (err, res) {
-            assert.strictEqual("blocking list", res[0].toString());
-            assert.strictEqual("wait for this value", res[1].toString());
-            next(name);
-        });
+tests.MULTI_1 = function () {
+    var name = "MULTI_1";
+
+    // Provoke an error at queue time
+    client.multi([
+        ["mset", ["multifoo", "10", "multibar", "20"], require_string("OK", name)],
+        ["set", ["foo2"], require_error(name)],
+        ["incr", ["multifoo"], require_number(11, name)],
+        ["incr", ["multibar"], require_number(21, name)]
+    ]);
+
+    // Confirm that the previous command, while containing an error, still worked.
+    client.multi([
+        ["incr", ["multibar"], require_number(22, name)],
+        ["incr", ["multifoo"], last(name, require_number(12, name))]
+    ]);
+};
+
+tests.MULTI_2 = function () {
+    var name = "MULTI_2";
+
+    // test nested multi-bulk replies
+    client.multi([
+        ["mget", ["multifoo", "multibar"], function (err, res) {
+            assert.strictEqual(2, res.length, name);
+            assert.strictEqual("12", res[0].toString(), name);
+            assert.strictEqual("22", res[1].toString(), name);
+        }],
+        ["set", ["foo2"], require_error(name)],
+        ["incr", ["multifoo"], require_number(13, name)],
+        ["incr", ["multibar"], require_number(23, name)]
+    ], function (replies) {
+        next(name);
     });
-    setTimeout(function () {
-        client.rpush("blocking list", "wait for this value");
-    }, 500);
+};
+
+tests.MULTI_3 = function () {
+    var name = "MULTI_3";
+
+    client.sadd("some set", "mem 1");
+    client.sadd("some set", "mem 2");
+    client.sadd("some set", "mem 3");
+    client.sadd("some set", "mem 4");
+ 
+    // test nested multi-bulk replies with nulls.
+    client.multi([
+        ["smembers", ["some set"]],
+        ["del", ["some set"]],
+        ["smembers", ["some set"]],
+    ], function (replies) {
+        assert.strictEqual(replies[2][0], null, name);
+        next(name);
+    });
 };
 
 tests.HMGET = function () {
@@ -250,24 +286,6 @@ tests.DBSIZE = function () {
     client.DBSIZE([], last(name, require_number_pos("DBSIZE")));
 };
 
-tests.EXPIRE = function () {
-    var name = "EXPIRE";
-    client.set(['expiry key', 'bar'], require_string("OK", name));
-    client.EXPIRE(["expiry key", "1"], require_number_pos(name));
-    setTimeout(function () {
-        client.exists(["expiry key"], last(name, require_number(0, name)));
-    }, 2000);
-};
-
-tests.TTL = function () {
-    var name = "TTL";
-    client.set(["ttl key", "ttl val"], require_string("OK", name));
-    client.expire(["ttl key", "100"], require_number_pos(name));
-    setTimeout(function () {
-        client.TTL(["ttl key"], last(name, require_number_pos(0, name)));
-    }, 500);
-};
-
 tests.GET = function () {
     var name = "GET";
     client.set(["get key", "get val"], require_string("OK", name));
@@ -337,34 +355,6 @@ tests.MSETNX = function () {
     client.exists(["mset4"], last(name, require_number(1, name)));
 };
 
-tests.MULTI = function () {
-    var name = "MULTI";
-    client.multi([
-        ["mset", ["multifoo", "10", "multibar", "20"], require_string("OK", name)],
-        ["set", ["foo2"], require_error(name)],
-        ["incr", ["multifoo"], require_number(11, name)],
-        ["incr", ["multibar"], require_number(21, name)]
-    ]);
-
-    client.multi([
-        ["incr", ["multibar"], require_number(22, name)],
-        ["incr", ["multifoo"], require_number(12, name)]
-    ]);
-    
-    client.multi([
-        ["mget", ["multifoo", "multibar"], function (err, res) {
-            assert.strictEqual(2, res.length, name);
-            assert.strictEqual("12", res[0].toString(), name);
-            assert.strictEqual("22", res[1].toString(), name);
-        }],
-        ["set", ["foo2"], require_error(name)],
-        ["incr", ["multifoo"], require_number(13, name)],
-        ["incr", ["multibar"], require_number(23, name)]
-    ], function (reply) {
-        next(name);
-    });
-};
-
 tests.HGETALL = function () {
     var name = "HGETALL";
     client.hmset(["hosts", "mjr", "1", "another", "23", "home", "1234"], require_string("OK", name));
@@ -386,6 +376,43 @@ tests.HGETALL_NULL = function () {
         assert.strictEqual(null, obj);
         next(name);
     });
+};
+
+tests.BLPOP = function () {
+    var name = "BLPOP";
+    
+    client.rpush("blocking list", "initial value", function (err, res) {
+        client2.BLPOP("blocking list", 0, function (err, res) {
+            assert.strictEqual("blocking list", res[0].toString());
+            assert.strictEqual("initial value", res[1].toString());
+        });
+        client2.BLPOP("blocking list", 0, function (err, res) {
+            assert.strictEqual("blocking list", res[0].toString());
+            assert.strictEqual("wait for this value", res[1].toString());
+            next(name);
+        });
+    });
+    setTimeout(function () {
+        client.rpush("blocking list", "wait for this value");
+    }, 500);
+};
+
+tests.EXPIRE = function () {
+    var name = "EXPIRE";
+    client.set(['expiry key', 'bar'], require_string("OK", name));
+    client.EXPIRE(["expiry key", "1"], require_number_pos(name));
+    setTimeout(function () {
+        client.exists(["expiry key"], last(name, require_number(0, name)));
+    }, 2000);
+};
+
+tests.TTL = function () {
+    var name = "TTL";
+    client.set(["ttl key", "ttl val"], require_string("OK", name));
+    client.expire(["ttl key", "100"], require_number_pos(name));
+    setTimeout(function () {
+        client.TTL(["ttl key"], last(name, require_number_pos(0, name)));
+    }, 500);
 };
 
 
