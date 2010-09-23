@@ -9,5 +9,5 @@ client.hkeys("hash key", function (err, replies) {
     replies.forEach(function (reply, i) {
         console.log("    " + i + ": " + reply);
     });
-    client.end();
+    client.quit();
 });
