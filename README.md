@@ -22,6 +22,10 @@ Simple example, included as `example.js`:
     var redis = require("redis"),
         client = redis.createClient();
 
+    client.on("error", function (err) {
+        console.log("Redis connection error to " + client.host + ":" + client.port + " - " + err);
+    });
+
     client.set("string key", "string val", redis.print);
     client.hset("hash key", "hashtest 1", "some value", redis.print);
     client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
@@ -87,8 +91,21 @@ Commands issued before the `connect` event are queued, then replayed when a conn
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
 
-_This may change at some point, because it would be nice to send back error events for
-things in the reply parser._
+Note that "error" is a special event type in node.  If there are no listeners for an 
+"error" event, node will exit.  This is usually what you want, but it can lead to some 
+cryptic error messages like this:
+
+    mjr:~/work/node_redis (master)$ node example.js 
+
+    node.js:50
+        throw e;
+        ^
+    Error: ECONNREFUSED, Connection refused
+        at IOWatcher.callback (net:870:22)
+        at node.js:607:9
+
+Not very useful in diagnosing the problem, but if your program isn't ready to handle this,
+it is probably the right thing to just exit.
 
 ### "end"
 
