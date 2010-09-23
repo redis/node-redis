@@ -3,7 +3,7 @@ redis - a node redis client
 
 This is a Redis client for node.  It is designed for node 0.2.2+ and redis 2.0.1+.  It probably won't work on earlier versions of either.
 
-Most Redis commands are implemented, including MULTI and PUBLISH/SUBSCRIBE.
+This client supports MULTI and PUBLISH/SUBSCRIBE.
 
 ## Why?
 
@@ -71,25 +71,6 @@ The commands can be specified in uppercase or lowercase for convenience.  `clien
 Minimal parsing is done on the replies.  Commands that return a single line reply return JavaScript Strings, 
 integer replies return JavaScript Numbers, "bulk" replies return node Buffers, and "multi bulk" replies return a 
 JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keyed by the hash keys.
-
-`MULTI` is supported.  The syntax is a little awkward:
-
-    client.multi([
-        ["incr", ["multibar"], function (err, res) {
-            console.log(err || res);
-        }],
-        ["incr", ["multifoo"], function (err, res) {
-            console.log(err || res);
-        }]
-    ]);
-
-`MULTI` takes an Array of 3-element Arrays.  The elements are: `command`, `args`, `callback`.
-When the commands are all submitted, `EXEC` is called and the callbacks are invoked in order.
-If a command is submitted that doesn't pass the syntax check, it will be removed from the
-transaction.
-
-`MULTI` needs some love.  This way works, but it's too ugly and not progressive.  Patches and
-suggestions are welcome.
 
 # API
 
@@ -208,6 +189,47 @@ Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.  Listen
 channel name as `channel` and the new count of subscriptions for this client as `count`.  When
 `count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
 
+## client.multi(commands, callback)
+
+`MULTI` is supported. The syntax is a little awkward, but it works:
+
+    var redis  = require("./index"),
+        client = redis.createClient(), set_size = 20;
+
+    while (set_size > 0) {
+        client.sadd("bigset", "member " + set_size);
+        set_size -= 1;
+    }
+
+    client.MULTI([
+        ["scard", ["bigset"], function (err, res) {
+            console.log("An individual callback, value: " + res.toString());
+        }],
+        ["smembers", ["bigset"]],
+        ["smembers", ["bigset"]],
+        ["smembers", ["bigset"]],
+        ["smembers", ["bigset"]],
+        ["keys", ["*"]],
+        ["dbsize", []]
+    ], function (replies) {
+        console.log("MULTI got " + replies.length + " replies");
+        replies.forEach(function (reply, index) {
+            console.log("Reply " + index + ": " + reply.toString());
+        });
+        client.quit();
+    });
+
+`client.multi` takes an Array of 3-element Arrays.  The elements are: `command`, `args`, and optionally `callback`.
+When the commands are all submitted, `EXEC` is called and the callbacks are invoked in order.
+If a command is submitted that doesn't pass the syntax check, it will be removed from the
+transaction.
+
+The second argument to `client.multi` is an optional callback with a simple array of results.
+
+`MULTI` needs some love.  This way works, but it's too ugly and not progressive.  Patches and
+suggestions are welcome.
+
+
 # Extras
 
 Some other things you might like to know about.
@@ -297,8 +319,6 @@ Defaults to 1.7.  The default initial connection retry is 250, so the second ret
 ## TODO
 
 Need to implement WATCH/UNWATCH and progressive MULTI commands.
-
-Add callback for MULTI completion.
 
 Support variable argument style for MULTI commands.
 
