@@ -30,7 +30,7 @@ Simple example, included as `example.js`:
         replies.forEach(function (reply, i) {
             console.log("    " + i + ": " + reply);
         });
-        client.end();
+        client.quit();
     });
 
 This will display:
@@ -105,16 +105,22 @@ to `127.0.0.1`.  If you have Redis running on the same computer as node, then th
 ## client.end()
 
 Forcibly close the connection to the Redis server.  Note that this does not wait until all replies have been parsed.
-If you want to exit cleanly, call `client.quit()` to send the `QUIT` command.
+If you want to exit cleanly, call `client.quit()` to send the `QUIT` command after you have handled all replies.
+
+This example closes the connection to the Redis server before the replies have been read.  You probably don't 
+want to do this:
 
     var redis = require("redis"),
         client = redis.createClient();
 
     client.set("foo_rand000000000000", "some fantastic value");
     client.get("foo_rand000000000000", function (err, reply) {
-      console.log(reply.toString());
+        console.log(reply.toString());
     });
-    client.quit();
+    client.end();
+
+`client.end()` is useful for timeout cases where something is stuck or taking too long and you want 
+to start over.
 
 ## Publish / Subscribe
 
