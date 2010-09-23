@@ -345,11 +345,14 @@ tests.MULTI = function () {
       .mset('some', '10', 'keys', '20')
       .incr('some')
       .incr('keys')
+      .mget('some', 'keys')
       .exec(function(err, replies){
           assert.strictEqual(null, err);
           assert.equal('OK', replies[0]);
           assert.equal(11, replies[1]);
           assert.equal(21, replies[2]);
+          assert.equal(11, replies[3][0].toString());
+          assert.equal(21, replies[3][1].toString());
           next(name);
       });
 };
