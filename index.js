@@ -45,6 +45,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
 
     while (pos < incoming_buf.length) {
     //    old_state = this.state;
+        // console.log("execute: " + this.state + ", " + pos + "/" + incoming_buf.length + ", " + String.fromCharCode(incoming_buf[pos]));
 
         switch (this.state) {
         case "type":
@@ -124,6 +125,10 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
             break;
         case "multi bulk count lf":
             if (incoming_buf[pos] === 10) { // \n
+                if (this.multi_bulk_length) { // nested multi-bulk
+                    this.multi_bulk_nested_length = this.multi_bulk_length;
+                    this.multi_bulk_nested_replies = this.multi_bulk_replies;
+                }
                 this.multi_bulk_length = +small_toString(this.tmp_buffer);
                 this.multi_bulk_replies = [];
                 this.state = "type";
@@ -229,7 +234,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
 };
 
 RedisReplyParser.prototype.send_error = function (reply) {
-    if (this.multi_bulk_length > 0) {
+    if (this.multi_bulk_length > 0 || this.multi_bulk_nested_length > 0) {
         // TODO - can this happen?  Seems like maybe not.
         this.add_multi_bulk_reply(reply);
     } else {
@@ -238,7 +243,7 @@ RedisReplyParser.prototype.send_error = function (reply) {
 };
 
 RedisReplyParser.prototype.send_reply = function (reply) {
-    if (this.multi_bulk_length > 0) {
+    if (this.multi_bulk_length > 0 || this.multi_bulk_nested_length > 0) {
         this.add_multi_bulk_reply(reply);
     } else {
         this.emit("reply", reply);
@@ -246,8 +251,25 @@ RedisReplyParser.prototype.send_reply = function (reply) {
 };
 
 RedisReplyParser.prototype.add_multi_bulk_reply = function (reply) {
-    this.multi_bulk_replies.push(reply);
-    if (this.multi_bulk_replies.length === this.multi_bulk_length) {
+    if (this.multi_bulk_replies) {
+        this.multi_bulk_replies.push(reply);
+        if (this.multi_bulk_replies.length !== this.multi_bulk_length) {
+            return;
+        }
+    } else {
+        this.multi_bulk_replies = reply;
+    }
+
+    if (this.multi_bulk_nested_length) {
+        this.multi_bulk_nested_replies.push(this.multi_bulk_replies);
+        this.multi_bulk_length = 0;
+        delete this.multi_bulk_replies;
+        if (this.multi_bulk_nested_length === this.multi_bulk_nested_replies.length) {
+            this.emit("reply", this.multi_bulk_nested_replies);
+            this.multi_bulk_nested_length = 0;
+            this.multi_bulk_nested_replies = null;
+        }
+    } else {
         this.emit("reply", this.multi_bulk_replies);
         this.multi_bulk_length = 0;
         this.multi_bulk_replies = null;
@@ -280,14 +302,12 @@ Queue.prototype.push = function (item) {
     return this.tail.push(item);
 };
 
-// Thanks Tim-Smart
 Queue.prototype.forEach = function () {
     var array = this.head.slice(this.offset);
     array.push.apply(array, this.tail);
     return array.forEach.apply(array, arguments);
 };
 
-// Thanks Tim-Smart
 Object.defineProperty(Queue.prototype, 'length', {
     get: function () {
         return this.head.length - this.offset + this.tail.length;
@@ -658,7 +678,7 @@ exports.commands.forEach(function (command) {
 
 // Transactions - "DISCARD", "WATCH", "UNWATCH",
 
-RedisClient.prototype.multi = function (commands) {
+RedisClient.prototype.multi = function (commands, callback) {
     var self = this;
 
     this.send_command("MULTI", function (err, reply) {
@@ -688,6 +708,9 @@ RedisClient.prototype.multi = function (commands) {
                 }
             }
         });
+        if (typeof callback === "function") {
+            callback(replies);
+        }
     });
 };
 RedisClient.prototype.MULTI = function (commands) {
