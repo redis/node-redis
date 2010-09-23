@@ -348,8 +348,21 @@ tests.MULTI = function () {
 
     client.multi([
         ["incr", ["multibar"], require_number(22, name)],
-        ["incr", ["multifoo"], last(name, require_number(12, name))]
+        ["incr", ["multifoo"], require_number(12, name)]
     ]);
+    
+    client.multi([
+        ["mget", ["multifoo", "multibar"], function (err, res) {
+            assert.strictEqual(2, res.length, name);
+            assert.strictEqual("12", res[0].toString(), name);
+            assert.strictEqual("22", res[1].toString(), name);
+        }],
+        ["set", ["foo2"], require_error(name)],
+        ["incr", ["multifoo"], require_number(13, name)],
+        ["incr", ["multibar"], require_number(23, name)]
+    ], function (reply) {
+        next(name);
+    });
 };
 
 tests.HGETALL = function () {
