@@ -1,7 +1,8 @@
 redis - a node redis client
 ===========================
 
-This is a Redis client for node.  It is designed for node 0.2.2+ and redis 2.0.1+.  It probably won't work on earlier versions of either.
+This is a Redis client for node.  It is designed for node 0.2.2+ and redis 2.0.1+.  It might not work on earlier versions of either,
+although it probably will.
 
 This client supports MULTI and PUBLISH/SUBSCRIBE.
 
