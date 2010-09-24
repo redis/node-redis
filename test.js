@@ -90,21 +90,23 @@ tests.HSET = function () {
 };
 
 tests.MULTI_1 = function () {
-    var name = "MULTI_1";
+    var name = "MULTI_1", multi1, multi2;
 
     // Provoke an error at queue time
-    client.multi([
-        ["mset", ["multifoo", "10", "multibar", "20"], require_string("OK", name)],
-        ["set", ["foo2"], require_error(name)],
-        ["incr", ["multifoo"], require_number(11, name)],
-        ["incr", ["multibar"], require_number(21, name)]
-    ]);
+    multi1 = client.multi();
+    multi1.mset("multifoo", "10", "multibar", "20", require_string("OK", name));
+    multi1.set("foo2", require_error(name));
+    multi1.incr("multifoo", require_number(11, name));
+    multi1.incr("multibar", require_number(21, name));
+    multi1.exec();
 
     // Confirm that the previous command, while containing an error, still worked.
-    client.multi([
-        ["incr", ["multibar"], require_number(22, name)],
-        ["incr", ["multifoo"], last(name, require_number(12, name))]
-    ]);
+    multi2 = client.multi();
+    multi2.incr("multibar", require_number(22, name));
+    multi2.incr("multifoo", require_number(12, name));
+    multi2.exec(function (err, reply) {
+        next(name);
+    });
 };
 
 tests.MULTI_2 = function () {
@@ -112,15 +114,15 @@ tests.MULTI_2 = function () {
 
     // test nested multi-bulk replies
     client.multi([
-        ["mget", ["multifoo", "multibar"], function (err, res) {
+        ["mget", "multifoo", "multibar", function (err, res) {
             assert.strictEqual(2, res.length, name);
             assert.strictEqual("12", res[0].toString(), name);
             assert.strictEqual("22", res[1].toString(), name);
         }],
-        ["set", ["foo2"], require_error(name)],
-        ["incr", ["multifoo"], require_number(13, name)],
-        ["incr", ["multibar"], require_number(23, name)]
-    ], function (replies) {
+        ["set", "foo2", require_error(name)],
+        ["incr", "multifoo", require_number(13, name)],
+        ["incr", "multibar", require_number(23, name)]
+    ]).exec(function (err, replies) {
         next(name);
     });
 };
@@ -135,13 +137,34 @@ tests.MULTI_3 = function () {
  
     // test nested multi-bulk replies with nulls.
     client.multi([
-        ["smembers", ["some set"]],
-        ["del", ["some set"]],
-        ["smembers", ["some set"]],
-    ], function (replies) {
+        ["smembers", "some set"],
+        ["del", "some set"],
+        ["smembers", "some set"],
+    ])
+    .scard("some set")
+    .exec(function (err, replies) {
         assert.strictEqual(replies[2][0], null, name);
         next(name);
     });
+};
+
+tests.MULTI_4 = function () {
+    var name = "MULTI_4";
+
+    client.multi()
+        .mset('some', '10', 'keys', '20')
+        .incr('some')
+        .incr('keys')
+        .mget('some', 'keys')
+        .exec(function(err, replies){
+            assert.strictEqual(null, err);
+            assert.equal('OK', replies[0]);
+            assert.equal(11, replies[1]);
+            assert.equal(21, replies[2]);
+            assert.equal(11, replies[3][0].toString());
+            assert.equal(21, replies[3][1].toString());
+            next(name);
+        });
 };
 
 tests.HMGET = function () {
@@ -351,39 +374,6 @@ tests.MSETNX = function () {
     client.MSETNX(["mset3", "val3", "mset4", "val4"], require_number(1, name));
     client.exists(["mset3"], require_number(1, name));
     client.exists(["mset4"], last(name, require_number(1, name)));
-};
-
-tests.MULTI_4 = function () {
-    var name = "MULTI_4";
-
-    client.multi
-        .mset('some', '10', 'keys', '20')
-        .incr('some')
-        .incr('keys')
-        .mget('some', 'keys')
-        .exec(function(err, replies){
-            assert.strictEqual(null, err);
-            assert.equal('OK', replies[0]);
-            assert.equal(11, replies[1]);
-            assert.equal(21, replies[2]);
-            assert.equal(11, replies[3][0].toString());
-            assert.equal(21, replies[3][1].toString());
-            next(name);
-        });
-};
-
-tests.MULTI_ERROR = function () {
-    var name = "MULTI_ERROR";
-
-    client
-      .multi
-      .set('something', 'amazing')
-      .set('invalid')
-      .exec(function(err, replies){
-          assert.equal("ERR wrong number of arguments for 'set' command", err.message);
-          assert.strictEqual(undefined, replies);
-          next(name);
-      });
 };
 
 tests.HGETALL = function () {
