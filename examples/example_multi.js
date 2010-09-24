@@ -26,7 +26,7 @@ client.multi()
 
 client.mset("incr thing", 100, "incr other thing", 1, redis.print);
 
-// start a separate command queue for multie
+// start a separate multi command queue
 var multi = client.multi();
 multi.incr("incr thing", redis.print);
 multi.incr("incr other thing", redis.print);
