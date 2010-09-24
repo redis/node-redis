@@ -681,42 +681,69 @@ exports.commands.forEach(function (command) {
     };
 });
 
-function Multi(client) {
+function Multi(client, args) {
     this.client = client;
-    this.queue = [];
-    this.queue.push(['MULTI']);
+    this.queue = [["MULTI"]];
+    if (Array.isArray(args)) {
+        this.queue = this.queue.concat(args);
+    }
 }
 
 exports.commands.forEach(function (command) {
     Multi.prototype[command.toLowerCase()] = function () {
         var args = to_array(arguments);
-        args.unshift(command); // put command at the beginning
+        args.unshift(command);
         this.queue.push(args);
         return this;
     };
 });
 
-Multi.prototype.exec = function(fn){
-    var done;
-    this.queue.push(['EXEC']);
-    this.queue.forEach(function(args){
+Multi.prototype.exec = function(callback) {
+    var done = false, self = this;
+
+    // drain queue, callback will catch "QUEUED" or error
+    this.queue.forEach(function(args, index) {
         var command = args.shift();
-        this.client[command](args, function(err, reply){
-            if (done) return;
+        if (typeof args[args.length - 1] === "function") {
+            args = args.slice(0, -1);
+        }
+        this.client[command](args, function (err, reply){
             if (err) {
-                done = true;
-                fn(new Error(err));
-            } else if ('EXEC' == command) {
-                done = true;
-                fn(null, reply);
+                var cur = self.queue[index];
+                if (typeof cur[cur.length -1] === "function") {
+                    cur[cur.length - 1](err);
+                } else {
+                    throw new Error(err);
+                }
+                self.queue.splice(index, 1);
             }
         });
     }, this);
+
+    this.client.EXEC(function (err, reply) {
+        if (err) {
+            if (callback) {
+                callback(new Error(err));
+            } else {
+                throw new Error(err);
+            }
+        }
+        
+        self.queue.slice(1).forEach(function (args, index) {
+            if (typeof args[args.length - 1] === "function") {
+                args[args.length - 1](null, reply[index]);
+            }
+        });
+
+        if (callback) {
+            callback(null, reply);
+        }
+    });
 };
 
-RedisClient.prototype.__defineGetter__('multi', function(){
-    return new Multi(this);
-});
+RedisClient.prototype.multi = function (args) {
+    return new Multi(this, args);
+};
 
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,
