@@ -1,4 +1,4 @@
-var redis  = require("./index"),
+var redis  = require("redis"),
     client = redis.createClient(), set_size = 20;
 
 client.sadd("bigset", "a member");
@@ -24,7 +24,7 @@ client.multi()
         });
     });
 
-client.set("incr thing", 100);
+client.mset("incr thing", 100, "incr other thing", 1, redis.print);
 
 // start a separate command queue for multie
 var multi = client.multi();
@@ -36,5 +36,11 @@ client.get("incr thing", redis.print); // 100
 
 // drains multi queue and runs atomically
 multi.exec(function (err, replies) {
-    console.log(replies); // 101, 3
+    console.log(replies); // 101, 2
+});
+
+// you can re-run the same transaction if you like
+multi.exec(function (err, replies) {
+    console.log(replies); // 102, 3
+    client.quit();
 });
