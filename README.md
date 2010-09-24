@@ -212,45 +212,79 @@ Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.  Listen
 channel name as `channel` and the new count of subscriptions for this client as `count`.  When
 `count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
 
-## client.multi(commands, callback)
+## client.multi([commands])
 
-`MULTI` is supported. The syntax is a little awkward, but it works:
+`MULTI` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
+Redis.  The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
 
     var redis  = require("./index"),
         client = redis.createClient(), set_size = 20;
+
+    client.sadd("bigset", "a member");
+    client.sadd("bigset", "another member");
 
     while (set_size > 0) {
         client.sadd("bigset", "member " + set_size);
         set_size -= 1;
     }
 
-    client.MULTI([
-        ["scard", ["bigset"], function (err, res) {
-            console.log("An individual callback, value: " + res.toString());
-        }],
-        ["smembers", ["bigset"]],
-        ["smembers", ["bigset"]],
-        ["smembers", ["bigset"]],
-        ["smembers", ["bigset"]],
-        ["keys", ["*"]],
-        ["dbsize", []]
-    ], function (replies) {
-        console.log("MULTI got " + replies.length + " replies");
-        replies.forEach(function (reply, index) {
-            console.log("Reply " + index + ": " + reply.toString());
+    // multi chain with an individual callback
+    client.multi()
+        .scard("bigset")
+        .smembers("bigset")
+        .keys("*", function (err, replies) {
+            client.mget(replies, redis.print);
+        })
+        .dbsize()
+        .exec(function (err, replies) {
+            console.log("MULTI got " + replies.length + " replies");
+            replies.forEach(function (reply, index) {
+                console.log("Reply " + index + ": " + reply.toString());
+            });
         });
+
+`client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the 
+same command methods as `client` objects do.  Commands are queued up inside the `Multi` object
+until `Multi.exec()` is invoked.
+
+You can either chain together `MULTI` commands as in the above example, or you can queue individual 
+commands while still sending regular client command as in this example:
+
+    var redis  = require("redis"),
+        client = redis.createClient(), multi;
+
+    // start a separate multi command queue 
+    multi = client.multi();
+    multi.incr("incr thing", redis.print);
+    multi.incr("incr other thing", redis.print);
+
+    // runs immediately
+    client.mset("incr thing", 100, "incr other thing", 1, redis.print);
+
+    // drains multi queue and runs atomically
+    multi.exec(function (err, replies) {
+        console.log(replies); // 101, 2
+    });
+
+    // you can re-run the same transaction if you like
+    multi.exec(function (err, replies) {
+        console.log(replies); // 102, 3
         client.quit();
     });
 
-`client.multi` takes an Array of 3-element Arrays.  The elements are: `command`, `args`, and optionally `callback`.
-When the commands are all submitted, `EXEC` is called and the callbacks are invoked in order.
-If a command is submitted that doesn't pass the syntax check, it will be removed from the
-transaction.
+In addition to adding commands to the `MULTI` queue individually, you can also pass an array 
+of commands and arguments to the constructor:
 
-The second argument to `client.multi` is an optional callback with a simple array of results.
+    var redis  = require("redis"),
+        client = redis.createClient(), multi;
 
-`MULTI` needs some love.  This way works, but it's too ugly and not progressive.  Patches and
-suggestions are welcome.
+    client.multi([
+        ["mget", "multifoo", "multibar", redis.print],
+        ["incr", "multifoo"],
+        ["incr", "multibar"]
+    ]).exec(function (err, replies) {
+        console.log(replies);
+    });
 
 
 # Extras
@@ -341,11 +375,9 @@ Defaults to 1.7.  The default initial connection retry is 250, so the second ret
 
 ## TODO
 
-Need to implement WATCH/UNWATCH and progressive MULTI commands.
+Need to add WATCH/UNWATCH.
 
-Support variable argument style for MULTI commands.
-
-Stream binary data into and out of Redis.
+Stream large set/get into and out of Redis.
 
 
 ## Also
