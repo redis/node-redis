@@ -662,8 +662,9 @@ exports.commands = [
     "INFO", "MONITOR", "SLAVEOF", "CONFIG",
     // Publish/Subscribe
     "PUBLISH", "SUBSCRIBE", "PSUBSCRIBE", "UNSUBSCRIBE", "PUNSUBSCRIBE",
+    "MULTI", "EXEC",
     // Undocumented commands
-    "PING"
+    "PING",
 ];
 
 exports.commands.forEach(function (command) {
@@ -680,46 +681,42 @@ exports.commands.forEach(function (command) {
     };
 });
 
-// Transactions - "DISCARD", "WATCH", "UNWATCH",
+function Multi(client) {
+    this.client = client;
+    this.queue = [];
+    this.queue.push(['MULTI']);
+}
 
-RedisClient.prototype.multi = function (commands, callback) {
-    var self = this;
+exports.commands.forEach(function (command) {
+    Multi.prototype[command.toLowerCase()] = function () {
+        var args = to_array(arguments);
+        args.unshift(command); // put command at the beginning
+        this.queue.push(args);
+        return this;
+    };
+});
 
-    this.send_command("MULTI", function (err, reply) {
-        if (err) {
-            console.warn("Error starting MULTI request: " + err.stack);
-        }
-    });
-    commands.forEach(function (args, command_num) {
-        self.send_command(args[0], args[1], function (err, reply) {
+Multi.prototype.exec = function(fn){
+    var done;
+    this.queue.push(['EXEC']);
+    this.queue.forEach(function(args){
+        var command = args.shift();
+        this.client[command](args, function(err, reply){
+            if (done) return;
             if (err) {
-                args[2](err);
-                commands.splice(command_num, 1); // what if this runs before all commands are sent?
-            } else {
-                if (reply !== "QUEUED") {
-                    console.warn("Unexpected MULTI reply: " + reply + " instead of 'QUEUED'");
-                }
+                done = true;
+                fn(new Error(err));
+            } else if ('EXEC' == command) {
+                done = true;
+                fn(null, reply);
             }
         });
-    });
-    this.send_command("EXEC", function (err, replies) {
-        replies.forEach(function (reply, reply_num) {
-            if (typeof commands[reply_num][2] === "function") {
-                commands[reply_num][2](null, reply);
-            } else {
-                if (exports.debug_mode) {
-                    console.log("no callback for multi response " + reply_num + ", skipping.");
-                }
-            }
-        });
-        if (typeof callback === "function") {
-            callback(replies);
-        }
-    });
+    }, this);
 };
-RedisClient.prototype.MULTI = function (commands) {
-    return this.multi(commands);
-};
+
+RedisClient.prototype.__defineGetter__('multi', function(){
+    return new Multi(this);
+});
 
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,

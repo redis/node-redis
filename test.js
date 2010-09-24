@@ -343,8 +343,6 @@ tests.SETEX = function () {
     client.ttl(["setex key"], last(name, require_number_pos(name)));
 };
 
-// plenty of tests of MSET already
-
 tests.MSETNX = function () {
     var name = "MSETNX";
     client.mset(["mset1", "val1", "mset2", "val2", "mset3", "val3"], require_string("OK", name));
@@ -353,6 +351,39 @@ tests.MSETNX = function () {
     client.MSETNX(["mset3", "val3", "mset4", "val4"], require_number(1, name));
     client.exists(["mset3"], require_number(1, name));
     client.exists(["mset4"], last(name, require_number(1, name)));
+};
+
+tests.MULTI_4 = function () {
+    var name = "MULTI_4";
+
+    client.multi
+        .mset('some', '10', 'keys', '20')
+        .incr('some')
+        .incr('keys')
+        .mget('some', 'keys')
+        .exec(function(err, replies){
+            assert.strictEqual(null, err);
+            assert.equal('OK', replies[0]);
+            assert.equal(11, replies[1]);
+            assert.equal(21, replies[2]);
+            assert.equal(11, replies[3][0].toString());
+            assert.equal(21, replies[3][1].toString());
+            next(name);
+        });
+};
+
+tests.MULTI_ERROR = function () {
+    var name = "MULTI_ERROR";
+
+    client
+      .multi
+      .set('something', 'amazing')
+      .set('invalid')
+      .exec(function(err, replies){
+          assert.equal("ERR wrong number of arguments for 'set' command", err.message);
+          assert.strictEqual(undefined, replies);
+          next(name);
+      });
 };
 
 tests.HGETALL = function () {
