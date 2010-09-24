@@ -356,6 +356,9 @@ function RedisClient(stream) {
         self.stream.setNoDelay();
         self.stream.setTimeout(0);
 
+        // give connect listeners a chance to run first in case they need to auth
+        self.emit("connect");
+
         var command_obj;
         while (self.offline_queue.length > 0) {
             command_obj = self.offline_queue.shift();
@@ -364,8 +367,6 @@ function RedisClient(stream) {
             }
             self.send_command(command_obj.command, command_obj.args, command_obj.callback);
         }
-        
-        self.emit("connect");
     });
     
     this.stream.on("data", function (buffer_from_socket) {
@@ -662,7 +663,6 @@ exports.commands = [
     "INFO", "MONITOR", "SLAVEOF", "CONFIG",
     // Publish/Subscribe
     "PUBLISH", "SUBSCRIBE", "PSUBSCRIBE", "UNSUBSCRIBE", "PUNSUBSCRIBE",
-    "MULTI", "EXEC",
     // Undocumented commands
     "PING",
 ];
@@ -703,11 +703,13 @@ Multi.prototype.exec = function(callback) {
 
     // drain queue, callback will catch "QUEUED" or error
     this.queue.forEach(function(args, index) {
-        var command = args.shift();
+        var command = args[0];
         if (typeof args[args.length - 1] === "function") {
-            args = args.slice(0, -1);
+            args = args.slice(1, -1);
+        } else {
+            args = args.slice(1);
         }
-        this.client[command](args, function (err, reply){
+        this.client.send_command(command, args, function (err, reply){
             if (err) {
                 var cur = self.queue[index];
                 if (typeof cur[cur.length -1] === "function") {
@@ -720,7 +722,7 @@ Multi.prototype.exec = function(callback) {
         });
     }, this);
 
-    this.client.EXEC(function (err, reply) {
+    this.client.send_command("EXEC", function (err, reply) {
         if (err) {
             if (callback) {
                 callback(new Error(err));
@@ -742,6 +744,9 @@ Multi.prototype.exec = function(callback) {
 };
 
 RedisClient.prototype.multi = function (args) {
+    return new Multi(this, args);
+};
+RedisClient.prototype.MULTI = function (args) {
     return new Multi(this, args);
 };
 
