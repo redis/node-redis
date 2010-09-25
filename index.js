@@ -709,6 +709,9 @@ Multi.prototype.exec = function(callback) {
         } else {
             args = args.slice(1);
         }
+        if (args.length === 1 && Array.isArray(args[0])) {
+          args = args[0];
+        }
         this.client.send_command(command, args, function (err, reply){
             if (err) {
                 var cur = self.queue[index];
