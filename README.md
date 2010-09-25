@@ -6,6 +6,10 @@ although it probably will.
 
 This client supports MULTI and PUBLISH/SUBSCRIBE.
 
+Install with:
+
+    npm install redis
+
 ## Why?
 
 `node_redis` works in the latest versions of node, is published in `npm`, and is very fast, particularly for small responses.
