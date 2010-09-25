@@ -167,6 +167,22 @@ tests.MULTI_4 = function () {
         });
 };
 
+tests.MULTI_5 = function () {
+    var name = "MULTI_5";
+
+    // test nested multi-bulk replies with nulls.
+    client.multi([
+        ["mget", ["multifoo", "some", "random value", "keys"]],
+        ["incr", "multifoo"]
+    ])
+    .exec(function (err, replies) {
+        assert.strictEqual(replies.length, 2, name);
+        assert.strictEqual(replies[0].length, 4, name);
+        next(name);
+    });
+};
+
+
 tests.HMGET = function () {
     var key = "test hash", name = "HMGET";
 
@@ -175,6 +191,11 @@ tests.HMGET = function () {
     client.HMGET(key, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
+    });
+    
+    client.HMGET(key, "missing thing", "another missing thing", function (err, reply) {
+        assert.strictEqual(null, reply[0], name);
+        assert.strictEqual(null, reply[1], name);
         next(name);
     });
 };
