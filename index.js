@@ -593,7 +593,7 @@ RedisClient.prototype.send_command = function () {
             if (typeof arg !== "string") {
                 arg = String(arg);
             }
-            command_str += "$" + arg.length + "\r\n" + arg + "\r\n";
+            command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         });
         if (exports.debug_mode) {
             console.log("send command: " + command_str);
@@ -624,7 +624,7 @@ RedisClient.prototype.send_command = function () {
                     stream.write("\r\n");
                 }
             } else {
-                stream.write("$" + arg.length + "\r\n" + arg + "\r\n");
+                stream.write("$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n");
             }
         });
     }
