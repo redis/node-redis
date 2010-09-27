@@ -439,6 +439,17 @@ tests.BLPOP = function () {
     }, 500);
 };
 
+tests.UTF8 = function () {
+    var name = "UTF8";
+    var utf8_sample = "ಠ_ಠ";
+    client.set(["utf8test", utf8_sample], require_string("OK", name));
+    client.get(["utf8test"], function(err, obj) {
+        assert.strictEqual(null, err);
+        assert.strictEqual(utf8_sample, obj.toString('utf8'));
+        next(name);
+    });
+};
+
 tests.EXPIRE = function () {
     var name = "EXPIRE";
     client.set(['expiry key', 'bar'], require_string("OK", name));
