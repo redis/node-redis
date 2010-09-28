@@ -417,6 +417,7 @@ RedisClient.prototype.connection_gone = function (why) {
         console.warn("Redis connection is gone from " + why + " event.");
     }
     self.connected = false;
+    self.subscriptions = false;
     self.emit("end");
     self.command_queue.forEach(function (args) {
         if (typeof args[2] === "function") {
