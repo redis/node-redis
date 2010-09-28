@@ -2,6 +2,7 @@
 var redis = require("./index"),
     client = redis.createClient(),
     client2 = redis.createClient(),
+    client3 = redis.createClient(),
     assert = require("assert"),
     sys = require('sys'),
     tests = {}, iterations = 10000;
@@ -237,6 +238,13 @@ tests.SUBSCRIBE = function () {
     client1.set("did a thing", 1, require_string("OK", name));
     client1.subscribe("chan1", "chan2");
 };
+
+tests.SUBSCRIBE_QUIT = function () {
+    var name = "SUBSCRIBE_QUIT";
+    client3.on("end", function() { next(name) });
+    client3.on("subscribe", function (channel, count) { client3.quit(); });
+    client3.subscribe("chan3");
+}
 
 tests.EXISTS = function () {
     var name = "EXISTS";

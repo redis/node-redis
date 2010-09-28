@@ -564,11 +564,10 @@ RedisClient.prototype.send_command = function () {
         }
         this.subscriptions = true;
     } else {
-        if (this.subscriptions === true) {
-            throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
-        }
         if (command === "QUIT") {
             this.closing = true;
+        } else if (this.subscriptions === true) {
+            throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
         }
         this.command_queue.push(command_obj);
     }
