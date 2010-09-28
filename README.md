@@ -383,14 +383,30 @@ Need to add WATCH/UNWATCH.
 
 Stream large set/get into and out of Redis.
 
+Performance can be better for large values.
+
+I think there are more performance improvements left in there for smaller values, especially for large lists of small values.
+
 
 ## Also
 
-This library still needs a lot of work, but it is useful for many things.
+This library might still have some bugs in it, but it seems to be quite useful for a lot of people at this point.
 There are other Redis libraries available for node, and they might work better for you.
 
 Comments and patches welcome.
 
+## Contributors
+
+Some people have have added features and fixed bugs in `node_redis` other than me.
+
+In order of first contribution, they are:
+
+*  Tim Smart
+*  TJ Holowaychuk
+*  Rick Olson
+*  Orion Henry
+
+Thanks.
 
 ## LICENSE - "MIT License"
 

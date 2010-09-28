@@ -3,8 +3,9 @@
     "description" : "Redis client library",
     "author": "Matt Ranney <mjr@ranney.com>",
     "contributors": [
-        "TJ Holowaychuk",
+        "Rick Olson",
         "Tim-Smart",
+        "TJ Holowaychuk",
         "Orion Henry"
     ],
     "main": "./index.js",
