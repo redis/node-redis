@@ -699,12 +699,7 @@ exports.commands.forEach(function (command) {
         args.unshift(command); // put command at the beginning
         this.send_command.apply(this, args);
     };
-    // same as above, but command is lower case
-    RedisClient.prototype[command.toLowerCase()] = function () {
-        var args = to_array(arguments);
-        args.unshift(command); // put command at the beginning
-        this.send_command.apply(this, args);
-    };
+    RedisClient.prototype[command.toLowerCase()] = RedisClient.prototype[command];
 });
 
 function Multi(client, args) {
