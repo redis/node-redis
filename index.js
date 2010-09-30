@@ -9,10 +9,7 @@ var net = require("net"),
 exports.debug_mode = false;
     
 function RedisReplyParser() {
-    this.state = "type";
-    this.return_buffer = new Buffer(16384); // for holding replies, might grow
-    this.tmp_buffer = new Buffer(128); // for holding size fields
-
+    this.reset();
     events.EventEmitter.call(this);
 }
 sys.inherits(RedisReplyParser, events.EventEmitter);
@@ -36,6 +33,12 @@ function to_array(args) {
         arr[i] = args[i];
     }
     return arr;
+}
+
+RedisReplyParser.prototype.reset = function() {
+    this.state = "type";
+    this.return_buffer = new Buffer(16384); // for holding replies, might grow
+    this.tmp_buffer = new Buffer(128); // for holding size fields
 }
 
 RedisReplyParser.prototype.execute = function (incoming_buf) {
@@ -348,7 +351,7 @@ function RedisClient(stream) {
             self.return_reply(reply);
         });
         self.reply_parser.on("error", function (err) {
-            console.log("Redis reply parser error: " + err.stack);
+            self.emit("error", new Error("Redis reply parser error: " + err.stack));
         });
 
         self.retry_timer = null;
@@ -454,7 +457,8 @@ RedisClient.prototype.on_data = function (data) {
     try {
         this.reply_parser.execute(data);
     } catch (err) {
-        console.log("Exception in RedisReplyParser: " + err.stack);
+        this.reply_parser.reset(); // the parser has state - must reset it or it can never recover
+        this.emit("error", err);   // pass the error along
     }
 };
 
