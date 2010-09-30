@@ -19,12 +19,12 @@ sys.inherits(RedisReplyParser, events.EventEmitter);
 
 // Buffer.toString() is quite slow for small strings
 function small_toString(buf) {
-    var tmp = "", i = 0, end = buf.end;
-    
-    while (i < end) {
+    var tmp = "";
+
+    for (var i = 0, il = buf.end; i < il; i++) {
         tmp += String.fromCharCode(buf[i]);
-        i += 1;
     }
+
     return tmp;
 }
 
@@ -35,6 +35,7 @@ function to_array(args) {
     for (i = 0; i < len; i += 1) {
         arr[i] = args[i];
     }
+
     return arr;
 }
 
@@ -189,7 +190,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 if (this.bulk_length > 10) {
                     this.return_buffer.copy(bd_tmp, 0, 0, this.bulk_length);
                 } else {
-                    for (i = this.bulk_length - 1; i >= 0 ; i -= 1) {
+                    for (var i = 0, il = this.bulk_length; i < il; i++) {
                         bd_tmp[i] = this.return_buffer[i];
                     }
                 }
@@ -303,10 +304,21 @@ Queue.prototype.push = function (item) {
     return this.tail.push(item);
 };
 
-Queue.prototype.forEach = function () {
+Queue.prototype.forEach = function (fn, thisv) {
     var array = this.head.slice(this.offset);
     array.push.apply(array, this.tail);
-    return array.forEach.apply(array, arguments);
+
+    if (thisv) {
+        for (var i = 0, il = array.length; i < il; i++) {
+            fn.call(thisv, array[i], i, array);
+        }
+    } else {
+        for (var i = 0, il = array.length; i < il; i++) {
+            fn(array[i], i, array);
+        }
+    }
+
+    return array;
 };
 
 Object.defineProperty(Queue.prototype, 'length', {
@@ -589,12 +601,13 @@ RedisClient.prototype.send_command = function () {
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
     
     if (! buffer_args) { // Build up a string and send entire command in one write
-        args.forEach(function (arg) {
+        for (var i = 0, il = args.length, arg; i < il; i++) {
+            arg = args[i];
             if (typeof arg !== "string") {
                 arg = String(arg);
             }
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
-        });
+        }
         if (exports.debug_mode) {
             console.log("send command: " + command_str);
         }
@@ -606,12 +619,13 @@ RedisClient.prototype.send_command = function () {
             console.log("send command has Buffer arguments");
         }
         stream.write(command_str);
-        
-        args.forEach(function (arg) {
+
+        for (var i = 0, il = args.length, arg; i < il; i++) {
+            arg = args[i];
             if (arg.length === undefined) {
                 arg = String(arg);
             }
-            
+
             if (arg instanceof Buffer) {
                 if (arg.length === 0) {
                     if (exports.debug_mode) {
@@ -626,7 +640,7 @@ RedisClient.prototype.send_command = function () {
             } else {
                 stream.write("$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n");
             }
-        });
+        }
     }
 };
 
@@ -702,6 +716,7 @@ Multi.prototype.exec = function(callback) {
     var done = false, self = this;
 
     // drain queue, callback will catch "QUEUED" or error
+    // Can't use a for loop here, as we need closure around the index.
     this.queue.forEach(function(args, index) {
         var command = args[0];
         if (typeof args[args.length - 1] === "function") {
@@ -733,12 +748,13 @@ Multi.prototype.exec = function(callback) {
                 throw new Error(err);
             }
         }
-        
-        self.queue.slice(1).forEach(function (args, index) {
+
+        for (var i = 1, il = self.queue.length, args; i < il; i++) {
+            args = self.queue[i];
             if (typeof args[args.length - 1] === "function") {
-                args[args.length - 1](null, reply[index]);
+                args[args.length - 1](null, reply[i - 1]);
             }
-        });
+        }
 
         if (callback) {
             callback(null, reply);
