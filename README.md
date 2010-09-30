@@ -18,7 +18,9 @@ The most popular Redis client, `redis-node-client` by fictorial, is very mature 
 of node or value the maturity and stability of `redis-node-client`, I encourage you to use that one instead.
 
 `node_redis` is designed with performance in mind.  The included `bench.js` runs similar tests to `redis-benchmark`, included with the Redis 
-distribution, and `bench.js` is as fast as `redis-benchmark` for some patterns and slower for others.
+distribution, and `bench.js` is as fast as `redis-benchmark` for some patterns and slower for others.  `node_redis` has many lovingly
+hand-crafted optimizations for speed.
+
 
 ## Usage
 
