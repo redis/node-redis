@@ -35,10 +35,17 @@ function to_array(args) {
     return arr;
 }
 
+// Reset parser to it's original state.
 RedisReplyParser.prototype.reset = function() {
     this.state = "type";
+
     this.return_buffer = new Buffer(16384); // for holding replies, might grow
     this.tmp_buffer = new Buffer(128); // for holding size fields
+
+    this.multi_bulk_length = 0;
+    this.multi_bulk_replies = null;
+    this.multi_bulk_nested_length = 0;
+    this.multi_bulk_nested_replies = null;
 }
 
 RedisReplyParser.prototype.execute = function (incoming_buf) {
@@ -140,7 +147,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 }
             } else {
                 this.emit("error", new Error("didn't see LF after NL reading multi bulk count"));
-                this.state = "type"; // try to start over with next data chunk
+                this.reset();
                 return;
             }
             pos += 1;
@@ -176,7 +183,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 }
             } else {
                 this.emit("error", new Error("didn't see LF after NL while reading bulk length"));
-                this.state = "type"; // try to start over with next chunk
+                this.reset();
                 return;
             }
             pos += 1;
@@ -206,7 +213,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 pos += 1;
             } else {
                 this.emit("error", new Error("saw " + incoming_buf[pos] + " when expecting final CR"));
-                this.state = "type"; // try to start over with next data chunk
+                this.reset();
                 return;
             }
             break;
@@ -216,7 +223,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 pos += 1;
             } else {
                 this.emit("error", new Error("saw " + incoming_buf[pos] + " when expecting final LF"));
-                this.state = "type"; // try to start over with next data chunk
+                this.reset();
                 return;
             }
             break;
@@ -344,12 +351,14 @@ function RedisClient(stream) {
         self.command_queue = new Queue();
 
         self.reply_parser = new RedisReplyParser();
+        // "reply error" is an error sent back by redis
         self.reply_parser.on("reply error", function (reply) {
             self.return_error(reply);
         });
         self.reply_parser.on("reply", function (reply) {
             self.return_reply(reply);
         });
+        // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
         self.reply_parser.on("error", function (err) {
             self.emit("error", new Error("Redis reply parser error: " + err.stack));
         });
@@ -457,7 +466,6 @@ RedisClient.prototype.on_data = function (data) {
     try {
         this.reply_parser.execute(data);
     } catch (err) {
-        this.reply_parser.reset(); // the parser has state - must reset it or it can never recover
         this.emit("error", err);   // pass the error along
     }
 };
