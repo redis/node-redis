@@ -183,6 +183,21 @@ tests.MULTI_5 = function () {
     });
 };
 
+tests.MULTI_6 = function () {
+	var name = "MULTI_6";
+	
+	client.multi()
+		.hmset("multihash", "a", "foo", "b", 1)
+		.hgetall("multihash")
+		.exec(function (err, replies){
+			assert.strictEqual(null, err);
+			assert.equal("OK", replies[0]);
+			assert.equal(Object.keys(replies[1]).length, 2);
+			assert.equal("foo", replies[1].a.toString());
+			assert.equal("1", replies[1].b.toString());
+			next(name);
+		});
+};
 
 tests.HMGET = function () {
     var key = "test hash", name = "HMGET";

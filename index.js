@@ -747,7 +747,7 @@ Multi.prototype.exec = function(callback) {
         });
     }, this);
 
-    this.client.send_command("EXEC", function (err, reply) {
+    this.client.send_command("EXEC", function (err, replies) {
         if (err) {
             if (callback) {
                 callback(new Error(err));
@@ -756,15 +756,28 @@ Multi.prototype.exec = function(callback) {
             }
         }
 
-        for (var i = 1, il = self.queue.length, args; i < il; i++) {
-            args = self.queue[i];
+        for (var i = 1, il = self.queue.length; i < il; i++) {
+            var reply = replies[i - 1],
+                args = self.queue[i];
+            
+            // Convert HGETALL reply to object
+            if (reply && args[0] === "HGETALL") {
+                obj = {};
+                for (var j = 0, jl = reply.length; j < jl; j += 2) {
+                    key = reply[j].toString();
+                    val = reply[j + 1];
+                    obj[key] = val;
+                }
+                replies[i - 1] = reply = obj;
+            }
+            
             if (typeof args[args.length - 1] === "function") {
-                args[args.length - 1](null, reply[i - 1]);
+                args[args.length - 1](null, reply);
             }
         }
 
         if (callback) {
-            callback(null, reply);
+            callback(null, replies);
         }
     });
 };
