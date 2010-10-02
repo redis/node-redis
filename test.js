@@ -79,7 +79,7 @@ tests.HSET = function () {
         name = "HSET";
 
     client.HSET(key, field1, value1, require_number(1, name));
-    client.HGET(key, field1, last(name, require_string(value1.toString(), name)));
+    client.HGET(key, field1, require_string(value1.toString(), name));
 
     // Empty value
     client.HSET(key, field1, value2, require_number(0, name));
@@ -87,7 +87,7 @@ tests.HSET = function () {
 
     // Empty key, empty value
     client.HSET([key, field2, value1], require_number(1, name));
-    client.HSET(key, field2, value2, require_number(0, name));
+    client.HSET(key, field2, value2, last(name, require_number(0, name)));
 };
 
 tests.MULTI_1 = function () {
@@ -183,6 +183,21 @@ tests.MULTI_5 = function () {
     });
 };
 
+tests.MULTI_6 = function () {
+	var name = "MULTI_6";
+	
+	client.multi()
+		.hmset("multihash", "a", "foo", "b", 1)
+		.hgetall("multihash")
+		.exec(function (err, replies){
+			assert.strictEqual(null, err);
+			assert.equal("OK", replies[0]);
+			assert.equal(Object.keys(replies[1]).length, 2);
+			assert.equal("foo", replies[1].a.toString());
+			assert.equal("1", replies[1].b.toString());
+			next(name);
+		});
+};
 
 tests.HMGET = function () {
     var key = "test hash", name = "HMGET";
@@ -507,7 +522,7 @@ client.on('end', function() {
 });
 
 client.on("error", function (err) {
-    console.log("Redis clent connection failed.");
+    console.log("Redis client connection failed: " + err);
 });
 
 client.on("reconnecting", function (msg) {
