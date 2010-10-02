@@ -79,7 +79,7 @@ tests.HSET = function () {
         name = "HSET";
 
     client.HSET(key, field1, value1, require_number(1, name));
-    client.HGET(key, field1, last(name, require_string(value1.toString(), name)));
+    client.HGET(key, field1, require_string(value1.toString(), name));
 
     // Empty value
     client.HSET(key, field1, value2, require_number(0, name));
@@ -87,7 +87,7 @@ tests.HSET = function () {
 
     // Empty key, empty value
     client.HSET([key, field2, value1], require_number(1, name));
-    client.HSET(key, field2, value2, require_number(0, name));
+    client.HSET(key, field2, value2, last(name, require_number(0, name)));
 };
 
 tests.MULTI_1 = function () {
@@ -522,7 +522,7 @@ client.on('end', function() {
 });
 
 client.on("error", function (err) {
-    console.log("Redis clent connection failed.");
+    console.log("Redis client connection failed: " + err);
 });
 
 client.on("reconnecting", function (msg) {
