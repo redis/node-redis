@@ -403,10 +403,12 @@ Some people have have added features and fixed bugs in `node_redis` other than m
 
 In order of first contribution, they are:
 
-*  Tim Smart
-*  TJ Holowaychuk
-*  Rick Olson
-*  Orion Henry
+*  [Tim Smart](http://github.com/Tim-Smart)
+*  [TJ Holowaychuk](http://github.com/visionmedia)
+*  [Rick Olson](http://github.com/technoweenie)
+*  [Orion Henry](http://github.com/orionz)
+*  [Hank Sims](http://github.com/hanksims)
+*  [Aivo Paas](http://github.com/aivopaas)
 
 Thanks.
 
