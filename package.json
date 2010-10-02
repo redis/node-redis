@@ -6,7 +6,9 @@
         "Rick Olson",
         "Tim-Smart",
         "TJ Holowaychuk",
-        "Orion Henry"
+        "Orion Henry",
+        "Hank Sims",
+        "Aivo Paas"
     ],
     "main": "./index.js",
     "scripts": {
