@@ -4,7 +4,8 @@ var net = require("net"),
     sys = require("sys"),
     events = require("events"),
     default_port = 6379,
-    default_host = "127.0.0.1";
+    default_host = "127.0.0.1",
+    commands;
 
 exports.debug_mode = false;
     
@@ -425,6 +426,7 @@ function RedisClient(stream) {
     events.EventEmitter.call(this);
 }
 sys.inherits(RedisClient, events.EventEmitter);
+exports.RedisClient = RedisClient;
 
 RedisClient.prototype.connection_gone = function (why) {
     var self = this;
@@ -663,7 +665,7 @@ RedisClient.prototype.end = function () {
 };
 
 // http://code.google.com/p/redis/wiki/CommandReference
-exports.commands = [
+commands = [
     // Connection handling
     "QUIT", "AUTH",
     // Commands operating on all value types
@@ -693,7 +695,7 @@ exports.commands = [
     "PING",
 ];
 
-exports.commands.forEach(function (command) {
+commands.forEach(function (command) {
     RedisClient.prototype[command] = function () {
         var args = to_array(arguments);
         args.unshift(command); // put command at the beginning
@@ -710,7 +712,7 @@ function Multi(client, args) {
     }
 }
 
-exports.commands.forEach(function (command) {
+commands.forEach(function (command) {
     Multi.prototype[command.toLowerCase()] = function () {
         var args = to_array(arguments);
         args.unshift(command);
