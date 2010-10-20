@@ -1,3 +1,5 @@
+// Read a file from disk, store it in Redis, then read it back from Redis.
+
 var redis = require("redis"),
     client = redis.createClient(),
     fs = require("fs"),
