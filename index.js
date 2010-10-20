@@ -7,6 +7,7 @@ var net = require("net"),
     default_host = "127.0.0.1",
     commands;
 
+// can can set this to true to enable for all connections
 exports.debug_mode = false;
     
 function RedisReplyParser() {
@@ -17,9 +18,9 @@ sys.inherits(RedisReplyParser, events.EventEmitter);
 
 // Buffer.toString() is quite slow for small strings
 function small_toString(buf) {
-    var tmp = "";
+    var tmp = "", i, il;
 
-    for (var i = 0, il = buf.end; i < il; i++) {
+    for (i = 0, il = buf.end; i < il; i += 1) {
         tmp += String.fromCharCode(buf[i]);
     }
 
@@ -38,7 +39,7 @@ function to_array(args) {
 }
 
 // Reset parser to it's original state.
-RedisReplyParser.prototype.reset = function() {
+RedisReplyParser.prototype.reset = function () {
     this.state = "type";
 
     this.return_buffer = new Buffer(16384); // for holding replies, might grow
@@ -48,10 +49,10 @@ RedisReplyParser.prototype.reset = function() {
     this.multi_bulk_replies = null;
     this.multi_bulk_nested_length = 0;
     this.multi_bulk_nested_replies = null;
-}
+};
 
 RedisReplyParser.prototype.execute = function (incoming_buf) {
-    var pos = 0, bd_tmp, bd_str, i;
+    var pos = 0, bd_tmp, bd_str, i, il;
     //, state_times = {}, start_execute = new Date(), start_switch, end_switch, old_state;
     //start_switch = new Date();
 
@@ -201,7 +202,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 if (this.bulk_length > 10) {
                     this.return_buffer.copy(bd_tmp, 0, 0, this.bulk_length);
                 } else {
-                    for (var i = 0, il = this.bulk_length; i < il; i++) {
+                    for (i = 0, il = this.bulk_length; i < il; i += 1) {
                         bd_tmp[i] = this.return_buffer[i];
                     }
                 }
@@ -308,7 +309,7 @@ Queue.prototype.shift = function () {
             return;
         }
     }
-    return this.head[this.offset++];
+    return this.head[this.offset++]; // sorry, JSLint
 };
 
 Queue.prototype.push = function (item) {
@@ -316,15 +317,16 @@ Queue.prototype.push = function (item) {
 };
 
 Queue.prototype.forEach = function (fn, thisv) {
-    var array = this.head.slice(this.offset);
+    var array = this.head.slice(this.offset), i, il;
+
     array.push.apply(array, this.tail);
 
     if (thisv) {
-        for (var i = 0, il = array.length; i < il; i++) {
+        for (i = 0, il = array.length; i < il; i += 1) {
             fn.call(thisv, array[i], i, array);
         }
     } else {
-        for (var i = 0, il = array.length; i < il; i++) {
+        for (i = 0, il = array.length; i < il; i += 1) {
             fn(array[i], i, array);
         }
     }
@@ -543,7 +545,7 @@ RedisClient.prototype.return_reply = function (reply) {
 };
 
 RedisClient.prototype.send_command = function () {
-    var command, callback, args, this_args, command_obj,
+    var command, callback, arg, args, this_args, command_obj, i, il,
         elem_count, stream = this.stream, buffer_args, command_str = "";
 
     this_args = to_array(arguments);
@@ -615,7 +617,7 @@ RedisClient.prototype.send_command = function () {
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
     
     if (! buffer_args) { // Build up a string and send entire command in one write
-        for (var i = 0, il = args.length, arg; i < il; i++) {
+        for (i = 0, il = args.length, arg; i < il; i += 1) {
             arg = args[i];
             if (typeof arg !== "string") {
                 arg = String(arg);
@@ -634,7 +636,7 @@ RedisClient.prototype.send_command = function () {
         }
         stream.write(command_str);
 
-        for (var i = 0, il = args.length, arg; i < il; i++) {
+        for (i = 0, il = args.length, arg; i < il; i += 1) {
             arg = args[i];
             if (arg.length === undefined) {
                 arg = String(arg);
@@ -692,7 +694,7 @@ commands = [
     // Publish/Subscribe
     "PUBLISH", "SUBSCRIBE", "PSUBSCRIBE", "UNSUBSCRIBE", "PUNSUBSCRIBE",
     // Undocumented commands
-    "PING",
+    "PING"
 ];
 
 commands.forEach(function (command) {
@@ -721,12 +723,12 @@ commands.forEach(function (command) {
     };
 });
 
-Multi.prototype.exec = function(callback) {
-    var done = false, self = this;
+Multi.prototype.exec = function (callback) {
+    var self = this;
 
     // drain queue, callback will catch "QUEUED" or error
     // Can't use a for loop here, as we need closure around the index.
-    this.queue.forEach(function(args, index) {
+    this.queue.forEach(function (args, index) {
         var command = args[0];
         if (typeof args[args.length - 1] === "function") {
             args = args.slice(1, -1);
@@ -734,12 +736,12 @@ Multi.prototype.exec = function(callback) {
             args = args.slice(1);
         }
         if (args.length === 1 && Array.isArray(args[0])) {
-          args = args[0];
+            args = args[0];
         }
-        this.client.send_command(command, args, function (err, reply){
+        this.client.send_command(command, args, function (err, reply) {
             if (err) {
                 var cur = self.queue[index];
-                if (typeof cur[cur.length -1] === "function") {
+                if (typeof cur[cur.length - 1] === "function") {
                     cur[cur.length - 1](err);
                 } else {
                     throw new Error(err);
@@ -758,14 +760,16 @@ Multi.prototype.exec = function(callback) {
             }
         }
 
-        for (var i = 1, il = self.queue.length; i < il; i++) {
-            var reply = replies[i - 1],
-                args = self.queue[i];
+        var i, il, j, jl, reply, args, obj, key, val;
+
+        for (i = 1, il = self.queue.length; i < il; i += 1) {
+            reply = replies[i - 1];
+            args = self.queue[i];
             
             // Convert HGETALL reply to object
             if (reply && args[0] === "HGETALL") {
                 obj = {};
-                for (var j = 0, jl = reply.length; j < jl; j += 2) {
+                for (j = 0, jl = reply.length; j < jl; j += 2) {
                     key = reply[j].toString();
                     val = reply[j + 1];
                     obj[key] = val;
