@@ -1,20 +1,27 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
-    sys = require("sys"),
+    util,
     events = require("events"),
     default_port = 6379,
     default_host = "127.0.0.1",
     commands;
 
+// hilarious 0.2.x to 0.3.x API change
+try {
+    util = require("util");
+} catch (err) {
+    util = require("sys");
+}
+
 // can can set this to true to enable for all connections
 exports.debug_mode = false;
-    
+
 function RedisReplyParser() {
     this.reset();
     events.EventEmitter.call(this);
 }
-sys.inherits(RedisReplyParser, events.EventEmitter);
+util.inherits(RedisReplyParser, events.EventEmitter);
 
 // Buffer.toString() is quite slow for small strings
 function small_toString(buf) {
@@ -145,7 +152,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.multi_bulk_length = +small_toString(this.tmp_buffer);
                 this.multi_bulk_replies = [];
                 this.state = "type";
-                if (0 === this.multi_bulk_length) {
+                if (this.multi_bulk_length <= 0) {
                     this.send_reply(null);
                 }
             } else {
@@ -364,6 +371,7 @@ function RedisClient(stream) {
         self.connected = true;
         self.connections += 1;
         self.command_queue = new Queue();
+        self.emitted_end = false;
 
         self.reply_parser = new RedisReplyParser();
         // "reply error" is an error sent back by redis
@@ -427,7 +435,7 @@ function RedisClient(stream) {
     
     events.EventEmitter.call(this);
 }
-sys.inherits(RedisClient, events.EventEmitter);
+util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
 
 RedisClient.prototype.connection_gone = function (why) {
@@ -446,7 +454,13 @@ RedisClient.prototype.connection_gone = function (why) {
     }
     self.connected = false;
     self.subscriptions = false;
-    self.emit("end");
+
+    // since we are collapsing end and close, users don't expect to be called twice
+    if (! self.emitted_end) {
+        self.emit("end");
+        self.emitted_end = true;
+    }
+    
     self.command_queue.forEach(function (args) {
         if (typeof args[2] === "function") {
             args[2]("Server connection closed");
@@ -482,7 +496,7 @@ RedisClient.prototype.on_data = function (data) {
     try {
         this.reply_parser.execute(data);
     } catch (err) {
-        this.emit("error", err);   // pass the error along
+        this.emit("error", err);   // this needs to be a different event from connection error
     }
 };
 
@@ -492,7 +506,7 @@ RedisClient.prototype.return_error = function (err) {
     if (command_obj && typeof command_obj.callback === "function") {
         command_obj.callback(err);
     } else {
-        console.log("no callback to send error: " + sys.inspect(err));
+        console.log("no callback to send error: " + util.inspect(err));
         // this will probably not make it anywhere useful, but we might as well throw
         throw new Error(err);
     }
@@ -517,7 +531,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
             command_obj.callback(null, reply);
         } else if (exports.debug_mode) {
-            console.log("no callback for reply: " + reply.toString());
+            console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
     } else if (this.subscriptions) {
         if (Array.isArray(reply)) {
