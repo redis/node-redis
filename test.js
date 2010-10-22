@@ -1,11 +1,17 @@
-/*global require console setTimeout process */
+/*global require console setTimeout process Buffer */
 var redis = require("./index"),
     client = redis.createClient(),
     client2 = redis.createClient(),
     client3 = redis.createClient(),
     assert = require("assert"),
-    sys = require('sys'),
+    util,
     tests = {}, iterations = 10000;
+
+try {
+    util = require("util");
+} catch (err) {
+    util = require("sys");
+}
 
 redis.debug_mode = false;
 
@@ -70,26 +76,6 @@ tests.FLUSHDB = function () {
     client.dbsize(last(name, require_number(0, name)));
 };
 
-tests.HSET = function () {
-    var key = "test hash",
-        field1 = new Buffer("0123456789"),
-        value1 = new Buffer("abcdefghij"),
-        field2 = new Buffer(0),
-        value2 = new Buffer(0),
-        name = "HSET";
-
-    client.HSET(key, field1, value1, require_number(1, name));
-    client.HGET(key, field1, require_string(value1.toString(), name));
-
-    // Empty value
-    client.HSET(key, field1, value2, require_number(0, name));
-    client.HGET([key, field1], require_string("", name));
-
-    // Empty key, empty value
-    client.HSET([key, field2, value1], require_number(1, name));
-    client.HSET(key, field2, value2, last(name, require_number(0, name)));
-};
-
 tests.MULTI_1 = function () {
     var name = "MULTI_1", multi1, multi2;
 
@@ -105,7 +91,9 @@ tests.MULTI_1 = function () {
     multi2 = client.multi();
     multi2.incr("multibar", require_number(22, name));
     multi2.incr("multifoo", require_number(12, name));
-    multi2.exec(function (err, reply) {
+    multi2.exec(function (err, replies) {
+        assert.strictEqual(22, replies[0]);
+        assert.strictEqual(12, replies[1]);
         next(name);
     });
 };
@@ -124,6 +112,12 @@ tests.MULTI_2 = function () {
         ["incr", "multifoo", require_number(13, name)],
         ["incr", "multibar", require_number(23, name)]
     ]).exec(function (err, replies) {
+        assert.strictEqual(2, replies[0].length, name);
+        assert.strictEqual("12", replies[0][0].toString(), name);
+        assert.strictEqual("22", replies[0][1].toString(), name);
+
+        assert.strictEqual("13", replies[1].toString());
+        assert.strictEqual("23", replies[2].toString());
         next(name);
     });
 };
@@ -140,7 +134,7 @@ tests.MULTI_3 = function () {
     client.multi([
         ["smembers", "some set"],
         ["del", "some set"],
-        ["smembers", "some set"],
+        ["smembers", "some set"]
     ])
     .scard("some set")
     .exec(function (err, replies) {
@@ -157,7 +151,7 @@ tests.MULTI_4 = function () {
         .incr('some')
         .incr('keys')
         .mget('some', 'keys')
-        .exec(function(err, replies){
+        .exec(function (err, replies) {
             assert.strictEqual(null, err);
             assert.equal('OK', replies[0]);
             assert.equal(11, replies[1]);
@@ -184,19 +178,39 @@ tests.MULTI_5 = function () {
 };
 
 tests.MULTI_6 = function () {
-	var name = "MULTI_6";
-	
-	client.multi()
-		.hmset("multihash", "a", "foo", "b", 1)
-		.hgetall("multihash")
-		.exec(function (err, replies){
-			assert.strictEqual(null, err);
-			assert.equal("OK", replies[0]);
-			assert.equal(Object.keys(replies[1]).length, 2);
-			assert.equal("foo", replies[1].a.toString());
-			assert.equal("1", replies[1].b.toString());
-			next(name);
-		});
+    var name = "MULTI_6";
+
+    client.multi()
+        .hmset("multihash", "a", "foo", "b", 1)
+        .hgetall("multihash")
+        .exec(function (err, replies) {
+            assert.strictEqual(null, err);
+            assert.equal("OK", replies[0]);
+            assert.equal(Object.keys(replies[1]).length, 2);
+            assert.equal("foo", replies[1].a.toString());
+            assert.equal("1", replies[1].b.toString());
+            next(name);
+        });
+};
+
+tests.HSET = function () {
+    var key = "test hash",
+        field1 = new Buffer("0123456789"),
+        value1 = new Buffer("abcdefghij"),
+        field2 = new Buffer(0),
+        value2 = new Buffer(0),
+        name = "HSET";
+
+    client.HSET(key, field1, value1, require_number(1, name));
+    client.HGET(key, field1, require_string(value1.toString(), name));
+
+    // Empty value
+    client.HSET(key, field1, value2, require_number(0, name));
+    client.HGET([key, field1], require_string("", name));
+
+    // Empty key, empty value
+    client.HSET([key, field2, value1], require_number(1, name));
+    client.HSET(key, field2, value2, last(name, require_number(0, name)));
 };
 
 tests.HMGET = function () {
@@ -256,10 +270,14 @@ tests.SUBSCRIBE = function () {
 
 tests.SUBSCRIBE_QUIT = function () {
     var name = "SUBSCRIBE_QUIT";
-    client3.on("end", function() { next(name) });
-    client3.on("subscribe", function (channel, count) { client3.quit(); });
+    client3.on("end", function () {
+        next(name);
+    });
+    client3.on("subscribe", function (channel, count) {
+        client3.quit();
+    });
     client3.subscribe("chan3");
-}
+};
 
 tests.EXISTS = function () {
     var name = "EXISTS";
@@ -309,7 +327,7 @@ tests.KEYS = function () {
 
 tests.MULTIBULK_ZERO_LENGTH = function () {
     var name = "MULTIBULK_ZERO_LENGTH";
-    client.KEYS(['users:*'], function(err, results){
+    client.KEYS(['users:*'], function (err, results) {
         assert.strictEqual(null, err, 'error on empty multibulk reply');
         assert.strictEqual(null, results);
         next(name);
@@ -436,9 +454,22 @@ tests.HGETALL = function () {
 
 tests.HGETALL_NULL = function () {
     var name = "HGETALL_NULL";
-    client.hgetall('missing', function(err, obj){
+
+    client.hgetall('missing', function (err, obj) {
         assert.strictEqual(null, err);
         assert.strictEqual(null, obj);
+        next(name);
+    });
+};
+
+tests.UTF8 = function () {
+    var name = "UTF8", 
+        utf8_sample = "ಠ_ಠ";
+
+    client.set(["utf8test", utf8_sample], require_string("OK", name));
+    client.get(["utf8test"], function (err, obj) {
+        assert.strictEqual(null, err);
+        assert.strictEqual(utf8_sample, obj.toString('utf8'));
         next(name);
     });
 };
@@ -450,6 +481,8 @@ tests.BLPOP = function () {
         client2.BLPOP("blocking list", 0, function (err, res) {
             assert.strictEqual("blocking list", res[0].toString());
             assert.strictEqual("initial value", res[1].toString());
+            
+            client.rpush("blocking list", "wait for this value");
         });
         client2.BLPOP("blocking list", 0, function (err, res) {
             assert.strictEqual("blocking list", res[0].toString());
@@ -457,18 +490,18 @@ tests.BLPOP = function () {
             next(name);
         });
     });
-    setTimeout(function () {
-        client.rpush("blocking list", "wait for this value");
-    }, 500);
 };
 
-tests.UTF8 = function () {
-    var name = "UTF8";
-    var utf8_sample = "ಠ_ಠ";
-    client.set(["utf8test", utf8_sample], require_string("OK", name));
-    client.get(["utf8test"], function(err, obj) {
-        assert.strictEqual(null, err);
-        assert.strictEqual(utf8_sample, obj.toString('utf8'));
+tests.BLPOP_TIMEOUT = function () {
+    var name = "BLPOP_TIMEOUT";
+    
+    // try to BLPOP the list again, which should be empty.  This should timeout and return null.
+    client2.BLPOP("blocking list", 1, function (err, res) {
+        if (err) {
+            throw err;
+        }
+
+        assert.strictEqual(res, null);
         next(name);
     });
 };
@@ -498,12 +531,12 @@ var all_tests = Object.keys(tests),
 function run_next_test() {
     var test_name = all_tests.shift();
     if (typeof tests[test_name] === "function") {
-        sys.print('- \x1b[1m' + test_name.toLowerCase() + '\x1b[0m:');
+        util.print('- \x1b[1m' + test_name.toLowerCase() + '\x1b[0m:');
         cur_start = new Date();
         test_count += 1;
         tests[test_name]();
     } else {
-        console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date - all_start);
+        console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date() - all_start);
         client.quit();
         client2.quit();
     }
@@ -517,12 +550,12 @@ client.on("connect", function () {
     run_next_test();
 });
 
-client.on('end', function() {
+client.on('end', function () {
   ended = true;
 });
 
 client.on("error", function (err) {
-    console.log("Redis client connection failed: " + err);
+    console.log("Redis client connection failed: " + err.stack);
 });
 
 client.on("reconnecting", function (msg) {
@@ -533,7 +566,7 @@ process.on('uncaughtException', function (err) {
     console.log("Uncaught exception: " + err.stack);
 });
 
-process.on('exit', function(code) {
+process.on('exit', function (code) {
     assert.equal(true, connected);
     assert.equal(true, ended);
 });
