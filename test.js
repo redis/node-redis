@@ -5,7 +5,8 @@ var redis = require("./index"),
     client3 = redis.createClient(),
     assert = require("assert"),
     util,
-    tests = {}, iterations = 10000;
+    test_db_num = 15, // this DB will be flushed and used for testing
+    tests = {};
 
 try {
     util = require("util");
@@ -13,7 +14,14 @@ try {
     util = require("sys");
 }
 
-redis.debug_mode = false;
+// Uncomment this to see the wire protocol and other debugging info
+//redis.debug_mode = true;
+
+function buffers_to_strings(arr) {
+    return arr.map(function (val) {
+        return val.toString();
+    });
+}
 
 function require_number(expected, label) {
     return function (err, results) {
@@ -71,6 +79,9 @@ function next(name) {
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
+    client.select(test_db_num, require_string("OK", name));
+    client2.select(test_db_num, require_string("OK", name));
+    client3.select(test_db_num, require_string("OK", name));
     client.mset("flush keys 1", "flush val 1", "flush keys 2", "flush val 2", require_string("OK", name));
     client.FLUSHDB(require_string("OK", name));
     client.dbsize(last(name, require_number(0, name)));
@@ -239,7 +250,7 @@ tests.HINCRBY = function () {
 
 tests.SUBSCRIBE = function () {
     var client1 = client, msg_count = 0, name = "SUBSCRIBE";
-    
+
     client1.on("subscribe", function (channel, count) {
         if (channel === "chan1") {
             client2.publish("chan1", "message 1", require_number(1, name));
@@ -263,7 +274,6 @@ tests.SUBSCRIBE = function () {
         }
     });
 
-    // make sure this connection can go into and out of pub/sub mode
     client1.set("did a thing", 1, require_string("OK", name));
     client1.subscribe("chan1", "chan2");
 };
@@ -310,6 +320,7 @@ tests.TYPE = function () {
     client.TYPE(["list key"], require_string("list", name));
     client.TYPE(["set key"], require_string("set", name));
     client.TYPE(["zset key"], require_string("zset", name));
+    client.TYPE("not here yet", require_string("none", name));
     client.TYPE(["hash key"], last(name, require_string("hash", name)));
 };
 
@@ -472,6 +483,432 @@ tests.UTF8 = function () {
         assert.strictEqual(utf8_sample, obj.toString('utf8'));
         next(name);
     });
+};
+
+// Set tests were adapted from Brian Hammond's redis-node-client.js, which has a comprehensive test suite
+
+tests.SADD = function () {
+    var name = "SADD";
+    
+    client.del('set0');
+    client.sadd('set0', 'member0', require_number(1, name));
+    client.sadd('set0', 'member0', last(name, require_number(0, name)));
+};
+
+tests.SISMEMBER = function () {
+    var name = "SISMEMBER";
+    
+    client.del('set0');
+    client.sadd('set0', 'member0', require_number(1, name));
+    client.sismember('set0', 'member0', require_number(1, name));
+    client.sismember('set0', 'member1', last(name, require_number(0, name)));
+};
+
+tests.SCARD = function () {
+    var name = "SCARD";
+    
+    client.del('set0');
+    client.sadd('set0', 'member0', require_number(1, name));
+    client.scard('set0', require_number(1, name));
+    client.sadd('set0', 'member1', require_number(1, name));
+    client.scard('set0', last(name, require_number(2, name)));
+};
+
+tests.SREM = function () {
+    var name = "SREM";
+
+    client.del('set0');
+    client.sadd('set0', 'member0', require_number(1, name));
+    client.srem('set0', 'foobar', require_number(0, name))
+    client.srem('set0', 'member0', require_number(1, name))
+    client.scard('set0', last(name, require_number(0, name)));
+};
+
+tests.SPOP = function () {
+    var name = "SPOP";
+    
+    client.del('zzz');
+    client.sadd('zzz', 'member0', require_number(1, name));
+    client.scard('zzz', require_number(1, name));
+
+    client.spop('zzz', function (err, value) {
+        if (err) {
+            assert.fail(err);
+        }
+        assert.equal(value, 'member0', name);
+    });
+
+    client.scard('zzz', last(name, require_number(0, name)));
+};
+
+tests.SDIFF = function () {
+    var name = "SDIFF";
+    
+    client.del('foo');
+    client.sadd('foo', 'x', require_number(1, name));
+    client.sadd('foo', 'a', require_number(1, name));
+    client.sadd('foo', 'b', require_number(1, name));
+    client.sadd('foo', 'c', require_number(1, name));
+
+    client.sadd('bar', 'c', require_number(1, name));
+
+    client.sadd('baz', 'a', require_number(1, name));
+    client.sadd('baz', 'd', require_number(1, name));
+
+    client.sdiff('foo', 'bar', 'baz', function (err, values) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        values.sort();
+        assert.equal(values.length, 2, name);
+        assert.equal(values[0], 'b', name);
+        assert.equal(values[1], 'x', name);
+        next(name);
+    });
+};
+
+tests.SDIFFSTORE = function () {
+    var name = "SDIFFSTORE";
+    
+    client.del('foo');
+    client.del('bar');
+    client.del('baz');
+    client.del('quux');
+
+    client.sadd('foo', 'x', require_number(1, name))
+    client.sadd('foo', 'a', require_number(1, name))
+    client.sadd('foo', 'b', require_number(1, name))
+    client.sadd('foo', 'c', require_number(1, name))
+
+    client.sadd('bar', 'c', require_number(1, name))
+
+    client.sadd('baz', 'a', require_number(1, name))
+    client.sadd('baz', 'd', require_number(1, name))
+
+    // NB: SDIFFSTORE returns the number of elements in the dstkey 
+
+    client.sdiffstore('quux', 'foo', 'bar', 'baz', require_number(2, name))
+
+    client.smembers('quux', function (err, values) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        var members = buffers_to_strings(values).sort();
+
+        assert.deepEqual(members, [ 'b', 'x' ], name);
+        next(name);
+    });
+};
+
+tests.SMEMBERS = function () {
+    name = "SMEMBERS";
+    
+    client.del('foo');
+    client.sadd('foo', 'x', require_number(1, name));
+
+    client.smembers('foo', function (err, members) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(members), [ 'x' ], name);
+    });
+
+    client.sadd('foo', 'y', require_number(1, name));
+
+    client.smembers('foo', function (err, values) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(values.length, 2, name);
+        var members = buffers_to_strings(values).sort();
+
+        assert.deepEqual(members, [ 'x', 'y' ], name);
+        next(name);
+    });
+};
+
+tests.SMOVE = function () {
+    var name = "SMOVE";
+
+    client.del('foo');
+    client.del('bar');
+
+    client.sadd('foo', 'x', require_number(1, name));
+    client.smove('foo', 'bar', 'x', require_number(1, name));
+    client.sismember('foo', 'x', require_number(0, name));
+    client.sismember('bar', 'x', require_number(1, name));
+    client.smove('foo', 'bar', 'x', last(name, require_number(0, name)));
+}
+
+tests.SINTER = function () {
+    var name = "SINTER";
+
+    client.del('sa');
+    client.del('sb');
+    client.del('sc');
+    
+    client.sadd('sa', 'a', require_number(1, name));
+    client.sadd('sa', 'b', require_number(1, name));
+    client.sadd('sa', 'c', require_number(1, name));
+
+    client.sadd('sb', 'b', require_number(1, name));
+    client.sadd('sb', 'c', require_number(1, name));
+    client.sadd('sb', 'd', require_number(1, name));
+
+    client.sadd('sc', 'c', require_number(1, name));
+    client.sadd('sc', 'd', require_number(1, name));
+    client.sadd('sc', 'e', require_number(1, name));
+
+    client.sinter('sa', 'sb', function (err, intersection) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(intersection.length, 2, name);
+        assert.deepEqual(buffers_to_strings(intersection).sort(), [ 'b', 'c' ], name);
+    });
+
+    client.sinter('sb', 'sc', function (err, intersection) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(intersection.length, 2, name);
+        assert.deepEqual(buffers_to_strings(intersection).sort(), [ 'c', 'd' ], name);
+    });
+
+    client.sinter('sa', 'sc', function (err, intersection) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(intersection.length, 1, name);
+        assert.equal(intersection[0], 'c', name);
+    });
+
+    // 3-way
+
+    client.sinter('sa', 'sb', 'sc', function (err, intersection) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(intersection.length, 1, name);
+        assert.equal(intersection[0], 'c', name);
+        next(name);
+    });
+};
+
+tests.SINTERSTORE = function () {
+    var name = "SINTERSTORE";
+
+    client.del('sa');
+    client.del('sb');
+    client.del('sc');
+    client.del('foo');
+
+    client.sadd('sa', 'a', require_number(1, name));
+    client.sadd('sa', 'b', require_number(1, name));
+    client.sadd('sa', 'c', require_number(1, name));
+
+    client.sadd('sb', 'b', require_number(1, name));
+    client.sadd('sb', 'c', require_number(1, name));
+    client.sadd('sb', 'd', require_number(1, name));
+
+    client.sadd('sc', 'c', require_number(1, name));
+    client.sadd('sc', 'd', require_number(1, name));
+    client.sadd('sc', 'e', require_number(1, name));
+
+    client.sinterstore('foo', 'sa', 'sb', 'sc', require_number(1, name))
+
+    client.smembers('foo', function (err, members) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(members), [ 'c' ], name);
+        next(name);
+    });
+};
+
+tests.SUNION = function () {
+    var name = "SUNION";
+    
+    client.del('sa');
+    client.del('sb');
+    client.del('sc');
+    
+    client.sadd('sa', 'a', require_number(1, name));
+    client.sadd('sa', 'b', require_number(1, name));
+    client.sadd('sa', 'c', require_number(1, name));
+
+    client.sadd('sb', 'b', require_number(1, name));
+    client.sadd('sb', 'c', require_number(1, name));
+    client.sadd('sb', 'd', require_number(1, name));
+
+    client.sadd('sc', 'c', require_number(1, name));
+    client.sadd('sc', 'd', require_number(1, name));
+    client.sadd('sc', 'e', require_number(1, name));
+
+    client.sunion('sa', 'sb', 'sc', function (err, union) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(union).sort(), ['a', 'b', 'c', 'd', 'e'], name);
+        next(name);
+    });
+};
+
+tests.SUNIONSTORE = function () {
+    var name = "SUNIONSTORE";
+    
+    client.del('sa');
+    client.del('sb');
+    client.del('sc');
+    client.del('foo');
+    
+    client.sadd('sa', 'a', require_number(1, name));
+    client.sadd('sa', 'b', require_number(1, name));
+    client.sadd('sa', 'c', require_number(1, name));
+
+    client.sadd('sb', 'b', require_number(1, name));
+    client.sadd('sb', 'c', require_number(1, name));
+    client.sadd('sb', 'd', require_number(1, name));
+
+    client.sadd('sc', 'c', require_number(1, name));
+    client.sadd('sc', 'd', require_number(1, name));
+    client.sadd('sc', 'e', require_number(1, name));
+
+    client.sunionstore('foo', 'sa', 'sb', 'sc', function (err, cardinality) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(cardinality, 5, name);
+    });
+
+    client.smembers('foo', function (err, members) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.equal(members.length, 5, name);
+        assert.deepEqual(buffers_to_strings(members).sort(), ['a', 'b', 'c', 'd', 'e'], name);
+        next(name);
+    });
+}
+
+// SORT test adapted from Brian Hammond's redis-node-client.js, which has a comprehensive test suite
+
+tests.SORT = function () {
+    var name = "SORT";
+
+    client.del('y');
+    client.del('x');
+    
+    client.rpush('y', 'd', require_number(1, name));
+    client.rpush('y', 'b', require_number(2, name));
+    client.rpush('y', 'a', require_number(3, name));
+    client.rpush('y', 'c', require_number(4, name));
+
+    client.rpush('x', '3', require_number(1, name));
+    client.rpush('x', '9', require_number(2, name));
+    client.rpush('x', '2', require_number(3, name));
+    client.rpush('x', '4', require_number(4, name));
+
+    client.set('w3', '4', require_string("OK", name));
+    client.set('w9', '5', require_string("OK", name));
+    client.set('w2', '12', require_string("OK", name));
+    client.set('w4', '6', require_string("OK", name));
+
+    client.set('o2', 'buz', require_string("OK", name));
+    client.set('o3', 'foo', require_string("OK", name));
+    client.set('o4', 'baz', require_string("OK", name));
+    client.set('o9', 'bar', require_string("OK", name));
+
+    client.set('p2', 'qux', require_string("OK", name));
+    client.set('p3', 'bux', require_string("OK", name));
+    client.set('p4', 'lux', require_string("OK", name));
+    client.set('p9', 'tux', require_string("OK", name));
+
+    // Now the data has been setup, we can test.
+
+    // But first, test basic sorting.
+
+    // y = [ d b a c ]
+    // sort y ascending = [ a b c d ]
+    // sort y descending = [ d c b a ]
+
+    client.sort('y', 'asc', 'alpha', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), ['a', 'b', 'c', 'd'], name);
+    });
+
+    client.sort('y', 'desc', 'alpha', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), ['d', 'c', 'b', 'a'], name);
+    });
+
+    // Now try sorting numbers in a list.
+    // x = [ 3, 9, 2, 4 ]
+
+    client.sort('x', 'asc', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), [2, 3, 4, 9], name);
+    });
+
+    client.sort('x', 'desc', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), [9, 4, 3, 2], name);
+    });
+
+    // Try sorting with a 'by' pattern.
+
+    client.sort('x', 'by', 'w*', 'asc', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), [3, 9, 4, 2], name);
+    });
+
+    // Try sorting with a 'by' pattern and 1 'get' pattern.
+
+    client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), ['foo', 'bar', 'baz', 'buz'], name);
+    });
+
+    // Try sorting with a 'by' pattern and 2 'get' patterns.
+
+    client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*', function (err, sorted) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(sorted), ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'], name);
+    });
+
+    // Try sorting with a 'by' pattern and 2 'get' patterns.
+    // Instead of getting back the sorted set/list, store the values to a list.
+    // Then check that the values are there in the expected order.
+
+    client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*', 'store', 'bacon', function (err) {
+        if (err) {
+            assert.fail(err, name);
+        }
+    });
+
+    client.lrange('bacon', 0, -1, function (err, values) {
+        if (err) {
+            assert.fail(err, name);
+        }
+        assert.deepEqual(buffers_to_strings(values), ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'], name);
+        next(name);
+    });
+    
+    // TODO - sort by hash value
 };
 
 tests.BLPOP = function () {
