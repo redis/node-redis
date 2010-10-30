@@ -4,8 +4,7 @@ var net = require("net"),
     util,
     events = require("events"),
     default_port = 6379,
-    default_host = "127.0.0.1",
-    commands;
+    default_host = "127.0.0.1";
 
 // hilarious 0.2.x to 0.3.x API change
 try {
@@ -519,7 +518,7 @@ RedisClient.prototype.return_reply = function (reply) {
     if (command_obj) {
         if (typeof command_obj.callback === "function") {
             // HGETALL special case replies with keyed Buffers
-            if (reply && 'HGETALL' === command_obj.command) {
+            if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
                 obj = {};
                 for (i = 0, len = reply.length; i < len; i += 2) {
                     key = reply[i].toString();
@@ -568,7 +567,11 @@ RedisClient.prototype.send_command = function () {
         throw new Error("send_command: not enough arguments");
     }
 
-    command = this_args[0];
+    if (typeof this_args[0] !== "string") {
+        throw new Error("First argument of send_command must be the command name");
+    }
+    command = this_args[0].toLowerCase();
+
     if (this_args[1] && Array.isArray(this_args[1])) { 
         args = this_args[1];
         if (typeof this_args[2] === "function") {
@@ -583,10 +586,6 @@ RedisClient.prototype.send_command = function () {
         }
     }
     
-    if (typeof command !== "string") {
-        throw new Error("First argument of send_command must be the command name");
-    }
-
     command_obj = {
         command: command,
         args: args,
@@ -601,13 +600,13 @@ RedisClient.prototype.send_command = function () {
         return;
     }
 
-    if (command === "SUBSCRIBE" || command === "PSUBSCRIBE" || command === "UNSUBSCRIBE" || command === "PUNSUBSCRIBE") {
+    if (command === "subscribe" || command === "psubscribe" || command === "unsubscribe" || command === "punsubscribe") {
         if (this.subscriptions === false && exports.debug_mode) {
             console.log("Entering pub/sub mode from " + command);
         }
         this.subscriptions = true;
     } else {
-        if (command === "QUIT") {
+        if (command === "quit") {
             this.closing = true;
         } else if (this.subscriptions === true) {
             throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
@@ -680,45 +679,6 @@ RedisClient.prototype.end = function () {
     return this.stream.end();
 };
 
-// http://code.google.com/p/redis/wiki/CommandReference
-commands = [
-    // Connection handling
-    "QUIT", "AUTH",
-    // Commands operating on all value types
-    "EXISTS", "DEL", "TYPE", "KEYS", "RANDOMKEY", "RENAME", "RENAMENX", "DBSIZE", "EXPIRE", "TTL", "SELECT",
-    "MOVE", "FLUSHDB", "FLUSHALL",
-    // Commands operating on string values
-    "SET", "GET", "GETSET", "MGET", "SETNX", "SETEX", "MSET", "MSETNX", "INCR", "INCRBY", "DECR", "DECRBY", "APPEND", "SUBSTR",
-    // Commands operating on lists
-    "RPUSH", "LPUSH", "LLEN", "LRANGE", "LTRIM", "LINDEX", "LSET", "LREM", "LPOP", "RPOP", "BLPOP", "BRPOP", "RPOPLPUSH",
-    // Commands operating on sets
-    "SADD", "SREM", "SPOP", "SMOVE", "SCARD", "SISMEMBER", "SINTER", "SINTERSTORE", "SUNION", "SUNIONSTORE", "SDIFF", "SDIFFSTORE",
-    "SMEMBERS", "SRANDMEMBER",
-    // Commands operating on sorted zsets (sorted sets)
-    "ZADD", "ZREM", "ZINCRBY", "ZRANK", "ZREVRANK", "ZRANGE", "ZREVRANGE", "ZRANGEBYSCORE", "ZCOUNT", "ZCARD", "ZSCORE",
-    "ZREMRANGEBYRANK", "ZREMRANGEBYSCORE", "ZUNIONSTORE", "ZINTERSTORE",
-    // Commands operating on hashes
-    "HSET", "HSETNX", "HGET", "HMGET", "HMSET", "HINCRBY", "HEXISTS", "HDEL", "HLEN", "HKEYS", "HVALS", "HGETALL",
-    // Sorting
-    "SORT",
-    // Persistence control commands
-    "SAVE", "BGSAVE", "LASTSAVE", "SHUTDOWN", "BGREWRITEAOF",
-    // Remote server control commands
-    "INFO", "MONITOR", "SLAVEOF", "CONFIG",
-    // Publish/Subscribe
-    "PUBLISH", "SUBSCRIBE", "PSUBSCRIBE", "UNSUBSCRIBE", "PUNSUBSCRIBE",
-    // Undocumented commands
-    "PING"
-];
-
-commands.forEach(function (command) {
-    RedisClient.prototype[command] = function () {
-        var args = to_array(arguments);
-        args.unshift(command); // put command at the beginning
-        this.send_command.apply(this, args);
-    };
-    RedisClient.prototype[command.toLowerCase()] = RedisClient.prototype[command];
-});
 
 function Multi(client, args) {
     this.client = client;
@@ -728,13 +688,41 @@ function Multi(client, args) {
     }
 }
 
-commands.forEach(function (command) {
-    Multi.prototype[command.toLowerCase()] = function () {
+
+// Official source is: http://code.google.com/p/redis/wiki/CommandReference 
+// This list is taken from src/redis.c
+[
+    // string commands
+    "get", "set", "setnx", "setex", "append", "substr", "strlen", "del", "exists", "incr", "decr", "mget", 
+    // list commands
+    "rpush", "lpush", "rpushx", "lpushx", "linsert", "rpop", "lpop", "brpop", "blpop", "llen", "lindex", "lset", "lrange", "ltrim", "lrem", "rpoplpush",
+    // set commands
+    "sadd", "srem", "smove", "sismember", "scard", "spop", "srandmember", "sinter", "sinterstore", "sunion", "sunionstore", "sdiff", "sdiffstore", "smembers",
+    // sorted set commands
+    "zadd", "zincrby", "zrem", "zremrangebyscore", "zremrangebyrank", "zunionstore", "zinterstore", "zrange", "zrangebyscore", "zrevrangebyscore", 
+    "zcount", "zrevrange", "zcard", "zscore", "zrank", "zrevrank",
+    // hash commands
+    "hset", "hsetnx", "hget", "hmset", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hgetall", "hexists", "incrby", "decrby",
+    // misc
+    "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "auth", "ping", "echo",
+    "save", "bgsave", "bgwriteaof", "shutdown", "lastsave", "type", "sync", "flushdb", "flushall", "sort", "info", 
+    "monitor", "ttl", "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch",
+    "quit"
+].forEach(function (command) {
+    RedisClient.prototype[command] = function () {
+        var args = to_array(arguments);
+        args.unshift(command); // put command at the beginning
+        this.send_command.apply(this, args);
+    };
+    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
+
+    Multi.prototype[command] = function () {
         var args = to_array(arguments);
         args.unshift(command);
         this.queue.push(args);
         return this;
     };
+    Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
 });
 
 Multi.prototype.exec = function (callback) {
@@ -781,7 +769,7 @@ Multi.prototype.exec = function (callback) {
             args = self.queue[i];
             
             // Convert HGETALL reply to object
-            if (reply && args[0] === "HGETALL") {
+            if (reply && args[0].toLowerCase() === "hgetall") {
                 obj = {};
                 for (j = 0, jl = reply.length; j < jl; j += 2) {
                     key = reply[j].toString();
