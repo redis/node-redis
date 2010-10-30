@@ -1,10 +1,10 @@
-redis - a node redis client
+redis - a node.js redis client
 ===========================
 
-This is a Redis client for node.  It is designed for node 0.2.2+ and redis 2.0.1+.  It might not work on earlier versions of either,
-although it probably will.
+This is a complete Redis client for node.js.  It is designed for node 0.2.2+ and redis 2.0.1+.
+It might not work on earlier versions of either, although it probably will.
 
-This client supports MULTI and PUBLISH/SUBSCRIBE.
+This client supports all Redis commands, including MULTI and PUBLISH/SUBSCRIBE.
 
 Install with:
 
@@ -13,9 +13,6 @@ Install with:
 ## Why?
 
 `node_redis` works in the latest versions of node, is published in `npm`, and is very fast, particularly for small responses.
-
-The most popular Redis client, `redis-node-client` by fictorial, is very mature and well tested.  If you are running an older version
-of node or value the maturity and stability of `redis-node-client`, I encourage you to use that one instead.
 
 `node_redis` is designed with performance in mind.  The included `bench.js` runs similar tests to `redis-benchmark`, included with the Redis 
 distribution, and `bench.js` is as fast as `redis-benchmark` for some patterns and slower for others.  `node_redis` has many lovingly
@@ -249,11 +246,11 @@ Redis.  The interface in `node_redis` is to return an individual `Multi` object 
             });
         });
 
-`client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the 
+`client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the
 same command methods as `client` objects do.  Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
 
-You can either chain together `MULTI` commands as in the above example, or you can queue individual 
+You can either chain together `MULTI` commands as in the above example, or you can queue individual
 commands while still sending regular client command as in this example:
 
     var redis  = require("redis"),
@@ -381,14 +378,14 @@ Defaults to 1.7.  The default initial connection retry is 250, so the second ret
 
 ## TODO
 
-Need to add WATCH/UNWATCH.
+Many common uses of Redis are fine with JavaScript Strings, and Strings are faster than Buffers.  We should get a way to 
+use Strings if binary-safety isn't a concern.  Also, dealing with Buffer results is kind of annoying.
 
 Stream large set/get into and out of Redis.
 
-Performance can be better for large values.
+Performance can be better for very large values.
 
 I think there are more performance improvements left in there for smaller values, especially for large lists of small values.
-
 
 ## Also
 
