@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v0.3.6 - November 3, 2010
+
+Add all known Redis commands from Redis master, even ones that are coming in 2.2 and beyond.
+
+Send a friendlier "error" event message on stream errors like connection refused / reset.
+
 ## v0.3.5 - October 21, 2010
 
 A few bug fixes.
