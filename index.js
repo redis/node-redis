@@ -411,17 +411,20 @@ function RedisClient(stream) {
         if (this.closing) {
             return;
         }
+        
+        var message = "Redis connection to " + self.host + ":" + self.port + " failed - " + msg.message;
+
         if (exports.debug_mode) {
-            console.warn("Connecting to redis server: " + msg);
+            console.warn(message);
         }
         self.offline_queue.forEach(function (args) {
             if (typeof args[2] === "function") {
-                args[2]("Server connection could not be established");
+                args[2](message);
             }
         });
         
         self.connected = false;
-        self.emit("error", msg);
+        self.emit("error", new Error(message));
     });
 
     this.stream.on("close", function () {

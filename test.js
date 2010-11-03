@@ -991,8 +991,18 @@ client.on('end', function () {
   ended = true;
 });
 
+// Exit immediately on connection failure, which triggers "exit", below, which fails the test
 client.on("error", function (err) {
-    console.log("Redis client connection failed: " + err.stack);
+    console.error("client: " + err.stack);
+    process.exit();
+});
+client2.on("error", function (err) {
+    console.error("client2: " + err.stack);
+    process.exit();
+});
+client3.on("error", function (err) {
+    console.error("client3: " + err.stack);
+    process.exit();
 });
 
 client.on("reconnecting", function (msg) {
