@@ -3,8 +3,8 @@
 var redis = require("./index"),
     request = require("request"),
     stats_url = "mjr.couchone.com/bench",
-    client_count = 50,
-    ops_count = 10000,
+    client_count = process.argv[2] || 50,
+    ops_count = 20000,
     clients = new Array(client_count),
     i, tests = {}, results = {}, test_list;
 
@@ -121,7 +121,7 @@ tests.connections = function () {
     function start_connection (num) {
         results[name].starts[num] = new Date();
         clients[num] = redis.createClient();
-        if (num < client_count) {
+        if (num < (client_count - 1)) {
             clients[num].on("connect", handle_connection(num));
         } else {
             clients[num].on("connect", function () {
@@ -130,17 +130,19 @@ tests.connections = function () {
                 test_complete(name);
             });
         }
+        
         clients[num].on("error", function (msg) {
             console.log("Connect problem:" + msg.stack);
         });
     }
     
+    console.log("Starting " + client_count + " connections.");
     init_test(name);
     start_connection(0);
 };
 
 tests.ping = function () {
-    var name = "PING (multi bulk)";
+    var name = "PING (mb)";
     
     init_test(name);
     spread_command(name, "ping", []);
@@ -206,6 +208,9 @@ function run_next() {
         tests[cur_test]();
     } else {
         console.log("End of tests.");
+        clients.forEach(function (client) {
+            client.quit();
+        });
     }
 }
 
