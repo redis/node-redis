@@ -622,6 +622,7 @@ RedisClient.prototype.send_command = function () {
     buffer_args = false;
 
     elem_count += args.length;
+    // Probably should just scan this like a normal person
     buffer_args = args.some(function (arg) {
         // this is clever, but might be slow
         return arg instanceof Buffer;
@@ -631,6 +632,11 @@ RedisClient.prototype.send_command = function () {
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't need binary.
 
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
+
+    if (! stream.writable && exports.debug_mode) {
+        console.log("send command: stream is not writeable, should get a close event next tick.");
+        return;
+    }
     
     if (! buffer_args) { // Build up a string and send entire command in one write
         for (i = 0, il = args.length, arg; i < il; i += 1) {
@@ -643,7 +649,6 @@ RedisClient.prototype.send_command = function () {
         if (exports.debug_mode) {
             console.log("send command: " + command_str);
         }
-        // Need to catch "Stream is not writable" exception here and error everybody in the command queue out
         stream.write(command_str);
     } else {
         if (exports.debug_mode) {
