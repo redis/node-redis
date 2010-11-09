@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.3.7 - November 9, 2010
+
+Add "drain" and "idle" events.
+
 ## v0.3.6 - November 3, 2010
 
 Add all known Redis commands from Redis master, even ones that are coming in 2.2 and beyond.

@@ -435,6 +435,10 @@ function RedisClient(stream) {
         self.connection_gone("end");
     });
     
+    this.stream.on("drain", function () {
+        self.emit("drain");
+    });
+
     events.EventEmitter.call(this);
 }
 util.inherits(RedisClient, events.EventEmitter);
@@ -505,6 +509,10 @@ RedisClient.prototype.on_data = function (data) {
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift();
 
+    if (this.subscriptions === false && this.command_queue.length === 0) {
+        this.emit("idle");
+    }
+    
     if (command_obj && typeof command_obj.callback === "function") {
         command_obj.callback(err);
     } else {
@@ -517,6 +525,10 @@ RedisClient.prototype.return_error = function (err) {
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj = this.command_queue.shift(),
         obj, i, len, key, val, type;
+
+    if (this.subscriptions === false && this.command_queue.length === 0) {
+        this.emit("idle");
+    }
     
     if (command_obj) {
         if (typeof command_obj.callback === "function") {

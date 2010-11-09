@@ -111,9 +111,23 @@ cryptic error messages like this:
 Not very useful in diagnosing the problem, but if your program isn't ready to handle this,
 it is probably the right thing to just exit.
 
+`client` will also emit `error` if an exception is thrown inside of `node_redis` for whatever reason.
+In the future, there will be a better way to distinguish these error types.
+
 ### "end"
 
 `client` will emit `end` when an established Redis server connection has closed.
+
+### "drain"
+
+`client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
+writable.  This event can be used to stream commands in to Redis and adapt to backpressure.  Right now,
+you need to check `client.command_queue.length` to decide when to reduce your send rate.  Then you can 
+resume sending when you get `drain`.
+
+### "idle"
+
+`client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
 ## redis.createClient(port, host)
 
