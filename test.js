@@ -6,7 +6,10 @@ var redis = require("./index"),
     assert = require("assert"),
     util,
     test_db_num = 15, // this DB will be flushed and used for testing
-    tests = {};
+    tests = {},
+    connected = false,
+    ended = false,
+    server_info;
 
 try {
     util = require("util");
@@ -207,13 +210,18 @@ tests.MULTI_6 = function () {
 tests.WATCH_MULTI = function () {
   var name = 'WATCH_MULTI';
 
-  client.watch(name);
-  var multi = client.multi();
-  multi.incr(name);
-  client.incr(name);
-  multi.exec(function (err, replies) {
-    next(name);
-  });
+  if (server_info.versions[0] >= 2 && server_info.versions[1] >= 1) {
+      client.watch(name);
+      var multi = client.multi();
+      multi.incr(name);
+      client.incr(name);
+      multi.exec(function (err, replies) {
+          next(name);
+      });
+  } else {
+      console.log("Skipping " + name + " because server version isn't new enough.");
+      next(name);
+  }
 };
 
 tests.HSET = function () {
@@ -991,11 +999,24 @@ function run_next_test() {
     }
 }
 
-var connected = false;
-var ended = false;
 client.on("connect", function () {
+    // Fetch and stash info results in case anybody needs info on the server we are using.
+    client.info(function (err, reply) {
+        var obj = {};
+        reply.toString().split('\n').forEach(function (line) {
+            var parts = line.split(':');
+            if (parts[1]) {
+                obj[parts[0]] = parts[1];
+            }
+        });
+        obj.versions = [];
+        obj.redis_version.split('.').forEach(function (num) {
+            obj.versions.push(+num);
+        });
+        server_info = obj;
+    });
+
     connected = true;
-    console.log();
     run_next_test();
 });
 

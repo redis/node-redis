@@ -420,6 +420,7 @@ In order of first contribution, they are:
 *  [Orion Henry](http://github.com/orionz)
 *  [Hank Sims](http://github.com/hanksims)
 *  [Aivo Paas](http://github.com/aivopaas)
+*  [Paul Carey](https://github.com/paulcarey)
 
 Thanks.
 

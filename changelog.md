@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.3.8 - November 10, 2010
+
+Fix for null MULTI response when WATCH condition fails.
+
 ## v0.3.7 - November 9, 2010
 
 Add "drain" and "idle" events.
