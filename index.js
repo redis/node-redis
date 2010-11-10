@@ -784,23 +784,25 @@ Multi.prototype.exec = function (callback) {
 
         var i, il, j, jl, reply, args, obj, key, val;
 
-        for (i = 1, il = self.queue.length; i < il; i += 1) {
-            reply = replies[i - 1];
-            args = self.queue[i];
-            
-            // Convert HGETALL reply to object
-            if (reply && args[0].toLowerCase() === "hgetall") {
-                obj = {};
-                for (j = 0, jl = reply.length; j < jl; j += 2) {
-                    key = reply[j].toString();
-                    val = reply[j + 1];
-                    obj[key] = val;
+        if (replies) {
+            for (i = 1, il = self.queue.length; i < il; i += 1) {
+                reply = replies[i - 1];
+                args = self.queue[i];
+                
+                // Convert HGETALL reply to object
+                if (reply && args[0].toLowerCase() === "hgetall") {
+                    obj = {};
+                    for (j = 0, jl = reply.length; j < jl; j += 2) {
+                        key = reply[j].toString();
+                        val = reply[j + 1];
+                        obj[key] = val;
+                    }
+                    replies[i - 1] = reply = obj;
                 }
-                replies[i - 1] = reply = obj;
-            }
-            
-            if (typeof args[args.length - 1] === "function") {
-                args[args.length - 1](null, reply);
+                
+                if (typeof args[args.length - 1] === "function") {
+                    args[args.length - 1](null, reply);
+                }
             }
         }
 

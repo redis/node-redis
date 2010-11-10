@@ -204,6 +204,18 @@ tests.MULTI_6 = function () {
         });
 };
 
+tests.WATCH_MULTI = function () {
+  var name = 'WATCH_MULTI';
+
+  client.watch(name);
+  var multi = client.multi();
+  multi.incr(name);
+  client.incr(name);
+  multi.exec(function (err, replies) {
+    next(name);
+  });
+};
+
 tests.HSET = function () {
     var key = "test hash",
         field1 = new Buffer("0123456789"),
