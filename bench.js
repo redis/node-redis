@@ -8,7 +8,7 @@ var redis = require('./index')
 
 var client = redis.createClient()
   , path = '/tmp/redis-bench'
-  , times = 20000
+  , times = 2000
   , curr = {}
   , prev;
 
@@ -23,13 +23,22 @@ var buffers = [
 function next(){
   var fn = queue.shift();
   if (fn.length) {
-    var pending = buffers.length;
-    buffers.forEach(function(buf){
-      fn(buf, function(label){
+    if (fn.bufidx === undefined) {
+      fn.bufidx = 0;
+    }
+
+    fn(buffers[fn.bufidx++], function(label){
         report(label);
-        --pending || next();
-      });
-    });
+        next();
+    })
+
+    /* Skip to next function in queue when all
+     * buffer sizes have been benchmarked. */
+    if (fn.bufidx == buffers.length) {
+      fn.bufidx = undefined;
+    } else {
+      queue.unshift(fn);
+    }
   } else {
     fn();
   }
@@ -47,9 +56,10 @@ var queue = [
 
   function(buf, next){
     var n = times
-      , start = new Date;
-    while (n--) client.lpush('list', 'foo');
-    client.lpush("list", buf, function(err, res) {
+      , start = new Date
+      , key = 'list-' + buf.length;
+    while (--n) client.lpush(key, buf);
+    client.lpush(key, buf, function(err, res) {
         curr['lpush ' + buf.length] = new Date - start;
         next('lpush ' + buf.length);
     });
@@ -59,11 +69,12 @@ var queue = [
 
   function(buf, next){
     var n = times
-      , start = new Date;
-    while (n--) client.lrange("mylist", 0, 99);
-    client.lrange("mylist", 0, 99, function (err, res) {
-        curr['lrange ' + buf.length] = new Date - start;
-        next('lrange ' + buf.length);
+      , start = new Date
+      , key = 'list-' + buf.length;
+    while (--n) client.lrange(key, 0, 99);
+    client.lrange(key, 0, 99, function (err, res) {
+        curr['lrange 0 99 (' + buf.length + ' byte entries)'] = new Date - start;
+        next('lrange 0 99 (' + buf.length + ' byte entries)');
     });
   },
 
@@ -100,3 +111,4 @@ function report(label) {
   console.log('      \x1b[33mcurr\x1b[0m: %d ms', c);
   console.log();
 }
+
