@@ -160,7 +160,7 @@ tests.MULTI_3 = function () {
     ])
     .scard("some set")
     .exec(function (err, replies) {
-        assert.strictEqual(replies[2][0], null, name);
+        assert.deepEqual(replies[2][0], [], name);
         next(name);
     });
 };
@@ -366,7 +366,7 @@ tests.MULTIBULK_ZERO_LENGTH = function () {
     var name = "MULTIBULK_ZERO_LENGTH";
     client.KEYS(['users:*'], function (err, results) {
         assert.strictEqual(null, err, 'error on empty multibulk reply');
-        assert.strictEqual(null, results);
+        assert.deepEqual([], results);
         next(name);
     });
 };
@@ -494,7 +494,7 @@ tests.HGETALL_NULL = function () {
 
     client.hgetall('missing', function (err, obj) {
         assert.strictEqual(null, err);
-        assert.strictEqual(null, obj);
+        assert.deepEqual([], obj);
         next(name);
     });
 };

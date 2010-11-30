@@ -151,9 +151,11 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.multi_bulk_length = +small_toString(this.tmp_buffer);
                 this.multi_bulk_replies = [];
                 this.state = "type";
-                if (this.multi_bulk_length <= 0) {
+                if (this.multi_bulk_length < 0) {
                     this.send_reply(null);
                     this.multi_bulk_length = 0;
+                } else if (this.multi_bulk_length === 0) {
+                    this.send_reply([]);
                 }
             } else {
                 this.emit("error", new Error("didn't see LF after NL reading multi bulk count"));
@@ -347,10 +349,12 @@ Object.defineProperty(Queue.prototype, 'length', {
     }
 });
 
-function RedisClient(stream) {
+function RedisClient(stream, options) {
     events.EventEmitter.call(this);
 
     this.stream = stream;
+    this.options = options;
+    
     this.connected = false;
     this.connections = 0;
     this.attempts = 1;
@@ -827,7 +831,7 @@ exports.createClient = function (port_arg, host_arg, options) {
 
     net_client = net.createConnection(port, host);
         
-    red_client = new RedisClient(net_client);
+    red_client = new RedisClient(net_client, options);
 
     red_client.port = port;
     red_client.host = host;
