@@ -4,18 +4,12 @@ var redis = require("./index"),
     client2 = redis.createClient(),
     client3 = redis.createClient(),
     assert = require("assert"),
-    util,
+    util = require("./lib/util").util,
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
     connected = false,
     ended = false,
     server_info;
-
-try {
-    util = require("util");
-} catch (err) {
-    util = require("sys");
-}
 
 // Uncomment this to see the wire protocol and other debugging info
 //redis.debug_mode = true;

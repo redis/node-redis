@@ -1,17 +1,10 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
-    util,
+    util = require("./lib/util").util,
     events = require("events"),
     default_port = 6379,
     default_host = "127.0.0.1";
-
-// hilarious 0.2.x to 0.3.x API change
-try {
-    util = require("util");
-} catch (err) {
-    util = require("sys");
-}
 
 // can can set this to true to enable for all connections
 exports.debug_mode = false;
