@@ -110,7 +110,7 @@ function RedisClient(stream, options) {
         self.emitted_end = false;
 
         reply_parser.debug_mode = exports.debug_mode;
-        self.reply_parser = new reply_parser.Parser();
+        self.reply_parser = new reply_parser.Parser({ return_buffers: false });
         // "reply error" is an error sent back by redis
         self.reply_parser.on("reply error", function (reply) {
             self.return_error(reply);
