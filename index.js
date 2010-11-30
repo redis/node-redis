@@ -3,9 +3,19 @@
 var net = require("net"),
     util = require("./lib/util").util,
     events = require("events"),
-    reply_parser = require("./lib/parser/javascript"),
+    reply_parser,
     default_port = 6379,
     default_host = "127.0.0.1";
+
+// Try to use hiredis for reply parsing and fall back on the Javascript-based
+// reply parsing code when its not available.
+try {
+    if (process.env["DISABLE_HIREDIS"])
+        throw new Error(); // Fall back to the Javascript reply parsing code
+    reply_parser = require("./lib/parser/hiredis");
+} catch(err) {
+    reply_parser = require("./lib/parser/javascript");
+}
 
 // can can set this to true to enable for all connections
 exports.debug_mode = false;
