@@ -1,5 +1,5 @@
 {   "name" : "redis",
-    "version" : "0.3.8",
+    "version" : "0.3.9",
     "description" : "Redis client library",
     "author": "Matt Ranney <mjr@ranney.com>",
     "contributors": [

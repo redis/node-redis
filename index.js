@@ -153,6 +153,7 @@ RedisReplyParser.prototype.execute = function (incoming_buf) {
                 this.state = "type";
                 if (this.multi_bulk_length <= 0) {
                     this.send_reply(null);
+                    this.multi_bulk_length = 0;
                 }
             } else {
                 this.emit("error", new Error("didn't see LF after NL reading multi bulk count"));
@@ -280,7 +281,7 @@ RedisReplyParser.prototype.add_multi_bulk_reply = function (reply) {
         this.multi_bulk_replies = reply;
     }
 
-    if (this.multi_bulk_nested_length) {
+    if (this.multi_bulk_nested_length > 0) {
         this.multi_bulk_nested_replies.push(this.multi_bulk_replies);
         this.multi_bulk_length = 0;
         delete this.multi_bulk_replies;

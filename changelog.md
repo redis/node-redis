@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.3.9 - November 30, 2010
+
+Fix parser bug on failed EXECs.
+
 ## v0.3.8 - November 10, 2010
 
 Fix for null MULTI response when WATCH condition fails.

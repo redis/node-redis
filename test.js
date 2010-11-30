@@ -59,6 +59,14 @@ function require_string(str, label) {
     };
 }
 
+function require_null(label) {
+    return function (err, results) {
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
+        assert.strictEqual(null, results, label + ": " + results + " is not null");
+        return true;
+    };
+}
+
 function require_error(label) {
     return function (err, results) {
         assert.notEqual(err, null, label + " err is null, but an error is expected here.");
@@ -212,12 +220,10 @@ tests.WATCH_MULTI = function () {
 
   if (server_info.versions[0] >= 2 && server_info.versions[1] >= 1) {
       client.watch(name);
+      client.incr(name);
       var multi = client.multi();
       multi.incr(name);
-      client.incr(name);
-      multi.exec(function (err, replies) {
-          next(name);
-      });
+      multi.exec(last(name, require_null(name)));
   } else {
       console.log("Skipping " + name + " because server version isn't new enough.");
       next(name);
