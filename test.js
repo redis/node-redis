@@ -158,7 +158,7 @@ tests.MULTI_3 = function () {
     ])
     .scard("some set")
     .exec(function (err, replies) {
-        assert.strictEqual(true, is_empty_array(replies[2][0]), name);
+        assert.strictEqual(true, is_empty_array(replies[2]), name);
         next(name);
     });
 };
