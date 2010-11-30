@@ -68,6 +68,10 @@ function require_error(label) {
     };
 }
 
+function is_empty_array(obj) { 
+    return Array.isArray(obj) && obj.length === 0;
+}
+
 function last(name, fn) {
     return function (err, results) {
         fn(err, results);
@@ -154,7 +158,7 @@ tests.MULTI_3 = function () {
     ])
     .scard("some set")
     .exec(function (err, replies) {
-        assert.deepEqual(replies[2][0], [], name);
+        assert.strictEqual(true, is_empty_array(replies[2][0]), name);
         next(name);
     });
 };
@@ -360,7 +364,7 @@ tests.MULTIBULK_ZERO_LENGTH = function () {
     var name = "MULTIBULK_ZERO_LENGTH";
     client.KEYS(['users:*'], function (err, results) {
         assert.strictEqual(null, err, 'error on empty multibulk reply');
-        assert.deepEqual([], results);
+        assert.strictEqual(true, is_empty_array(results), "not an empty array");
         next(name);
     });
 };
