@@ -46,19 +46,26 @@ tests.push({
 });
 
 function create_clients(callback) {
-    if (active_clients == num_clients) {
+    if (active_clients === num_clients) {
+        // common case is all clients are already created
+        console.log("create_clients: all clients already created " + num_clients);
         callback();
     } else {
-        var client;
-        var connected = active_clients;
+        var client, connected = active_clients;
 
         while (active_clients < num_clients) {
-            client = clients[active_clients++] = redis.createClient();
-            client.on("connect", function() {
-                /* Fire callback when all clients are connected */
-                if (++connected == num_clients)
-                    callback();
+            client = clients[active_clients++] = redis.createClient(6379, "127.0.0.1", {
+                parser: "hiredis",
+                return_buffers: false
             });
+            client.on("connect", function() {
+                // Fire callback when all clients are connected
+                connected += 1;
+                if (connected === num_clients) {
+                    callback();
+                }
+            });
+            // TODO - need to check for client disconnect
             client.on("error", function (msg) {
                 console.log("Connect problem:" + msg.stack);
             });
@@ -68,10 +75,10 @@ function create_clients(callback) {
 
 function issue_request(client, test, cmd, args) {
     var i = issued_requests++;
-    latency[i] = new Date;
+    latency[i] = Date.now();
 
     client[cmd](args, function() {
-        latency[i] = (new Date) - latency[i];
+        latency[i] = Date.now() - latency[i];
         if (issued_requests < num_requests) {
             issue_request(client, test, cmd, args);
         } else {
@@ -84,11 +91,11 @@ function issue_request(client, test, cmd, args) {
 
 function test_run(test) {
     create_clients(function() {
-        var i = num_clients;
-        var cmd = test.command[0];
-        var args = test.command.slice(1);
+        var i = num_clients, 
+            cmd = test.command[0],
+            args = test.command.slice(1);
 
-        test_start = new Date;
+        test_start = Date.now();
         issued_requests = 0;
         while(i-- && issued_requests < num_requests) {
             issue_request(clients[i], test, cmd, args);
@@ -98,7 +105,7 @@ function test_run(test) {
 
 function test_complete(test) {
     var min, max, sum, avg;
-    var total_time = (new Date) - test_start;
+    var total_time = Date.now() - test_start;
     var op_rate = (issued_requests / (total_time / 1000.0)).toFixed(2);
     var i;
 
@@ -116,8 +123,9 @@ function test_complete(test) {
 
 function next() {
     var test = tests.shift();
-    if (test) test_run(test);
+    if (test) {
+        test_run(test);
+    }
 }
 
 next();
-

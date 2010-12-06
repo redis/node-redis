@@ -2,22 +2,23 @@
 
 var net = require("net"),
     util = require("./lib/util").util,
+    Queue = require("./lib/queue").Queue,
     events = require("events"),
-    reply_parser,
+    parsers = [],
     default_port = 6379,
     default_host = "127.0.0.1";
 
-// Try to use hiredis for reply parsing and fall back on the Javascript-based
-// reply parsing code when its not available.
+// hiredis might not be installed
 try {
-    if (process.env["DISABLE_HIREDIS"])
-        throw new Error(); // Fall back to the Javascript reply parsing code
-    reply_parser = require("./lib/parser/hiredis");
-} catch(err) {
-    reply_parser = require("./lib/parser/javascript");
+    require("./lib/parser/hiredis");
+    parsers.push(require("./lib/parser/hiredis"));
+} catch (err) {
+    console.log("hiredis parser not installed.");
 }
 
-// can can set this to true to enable for all connections
+parsers.push(require("./lib/parser/javascript"));
+
+// can set this to true to enable for all connections
 exports.debug_mode = false;
 
 function to_array(args) {
@@ -31,62 +32,12 @@ function to_array(args) {
     return arr;
 }
 
-// Queue class adapted from Tim Caswell's pattern library
-// http://github.com/creationix/pattern/blob/master/lib/pattern/queue.js
-var Queue = function () {
-    this.tail = [];
-    this.head = to_array(arguments);
-    this.offset = 0;
-};
-
-Queue.prototype.shift = function () {
-    if (this.offset === this.head.length) {
-        var tmp = this.head;
-        tmp.length = 0;
-        this.head = this.tail;
-        this.tail = tmp;
-        this.offset = 0;
-        if (this.head.length === 0) {
-            return;
-        }
-    }
-    return this.head[this.offset++]; // sorry, JSLint
-};
-
-Queue.prototype.push = function (item) {
-    return this.tail.push(item);
-};
-
-Queue.prototype.forEach = function (fn, thisv) {
-    var array = this.head.slice(this.offset), i, il;
-
-    array.push.apply(array, this.tail);
-
-    if (thisv) {
-        for (i = 0, il = array.length; i < il; i += 1) {
-            fn.call(thisv, array[i], i, array);
-        }
-    } else {
-        for (i = 0, il = array.length; i < il; i += 1) {
-            fn(array[i], i, array);
-        }
-    }
-
-    return array;
-};
-
-Object.defineProperty(Queue.prototype, 'length', {
-    get: function () {
-        return this.head.length - this.offset + this.tail.length;
-    }
-});
-
 function RedisClient(stream, options) {
     events.EventEmitter.call(this);
 
     this.stream = stream;
-    this.options = options;
-    
+    this.options = options || {};
+
     this.connected = false;
     this.connections = 0;
     this.attempts = 1;
@@ -98,7 +49,31 @@ function RedisClient(stream, options) {
     this.subscriptions = false;
     this.closing = false;
 
-    var self = this;
+    var parser_module, self = this;
+
+    if (self.options.parser) {
+        if (! parsers.some(function (parser) {
+            if (parser.name === self.options.parser) {
+                parser_module = parser;
+                if (exports.debug_mode) {
+                    console.log("Using parser module: " + parser_module.name);
+                }
+                return true;
+            }
+        })) {
+            throw new Error("Couldn't find named parser " + self.options.parser + " on this system");
+        }
+    } else {
+        if (exports.debug_mode) {
+            console.log("Using default parser module: " + parsers[0].name);
+        }
+        parser_module = parsers[0];
+    }
+    
+    parser_module.debug_mode = exports.debug_mode;
+    this.reply_parser = new parser_module.Parser({
+        return_buffers: self.options.return_buffers || false
+    });
 
     this.stream.on("connect", function () {
         if (exports.debug_mode) {
@@ -109,8 +84,6 @@ function RedisClient(stream, options) {
         self.command_queue = new Queue();
         self.emitted_end = false;
 
-        reply_parser.debug_mode = exports.debug_mode;
-        self.reply_parser = new reply_parser.Parser({ return_buffers: false });
         // "reply error" is an error sent back by redis
         self.reply_parser.on("reply error", function (reply) {
             self.return_error(reply);
@@ -379,7 +352,7 @@ RedisClient.prototype.send_command = function () {
     });
 
     // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg
-    // This means that using Buffers in commands is going to be slower, so use Strings if you don't need binary.
+    // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
 
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
 
@@ -563,7 +536,7 @@ exports.createClient = function (port_arg, host_arg, options) {
         red_client, net_client;
 
     net_client = net.createConnection(port, host);
-        
+
     red_client = new RedisClient(net_client, options);
 
     red_client.port = port;

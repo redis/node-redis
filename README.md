@@ -1,22 +1,26 @@
 redis - a node.js redis client
 ===========================
 
-This is a complete Redis client for node.js.  It is designed for node 0.2.2+ and redis 2.0.1+.
-It might not work on earlier versions of either, although it probably will.
-
-This client supports all Redis commands, including MULTI and PUBLISH/SUBSCRIBE.
+This is a complete Redis client for node.js.  It supports all Redis commands, including MULTI, WATCH, and PUBLISH/SUBSCRIBE.
 
 Install with:
 
     npm install redis
+    
+By default, a pure JavaScript reply parser is used.  This is clever and portable, but not as fast for large responses as `hiredis` from the 
+Redis distribution.  To use the `hiredis`, do:
+
+    npm install hiredis
+    
+If `hiredis` is installed, `node_redis` will use it by default.
 
 ## Why?
 
-`node_redis` works in the latest versions of node, is published in `npm`, and is very fast, particularly for small responses.
+`node_redis` works in the latest versions of node, is published in `npm`, is used by many people, and is in production on a
+number of sites.
 
-`node_redis` is designed with performance in mind.  The included `bench.js` runs similar tests to `redis-benchmark`, included with the Redis 
-distribution, and `bench.js` is as fast as `redis-benchmark` for some patterns and slower for others.  `node_redis` has many lovingly
-hand-crafted optimizations for speed.
+`node_redis` was originally written to replace `node-redis-client` which hasn't been updated in a while, and no longer works
+on recent versions of node.
 
 
 ## Usage
@@ -27,7 +31,7 @@ Simple example, included as `example.js`:
         client = redis.createClient();
 
     client.on("error", function (err) {
-        console.log("Redis connection error to " + client.host + ":" + client.port + " - " + err);
+        console.log("Error " + err);
     });
 
     client.set("string key", "string val", redis.print);
@@ -392,21 +396,11 @@ Defaults to 1.7.  The default initial connection retry is 250, so the second ret
 
 ## TODO
 
-Many common uses of Redis are fine with JavaScript Strings, and Strings are faster than Buffers.  We should get a way to 
-use Strings if binary-safety isn't a concern.  Also, dealing with Buffer results is kind of annoying.
-
-Stream large set/get into and out of Redis.
+Stream large set/get values into and out of Redis.  Otherwise the entire value must be in node's memory.
 
 Performance can be better for very large values.
 
 I think there are more performance improvements left in there for smaller values, especially for large lists of small values.
-
-## Also
-
-This library might still have some bugs in it, but it seems to be quite useful for a lot of people at this point.
-There are other Redis libraries available for node, and they might work better for you.
-
-Comments and patches welcome.
 
 ## Contributors
 
@@ -421,6 +415,7 @@ In order of first contribution, they are:
 *  [Hank Sims](http://github.com/hanksims)
 *  [Aivo Paas](http://github.com/aivopaas)
 *  [Paul Carey](https://github.com/paulcarey)
+*  [Pieter Noordhuis](https://github.com/pietern)
 
 Thanks.
 

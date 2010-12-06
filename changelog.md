@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## v0.4.0 - December 5, 2010
+
+Support for multiple response parsers and hiredis.
+Return Strings instead of Buffers by default.
+
 ## v0.3.9 - November 30, 2010
 
 Fix parser bug on failed EXECs.
