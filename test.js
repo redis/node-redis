@@ -14,7 +14,7 @@ var redis = require("./index"),
     server_info;
 
 // Uncomment this to see the wire protocol and other debugging info
-redis.debug_mode = true;
+redis.debug_mode = false;
 
 function buffers_to_strings(arr) {
     return arr.map(function (val) {
@@ -513,7 +513,7 @@ tests.UTF8 = function () {
     client.set(["utf8test", utf8_sample], require_string("OK", name));
     client.get(["utf8test"], function (err, obj) {
         assert.strictEqual(null, err);
-        assert.strictEqual(utf8_sample, obj.toString('utf8'));
+        assert.strictEqual(utf8_sample, obj);
         next(name);
     });
 };
