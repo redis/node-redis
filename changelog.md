@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.4.1 - December 8, 2010
+
+Remove warning about missing hiredis.  You probably do want it though.
+
 ## v0.4.0 - December 5, 2010
 
 Support for multiple response parsers and hiredis C library from Pieter Noordhuis.

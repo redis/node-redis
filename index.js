@@ -8,18 +8,20 @@ var net = require("net"),
     default_port = 6379,
     default_host = "127.0.0.1";
 
+// can set this to true to enable for all connections
+exports.debug_mode = false;
+
 // hiredis might not be installed
 try {
     require("./lib/parser/hiredis");
     parsers.push(require("./lib/parser/hiredis"));
 } catch (err) {
-    console.log("hiredis parser not installed.");
+    if (exports.debug_mode) {
+        console.log("hiredis parser not installed.");
+    }
 }
 
 parsers.push(require("./lib/parser/javascript"));
-
-// can set this to true to enable for all connections
-exports.debug_mode = false;
 
 function to_array(args) {
     var len = args.length,
