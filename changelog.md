@@ -3,8 +3,9 @@ Changelog
 
 ## v0.4.0 - December 5, 2010
 
-Support for multiple response parsers and hiredis.
+Support for multiple response parsers and hiredis C library from Pieter Noordhuis.
 Return Strings instead of Buffers by default.
+Empty nested mb reply bug fix.
 
 ## v0.3.9 - November 30, 2010
 

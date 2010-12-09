@@ -2,11 +2,15 @@ var redis = require("./index"),
     num_clients = parseInt(process.argv[2]) || 50,
     active_clients = 0,
     clients = new Array(num_clients),
-    num_requests = 20000,
+    num_requests = 2000,
     issued_requests = 0,
     latency = new Array(num_requests),
     tests = [],
-    test_start;
+    test_start,
+    client_options = {
+        parser: "javascript",
+        return_buffers: false
+    };
 
 redis.debug_mode = false;
 
@@ -54,10 +58,7 @@ function create_clients(callback) {
         var client, connected = active_clients;
 
         while (active_clients < num_clients) {
-            client = clients[active_clients++] = redis.createClient(6379, "127.0.0.1", {
-                parser: "hiredis",
-                return_buffers: false
-            });
+            client = clients[active_clients++] = redis.createClient(6379, "127.0.0.1", client_options);
             client.on("connect", function() {
                 // Fire callback when all clients are connected
                 connected += 1;

@@ -7,10 +7,10 @@ Install with:
 
     npm install redis
     
-By default, a pure JavaScript reply parser is used.  This is clever and portable, but not as fast for large responses as `hiredis` from the 
-Redis distribution.  To use the `hiredis`, do:
+For portability, a pure JavaScript reply parser is used by default.  Pieter Noordhuis has provided a binding to the
+official `hiredis` C library, which is non-blocking and fast.  To use `hiredis`, do:
 
-    npm install hiredis
+    npm install hiredis redis
     
 If `hiredis` is installed, `node_redis` will use it by default.
 
@@ -20,7 +20,7 @@ If `hiredis` is installed, `node_redis` will use it by default.
 number of sites.
 
 `node_redis` was originally written to replace `node-redis-client` which hasn't been updated in a while, and no longer works
-on recent versions of node.
+with recent versions of node.
 
 
 ## Usage
@@ -116,7 +116,7 @@ Not very useful in diagnosing the problem, but if your program isn't ready to ha
 it is probably the right thing to just exit.
 
 `client` will also emit `error` if an exception is thrown inside of `node_redis` for whatever reason.
-In the future, there will be a better way to distinguish these error types.
+It would be nice to distinguish these two cases.
 
 ### "end"
 
@@ -133,12 +133,18 @@ resume sending when you get `drain`.
 
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
-## redis.createClient(port, host)
+## redis.createClient(port, host, options)
 
 Create a new client connection.  `port` defaults to `6379` and `host` defaults
-to `127.0.0.1`.  If you have Redis running on the same computer as node, then the defaults are probably fine.
+to `127.0.0.1`.  If you have `redis-server` running on the same computer as node, then the defaults for
+port and host are probably fine.  `options` in an object with the following possible properties:
 
-`createClient` returns a `RedisClient` object that is named `client` in all of the examples here.
+* `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
+            This may also be set to `javascript`.
+* `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer
+                    objects instead of JavaScript Strings.
+
+`createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
 
 ## client.end()
