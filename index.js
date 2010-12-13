@@ -215,7 +215,11 @@ RedisClient.prototype.on_data = function (data) {
     try {
         this.reply_parser.execute(data);
     } catch (err) {
-        this.emit("error", err);   // this needs to be a different event from connection error
+        // This is an unexpected parser problem, an exception that came from the parser code itself.
+        // Parser should emit "error" events if it notices things are out of whack.
+        // Callbacks that throw exceptions will land in return_reply(), below.
+        // TODO - it might be nice to have a different "error" event for different types of errors
+        this.emit("error", err);
     }
 };
 
@@ -227,7 +231,14 @@ RedisClient.prototype.return_error = function (err) {
     }
     
     if (command_obj && typeof command_obj.callback === "function") {
-        command_obj.callback(err);
+        try {
+            command_obj.callback(err);
+        } catch (err) {
+            // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
+            process.nextTick(function () {
+                throw err;
+            });
+        }
     } else {
         console.log("no callback to send error: " + util.inspect(err));
         // this will probably not make it anywhere useful, but we might as well throw
@@ -256,7 +267,14 @@ RedisClient.prototype.return_reply = function (reply) {
                 reply = obj;
             }
 
-            command_obj.callback(null, reply);
+            try {
+                command_obj.callback(null, reply);
+            } catch (err) {
+                // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
+                process.nextTick(function () {
+                    throw err;
+                });
+            }
         } else if (exports.debug_mode) {
             console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
