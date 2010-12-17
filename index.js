@@ -35,8 +35,6 @@ function to_array(args) {
 }
 
 function RedisClient(stream, options) {
-    events.EventEmitter.call(this);
-
     this.stream = stream;
     this.options = options || {};
 
