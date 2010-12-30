@@ -77,6 +77,18 @@ function RedisClient(stream, options) {
         return_buffers: self.options.return_buffers || false
     });
 
+    // "reply error" is an error sent back by redis
+    self.reply_parser.on("reply error", function (reply) {
+        self.return_error(new Error(reply));
+    });
+    self.reply_parser.on("reply", function (reply) {
+        self.return_reply(reply);
+    });
+    // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
+    self.reply_parser.on("error", function (err) {
+        self.emit("error", new Error("Redis reply parser error: " + err.stack));
+    });
+
     this.stream.on("connect", function () {
         if (exports.debug_mode) {
             console.log("Stream connected");
@@ -85,18 +97,6 @@ function RedisClient(stream, options) {
         self.connections += 1;
         self.command_queue = new Queue();
         self.emitted_end = false;
-
-        // "reply error" is an error sent back by redis
-        self.reply_parser.on("reply error", function (reply) {
-            self.return_error(reply);
-        });
-        self.reply_parser.on("reply", function (reply) {
-            self.return_reply(reply);
-        });
-        // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
-        self.reply_parser.on("error", function (err) {
-            self.emit("error", new Error("Redis reply parser error: " + err.stack));
-        });
 
         self.retry_timer = null;
         self.retry_delay = 250;
@@ -196,7 +196,10 @@ RedisClient.prototype.connection_gone = function (why) {
         console.log("Retry conneciton in " + self.retry_delay + " ms");
     }
     self.attempts += 1;
-    self.emit("reconnecting", "delay " + self.retry_delay + ", attempt " + self.attempts);
+    self.emit("reconnecting", {
+        delay: self.retry_delay,
+        attempt: self.attempts
+    });
     self.retry_timer = setTimeout(function () {
         if (exports.debug_mode) {
             console.log("Retrying connection...");
@@ -233,16 +236,16 @@ RedisClient.prototype.return_error = function (err) {
     if (command_obj && typeof command_obj.callback === "function") {
         try {
             command_obj.callback(err);
-        } catch (err) {
+        } catch (callback_err) {
             // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
             process.nextTick(function () {
-                throw err;
+                throw callback_err;
             });
         }
     } else {
-        console.log("no callback to send error: " + util.inspect(err));
+        console.log("node_redis: no callback to send error: " + util.inspect(err));
         // this will probably not make it anywhere useful, but we might as well throw
-        throw new Error(err);
+        throw err;
     }
 };
 
@@ -439,9 +442,8 @@ function Multi(client, args) {
     }
 }
 
-
-// Official source is: http://code.google.com/p/redis/wiki/CommandReference 
-// This list is taken from src/redis.c
+// Official source is: http://redis.io/commands.json
+// This list needs to be updated, and perhaps auto-updated somehow.
 [
     // string commands
     "get", "set", "setnx", "setex", "append", "substr", "strlen", "del", "exists", "incr", "decr", "mget", 
@@ -453,7 +455,7 @@ function Multi(client, args) {
     "zadd", "zincrby", "zrem", "zremrangebyscore", "zremrangebyrank", "zunionstore", "zinterstore", "zrange", "zrangebyscore", "zrevrangebyscore", 
     "zcount", "zrevrange", "zcard", "zscore", "zrank", "zrevrank",
     // hash commands
-    "hset", "hsetnx", "hget", "hmset", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hgetall", "hexists", "incrby", "decrby",
+    "hset", "hsetnx", "hget", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hgetall", "hexists", "incrby", "decrby",
     // misc
     "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "auth", "ping", "echo",
     "save", "bgsave", "bgwriteaof", "shutdown", "lastsave", "type", "sync", "flushdb", "flushall", "sort", "info", 
@@ -475,6 +477,47 @@ function Multi(client, args) {
     };
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
 });
+
+RedisClient.prototype.hmset = function () {
+    var args = to_array(arguments), tmp_args;
+    if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "object") {
+        tmp_args = [ "hmset", args[0] ];
+        Object.keys(args[1]).map(function (key) {
+            tmp_args.push(key);
+            tmp_args.push(args[1][key]);
+        });
+        if (args[2]) {
+            tmp_args.push(args[2]);
+        }
+        args = tmp_args;
+    } else {
+        args.unshift("hmset");
+    }
+
+    this.send_command.apply(this, args);
+};
+RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
+
+Multi.prototype.hmset = function () {
+    var args = to_array(arguments), tmp_args;
+    if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "object") {
+        tmp_args = [ "hmset", args[0] ];
+        Object.keys(args[1]).map(function (key) {
+            tmp_args.push(key);
+            tmp_args.push(args[1][key]);
+        });
+        if (args[2]) {
+            tmp_args.push(args[2]);
+        }
+        args = tmp_args;
+    } else {
+        args.unshift("hmset");
+    }
+
+    this.queue.push(args);
+    return this;
+};
+Multi.prototype.HMSET = Multi.prototype.hmset;
 
 Multi.prototype.exec = function (callback) {
     var self = this;
