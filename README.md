@@ -168,9 +168,9 @@ to `127.0.0.1`.  If you have `redis-server` running on the same computer as node
 port and host are probably fine.  `options` in an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
-            This may also be set to `javascript`.
-* `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer
-                    objects instead of JavaScript Strings.
+This may also be set to `javascript`.
+* `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer 
+objects instead of JavaScript Strings.
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
