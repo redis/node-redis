@@ -458,6 +458,8 @@ function Multi(client, args) {
     "zcount", "zrevrange", "zcard", "zscore", "zrank", "zrevrank",
     // hash commands
     "hset", "hsetnx", "hget", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hgetall", "hexists", "incrby", "decrby",
+    //bit commands
+    "getbit", "setbit", "getrange", "setrange",
     // misc
     "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "auth", "ping", "echo",
     "save", "bgsave", "bgwriteaof", "shutdown", "lastsave", "type", "sync", "flushdb", "flushall", "sort", "info", 
