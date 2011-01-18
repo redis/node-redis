@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.5.1 - January 18, 2011
+
+Fix bug where subscribe commands would not handle redis-server startup error properly.
+
 ## v0.5.0 - December 29, 2010
 
 Some bug fixes:

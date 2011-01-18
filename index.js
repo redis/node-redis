@@ -191,7 +191,7 @@ RedisClient.prototype.connection_gone = function (why) {
     }
     
     if (exports.debug_mode) {
-        console.log("Retry conneciton in " + self.retry_delay + " ms");
+        console.log("Retry connection in " + self.retry_delay + " ms");
     }
     self.attempts += 1;
     self.emit("reconnecting", {
@@ -210,7 +210,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
 RedisClient.prototype.on_data = function (data) {
     if (exports.debug_mode) {
-        console.log("on_data: " + data.toString());
+        console.log("net read fd " + this.stream.fd + ": " + data.toString());
     }
     
     try {
@@ -241,7 +241,7 @@ RedisClient.prototype.return_error = function (err) {
             });
         }
     } else {
-        console.log("node_redis: no callback to send error: " + util.inspect(err));
+        console.log("node_redis: no callback to send error: " + err.message);
         // this will probably not make it anywhere useful, but we might as well throw
         throw err;
     }
@@ -255,7 +255,7 @@ RedisClient.prototype.return_reply = function (reply) {
         this.emit("idle");
     }
     
-    if (command_obj) {
+    if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
             // HGETALL special case replies with keyed Buffers
             if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
@@ -301,6 +301,8 @@ RedisClient.prototype.return_reply = function (reply) {
         } else {
             throw new Error("subscriptions are active but got an invalid reply: " + reply);
         }
+    } else {
+        throw new Error("node_redis command queue state error. If you can reproduce this, please report it.");
     }
 };
 
@@ -336,7 +338,8 @@ RedisClient.prototype.send_command = function () {
     command_obj = {
         command: command,
         args: args,
-        callback: callback
+        callback: callback,
+        sub_command: false
     };
 
     if (! this.connected) {
@@ -351,6 +354,7 @@ RedisClient.prototype.send_command = function () {
         if (this.subscriptions === false && exports.debug_mode) {
             console.log("Entering pub/sub mode from " + command);
         }
+        command_obj.sub_command = true;
         this.subscriptions = true;
     } else {
         if (command === "quit") {
@@ -358,22 +362,22 @@ RedisClient.prototype.send_command = function () {
         } else if (this.subscriptions === true) {
             throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
         }
-        this.command_queue.push(command_obj);
     }
+    this.command_queue.push(command_obj);
     this.commands_sent += 1;
 
     elem_count = 1;
     buffer_args = false;
 
     elem_count += args.length;
-    // Probably should just scan this like a normal person
+    // Probably should just scan this like a normal person. This is clever, but might be slow.
     buffer_args = args.some(function (arg) {
-        // this is clever, but might be slow
         return arg instanceof Buffer;
     });
 
     // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
+    // Also, why am I putting user documentation in the library source code?
 
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
 
@@ -391,7 +395,7 @@ RedisClient.prototype.send_command = function () {
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         }
         if (exports.debug_mode) {
-            console.log("send command: " + command_str);
+            console.log("send fd " + this.stream.fd + ": " + command_str);
         }
         stream.write(command_str);
     } else {
