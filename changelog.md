@@ -1,6 +1,18 @@
 Changelog
 =========
 
+## v0.5.0 - December 29, 2010
+
+Some bug fixes:
+
+* An important bug fix in reconnection logic.  Previously, reply callbacks would be invoked twice after
+  a reconnect.
+* Changed error callback argument to be an actual Error object.
+
+New feature:
+
+* Add friendly syntax for HMSET using an object.
+
 ## v0.4.1 - December 8, 2010
 
 Remove warning about missing hiredis.  You probably do want it though.

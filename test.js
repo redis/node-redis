@@ -211,13 +211,19 @@ tests.MULTI_6 = function () {
 
     client.multi()
         .hmset("multihash", "a", "foo", "b", 1)
+        .hmset("multihash", {
+            extra: "fancy",
+            things: "here"
+        })
         .hgetall("multihash")
         .exec(function (err, replies) {
             assert.strictEqual(null, err);
             assert.equal("OK", replies[0]);
-            assert.equal(Object.keys(replies[1]).length, 2);
-            assert.equal("foo", replies[1].a.toString());
-            assert.equal("1", replies[1].b.toString());
+            assert.equal(Object.keys(replies[2]).length, 4);
+            assert.equal("foo", replies[2].a);
+            assert.equal("1", replies[2].b);
+            assert.equal("fancy", replies[2].extra);
+            assert.equal("here", replies[2].things);
             next(name);
         });
 };
@@ -235,6 +241,30 @@ tests.WATCH_MULTI = function () {
       console.log("Skipping " + name + " because server version isn't new enough.");
       next(name);
   }
+};
+
+tests.reconnect = function () {
+    var name = "reconnect";
+
+    client.set("recon 1", "one");
+    client.set("recon 2", "two", function (err, res) {
+        // Do not do this in normal programs. This is to simulate the server closing on us.
+        // For orderly shutdown in normal programs, do client.quit()
+        client.stream.destroy();
+    });
+    
+    client.on("reconnecting", function on_recon(params) {
+        client.on("connect", function on_connect() {
+            client.select(test_db_num, require_string("OK", name));
+            client.get("recon 1", require_string("one", name));
+            client.get("recon 1", require_string("one", name));
+            client.get("recon 2", require_string("two", name));
+            client.get("recon 2", require_string("two", name));
+            client.removeListener("connect", on_connect);
+            client.removeListener("reconnecting", on_recon);
+            next(name);
+        });
+    });
 };
 
 tests.HSET = function () {
@@ -257,17 +287,30 @@ tests.HSET = function () {
     client.HSET(key, field2, value2, last(name, require_number(0, name)));
 };
 
+
 tests.HMGET = function () {
-    var key = "test hash", name = "HMGET";
+    var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
 
-    client.HMSET(key, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
+    // redis-like hmset syntax
+    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
 
-    client.HMGET(key, "0123456789", "some manner of key", function (err, reply) {
+    // fancy hmset syntax
+    client.HMSET(key2, {
+        "0123456789": "abcdefghij",
+        "some manner of key": "a type of value"
+    }, require_string("OK", name));
+
+    client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
+        assert.strictEqual("abcdefghij", reply[0].toString(), name);
+        assert.strictEqual("a type of value", reply[1].toString(), name);
+    });
+
+    client.HMGET(key2, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
     });
     
-    client.HMGET(key, "missing thing", "another missing thing", function (err, reply) {
+    client.HMGET(key1, "missing thing", "another missing thing", function (err, reply) {
         assert.strictEqual(null, reply[0], name);
         assert.strictEqual(null, reply[1], name);
         next(name);
@@ -1014,7 +1057,10 @@ function run_next_test() {
 
 console.log("Using reply parser " + client.reply_parser.name);
 
-client.on("connect", function () {
+client.on("connect", function start_tests() {
+    // remove listener so we don't restart all tests on reconnect
+    client.removeListener("connect", start_tests);
+
     // Fetch and stash info results in case anybody needs info on the server we are using.
     client.info(function (err, reply) {
         var obj = {};
@@ -1055,8 +1101,8 @@ client3.on("error", function (err) {
     process.exit();
 });
 
-client.on("reconnecting", function (msg) {
-    console.log("reconnecting: " + msg);
+client.on("reconnecting", function (params) {
+    console.log("reconnecting: " + util.inspect(params));
 });
 
 process.on('uncaughtException', function (err) {

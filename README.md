@@ -53,7 +53,7 @@ The performance of `node_redis` improves dramatically with pipelining.
 
 ## Usage
 
-Simple example, included as `example.js`:
+Simple example, included as `examples/simple.js`:
 
     var redis = require("redis"),
         client = redis.createClient();
@@ -168,9 +168,9 @@ to `127.0.0.1`.  If you have `redis-server` running on the same computer as node
 port and host are probably fine.  `options` in an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
-            This may also be set to `javascript`.
-* `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer
-                    objects instead of JavaScript Strings.
+This may also be set to `javascript`.
+* `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer 
+objects instead of JavaScript Strings.
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
@@ -194,6 +194,44 @@ want to do this:
 
 `client.end()` is useful for timeout cases where something is stuck or taking too long and you want 
 to start over.
+
+## Friendlier hash commands
+
+Most Redis commands take a single String or an Array of Strings as arguments, and replies are sent back as a single String or an Array of Strings.  When dealing with hash values, there are a couple of useful exceptions to this.
+
+### client.hgetall(hash)
+
+The reply from an HGETALL command will be converted into a JavaScript Object by `node_redis`.  That way you can interact 
+with the responses using JavaScript syntax.
+
+Example:
+
+    client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
+    client.hgetall("hosts", function (err, obj) {
+        console.dir(obj);
+    });
+
+Output:
+
+    { mjr: '1', another: '23', home: '1234' }
+
+### client.hmset(hash, obj, [callback])
+
+Multiple values in a hash can be set by supplying an object:
+
+    client.HMSET(key2, {
+        "0123456789": "abcdefghij",
+        "some manner of key": "a type of value"
+    });
+
+The properties and values of this Object will be set as keys and values in the Redis hash.
+
+### client.hmset(hash, key1, val1, ... keyn, valn, [callback])
+
+Multiple values may also be set by supplying a list:
+
+    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
+
 
 ## Publish / Subscribe
 
