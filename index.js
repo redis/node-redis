@@ -243,7 +243,9 @@ RedisClient.prototype.return_error = function (err) {
     } else {
         console.log("node_redis: no callback to send error: " + err.message);
         // this will probably not make it anywhere useful, but we might as well throw
-        throw err;
+        process.nextTick(function () {
+            throw err;
+        });
     }
 };
 

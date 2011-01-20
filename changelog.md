@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.5.2 - January 18, 2011
+
+Fix bug where unhandled error replies confuse the parser.
+
 ## v0.5.1 - January 18, 2011
 
 Fix bug where subscribe commands would not handle redis-server startup error properly.
