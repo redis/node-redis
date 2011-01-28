@@ -529,7 +529,7 @@ RedisClient.prototype.send_command = function () {
 
         for (i = 0, il = args.length, arg; i < il; i += 1) {
             arg = args[i];
-            if (arg.length === undefined) {
+            if (!(arg instanceof Buffer || arg instanceof String)) {
                 arg = String(arg);
             }
 

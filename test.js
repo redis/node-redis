@@ -285,6 +285,17 @@ tests.HSET = function () {
     client.HSET(key, field2, value2, last(name, require_number(0, name)));
 };
 
+tests.HMSET_BUFFER_AND_ARRAY = function () {
+    // Saving a buffer and an array to the same document should not error
+    var key = "test hash",
+        field1 = "buffer",
+        value1 = new Buffer("abcdefghij"),
+        field2 = "array",
+        value2 = [],
+        name = "HSET";
+
+    client.HMSET(key, field1, value1, field2, value2, last(name, require_string("OK", name)));
+};
 
 tests.HMGET = function () {
     var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
