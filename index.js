@@ -557,6 +557,7 @@ Multi.prototype.exec = function (callback) {
         if (err) {
             if (callback) {
                 callback(new Error(err));
+                return;
             } else {
                 throw new Error(err);
             }
