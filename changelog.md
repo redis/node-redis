@@ -1,6 +1,18 @@
 Changelog
 =========
 
+## v0.5.4 - February 11, 2011
+
+Fix excess memory consumption from Queue backing store.
+
+Thanks to Gustaf Sjöberg.
+
+## v0.5.3 - February 5, 2011
+
+Fix multi/exec error reply callback logic.
+
+Thanks to Stella Laurenzo.
+
 ## v0.5.2 - January 18, 2011
 
 Fix bug where unhandled error replies confuse the parser.

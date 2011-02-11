@@ -112,6 +112,8 @@ function RedisClient(stream, options) {
             }
             self.send_command(command_obj.command, command_obj.args, command_obj.callback);
         }
+        self.offline_queue = new Queue();
+        // Even though items were shifted off, Queue backing store still uses memory until next add
     });
     
     this.stream.on("data", function (buffer_from_socket) {
@@ -133,6 +135,14 @@ function RedisClient(stream, options) {
                 args[2](message);
             }
         });
+        self.offline_queue = new Queue();
+
+        self.command_queue.forEach(function (args) {
+            if (typeof args[2] === "function") {
+                args[2](message);
+            }
+        });
+        self.command_queue = new Queue();
         
         self.connected = false;
         self.emit("error", new Error(message));
@@ -183,6 +193,7 @@ RedisClient.prototype.connection_gone = function (why) {
             args[2]("Server connection closed");
         }
     });
+    self.command_queue = new Queue();
 
     // If this is a requested shutdown, then don't retry
     if (self.closing) {
@@ -229,6 +240,7 @@ RedisClient.prototype.return_error = function (err) {
 
     if (this.subscriptions === false && this.command_queue.length === 0) {
         this.emit("idle");
+        this.command_queue = new Queue();
     }
     
     if (command_obj && typeof command_obj.callback === "function") {
@@ -255,6 +267,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (this.subscriptions === false && this.command_queue.length === 0) {
         this.emit("idle");
+        this.command_queue = new Queue();
     }
     
     if (command_obj && !command_obj.sub_command) {
