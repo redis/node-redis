@@ -17,8 +17,9 @@ If `hiredis` is installed, `node_redis` will use it by default.
 
 ## Why so many Redis clients for node?
 
-`node_redis` works in the latest versions of node, is published in `npm`, is used by many people, and is in production on a
-number of sites.
+`node_redis` is actively maintained, works in the latest versions of node, is published in `npm`, 
+is used by many people, including many sites in production.  This library has been worked on by key contributors to
+both Redis and node.js.
 
 `node_redis` was originally written to replace `node-redis-client` which hasn't been updated in a while, and no longer works
 with recent versions of node.
@@ -117,11 +118,17 @@ JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keye
 
 `client` will emit some events about the state of the connection to the Redis server.
 
+### "ready"
+
+`client` will emit `ready` a connection is established to the Redis server and the server reports 
+that it is ready to receive commands.  Commands issued before the `ready` event are queued, 
+then replayed just before this event is emitted.
+
 ### "connect"
 
-`client` will emit `connect` when a connection is established to the Redis server.
-
-Commands issued before the `connect` event are queued, then replayed when a connection is established.
+`client` will emit `connect` at the same time as it emits `ready` unless `client.options.no_ready_check`
+is set.  If this options is set, `connect` will be emitted when the stream is connected, and then
+you are free to try to send commands.
 
 ### "error"
 
@@ -383,6 +390,18 @@ of commands and arguments to the constructor:
 # Extras
 
 Some other things you might like to know about.
+
+## client.server_info
+
+After the ready probe completes, the results from the INFO command are saved in the `client.server_info` 
+object.
+
+The `versions` key contains an array of the elements of the version string for easy comparison.
+
+    > client.server_info.redis_version
+    '2.3.0'
+    > client.server_info.versions
+    [ 2, 3, 0 ]
 
 ## redis.print()
 
