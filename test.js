@@ -1,8 +1,6 @@
 /*global require console setTimeout process Buffer */
 var redis = require("./index"),
-    client = redis.createClient(6379, "127.0.0.1", {
-        parser: "javascript"
-    }),
+    client = redis.createClient(),
     client2 = redis.createClient(),
     client3 = redis.createClient(),
     assert = require("assert"),
@@ -10,11 +8,10 @@ var redis = require("./index"),
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
     connected = false,
-    ended = false,
-    server_info;
+    ended = false;
 
-// Uncomment this to see the wire protocol and other debugging info
-redis.debug_mode = false;
+// Set this to truthy to see the wire protocol and other debugging info
+redis.debug_mode = process.argv[2];
 
 function buffers_to_strings(arr) {
     return arr.map(function (val) {
@@ -231,7 +228,7 @@ tests.MULTI_6 = function () {
 tests.WATCH_MULTI = function () {
   var name = 'WATCH_MULTI';
 
-  if (server_info.versions[0] >= 2 && server_info.versions[1] >= 1) {
+  if (client.server_info.versions[0] >= 2 && client.server_info.versions[1] >= 1) {
       client.watch(name);
       client.incr(name);
       var multi = client.multi();
@@ -1057,28 +1054,10 @@ function run_next_test() {
 
 console.log("Using reply parser " + client.reply_parser.name);
 
-client.on("connect", function start_tests() {
-    // remove listener so we don't restart all tests on reconnect
-    client.removeListener("connect", start_tests);
+client.once("ready", function start_tests() {
+    console.log("Connected to " + client.host + ":" + client.port + ", Redis server version " + client.server_info.redis_version + "\n");
 
-    // Fetch and stash info results in case anybody needs info on the server we are using.
-    client.info(function (err, reply) {
-        var obj = {};
-        reply.toString().split('\n').forEach(function (line) {
-            var parts = line.split(':');
-            if (parts[1]) {
-                obj[parts[0]] = parts[1];
-            }
-        });
-        obj.versions = [];
-        obj.redis_version.split('.').forEach(function (num) {
-            obj.versions.push(+num);
-        });
-        server_info = obj;
-        console.log("Connected to " + client.host + ":" + client.port + ", Redis server version " + obj.redis_version + "\n");
-
-        run_next_test();
-    });
+    run_next_test();
 
     connected = true;
 });

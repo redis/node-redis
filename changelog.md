@@ -1,6 +1,25 @@
 Changelog
 =========
 
+## v0.5.5 - February 16, 2011
+
+Add probe for server readiness.
+
+When a Redis server starts up, it might take a while to load the dataset into memory.
+During this time, the server will accept connections, but will return errors for all non-INFO
+commands.  Now node_redis will send an INFO command whenever it connects to a server.
+If the info command indicates that the server is not ready, the client will keep trying until
+the server is ready.  Once it is ready, the client will emit a "ready" event as well as the
+"connect" event.  The client will queue up all commands sent before the server is ready, just
+like it did before.  When the server is ready, all offline/non-ready commands will be replayed.
+This should be backward compatible with previous versions.
+
+To disable this ready check behavior, set `options.no_ready_check` when creating the client.
+
+As a side effect of this change, the key/val params from the info command are available as
+`client.server_options`.  Further, the version string is decomposed into individual elements
+in `client.server_options.versions`.
+
 ## v0.5.4 - February 11, 2011
 
 Fix excess memory consumption from Queue backing store.

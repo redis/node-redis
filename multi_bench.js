@@ -8,7 +8,6 @@ var redis = require("./index"),
     tests = [],
     test_start,
     client_options = {
-        parser: "javascript",
         return_buffers: false
     };
 

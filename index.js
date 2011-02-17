@@ -39,6 +39,7 @@ function RedisClient(stream, options) {
     this.options = options || {};
 
     this.connected = false;
+    this.ready = false;
     this.connections = 0;
     this.attempts = 1;
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
@@ -48,6 +49,7 @@ function RedisClient(stream, options) {
     this.retry_backoff = 1.7;
     this.subscriptions = false;
     this.closing = false;
+    this.server_info = {};
 
     var parser_module, self = this;
 
@@ -76,22 +78,23 @@ function RedisClient(stream, options) {
     });
 
     // "reply error" is an error sent back by redis
-    self.reply_parser.on("reply error", function (reply) {
+    this.reply_parser.on("reply error", function (reply) {
         self.return_error(new Error(reply));
     });
-    self.reply_parser.on("reply", function (reply) {
+    this.reply_parser.on("reply", function (reply) {
         self.return_reply(reply);
     });
     // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
-    self.reply_parser.on("error", function (err) {
+    this.reply_parser.on("error", function (err) {
         self.emit("error", new Error("Redis reply parser error: " + err.stack));
     });
 
     this.stream.on("connect", function () {
         if (exports.debug_mode) {
-            console.log("Stream connected");
+            console.log("Stream connected fd " + self.stream.fd);
         }
         self.connected = true;
+        self.ready = false;
         self.connections += 1;
         self.command_queue = new Queue();
         self.emitted_end = false;
@@ -101,19 +104,14 @@ function RedisClient(stream, options) {
         self.stream.setNoDelay();
         self.stream.setTimeout(0);
 
-        // give connect listeners a chance to run first in case they need to auth
         self.emit("connect");
 
-        var command_obj;
-        while (self.offline_queue.length > 0) {
-            command_obj = self.offline_queue.shift();
-            if (exports.debug_mode) {
-                console.log("Sending offline command: " + command_obj.command);
-            }
-            self.send_command(command_obj.command, command_obj.args, command_obj.callback);
+        if (self.options.no_ready_check) {
+            self.ready = true;
+            self.send_offline_queue();
+        } else {
+            self.ready_check();
         }
-        self.offline_queue = new Queue();
-        // Even though items were shifted off, Queue backing store still uses memory until next add
     });
     
     this.stream.on("data", function (buffer_from_socket) {
@@ -145,6 +143,7 @@ function RedisClient(stream, options) {
         self.command_queue = new Queue();
         
         self.connected = false;
+        self.ready = false;
         self.emit("error", new Error(message));
     });
 
@@ -165,6 +164,76 @@ function RedisClient(stream, options) {
 util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
 
+RedisClient.prototype.ready_check = function () {
+    var self = this;
+
+    function send_info_cmd() {
+        if (exports.debug_mode) {
+            console.log("checking server ready state...");
+        }
+
+        self.send_anyway = true;  // secret flag to send_command to send something even if not "ready"
+        self.info(function (err, res) {
+            if (err) {
+                self.emit("error", "Ready check failed: " + err);
+                return;
+            }
+
+            var lines = res.split("\r\n"), obj = {}, retry_time;
+        
+            lines.forEach(function (line) {
+                var parts = line.split(':');
+                if (parts[1]) {
+                    obj[parts[0]] = parts[1];
+                }
+            });
+
+            obj.versions = [];
+            obj.redis_version.split('.').forEach(function (num) {
+                obj.versions.push(+num);
+            });
+
+            // expose info key/vals to users
+            self.server_info = obj;
+
+            if (!obj["loading"] || (obj["loading"] && obj["loading"] == 0)) {
+                if (exports.debug_mode) {
+                    console.log("Redis server ready.");
+                }
+                self.ready = true;
+
+                self.send_offline_queue();
+                self.emit("ready");
+            } else {
+                retry_time = obj.loading_eta_seconds * 1000;
+                if (retry_time > 1000) {
+                    retry_time = 1000;
+                }
+                if (exports.debug_mode) {
+                    console.log("Redis server still loading, trying again in " + retry_time);
+                }
+                setTimeout(send_info_cmd, retry_time);
+            }
+        });
+        self.send_anyway = false;
+    }
+
+    send_info_cmd();
+};
+
+RedisClient.prototype.send_offline_queue = function () {
+    var command_obj;
+    while (this.offline_queue.length > 0) {
+        command_obj = this.offline_queue.shift();
+        if (exports.debug_mode) {
+            console.log("Sending offline command: " + command_obj.command);
+        }
+        this.send_command(command_obj.command, command_obj.args, command_obj.callback);
+    }
+    this.offline_queue = new Queue();
+    // Even though items were shifted off, Queue backing store still uses memory until next add
+};
+
 RedisClient.prototype.connection_gone = function (why) {
     var self = this;
 
@@ -180,6 +249,7 @@ RedisClient.prototype.connection_gone = function (why) {
         console.warn("Redis connection is gone from " + why + " event.");
     }
     self.connected = false;
+    self.ready = false;
     self.subscriptions = false;
 
     // since we are collapsing end and close, users don't expect to be called twice
@@ -357,7 +427,7 @@ RedisClient.prototype.send_command = function () {
         sub_command: false
     };
 
-    if (! this.connected) {
+    if (!this.ready && !this.send_anyway) {
         if (exports.debug_mode) {
             console.log("Queueing " + command + " for next server connection.");
         }
@@ -447,6 +517,7 @@ RedisClient.prototype.send_command = function () {
 RedisClient.prototype.end = function () {
     this.stream._events = {};
     this.connected = false;
+    this.ready = false;
     return this.stream.end();
 };
 
@@ -616,16 +687,16 @@ RedisClient.prototype.MULTI = function (args) {
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,
         host = host_arg || default_host,
-        red_client, net_client;
+        redis_client, net_client;
 
     net_client = net.createConnection(port, host);
 
-    red_client = new RedisClient(net_client, options);
+    redis_client = new RedisClient(net_client, options);
 
-    red_client.port = port;
-    red_client.host = host;
+    redis_client.port = port;
+    redis_client.host = host;
 
-    return red_client;
+    return redis_client;
 };
 
 exports.print = function (err, reply) {
