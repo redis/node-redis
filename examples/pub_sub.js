@@ -31,4 +31,12 @@ client1.on("message", function (channel, message) {
 });
 
 client1.incr("did a thing");
-client1.subscribe("a nice channel", "another one");
+
+client1.on("ready", function () {
+    // if you need auth, do it here
+    client1.subscribe("a nice channel", "another one");
+});
+
+client2.on("ready", function () {
+    // if you need auth, do it here
+});
