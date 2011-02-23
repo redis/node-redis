@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v0.5.6 - February 22, 2011
+
+Fix bug in ready check with `return_buffers` set to `true`.
+
+Thanks to Dean Mao and Austin Chau.
+
 ## v0.5.5 - February 16, 2011
 
 Add probe for server readiness.

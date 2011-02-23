@@ -179,8 +179,8 @@ RedisClient.prototype.ready_check = function () {
                 return;
             }
 
-            var lines = res.split("\r\n"), obj = {}, retry_time;
-        
+            var lines = res.toString().split("\r\n"), obj = {}, retry_time;
+
             lines.forEach(function (line) {
                 var parts = line.split(':');
                 if (parts[1]) {
