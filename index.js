@@ -50,6 +50,7 @@ function RedisClient(stream, options) {
     this.subscriptions = false;
     this.closing = false;
     this.server_info = {};
+    this.auth_pass = null;
 
     var parser_module, self = this;
 
@@ -90,30 +91,9 @@ function RedisClient(stream, options) {
     });
 
     this.stream.on("connect", function () {
-        if (exports.debug_mode) {
-            console.log("Stream connected fd " + self.stream.fd);
-        }
-        self.connected = true;
-        self.ready = false;
-        self.connections += 1;
-        self.command_queue = new Queue();
-        self.emitted_end = false;
-
-        self.retry_timer = null;
-        self.retry_delay = 250;
-        self.stream.setNoDelay();
-        self.stream.setTimeout(0);
-
-        self.emit("connect");
-
-        if (self.options.no_ready_check) {
-            self.ready = true;
-            self.send_offline_queue();
-        } else {
-            self.ready_check();
-        }
+        self.on_connect();
     });
-    
+
     this.stream.on("data", function (buffer_from_socket) {
         self.on_data(buffer_from_socket);
     });
@@ -164,6 +144,55 @@ function RedisClient(stream, options) {
 util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
 
+RedisClient.prototype.on_connect = function () {
+    if (exports.debug_mode) {
+        console.log("Stream connected " + this.host + ":" + this.port + " fd " + this.stream.fd);
+    }
+    var self = this;
+
+    this.connected = true;
+    this.ready = false;
+    this.connections += 1;
+    this.command_queue = new Queue();
+    this.emitted_end = false;
+    this.retry_timer = null;
+    this.retry_delay = 250;
+    this.stream.setNoDelay();
+    this.stream.setTimeout(0);
+
+    if (this.auth_pass) {
+        if (exports.debug_mode) {
+            console.log("Sending auth to " + this.host + ":" + this.port + " fd " + this.stream.fd);
+        }
+        self.send_anyway = true;
+        self.send_command("auth", this.auth_pass, function (err, res) {
+            if (err) {
+                return self.emit("error", "Auth error: " + err);
+            }
+            if (res.toString() !== "OK") {
+                return self.emit("error", "Auth failed: " + res.toString());
+            }
+            if (exports.debug_mode) {
+                console.log("Auth succeeded " + self.host + ":" + self.port + " fd " + self.stream.fd);
+            }
+            if (self.auth_callback) {
+                self.auth_callback(err, res);
+                self.auth_callback = null;
+            }
+        });
+        self.send_anyway = false;
+    }
+
+    this.emit("connect");
+
+    if (this.options.no_ready_check) {
+        this.ready = true;
+        this.send_offline_queue();
+    } else {
+        this.ready_check();
+    }
+};
+
 RedisClient.prototype.ready_check = function () {
     var self = this;
 
@@ -175,8 +204,7 @@ RedisClient.prototype.ready_check = function () {
         self.send_anyway = true;  // secret flag to send_command to send something even if not "ready"
         self.info(function (err, res) {
             if (err) {
-                self.emit("error", "Ready check failed: " + err);
-                return;
+                return self.emit("error", "Ready check failed: " + err);
             }
 
             var lines = res.toString().split("\r\n"), obj = {}, retry_time;
@@ -291,7 +319,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
 RedisClient.prototype.on_data = function (data) {
     if (exports.debug_mode) {
-        console.log("net read fd " + this.stream.fd + ": " + data.toString());
+        console.log("net read " + this.host + ":" + this.port + " fd " + this.stream.fd + ": " + data.toString());
     }
     
     try {
@@ -480,7 +508,7 @@ RedisClient.prototype.send_command = function () {
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         }
         if (exports.debug_mode) {
-            console.log("send fd " + this.stream.fd + ": " + command_str);
+            console.log("send " + this.host + ":" + this.port + " fd " + this.stream.fd + ": " + command_str);
         }
         stream.write(command_str);
     } else {
@@ -547,7 +575,7 @@ function Multi(client, args) {
     //bit commands
     "getbit", "setbit", "getrange", "setrange",
     // misc
-    "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "auth", "ping", "echo",
+    "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "ping", "echo",
     "save", "bgsave", "bgwriteaof", "shutdown", "lastsave", "type", "sync", "flushdb", "flushall", "sort", "info", 
     "monitor", "ttl", "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch",
     "quit"
@@ -567,6 +595,22 @@ function Multi(client, args) {
     };
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
 });
+
+// Stash auth for connect and reconnect.  Send immediately if already connected.
+RedisClient.prototype.auth = function () {
+    var args = to_array(arguments);
+    this.auth_pass = args[0];
+    this.auth_callback = args[1];
+    if (exports.debug_mode) {
+        console.log("Saving auth as " + this.auth_pass);
+    }
+
+    if (this.connected) {
+        args.unshift("auth");
+        this.send_command.apply(this, args);
+    }
+};
+RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
 RedisClient.prototype.hmset = function () {
     var args = to_array(arguments), tmp_args;

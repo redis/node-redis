@@ -181,6 +181,13 @@ objects instead of JavaScript Strings.
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
+## client.auth(password, callback)
+
+When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
+first command after connecting.  This can be tricky to coordinate with reconnections, the ready check,
+etc.  To make this easier, `client.auth()` stashes `password` and will send it after each connection,
+including reconnections.  `callback` is invoked only once, after the response to the very first
+`AUTH` command sent.
 
 ## client.end()
 

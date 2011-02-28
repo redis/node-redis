@@ -3,6 +3,7 @@ var redis = require("./index"),
     client = redis.createClient(),
     client2 = redis.createClient(),
     client3 = redis.createClient(),
+    client4 = redis.createClient(9006, "filefish.redistogo.com"),
     assert = require("assert"),
     util = require("./lib/util").util,
     test_db_num = 15, // this DB will be flushed and used for testing
@@ -1049,6 +1050,7 @@ function run_next_test() {
         console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date() - all_start);
         client.quit();
         client2.quit();
+        client4.quit();
     }
 }
 
@@ -1064,6 +1066,14 @@ client.once("ready", function start_tests() {
 
 client.on('end', function () {
   ended = true;
+});
+
+// TODO - need a better way to test auth, maybe auto-config a local Redis server?
+client4.auth("664b1b6aaf134e1ec281945a8de702a9", function (err, res) {
+    if (err) {
+        assert.fail(err, name);
+    }
+    assert.strictEqual("OK", res.toString(), "auth");
 });
 
 // Exit immediately on connection failure, which triggers "exit", below, which fails the test

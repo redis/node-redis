@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v0.5.7 - February 27, 2011
+
+Add magical auth command.
+
+Authentication is now remembered by the client and will be automatically sent to the server
+on every connection, including any reconnections.
+
 ## v0.5.6 - February 22, 2011
 
 Fix bug in ready check with `return_buffers` set to `true`.
