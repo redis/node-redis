@@ -26,7 +26,7 @@ parsers.push(require("./lib/parser/javascript"));
 
 function RedisClient(stream, options) {
     this.stream = stream;
-    this.options = options || {};
+    this.options = options = options || {};
 
     this.connected = false;
     this.ready = false;
@@ -38,9 +38,13 @@ function RedisClient(stream, options) {
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
-    this.retry_delay = 250; // inital reconnection delay
-    this.current_retry_delay = this.retry_delay;
-    this.retry_backoff = 1.7; // each retry waits current delay * retry_backoff
+    this.connect_timeout = false;
+    if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
+        this.connect_timeout = +options.connect_timeout;
+    }
+    this.retry_totaltime = 0;
+    this.retry_delay = 250;
+    this.retry_backoff = 1.7;
     this.subscriptions = false;
     this.monitoring = false;
     this.closing = false;
@@ -164,6 +168,7 @@ RedisClient.prototype.on_connect = function () {
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
+    this.retry_totaltime = 0;
     this.retry_timer = null;
     this.current_retry_delay = this.retry_time;
     this.stream.setNoDelay();
@@ -351,6 +356,18 @@ RedisClient.prototype.connection_gone = function (why) {
         if (exports.debug_mode) {
             console.log("Retrying connection...");
         }
+
+        self.retry_delay = self.retry_delay * self.retry_backoff;
+        self.retry_totaltime += self.retry_delay;
+        
+        if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
+            self.retry_timer = null;
+            if (exports.debug_mode) {
+                console.log("Aborting connection attempt: Total timeout of  " + self.connect_timeout + "ms exceeded.");
+            }
+            return;
+        }
+        
         self.stream.connect(self.port, self.host);
         self.retry_timer = null;
     }, this.current_retry_delay);
