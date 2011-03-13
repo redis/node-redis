@@ -36,7 +36,7 @@ function to_array(args) {
 
 function RedisClient(stream, options) {
     this.stream = stream;
-    this.options = options || {};
+    this.options = options = options || {};
 
     this.connected = false;
     this.ready = false;
@@ -45,6 +45,11 @@ function RedisClient(stream, options) {
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
+    //default to infinite
+    this.connect_timeout =
+      (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0 )
+      ? options.connect_timeout*1 : false;
+    this.retry_totaltime = 0;
     this.retry_delay = 250;
     this.retry_backoff = 1.7;
     this.subscriptions = false;
@@ -155,6 +160,7 @@ RedisClient.prototype.on_connect = function () {
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
+    this.retry_totaltime = 0;
     this.retry_timer = null;
     this.retry_delay = 250;
     this.stream.setNoDelay();
@@ -312,6 +318,16 @@ RedisClient.prototype.connection_gone = function (why) {
             console.log("Retrying connection...");
         }
         self.retry_delay = self.retry_delay * self.retry_backoff;
+        self.retry_totaltime += self.retry_delay;
+        
+        if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
+            self.retry_timer = null;
+            if (exports.debug_mode) {
+                console.log("Aborting connection attempt: Total timeout of  " + self.connect_timeout + "ms exceeded.");
+            }
+            return;
+        }
+        
         self.stream.connect(self.port, self.host);
         self.retry_timer = null;
     }, self.retry_delay);
