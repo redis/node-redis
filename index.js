@@ -35,6 +35,10 @@ function RedisClient(stream, options) {
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
+    this.max_attempts = null;
+    if (options.max_attempts && !isNaN(options.max_attempts) && options.max_attempts > 0) {
+        this.max_attempts = +options.max_attempts;
+    }
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
@@ -168,6 +172,7 @@ RedisClient.prototype.on_connect = function () {
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
+    this.max_attempts = 0;
     this.retry_totaltime = 0;
     this.retry_timer = null;
     this.current_retry_delay = this.retry_time;
@@ -347,10 +352,19 @@ RedisClient.prototype.connection_gone = function (why) {
     if (exports.debug_mode) {
         console.log("Retry connection in " + this.current_retry_delay + " ms");
     }
-    this.attempts += 1;
-    this.emit("reconnecting", {
-        delay: this.current_retry_delay,
-        attempt: this.attempts
+    
+    if (self.max_attempts && self.attempts >= self.max_attempts) {
+        self.retry_timer = null;
+        if (exports.debug_mode) {
+            console.log("Aborting connection attempt: Max attempts " + self.max_attempts + " failed.");
+        }
+        return;
+    }
+    
+    self.attempts += 1;
+    self.emit("reconnecting", {
+        delay: self.retry_delay,
+        attempt: self.attempts
     });
     this.retry_timer = setTimeout(function () {
         if (exports.debug_mode) {
