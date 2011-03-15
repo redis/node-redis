@@ -394,6 +394,29 @@ of commands and arguments to the constructor:
     });
 
 
+## Monitor mode
+
+Redis supports the `MONITOR` command, which lets you see all commands received by the Redis server
+across all client connections, including from other client libraries and other computers.
+
+After you send the `MONITOR` command, no other commands are valid on that connection.  `node_redis`
+will emit a `monitor` event for every new monitor message that comes across.  The callback for the 
+`monitor` event takes a timestamp from the Redis server and an array of command arguments.
+
+Here is a simple example:
+
+    var client  = require("redis").createClient(),
+        util = require("util");
+
+    client.monitor(function (err, res) {
+        console.log("Entering monitoring mode.");
+    });
+
+    client.on("monitor", function (time, args) {
+        console.log(time + ": " + util.inspect(args));
+    });
+
+
 # Extras
 
 Some other things you might like to know about.

@@ -1068,7 +1068,8 @@ client.on('end', function () {
   ended = true;
 });
 
-// TODO - need a better way to test auth, maybe auto-config a local Redis server?
+// TODO - need a better way to test auth, maybe auto-config a local Redis server?  Sounds hard.
+// Yes, this is the real password.  Please be nice, thanks.
 client4.auth("664b1b6aaf134e1ec281945a8de702a9", function (err, res) {
     if (err) {
         assert.fail(err, name);
@@ -1091,7 +1092,7 @@ client3.on("error", function (err) {
 });
 
 client.on("reconnecting", function (params) {
-    console.log("reconnecting: " + util.inspect(params));
+//    console.log("reconnecting: " + util.inspect(params));
 });
 
 process.on('uncaughtException', function (err) {

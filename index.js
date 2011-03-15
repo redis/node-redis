@@ -48,6 +48,7 @@ function RedisClient(stream, options) {
     this.retry_delay = 250;
     this.retry_backoff = 1.7;
     this.subscriptions = false;
+    this.monitoring = false;
     this.closing = false;
     this.server_info = {};
     this.auth_pass = null;
@@ -279,6 +280,7 @@ RedisClient.prototype.connection_gone = function (why) {
     self.connected = false;
     self.ready = false;
     self.subscriptions = false;
+    self.monitoring = false;
 
     // since we are collapsing end and close, users don't expect to be called twice
     if (! self.emitted_end) {
@@ -361,7 +363,7 @@ RedisClient.prototype.return_error = function (err) {
 
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj = this.command_queue.shift(),
-        obj, i, len, key, val, type;
+        obj, i, len, key, val, type, timestamp, args;
 
     if (this.subscriptions === false && this.command_queue.length === 0) {
         this.emit("idle");
@@ -414,6 +416,13 @@ RedisClient.prototype.return_reply = function (reply) {
         } else {
             throw new Error("subscriptions are active but got an invalid reply: " + reply);
         }
+    } else if (this.monitoring) {
+        len = reply.indexOf(" ");
+        timestamp = reply.slice(0, len);
+        args = reply.slice(len + 1).match(/"[^"]+"/g).map(function (elem) {
+            return elem.replace(/"/g, "");
+        });
+        this.emit("monitor", timestamp, args);
     } else {
         throw new Error("node_redis command queue state error. If you can reproduce this, please report it.");
     }
@@ -469,12 +478,12 @@ RedisClient.prototype.send_command = function () {
         }
         command_obj.sub_command = true;
         this.subscriptions = true;
-    } else {
-        if (command === "quit") {
-            this.closing = true;
-        } else if (this.subscriptions === true) {
-            throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
-        }
+    } else if (command === "monitor") {
+        this.monitoring = true;
+    } else if (command === "quit") {
+        this.closing = true;
+    } else if (this.subscriptions === true) {
+        throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
     }
     this.command_queue.push(command_obj);
     this.commands_sent += 1;

@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.5.8 - March 14, 2011
+
+Add `MONITOR` command and special monitor command reply parsing.
+
 ## v0.5.7 - February 27, 2011
 
 Add magical auth command.
