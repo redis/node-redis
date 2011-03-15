@@ -1,5 +1,5 @@
 {   "name" : "redis",
-    "version" : "0.5.8",
+    "version" : "0.5.9",
     "description" : "Redis client library",
     "author": "Matt Ranney <mjr@ranney.com>",
     "contributors": [
@@ -10,7 +10,8 @@
         "Hank Sims",
         "Aivo Paas",
         "Paul Carey",
-        "Pieter Noordhuis"
+        "Pieter Noordhuis",
+        "Andy Ray"
     ],
     "main": "./index.js",
     "scripts": {

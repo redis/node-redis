@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.5.9 - March 14, 2011
+
+Fix bug with empty Array arguments - Andy Ray
+
 ## v0.5.8 - March 14, 2011
 
 Add `MONITOR` command and special monitor command reply parsing.
