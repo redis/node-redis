@@ -3,6 +3,7 @@
 var net = require("net"),
     util = require("./lib/util").util,
     Queue = require("./lib/queue").Queue,
+    rediscommands = require("./lib/rediscommands"),
     events = require("events"),
     parsers = [],
     default_port = 6379,
@@ -92,7 +93,18 @@ function RedisClient(stream, options) {
     });
 
     this.stream.on("connect", function () {
-        self.on_connect();
+        if (exports.debug_mode) {
+            console.log("stream connected");
+        }
+        self.stream.connected = true;
+        if (rediscommands.processed) { self.on_connect(); }
+    });
+    rediscommands.on('processed', function() {
+        if (exports.debug_mode) {
+            console.log("commands processed");
+        }
+        rediscommands.processed = true;
+        if (self.stream.connected) { self.on_connect(); }
     });
 
     this.stream.on("data", function (buffer_from_socket) {
@@ -139,6 +151,10 @@ function RedisClient(stream, options) {
     this.stream.on("drain", function () {
         self.emit("drain");
     });
+
+    if (!rediscommands.loading) {
+        rediscommands.get();
+    }
 
     events.EventEmitter.call(this);
 }
@@ -567,42 +583,24 @@ function Multi(client, args) {
     }
 }
 
-// Official source is: http://redis.io/commands.json
-// This list needs to be updated, and perhaps auto-updated somehow.
-[
-    // string commands
-    "get", "set", "setnx", "setex", "append", "substr", "strlen", "del", "exists", "incr", "decr", "mget", 
-    // list commands
-    "rpush", "lpush", "rpushx", "lpushx", "linsert", "rpop", "lpop", "brpop", "blpop", "llen", "lindex", "lset", "lrange", "ltrim", "lrem", "rpoplpush",
-    // set commands
-    "sadd", "srem", "smove", "sismember", "scard", "spop", "srandmember", "sinter", "sinterstore", "sunion", "sunionstore", "sdiff", "sdiffstore", "smembers",
-    // sorted set commands
-    "zadd", "zincrby", "zrem", "zremrangebyscore", "zremrangebyrank", "zunionstore", "zinterstore", "zrange", "zrangebyscore", "zrevrangebyscore", 
-    "zcount", "zrevrange", "zcard", "zscore", "zrank", "zrevrank",
-    // hash commands
-    "hset", "hsetnx", "hget", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hgetall", "hexists", "incrby", "decrby",
-    //bit commands
-    "getbit", "setbit", "getrange", "setrange",
-    // misc
-    "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "ping", "echo",
-    "save", "bgsave", "bgwriteaof", "shutdown", "lastsave", "type", "sync", "flushdb", "flushall", "sort", "info", 
-    "monitor", "ttl", "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch",
-    "quit"
-].forEach(function (command) {
-    RedisClient.prototype[command] = function () {
-        var args = to_array(arguments);
-        args.unshift(command); // put command at the beginning
-        this.send_command.apply(this, args);
-    };
-    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
+rediscommands.on('loaded', function(self) {
+    self.arrayversion.forEach(function (command) {
+        RedisClient.prototype[command] = function () {
+            var args = to_array(arguments);
+            args.unshift(command); // put command at the beginning
+            this.send_command.apply(this, args);
+        };
+        RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
 
-    Multi.prototype[command] = function () {
-        var args = to_array(arguments);
-        args.unshift(command);
-        this.queue.push(args);
-        return this;
-    };
-    Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
+        Multi.prototype[command] = function () {
+            var args = to_array(arguments);
+            args.unshift(command);
+            this.queue.push(args);
+            return this;
+        };
+        Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
+    });
+    rediscommands.emit('processed');
 });
 
 // Stash auth for connect and reconnect.  Send immediately if already connected.
