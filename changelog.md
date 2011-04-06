@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.5.10 - April 6, 2011
+
+Added HVALS
+
 ## v0.5.9 - March 14, 2011
 
 Fix bug with empty Array arguments - Andy Ray

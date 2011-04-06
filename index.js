@@ -580,7 +580,7 @@ function Multi(client, args) {
     "zadd", "zincrby", "zrem", "zremrangebyscore", "zremrangebyrank", "zunionstore", "zinterstore", "zrange", "zrangebyscore", "zrevrangebyscore", 
     "zcount", "zrevrange", "zcard", "zscore", "zrank", "zrevrank",
     // hash commands
-    "hset", "hsetnx", "hget", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hgetall", "hexists", "incrby", "decrby",
+    "hset", "hsetnx", "hget", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hvals", "hgetall", "hexists", "incrby", "decrby",
     //bit commands
     "getbit", "setbit", "getrange", "setrange",
     // misc
