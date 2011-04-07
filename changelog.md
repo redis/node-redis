@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v0.5.11 - April 7, 2011
+
+Added DISCARD
+
+I originally didn't think DISCARD would do anything here because of the clever MULTI interface, but somebody
+pointed out to me that DISCARD can be used to flush the WATCH set.
+
 ## v0.5.10 - April 6, 2011
 
 Added HVALS
