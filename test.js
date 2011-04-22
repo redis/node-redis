@@ -318,7 +318,16 @@ tests.HMGET = function () {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
     });
-    
+
+    client.HMGET(key1, ["0123456789"], function (err, reply) {
+        assert.strictEqual("abcdefghij", reply[0], name);
+    });
+
+    client.HMGET(key1, ["0123456789", "some manner of key"], function (err, reply) {
+        assert.strictEqual("abcdefghij", reply[0], name);
+        assert.strictEqual("a type of value", reply[1], name);
+    });
+
     client.HMGET(key1, "missing thing", "another missing thing", function (err, reply) {
         assert.strictEqual(null, reply[0], name);
         assert.strictEqual(null, reply[1], name);

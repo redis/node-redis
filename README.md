@@ -537,6 +537,7 @@ In order of first contribution, they are:
 *  [Aivo Paas](http://github.com/aivopaas)
 *  [Paul Carey](https://github.com/paulcarey)
 *  [Pieter Noordhuis](https://github.com/pietern)
+*  [Vladimir Dronnikov](https://github.com/dvv)
 
 Thanks.
 

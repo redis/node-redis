@@ -1,6 +1,15 @@
 Changelog
 =========
 
+## v0.6.0 - April 21, 2011
+
+Lots of bugs fixed.
+
+*  connection error did not properly trigger reconnection logic [GH-85]
+*  client.hmget(key, [val1, val2]) was not expanding properly [GH-66]
+*  client.quit() while in pub/sub mode would throw an error [GH-87]
+*  client.multi(['hmset', 'key', {foo: 'bar'}]) fails [GH-92]
+
 ## v0.5.11 - April 7, 2011
 
 Added DISCARD
