@@ -10,6 +10,7 @@ Lots of bugs fixed.
 *  client.quit() while in pub/sub mode would throw an error [GH-87]
 *  client.multi(['hmset', 'key', {foo: 'bar'}]) fails [GH-92]
 *  unsubscribe before subscribe would make things very confused [GH-88]
+*  Add BRPOPLPUSH [GH-79]
 
 ## v0.5.11 - April 7, 2011
 
