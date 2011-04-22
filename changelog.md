@@ -9,6 +9,7 @@ Lots of bugs fixed.
 *  client.hmget(key, [val1, val2]) was not expanding properly [GH-66]
 *  client.quit() while in pub/sub mode would throw an error [GH-87]
 *  client.multi(['hmset', 'key', {foo: 'bar'}]) fails [GH-92]
+*  unsubscribe before subscribe would make things very confused [GH-88]
 
 ## v0.5.11 - April 7, 2011
 
