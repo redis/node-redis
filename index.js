@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    Commands = require("./lib/commands").Commands,
     util = require("./lib/util").util,
     Queue = require("./lib/queue").Queue,
     to_array = require("./lib/to_array"),
@@ -568,29 +569,7 @@ function Multi(client, args) {
     }
 }
 
-// Official source is: http://redis.io/commands.json
-// This list needs to be updated, and perhaps auto-updated somehow.
-[
-    // string commands
-    "get", "set", "setnx", "setex", "append", "substr", "strlen", "del", "exists", "incr", "decr", "mget", 
-    // list commands
-    "rpush", "lpush", "rpushx", "lpushx", "linsert", "rpop", "lpop", "brpop", "blpop", "brpoplpush", "llen", "lindex", "lset", "lrange", 
-    "ltrim", "lrem", "rpoplpush",
-    // set commands
-    "sadd", "srem", "smove", "sismember", "scard", "spop", "srandmember", "sinter", "sinterstore", "sunion", "sunionstore", "sdiff", "sdiffstore", "smembers",
-    // sorted set commands
-    "zadd", "zincrby", "zrem", "zremrangebyscore", "zremrangebyrank", "zunionstore", "zinterstore", "zrange", "zrangebyscore", "zrevrangebyscore", 
-    "zcount", "zrevrange", "zcard", "zscore", "zrank", "zrevrank",
-    // hash commands
-    "hset", "hsetnx", "hget", "hmget", "hincrby", "hdel", "hlen", "hkeys", "hvals", "hgetall", "hexists", "incrby", "decrby",
-    //bit commands
-    "getbit", "setbit", "getrange", "setrange",
-    // misc
-    "getset", "mset", "msetnx", "randomkey", "select", "move", "rename", "renamenx", "expire", "expireat", "keys", "dbsize", "ping", "echo",
-    "save", "bgsave", "bgwriteaof", "shutdown", "lastsave", "type", "sync", "flushdb", "flushall", "sort", "info", "discard",
-    "monitor", "ttl", "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch",
-    "quit"
-].forEach(function (command) {
+Commands.forEach(function (command) {
     RedisClient.prototype[command] = function () {
         var args = to_array(arguments);
         args.unshift(command); // put command at the beginning
