@@ -1,6 +1,8 @@
 Changelog
 =========
 
+Auto update of new commands from redis.io (Dave Hoover)
+
 ## v0.6.0 - April 21, 2011
 
 Lots of bugs fixed.

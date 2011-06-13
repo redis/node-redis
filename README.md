@@ -529,15 +529,16 @@ Some people have have added features and fixed bugs in `node_redis` other than m
 
 In order of first contribution, they are:
 
-*  [Tim Smart](http://github.com/Tim-Smart)
-*  [TJ Holowaychuk](http://github.com/visionmedia)
-*  [Rick Olson](http://github.com/technoweenie)
-*  [Orion Henry](http://github.com/orionz)
-*  [Hank Sims](http://github.com/hanksims)
-*  [Aivo Paas](http://github.com/aivopaas)
+*  [Tim Smart](https://github.com/Tim-Smart)
+*  [TJ Holowaychuk](https://github.com/visionmedia)
+*  [Rick Olson](https://github.com/technoweenie)
+*  [Orion Henry](https://github.com/orionz)
+*  [Hank Sims](https://github.com/hanksims)
+*  [Aivo Paas](https://github.com/aivopaas)
 *  [Paul Carey](https://github.com/paulcarey)
 *  [Pieter Noordhuis](https://github.com/pietern)
 *  [Vladimir Dronnikov](https://github.com/dvv)
+*  [Dave Hoover](https://github.com/redsquirrel)
 
 Thanks.
 

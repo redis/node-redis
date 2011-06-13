@@ -12,7 +12,8 @@
         "Paul Carey",
         "Pieter Noordhuis",
         "Andy Ray",
-        "Vladimir Dronnikov"
+        "Vladimir Dronnikov",
+        "Dave Hoover"
     ],
     "main": "./index.js",
     "scripts": {
