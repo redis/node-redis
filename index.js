@@ -65,7 +65,7 @@ function RedisClient(stream, options) {
         }
         parser_module = parsers[0];
     }
-    
+
     parser_module.debug_mode = exports.debug_mode;
     this.reply_parser = new parser_module.Parser({
         return_buffers: self.options.return_buffers || false
@@ -131,7 +131,7 @@ function RedisClient(stream, options) {
     this.stream.on("end", function () {
         self.connection_gone("end");
     });
-    
+
     this.stream.on("drain", function () {
         self.emit("drain");
     });
@@ -284,7 +284,7 @@ RedisClient.prototype.connection_gone = function (why) {
         this.emit("end");
         this.emitted_end = true;
     }
-    
+
     this.command_queue.forEach(function (args) {
         if (typeof args[2] === "function") {
             args[2]("Server connection closed");
@@ -299,7 +299,7 @@ RedisClient.prototype.connection_gone = function (why) {
     }
 
     this.current_retry_delay = this.retry_delay * this.retry_backoff;
-    
+
     if (exports.debug_mode) {
         console.log("Retry connection in " + this.current_retry_delay + " ms");
     }
@@ -321,7 +321,7 @@ RedisClient.prototype.on_data = function (data) {
     if (exports.debug_mode) {
         console.log("net read " + this.host + ":" + this.port + " fd " + this.stream.fd + ": " + data.toString());
     }
-    
+
     try {
         this.reply_parser.execute(data);
     } catch (err) {
@@ -340,7 +340,7 @@ RedisClient.prototype.return_error = function (err) {
         this.emit("idle");
         this.command_queue = new Queue();
     }
-    
+
     if (command_obj && typeof command_obj.callback === "function") {
         try {
             command_obj.callback(err);
@@ -392,7 +392,7 @@ RedisClient.prototype.return_reply = function (reply) {
         } else if (exports.debug_mode) {
             console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
-    } else if (this.subscriptions || command_obj.sub_command) {
+    } else if (this.subscriptions || (command_obj && command_obj.sub_command)) {
         if (Array.isArray(reply)) {
             type = reply[0].toString();
 
@@ -441,7 +441,7 @@ RedisClient.prototype.send_command = function () {
     }
     command = this_args[0].toLowerCase();
 
-    if (this_args[1] && Array.isArray(this_args[1])) { 
+    if (this_args[1] && Array.isArray(this_args[1])) {
         args = this_args[1];
         if (typeof this_args[2] === "function") {
             callback = this_args[2];
@@ -454,7 +454,7 @@ RedisClient.prototype.send_command = function () {
             args = this_args.slice(1, this_args.length);
         }
     }
-    
+
     if (args.length === 2 && Array.isArray(args[1])) {
         args = [args[0]].concat(args[1]);
     }
@@ -509,7 +509,7 @@ RedisClient.prototype.send_command = function () {
         console.log("send command: stream is not writeable, should get a close event next tick.");
         return;
     }
-    
+
     if (! buffer_args) { // Build up a string and send entire command in one write
         for (i = 0, il = args.length, arg; i < il; i += 1) {
             arg = args[i];
@@ -694,7 +694,7 @@ Multi.prototype.exec = function (callback) {
             for (i = 1, il = self.queue.length; i < il; i += 1) {
                 reply = replies[i - 1];
                 args = self.queue[i];
-                
+
                 // Convert HGETALL reply to object
                 if (reply && args[0].toLowerCase() === "hgetall") {
                     obj = {};
@@ -705,7 +705,7 @@ Multi.prototype.exec = function (callback) {
                     }
                     replies[i - 1] = reply = obj;
                 }
-                
+
                 if (typeof args[args.length - 1] === "function") {
                     args[args.length - 1](null, reply);
                 }
