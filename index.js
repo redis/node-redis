@@ -480,6 +480,8 @@ RedisClient.prototype.send_command = function () {
         }
         command_obj.sub_command = true;
         this.subscriptions = true;
+    } else if (command === "publish") {
+        // publish command is okay in pub/sub mode
     } else if (command === "monitor") {
         this.monitoring = true;
     } else if (command === "quit") {
