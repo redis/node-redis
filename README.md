@@ -517,6 +517,8 @@ Defaults to 1.7.  The default initial connection retry is 250, so the second ret
 
 ## TODO
 
+Better tests for monitor mode, auth, disconnect/reconnect, and all combinations thereof.
+
 Stream large set/get values into and out of Redis.  Otherwise the entire value must be in node's memory.
 
 Performance can be better for very large values.

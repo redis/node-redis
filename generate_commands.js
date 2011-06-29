@@ -18,7 +18,7 @@ function write_file(commands, path) {
         return key.toLowerCase();
     });
 
-    file_contents += "exports.Commands = " + JSON.stringify(out_commands, null, "    ") + ";\n";
+    file_contents += "module.exports = " + JSON.stringify(out_commands, null, "    ") + ";\n";
 
     fs.writeFile(path, file_contents);
 }
