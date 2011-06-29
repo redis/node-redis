@@ -3,6 +3,14 @@ Changelog
 
 Auto update of new commands from redis.io (Dave Hoover)
 
+## v0.6.1 - June 29, 2011
+
+Add support and tests for Redis scripting through EXEC command.
+
+Bug fix for monitor mode.  (forddg)
+
+Auto update of new commands from redis.io (Dave Hoover)
+
 ## v0.6.0 - April 21, 2011
 
 Lots of bugs fixed.
