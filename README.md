@@ -7,17 +7,18 @@ Install with:
 
     npm install redis
     
-For portability, a pure JavaScript reply parser is used by default.  Pieter Noordhuis has provided a binding to the
-official `hiredis` C library, which is non-blocking and fast.  To use `hiredis`, do:
+Pieter Noordhuis has provided a binding to the official `hiredis` C library, which is non-blocking and fast.  To use `hiredis`, do:
 
     npm install hiredis redis
-    
-If `hiredis` is installed, `node_redis` will use it by default.
 
+If `hiredis` is installed, `node_redis` will use it by default.  Otherwise, a pure JavaScript parser will be used.
+
+If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of node.  There are mysterious failures that can
+happen between node and native code modules after a node upgrade.
 
 ## Why so many Redis clients for node?
 
-`node_redis` is actively maintained, works in the latest versions of node, is published in `npm`, 
+`node_redis` is actively maintained, works in the latest versions of node, is published in `npm`,
 is used by many people, including many sites in production.  This library has been worked on by key contributors to
 both Redis and node.js.
 
@@ -76,7 +77,7 @@ Simple example, included as `examples/simple.js`:
 
 This will display:
 
-    mjr:~/work/node_redis (master)$ node example.js 
+    mjr:~/work/node_redis (master)$ node example.js
     Reply: OK
     Reply: 0
     Reply: 0
