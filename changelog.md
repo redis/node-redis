@@ -1,7 +1,21 @@
 Changelog
 =========
 
-Auto update of new commands from redis.io (Dave Hoover)
+## v0.6.2 - June 30, 2011
+
+Bugs fixed:
+
+*  authentication retry while server is loading db (danmaz74) [GH-101]
+*  command arguments processing issue with arrays
+
+New features:
+
+*  Auto update of new commands from redis.io (Dave Hoover)
+*  Performance improvements and backpressure controls.
+*  Commands now return the true/false value from the underlying socket write(s).
+*  Implement command_queue high water and low water for more better control of queueing.
+
+See `examples/backpressure_drain.js` for more information.
 
 ## v0.6.1 - June 29, 2011
 
