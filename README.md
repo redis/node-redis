@@ -1,7 +1,9 @@
 redis - a node.js redis client
 ===========================
 
-This is a complete Redis client for node.js.  It supports all Redis commands, including MULTI, WATCH, and PUBLISH/SUBSCRIBE.
+This is a complete Redis client for node.js.  It supports all Redis commands, including many recently added commands like EVAL from
+experimental Redis server branches.
+
 
 Install with:
 
