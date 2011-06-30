@@ -486,7 +486,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             // probably the fastest way:
             //     client.command([arg1, arg2], cb);  (straight passthrough)
             //         send_command(command, [arg1, arg2], cb);
-        } else if (typeof callback === "undefined") {
+        } else if (! callback) {
             // most people find this variable argument length form more convenient, but it uses arguments, which is slower
             //     client.command(arg1, arg2, cb);   (wraps up arguments into an array)
             //       send_command(command, [arg1, arg2, cb]);

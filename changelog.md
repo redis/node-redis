@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.6.4 - June 30, 2011
+
+Fix bug with optional callbacks for hmset.
+
 ## v0.6.2 - June 30, 2011
 
 Bugs fixed:

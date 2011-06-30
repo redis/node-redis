@@ -395,6 +395,8 @@ tests.HMSET_BUFFER_AND_ARRAY = function () {
     client.HMSET(key, field1, value1, field2, value2, last(name, require_string("OK", name)));
 };
 
+// TODO - add test for HMSET.  It is special.  Test for all forms as well as optional callbacks
+
 tests.HMGET = function () {
     var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
 
