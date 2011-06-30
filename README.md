@@ -16,42 +16,6 @@ If `hiredis` is installed, `node_redis` will use it by default.  Otherwise, a pu
 If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of node.  There are mysterious failures that can
 happen between node and native code modules after a node upgrade.
 
-## Why so many Redis clients for node?
-
-`node_redis` is actively maintained, works in the latest versions of node, is published in `npm`,
-is used by many people, including many sites in production.  This library has been worked on by key contributors to
-both Redis and node.js.
-
-`node_redis` was originally written to replace `node-redis-client` which hasn't been updated in a while, and no longer works
-with recent versions of node.
-
-
-## Performance
-
-Here are typical results of `multi_bench.js` which is similar to `redis-benchmark` from the Redis distribution.
-It uses 50 concurrent connections with no pipelining.
-
-JavaScript parser:
-
-    PING: 20000 ops 42283.30 ops/sec 0/5/1.182
-    SET: 20000 ops 32948.93 ops/sec 1/7/1.515
-    GET: 20000 ops 28694.40 ops/sec 0/9/1.740
-    INCR: 20000 ops 39370.08 ops/sec 0/8/1.269
-    LPUSH: 20000 ops 36429.87 ops/sec 0/8/1.370
-    LRANGE (10 elements): 20000 ops 9891.20 ops/sec 1/9/5.048
-    LRANGE (100 elements): 20000 ops 1384.56 ops/sec 10/91/36.072
-
-hiredis parser:
-
-    PING: 20000 ops 46189.38 ops/sec 1/4/1.082
-    SET: 20000 ops 41237.11 ops/sec 0/6/1.210
-    GET: 20000 ops 39682.54 ops/sec 1/7/1.257
-    INCR: 20000 ops 40080.16 ops/sec 0/8/1.242
-    LPUSH: 20000 ops 41152.26 ops/sec 0/3/1.212
-    LRANGE (10 elements): 20000 ops 36563.07 ops/sec 1/8/1.363
-    LRANGE (100 elements): 20000 ops 21834.06 ops/sec 0/9/2.287
-
-The performance of `node_redis` improves dramatically with pipelining.
 
 ## Usage
 
@@ -85,6 +49,34 @@ This will display:
         0: hashtest 1
         1: hashtest 2
     mjr:~/work/node_redis (master)$ 
+
+
+## Performance
+
+Here are typical results of `multi_bench.js` which is similar to `redis-benchmark` from the Redis distribution.
+It uses 50 concurrent connections with no pipelining.
+
+JavaScript parser:
+
+    PING: 20000 ops 42283.30 ops/sec 0/5/1.182
+    SET: 20000 ops 32948.93 ops/sec 1/7/1.515
+    GET: 20000 ops 28694.40 ops/sec 0/9/1.740
+    INCR: 20000 ops 39370.08 ops/sec 0/8/1.269
+    LPUSH: 20000 ops 36429.87 ops/sec 0/8/1.370
+    LRANGE (10 elements): 20000 ops 9891.20 ops/sec 1/9/5.048
+    LRANGE (100 elements): 20000 ops 1384.56 ops/sec 10/91/36.072
+
+hiredis parser:
+
+    PING: 20000 ops 46189.38 ops/sec 1/4/1.082
+    SET: 20000 ops 41237.11 ops/sec 0/6/1.210
+    GET: 20000 ops 39682.54 ops/sec 1/7/1.257
+    INCR: 20000 ops 40080.16 ops/sec 0/8/1.242
+    LPUSH: 20000 ops 41152.26 ops/sec 0/3/1.212
+    LRANGE (10 elements): 20000 ops 36563.07 ops/sec 1/8/1.363
+    LRANGE (100 elements): 20000 ops 21834.06 ops/sec 0/9/2.287
+
+The performance of `node_redis` improves dramatically with pipelining, which happens automatically in most normal programs.
 
 
 ### Sending Commands
