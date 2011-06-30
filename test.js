@@ -384,7 +384,7 @@ tests.HSET = function () {
 };
 
 tests.HMSET_BUFFER_AND_ARRAY = function () {
-    // Saving a buffer and an array to the same document should not error
+    // Saving a buffer and an array to the same key should not error
     var key = "test hash",
         field1 = "buffer",
         value1 = new Buffer("abcdefghij"),
@@ -596,6 +596,13 @@ tests.GETSET = function () {
 tests.MGET = function () {
     var name = "MGET";
     client.mset(["mget keys 1", "mget val 1", "mget keys 2", "mget val 2", "mget keys 3", "mget val 3"], require_string("OK", name));
+    client.MGET("mget keys 1", "mget keys 2", "mget keys 3", function (err, results) {
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
+        assert.strictEqual(3, results.length, name);
+        assert.strictEqual("mget val 1", results[0].toString(), name);
+        assert.strictEqual("mget val 2", results[1].toString(), name);
+        assert.strictEqual("mget val 3", results[2].toString(), name);
+    });
     client.MGET(["mget keys 1", "mget keys 2", "mget keys 3"], function (err, results) {
         assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(3, results.length, name);
@@ -647,7 +654,6 @@ tests.HGETALL = function () {
     client.HGETALL(["hosts"], function (err, obj) {
         assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
         assert.strictEqual(3, Object.keys(obj).length, name);
-//        assert.ok(Buffer.isBuffer(obj.mjr), name);
         assert.strictEqual("1", obj.mjr.toString(), name);
         assert.strictEqual("23", obj.another.toString(), name);
         assert.strictEqual("1234", obj.home.toString(), name);
@@ -1216,7 +1222,8 @@ client.on("reconnecting", function (params) {
 });
 
 process.on('uncaughtException', function (err) {
-    console.log("Uncaught exception: " + err.stack);
+    console.error("Uncaught exception: " + err.stack);
+    process.exit(1);
 });
 
 process.on('exit', function (code) {

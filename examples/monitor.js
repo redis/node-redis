@@ -1,4 +1,4 @@
-var client  = require("redis").createClient(),
+var client  = require("../index").createClient(),
     util = require("util");
 
 client.monitor(function (err, res) {

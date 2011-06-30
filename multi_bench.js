@@ -1,12 +1,12 @@
 var redis = require("./index"),
-    num_clients = parseInt(process.argv[2]) || 50,
+    num_clients = parseInt(process.argv[2], 10) || 50,
     active_clients = 0,
     clients = new Array(num_clients),
     num_requests = 20000,
     issued_requests = 0,
     latency = new Array(num_requests),
     tests = [],
-    test_start,
+    test_start, parser_logged = false,
     client_options = {
         return_buffers: false
     };
@@ -35,7 +35,7 @@ tests.push({
 
 tests.push({
     descr: "LPUSH",
-    command: ["lpush", "mylist", Array(8).join("-")]
+    command: ["lpush", "mylist", new Array(8).join("-")]
 });
 
 tests.push({
@@ -58,7 +58,11 @@ function create_clients(callback) {
 
         while (active_clients < num_clients) {
             client = clients[active_clients++] = redis.createClient(6379, "127.0.0.1", client_options);
-            client.on("connect", function() {
+            if (! parser_logged) {
+                console.log("Using reply parser " + client.reply_parser.name);
+                parser_logged = true;
+            }
+            client.on("connect", function () {
                 // Fire callback when all clients are connected
                 connected += 1;
                 if (connected === num_clients) {
