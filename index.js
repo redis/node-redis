@@ -144,6 +144,49 @@ function RedisClient(stream, options) {
 util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
 
+RedisClient.prototype.do_auth = function () {
+    var self = this;
+
+    if (exports.debug_mode) {
+        console.log("Sending auth to " + self.host + ":" + self.port + " fd " + self.stream.fd);
+    }
+    self.send_anyway = true;
+    self.send_command("auth", [this.auth_pass], function (err, res) {
+        if (err) {
+            if (err.toString().match("LOADING")) {
+                // if redis is still loading the db, it will not authenticate and everything else will fail
+                console.log("Redis still loading, trying to authenticate later");
+                setTimeout(function () {
+                    self.do_auth();
+                }, 2000); // TODO - magic number alert
+                return;
+            } else {
+                return self.emit("error", "Auth error: " + err);
+            }
+        }
+        if (res.toString() !== "OK") {
+            return self.emit("error", "Auth failed: " + res.toString());
+        }
+        if (exports.debug_mode) {
+            console.log("Auth succeeded " + self.host + ":" + self.port + " fd " + self.stream.fd);
+        }
+        if (self.auth_callback) {
+            self.auth_callback(err, res);
+            self.auth_callback = null;
+        }
+
+        // now we are really connected
+        self.emit("connect");
+        if (self.options.no_ready_check) {
+            self.ready = true;
+            self.send_offline_queue();
+        } else {
+            self.ready_check();
+        }
+    });
+    self.send_anyway = false;
+};
+
 RedisClient.prototype.on_connect = function () {
     if (exports.debug_mode) {
         console.log("Stream connected " + this.host + ":" + this.port + " fd " + this.stream.fd);
@@ -161,47 +204,8 @@ RedisClient.prototype.on_connect = function () {
     this.stream.setNoDelay();
     this.stream.setTimeout(0);
 
-    // if redis is still loading the db, it will not authenticate and everything else will fail
-    function cmd_do_auth() {
-        if (exports.debug_mode) {
-            console.log("Sending auth to " + self.host + ":" + self.port + " fd " + self.stream.fd);
-        }
-        self.send_anyway = true;
-        self.send_command("auth", [this.auth_pass], function (err, res) {
-            if (err) {
-                if (err.toString().match("LOADING")) {
-                    console.log("Redis still loading, trying to authenticate later");
-                    setTimeout(cmd_do_auth, 2000); // TODO - magic number alert
-                    return;
-                } else {
-                    return self.emit("error", "Auth error: " + err);
-                }
-            }
-            if (res.toString() !== "OK") {
-                return self.emit("error", "Auth failed: " + res.toString());
-            }
-            if (exports.debug_mode) {
-                console.log("Auth succeeded " + self.host + ":" + self.port + " fd " + self.stream.fd);
-            }
-            if (self.auth_callback) {
-                self.auth_callback(err, res);
-                self.auth_callback = null;
-            }
-
-            // now we are really connected
-            self.emit("connect");
-            if (self.options.no_ready_check) {
-                self.ready = true;
-                self.send_offline_queue();
-            } else {
-                self.ready_check();
-            }
-        });
-        self.send_anyway = false;
-    }
-
     if (this.auth_pass) {
-        cmd_do_auth();
+        this.do_auth();
     } else {
         this.emit("connect");
 
