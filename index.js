@@ -158,13 +158,25 @@ RedisClient.prototype.on_connect = function () {
     this.stream.setTimeout(0);
 
     if (this.auth_pass) {
+      var self = this;
+			
+			// if redis is still loading the db, it will not authenticate and everything else will fail
+      function cmd_do_auth() {
+
         if (exports.debug_mode) {
-            console.log("Sending auth to " + this.host + ":" + this.port + " fd " + this.stream.fd);
+            console.log("Sending auth to " + self.host + ":" + self.port + " fd " + self.stream.fd);
         }
         self.send_anyway = true;
-        self.send_command("auth", this.auth_pass, function (err, res) {
+        self.send_command("auth", self.auth_pass, function (err, res) {
             if (err) {
-                return self.emit("error", "Auth error: " + err);
+                if (err.toString().match("LOADING")) {
+                  // still loading, try to authenticate later
+
+                  console.log("Redis still loading, trying to authenticate later");
+                  setTimeout(cmd_do_auth,2000);
+                  return;
+                }
+                else return self.emit("error", "Auth error: " + err);
             }
             if (res.toString() !== "OK") {
                 return self.emit("error", "Auth failed: " + res.toString());
@@ -176,18 +188,34 @@ RedisClient.prototype.on_connect = function () {
                 self.auth_callback(err, res);
                 self.auth_callback = null;
             }
+
+            // now we are really connected
+            self.emit("connect");
+ 						
+ 						if (self.options.no_ready_check) {
+              self.ready = true;
+              self.send_offline_queue();
+            } else {
+              self.ready_check();
+            }
+
         });
         self.send_anyway = false;
-    }
+      }
 
-    this.emit("connect");
-
-    if (this.options.no_ready_check) {
-        this.ready = true;
-        this.send_offline_queue();
+      cmd_do_auth();
     } else {
-        this.ready_check();
+
+      this.emit("connect");
+
+      if (this.options.no_ready_check) {
+          this.ready = true;
+          this.send_offline_queue();
+      } else {
+          this.ready_check();
+      }
     }
+
 };
 
 RedisClient.prototype.ready_check = function () {
