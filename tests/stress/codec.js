@@ -11,6 +11,6 @@ msgpack = {
 
 bison = require('bison');
 
-module.exports = json;
+//module.exports = json;
 //module.exports = msgpack;
 module.exports = bison;

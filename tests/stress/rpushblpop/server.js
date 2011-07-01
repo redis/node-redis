@@ -3,8 +3,10 @@
 var freemem = require('os').freemem;
 var codec = require('../codec');
 
+var id = Math.random();
 var recv = 0;
 
+var cmd = require('redis').createClient();
 var sub = require('redis').createClient()
 	.on('ready', function() {
 		this.emit('timeline');
@@ -22,5 +24,7 @@ var sub = require('redis').createClient()
 	});
 
 setInterval(function() {
-	console.log('received', recv, 'free', freemem());
-}, 1000);
+	cmd.llen('timeline', function(err, result) {
+		console.error('id', id, 'received', recv, 'free', freemem(), 'llen', result);
+	});
+}, 2000);

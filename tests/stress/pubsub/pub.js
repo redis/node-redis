@@ -1,6 +1,7 @@
 'use strict';
 
 var freemem = require('os').freemem;
+var profiler = require('v8-profiler');
 var codec = require('../codec');
 
 var sent = 0;
@@ -16,7 +17,7 @@ var pub = require('redis').createClient(null, null, {
 	process.nextTick(exec);
 });
 
-var payload = '1'; for (var i = 0; i < 10; ++i) payload += payload;
+var payload = '1'; for (var i = 0; i < 12; ++i) payload += payload;
 
 function exec() {
 	pub.publish('timeline', codec.encode({ foo: payload }));
@@ -26,8 +27,11 @@ function exec() {
 	}
 }
 
+profiler.takeSnapshot('s_0');
+
 exec();
 
 setInterval(function() {
-	console.log('sent', sent, 'free', freemem(), 'cmdqlen', pub.command_queue.length, 'offqlen', pub.offline_queue.length);
-}, 1000);
+	profiler.takeSnapshot('s_' + sent);
+	console.error('sent', sent, 'free', freemem(), 'cmdqlen', pub.command_queue.length, 'offqlen', pub.offline_queue.length);
+}, 2000);
