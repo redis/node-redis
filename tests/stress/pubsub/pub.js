@@ -6,8 +6,8 @@ var codec = require('../codec');
 var sent = 0;
 
 var pub = require('redis').createClient(null, null, {
-	command_queue_high_water: 5,
-	command_queue_low_water: 1
+	//command_queue_high_water: 5,
+	//command_queue_low_water: 1
 })
 .on('ready', function() {
 	this.emit('drain');

@@ -3,12 +3,14 @@ var json = {
 	decode: JSON.parse
 };
 
-/*var msgpack = require('node-msgpack');
+var MsgPack = require('node-msgpack');
 msgpack = {
-	encode: msgpack.pack,
-	decode: msgpack.unpack
-};*/
+	encode: MsgPack.pack,
+	decode: function(str) { return MsgPack.unpack(new Buffer(str)); }
+};
 
 bison = require('bison');
 
 module.exports = json;
+//module.exports = msgpack;
+module.exports = bison;
