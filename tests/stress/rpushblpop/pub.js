@@ -19,7 +19,7 @@ var pub = require('redis').createClient(null, null, {
 });
 
 var payload = '1'; for (var i = 0; i < 12; ++i) payload += payload;
-console.log(payload.length);
+console.log('Message payload length', payload.length);
 
 function exec() {
 	pub.rpush('timeline', codec.encode({ foo: payload }));
