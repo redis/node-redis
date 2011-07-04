@@ -546,7 +546,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
 
     for (i = 0, il = args.length, arg; i < il; i += 1) {
-        if (args[i] instanceof Buffer) {
+        if (Buffer.isBuffer(args[i])) {
             buffer_args = true;
         }
     }
@@ -571,11 +571,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
         for (i = 0, il = args.length, arg; i < il; i += 1) {
             arg = args[i];
-            if (!(arg instanceof Buffer || arg instanceof String)) {
+            if (!(Buffer.isBuffer(arg) || arg instanceof String)) {
                 arg = String(arg);
             }
 
-            if (arg instanceof Buffer) {
+            if (Buffer.isBuffer(arg)) {
                 if (arg.length === 0) {
                     if (exports.debug_mode) {
                         console.log("send_command: using empty string for 0 length buffer");
