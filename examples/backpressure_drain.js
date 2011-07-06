@@ -3,7 +3,7 @@ var redis = require("../index"),
         command_queue_high_water: 5,
         command_queue_low_water: 1
     }),
-    remaining_ops = 10000, paused = false;
+    remaining_ops = 100000, paused = false;
 
 function op() {
     if (remaining_ops <= 0) {

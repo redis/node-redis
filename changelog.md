@@ -1,6 +1,16 @@
 Changelog
 =========
 
+## v0.6.5 - July 6, 2011
+
+Contributed changes:
+
+*  Support SlowBuffers (Umair Siddique)
+*  Add Multi to exports (Louis-Philippe Perron)
+*  Fix for drain event calculation (Vladimir Dronnikov)
+
+Thanks!
+
 ## v0.6.4 - June 30, 2011
 
 Fix bug with optional callbacks for hmset.

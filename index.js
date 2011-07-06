@@ -285,7 +285,7 @@ RedisClient.prototype.send_offline_queue = function () {
     }
     this.offline_queue = new Queue();
     // Even though items were shifted off, Queue backing store still uses memory until next add, so just get a new Queue
-    
+
     if (!buffered_writes) {
         this.should_buffer = false;
         this.emit("drain");

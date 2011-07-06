@@ -5,6 +5,37 @@ for (i = 99 ; i >= 0 ; i--) {
     source[i] = 120;
 }
 
+var str = "This is a nice String.",
+    buf = new Buffer("This is a lovely Buffer.");
+
+var start = new Date();
+for (i = count * 100; i > 0 ; i--) {
+    if (Buffer.isBuffer(str)) {}
+}
+var end = new Date();
+console.log("Buffer.isBuffer(str) " + (end - start) + " ms");
+
+var start = new Date();
+for (i = count * 100; i > 0 ; i--) {
+    if (Buffer.isBuffer(buf)) {}
+}
+var end = new Date();
+console.log("Buffer.isBuffer(buf) " + (end - start) + " ms");
+
+var start = new Date();
+for (i = count * 100; i > 0 ; i--) {
+    if (str instanceof Buffer) {}
+}
+var end = new Date();
+console.log("str instanceof Buffer " + (end - start) + " ms");
+
+var start = new Date();
+for (i = count * 100; i > 0 ; i--) {
+    if (buf instanceof Buffer) {}
+}
+var end = new Date();
+console.log("buf instanceof Buffer " + (end - start) + " ms");
+
 for (i = bytes ; i > 0 ; i --) {
     var start = new Date();
     for (j = count ; j > 0; j--) {
