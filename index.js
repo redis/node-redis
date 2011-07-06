@@ -621,6 +621,8 @@ function Multi(client, args) {
     }
 }
 
+exports.Multi = Multi;
+
 // take 2 arrays and return the union of their elements
 function set_union(seta, setb) {
     var obj = {};
