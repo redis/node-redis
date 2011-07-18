@@ -457,8 +457,9 @@ RedisClient.prototype.return_reply = function (reply) {
     } else if (this.monitoring) {
         len = reply.indexOf(" ");
         timestamp = reply.slice(0, len);
-        args = reply.slice(len + 1).match(/"[^"]+"/g).map(function (elem) {
-            return elem.replace(/"/g, "");
+        argindex = reply.indexOf('"');
+        args = reply.slice(argindex + 1, -1).split('" "').map(function (elem) {
+            return elem.replace(/\\"/g, '"');
         });
         this.emit("monitor", timestamp, args);
     } else {
@@ -510,7 +511,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (!stream.writable) {
                 console.log("send command: stream is not writeable.");
             }
-            
+
             console.log("Queueing " + command + " for next server connection.");
         }
         this.offline_queue.push(command_obj);
@@ -626,7 +627,7 @@ exports.Multi = Multi;
 // take 2 arrays and return the union of their elements
 function set_union(seta, setb) {
     var obj = {};
-    
+
     seta.forEach(function (val) {
         obj[val] = true;
     });
