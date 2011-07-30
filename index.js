@@ -94,7 +94,7 @@ function RedisClient(stream, options) {
     });
 
     this.stream.on("error", function (msg) {
-        if (this.closing) {
+        if (self.closing) {
             return;
         }
 
@@ -503,6 +503,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
+    if (command === "quit") {
+        this.closing = true;
+        return;
+    }
+
     command_obj = new Command(command, args, false, callback);
 
     if ((!this.ready && !this.send_anyway) || !stream.writable) {
@@ -526,8 +531,6 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         this.subscriptions = true;
     } else if (command === "monitor") {
         this.monitoring = true;
-    } else if (command === "quit") {
-        this.closing = true;
     } else if (this.subscriptions === true) {
         throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
     }
