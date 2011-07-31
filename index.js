@@ -399,7 +399,7 @@ RedisClient.prototype.return_reply = function (reply) {
     var command_obj, obj, i, len, key, val, type, timestamp, args, queue_len;
 
     // if the reply is a message, be sure not to shift command_queue
-    if (!(Array.isArray(reply) && reply[0].toString() === "message")) {
+    if (!(Array.isArray(reply) && reply[0] && reply[0].toString() === "message")) {
       command_obj = this.command_queue.shift();
     }
     
