@@ -94,7 +94,7 @@ function RedisClient(stream, options) {
     });
 
     this.stream.on("error", function (msg) {
-        if (self.closing) {
+        if (this.closing) {
             return;
         }
 
@@ -504,11 +504,6 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    if (command === "quit") {
-        this.closing = true;
-        return;
-    }
-
     // if the last argument is an array, expand it out.  This allows commands like this:
     //     client.command(arg1, [arg2, arg3, arg4], cb);
     //  and converts to:
@@ -541,6 +536,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         this.subscriptions = true;
     } else if (command === "monitor") {
         this.monitoring = true;
+    } else if (command === "quit") {
+        this.closing = true;
     } else if (this.subscriptions === true) {
         throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
     }
