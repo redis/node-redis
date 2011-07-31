@@ -396,8 +396,14 @@ RedisClient.prototype.return_error = function (err) {
 };
 
 RedisClient.prototype.return_reply = function (reply) {
-    var command_obj = this.command_queue.shift(),
-        obj, i, len, key, val, type, timestamp, args, queue_len = this.command_queue.getLength();
+    var command_obj, obj, i, len, key, val, type, timestamp, args, queue_len;
+
+    // if the reply is a message, be sure not to shift command_queue
+    if (!(Array.isArray(reply) && reply[0].toString() === "message")) {
+      command_obj = this.command_queue.shift();
+    }
+    
+    queue_len = this.command_queue.getLength();
 
     if (this.subscriptions === false && queue_len === 0) {
         this.emit("idle");
