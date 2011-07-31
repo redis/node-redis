@@ -457,6 +457,7 @@ RedisClient.prototype.return_reply = function (reply) {
     } else if (this.monitoring) {
         len = reply.indexOf(" ");
         timestamp = reply.slice(0, len);
+        // TODO - this de-quoting doesn't work correctly if you put JSON strings in your values.
         args = reply.slice(len + 1).match(/"[^"]+"/g).map(function (elem) {
             return elem.replace(/"/g, "");
         });
@@ -506,6 +507,15 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     if (command === "quit") {
         this.closing = true;
         return;
+    }
+
+    // if the last argument is an array, expand it out.  This allows commands like this:
+    //     client.command(arg1, [arg2, arg3, arg4], cb);
+    //  and converts to:
+    //     client.command(arg1, arg2, arg3, arg4, cb);
+    // which is convenient for some things like sadd
+    if (Array.isArray(args[args.length - 1])) {
+        args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
     command_obj = new Command(command, args, false, callback);

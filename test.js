@@ -389,7 +389,7 @@ tests.HMSET_BUFFER_AND_ARRAY = function () {
         field1 = "buffer",
         value1 = new Buffer("abcdefghij"),
         field2 = "array",
-        value2 = [],
+        value2 = ["array contents"],
         name = "HSET";
 
     client.HMSET(key, field1, value1, field2, value2, last(name, require_string("OK", name)));
@@ -693,6 +693,20 @@ tests.SADD = function () {
     client.del('set0');
     client.sadd('set0', 'member0', require_number(1, name));
     client.sadd('set0', 'member0', last(name, require_number(0, name)));
+};
+
+tests.SADD2 = function () {
+    var name = "SADD2";
+    
+    client.del("set0");
+    client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
+    client.smembers("set0", function (err, res) {
+        assert.strictEqual(res.length, 3);
+        assert.strictEqual(res[0], "member0");
+        assert.strictEqual(res[1], "member1");
+        assert.strictEqual(res[2], "member2");
+        next(name);
+    });
 };
 
 tests.SISMEMBER = function () {
