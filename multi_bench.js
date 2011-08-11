@@ -58,11 +58,12 @@ function create_clients(callback) {
 
         while (active_clients < num_clients) {
             client = clients[active_clients++] = redis.createClient(6379, "127.0.0.1", client_options);
-            if (! parser_logged) {
-                console.log("Using reply parser " + client.reply_parser.name);
-                parser_logged = true;
-            }
             client.on("connect", function () {
+                if (! parser_logged) {
+                    console.log("Using reply parser " + client.reply_parser.name);
+                    parser_logged = true;
+                }
+
                 // Fire callback when all clients are connected
                 connected += 1;
                 if (connected === num_clients) {

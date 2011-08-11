@@ -46,44 +46,9 @@ function RedisClient(stream, options) {
     this.closing = false;
     this.server_info = {};
     this.auth_pass = null;
+    this.parser_module = null;
 
-    var parser_module, self = this;
-
-    if (self.options.parser) {
-        if (! parsers.some(function (parser) {
-            if (parser.name === self.options.parser) {
-                parser_module = parser;
-                if (exports.debug_mode) {
-                    console.log("Using parser module: " + parser_module.name);
-                }
-                return true;
-            }
-        })) {
-            throw new Error("Couldn't find named parser " + self.options.parser + " on this system");
-        }
-    } else {
-        if (exports.debug_mode) {
-            console.log("Using default parser module: " + parsers[0].name);
-        }
-        parser_module = parsers[0];
-    }
-
-    parser_module.debug_mode = exports.debug_mode;
-    this.reply_parser = new parser_module.Parser({
-        return_buffers: self.options.return_buffers || false
-    });
-
-    // "reply error" is an error sent back by Redis
-    this.reply_parser.on("reply error", function (reply) {
-        self.return_error(new Error(reply));
-    });
-    this.reply_parser.on("reply", function (reply) {
-        self.return_reply(reply);
-    });
-    // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
-    this.reply_parser.on("error", function (err) {
-        self.emit("error", new Error("Redis reply parser error: " + err.stack));
-    });
+    var self = this;
 
     this.stream.on("connect", function () {
         self.on_connect();
@@ -204,6 +169,8 @@ RedisClient.prototype.on_connect = function () {
     this.stream.setNoDelay();
     this.stream.setTimeout(0);
 
+    this.init_parser();
+
     if (this.auth_pass) {
         this.do_auth();
     } else {
@@ -216,6 +183,46 @@ RedisClient.prototype.on_connect = function () {
             this.ready_check();
         }
     }
+};
+
+RedisClient.prototype.init_parser = function () {
+    var self = this;
+
+    if (this.options.parser) {
+        if (! parsers.some(function (parser) {
+            if (parser.name === self.options.parser) {
+                this.parser_module = parser;
+                if (exports.debug_mode) {
+                    console.log("Using parser module: " + self.parser_module.name);
+                }
+                return true;
+            }
+        })) {
+            throw new Error("Couldn't find named parser " + self.options.parser + " on this system");
+        }
+    } else {
+        if (exports.debug_mode) {
+            console.log("Using default parser module: " + parsers[0].name);
+        }
+        this.parser_module = parsers[0];
+    }
+
+    this.parser_module.debug_mode = exports.debug_mode;
+
+    this.reply_parser = new this.parser_module.Parser({
+        return_buffers: self.options.return_buffers || false
+    });
+    // "reply error" is an error sent back by Redis
+    this.reply_parser.on("reply error", function (reply) {
+        self.return_error(new Error(reply));
+    });
+    this.reply_parser.on("reply", function (reply) {
+        self.return_reply(reply);
+    });
+    // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
+    this.reply_parser.on("error", function (err) {
+        self.emit("error", new Error("Redis reply parser error: " + err.stack));
+    });
 };
 
 RedisClient.prototype.ready_check = function () {

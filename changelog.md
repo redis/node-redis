@@ -1,6 +1,16 @@
 Changelog
 =========
 
+## v0.6.7 - July 30, 2011
+
+(accidentally skipped v0.6.6)
+
+Fix and test for [GH-123]
+
+Passing an Array as as the last argument should expand as users
+expect.  The old behavior was to coerce the arguments into Strings,
+which did surprising things with Arrays.
+
 ## v0.6.5 - July 6, 2011
 
 Contributed changes:

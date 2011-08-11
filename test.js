@@ -1194,10 +1194,9 @@ run_next_test = function run_next_test() {
     }
 };
 
-console.log("Using reply parser " + client.reply_parser.name);
-
 client.once("ready", function start_tests() {
     console.log("Connected to " + client.host + ":" + client.port + ", Redis server version " + client.server_info.redis_version + "\n");
+    console.log("Using reply parser " + client.reply_parser.name);
 
     run_next_test();
 
