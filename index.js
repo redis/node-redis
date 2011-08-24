@@ -337,7 +337,7 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    this.current_retry_delay = this.retry_delay * this.retry_backoff;
+    this.current_retry_delay = this.current_retry_delay * this.retry_backoff;
 
     if (exports.debug_mode) {
         console.log("Retry connection in " + this.current_retry_delay + " ms");
