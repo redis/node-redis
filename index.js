@@ -69,15 +69,15 @@ function RedisClient(stream, options) {
             console.warn(message);
         }
         self.offline_queue.forEach(function (args) {
-            if (typeof args[2] === "function") {
-                args[2](message);
+            if (typeof args.callback === "function") {
+                args.callback(message);
             }
         });
         self.offline_queue = new Queue();
 
         self.command_queue.forEach(function (args) {
-            if (typeof args[2] === "function") {
-                args[2](message);
+            if (typeof args.callback === "function") {
+                args.callback(message);
             }
         });
         self.command_queue = new Queue();
@@ -325,8 +325,8 @@ RedisClient.prototype.connection_gone = function (why) {
     }
 
     this.command_queue.forEach(function (args) {
-        if (typeof args[2] === "function") {
-            args[2]("Server connection closed");
+        if (typeof args.callback === "function") {
+            args.callback("Server connection closed");
         }
     });
     this.command_queue = new Queue();
