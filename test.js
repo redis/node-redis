@@ -1175,6 +1175,20 @@ tests.TTL = function () {
     }, 500);
 };
 
+tests.OPTIONAL_CALLBACK = function() {
+    var name = "OPTIONAL_CALLBACK";
+    client.del("op_cb1");
+    client.set("op_cb1", "x");
+    client.get("op_cb1", last(name, require_string("x", name)));
+};
+
+tests.OPTIONAL_CALLBACK_UNDEFINED = function() {
+    var name = "OPTIONAL_CALLBACK_UNDEFINED";
+    client.del("op_cb2");
+    client.set("op_cb2", "y", undefined);
+    client.get("op_cb2", last(name, require_string("y", name)));
+}
+
 all_tests = Object.keys(tests);
 all_start = new Date();
 test_count = 0;
