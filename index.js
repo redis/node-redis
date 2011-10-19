@@ -59,7 +59,7 @@ function RedisClient(stream, options) {
     });
 
     this.stream.on("error", function (msg) {
-        if (this.closing) {
+        if (self.closing) {
             return;
         }
 
