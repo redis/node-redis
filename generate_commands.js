@@ -1,5 +1,4 @@
 var http = require("http"),
-    sys = require("sys"),
     fs = require("fs");
 
 function prettyCurrentTime() {
