@@ -210,8 +210,13 @@ RedisClient.prototype.init_parser = function () {
     this.parser_module.debug_mode = exports.debug_mode;
 
     this.reply_parser = new this.parser_module.Parser({
-        return_buffers: self.options.return_buffers || false
+    	// Always pass return_buffers or buffered_input is passed as an argument, 
+    	// then set the parser to return the data as Buffers
+        // For buffered_input, encoding to utf8 string will be done in return_reply method
+    	// if the command argument is not a buffer
+        return_buffers: self.options.return_buffers || self.options.buffered_input || false
     });
+    
     // "reply error" is an error sent back by Redis
     this.reply_parser.on("reply error", function (reply) {
         self.return_error(new Error(reply));
@@ -402,10 +407,57 @@ RedisClient.prototype.return_error = function (err) {
     }
 };
 
+RedisClient.prototype.encode_data = function (data) {
+    if(Buffer.isBuffer(data) ) {
+        // If the reply is a buffer, then encode to utf8
+        return data.toString("utf8");
+    } 
+
+    if(typeof data == "object") {
+      // Encode all the buffers in the object if in buffer format
+      return this.encode_object(data);
+    }
+
+    return data;
+};
+
+RedisClient.prototype.encode_object = function (reply) {
+    for(var i in reply) {
+        reply[i] = this.encode_data(reply[i]);
+    }
+
+    return reply;
+};
+
+RedisClient.prototype.encode_reply = function (command_obj, reply) {
+    // Return if the response is not because of a client command reauest
+    if(!command_obj) {
+        return reply;
+    }
+
+    // If any of the arguments to the command are passed as Buffer, then 
+    // return the reply as is (since it is already in Buffer format)
+    var command_args = command_obj.args;
+    for (var i = 0, len = command_args.length; i < len; i++) {
+        if (Buffer.isBuffer(command_args[i])) {
+            return reply;
+        }
+    }
+
+    return this.encode_data(reply);
+};
+
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj = this.command_queue.shift(),
         obj, i, len, key, val, type, timestamp, args, queue_len = this.command_queue.getLength();
 
+    if(this.options.buffered_input) {
+      // If the buffered input option was specified, then the reply from the parser will be 
+      // in the form of buffers. In this case, convert the reply to utf8 string if command 
+      // arguments was not passed as Buffer(which is again the default in most cases)
+      reply = this.encode_reply(command_obj, reply);
+    }
+    
     if (this.subscriptions === false && queue_len === 0) {
         this.emit("idle");
         this.command_queue = new Queue();  // explicitly reclaim storage from old Queue
