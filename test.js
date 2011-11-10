@@ -348,7 +348,7 @@ tests.reconnect = function () {
         // For orderly shutdown in normal programs, do client.quit()
         client.stream.destroy();
     });
-    
+
     client.on("reconnecting", function on_recon(params) {
         client.on("connect", function on_connect() {
             client.select(test_db_num, require_string("OK", name));
@@ -1233,7 +1233,7 @@ client3.on("error", function (err) {
 });
 
 client.on("reconnecting", function (params) {
-//    console.log("reconnecting: " + util.inspect(params));
+    console.log("reconnecting: " + util.inspect(params));
 });
 
 process.on('uncaughtException', function (err) {
