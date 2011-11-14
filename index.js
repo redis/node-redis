@@ -164,12 +164,12 @@ RedisClient.prototype.do_auth = function () {
             self.auth_callback(err, res);
             self.auth_callback = null;
         }
-		
+
         // restore the selected db if needed
-        if (this.selected_db !== null) { 
+        if (this.selected_db !== null) {
             this.send_command('select', [this.selected_db]);
         }
-		
+
         // now we are really connected
         self.emit("connect");
         if (self.options.no_ready_check) {
@@ -206,9 +206,8 @@ RedisClient.prototype.on_connect = function () {
     if (this.auth_pass) {
         this.do_auth();
     } else {
-    	
         // restore the selected db if needed
-        if (this.selected_db !== null) { 
+        if (this.selected_db !== null) {
             this.send_command('select', [this.selected_db]);
         }
 
@@ -740,21 +739,18 @@ commands.forEach(function (command) {
 
 // store db in this.select_db to restore it on reconnect
 RedisClient.prototype.select = function (db, callback) {
-		
 	var self = this;
-	
-	this.send_command('select', [db], function (err, res) {
-		if (err === null) {
-			self.selected_db = db;			
-		}
-		if (typeof(callback) !== 'undefined') {
-			callback(err, res);
-		}
-		
-	});
-}
-RedisClient.prototype.SELECT = RedisClient.prototype.select;
 
+	this.send_command('select', [db], function (err, res) {
+        if (err === null) {
+            self.selected_db = db;
+        }
+        if (typeof(callback) === 'function') {
+            callback(err, res);
+        }
+    });
+};
+RedisClient.prototype.SELECT = RedisClient.prototype.select;
 
 // Stash auth for connect and reconnect.  Send immediately if already connected.
 RedisClient.prototype.auth = function () {
