@@ -4,6 +4,7 @@ var redis = require("./index"),
     client2 = redis.createClient(),
     client3 = redis.createClient(),
     client4 = redis.createClient(9006, "filefish.redistogo.com"),
+    client5 = redis.createClient(),
     assert = require("assert"),
     util = require("./lib/util").util,
     test_db_num = 15, // this DB will be flushed and used for testing
@@ -1128,6 +1129,37 @@ tests.SORT = function () {
     // TODO - sort by hash value
 };
 
+tests.MONITOR = function () {
+    var name = "MONITOR", responses = [];
+
+    client5.monitor(function (err, res) {
+        client.mget("some", "keys", "foo", "bar");
+        client.set("json", JSON.stringify({
+            foo: "123",
+            bar: "sdflkdfsjk",
+            another: false
+        }));
+    });
+    client5.on("monitor", function (time, args) {
+        responses.push(args);
+        if (responses.length === 3) {
+            assert.strictEqual(1, responses[0].length);
+            assert.strictEqual("monitor", responses[0][0]);
+            assert.strictEqual(5, responses[1].length);
+            assert.strictEqual("mget", responses[1][0]);
+            assert.strictEqual("some", responses[1][1]);
+            assert.strictEqual("keys", responses[1][2]);
+            assert.strictEqual("foo", responses[1][3]);
+            assert.strictEqual("bar", responses[1][4]);
+            assert.strictEqual(3, responses[2].length);
+            assert.strictEqual("set", responses[2][0]);
+            assert.strictEqual("json", responses[2][1]);
+            assert.strictEqual('{"foo":"123","bar":"sdflkdfsjk","another":false}', responses[2][2]);
+            next(name);
+        }
+    });
+};
+
 tests.BLPOP = function () {
     var name = "BLPOP";
     
@@ -1194,6 +1226,7 @@ run_next_test = function run_next_test() {
         client.quit();
         client2.quit();
         client4.quit();
+        client5.quit();
     }
 };
 
@@ -1232,6 +1265,10 @@ client2.on("error", function (err) {
 });
 client3.on("error", function (err) {
     console.error("client3: " + err.stack);
+    process.exit();
+});
+client5.on("error", function (err) {
+    console.error("client5: " + err.stack);
     process.exit();
 });
 
