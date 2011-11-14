@@ -173,6 +173,25 @@ port and host are probably fine.  `options` in an object with the following poss
 This may also be set to `javascript`.
 * `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer 
 objects instead of JavaScript Strings.
+* `buffered_input`: default to false. If set to `true`, then data replies will be replied as node Buffer objects
+if the input arguments are passed as a Buffer object. This option will let you retrieve data as a node Buffer object
+or as string on a per command basis, unlike the returnBuffers, which applies to all the commands
+E.g.
+    var redis = require("redis"),
+    client = redis.createClient(<port>, <host>, {buffered_input: true});
+
+    client.set("foo_rand000000000000", "OK");
+
+    // The below get request will return a utf8 string
+    client.get("foo_rand000000000000", function (err, reply) {
+        console.log(reply.toString()); // Will print `OK`
+    });
+
+    // The below get request will return a Buffer as the key is specified as a Buffer
+    client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
+        console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
+    });
+    client.end();
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
