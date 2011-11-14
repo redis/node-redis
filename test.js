@@ -469,7 +469,12 @@ tests.SUBSCRIBE = function () {
     });
 
     client1.set("did a thing", 1, require_string("OK", name));
-    client1.subscribe("chan1", "chan2");
+    client1.subscribe("chan1", "chan2", function (err, results) {
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
+        assert.strictEqual(2, results.length, name);
+        assert.strictEqual("chan1", results[0].toString(), name);
+        assert.strictEqual(1, results[1], name);
+    });
 };
 
 tests.SUBSCRIBE_QUIT = function () {

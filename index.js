@@ -456,9 +456,22 @@ RedisClient.prototype.return_error = function (err) {
     }
 };
 
+// if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
+// put this try/catch in its own function because V8 doesn't optimize this well yet.
+function try_callback(callback, reply) {
+    try {
+        callback(null, reply);
+    } catch (err) {
+        process.nextTick(function () {
+            throw err;
+        });
+    }
+}
+
 RedisClient.prototype.return_reply = function (reply) {
-    var command_obj = this.command_queue.shift(),
-        obj, i, len, key, val, type, timestamp, argindex, args, queue_len = this.command_queue.getLength();
+    var command_obj, obj, i, len, key, val, type, timestamp, argindex, args, queue_len;
+    
+    queue_len = this.command_queue.getLength();
 
     if (this.subscriptions === false && queue_len === 0) {
         this.emit("idle");
@@ -468,6 +481,8 @@ RedisClient.prototype.return_reply = function (reply) {
         this.emit("drain");
         this.should_buffer = false;
     }
+
+    command_obj = this.command_queue.shift();
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
@@ -482,14 +497,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 reply = obj;
             }
 
-            try {
-                command_obj.callback(null, reply);
-            } catch (err) {
-                // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
-                process.nextTick(function () {
-                    throw err;
-                });
-            }
+            try_callback(command_obj.callback, reply);
         } else if (exports.debug_mode) {
             console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
@@ -507,6 +515,11 @@ RedisClient.prototype.return_reply = function (reply) {
                     if (this.debug_mode) {
                         console.log("All subscriptions removed, exiting pub/sub mode");
                     }
+                }
+                // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
+                // TODO - document this
+                if (command_obj && typeof command_obj.callback === "function") {
+                    try_callback(command_obj.callback, reply[1].toString());
                 }
                 this.emit(type, reply[1].toString(), reply[2]); // channel, count
             } else {
