@@ -19,6 +19,9 @@
     "scripts": {
         "test": "node ./test.js"
     },
+    "devDependencies": {
+        "metrics": ">=0.1.5"
+    },
     "repository": {
         "type": "git",
         "url": "git://github.com/mranney/node_redis.git"
