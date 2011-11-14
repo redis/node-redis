@@ -166,8 +166,8 @@ RedisClient.prototype.do_auth = function () {
         }
 
         // restore the selected db if needed
-        if (this.selected_db !== null) {
-            this.send_command('select', [this.selected_db]);
+        if (self.selected_db !== null) {
+            self.send_command('select', [self.selected_db]);
         }
 
         // now we are really connected
