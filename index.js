@@ -1,8 +1,8 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
-    util = require("./lib/util").util,
-    Queue = require("./lib/queue").Queue,
+    util = require("./lib/util"),
+    Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
     events = require("events"),
     parsers = [], commands,
