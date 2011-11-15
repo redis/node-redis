@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v0.7.0 - October 14, 2011
+## v0.7.0 - November 14, 2011
 
 Many contributed fixes. Thanks everybody.
 
