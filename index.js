@@ -381,11 +381,12 @@ RedisClient.prototype.connection_gone = function (why) {
 
     if (this.max_attempts && this.attempts >= this.max_attempts) {
         this.retry_timer = null;
-        // TODO - engage Redis is Broken mode for future commands
-        this.emit("not_reconnecting", "Aborting connection attempt: Max attempts " + this.max_attempts + " failed.");
+        // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
+        // want the program to exit.  Right now, we just log, which doesn't really help in either case.
+        console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
         return;
     }
-    
+
     self.attempts += 1;
     self.emit("reconnecting", {
         delay: self.retry_delay,
@@ -400,11 +401,11 @@ RedisClient.prototype.connection_gone = function (why) {
 
         if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
             self.retry_timer = null;
-            // TODO - engage Redis is Broken mode for future commands
-            self.emit("not_reconnecting", "Aborting connection attempt: Total timeout of  " + self.connect_timeout + "ms exceeded.");
+            // TODO - engage Redis is Broken mode for future commands, or whatever
+            console.error("node_redis: Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
             return;
         }
-        
+
         self.stream.connect(self.port, self.host);
         self.retry_timer = null;
     }, this.current_retry_delay);
