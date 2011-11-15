@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v0.7.1 - November 15, 2011
+
+Fix regression in reconnect logic.
+
+Very much need automated tests for reconnection and queue logic.
+
 ## v0.7.0 - November 14, 2011
 
 Many contributed fixes. Thanks everybody.

@@ -1,5 +1,5 @@
 var redis = require("../index").createClient(null, null, {
-    max_attempts: 2
+//    max_attempts: 4
 });
 
 redis.on("error", function (err) {
@@ -12,9 +12,6 @@ redis.on("ready", function () {
 
 redis.on("reconnecting", function (arg) {
     console.log("Redis reconnecting: " + JSON.stringify(arg));
-});
-redis.on("not_reconnecting", function (arg) {
-    console.log("Redis NOT reconnecting: " + arg);
 });
 redis.on("connect", function () {
     console.log("Redis connected.");

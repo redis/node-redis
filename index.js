@@ -33,7 +33,6 @@ function RedisClient(stream, options) {
     this.connected = false;
     this.ready = false;
     this.connections = 0;
-    this.attempts = 1;
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
@@ -48,9 +47,7 @@ function RedisClient(stream, options) {
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
         this.connect_timeout = +options.connect_timeout;
     }
-    this.retry_totaltime = 0;
-    this.retry_delay = 250;
-    this.retry_backoff = 1.7;
+    this.initialize_retry_vars();
     this.subscriptions = false;
     this.monitoring = false;
     this.closing = false;
@@ -90,6 +87,14 @@ function RedisClient(stream, options) {
 }
 util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
+
+RedisClient.prototype.initialize_retry_vars = function () {
+    this.retry_timer = null;
+    this.retry_totaltime = 0;
+    this.retry_delay = 250;
+    this.retry_backoff = 1.7;
+    this.attempts = 1;
+};
 
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
@@ -194,10 +199,7 @@ RedisClient.prototype.on_connect = function () {
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
-    this.max_attempts = 0;
-    this.retry_totaltime = 0;
-    this.retry_timer = null;
-    this.current_retry_delay = this.retry_delay;
+    this.initialize_retry_vars();
     this.stream.setNoDelay();
     this.stream.setTimeout(0);
 
@@ -373,7 +375,7 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    this.current_retry_delay = this.current_retry_delay * this.retry_backoff;
+    this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
 
     if (exports.debug_mode) {
         console.log("Retry connection in " + this.current_retry_delay + " ms");
@@ -387,8 +389,8 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    self.attempts += 1;
-    self.emit("reconnecting", {
+    this.attempts += 1;
+    this.emit("reconnecting", {
         delay: self.retry_delay,
         attempt: self.attempts
     });
@@ -408,7 +410,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
         self.stream.connect(self.port, self.host);
         self.retry_timer = null;
-    }, this.current_retry_delay);
+    }, this.retry_delay);
 };
 
 RedisClient.prototype.on_data = function (data) {
