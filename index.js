@@ -551,7 +551,7 @@ function Command(command, args, sub_command, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, this_args, command_obj, i, il, elem_count, stream = this.stream, buffer_args, command_str = "", buffered_writes = 0;
+    var arg, this_args, command_obj, i, il, elem_count, stream = this.stream, buffer_args, command_str = "", buffered_writes = 0, last_arg_type;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -568,9 +568,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             //       send_command(command, [arg1, arg2, cb]);
             //     client.command(arg1, arg2);   (callback is optional)
             //       send_command(command, [arg1, arg2]);
-            if (typeof args[args.length - 1] === "function") {
-                callback = args[args.length - 1];
-                args.length -= 1;
+            //     client.command(arg1, arg2, undefined);   (callback is undefined)
+            //       send_command(command, [arg1, arg2, undefined]);
+            last_arg_type = typeof args[args.length - 1];
+            if (last_arg_type === "function" || last_arg_type === "undefined") {
+                callback = args.pop();
             }
         } else {
             throw new Error("send_command: last argument must be a callback or undefined");
