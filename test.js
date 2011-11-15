@@ -396,7 +396,7 @@ tests.HMSET_BUFFER_AND_ARRAY = function () {
     client.HMSET(key, field1, value1, field2, value2, last(name, require_string("OK", name)));
 };
 
-// TODO - add test for HMSET.  It is special.  Test for all forms as well as optional callbacks
+// TODO - add test for HMSET with optional callbacks
 
 tests.HMGET = function () {
     var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
@@ -1162,7 +1162,7 @@ tests.MONITOR = function () {
 
 tests.BLPOP = function () {
     var name = "BLPOP";
-    
+
     client.rpush("blocking list", "initial value", function (err, res) {
         client2.BLPOP("blocking list", 0, function (err, res) {
             assert.strictEqual("blocking list", res[0].toString());
