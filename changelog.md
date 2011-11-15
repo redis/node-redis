@@ -1,6 +1,26 @@
 Changelog
 =========
 
+## v0.7.0 - October 14, 2011
+
+Many contributed fixes. Thanks everybody.
+
+* [GH-127] - properly re-initialize parser on reconnect
+* [GH-136] - handle passing undefined as callback (Ian Babrou)
+* [GH-139] - properly handle exceptions thrown in pub/sub event handlers (Felix Geisendörfer)
+* [GH-141] - detect closing state on stream error (Felix Geisendörfer)
+* [GH-142] - re-select database on reconnection (Jean-Hugues Pinson)
+* [GH-146] - add sort example (Maksim Lin)
+
+Some more goodies:
+
+* Fix bugs with node 0.6
+* Performance improvements
+* New version of `multi_bench.js` that tests more realistic scenarios
+* [GH-140] - support optional callback for subscribe commands
+* Properly flush and error out command queue when connection fails
+* Initial work on reconnection thresholds
+
 ## v0.6.7 - July 30, 2011
 
 (accidentally skipped v0.6.6)
