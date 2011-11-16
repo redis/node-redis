@@ -171,23 +171,24 @@ port and host are probably fine.  `options` in an object with the following poss
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
 This may also be set to `javascript`.
-* `return_buffers`: defaults to false.  If set to `true`, then bulk data replies will be returned as node Buffer 
+* `return_buffers`: defaults to false.  If set to `true`, then all replies will be sent to callbacks as node Buffer
 objects instead of JavaScript Strings.
-* `buffered_input`: default to false. If set to `true`, then data replies will be replied as node Buffer objects
-if the input arguments are passed as a Buffer object. This option will let you retrieve data as a node Buffer object
-or as string on a per command basis, unlike the returnBuffers, which applies to all the commands
-E.g.
+* `buffered_input`: default to false. If set to `true`, then replies will be sent to callbacks as node Buffer objects
+if any of the input arguments to the original command were Buffer objects.
+This option will let you switch between Buffers and Strings on a per-command basis.  `return_buffers` applies to every command
+on a client.
+
     var redis = require("redis"),
-    client = redis.createClient(<port>, <host>, {buffered_input: true});
+        client = redis.createClient(null, null, {buffered_input: true});
 
     client.set("foo_rand000000000000", "OK");
 
-    // The below get request will return a utf8 string
+    // This will return a JavaScript String
     client.get("foo_rand000000000000", function (err, reply) {
         console.log(reply.toString()); // Will print `OK`
     });
 
-    // The below get request will return a Buffer as the key is specified as a Buffer
+    // This will return a Buffer since original key is specified as a Buffer
     client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
         console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
     });
