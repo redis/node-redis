@@ -670,9 +670,9 @@ tests.HGETALL = function () {
 tests.HGETALL_NULL = function () {
     var name = "HGETALL_NULL";
 
-    client.hgetall('missing', function (err, obj) {
+    client.hgetall("missing", function (err, obj) {
         assert.strictEqual(null, err);
-        assert.deepEqual([], obj);
+        assert.strictEqual(null, obj);
         next(name);
     });
 };

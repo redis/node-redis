@@ -471,6 +471,23 @@ function try_callback(callback, reply) {
     }
 }
 
+// hgetall converts its replies to an Object.  If the reply is empty, null is returned.
+function reply_to_object(reply) {
+    var obj = {}, j, jl, key, val;
+
+    if (reply.length === 0) {
+        return null;
+    }
+
+    for (j = 0, jl = reply.length; j < jl; j += 2) {
+        key = reply[j].toString();
+        val = reply[j + 1];
+        obj[key] = val;
+    }
+
+    return obj;
+}
+
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, obj, i, len, key, val, type, timestamp, argindex, args, queue_len;
     
@@ -489,15 +506,9 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
-            // HGETALL special case replies with keyed Buffers
+            // TODO - confusing and error-prone that hgetall is special cased in two places
             if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
-                obj = {};
-                for (i = 0, len = reply.length; i < len; i += 2) {
-                    key = reply[i].toString();
-                    val = reply[i + 1];
-                    obj[key] = val;
-                }
-                reply = obj;
+                reply = reply_to_object(reply);
             }
 
             try_callback(command_obj.callback, reply);
@@ -901,15 +912,9 @@ Multi.prototype.exec = function (callback) {
                 reply = replies[i - 1];
                 args = self.queue[i];
 
-                // Convert HGETALL reply to object
+                // TODO - confusing and error-prone that hgetall is special cased in two places
                 if (reply && args[0].toLowerCase() === "hgetall") {
-                    obj = {};
-                    for (j = 0, jl = reply.length; j < jl; j += 2) {
-                        key = reply[j].toString();
-                        val = reply[j + 1];
-                        obj[key] = val;
-                    }
-                    replies[i - 1] = reply = obj;
+                    replies[i - 1] = reply = reply_to_object(reply);
                 }
 
                 if (typeof args[args.length - 1] === "function") {

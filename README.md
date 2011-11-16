@@ -206,7 +206,8 @@ to start over.
 
 ## Friendlier hash commands
 
-Most Redis commands take a single String or an Array of Strings as arguments, and replies are sent back as a single String or an Array of Strings.  When dealing with hash values, there are a couple of useful exceptions to this.
+Most Redis commands take a single String or an Array of Strings as arguments, and replies are sent back as a single String or an Array of Strings.
+When dealing with hash values, there are a couple of useful exceptions to this.
 
 ### client.hgetall(hash)
 
@@ -512,7 +513,7 @@ Defaults to 1.7.  The default initial connection retry is 250, so the second ret
 
 ## TODO
 
-Better tests for monitor mode, auth, disconnect/reconnect, and all combinations thereof.
+Better tests for auth, disconnect/reconnect, and all combinations thereof.
 
 Stream large set/get values into and out of Redis.  Otherwise the entire value must be in node's memory.
 
