@@ -340,6 +340,62 @@ tests.WATCH_MULTI = function () {
     }
 };
 
+tests.detect_buffers = function () {
+    var name = "detect_buffers", detect_client = redis.createClient(null, null, {detect_buffers: true});
+
+    detect_client.on("ready", function () {
+        // single Buffer or String
+        detect_client.set("string key 1", "string value");
+        detect_client.get("string key 1", require_string("string value", name));
+        detect_client.get(new Buffer("string key 1"), function (err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual(true, Buffer.isBuffer(reply), name);
+            assert.strictEqual("<Buffer 73 74 72 69 6e 67 20 76 61 6c 75 65>", reply.inspect(), name);
+        });
+
+        detect_client.hmset("hash key 2", "key 1", "val 1", "key 2", "val 2");
+        // array of Buffers or Strings
+        detect_client.hmget("hash key 2", "key 1", "key 2", function (err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual(true, Array.isArray(reply), name);
+            assert.strictEqual(2, reply.length, name);
+            assert.strictEqual("val 1", reply[0], name);
+            assert.strictEqual("val 2", reply[1], name);
+        });
+        detect_client.hmget(new Buffer("hash key 2"), "key 1", "key 2", function (err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual(true, Array.isArray(reply));
+            assert.strictEqual(2, reply.length, name);
+            assert.strictEqual(true, Buffer.isBuffer(reply[0]));
+            assert.strictEqual(true, Buffer.isBuffer(reply[1]));
+            assert.strictEqual("<Buffer 76 61 6c 20 31>", reply[0].inspect(), name);
+            assert.strictEqual("<Buffer 76 61 6c 20 32>", reply[1].inspect(), name);
+        });
+
+        // Object of Buffers or Strings
+        detect_client.hgetall("hash key 2", function (err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual("object", typeof reply, name);
+            assert.strictEqual(2, Object.keys(reply).length, name);
+            assert.strictEqual("val 1", reply["key 1"], name);
+            assert.strictEqual("val 2", reply["key 2"], name);
+        });
+        detect_client.hgetall(new Buffer("hash key 2"), function (err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual("object", typeof reply, name);
+            assert.strictEqual(2, Object.keys(reply).length, name);
+            assert.strictEqual(true, Buffer.isBuffer(reply["key 1"]));
+            assert.strictEqual(true, Buffer.isBuffer(reply["key 2"]));
+            assert.strictEqual("<Buffer 76 61 6c 20 31>", reply["key 1"].inspect(), name);
+            assert.strictEqual("<Buffer 76 61 6c 20 32>", reply["key 2"].inspect(), name);
+        });
+
+        detect_client.quit(function (err, res) {
+            next(name);
+        });
+    });
+};
+
 tests.reconnect = function () {
     var name = "reconnect";
 
@@ -1210,19 +1266,19 @@ tests.TTL = function () {
     }, 500);
 };
 
-tests.OPTIONAL_CALLBACK = function() {
+tests.OPTIONAL_CALLBACK = function () {
     var name = "OPTIONAL_CALLBACK";
     client.del("op_cb1");
     client.set("op_cb1", "x");
     client.get("op_cb1", last(name, require_string("x", name)));
 };
 
-tests.OPTIONAL_CALLBACK_UNDEFINED = function() {
+tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     var name = "OPTIONAL_CALLBACK_UNDEFINED";
     client.del("op_cb2");
     client.set("op_cb2", "y", undefined);
     client.get("op_cb2", last(name, require_string("y", name)));
-}
+};
 
 all_tests = Object.keys(tests);
 all_start = new Date();
