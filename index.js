@@ -248,9 +248,12 @@ RedisClient.prototype.init_parser = function () {
 
     this.parser_module.debug_mode = exports.debug_mode;
 
+    // return_buffers sends back Buffers from parser to callback. detect_buffers sends back Buffers from parser, but
+    // converts to Strings if the input arguments are not Buffers.
     this.reply_parser = new this.parser_module.Parser({
-        return_buffers: self.options.return_buffers || false
+        return_buffers: self.options.return_buffers || self.options.detect_buffers || false
     });
+
     // "reply error" is an error sent back by Redis
     this.reply_parser.on("reply error", function (reply) {
         self.return_error(new Error(reply));
@@ -488,8 +491,25 @@ function reply_to_object(reply) {
     return obj;
 }
 
+function reply_to_strings(reply) {
+    var i;
+
+    if (Buffer.isBuffer(reply)) {
+        return reply.toString();
+    }
+
+    if (Array.isArray(reply)) {
+        for (i = 0; i < reply.length; i++) {
+            reply[i] = reply[i].toString();
+        }
+        return reply;
+    }
+
+    return reply;
+}
+
 RedisClient.prototype.return_reply = function (reply) {
-    var command_obj, obj, i, len, key, val, type, timestamp, argindex, args, queue_len;
+    var command_obj, obj, i, len, type, timestamp, argindex, args, queue_len;
     
     queue_len = this.command_queue.getLength();
 
@@ -506,6 +526,12 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
+            if (this.options.detect_buffers && command_obj.buffer_args === false) {
+                // If detect_buffers option was specified, then the reply from the parser will be Buffers.
+                // If this command did not use Buffer arguments, then convert the reply to Strings here.
+                reply = reply_to_strings(reply);
+            }
+
             // TODO - confusing and error-prone that hgetall is special cased in two places
             if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
                 reply = reply_to_object(reply);
@@ -557,15 +583,16 @@ RedisClient.prototype.return_reply = function (reply) {
 
 // This Command constructor is ever so slightly faster than using an object literal, but more importantly, using
 // a named constructor helps it show up meaningfully in the V8 CPU profiler and in heap snapshots.
-function Command(command, args, sub_command, callback) {
+function Command(command, args, sub_command, buffer_args, callback) {
     this.command = command;
     this.args = args;
     this.sub_command = sub_command;
+    this.buffer_args = buffer_args;
     this.callback = callback;
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, this_args, command_obj, i, il, elem_count, stream = this.stream, buffer_args, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, this_args, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -604,7 +631,14 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
-    command_obj = new Command(command, args, false, callback);
+    buffer_args = false;
+    for (i = 0, il = args.length, arg; i < il; i += 1) {
+        if (Buffer.isBuffer(args[i])) {
+            buffer_args = true;
+        }
+    }
+
+    command_obj = new Command(command, args, false, buffer_args, callback);
 
     if ((!this.ready && !this.send_anyway) || !stream.writable) {
         if (exports.debug_mode) {
@@ -635,22 +669,12 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     this.command_queue.push(command_obj);
     this.commands_sent += 1;
 
-    elem_count = 1;
-    buffer_args = false;
+    elem_count = args.length + 1;
 
-    elem_count += args.length;
-
-    // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg
+    // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
-    // Also, why am I putting user documentation in the library source code?
 
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
-
-    for (i = 0, il = args.length, arg; i < il; i += 1) {
-        if (Buffer.isBuffer(args[i])) {
-            buffer_args = true;
-        }
-    }
 
     if (! buffer_args) { // Build up a string and send entire command in one write
         for (i = 0, il = args.length, arg; i < il; i += 1) {
@@ -905,7 +929,7 @@ Multi.prototype.exec = function (callback) {
             }
         }
 
-        var i, il, j, jl, reply, args, obj, key, val;
+        var i, il, j, jl, reply, args;
 
         if (replies) {
             for (i = 1, il = self.queue.length; i < il; i += 1) {
