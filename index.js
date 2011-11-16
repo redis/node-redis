@@ -632,7 +632,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     //  and converts to:
     //     client.command(arg1, arg2, arg3, arg4, cb);
     // which is convenient for some things like sadd
-    if (Array.isArray(args[args.length - 1])) {
+    if (args.length > 0 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 

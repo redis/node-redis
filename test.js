@@ -158,7 +158,7 @@ tests.MULTI_3 = function () {
         // make sure empty mb reply works
         assert.strictEqual(true, is_empty_array(reply), name);
     });
- 
+
     // test nested multi-bulk replies with empty mb elements.
     client.multi([
         ["smembers", "some set"],
