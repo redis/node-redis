@@ -33,6 +33,9 @@ function RedisClient(stream, options) {
     this.connected = false;
     this.ready = false;
     this.connections = 0;
+    if (this.options.socket_nodelay === undefined) {
+        this.options.socket_nodelay = true;
+    }
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
@@ -200,7 +203,9 @@ RedisClient.prototype.on_connect = function () {
     this.command_queue = new Queue();
     this.emitted_end = false;
     this.initialize_retry_vars();
-    this.stream.setNoDelay();
+    if (this.options.socket_nodelay) {
+        this.stream.setNoDelay();
+    }
     this.stream.setTimeout(0);
 
     this.init_parser();

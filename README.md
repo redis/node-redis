@@ -171,12 +171,16 @@ port and host are probably fine.  `options` in an object with the following poss
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
 This may also be set to `javascript`.
-* `return_buffers`: defaults to false.  If set to `true`, then all replies will be sent to callbacks as node Buffer
+* `return_buffers`: defaults to `false`.  If set to `true`, then all replies will be sent to callbacks as node Buffer
 objects instead of JavaScript Strings.
-* `detect_buffers`: default to false. If set to `true`, then replies will be sent to callbacks as node Buffer objects
+* `detect_buffers`: default to `false`. If set to `true`, then replies will be sent to callbacks as node Buffer objects
 if any of the input arguments to the original command were Buffer objects.
 This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
 every command on a client.
+* `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
+Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the 
+cost of more latency.  Most applications will want this set to `true`.
+
 
     var redis = require("redis"),
         client = redis.createClient(null, null, {detect_buffers: true});

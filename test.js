@@ -70,7 +70,7 @@ function require_error(label) {
     };
 }
 
-function is_empty_array(obj) { 
+function is_empty_array(obj) {
     return Array.isArray(obj) && obj.length === 0;
 }
 
@@ -394,6 +394,58 @@ tests.detect_buffers = function () {
             next(name);
         });
     });
+};
+
+tests.socket_nodelay = function () {
+    var name = "socket_nodelay", c1, c2, c3, ready_count = 0, quit_count = 0;
+
+    c1 = redis.createClient(null, null, {socket_nodelay: true});
+    c2 = redis.createClient(null, null, {socket_nodelay: false});
+    c3 = redis.createClient(null, null);
+
+    function quit_check() {
+        quit_count++;
+
+        if (quit_count === 3) {
+            next(name);
+        }
+    }
+
+    function run() {
+        assert.strictEqual(true, c1.options.socket_nodelay, name);
+        assert.strictEqual(false, c2.options.socket_nodelay, name);
+        assert.strictEqual(true, c3.options.socket_nodelay, name);
+
+        c1.set(["set key 1", "set val"], require_string("OK", name));
+        c1.set(["set key 2", "set val"], require_string("OK", name));
+        c1.get(["set key 1"], require_string("set val", name));
+        c1.get(["set key 2"], require_string("set val", name));
+
+        c2.set(["set key 3", "set val"], require_string("OK", name));
+        c2.set(["set key 4", "set val"], require_string("OK", name));
+        c2.get(["set key 3"], require_string("set val", name));
+        c2.get(["set key 4"], require_string("set val", name));
+
+        c3.set(["set key 5", "set val"], require_string("OK", name));
+        c3.set(["set key 6", "set val"], require_string("OK", name));
+        c3.get(["set key 5"], require_string("set val", name));
+        c3.get(["set key 6"], require_string("set val", name));
+
+        c1.quit(quit_check);
+        c2.quit(quit_check);
+        c3.quit(quit_check);
+    }
+
+    function ready_check() {
+        ready_count++;
+        if (ready_count === 3) {
+            run();
+        }
+    }
+
+    c1.on("ready", ready_check);
+    c2.on("ready", ready_check);
+    c3.on("ready", ready_check);
 };
 
 tests.reconnect = function () {
@@ -734,7 +786,7 @@ tests.HGETALL_NULL = function () {
 };
 
 tests.UTF8 = function () {
-    var name = "UTF8", 
+    var name = "UTF8",
         utf8_sample = "ಠ_ಠ";
 
     client.set(["utf8test", utf8_sample], require_string("OK", name));
@@ -859,7 +911,7 @@ tests.SDIFFSTORE = function () {
     client.sadd('baz', 'a', require_number(1, name));
     client.sadd('baz', 'd', require_number(1, name));
 
-    // NB: SDIFFSTORE returns the number of elements in the dstkey 
+    // NB: SDIFFSTORE returns the number of elements in the dstkey
 
     client.sdiffstore('quux', 'foo', 'bar', 'baz', require_number(2, name));
 
