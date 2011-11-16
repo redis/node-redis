@@ -173,13 +173,13 @@ port and host are probably fine.  `options` in an object with the following poss
 This may also be set to `javascript`.
 * `return_buffers`: defaults to false.  If set to `true`, then all replies will be sent to callbacks as node Buffer
 objects instead of JavaScript Strings.
-* `buffered_input`: default to false. If set to `true`, then replies will be sent to callbacks as node Buffer objects
+* `detect_buffers`: default to false. If set to `true`, then replies will be sent to callbacks as node Buffer objects
 if any of the input arguments to the original command were Buffer objects.
-This option will let you switch between Buffers and Strings on a per-command basis.  `return_buffers` applies to every command
-on a client.
+This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
+every command on a client.
 
     var redis = require("redis"),
-        client = redis.createClient(null, null, {buffered_input: true});
+        client = redis.createClient(null, null, {detect_buffers: true});
 
     client.set("foo_rand000000000000", "OK");
 
