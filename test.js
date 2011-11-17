@@ -3,8 +3,6 @@ var redis = require("./index"),
     client = redis.createClient(),
     client2 = redis.createClient(),
     client3 = redis.createClient(),
-    client4 = redis.createClient(9006, "filefish.redistogo.com"),
-    client5 = redis.createClient(),
     assert = require("assert"),
     util = require("./lib/util"),
     test_db_num = 15, // this DB will be flushed and used for testing
@@ -1238,9 +1236,10 @@ tests.SORT = function () {
 };
 
 tests.MONITOR = function () {
-    var name = "MONITOR", responses = [];
+    var name = "MONITOR", responses = [], monitor_client;
 
-    client5.monitor(function (err, res) {
+    monitor_client = redis.createClient();
+    monitor_client.monitor(function (err, res) {
         client.mget("some", "keys", "foo", "bar");
         client.set("json", JSON.stringify({
             foo: "123",
@@ -1248,7 +1247,7 @@ tests.MONITOR = function () {
             another: false
         }));
     });
-    client5.on("monitor", function (time, args) {
+    monitor_client.on("monitor", function (time, args) {
         responses.push(args);
         if (responses.length === 3) {
             assert.strictEqual(1, responses[0].length);
@@ -1263,7 +1262,9 @@ tests.MONITOR = function () {
             assert.strictEqual("set", responses[2][0]);
             assert.strictEqual("json", responses[2][1]);
             assert.strictEqual('{"foo":"123","bar":"sdflkdfsjk","another":false}', responses[2][2]);
-            next(name);
+            monitor_client.quit(function (err, res) {
+                next(name);
+            });
         }
     });
 };
@@ -1332,6 +1333,30 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     client.get("op_cb2", last(name, require_string("y", name)));
 };
 
+// TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
+// Yes, this is the real password.  Please be nice, thanks.
+tests.auth = function () {
+    var name = "AUTH", client4, ready_count = 0;
+
+    client4 = redis.createClient(9006, "filefish.redistogo.com");
+    client4.auth("664b1b6aaf134e1ec281945a8de702a9", function (err, res) {
+        assert.strictEqual(null, err, name);
+        assert.strictEqual("OK", res.toString(), name);
+    });
+
+    // test auth, then kill the connection so it'll auto-reconnect and auto-re-auth
+    client4.on("ready", function () {
+        ready_count++;
+        if (ready_count === 1) {
+            client4.stream.destroy();
+        } else {
+            client4.quit(function (err, res) {
+                next(name);
+            });
+        }
+    });
+};
+
 all_tests = Object.keys(tests);
 all_start = new Date();
 test_count = 0;
@@ -1347,8 +1372,6 @@ run_next_test = function run_next_test() {
         console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date() - all_start);
         client.quit();
         client2.quit();
-        client4.quit();
-        client5.quit();
     }
 };
 
@@ -1365,17 +1388,6 @@ client.on('end', function () {
     ended = true;
 });
 
-// TODO - need a better way to test auth, maybe auto-config a local Redis server?  Sounds hard.
-// Yes, this is the real password.  Please be nice, thanks.
-client4.auth("664b1b6aaf134e1ec281945a8de702a9", function (err, res) {
-    var name = "AUTH_4";
-
-    if (err) {
-        assert.fail(err, name);
-    }
-    assert.strictEqual("OK", res.toString(), "auth");
-});
-
 // Exit immediately on connection failure, which triggers "exit", below, which fails the test
 client.on("error", function (err) {
     console.error("client: " + err.stack);
@@ -1389,11 +1401,6 @@ client3.on("error", function (err) {
     console.error("client3: " + err.stack);
     process.exit();
 });
-client5.on("error", function (err) {
-    console.error("client5: " + err.stack);
-    process.exit();
-});
-
 client.on("reconnecting", function (params) {
     console.log("reconnecting: " + util.inspect(params));
 });
