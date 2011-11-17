@@ -180,6 +180,11 @@ every command on a client.
 * `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
 Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the 
 cost of more latency.  Most applications will want this set to `true`.
+* `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
+be loading the database from disk.  While loading, the server not respond to any commands.  To work around this, 
+`node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command
+indicates whether the server is ready for more commands.  When ready, `node_redis` emits a `ready` event.
+Setting `no_ready_check` to `true` will inhibit this check.
 
 
     var redis = require("redis"),
