@@ -224,7 +224,7 @@ RedisClient.prototype.init_parser = function () {
     if (this.options.parser) {
         if (! parsers.some(function (parser) {
             if (parser.name === self.options.parser) {
-                this.parser_module = parser;
+                self.parser_module = parser;
                 if (exports.debug_mode) {
                     console.log("Using parser module: " + self.parser_module.name);
                 }
