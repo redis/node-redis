@@ -571,6 +571,12 @@ RedisClient.prototype.return_reply = function (reply) {
                         console.log("All subscriptions removed, exiting pub/sub mode");
                     }
                 }
+                else if (this.pub_sub_mode === false) {
+                    this.pub_sub_mode = true;
+                    if (this.debug_mode) {
+                        console.log("Entering pub/sub mode");
+                    }
+                }
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
                 if (command_obj && typeof command_obj.callback === "function") {
