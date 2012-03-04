@@ -683,10 +683,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
     // Also, why am I putting user documentation in the library source code?
-
-    // Multi-bulk request protocol requires that space-delimited commands (e.g. DEBUG OBJECT) have each word represented as
-    // a separate 'element' in the request. 
-
+ 
     command_comps = command.split(' ');
     
     elem_count = command_comps.length;
