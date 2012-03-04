@@ -607,7 +607,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, this_args, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, this_args, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_comps, command_str = "", buffered_writes = 0, last_arg_type;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -680,12 +680,23 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     this.command_queue.push(command_obj);
     this.commands_sent += 1;
 
-    elem_count = args.length + 1;
-
-    // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg.
+    // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
+    // Also, why am I putting user documentation in the library source code?
 
-    command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
+    // Multi-bulk request protocol requires that space-delimited commands (e.g. DEBUG OBJECT) have each word represented as
+    // a separate 'element' in the request. 
+
+    command_comps = command.split(' ');
+    
+    elem_count = command_comps.length;
+    elem_count += args.length;
+    
+    command_str = "*" + elem_count + "\r\n";
+    
+    for (i = 0; i < command_comps.length; i ++) {
+      command_str += "$" + command_comps[i].length + "\r\n" + command_comps[i] + "\r\n";
+    }
 
     if (! buffer_args) { // Build up a string and send entire command in one write
         for (i = 0, il = args.length, arg; i < il; i += 1) {
