@@ -688,7 +688,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     
     elem_count = command_comps.length;
     elem_count += args.length;
-    
+
     command_str = "*" + elem_count + "\r\n";
     
     for (i = 0; i < command_comps.length; i ++) {
