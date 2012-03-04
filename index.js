@@ -59,7 +59,7 @@ function RedisClient(stream, options) {
     this.auth_pass = null;
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
-	
+
     var self = this;
 
     this.stream.on("connect", function () {
@@ -525,7 +525,7 @@ function reply_to_strings(reply) {
 
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, obj, i, len, type, timestamp, argindex, args, queue_len;
-    
+
     queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
@@ -660,7 +660,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (!stream.writable) {
                 console.log("send command: stream is not writeable.");
             }
-            
+
             console.log("Queueing " + command + " for next server connection.");
         }
         this.offline_queue.push(command_obj);
@@ -744,7 +744,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
 RedisClient.prototype.pub_sub_command = function (command_obj) {
     var i, key, command, args;
-    
+
     if (this.pub_sub_mode === false && exports.debug_mode) {
         console.log("Entering pub/sub mode from " + command_obj.command);
     }
@@ -781,11 +781,16 @@ RedisClient.prototype.end = function () {
     return this.stream.end();
 };
 
-function Multi(client, args) {
+function Multi(client, arg1, arg2) {
     this.client = client;
     this.queue = [["MULTI"]];
-    if (Array.isArray(args)) {
-        this.queue = this.queue.concat(args);
+    if (typeof arg1 === "function") {
+        this.queue[0].push(arg1);
+    } else if (typeof arg2 === "function") {
+        this.queue[0].push(arg2);
+    }
+    if (Array.isArray(arg1)) {
+        this.queue = this.queue.concat(arg1);
     }
 }
 
@@ -794,7 +799,7 @@ exports.Multi = Multi;
 // take 2 arrays and return the union of their elements
 function set_union(seta, setb) {
     var obj = {};
-    
+
     seta.forEach(function (val) {
         obj[val] = true;
     });
@@ -948,15 +953,20 @@ Multi.prototype.exec = function (callback) {
                 args.push(obj[key]);
             });
         }
+        var cur = self.queue[index];
         this.client.send_command(command, args, function (err, reply) {
             if (err) {
-                var cur = self.queue[index];
                 if (typeof cur[cur.length - 1] === "function") {
                     cur[cur.length - 1](err);
                 } else {
                     throw new Error(err);
                 }
-                self.queue.splice(index, 1);
+                var new_index = self.queue.indexOf(cur);
+                if (new_index !== -1) {
+                    self.queue.splice(new_index, 1);
+                } else {
+                    throw new Error("queue item no longer found");
+                }
             }
         });
     }, this);
@@ -996,11 +1006,11 @@ Multi.prototype.exec = function (callback) {
     });
 };
 
-RedisClient.prototype.multi = function (args) {
-    return new Multi(this, args);
+RedisClient.prototype.multi = function (arg1, arg2) {
+    return new Multi(this, arg1, arg2);
 };
-RedisClient.prototype.MULTI = function (args) {
-    return new Multi(this, args);
+RedisClient.prototype.MULTI = function (arg1, arg2) {
+    return new Multi(this, arg1, arg2);
 };
 
 exports.createClient = function (port_arg, host_arg, options) {
