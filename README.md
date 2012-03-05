@@ -186,7 +186,7 @@ be loading the database from disk.  While loading, the server not respond to any
 indicates whether the server is ready for more commands.  When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
 
-
+```js
     var redis = require("redis"),
         client = redis.createClient(null, null, {detect_buffers: true});
 
@@ -202,6 +202,7 @@ Setting `no_ready_check` to `true` will inhibit this check.
         console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
     });
     client.end();
+```
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
@@ -212,6 +213,9 @@ first command after connecting.  This can be tricky to coordinate with reconnect
 etc.  To make this easier, `client.auth()` stashes `password` and will send it after each connection,
 including reconnections.  `callback` is invoked only once, after the response to the very first
 `AUTH` command sent.
+NOTE: Your call to `client.auth()` should not be inside the ready handler. If
+you are doing this wrong, `client` will emit an error that looks
+something like this `Error: Ready check failed: ERR operation not permitted`.
 
 ## client.end()
 

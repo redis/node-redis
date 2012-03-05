@@ -160,11 +160,11 @@ RedisClient.prototype.do_auth = function () {
                 }, 2000); // TODO - magic number alert
                 return;
             } else {
-                return self.emit("error", "Auth error: " + err);
+                return self.emit("error", new Error("Auth error: " + err.message));
             }
         }
         if (res.toString() !== "OK") {
-            return self.emit("error", "Auth failed: " + res.toString());
+            return self.emit("error", new Error("Auth failed: " + res.toString()));
         }
         if (exports.debug_mode) {
             console.log("Auth succeeded " + self.host + ":" + self.port + " id " + self.connection_id);
@@ -290,7 +290,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     var self = this, obj = {}, lines, retry_time;
 
     if (err) {
-        return self.emit("error", "Ready check failed: " + err);
+        return self.emit("error", new Error("Ready check failed: " + err.message));
     }
 
     lines = res.toString().split("\r\n");
