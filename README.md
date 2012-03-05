@@ -213,6 +213,9 @@ first command after connecting.  This can be tricky to coordinate with reconnect
 etc.  To make this easier, `client.auth()` stashes `password` and will send it after each connection,
 including reconnections.  `callback` is invoked only once, after the response to the very first
 `AUTH` command sent.
+NOTE: Your call to `client.auth()` should not be inside the ready handler. If
+you are doing this wrong, `client` will emit an error that looks
+something like this `Error: Ready check failed: ERR operation not permitted`.
 
 ## client.end()
 
