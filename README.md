@@ -186,7 +186,7 @@ be loading the database from disk.  While loading, the server not respond to any
 indicates whether the server is ready for more commands.  When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
 
-
+```js
     var redis = require("redis"),
         client = redis.createClient(null, null, {detect_buffers: true});
 
@@ -202,6 +202,7 @@ Setting `no_ready_check` to `true` will inhibit this check.
         console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
     });
     client.end();
+```
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
