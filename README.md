@@ -515,8 +515,7 @@ Used internally to send commands to Redis.  For convenience, nearly all commands
 Wiki have been added to the `client` object.  However, if I missed any, or if new commands are introduced before
 this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
 
-All commands are sent as multi-bulk commands.  `args` can either be an Array of arguments, or individual arguments,
-or omitted completely.
+All commands are sent as multi-bulk commands.  `args` can either be an Array of arguments, or omitted.
 
 ## client.connected
 
