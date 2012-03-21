@@ -1,10 +1,10 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    fs =require("fs"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
-    fs =require("fs"),
     events = require("events"),
     parsers = [], commands,
     connection_id = 0,
