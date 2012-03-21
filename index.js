@@ -4,6 +4,7 @@ var net = require("net"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
+	fs =require("fs"),
     events = require("events"),
     parsers = [], commands,
     connection_id = 0,
@@ -1006,13 +1007,13 @@ RedisClient.prototype.MULTI = function (args) {
 };
 
 // Load lua script to Redis one and set up the client command
-RedisClient.prototype.script = function (command, script, nKeys, done) {
+RedisClient.prototype.script = function (command, scriptFile, nKeys, done) {
 	var self = this;
 
-	// Read the script
-	var ext = path.extname(script);
-	if( !ext ) script += '.lua';
-	script = fs.readFileSync(script, 'utf8');
+	// Check file extension and read the script
+	if( !scriptFile.match(/\.\w+$/) )
+		scriptFile += '.lua';
+	var script = fs.readFileSync(scriptFile, 'utf8');
 
 	if( typeof self.lua[command] === 'undefined' ) {
 		self.lua[command] = { };
