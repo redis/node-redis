@@ -281,9 +281,12 @@ Multiple values may also be set by supplying a list:
 
 Load a file containing a Lua script into Redis and create a new command in the client.
 With the support for Lua server side scripting, and the fact that Lua scripts
-run attomically, as any native command would, we can easily add new behaviour to Redis.
+run atomically, as any native command would, we can easily add new behavior to Redis.
 Once loaded the scripts are cached in the server and do not need to be reloaded again,
-You can expect this to be true until a SCRIPT FLUSH command is issued.
+You can expect this to be true until a `SCRIPT FLUSH` command is issued.
+
+If a script is not found on the server you will receive a `NOSCRIPT` error message, and
+need to call `client.script()` again.
 
 Parameters:
 
