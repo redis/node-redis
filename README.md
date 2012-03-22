@@ -275,7 +275,7 @@ Multiple values may also be set by supplying a list:
 
     client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
 
-## Lua Scripts as client commands
+## Lua scripts as client commands
 
 ### client.script(command, scriptFile, numberOfKeys, callback)
 
@@ -292,17 +292,18 @@ Parameters:
 
 * `command` name of the command that will be registered in the client
 * `scriptFile` name of the file containing the script. If no extension is given `.lua` is used.
-* `numberOfKeys` the number of Keys the script uses
+* `numberOfKeys` the number of Redis keys the script uses ()
 * `callback` optional callback
 
-For more details on Redis Lua Scripting see http://redis.io/commands/eval
+For more details on passing arguments to scripts and other important details about
+Lua scripting in general read the Redis EVAL command page at http://redis.io/commands/eval
 
 After the script has been loaded you can call it as any native command, by using
 
     client.command(key1, key2, ..., [callback]);
 
 For example, imagine you need to implement a conditional increment command without
-using MULTI/EXEC/WATCH. Create a file called `cincr.lua` with the following content
+using MULTI/EXEC/WATCH. Create a file called `cincr.lua` with the following content:
 
     -- Conditional Increment
     -- Increment Key if value is bigger than ARGV[1]
@@ -314,7 +315,7 @@ using MULTI/EXEC/WATCH. Create a file called `cincr.lua` with the following cont
     end
     return value
 
-Now from your application call
+Now from your application call:
 
     client.script('cincr', './cincr', 1, function(err, reply) {
         if( err ) {
