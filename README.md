@@ -625,6 +625,7 @@ In order of first contribution, they are:
 *  [Pieter Noordhuis](https://github.com/pietern)
 *  [Vladimir Dronnikov](https://github.com/dvv)
 *  [Dave Hoover](https://github.com/redsquirrel)
+*  [Pedro Paixao](https://github.com/paixaop)
 
 Thanks.
 
