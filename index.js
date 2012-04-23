@@ -14,13 +14,18 @@ var net = require("net"),
 exports.debug_mode = false;
 
 // hiredis might not be installed
-try {
-    require("./lib/parser/hiredis");
+try {// trying to get global hredis
+    require("hiredis");
     parsers.push(require("./lib/parser/hiredis"));
 } catch (err) {
-    if (exports.debug_mode) {
-        console.warn("hiredis parser not installed.");
-    }
+	try {
+	    require("./lib/parser/hiredis");
+	    parsers.push(require("./lib/parser/hiredis"));
+	} catch (err) {
+	    if (exports.debug_mode) {
+	        console.warn("hiredis parser not installed.");
+	    }
+	}
 }
 
 parsers.push(require("./lib/parser/javascript"));
