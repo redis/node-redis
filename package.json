@@ -13,7 +13,10 @@
         "Pieter Noordhuis",
         "Andy Ray",
         "Vladimir Dronnikov",
-        "Dave Hoover"
+        "Dave Hoover",
+        "David Trejo",
+        "Philip Tellis",
+        "Marcus Westin"
     ],
     "main": "./index.js",
     "scripts": {
