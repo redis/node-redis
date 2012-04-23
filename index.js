@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    fs =require("fs"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
@@ -59,7 +60,9 @@ function RedisClient(stream, options) {
     this.auth_pass = null;
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
-	
+
+	this.lua = { };  // holds the number of keys parameters and script SHA1 sums
+
     var self = this;
 
     this.stream.on("connect", function () {
@@ -525,7 +528,7 @@ function reply_to_strings(reply) {
 
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, obj, i, len, type, timestamp, argindex, args, queue_len;
-    
+
     queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
@@ -660,7 +663,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (!stream.writable) {
                 console.log("send command: stream is not writeable.");
             }
-            
+
             console.log("Queueing " + command + " for next server connection.");
         }
         this.offline_queue.push(command_obj);
@@ -744,7 +747,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
 RedisClient.prototype.pub_sub_command = function (command_obj) {
     var i, key, command, args;
-    
+
     if (this.pub_sub_mode === false && exports.debug_mode) {
         console.log("Entering pub/sub mode from " + command_obj.command);
     }
@@ -794,7 +797,7 @@ exports.Multi = Multi;
 // take 2 arrays and return the union of their elements
 function set_union(seta, setb) {
     var obj = {};
-    
+
     seta.forEach(function (val) {
         obj[val] = true;
     });
@@ -1001,6 +1004,79 @@ RedisClient.prototype.multi = function (args) {
 };
 RedisClient.prototype.MULTI = function (args) {
     return new Multi(this, args);
+};
+
+// Load lua script to Redis one and set up the client command
+RedisClient.prototype.script = function (command, scriptFile, nKeys, done) {
+	var self = this;
+
+	// Check file extension and read the script
+	if( !scriptFile.match(/\.\w+$/) )
+		scriptFile += '.lua';
+	var script = fs.readFileSync(scriptFile, 'utf8');
+
+	if( typeof self.lua[command] === 'undefined' ) {
+		self.lua[command] = { };
+	}
+
+	// Store the number of keys the script expects to process
+	self.lua[command].nKeys = nKeys;
+
+	// Store the script in the Redis Script Cache and get the SHA1 signature
+	// So we can call evalsha and use multi without concerns for missing scripts
+	this.send_command('SCRIPT', [ 'LOAD', script ], function(err, reply) {
+		if( err ) {
+			throw err;
+		}
+
+		if( typeof reply !== 'string') {
+			throw "SCRIPT LOAD should return a SHA1 sum of the Lua script." ;
+		}
+
+		// Store the SHA1 from the script load command
+		self.lua[command].sha1 = reply;
+
+		if (exports.debug_mode) {
+			console.log(command + ' ready. (SHA1:' + reply + ')');
+		}
+
+		// Add the new command to the redis client object
+		RedisClient.prototype[command] = function (args, callback) {
+			var _args = [ ];
+
+			if (Array.isArray(args) && typeof callback === "function") {
+
+				_args = _args.concat(
+					[ self.lua[command].sha1, self.lua[command].nKeys],
+					args
+				);
+
+				return this.send_command('evalsha', _args, callback);
+
+			} else {
+
+				_args = _args.concat(
+					[ self.lua[command].sha1, self.lua[command].nKeys],
+					to_array(arguments)
+				);
+
+				return this.send_command('evalsha', _args);
+
+			}
+		};
+
+		RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
+
+		Multi.prototype[command] = function () {
+			this.queue.push(['evalsha', self.lua[command].sha1, self.lua[command].nKeys].concat(to_array(arguments)));
+			return this;
+		};
+		Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
+
+		if( typeof done === 'function')
+			done();
+	});
+
 };
 
 exports.createClient = function (port_arg, host_arg, options) {
