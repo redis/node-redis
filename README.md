@@ -84,7 +84,7 @@ The performance of `node_redis` improves dramatically with pipelining, which hap
 ### Sending Commands
 
 Each Redis command is exposed as a function on the `client` object.
-All functions take either take either an `args` Array plus optional `callback` Function or
+All functions take either an `args` Array plus optional `callback` Function or
 a variable number of individual arguments followed by an optional callback.
 Here is an example of passing an array of arguments and a callback:
 
