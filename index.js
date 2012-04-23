@@ -930,8 +930,7 @@ Multi.prototype.exec = function (callback) {
     var self = this;
 
     // drain queue, callback will catch "QUEUED" or error
-    // TODO - get rid of all of these anonymous functions which are elegant but slow
-    this.queue.forEach(function (args, index) {
+    for (var index = 0, args; args = this.queue[index]; index++) {
         var command = args[0], obj;
         if (typeof args[args.length - 1] === "function") {
             args = args.slice(1, -1);
@@ -943,23 +942,27 @@ Multi.prototype.exec = function (callback) {
         }
         if (command === 'hmset' && typeof args[1] === 'object') {
             obj = args.pop();
-            Object.keys(obj).forEach(function (key) {
+            var keys = Object.keys(obj);
+            for (var i = 0, key; key = keys[i]; i++) {
                 args.push(key);
                 args.push(obj[key]);
-            });
-        }
-        this.client.send_command(command, args, function (err, reply) {
-            if (err) {
-                var cur = self.queue[index];
-                if (typeof cur[cur.length - 1] === "function") {
-                    cur[cur.length - 1](err);
-                } else {
-                    throw new Error(err);
-                }
-                self.queue.splice(index, 1);
             }
-        });
-    }, this);
+        }
+        // close over the `index` variable
+        this.client.send_command(command, args, (function(index) {
+            return function(err, reply) {
+                if (err) {
+                    var cur = self.queue[index];
+                    if (typeof cur[cur.length - 1] === "function") {
+                        cur[cur.length - 1](err);
+                    } else {
+                        throw new Error(err);
+                    }
+                    self.queue.splice(index, 1);
+                }
+            };
+        })(index));
+    }
 
     // TODO - make this callback part of Multi.prototype instead of creating it each time
     return this.client.send_command("EXEC", [], function (err, replies) {
