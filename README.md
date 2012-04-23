@@ -570,6 +570,9 @@ In order of first contribution, they are:
 *  [Pieter Noordhuis](https://github.com/pietern)
 *  [Vladimir Dronnikov](https://github.com/dvv)
 *  [Dave Hoover](https://github.com/redsquirrel)
+*  [David Trejo](https://github.com/DTrejo)
+*  [Philip Tellis](https://github.com/bluesmoon)
+*  [Marcus Westin](https://github.com/marcuswestin)
 
 Thanks.
 
