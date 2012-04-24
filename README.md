@@ -217,6 +217,16 @@ NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
 
+## client.select(db_number)
+
+Redis can keep several databases in the same running instance. One use case is running tests on a separate database from the main production database.
+
+The default database is `0`.
+
+Use another database by calling `select` and passing a number. The database will be created automatically. Subsequent commands will be run against that database.
+
+    client.select(1);
+
 ## client.end()
 
 Forcibly close the connection to the Redis server.  Note that this does not wait until all replies have been parsed.
