@@ -995,6 +995,7 @@ Multi.prototype.exec = function (callback) {
         }
     });
 };
+Multi.prototype.EXEC = Multi.prototype.exec;
 
 RedisClient.prototype.multi = function (args) {
     return new Multi(this, args);
