@@ -558,21 +558,34 @@ I think there are more performance improvements left in there for smaller values
 
 Some people have have added features and fixed bugs in `node_redis` other than me.
 
-In order of first contribution, they are:
+In alphabetical order, they are:
 
-*  [Tim Smart](https://github.com/Tim-Smart)
-*  [TJ Holowaychuk](https://github.com/visionmedia)
-*  [Rick Olson](https://github.com/technoweenie)
-*  [Orion Henry](https://github.com/orionz)
-*  [Hank Sims](https://github.com/hanksims)
-*  [Aivo Paas](https://github.com/aivopaas)
-*  [Paul Carey](https://github.com/paulcarey)
-*  [Pieter Noordhuis](https://github.com/pietern)
-*  [Vladimir Dronnikov](https://github.com/dvv)
-*  [Dave Hoover](https://github.com/redsquirrel)
-*  [David Trejo](https://github.com/DTrejo)
-*  [Philip Tellis](https://github.com/bluesmoon)
-*  [Marcus Westin](https://github.com/marcuswestin)
+* [Aivo Paas](https://github.com/aivopaas)
+* [Andy Ray](https://github.com/DelvarWorld)
+* Daniele
+* [Dave Hoover](https://github.com/redsquirrel)
+* [David Trejo](https://github.com/DTrejo)
+* Dayananda Nanjundappa
+* [Felix Geisendörfer](https://github.com/felixge)
+* [Hank Sims](https://github.com/hanksims)
+* [Ian Babrou](https://github.com/bobrik)
+* [Isaac Z. Schlueter](https://github.com/isaacs)
+* [Louis-Philippe Perron](https://github.com/lp)
+* [Maksim Lin](https://github.com/maks)
+* [Marcus Westin](https://github.com/marcuswestin)
+* [Mark Dawson](https://github.com/markdaws)
+* [Nithesh Chandra Gupta Mittapally](https://github.com/nithesh)
+* [Orion Henry](https://github.com/orionz)
+* [Owen Smith](https://github.com/orls)
+* [Paul Carey](https://github.com/paulcarey)
+* [Philip Tellis](https://github.com/bluesmoon)
+* [Pieter Noordhuis](https://github.com/pietern)
+* [Rick Olson](https://github.com/technoweenie)
+* [Tim Smart](https://github.com/Tim-Smart)
+* [TJ Holowaychuk](https://github.com/visionmedia)
+* [Umair Siddique](https://github.com/umairsiddique)
+* [Vladimir Dronnikov](https://github.com/dvv)
+* [Zachary Scott](https://github.com/zzak)
 
 Thanks.
 
