@@ -23,6 +23,7 @@ happen between node and native code modules after a node upgrade.
 
 Simple example, included as `examples/simple.js`:
 
+```js
     var redis = require("redis"),
         client = redis.createClient();
 
@@ -40,6 +41,7 @@ Simple example, included as `examples/simple.js`:
         });
         client.quit();
     });
+```
 
 This will display:
 
@@ -225,6 +227,7 @@ If you want to exit cleanly, call `client.quit()` to send the `QUIT` command aft
 This example closes the connection to the Redis server before the replies have been read.  You probably don't 
 want to do this:
 
+```js
     var redis = require("redis"),
         client = redis.createClient();
 
@@ -233,6 +236,7 @@ want to do this:
         console.log(reply.toString());
     });
     client.end();
+```
 
 `client.end()` is useful for timeout cases where something is stuck or taking too long and you want 
 to start over.
@@ -282,6 +286,7 @@ Here is a simple example of the API for publish / subscribe.  This program opens
 client connections, subscribes to a channel on one of them, and publishes to that 
 channel on the other:
 
+```js
     var redis = require("redis"),
         client1 = redis.createClient(), client2 = redis.createClient(),
         msg_count = 0;
@@ -304,6 +309,7 @@ channel on the other:
 
     client1.incr("did a thing");
     client1.subscribe("a nice channel");
+```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into "pub/sub" mode.
 At that point, only commands that modify the subscription set are valid.  When the subscription 
@@ -353,6 +359,7 @@ channel name as `channel` and the new count of subscriptions for this client as 
 `MULTI` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
 Redis.  The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
 
+```js
     var redis  = require("./index"),
         client = redis.createClient(), set_size = 20;
 
@@ -378,6 +385,7 @@ Redis.  The interface in `node_redis` is to return an individual `Multi` object 
                 console.log("Reply " + index + ": " + reply.toString());
             });
         });
+```
 
 `client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the
 same command methods as `client` objects do.  Commands are queued up inside the `Multi` object
@@ -386,6 +394,7 @@ until `Multi.exec()` is invoked.
 You can either chain together `MULTI` commands as in the above example, or you can queue individual
 commands while still sending regular client command as in this example:
 
+```js
     var redis  = require("redis"),
         client = redis.createClient(), multi;
 
@@ -407,10 +416,12 @@ commands while still sending regular client command as in this example:
         console.log(replies); // 102, 3
         client.quit();
     });
+```
 
 In addition to adding commands to the `MULTI` queue individually, you can also pass an array 
 of commands and arguments to the constructor:
 
+```js
     var redis  = require("redis"),
         client = redis.createClient(), multi;
 
@@ -421,6 +432,7 @@ of commands and arguments to the constructor:
     ]).exec(function (err, replies) {
         console.log(replies);
     });
+```
 
 
 ## Monitor mode
@@ -434,6 +446,7 @@ will emit a `monitor` event for every new monitor message that comes across.  Th
 
 Here is a simple example:
 
+```js
     var client  = require("redis").createClient(),
         util = require("util");
 
@@ -444,7 +457,7 @@ Here is a simple example:
     client.on("monitor", function (time, args) {
         console.log(time + ": " + util.inspect(args));
     });
-
+```
 
 # Extras
 
@@ -466,6 +479,7 @@ The `versions` key contains an array of the elements of the version string for e
 
 A handy callback function for displaying return values when testing.  Example:
 
+```js
     var redis = require("redis"),
         client = redis.createClient();
 
@@ -473,6 +487,7 @@ A handy callback function for displaying return values when testing.  Example:
         client.set("foo_rand000000000000", "some fantastic value", redis.print);
         client.get("foo_rand000000000000", redis.print);
     });
+```
 
 This will print:
 
@@ -485,6 +500,7 @@ Note that this program will not exit cleanly because the client is still connect
 
 Boolean to enable debug mode and protocol tracing.
 
+```js
     var redis = require("redis"),
         client = redis.createClient();
 
@@ -493,6 +509,7 @@ Boolean to enable debug mode and protocol tracing.
     client.on("connect", function () {
         client.set("foo_rand000000000000", "some fantastic value");
     });
+```
 
 This will display:
 
