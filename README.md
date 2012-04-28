@@ -376,6 +376,8 @@ Redis.  The interface in `node_redis` is to return an individual `Multi` object 
         .scard("bigset")
         .smembers("bigset")
         .keys("*", function (err, replies) {
+            // NOTE: code in this callback is NOT atomic
+            // this only happens after the the .exec call finishes.
             client.mget(replies, redis.print);
         })
         .dbsize()
