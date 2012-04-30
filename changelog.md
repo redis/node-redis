@@ -1,6 +1,15 @@
 Changelog
 =========
 
+## v0.7.2 - April 29, 2012
+
+Many contributed fixes. Thank you, contributors.
+
+* [GH-190] - pub/sub mode fix (Brian Noguchi)
+* [GH-165] - parser selection fix (TEHEK)
+* numerous documentation and examples updates
+* auth errors emit Errors instead of Strings (David Trejo)
+
 ## v0.7.1 - November 15, 2011
 
 Fix regression in reconnect logic.

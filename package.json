@@ -5,22 +5,6 @@
     "maintainers": [ 
         "David Trejo <david.daniel.trejo@gmail.com> (http://dtrejo.com/)"
     ],
-    "contributors": [
-        "Rick Olson",
-        "Tim-Smart",
-        "TJ Holowaychuk",
-        "Orion Henry",
-        "Hank Sims",
-        "Aivo Paas",
-        "Paul Carey",
-        "Pieter Noordhuis",
-        "Andy Ray",
-        "Vladimir Dronnikov",
-        "Dave Hoover",
-        "David Trejo",
-        "Philip Tellis",
-        "Marcus Westin"
-    ],
     "main": "./index.js",
     "scripts": {
         "test": "node ./test.js"
