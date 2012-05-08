@@ -672,7 +672,12 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             this.offline_queue.push(command_obj);
             this.should_buffer = true;
         } else {
-            command_obj.callback(new Error('send command: stream is not writeable.'));
+            var not_writeable_error = new Error('send_command: stream not writeable. enable_offline_queue is false');
+            if (command_obj.callback) {
+                command_obj.callback(not_writeable_error);
+            } else {
+                throw not_writeable_error;
+            }
         }
 
         return false;
