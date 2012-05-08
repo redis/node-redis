@@ -50,6 +50,8 @@ function RedisClient(stream, options) {
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
         this.connect_timeout = +options.connect_timeout;
     }
+    this.enable_offline_queue = this.options.enable_offline_queue || true;
+
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
@@ -59,7 +61,7 @@ function RedisClient(stream, options) {
     this.auth_pass = null;
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
-	
+
     var self = this;
 
     this.stream.on("connect", function () {
@@ -661,11 +663,18 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (!stream.writable) {
                 console.log("send command: stream is not writeable.");
             }
-            
-            console.log("Queueing " + command + " for next server connection.");
         }
-        this.offline_queue.push(command_obj);
-        this.should_buffer = true;
+
+        if (this.enable_offline_queue) {
+            if (exports.debug_mode) {
+                console.log("Queueing " + command + " for next server connection.");
+            }
+            this.offline_queue.push(command_obj);
+            this.should_buffer = true;
+        } else {
+            command_obj.callback(new Error('send command: stream is not writeable.'));
+        }
+
         return false;
     }
 
@@ -745,7 +754,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
 RedisClient.prototype.pub_sub_command = function (command_obj) {
     var i, key, command, args;
-    
+
     if (this.pub_sub_mode === false && exports.debug_mode) {
         console.log("Entering pub/sub mode from " + command_obj.command);
     }
@@ -795,7 +804,7 @@ exports.Multi = Multi;
 // take 2 arrays and return the union of their elements
 function set_union(seta, setb) {
     var obj = {};
-    
+
     seta.forEach(function (val) {
         obj[val] = true;
     });
