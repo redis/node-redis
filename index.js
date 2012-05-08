@@ -667,7 +667,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         }
 
         if(this.disable_offline_queue){
-            command_obj.callback(new Error('send command: stream is not writeable.'));
+            command_obj.callback && command_obj.callback(new Error('send command: stream is not writeable.'));
         }else{
             if (exports.debug_mode) {
                 console.log("Queueing " + command + " for next server connection.");
