@@ -943,7 +943,7 @@ Multi.prototype.exec = function (callback) {
         if (args.length === 1 && Array.isArray(args[0])) {
             args = args[0];
         }
-        if (command === 'hmset' && typeof args[1] === 'object') {
+        if (command.toLowerCase() === 'hmset' && typeof args[1] === 'object') {
             obj = args.pop();
             Object.keys(obj).forEach(function (key) {
                 args.push(key);
