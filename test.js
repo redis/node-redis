@@ -1348,6 +1348,24 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     client.get("op_cb2", last(name, require_string("y", name)));
 };
 
+tests.HMSET_THROWS_ON_NON_STRINGS = function () {
+    var name = "HMSET_THROWS_ON_NON_STRINGS";
+    var hash = name;
+    var data = { "a": [ "this is not a string" ] };
+
+    client.hmset(hash, data, cb);
+    function cb(e, r) {
+        assert(e); // should be an error!
+    }
+
+    // alternative way it throws
+    function thrower() {
+        client.hmset(hash, data);
+    }
+    assert.throws(thrower);
+    next(name);
+};
+
 // TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
 // Yes, this is the real password.  Please be nice, thanks.
 tests.auth = function () {
