@@ -104,6 +104,13 @@ Note that in either form the `callback` is optional:
     client.set("some key", "some val");
     client.set(["some other key", "some val"]);
 
+If the key is missing, reply will be null (probably):
+
+    client.get("missingkey", function(err, reply) {
+        // reply is null when the key is missing
+        console.log(reply);
+    });
+
 For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
 
 The commands can be specified in uppercase or lowercase for convenience.  `client.get()` is the same as `client.GET()`.
