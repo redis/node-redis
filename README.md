@@ -191,7 +191,7 @@ be loading the database from disk.  While loading, the server not respond to any
 indicates whether the server is ready for more commands.  When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
 * `disable_offline_queue`: defaults to `false`. By default, if there is no active connection to redis server, commands
-would be add to queue and will be executed once the connection has been established. Setting `disable_offline_queue` to
+would be added to queue and will be executed once the connection has been established. Setting `disable_offline_queue` to
 `true` will disable this feature and callback will be execute immediately with an error
 
 ```js
