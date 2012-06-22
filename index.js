@@ -11,7 +11,7 @@ var net = require("net"),
     default_host = "127.0.0.1";
 
 // can set this to true to enable for all connections
-exports.debug_mode = false;
+exports.debug_mode = true;
 
 // hiredis might not be installed
 try {
@@ -36,7 +36,7 @@ function RedisClient(stream, options) {
     if (this.options.socket_nodelay === undefined) {
         this.options.socket_nodelay = true;
     }
-    this.should_buffer = false;
+    this.should_discard = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
     this.max_attempts = null;
@@ -44,7 +44,9 @@ function RedisClient(stream, options) {
         this.max_attempts = +options.max_attempts;
     }
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
-    this.offline_queue = new Queue(); // holds commands issued but not able to be sent
+//Change behaivor to get an error if command_queue is full or if the client is disconected
+//  this.offline_queue = new Queue(); // holds commands issued but not able to be sent
+
     this.commands_sent = 0;
     this.connect_timeout = false;
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
@@ -83,7 +85,7 @@ function RedisClient(stream, options) {
     });
 
     this.stream.on("drain", function () {
-        self.should_buffer = false;
+        self.should_discard = false;
         self.emit("drain");
     });
 
@@ -103,14 +105,14 @@ RedisClient.prototype.initialize_retry_vars = function () {
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
     var command_obj;
-    while (this.offline_queue.length > 0) {
+   /** while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
         if (typeof command_obj.callback === "function") {
             command_obj.callback(message);
         }
     }
     this.offline_queue = new Queue();
-
+    **/
     while (this.command_queue.length > 0) {
         command_obj = this.command_queue.shift();
         if (typeof command_obj.callback === "function") {
@@ -280,9 +282,10 @@ RedisClient.prototype.on_ready = function () {
         });
     } else if (this.monitoring) {
         this.send_command("monitor");
-    } else {
+    } 
+    /*else {
         this.send_offline_queue();
-    }
+    }*/
     this.emit("ready");
 };
 
@@ -331,7 +334,6 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
 
 RedisClient.prototype.ready_check = function () {
     var self = this;
-
     if (exports.debug_mode) {
         console.log("checking server ready state...");
     }
@@ -343,7 +345,8 @@ RedisClient.prototype.ready_check = function () {
     this.send_anyway = false;
 };
 
-RedisClient.prototype.send_offline_queue = function () {
+/**
+    RedisClient.prototype.send_offline_queue = function () {
     var command_obj, buffered_writes = 0;
 
     while (this.offline_queue.length > 0) {
@@ -361,6 +364,7 @@ RedisClient.prototype.send_offline_queue = function () {
         this.emit("drain");
     }
 };
+**/
 
 RedisClient.prototype.connection_gone = function (why) {
     var self = this, message;
@@ -454,9 +458,9 @@ RedisClient.prototype.return_error = function (err) {
         this.emit("idle");
         this.command_queue = new Queue();
     }
-    if (this.should_buffer && queue_len <= this.command_queue_low_water) {
+    if (this.should_discard && queue_len <= this.command_queue_low_water) {
         this.emit("drain");
-        this.should_buffer = false;
+        this.should_discard = false;
     }
 
     if (command_obj && typeof command_obj.callback === "function") {
@@ -532,9 +536,9 @@ RedisClient.prototype.return_reply = function (reply) {
         this.emit("idle");
         this.command_queue = new Queue();  // explicitly reclaim storage from old Queue
     }
-    if (this.should_buffer && queue_len <= this.command_queue_low_water) {
+    if (this.should_discard && queue_len <= this.command_queue_low_water + 1) {
         this.emit("drain");
-        this.should_buffer = false;
+        this.should_discard = false;
     }
 
     command_obj = this.command_queue.shift();
@@ -656,18 +660,14 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     }
 
     command_obj = new Command(command, args, false, buffer_args, callback);
-
-    if ((!this.ready && !this.send_anyway) || !stream.writable) {
-        if (exports.debug_mode) {
-            if (!stream.writable) {
-                console.log("send command: stream is not writeable.");
-            }
-            
-            console.log("Queueing " + command + " for next server connection.");
+    
+    if (!stream.writable || (this.command_queue.getLength() >= this.command_queue_high_water) || this.should_discard) {
+        this.should_discard = true
+        if(callback && typeof(callback) === 'function'){
+            callback(new Error("Queue saturated items: "+this.command_queue.getLength()+" max: "+this.command_queue_high_water+" min to reached to be usable: "+this.command_queue_low_water))
         }
-        this.offline_queue.push(command_obj);
-        this.should_buffer = true;
-        return false;
+        this.emit("drain")
+        return false
     }
 
     if (command === "subscribe" || command === "psubscribe" || command === "unsubscribe" || command === "punsubscribe") {
@@ -737,9 +737,6 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     }
     if (exports.debug_mode) {
         console.log("send_command buffered_writes: " + buffered_writes, " should_buffer: " + this.should_buffer);
-    }
-    if (buffered_writes || this.command_queue.getLength() >= this.command_queue_high_water) {
-        this.should_buffer = true;
     }
     return !this.should_buffer;
 };
