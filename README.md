@@ -1,3 +1,8 @@
+
+About this fork
+===============
+In this fork we've removed the ofline queue adding a fast fail if the command queue is over the `high_water` waiting for the `low_water` will be reached to accept new commands
+
 redis - a node.js redis client
 ===========================
 
