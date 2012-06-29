@@ -470,6 +470,17 @@ tests.reconnect = function () {
     });
 };
 
+tests.idle = function () {
+  var name = "idle";
+
+  client.on("idle", function on_idle() {
+    client.removeListener("idle", on_idle);
+    next(name);
+  });
+
+  client.set("idle", "test");
+};
+
 tests.HSET = function () {
     var key = "test hash",
         field1 = new Buffer("0123456789"),
