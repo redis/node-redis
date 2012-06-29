@@ -525,8 +525,9 @@ function reply_to_strings(reply) {
 
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, obj, i, len, type, timestamp, argindex, args, queue_len;
-    
-    queue_len = this.command_queue.getLength();
+
+    command_obj = this.command_queue.shift()
+    queue_len   = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.emit("idle");
@@ -536,8 +537,6 @@ RedisClient.prototype.return_reply = function (reply) {
         this.emit("drain");
         this.should_buffer = false;
     }
-
-    command_obj = this.command_queue.shift();
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
