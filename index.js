@@ -526,7 +526,7 @@ function reply_to_strings(reply) {
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, obj, i, len, type, timestamp, argindex, args, queue_len;
 
-    command_obj = this.command_queue.shift()
+    command_obj = this.command_queue.shift(),
     queue_len   = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
