@@ -1415,6 +1415,9 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
         cli.set(name, name, function (err) {
             // should callback with an error
             assert.ok(err);
+            setTimeout(function () {
+                next(name);
+            }, 50);
         });
     });
 };

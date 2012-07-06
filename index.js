@@ -50,7 +50,11 @@ function RedisClient(stream, options) {
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
         this.connect_timeout = +options.connect_timeout;
     }
-    this.enable_offline_queue = this.options.enable_offline_queue || true;
+
+    this.enable_offline_queue = true;
+    if (typeof this.options.enable_offline_queue === "boolean") {
+        this.enable_offline_queue = this.options.enable_offline_queue;
+    }
 
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
