@@ -588,9 +588,9 @@ Performance can be better for very large values.
 I think there are more performance improvements left in there for smaller values, especially for large lists of small values.
 
 ## How to Contribute
-- make your changes on a branch
+- make your changes on a fork
 - your code should be the same style as the rest of the code
-- add your tests to `test.js`
+- add your tests to `./test.js`
 - add your documentation to `README.md` (if needed).
 - open a pull request!
 
