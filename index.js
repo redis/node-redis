@@ -66,6 +66,8 @@ function RedisClient(stream, options) {
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
 
+    this.old_state = null;
+
     var self = this;
 
     this.stream.on("connect", function () {
@@ -272,18 +274,35 @@ RedisClient.prototype.on_ready = function () {
 
     this.ready = true;
 
+    if (this.old_state !== null) {
+        this.monitoring = this.old_state.monitoring;
+        this.pub_sub_mode = this.old_state.pub_sub_mode;
+        this.selected_db = this.old_state.selected_db;
+        this.old_state = null;
+    }
+
     // magically restore any modal commands from a previous connection
     if (this.selected_db !== null) {
         this.send_command('select', [this.selected_db]);
     }
     if (this.pub_sub_mode === true) {
+        // only emit "ready" when all subscriptions were made again
+        var callback_count = 0;
+        var callback = function() {
+            callback_count--;
+            if (callback_count == 0) {
+                self.emit("ready");
+            }
+        }
         Object.keys(this.subscription_set).forEach(function (key) {
             var parts = key.split(" ");
             if (exports.debug_mode) {
                 console.warn("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
             }
-            self.send_command(parts[0], [parts[1]]);
+            callback_count++;
+            self.send_command(parts[0] + "scribe", [parts[1]], callback);
         });
+        return;
     } else if (this.monitoring) {
         this.send_command("monitor");
     } else {
@@ -381,6 +400,18 @@ RedisClient.prototype.connection_gone = function (why) {
     }
     this.connected = false;
     this.ready = false;
+
+    if (this.old_state === null) {
+        var state = {
+            monitoring: this.monitoring,
+            pub_sub_mode: this.pub_sub_mode,
+            selected_db: this.selected_db
+        };
+        this.old_state = state;
+        this.monitoring = false;
+        this.pub_sub_mode = false;
+        this.selected_db = null;
+    }
 
     // since we are collapsing end and close, users don't expect to be called twice
     if (! this.emitted_end) {

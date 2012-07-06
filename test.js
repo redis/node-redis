@@ -619,6 +619,66 @@ tests.SUBSCRIBE_QUIT = function () {
     client3.subscribe("chan3");
 };
 
+tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
+    var name = "SUBSCRIBE_CLOSE_RESUBSCRIBE";
+    var c1 = redis.createClient();
+    var c2 = redis.createClient();
+    var count = 0;
+
+    /* Create two clients. c1 subscribes to two channels, c2 will publish to them.
+       c2 publishes the first message.
+       c1 gets the message and drops its connection. It must resubscribe itself.
+       When it resubscribes, c2 publishes the second message, on the same channel
+       c1 gets the message and drops its connection. It must resubscribe itself, again.
+       When it resubscribes, c2 publishes the third message, on the second channel
+       c1 gets the message and drops its connection. When it reconnects, the test ends.
+    */
+
+    c1.on("message", function(channel, message) {
+        if (channel === "chan1") {
+            assert.strictEqual(message, "hi on channel 1");
+            c1.stream.end();
+
+        } else if (channel === "chan2") {
+            assert.strictEqual(message, "hi on channel 2");
+            c1.stream.end();
+
+        } else {
+            c1.quit();
+            c2.quit();
+            assert.fail("test failed");
+        }
+    })
+
+    c1.subscribe("chan1", "chan2");
+
+    c2.once("ready", function() {
+        console.log("c2 is ready");
+        c1.on("ready", function(err, results) {
+            console.log("c1 is ready", count);
+
+            count++;
+            if (count == 1) {
+                c2.publish("chan1", "hi on channel 1");
+                return;
+
+            } else if (count == 2) {
+                c2.publish("chan2", "hi on channel 2");
+
+            } else {
+                c1.quit(function() {
+                    c2.quit(function() {
+                        next(name);
+                    });
+                });
+            }
+        });
+
+        c2.publish("chan1", "hi on channel 1");
+
+    });
+};
+
 tests.EXISTS = function () {
     var name = "EXISTS";
     client.del("foo", "foo2", require_number_any(name));
