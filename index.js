@@ -50,6 +50,8 @@ function RedisClient(stream, options) {
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
         this.connect_timeout = +options.connect_timeout;
     }
+    this.disable_offline_queue = this.options.disable_offline_queue || false;
+
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
@@ -661,11 +663,19 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (!stream.writable) {
                 console.log("send command: stream is not writeable.");
             }
-            
-            console.log("Queueing " + command + " for next server connection.");
         }
-        this.offline_queue.push(command_obj);
-        this.should_buffer = true;
+
+        if(this.disable_offline_queue){
+            command_obj.callback && command_obj.callback(new Error('send command: stream is not writeable.'));
+        }else{
+            if (exports.debug_mode) {
+                console.log("Queueing " + command + " for next server connection.");
+            }
+
+            this.offline_queue.push(command_obj);
+            this.should_buffer = true;
+        }
+
         return false;
     }
 
