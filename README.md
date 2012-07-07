@@ -595,37 +595,44 @@ I think there are more performance improvements left in there for smaller values
 - open a pull request!
 
 ## Contributors
-
 Some people have have added features and fixed bugs in `node_redis` other than me.
 
-In alphabetical order, they are:
+Ordered by date of first contribution.
+[Auto-generated](http://github.com/dtrejo/node-authors) on Sat Jul 07 2012 16:11:04 GMT-0700 (PDT).
 
-* [Aivo Paas](https://github.com/aivopaas)
-* [Andy Ray](https://github.com/DelvarWorld)
-* Daniele
-* [Dave Hoover](https://github.com/redsquirrel)
-* [David Trejo](https://github.com/DTrejo)
-* Dayananda Nanjundappa
-* [Felix Geisendörfer](https://github.com/felixge)
-* [Hank Sims](https://github.com/hanksims)
-* [Ian Babrou](https://github.com/bobrik)
-* [Isaac Z. Schlueter](https://github.com/isaacs)
-* [Louis-Philippe Perron](https://github.com/lp)
-* [Maksim Lin](https://github.com/maks)
-* [Marcus Westin](https://github.com/marcuswestin)
-* [Mark Dawson](https://github.com/markdaws)
-* [Nithesh Chandra Gupta Mittapally](https://github.com/nithesh)
-* [Orion Henry](https://github.com/orionz)
-* [Owen Smith](https://github.com/orls)
-* [Paul Carey](https://github.com/paulcarey)
-* [Philip Tellis](https://github.com/bluesmoon)
-* [Pieter Noordhuis](https://github.com/pietern)
-* [Rick Olson](https://github.com/technoweenie)
-* [Tim Smart](https://github.com/Tim-Smart)
-* [TJ Holowaychuk](https://github.com/visionmedia)
-* [Umair Siddique](https://github.com/umairsiddique)
-* [Vladimir Dronnikov](https://github.com/dvv)
-* [Zachary Scott](https://github.com/zzak)
+- [Matt Ranney aka `mranney`](https://github.com/mranney)
+- [Tim-Smart aka `tim-smart`](https://github.com/tim-smart)
+- [Tj Holowaychuk aka `visionmedia`](https://github.com/visionmedia)
+- [rick aka `technoweenie`](https://github.com/technoweenie)
+- [Orion Henry aka `orionz`](https://github.com/orionz)
+- [Aivo Paas aka `aivopaas`](https://github.com/aivopaas)
+- [Hank Sims aka `hanksims`](https://github.com/hanksims)
+- [Paul Carey aka `paulcarey`](https://github.com/paulcarey)
+- [Pieter Noordhuis aka `pietern`](https://github.com/pietern)
+- [nithesh aka `nithesh`](https://github.com/nithesh)
+- [Andy Ray aka `andy2ray`](https://github.com/andy2ray)
+- [unknown aka `unknowdna`](https://github.com/unknowdna)
+- [Dave Hoover aka `redsquirrel`](https://github.com/redsquirrel)
+- [Vladimir Dronnikov aka `dvv`](https://github.com/dvv)
+- [Umair Siddique aka `umairsiddique`](https://github.com/umairsiddique)
+- [Louis-Philippe Perron aka `lp`](https://github.com/lp)
+- [Mark Dawson aka `markdaws`](https://github.com/markdaws)
+- [Ian Babrou aka `bobrik`](https://github.com/bobrik)
+- [Felix Geisendörfer aka `felixge`](https://github.com/felixge)
+- [Jean-Hugues Pinson aka `undefined`](https://github.com/undefined)
+- [Maksim Lin aka `maks`](https://github.com/maks)
+- [Owen Smith aka `orls`](https://github.com/orls)
+- [Zachary Scott aka `zzak`](https://github.com/zzak)
+- [TEHEK Firefox aka `TEHEK`](https://github.com/TEHEK)
+- [Isaac Z. Schlueter aka `isaacs`](https://github.com/isaacs)
+- [David Trejo aka `DTrejo`](https://github.com/DTrejo)
+- [Brian Noguchi aka `bnoguchi`](https://github.com/bnoguchi)
+- [Philip Tellis aka `bluesmoon`](https://github.com/bluesmoon)
+- [Marcus Westin aka `marcuswestin2`](https://github.com/marcuswestin2)
+- [Jed Schmidt aka `jed`](https://github.com/jed)
+- [Dave Peticolas aka `jdavisp3`](https://github.com/jdavisp3)
+- [Trae Robrock aka `trobrock`](https://github.com/trobrock)
+- [Shankar Karuppiah aka `shankar0306`](https://github.com/shankar0306)
 
 Thanks.
 
