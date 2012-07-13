@@ -592,6 +592,16 @@ I think there are more performance improvements left in there for smaller values
 - your code should be the same style as the rest of the code
 - add your tests to `./test.js`
 - add your documentation to `README.md` (if needed).
+- if you think your change will make node_redis slower, run this:
+
+        git checkout master
+        node multi_bench.js > before.txt
+        git checkout branch-with-your-change
+        node multi_bench.js > after.txt
+        ./diff_multi_bench_output.js before.txt after.txt
+
+  and please attach a screenshot of the output (if it's not faster I recommend
+  trying to make it faster!).
 - open a pull request!
 
 ## Contributors
