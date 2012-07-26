@@ -636,7 +636,7 @@ I think there are more performance improvements left in there for smaller values
 Some people have have added features and fixed bugs in `node_redis` other than me.
 
 Ordered by date of first contribution.
-[Auto-generated](http://github.com/dtrejo/node-authors) on Sat Jul 07 2012 16:11:04 GMT-0700 (PDT).
+[Auto-generated](http://github.com/dtrejo/node-authors) on Wed Jul 25 2012 19:14:59 GMT-0700 (PDT).
 
 - [Matt Ranney aka `mranney`](https://github.com/mranney)
 - [Tim-Smart aka `tim-smart`](https://github.com/tim-smart)
@@ -671,6 +671,7 @@ Ordered by date of first contribution.
 - [Dave Peticolas aka `jdavisp3`](https://github.com/jdavisp3)
 - [Trae Robrock aka `trobrock`](https://github.com/trobrock)
 - [Shankar Karuppiah aka `shankar0306`](https://github.com/shankar0306)
+- [Ignacio Burgueño aka `ignacio`](https://github.com/ignacio)
 
 Thanks.
 
