@@ -144,6 +144,7 @@ RedisClient.prototype.on_error = function (msg) {
 
     this.connected = false;
     this.ready = false;
+    this.pub_sub_mode = false;
 
     this.emit("error", new Error(message));
     // "error" events get turned into exceptions if they aren't listened for.  If the user handled this error
@@ -201,6 +202,7 @@ RedisClient.prototype.on_connect = function () {
 
     this.connected = true;
     this.ready = false;
+    this.pub_sub_mode = false;
     this.attempts = 0;
     this.connections += 1;
     this.command_queue = new Queue();
@@ -400,6 +402,7 @@ RedisClient.prototype.connection_gone = function (why) {
     }
     this.connected = false;
     this.ready = false;
+    this.pub_sub_mode = false;
 
     if (this.old_state === null) {
         var state = {
@@ -828,6 +831,7 @@ RedisClient.prototype.end = function () {
     this.stream._events = {};
     this.connected = false;
     this.ready = false;
+    this.pub_sub_mode = false;
     return this.stream.end();
 };
 
