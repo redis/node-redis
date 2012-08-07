@@ -501,6 +501,24 @@ tests.HSET = function () {
     client.HSET(key, field2, value2, last(name, require_number(0, name)));
 };
 
+tests.HLEN = function () {
+    var key = "test hash",
+        field1 = new Buffer("0123456789"),
+        value1 = new Buffer("abcdefghij"),
+        field2 = new Buffer(0),
+        value2 = new Buffer(0),
+        name = "HSET",
+        timeout = 1000;
+
+    client.HSET(key, field1, value1, function (err, results) {
+        client.HLEN(key, function (err, len) {
+            console.log(results+"sgdshhsshs")
+            assert.ok(2 === +len);
+            next(name);
+        });
+    });
+}
+
 tests.HMSET_BUFFER_AND_ARRAY = function () {
     // Saving a buffer and an array to the same key should not error
     var key = "test hash",
