@@ -56,6 +56,11 @@ function RedisClient(stream, options) {
         this.enable_offline_queue = this.options.enable_offline_queue;
     }
 
+    this.enable_resubscribing_on_ready = true;
+    if (typeof this.options.enable_resubscribing_on_ready === "boolean") {
+        this.enable_resubscribing_on_ready = this.options.enable_resubscribing_on_ready;
+    }
+
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
@@ -294,14 +299,17 @@ RedisClient.prototype.on_ready = function () {
                 self.emit("ready");
             }
         }
-        Object.keys(this.subscription_set).forEach(function (key) {
-            var parts = key.split(" ");
-            if (exports.debug_mode) {
-                console.warn("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
-            }
-            callback_count++;
-            self.send_command(parts[0] + "scribe", [parts[1]], callback);
-        });
+
+        if(this.enable_resubscribing_on_ready){
+            Object.keys(this.subscription_set).forEach(function (key) {
+                var parts = key.split(" ");
+                if (exports.debug_mode) {
+                    console.warn("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
+                }
+                callback_count++;
+                self.send_command(parts[0] + "scribe", [parts[1]], callback);
+            });
+        }        
         return;
     } else if (this.monitoring) {
         this.send_command("monitor");
