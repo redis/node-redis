@@ -676,12 +676,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array, expand it out.  This allows commands like this:
-    //     client.command(arg1, [arg2, arg3, arg4], cb);
-    //  and converts to:
-    //     client.command(arg1, arg2, arg3, arg4, cb);
-    // which is convenient for some things like sadd
-    if (args.length > 0 && Array.isArray(args[args.length - 1])) {
+    // if the last argument is an array and command is sadd, expand it out:
+    //     client.sadd(arg1, [arg2, arg3, arg4], cb);
+    //  converts to:
+    //     client.sadd(arg1, arg2, arg3, arg4, cb);
+    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
