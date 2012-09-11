@@ -1,5 +1,5 @@
 {   "name" : "redis",
-    "version" : "0.8.0",
+    "version" : "0.8.1",
     "description" : "Redis client library, battle-tested by Voxer",
     "keywords" : [ "redis", "pub", "sub", "voxer", "database" ],
     "author": "Matt Ranney <mjr@ranney.com>",

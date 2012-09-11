@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.8.1 - September 11, 2012
+
+Important bug fix for null responses (Jerry Sievert)
+
 ## v0.8.0 - September 10, 2012
 
 Many contributed features and fixes, including:
