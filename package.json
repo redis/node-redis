@@ -1,19 +1,14 @@
 {   "name" : "redis",
     "version" : "0.7.2",
-    "description" : "Redis client library",
+    "description" : "Redis client library, battle-tested by Voxer.com",
+    "keywords" : [ "redis", "pub", "sub", "voxer", "database" ],
     "author": "Matt Ranney <mjr@ranney.com>",
-    "maintainers": [ 
-        "David Trejo <david.daniel.trejo@gmail.com> (http://dtrejo.com/)"
-    ],
     "main": "./index.js",
     "scripts": {
         "test": "node ./test.js"
     },
     "devDependencies": {
         "metrics": ">=0.1.5"
-    },
-    "optionalDependencies": {
-        "hiredis": "*"
     },
     "repository": {
         "type": "git",
