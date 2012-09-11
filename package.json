@@ -1,6 +1,6 @@
 {   "name" : "redis",
-    "version" : "0.7.2",
-    "description" : "Redis client library, battle-tested by Voxer.com",
+    "version" : "0.8.0",
+    "description" : "Redis client library, battle-tested by Voxer",
     "keywords" : [ "redis", "pub", "sub", "voxer", "database" ],
     "author": "Matt Ranney <mjr@ranney.com>",
     "main": "./index.js",
