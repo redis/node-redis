@@ -28,8 +28,6 @@ metrics.Histogram.prototype.print_line = function () {
 };
 
 function Test(args) {
-    var self = this;
-
     this.args = args;
     
     this.callback = null;
@@ -46,7 +44,7 @@ function Test(args) {
 }
 
 Test.prototype.run = function (callback) {
-    var self = this, i;
+    var i;
 
     this.callback = callback;
 
@@ -120,7 +118,6 @@ Test.prototype.stop_clients = function () {
 Test.prototype.send_next = function () {
     var self = this,
         cur_client = this.commands_sent % this.clients.length,
-        command_num = this.commands_sent,
         start = Date.now();
 
     this.clients[cur_client][this.args.command](this.args.args, function (err, res) {

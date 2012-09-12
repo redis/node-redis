@@ -5,6 +5,7 @@ var net = require("net"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
     events = require("events"),
+    crypto = require("crypto"),
     parsers = [], commands,
     connection_id = 0,
     default_port = 6379,
@@ -134,8 +135,7 @@ RedisClient.prototype.flush_and_error = function (message) {
 };
 
 RedisClient.prototype.on_error = function (msg) {
-    var message = "Redis connection to " + this.host + ":" + this.port + " failed - " + msg,
-        self = this, command_obj;
+    var message = "Redis connection to " + this.host + ":" + this.port + " failed - " + msg;
 
     if (this.closing) {
         return;
@@ -202,7 +202,6 @@ RedisClient.prototype.on_connect = function () {
     if (exports.debug_mode) {
         console.log("Stream connected " + this.host + ":" + this.port + " id " + this.connection_id);
     }
-    var self = this;
 
     this.connected = true;
     this.ready = false;
@@ -293,12 +292,12 @@ RedisClient.prototype.on_ready = function () {
     if (this.pub_sub_mode === true) {
         // only emit "ready" when all subscriptions were made again
         var callback_count = 0;
-        var callback = function() {
+        var callback = function () {
             callback_count--;
-            if (callback_count == 0) {
+            if (callback_count === 0) {
                 self.emit("ready");
             }
-        }
+        };
 
         if(this.enable_resubscribing_on_ready){
             Object.keys(this.subscription_set).forEach(function (key) {
@@ -396,7 +395,7 @@ RedisClient.prototype.send_offline_queue = function () {
 };
 
 RedisClient.prototype.connection_gone = function (why) {
-    var self = this, message;
+    var self = this;
 
     // If a retry is already in progress, just let that happen
     if (this.retry_timer) {
@@ -569,7 +568,7 @@ function reply_to_strings(reply) {
 }
 
 RedisClient.prototype.return_reply = function (reply) {
-    var command_obj, obj, i, len, type, timestamp, argindex, args, queue_len;
+    var command_obj, len, type, timestamp, argindex, args, queue_len;
 
     command_obj = this.command_queue.shift(),
     queue_len   = this.command_queue.getLength();
@@ -653,7 +652,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, this_args, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -683,12 +682,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array, expand it out.  This allows commands like this:
-    //     client.command(arg1, [arg2, arg3, arg4], cb);
-    //  and converts to:
-    //     client.command(arg1, arg2, arg3, arg4, cb);
-    // which is convenient for some things like sadd
-    if (args.length > 0 && Array.isArray(args[args.length - 1])) {
+    // if the last argument is an array and command is sadd, expand it out:
+    //     client.sadd(arg1, [arg2, arg3, arg4], cb);
+    //  converts to:
+    //     client.sadd(arg1, arg2, arg3, arg4, cb);
+    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
@@ -956,8 +954,11 @@ RedisClient.prototype.hmset = function (args, callback) {
             tmp_args.push(key);
             if (typeof args[1][key] !== "string") {
                 var err = new Error("hmset expected value to be a string", key, ":", args[1][key]);
-                if (callback) return callback(err);
-                else throw err;
+                if (callback) {
+                    return callback(err);
+                } else {
+                    throw err;
+                }
             }
             tmp_args.push(args[1][key]);
         }
@@ -1035,7 +1036,7 @@ Multi.prototype.exec = function (callback) {
             }
         }
 
-        var i, il, j, jl, reply, args;
+        var i, il, reply, args;
 
         if (replies) {
             for (i = 1, il = self.queue.length; i < il; i += 1) {
@@ -1066,6 +1067,35 @@ RedisClient.prototype.multi = function (args) {
 RedisClient.prototype.MULTI = function (args) {
     return new Multi(this, args);
 };
+
+
+// stash original eval method
+var eval_orig = RedisClient.prototype.eval;
+// hook eval with an attempt to evalsha for cached scripts
+RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
+    var self = this,
+        args = to_array(arguments),
+        callback;
+
+    if (typeof args[args.length - 1] === "function") {
+        callback = args.pop();
+    }
+
+    // replace script source with sha value
+    var source = args[0];
+    args[0] = crypto.createHash("sha1").update(source).digest("hex");
+
+    self.evalsha(args, function (err, reply) {
+        if (err && /NOSCRIPT/.test(err.message)) {
+            args[0] = source;
+            eval_orig.call(self, args, callback);
+
+        } else if (callback) {
+            callback(err, reply);
+        }
+    });
+};
+
 
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,
