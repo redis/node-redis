@@ -1,6 +1,20 @@
 Changelog
 =========
 
+## v0.8.1 - September 11, 2012
+
+Important bug fix for null responses (Jerry Sievert)
+
+## v0.8.0 - September 10, 2012
+
+Many contributed features and fixes, including:
+
+* Pure JavaScript reply parser that is usually faster than hiredis (Jerry Sievert)
+* Remove hiredis as optionalDependency from package.json. It still works if you want it.
+* Restore client state on reconnect, including select, subscribe, and monitor. (Ignacio Burgueño)
+* Fix idle event (Trae Robrock)
+* Many documentation improvements and bug fixes (David Trejo)
+
 ## v0.7.2 - April 29, 2012
 
 Many contributed fixes. Thank you, contributors.
