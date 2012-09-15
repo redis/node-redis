@@ -282,7 +282,7 @@ Output:
 Multiple values in a hash can be set by supplying an object:
 
     client.HMSET(key2, {
-        "0123456789": "abcdefghij", // NOTE: the key and value must both be strings
+        "0123456789": "abcdefghij", // NOTE: the value must be number or string
         "some manner of key": "a type of value"
     });
 
@@ -371,7 +371,7 @@ channel name as `channel` and the new count of subscriptions for this client as 
 
 ## client.multi([commands])
 
-`MULTI` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
+`MULTI` commands are queued up until an `` is issued, and then all commands are run atomically by
 Redis.  The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
 
 ```js

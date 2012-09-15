@@ -911,72 +911,84 @@ RedisClient.prototype.auth = function () {
 };
 RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
-RedisClient.prototype.hmget = function (arg1, arg2, arg3) {
-    if (Array.isArray(arg2) && typeof arg3 === "function") {
-        return this.send_command("hmget", [arg1].concat(arg2), arg3);
-    } else if (Array.isArray(arg1) && typeof arg2 === "function") {
-        return this.send_command("hmget", arg1, arg2);
-    } else {
-        return this.send_command("hmget", to_array(arguments));
-    }
+RedisClient.prototype.hmget = function () {
+    this.send_command.apply(this, hmget.apply(this, arguments));
 };
 RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
 
-RedisClient.prototype.hmset = function (args, callback) {
-    var tmp_args, tmp_keys, i, il, key;
+RedisClient.prototype.hmset = function () {
+    var args = hmset.apply(this, arguments);
+    if(!args)
+      return false;
+    return this.send_command.apply(this, args);
+};
+RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
 
-    if (Array.isArray(args) && typeof callback === "function") {
-        return this.send_command("hmset", args, callback);
-    }
+Multi.prototype.hmget = function () {
+    this.queue.push(hmget.apply(this, arguments));
+    return this;
+};
 
+function hmget(){
+  var callback, r = ["hmget"];
+  var args = to_array(arguments);
+  if("function" == typeof args[args.length -1])
+    callback = args.pop();
+
+  if(Array.isArray(args[1]))
+    r = r.concat([[args[0]].concat(args[1])]);
+  else
+    r = r.concat([args]);
+
+  if(callback)
+    r.push(callback);
+
+  return r;
+}
+
+function hmset(){
+  var tmp_args, tmp_keys, i, il, key, args, callback;
     args = to_array(arguments);
-    if (typeof args[args.length - 1] === "function") {
-        callback = args[args.length - 1];
-        args.length -= 1;
-    } else {
-        callback = null;
+
+    // If we have a callback, pop it out from args list
+    if (typeof args[args.length - 1] === "function")
+      callback = args.pop();
+
+    // hmset([key, prop1, value1, prop2, value2], function);
+    if (Array.isArray(args[0])) {
+        return callback ? ["hmset", args[0], callback] : ["hmset", args[0]];
     }
 
     if (args.length === 2 && typeof args[0] === "string" && typeof args[1] === "object") {
-        // User does: client.hmset(key, {key1: val1, key2: val2})
-        tmp_args = [ args[0] ];
-        tmp_keys = Object.keys(args[1]);
-        for (i = 0, il = tmp_keys.length; i < il ; i++) {
+        // hmset(key, {key1: val1, key2: val2})
+        var obj = args[1];
+        tmp_args = [ args[0] ]; // the key
+        tmp_keys = Object.keys(obj);
+        for (i = 0, il = tmp_keys.length; i < il; i++) {
             key = tmp_keys[i];
             tmp_args.push(key);
-            if (typeof args[1][key] !== "string") {
-                var err = new Error("hmset expected value to be a string", key, ":", args[1][key]);
+            if (typeof obj[key] === "object") {
+                var err = new Error("hmset expects value to be a string or number", key, ":", obj[key]);
                 if (callback) {
-                    return callback(err);
+                    callback(err);
+                    return false;
                 } else {
                     throw err;
                 }
             }
-            tmp_args.push(args[1][key]);
+            tmp_args.push(obj[key]);
         }
         args = tmp_args;
     }
+    // else continue straight through because we have hmset(key, prop1, value1, callback)
 
-    return this.send_command("hmset", args, callback);
-};
-RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
+    return callback ? ["hmset", args, callback] : ["hmset", args];
+}
 
 Multi.prototype.hmset = function () {
-    var args = to_array(arguments), tmp_args;
-    if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "object") {
-        tmp_args = [ "hmset", args[0] ];
-        Object.keys(args[1]).map(function (key) {
-            tmp_args.push(key);
-            tmp_args.push(args[1][key]);
-        });
-        if (args[2]) {
-            tmp_args.push(args[2]);
-        }
-        args = tmp_args;
-    } else {
-        args.unshift("hmset");
-    }
-
+    var args = hmset.apply(this, arguments);
+    if(!args)
+      return this;
     this.queue.push(args);
     return this;
 };
@@ -989,21 +1001,24 @@ Multi.prototype.exec = function (callback) {
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
         var command = args[0], obj;
+
+        // If given an hmget command with an array of keys to select
+        // where args ~ [ 'hash', [ 'key1', 'key2' ] ]
+        if(~['hmget', 'hdel'].indexOf(command.toLowerCase()) && Array.isArray(args[2])){
+          // Call hmget helper to transform args to ~ [ 'hmget', [ 'hash', 'key1', 'key2' ] ]
+          args = hmget.apply(this, args.slice(1));
+        }
+
         if (typeof args[args.length - 1] === "function") {
-            args = args.slice(1, -1);
+            args = args.slice(1, -1); // Remove callback, we call it later if given
         } else {
-            args = args.slice(1);
+            args = args.slice(1); // Remove leading command
         }
         if (args.length === 1 && Array.isArray(args[0])) {
-            args = args[0];
+            args = args[0]; // If single remaining arg is array, make it our args sequence
         }
-        if (command.toLowerCase() === 'hmset' && typeof args[1] === 'object') {
-            obj = args.pop();
-            Object.keys(obj).forEach(function (key) {
-                args.push(key);
-                args.push(obj[key]);
-            });
-        }
+        // Otherwise args will already be single array sequence
+
         this.client.send_command(command, args, function (err, reply) {
             if (err) {
                 var cur = self.queue[index];

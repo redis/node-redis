@@ -196,11 +196,15 @@ tests.MULTI_5 = function () {
     // test nested multi-bulk replies with nulls.
     client.multi([
         ["mget", ["multifoo", "some", "random value", "keys"]],
-        ["incr", "multifoo"]
+        ["incr", "multifoo"],
+        ["hmset", 'hash', 'key1', 1, 'key2', 2],
+        ["hmget", 'hash', ['key1', 'key2']]
     ])
     .exec(function (err, replies) {
-        assert.strictEqual(replies.length, 2, name);
+        assert.strictEqual(replies.length, 4, name);
         assert.strictEqual(replies[0].length, 4, name);
+        assert.strictEqual(replies[2], 'OK', name);
+        assert.deepEqual(replies[3], ['1', '2'] , name);
         next(name);
     });
 };
@@ -564,31 +568,35 @@ tests.HMGET = function () {
     var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
 
     // redis-like hmset syntax
-    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
+    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", "a key with numeric value", 1337, require_string("OK", name));
 
     // fancy hmset syntax
     client.HMSET(key2, {
         "0123456789": "abcdefghij",
-        "some manner of key": "a type of value"
+        "some manner of key": "a type of value",
+        "a key with numeric value": 1337
     }, require_string("OK", name));
 
-    client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
+    client.HMGET(key1, "0123456789", "some manner of key", "a key with numeric value", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
+        assert.strictEqual("1337", reply[2].toString(), name);
     });
 
-    client.HMGET(key2, "0123456789", "some manner of key", function (err, reply) {
+    client.HMGET(key2, "0123456789", "some manner of key", "a key with numeric value", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
+        assert.strictEqual("1337", reply[2].toString(), name);
     });
 
     client.HMGET(key1, ["0123456789"], function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0], name);
     });
 
-    client.HMGET(key1, ["0123456789", "some manner of key"], function (err, reply) {
+    client.HMGET(key1, ["0123456789", "some manner of key", "a key with numeric value"], function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0], name);
         assert.strictEqual("a type of value", reply[1], name);
+        assert.strictEqual("1337", reply[2].toString(), name);
     });
 
     client.HMGET(key1, "missing thing", "another missing thing", function (err, reply) {
@@ -1479,10 +1487,10 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     client.get("op_cb2", last(name, require_string("y", name)));
 };
 
-tests.HMSET_THROWS_ON_NON_STRINGS = function () {
-    var name = "HMSET_THROWS_ON_NON_STRINGS";
+tests.HMSET_THROWS_ON_OBJECTS = function () {
+    var name = "HMSET_THROWS_ON_OBJECTS";
     var hash = name;
-    var data = { "a": [ "this is not a string" ] };
+    var data = { "a": [ "this is an object type" ] };
 
     client.hmset(hash, data, cb);
     function cb(e, r) {
@@ -1491,9 +1499,17 @@ tests.HMSET_THROWS_ON_NON_STRINGS = function () {
 
     // alternative way it throws
     function thrower() {
-        client.hmset(hash, data);
+        this.hmset(hash, data);
     }
-    assert.throws(thrower);
+    assert.throws(thrower.bind(client));
+
+    // Same on multi
+    var m = client.multi();
+    m.hmset(hash, data, cb);
+
+    assert.throws(thrower.bind(m));
+    m.exec();
+
     next(name);
 };
 
