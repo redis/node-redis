@@ -912,12 +912,12 @@ RedisClient.prototype.auth = function () {
 RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
 RedisClient.prototype.hmget = function () {
-    this.send_command.apply(this, hcommand.call(this, 'hmget', arguments));
+    this.send_command.apply(this, hcommand('hmget', arguments));
 };
 RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
 
 RedisClient.prototype.hmset = function () {
-    var args = hcommand.call(this, 'hmset', arguments);
+    var args = hcommand('hmset', arguments);
     if(!args)
       return false;
     return this.send_command.apply(this, args);
@@ -925,13 +925,13 @@ RedisClient.prototype.hmset = function () {
 RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
 
 Multi.prototype.hmget = function () {
-    this.queue.push(hcommand.call(this, 'hmget', arguments));
+    this.queue.push(hcommand('hmget', arguments));
     return this;
 };
 
-function hcommand(command, arguments){
+function hcommand(command, args){
   var callback;
-  var args = to_array(arguments);
+  args = to_array(args);
   var r = [command]; // Command name
   if("function" == typeof args[args.length -1])
     callback = args.pop();
@@ -981,7 +981,7 @@ function hmsetObj(obj, callback){
 }
 
 Multi.prototype.hmset = function () {
-    var args = hcommand.call(this, 'hmset', arguments);
+    var args = hcommand('hmset', arguments);
     if(!args)
       return this;
     this.queue.push(args);
@@ -1001,7 +1001,7 @@ Multi.prototype.exec = function (callback) {
         // where args ~ [ 'hash', [ 'key1', 'key2' ] ]
         if(~['hmget', 'hdel'].indexOf(command.toLowerCase()) && Array.isArray(args[2])){
           // Call hcommand helper to transform args to ~ [ 'hmget', [ 'hash', 'key1', 'key2' ] ]
-          args = hcommand.call(this, command, args.slice(1));
+          args = hcommand(command, args.slice(1));
         }
 
         if (typeof args[args.length - 1] === "function") {
