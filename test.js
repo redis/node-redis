@@ -198,13 +198,15 @@ tests.MULTI_5 = function () {
         ["mget", ["multifoo", "some", "random value", "keys"]],
         ["incr", "multifoo"],
         ["hmset", 'hash', 'key1', 1, 'key2', 2],
-        ["hmget", 'hash', ['key1', 'key2']]
+        ["hmget", 'hash', ['key1', 'key2']],
+        ["hdel", 'hash', ['key1', 'key2']]
     ])
     .exec(function (err, replies) {
-        assert.strictEqual(replies.length, 4, name);
+        assert.strictEqual(replies.length, 5, name);
         assert.strictEqual(replies[0].length, 4, name);
         assert.strictEqual(replies[2], 'OK', name);
         assert.deepEqual(replies[3], ['1', '2'] , name);
+        assert.equal(replies[4], 2, name);
         next(name);
     });
 };
@@ -611,6 +613,24 @@ tests.HINCRBY = function () {
     client.hset("hash incr", "value", 10, require_number(1, name));
     client.HINCRBY("hash incr", "value", 1, require_number(11, name));
     client.HINCRBY("hash incr", "value 2", 1, last(name, require_number(1, name)));
+};
+
+tests.HDEL = function () {
+    var name = 'HDEL';
+    var key = "hdel test hash";
+    var hash = {
+      'field1' : 'value1',
+      'field2' : 2,
+      'field3' : 'value3',
+      'field4' : 'value4',
+      'field5' : 'value5',
+    }
+    client.hmset(key, hash, require_string('OK', name));
+
+    client.hdel(key, 'field1', require_number(1, name));
+    client.hdel(key, 'field2', 'field3', require_number(2, name));
+    client.hdel(key, ['field4', 'field5'], require_number(2, name));
+    client.hlen(key, last(name, require_number(0, name)));
 };
 
 tests.SUBSCRIBE = function () {

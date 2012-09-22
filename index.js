@@ -911,57 +911,93 @@ RedisClient.prototype.auth = function () {
 };
 RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
+// Handlers for hash operations. Enables richer argument signatures
 RedisClient.prototype.hmget = function () {
-    this.send_command.apply(this, hcommand('hmget', arguments));
+    this.send_command.apply(this, this.hcommand('hmget', arguments));
 };
-RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
 
 RedisClient.prototype.hmset = function () {
-    var args = hcommand('hmset', arguments);
-    if(!args)
+    var args = this.hcommand('hmset', arguments);
+    // In case hcommand throws, we need to return false here to curtail command execution
+    if(!args){
       return false;
+    }
     return this.send_command.apply(this, args);
 };
-RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
 
-Multi.prototype.hmget = function () {
-    this.queue.push(hcommand('hmget', arguments));
+RedisClient.prototype.hdel = function () {
+    this.send_command.apply(this, this.hcommand('hdel', arguments));
     return this;
 };
 
-function hcommand(command, args){
+// Uppercase aliases to hash functions
+RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
+RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
+RedisClient.prototype.HDEL = RedisClient.prototype.hdel;
+
+// Multi equivalents
+Multi.prototype.hmset = function () {
+    var args = this.hcommand('hmset', arguments);
+    if(!args){
+      return this;
+    }
+    this.queue.push(args);
+    return this;
+};
+
+Multi.prototype.hmget = function () {
+    this.queue.push(this.hcommand('hmget', arguments));
+    return this;
+};
+
+Multi.prototype.hdel = function () {
+    this.queue.push(this.hcommand('hdel', arguments));
+    return this;
+};
+
+// Multi aliases
+Multi.prototype.HMGET = Multi.prototype.hmget;
+Multi.prototype.HMSET = Multi.prototype.hmset;
+Multi.prototype.HDEL = Multi.prototype.hdel;
+
+RedisClient.prototype.hcommand = function(command, args){
   var callback;
-  args = to_array(args);
   var r = [command]; // Command name
-  if("function" == typeof args[args.length -1])
+
+  args = to_array(args);
+  if("function" == typeof args[args.length -1]){
     callback = args.pop();
+  }
 
   // e.g. hmset([key, prop1, value1, prop2, value2], function);
   if(Array.isArray(args[0])){
     r = r.concat([args[0]]);
   }
   // e.g. hmget(hash, ['key1', 'key2'])
-  else if(Array.isArray(args[1]))
+  else if(Array.isArray(args[1])){
     r = r.concat([[args[0]].concat(args[1])]);
+  }
   else if(args.length === 2 && typeof args[0] === "string" && typeof args[1] === "object"){
-    var key = args[0];
-     var args = hmsetObj(args[1], callback);
-     if(!args)
+     var key = args[0];
+     var args = this.hmsetObj(args[1], callback);
+     if(!args){
        return false;
+     }
      r = r.concat([[key].concat(args)]);
   }
-  else
+  else{
     r = r.concat([args]);
+  }
 
-  if(callback)
+  if(callback){
     r.push(callback);
+  }
 
   return r;
 }
 
-function hmsetObj(obj, callback){
-  var args = [],
-  keys = Object.keys(obj);
+RedisClient.prototype.hmsetObj = function(obj, callback){
+  var args = [], keys = Object.keys(obj);
 
   for (var i = 0, il = keys.length; i < il; i++) {
       key = keys[i];
@@ -980,14 +1016,8 @@ function hmsetObj(obj, callback){
   return args
 }
 
-Multi.prototype.hmset = function () {
-    var args = hcommand('hmset', arguments);
-    if(!args)
-      return this;
-    this.queue.push(args);
-    return this;
-};
-Multi.prototype.HMSET = Multi.prototype.hmset;
+Multi.prototype.hcommand = RedisClient.prototype.hcommand;
+Multi.prototype.hmsetObj = RedisClient.prototype.hmsetObj;
 
 Multi.prototype.exec = function (callback) {
     var self = this;
@@ -997,11 +1027,11 @@ Multi.prototype.exec = function (callback) {
     this.queue.forEach(function (args, index) {
         var command = args[0], obj;
 
-        // If given an hmget command with an array of keys to select
+        // We could be given an hmget command directly on the queue with an array of keys to select
         // where args ~ [ 'hash', [ 'key1', 'key2' ] ]
         if(~['hmget', 'hdel'].indexOf(command.toLowerCase()) && Array.isArray(args[2])){
           // Call hcommand helper to transform args to ~ [ 'hmget', [ 'hash', 'key1', 'key2' ] ]
-          args = hcommand(command, args.slice(1));
+          args = self.hcommand(command, args.slice(1));
         }
 
         if (typeof args[args.length - 1] === "function") {
