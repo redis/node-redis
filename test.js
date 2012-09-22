@@ -1585,6 +1585,16 @@ tests.HMSET_THROWS_ON_OBJECTS = function () {
     next(name);
 };
 
+tests.ARGUMENT_FORMATS = function(){
+    var name = 'ARGUMENT_FORMATS';
+    // All as array, no callback
+    client.MSETNX(["mset3", "val3", "mset4", "val4"]);
+    // All as array, callback
+    client.zadd(["some zset", 123456, "with callback", require_number(1, name)]);
+    // Variadic
+    client.hset("some hash", 'testfield', 'testvalue', last(name, require_number(1, name)));
+}
+
 tests.ENABLE_OFFLINE_QUEUE_TRUE = function () {
     var name = "ENABLE_OFFLINE_QUEUE_TRUE";
     var cli = redis.createClient(9999, null, {

@@ -650,6 +650,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
     }
 
+    // If command is called with all arguments (including key and callback) given as a single array, make it args
+    if (args.length === 1 && Array.isArray(args[0])){
+      args = args[0];
+    }
+
     if (Array.isArray(args)) {
         if (typeof callback === "function") {
             // probably the fastest way:
