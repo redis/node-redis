@@ -771,6 +771,32 @@ tests.KEYS = function () {
     });
 };
 
+tests.MULTIBULK = function() {
+    var name = "MULTIBULK",
+        keys_values = [];
+
+    for (var i = 0; i < 200; i++) {
+        var key_value = [
+            "multibulk:" + crypto.randomBytes(256).toString("hex"), // use long strings as keys to ensure generation of large packet
+            "test val " + i
+        ];
+        keys_values.push(key_value);
+    }
+
+    client.mset(keys_values.reduce(function(a, b) {
+        return a.concat(b);
+    }), require_string("OK", name));
+
+    client.KEYS("multibulk:*", function(err, results) {
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
+        assert.deepEqual(keys_values.map(function(val) {
+            return val[0];
+        }).sort(), results.sort(), name);
+    });
+
+    next(name);
+};
+
 tests.MULTIBULK_ZERO_LENGTH = function () {
     var name = "MULTIBULK_ZERO_LENGTH";
     client.KEYS(['users:*'], function (err, results) {
