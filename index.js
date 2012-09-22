@@ -674,11 +674,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array and command is sadd, expand it out:
+    // if the last argument is an array, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
     //     client.sadd(arg1, arg2, arg3, arg4, cb);
-    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
+    if (args.length > 1 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
@@ -1013,7 +1013,7 @@ RedisClient.prototype.hmsetObj = function(obj, callback){
       }
       args.push(obj[key]);
   }
-  return args
+  return args;
 }
 
 Multi.prototype.hcommand = RedisClient.prototype.hcommand;

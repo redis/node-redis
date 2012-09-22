@@ -1321,6 +1321,28 @@ tests.SORT = function () {
     client.set('p4', 'lux', require_string("OK", name));
     client.set('p9', 'tux', require_string("OK", name));
 
+    var weights = {
+      w3: 4,
+      w9: 5,
+      w2: 12,
+      w4: 6
+    }
+
+    for(var key in weights){
+      client.hset('h'+key, 'value', weights[key], require_number(1, name));
+    }
+
+    var objects = {
+      o2: 'buz',
+      o3: 'foo',
+      o4: 'baz',
+      o9: 'bar'
+    };
+
+    for(var key in objects){
+      client.hset('h'+key, 'value', objects[key], require_number(1, name));
+    }
+
     // Now the data has been setup, we can test.
 
     // But first, test basic sorting.
@@ -1402,10 +1424,40 @@ tests.SORT = function () {
             assert.fail(err, name);
         }
         assert.deepEqual(buffers_to_strings(values), ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'], name);
-        next(name);
     });
 
-    // TODO - sort by hash value
+    // Hash sorting with a 'by' pattern.
+    var cb = function(err, sorted){
+      if (err) {
+          assert.fail(err, name);
+      }
+      assert.deepEqual(buffers_to_strings(sorted), ['3', '9', '4', '2'], name);
+    }
+
+    var args = ['x', 'by', 'hw*->value', cb];
+
+    client.sort.apply(client, args);
+
+    // May also be called with array arguments and callback
+    var cb = args.pop();
+    client.sort(args, cb);
+
+    // With key, search fields as array, and callback
+    var key = args.shift();
+    client.sort(key, args, cb);
+
+    // Hash sorting with a 'by' pattern and 1 'get' pattern.
+    var cb = function(err, sorted){
+      if (err) {
+          assert.fail(err, name);
+      }
+      assert.deepEqual(buffers_to_strings(sorted), ['foo', 'bar', 'baz', 'buz'], name);
+      next(name);
+    }
+
+    var args = ['x', 'by', 'hw*->value', 'asc', 'get', 'ho*->value', cb];
+
+    client.sort.apply(client, args);
 };
 
 tests.MONITOR = function () {
