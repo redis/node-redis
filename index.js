@@ -1002,7 +1002,7 @@ RedisClient.prototype.hcommand = function(command, args){
 }
 
 RedisClient.prototype.hmsetObj = function(obj, callback){
-  var args = [], keys = Object.keys(obj);
+  var args = [], keys = Object.keys(obj), key;
 
   for (var i = 0, il = keys.length; i < il; i++) {
       key = keys[i];
