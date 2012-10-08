@@ -1061,34 +1061,6 @@ RedisClient.prototype.MULTI = function (args) {
 };
 
 
-// stash original eval method
-var eval_orig = RedisClient.prototype.eval;
-// hook eval with an attempt to evalsha for cached scripts
-RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
-    var self = this,
-        args = to_array(arguments),
-        callback;
-
-    if (typeof args[args.length - 1] === "function") {
-        callback = args.pop();
-    }
-
-    // replace script source with sha value
-    var source = args[0];
-    args[0] = crypto.createHash("sha1").update(source).digest("hex");
-
-    self.evalsha(args, function (err, reply) {
-        if (err && /NOSCRIPT/.test(err.message)) {
-            args[0] = source;
-            eval_orig.call(self, args, callback);
-
-        } else if (callback) {
-            callback(err, reply);
-        }
-    });
-};
-
-
 exports.createClient = function (port_arg, host_arg, options) {
     var port = port_arg || default_port,
         host = host_arg || default_host,
