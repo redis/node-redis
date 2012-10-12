@@ -8,7 +8,8 @@
         "test": "node ./test.js"
     },
     "devDependencies": {
-        "metrics": ">=0.1.5"
+        "metrics": ">=0.1.5",
+        "flexbuffer": "0.0.x"
     },
     "repository": {
         "type": "git",
