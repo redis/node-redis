@@ -771,32 +771,6 @@ tests.KEYS = function () {
     });
 };
 
-tests.MULTIBULK = function() {
-    var name = "MULTIBULK",
-        keys_values = [];
-
-    for (var i = 0; i < 200; i++) {
-        var key_value = [
-            "multibulk:" + crypto.randomBytes(256).toString("hex"), // use long strings as keys to ensure generation of large packet
-            "test val " + i
-        ];
-        keys_values.push(key_value);
-    }
-
-    client.mset(keys_values.reduce(function(a, b) {
-        return a.concat(b);
-    }), require_string("OK", name));
-
-    client.KEYS("multibulk:*", function(err, results) {
-        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
-        assert.deepEqual(keys_values.map(function(val) {
-            return val[0];
-        }).sort(), results.sort(), name);
-    });
-
-    next(name);
-};
-
 tests.MULTIBULK_ZERO_LENGTH = function () {
     var name = "MULTIBULK_ZERO_LENGTH";
     client.KEYS(['users:*'], function (err, results) {
@@ -843,17 +817,10 @@ tests.DBSIZE = function () {
     client.DBSIZE([], last(name, require_number_pos("DBSIZE")));
 };
 
-tests.GET_1 = function () {
-    var name = "GET_1";
+tests.GET = function () {
+    var name = "GET";
     client.set(["get key", "get val"], require_string("OK", name));
     client.GET(["get key"], last(name, require_string("get val", name)));
-};
-
-tests.GET_2 = function() {
-    var name = "GET_2";
-
-    // tests handling of non-existent keys
-    client.GET('this_key_shouldnt_exist', last(name, require_null(name)));
 };
 
 tests.SET = function () {
@@ -976,16 +943,17 @@ tests.SADD2 = function () {
     client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set0", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        console.log(res)
+        assert.strictEqual(res[0], "member1");
+        assert.strictEqual(res[1], "member2");
+        assert.strictEqual(res[2], "member0");
     });
     client.SADD("set1", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set1", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.strictEqual(res[0], "member1");
+        assert.strictEqual(res[1], "member2");
+        assert.strictEqual(res[2], "member0");
         next(name);
     });
 };
