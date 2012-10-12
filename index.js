@@ -6,6 +6,7 @@ var net = require("net"),
     to_array = require("./lib/to_array"),
     events = require("events"),
     crypto = require("crypto"),
+    fbuffer = require("flexbuffer"),
     parsers = [], commands,
     connection_id = 0,
     default_port = 6379,
@@ -644,7 +645,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type,commandBuffer = new fbuffer.FlexBuffer();
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -684,8 +685,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
-        if (Buffer.isBuffer(args[i])) {
+        if ( args[i] instanceof Buffer) {
             buffer_args = true;
+            break
         }
     }
 
@@ -733,6 +735,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
 
+
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
 
     if (! buffer_args) { // Build up a string and send entire command in one write
@@ -741,46 +744,41 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (typeof arg !== "string") {
                 arg = String(arg);
             }
-            command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
+            command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n"
         }
         if (exports.debug_mode) {
             console.log("send " + this.host + ":" + this.port + " id " + this.connection_id + ": " + command_str);
         }
-        buffered_writes += !stream.write(command_str);
-    } else {
-        if (exports.debug_mode) {
-            console.log("send command (" + command_str + ") has Buffer arguments");
-        }
-        buffered_writes += !stream.write(command_str);
-
-        for (i = 0, il = args.length, arg; i < il; i += 1) {
-            arg = args[i];
-            if (!(Buffer.isBuffer(arg) || arg instanceof String)) {
-                arg = String(arg);
-            }
-
-            if (Buffer.isBuffer(arg)) {
-                if (arg.length === 0) {
-                    if (exports.debug_mode) {
-                        console.log("send_command: using empty string for 0 length buffer");
-                    }
-                    buffered_writes += !stream.write("$0\r\n\r\n");
-                } else {
-                    buffered_writes += !stream.write("$" + arg.length + "\r\n");
-                    buffered_writes += !stream.write(arg);
-                    buffered_writes += !stream.write("\r\n");
-                    if (exports.debug_mode) {
-                        console.log("send_command: buffer send " + arg.length + " bytes");
-                    }
-                }
-            } else {
-                if (exports.debug_mode) {
-                    console.log("send_command: string send " + Buffer.byteLength(arg) + " bytes: " + arg);
-                }
-                buffered_writes += !stream.write("$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n");
-            }
-        }
+        buffered_writes += !stream.write(command_str)
+  } else{
+    if (exports.debug_mode) {
+        console.log("send command (" + command_str + ") has Buffer arguments");
     }
+    commandBuffer.write(command_str)
+
+    for (i = 0, il = args.length, arg; i < il; i += 1) {
+        arg = args[i];
+
+        if (!(Buffer.isBuffer(arg) || arg instanceof String)) {
+            arg = String(arg);
+            commandBuffer.write("$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n");
+        } else {
+            if (arg.length === 0)
+              commandBuffer.write("$0\r\n\r\n")
+            else{
+              commandBuffer.write("$" + arg.length + "\r\n")
+              commandBuffer.write(arg)
+              commandBuffer.write("\r\n")
+            }
+        }
+
+        //buffered_writes += !stream.write("$" + arg.length + "\r\n");
+        //buffered_writes += !stream.write(arg);
+        //buffered_writes += !stream.write("\r\n");
+    }
+    buffered_writes += !stream.write(commandBuffer.getBuffer())
+  }
+
     if (exports.debug_mode) {
         console.log("send_command buffered_writes: " + buffered_writes, " should_buffer: " + this.should_buffer);
     }
