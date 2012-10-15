@@ -1950,6 +1950,30 @@ tests.SLOWLOG = function () {
     });
 }
 
+tests.DOMAIN = function () {
+    var name = "DOMAIN";
+
+    var domain;
+    try {
+        domain = require('domain').create();
+    } catch (err) {
+        console.log("Skipping " + name + " because this version of node doesn't have domains.");
+        next(name);
+    }
+
+    if (domain) {
+        domain.run(function () {
+            client.set('domain', 'value', function (err, res) {
+                assert.ok(process.domain);
+                var notFound = res.not.existing.thing; // ohhh nooooo
+            });
+        });
+
+        // this is the expected and desired behavior
+        domain.on('error', function (err) { next(name); });
+    }
+};
+
 // TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
 // Yes, this is the real password.  Please be nice, thanks.
 tests.auth = function () {
