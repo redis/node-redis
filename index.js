@@ -755,11 +755,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    if (callback && process.domain) {
-        callback = process.domain.bind(callback);
-        // ensure that any unhandled error events emitted by the client are scoped to the correct domain
-        process.domain.add(this);
-    }
+    if (callback && process.domain) callback = process.domain.bind(callback);
 
     // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
