@@ -182,7 +182,7 @@ to `127.0.0.1`.  If you have `redis-server` running on the same computer as node
 port and host are probably fine.  `options` in an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
-This may also be set to `javascript`.
+This may also be set to `faster` (formerly 'javascript').
 * `return_buffers`: defaults to `false`.  If set to `true`, then all replies will be sent to callbacks as node Buffer
 objects instead of JavaScript Strings.
 * `detect_buffers`: default to `false`. If set to `true`, then replies will be sent to callbacks as node Buffer objects
