@@ -432,7 +432,7 @@ RedisClient.prototype.connection_gone = function (why) {
     this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
 
     if (exports.debug_mode) {
-        console.log("Retry connection in " + this.current_retry_delay + " ms");
+        console.log("Retry connection in " + this.retry_delay + " ms");
     }
 
     if (this.max_attempts && this.attempts >= this.max_attempts) {
@@ -453,7 +453,7 @@ RedisClient.prototype.connection_gone = function (why) {
             console.log("Retrying connection...");
         }
 
-        self.retry_totaltime += self.current_retry_delay;
+        self.retry_totaltime += self.retry_delay;
 
         if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
             self.retry_timer = null;
