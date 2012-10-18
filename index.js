@@ -883,9 +883,9 @@ commands.forEach(function (command) {
 
 // store db in this.select_db to restore it on reconnect
 RedisClient.prototype.select = function (db, callback) {
-	var self = this;
+    var self = this;
 
-	this.send_command('select', [db], function (err, res) {
+    this.send_command('select', [db], function (err, res) {
         if (err === null) {
             self.selected_db = db;
         }
