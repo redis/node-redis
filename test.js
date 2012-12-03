@@ -783,8 +783,17 @@ tests.KEYS = function () {
     client.KEYS(["test keys*"], function (err, results) {
         assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(2, results.length, name);
-        assert.strictEqual("test keys 1", results[0].toString(), name);
-        assert.strictEqual("test keys 2", results[1].toString(), name);
+
+        // on redis 2.6, keys are in reverse order
+        // see https://github.com/mranney/node_redis/issues/290
+        // assert.strictEqual("test keys 1", results[0].toString(), name);
+        // assert.strictEqual("test keys 2", results[1].toString(), name);
+
+        // order-neutral alternative
+        for (var i=0; i<results.length; i++) results[i] = results[i].toString();
+        assert(results.indexOf("test keys 1") > -1, name);
+        assert(results.indexOf("test keys 2") > -1, name);
+
         next(name);
     });
 };
