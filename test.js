@@ -1,8 +1,12 @@
 /*global require console setTimeout process Buffer */
+var PORT = 6379;
+var HOST = '127.0.0.1';
+
 var redis = require("./index"),
-    client = redis.createClient(),
-    client2 = redis.createClient(),
-    client3 = redis.createClient(),
+    client = redis.createClient(PORT, HOST),
+    client2 = redis.createClient(PORT, HOST),
+    client3 = redis.createClient(PORT, HOST),
+    bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
     assert = require("assert"),
     crypto = require("crypto"),
     util = require("./lib/util"),
@@ -85,7 +89,7 @@ next = function next(name) {
     run_next_test();
 };
 
-// Tests are run in the order they are defined.  So FLUSHDB should be stay first.
+// Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
@@ -95,6 +99,20 @@ tests.FLUSHDB = function () {
     client.mset("flush keys 1", "flush val 1", "flush keys 2", "flush val 2", require_string("OK", name));
     client.FLUSHDB(require_string("OK", name));
     client.dbsize(last(name, require_number(0, name)));
+};
+
+tests.INCR = function () {
+    var name = "INCR";
+
+    // Test incr with the maximum JavaScript number value. Since we are
+    // returning buffers we should get back one more as a Buffer.
+    bclient.set("seq", "9007199254740992", function (err, result) {
+        assert.strictEqual(result.toString(), "OK");
+        bclient.incr("seq", function (err, result) {
+            assert.strictEqual("9007199254740993", result.toString());
+            next(name);
+        });
+    });
 };
 
 tests.MULTI_1 = function () {
@@ -769,6 +787,32 @@ tests.KEYS = function () {
         assert.strictEqual("test keys 2", results[1].toString(), name);
         next(name);
     });
+};
+
+tests.MULTIBULK = function() {
+    var name = "MULTIBULK",
+        keys_values = [];
+
+    for (var i = 0; i < 200; i++) {
+        var key_value = [
+            "multibulk:" + crypto.randomBytes(256).toString("hex"), // use long strings as keys to ensure generation of large packet
+            "test val " + i
+        ];
+        keys_values.push(key_value);
+    }
+
+    client.mset(keys_values.reduce(function(a, b) {
+        return a.concat(b);
+    }), require_string("OK", name));
+
+    client.KEYS("multibulk:*", function(err, results) {
+        assert.strictEqual(null, err, "result sent back unexpected error: " + err);
+        assert.deepEqual(keys_values.map(function(val) {
+            return val[0];
+        }).sort(), results.sort(), name);
+    });
+
+    next(name);
 };
 
 tests.MULTIBULK_ZERO_LENGTH = function () {
@@ -1581,6 +1625,7 @@ run_next_test = function run_next_test() {
         console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date() - all_start);
         client.quit();
         client2.quit();
+        bclient.quit();
     }
 };
 
@@ -1610,6 +1655,11 @@ client3.on("error", function (err) {
     console.error("client3: " + err.stack);
     process.exit();
 });
+bclient.on("error", function (err) {
+    console.error("bclient: " + err.stack);
+    process.exit();
+});
+
 client.on("reconnecting", function (params) {
     console.log("reconnecting: " + util.inspect(params));
 });

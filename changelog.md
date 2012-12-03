@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v0.8.2 - November 11, 2012
+
+Another version bump because 0.8.1 didn't get applied properly for some mysterious reason.
+Sorry about that.
+
+Changed name of "faster" parser to "javascript".
+
 ## v0.8.1 - September 11, 2012
 
 Important bug fix for null responses (Jerry Sievert)
