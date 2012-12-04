@@ -886,6 +886,8 @@ commands = set_union(["get", "set", "setnx", "setex", "append", "strlen", "del",
     "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch", "cluster",
     "restore", "migrate", "dump", "object", "client", "eval", "evalsha"], require("./lib/commands"));
 
+exports.commands = commands;
+
 commands.forEach(function (fullCommand) {
     var command = fullCommand.split(' ')[0];
 
