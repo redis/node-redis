@@ -562,8 +562,14 @@ function reply_to_strings(reply) {
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, len, type, timestamp, argindex, args, queue_len;
 
-    command_obj = this.command_queue.shift(),
-    queue_len   = this.command_queue.getLength();
+    if (Array.isArray(reply))
+        type = reply[0].toString();
+
+    // Don't dequeue if a (p)message arrives
+    if (type !== "message" && type !== "pmessage")
+        command_obj = this.command_queue.shift();
+
+    queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.emit("idle");
@@ -593,8 +599,6 @@ RedisClient.prototype.return_reply = function (reply) {
         }
     } else if (this.pub_sub_mode || (command_obj && command_obj.sub_command)) {
         if (Array.isArray(reply)) {
-            type = reply[0].toString();
-
             if (type === "message") {
                 this.emit("message", reply[1].toString(), reply[2]); // channel, message
             } else if (type === "pmessage") {
