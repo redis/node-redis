@@ -282,7 +282,10 @@ RedisClient.prototype.on_ready = function () {
 
     // magically restore any modal commands from a previous connection
     if (this.selected_db !== null) {
+        var pub_sub_mode = this.pub_sub_mode;
+        this.pub_sub_mode = false;
         this.send_command('select', [this.selected_db]);
+        this.pub_sub_mode = pub_sub_mode;
     }
     if (this.pub_sub_mode === true) {
         // only emit "ready" when all subscriptions were made again
