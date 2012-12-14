@@ -282,6 +282,8 @@ RedisClient.prototype.on_ready = function () {
 
     // magically restore any modal commands from a previous connection
     if (this.selected_db !== null) {
+        // this trick works if and only if the following send_command
+        // never goes into the offline queue
         var pub_sub_mode = this.pub_sub_mode;
         this.pub_sub_mode = false;
         this.send_command('select', [this.selected_db]);
