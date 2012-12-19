@@ -291,7 +291,7 @@ RedisClient.prototype.on_ready = function () {
     }
     if (this.pub_sub_mode === true) {
         // only emit "ready" when all subscriptions were made again
-        var callback_count = 0;
+        var callback_count = 0, trigger_ready = true;
         var callback = function () {
             callback_count--;
             if (callback_count === 0) {
@@ -303,9 +303,13 @@ RedisClient.prototype.on_ready = function () {
             if (exports.debug_mode) {
                 console.warn("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
             }
+            trigger_ready = false;
             callback_count++;
             self.send_command(parts[0] + "scribe", [parts[1]], callback);
         });
+        if (trigger_ready) {
+            this.emit("ready");
+        }
         return;
     } else if (this.monitoring) {
         this.send_command("monitor");
