@@ -295,6 +295,7 @@ RedisClient.prototype.on_ready = function () {
         var callback = function () {
             callback_count--;
             if (callback_count === 0) {
+                self.send_offline_queue();
                 self.emit("ready");
             }
         };
@@ -308,6 +309,7 @@ RedisClient.prototype.on_ready = function () {
             self.send_command(parts[0] + "scribe", [parts[1]], callback);
         });
         if (trigger_ready) {
+            this.send_offline_queue();
             this.emit("ready");
         }
         return;
