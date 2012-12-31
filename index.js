@@ -562,8 +562,18 @@ function reply_to_strings(reply) {
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, len, type, timestamp, argindex, args, queue_len;
 
-    command_obj = this.command_queue.shift(),
-    queue_len   = this.command_queue.getLength();
+    // If the "reply" here is actually a message received asynchronously due to a
+    // pubsub subscription, don't pop the command queue as we'll only be consuming
+    // the head command prematurely.
+    if (Array.isArray(reply) && reply.length > 0 && reply[0]) {
+        type = reply[0].toString();
+    }
+
+    if (type !== 'message' && type !== 'pmessage') {
+        command_obj = this.command_queue.shift();
+    }
+
+    queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.emit("idle");
