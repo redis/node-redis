@@ -44,6 +44,11 @@ function RedisClient(stream, options) {
     if (options.max_attempts && !isNaN(options.max_attempts) && options.max_attempts > 0) {
         this.max_attempts = +options.max_attempts;
     }
+    this.attempts_before_flush = null
+    if (options.attempts_before_flush && !isNaN(options.attempts_before_flush) && 
+        options.attempts_before_flush > 0) {
+        this.attempts_before_flush = options.attempts_before_flush;
+    }
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
@@ -140,7 +145,9 @@ RedisClient.prototype.on_error = function (msg) {
         console.warn(message);
     }
 
-    this.flush_and_error(message);
+    if(!this.attempts_before_flush || this.attempts > this.attempts_before_flush) {
+        this.flush_and_error(message);
+    }
 
     this.connected = false;
     this.ready = false;
@@ -418,7 +425,9 @@ RedisClient.prototype.connection_gone = function (why) {
         this.emitted_end = true;
     }
 
-    this.flush_and_error("Redis connection gone from " + why + " event.");
+    if(!this.attempts_before_flush || this.attempts > this.attempts_before_flush) {
+        this.flush_and_error("Redis connection gone from " + why + " event.");
+    }
 
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
