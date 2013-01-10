@@ -406,6 +406,22 @@ tests.EVAL_1 = function () {
     }
 };
 
+tests.SCRIPT_LOAD = function() {
+    if (server_version_at_least(bclient, [2, 5, 0])) {
+        var name = "SCRIPT_LOAD",
+            command = "return 1",
+            commandSha = crypto.createHash('sha1').update(command).digest('hex');
+
+        bclient.script("load", command, function(err, result) {
+            assert.strictEqual(result.toString(), commandSha);
+            next(name);
+        });
+    } else {
+        console.log("Skipping " + name + " because server version isn't new enough.");
+        next(name);
+    }
+};
+
 tests.WATCH_MULTI = function () {
     var name = 'WATCH_MULTI', multi;
 
