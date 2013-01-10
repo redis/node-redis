@@ -369,6 +369,17 @@ tests.EVAL_1 = function () {
     }
 };
 
+tests.SCRIPT_LOAD = function() {
+    var name = "SCRIPT_LOAD",
+        command = "return 1",
+        commandSha = crypto.createHash('sha1').update(command).digest('hex');
+
+    bclient.script("load", command, function(err, result) {
+        assert.strictEqual(result.toString(), commandSha);
+        next(name);
+    });
+};
+
 tests.WATCH_MULTI = function () {
     var name = 'WATCH_MULTI', multi;
 

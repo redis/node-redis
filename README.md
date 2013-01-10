@@ -543,6 +543,15 @@ This will display:
 
 `send command` is data sent into Redis and `on_data` is data received from Redis.
 
+## Multi-word commands
+
+To execute redis multi-word commands like `SCRIPT LOAD` or `CLIENT LIST` pass
+the second word as first parameter:
+
+    client.script('load', 'return 1');
+    client.multi().script('load', 'return 1').exec(...);
+    client.multi([['script', 'load', 'return 1']]).exec(...);
+
 ## client.send_command(command_name, args, callback)
 
 Used internally to send commands to Redis.  For convenience, nearly all commands that are published on the Redis

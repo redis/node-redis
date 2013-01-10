@@ -865,7 +865,9 @@ commands = set_union(["get", "set", "setnx", "setex", "append", "strlen", "del",
     "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch", "cluster",
     "restore", "migrate", "dump", "object", "client", "eval", "evalsha"], require("./lib/commands"));
 
-commands.forEach(function (command) {
+commands.forEach(function (fullCommand) {
+    var command = fullCommand.split(' ')[0];
+
     RedisClient.prototype[command] = function (args, callback) {
         if (Array.isArray(args) && typeof callback === "function") {
             return this.send_command(command, args, callback);
