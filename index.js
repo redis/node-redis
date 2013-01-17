@@ -551,7 +551,9 @@ function reply_to_strings(reply) {
 
     if (Array.isArray(reply)) {
         for (i = 0; i < reply.length; i++) {
-            reply[i] = reply[i] ? reply[i].toString() : reply[i];
+            if (reply[i] !== null && reply[i] !== undefined) {
+                reply[i] =  reply[i].toString();
+            }
         }
         return reply;
     }
