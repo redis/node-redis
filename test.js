@@ -1003,16 +1003,16 @@ tests.SADD2 = function () {
     client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set0", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.ok(~res.indexOf("member0"));
+        assert.ok(~res.indexOf("member1"));
+        assert.ok(~res.indexOf("member2"));
     });
     client.SADD("set1", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set1", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.ok(~res.indexOf("member0"));
+        assert.ok(~res.indexOf("member1"));
+        assert.ok(~res.indexOf("member2"));
         next(name);
     });
 };
@@ -1594,6 +1594,21 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
         });
     });
 };
+
+tests.SLOWLOG = function () {
+    var name = "SLOWLOG";
+    client.slowlog('reset',require_string("OK", name));
+    client.config('set', 'slowlog-log-slower-than', 0,require_string("OK", name));
+    client.set('foo','bar',require_string("OK", name));
+	client.get('foo',require_string("bar", name));
+	client.slowlog('get',function(err,res){
+		assert.equal(res.length, 4, name);
+		assert.equal(res[0][3].length, 2, name);
+		assert.deepEqual(res[1][3], ['set', 'foo', 'bar'], name);
+		assert.deepEqual(res[3][3], ['slowlog', 'reset'], name);
+		next(name);
+	});
+}
 
 // TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
 // Yes, this is the real password.  Please be nice, thanks.
