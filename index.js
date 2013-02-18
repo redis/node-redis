@@ -685,7 +685,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
-        if ( args[i] instanceof Buffer) {
+        if (args[i] instanceof Buffer) {
             buffer_args = true;
             break
         }
@@ -750,7 +750,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             console.log("send " + this.host + ":" + this.port + " id " + this.connection_id + ": " + command_str);
         }
         buffered_writes += !stream.write(command_str)
-  } else{
+  } else {
     if (exports.debug_mode) {
         console.log("send command (" + command_str + ") has Buffer arguments");
     }
@@ -764,9 +764,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             arg = String(arg);
             commandBuffer.write("$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n");
         } else {
-            if (arg.length === 0)
+            if (arg.length === 0) {
               commandBuffer.write("$0\r\n\r\n")
-            else{
+            } else {
               commandBuffer.write("$" + arg.length + "\r\n")
               commandBuffer.write(arg)
               commandBuffer.write("\r\n")

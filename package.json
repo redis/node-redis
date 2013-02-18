@@ -9,7 +9,7 @@
     },
     "devDependencies": {
         "metrics": ">=0.1.5",
-        "flexbuffer": "0.0.x"
+        "flexbuffer": "~0.0.6"
     },
     "repository": {
         "type": "git",
