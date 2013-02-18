@@ -945,6 +945,9 @@ RedisClient.prototype.hmset = function (args, callback) {
         for (i = 0, il = tmp_keys.length; i < il ; i++) {
             key = tmp_keys[i];
             tmp_args.push(key);
+            if (typeof args[1][key] === 'number') {
+              args[1][key] = args[1][key].toString();
+            }
             if (typeof args[1][key] !== "string") {
                 var err = new Error("hmset expected value to be a string", key, ":", args[1][key]);
                 if (callback) {
