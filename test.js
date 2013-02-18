@@ -783,8 +783,17 @@ tests.KEYS = function () {
     client.KEYS(["test keys*"], function (err, results) {
         assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(2, results.length, name);
-        assert.strictEqual("test keys 1", results[0].toString(), name);
-        assert.strictEqual("test keys 2", results[1].toString(), name);
+
+        // on redis 2.6, keys are in reverse order
+        // see https://github.com/mranney/node_redis/issues/290
+        // assert.strictEqual("test keys 1", results[0].toString(), name);
+        // assert.strictEqual("test keys 2", results[1].toString(), name);
+
+        // order-neutral alternative
+        for (var i=0; i<results.length; i++) results[i] = results[i].toString();
+        assert(results.indexOf("test keys 1") > -1, name);
+        assert(results.indexOf("test keys 2") > -1, name);
+
         next(name);
     });
 };
@@ -994,16 +1003,16 @@ tests.SADD2 = function () {
     client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set0", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert(res.indexOf("member0") > -1, name);
+        assert(res.indexOf("member1") > -1, name);
+        assert(res.indexOf("member2") > -1, name);
     });
     client.SADD("set1", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set1", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert(res.indexOf("member0") > -1, name);
+        assert(res.indexOf("member1") > -1, name);
+        assert(res.indexOf("member2") > -1, name);
         next(name);
     });
 };
