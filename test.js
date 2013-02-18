@@ -614,6 +614,15 @@ tests.detect_buffers = function () {
             assert.strictEqual("<Buffer 76 61 6c 20 31>", reply[0].inspect(), name);
             assert.strictEqual("<Buffer 76 61 6c 20 32>", reply[1].inspect(), name);
         });
+        
+        // array of strings with undefined values (repro #344)
+        detect_client.hmget("hash key 2", "key 3", "key 4", function(err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual(true, Array.isArray(reply), name);
+            assert.strictEqual(2, reply.length, name);
+            assert.equal(null, reply[0], name);
+            assert.equal(null, reply[1], name);
+        });
 
         // Object of Buffers or Strings
         detect_client.hgetall("hash key 2", function (err, reply) {
