@@ -1,8 +1,12 @@
 /*global require console setTimeout process Buffer */
+var PORT = 6379;
+var HOST = '127.0.0.1';
+
 var redis = require("./index"),
-    client = redis.createClient(),
-    client2 = redis.createClient(),
-    client3 = redis.createClient(),
+    client = redis.createClient(PORT, HOST),
+    client2 = redis.createClient(PORT, HOST),
+    client3 = redis.createClient(PORT, HOST),
+    bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
     assert = require("assert"),
     crypto = require("crypto"),
     util = require("./lib/util"),
@@ -85,7 +89,7 @@ next = function next(name) {
     run_next_test();
 };
 
-// Tests are run in the order they are defined.  So FLUSHDB should be stay first.
+// Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
@@ -95,6 +99,20 @@ tests.FLUSHDB = function () {
     client.mset("flush keys 1", "flush val 1", "flush keys 2", "flush val 2", require_string("OK", name));
     client.FLUSHDB(require_string("OK", name));
     client.dbsize(last(name, require_number(0, name)));
+};
+
+tests.INCR = function () {
+    var name = "INCR";
+
+    // Test incr with the maximum JavaScript number value. Since we are
+    // returning buffers we should get back one more as a Buffer.
+    bclient.set("seq", "9007199254740992", function (err, result) {
+        assert.strictEqual(result.toString(), "OK");
+        bclient.incr("seq", function (err, result) {
+            assert.strictEqual("9007199254740993", result.toString());
+            next(name);
+        });
+    });
 };
 
 tests.MULTI_1 = function () {
@@ -976,16 +994,16 @@ tests.SADD2 = function () {
     client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set0", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.ok(~res.indexOf("member0"));
+        assert.ok(~res.indexOf("member1"));
+        assert.ok(~res.indexOf("member2"));
     });
     client.SADD("set1", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set1", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.ok(~res.indexOf("member0"));
+        assert.ok(~res.indexOf("member1"));
+        assert.ok(~res.indexOf("member2"));
         next(name);
     });
 };
@@ -1568,6 +1586,21 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
     });
 };
 
+tests.SLOWLOG = function () {
+    var name = "SLOWLOG";
+    client.slowlog('reset',require_string("OK", name));
+    client.config('set', 'slowlog-log-slower-than', 0,require_string("OK", name));
+    client.set('foo','bar',require_string("OK", name));
+	client.get('foo',require_string("bar", name));
+	client.slowlog('get',function(err,res){
+		assert.equal(res.length, 4, name);
+		assert.equal(res[0][3].length, 2, name);
+		assert.deepEqual(res[1][3], ['set', 'foo', 'bar'], name);
+		assert.deepEqual(res[3][3], ['slowlog', 'reset'], name);
+		next(name);
+	});
+}
+
 // TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
 // Yes, this is the real password.  Please be nice, thanks.
 tests.auth = function () {
@@ -1607,6 +1640,7 @@ run_next_test = function run_next_test() {
         console.log('\n  completed \x1b[32m%d\x1b[0m tests in \x1b[33m%d\x1b[0m ms\n', test_count, new Date() - all_start);
         client.quit();
         client2.quit();
+        bclient.quit();
     }
 };
 
@@ -1636,6 +1670,11 @@ client3.on("error", function (err) {
     console.error("client3: " + err.stack);
     process.exit();
 });
+bclient.on("error", function (err) {
+    console.error("bclient: " + err.stack);
+    process.exit();
+});
+
 client.on("reconnecting", function (params) {
     console.log("reconnecting: " + util.inspect(params));
 });
