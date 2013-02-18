@@ -994,16 +994,16 @@ tests.SADD2 = function () {
     client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set0", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.ok(~res.indexOf("member0"));
+        assert.ok(~res.indexOf("member1"));
+        assert.ok(~res.indexOf("member2"));
     });
     client.SADD("set1", ["member0", "member1", "member2"], require_number(3, name));
     client.smembers("set1", function (err, res) {
         assert.strictEqual(res.length, 3);
-        assert.strictEqual(res[0], "member0");
-        assert.strictEqual(res[1], "member1");
-        assert.strictEqual(res[2], "member2");
+        assert.ok(~res.indexOf("member0"));
+        assert.ok(~res.indexOf("member1"));
+        assert.ok(~res.indexOf("member2"));
         next(name);
     });
 };
