@@ -19,6 +19,16 @@ var redis = require("./index"),
 // Set this to truthy to see the wire protocol and other debugging info
 redis.debug_mode = process.argv[2];
 
+function server_version_at_least(connection, desired_version) {
+    // Return true if the server version >= desired_version
+    var version = connection.server_info.versions;
+    for (var i = 0; i < 3; i++) {
+        if (version[i] > desired_version[i]) return true;
+        if (version[i] < desired_version[i]) return false;
+    }
+    return true;
+}
+
 function buffers_to_strings(arr) {
     return arr.map(function (val) {
         return val.toString();
@@ -124,16 +134,27 @@ tests.MULTI_1 = function () {
     multi1.set("foo2", require_error(name));
     multi1.incr("multifoo", require_number(11, name));
     multi1.incr("multibar", require_number(21, name));
-    multi1.exec();
+    multi1.exec(function () {
+        require_error(name);
 
-    // Confirm that the previous command, while containing an error, still worked.
-    multi2 = client.multi();
-    multi2.incr("multibar", require_number(22, name));
-    multi2.incr("multifoo", require_number(12, name));
-    multi2.exec(function (err, replies) {
-        assert.strictEqual(22, replies[0]);
-        assert.strictEqual(12, replies[1]);
-        next(name);
+        // Redis 2.6.5+ will abort transactions with errors
+        // see: http://redis.io/topics/transactions
+        var multibar_expected = 22;
+        var multifoo_expected = 12;
+        if (server_version_at_least(client, [2, 6, 5])) {
+            multibar_expected = 1;
+            multifoo_expected = 1;
+        }
+
+        // Confirm that the previous command, while containing an error, still worked.
+        multi2 = client.multi();
+        multi2.incr("multibar", require_number(multibar_expected, name));
+        multi2.incr("multifoo", require_number(multifoo_expected, name));
+        multi2.exec(function (err, replies) {
+            assert.strictEqual(multibar_expected, replies[0]);
+            assert.strictEqual(multifoo_expected, replies[1]);
+            next(name);
+        });
     });
 };
 
@@ -151,12 +172,18 @@ tests.MULTI_2 = function () {
         ["incr", "multifoo", require_number(13, name)],
         ["incr", "multibar", require_number(23, name)]
     ]).exec(function (err, replies) {
-        assert.strictEqual(2, replies[0].length, name);
-        assert.strictEqual("12", replies[0][0].toString(), name);
-        assert.strictEqual("22", replies[0][1].toString(), name);
+        if (server_version_at_least(client, [2, 6, 5])) {
+            assert.notEqual(err, null, name);
+            assert.equal(replies, undefined, name);
+        }
+        else {
+            assert.strictEqual(2, replies[0].length, name);
+            assert.strictEqual("12", replies[0][0].toString(), name);
+            assert.strictEqual("22", replies[0][1].toString(), name);
 
-        assert.strictEqual("13", replies[1].toString());
-        assert.strictEqual("23", replies[2].toString());
+            assert.strictEqual("13", replies[1].toString());
+            assert.strictEqual("23", replies[2].toString());
+        }
         next(name);
     });
 };
@@ -248,7 +275,7 @@ tests.MULTI_6 = function () {
 tests.EVAL_1 = function () {
     var name = "EVAL_1";
 
-    if (client.server_info.versions[0] >= 2 && client.server_info.versions[1] >= 5) {
+    if (server_version_at_least(client, [2, 5, 0])) {
         // test {EVAL - Lua integer -> Redis protocol type conversion}
         client.eval("return 100.5", 0, require_number(100, name));
         // test {EVAL - Lua string -> Redis protocol type conversion}
@@ -372,7 +399,7 @@ tests.EVAL_1 = function () {
 tests.WATCH_MULTI = function () {
     var name = 'WATCH_MULTI', multi;
 
-    if (client.server_info.versions[0] >= 2 && client.server_info.versions[1] >= 1) {
+    if (server_version_at_least(client, [2, 1, 0])) {
         client.watch(name);
         client.incr(name);
         multi = client.multi();
@@ -1426,6 +1453,11 @@ tests.SORT = function () {
 
 tests.MONITOR = function () {
     var name = "MONITOR", responses = [], monitor_client;
+
+    if (!server_version_at_least(client, [2, 6, 0])) {
+        console.log("Skipping monitor for old Redis server version <= 2.6.x");
+        return next(name);
+    }
 
     monitor_client = redis.createClient();
     monitor_client.monitor(function (err, res) {
