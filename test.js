@@ -171,12 +171,13 @@ tests.MULTI_2 = function () {
         ["set", "foo2", require_error(name)],
         ["incr", "multifoo", require_number(13, name)],
         ["incr", "multibar", require_number(23, name)]
+
     ]).exec(function (err, replies) {
+
         if (server_version_at_least(client, [2, 6, 5])) {
             assert.notEqual(err, null, name);
             assert.equal(replies, undefined, name);
-        }
-        else {
+        } else {
             assert.strictEqual(2, replies[0].length, name);
             assert.strictEqual("12", replies[0][0].toString(), name);
             assert.strictEqual("22", replies[0][1].toString(), name);
@@ -810,8 +811,8 @@ tests.KEYS = function () {
     client.KEYS(["test keys*"], function (err, results) {
         assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(2, results.length, name);
-        assert.strictEqual("test keys 1", results[0].toString(), name);
-        assert.strictEqual("test keys 2", results[1].toString(), name);
+        assert.ok(~results.indexOf("test keys 1"));
+        assert.ok(~results.indexOf("test keys 2"));
         next(name);
     });
 };
