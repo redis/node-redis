@@ -810,8 +810,8 @@ tests.KEYS = function () {
     client.KEYS(["test keys*"], function (err, results) {
         assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual(2, results.length, name);
-        assert.strictEqual("test keys 1", results[0].toString(), name);
-        assert.strictEqual("test keys 2", results[1].toString(), name);
+        assert.ok(~results.indexOf("test keys 1"));
+        assert.ok(~results.indexOf("test keys 2"));
         next(name);
     });
 };
