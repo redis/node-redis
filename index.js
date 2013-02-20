@@ -244,7 +244,7 @@ RedisClient.prototype.init_parser = function () {
         if (exports.debug_mode) {
             console.log("Using default parser module: " + parsers[0].name);
         }
-        this.parser_module = parsers[0];
+        self.parser_module = parsers[0];
     }
 
     this.parser_module.debug_mode = exports.debug_mode;
