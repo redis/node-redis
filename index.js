@@ -1074,6 +1074,10 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
         callback = args.pop();
     }
 
+    if (Array.isArray(args[0])) {
+        args = args[0];
+    }
+
     // replace script source with sha value
     var source = args[0];
     args[0] = crypto.createHash("sha1").update(source).digest("hex");

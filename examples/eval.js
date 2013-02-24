@@ -7,3 +7,8 @@ client.eval("return 100.5", 0, function (err, res) {
     console.dir(err);
     console.dir(res);
 });
+
+client.eval([ "return 100.5", 0 ], function (err, res) {
+    console.dir(err);
+    console.dir(res);
+});
