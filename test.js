@@ -255,11 +255,17 @@ tests.MULTI_5 = function () {
     // test nested multi-bulk replies with nulls.
     client.multi([
         ["mget", ["multifoo", "some", "random value", "keys"]],
-        ["incr", "multifoo"]
+        ["incr", "multifoo"],
+        ["hmset", 'hash', 'key1', 1, 'key2', 2],
+        ["hmget", 'hash', ['key1', 'key2']],
+        ["hdel", 'hash', ['key1', 'key2']]
     ])
     .exec(function (err, replies) {
-        assert.strictEqual(replies.length, 2, name);
+        assert.strictEqual(replies.length, 5, name);
         assert.strictEqual(replies[0].length, 4, name);
+        assert.strictEqual(replies[2], 'OK', name);
+        assert.deepEqual(replies[3], ['1', '2'] , name);
+        assert.equal(replies[4], 2, name);
         next(name);
     });
 };
@@ -647,31 +653,35 @@ tests.HMGET = function () {
     var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
 
     // redis-like hmset syntax
-    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
+    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", "a key with numeric value", 1337, require_string("OK", name));
 
     // fancy hmset syntax
     client.HMSET(key2, {
         "0123456789": "abcdefghij",
-        "some manner of key": "a type of value"
+        "some manner of key": "a type of value",
+        "a key with numeric value": 1337
     }, require_string("OK", name));
 
-    client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
+    client.HMGET(key1, "0123456789", "some manner of key", "a key with numeric value", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
+        assert.strictEqual("1337", reply[2].toString(), name);
     });
 
-    client.HMGET(key2, "0123456789", "some manner of key", function (err, reply) {
+    client.HMGET(key2, "0123456789", "some manner of key", "a key with numeric value", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
+        assert.strictEqual("1337", reply[2].toString(), name);
     });
 
     client.HMGET(key1, ["0123456789"], function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0], name);
     });
 
-    client.HMGET(key1, ["0123456789", "some manner of key"], function (err, reply) {
+    client.HMGET(key1, ["0123456789", "some manner of key", "a key with numeric value"], function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0], name);
         assert.strictEqual("a type of value", reply[1], name);
+        assert.strictEqual("1337", reply[2].toString(), name);
     });
 
     client.HMGET(key1, "missing thing", "another missing thing", function (err, reply) {
@@ -686,6 +696,24 @@ tests.HINCRBY = function () {
     client.hset("hash incr", "value", 10, require_number(1, name));
     client.HINCRBY("hash incr", "value", 1, require_number(11, name));
     client.HINCRBY("hash incr", "value 2", 1, last(name, require_number(1, name)));
+};
+
+tests.HDEL = function () {
+    var name = 'HDEL';
+    var key = "hdel test hash";
+    var hash = {
+      'field1' : 'value1',
+      'field2' : 2,
+      'field3' : 'value3',
+      'field4' : 'value4',
+      'field5' : 'value5',
+    }
+    client.hmset(key, hash, require_string('OK', name));
+
+    client.hdel(key, 'field1', require_number(1, name));
+    client.hdel(key, 'field2', 'field3', require_number(2, name));
+    client.hdel(key, ['field4', 'field5'], require_number(2, name));
+    client.hlen(key, last(name, require_number(0, name)));
 };
 
 tests.SUBSCRIBE = function () {
@@ -1425,6 +1453,28 @@ tests.SORT = function () {
     client.set('p4', 'lux', require_string("OK", name));
     client.set('p9', 'tux', require_string("OK", name));
 
+    var weights = {
+      w3: 4,
+      w9: 5,
+      w2: 12,
+      w4: 6
+    }
+
+    for(var key in weights){
+      client.hset('h'+key, 'value', weights[key], require_number(1, name));
+    }
+
+    var objects = {
+      o2: 'buz',
+      o3: 'foo',
+      o4: 'baz',
+      o9: 'bar'
+    };
+
+    for(var key in objects){
+      client.hset('h'+key, 'value', objects[key], require_number(1, name));
+    }
+
     // Now the data has been setup, we can test.
 
     // But first, test basic sorting.
@@ -1506,10 +1556,40 @@ tests.SORT = function () {
             assert.fail(err, name);
         }
         assert.deepEqual(buffers_to_strings(values), ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'], name);
-        next(name);
     });
 
-    // TODO - sort by hash value
+    // Hash sorting with a 'by' pattern.
+    var cb = function(err, sorted){
+      if (err) {
+          assert.fail(err, name);
+      }
+      assert.deepEqual(buffers_to_strings(sorted), ['3', '9', '4', '2'], name);
+    }
+
+    var args = ['x', 'by', 'hw*->value', cb];
+
+    client.sort.apply(client, args);
+
+    // May also be called with array arguments and callback
+    var cb = args.pop();
+    client.sort(args, cb);
+
+    // With key, search fields as array, and callback
+    var key = args.shift();
+    client.sort(key, args, cb);
+
+    // Hash sorting with a 'by' pattern and 1 'get' pattern.
+    var cb = function(err, sorted){
+      if (err) {
+          assert.fail(err, name);
+      }
+      assert.deepEqual(buffers_to_strings(sorted), ['foo', 'bar', 'baz', 'buz'], name);
+      next(name);
+    }
+
+    var args = ['x', 'by', 'hw*->value', 'asc', 'get', 'ho*->value', cb];
+
+    client.sort.apply(client, args);
 };
 
 tests.MONITOR = function () {
@@ -1616,10 +1696,10 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     client.get("op_cb2", last(name, require_string("y", name)));
 };
 
-tests.HMSET_THROWS_ON_NON_STRINGS = function () {
-    var name = "HMSET_THROWS_ON_NON_STRINGS";
+tests.HMSET_THROWS_ON_OBJECTS = function () {
+    var name = "HMSET_THROWS_ON_OBJECTS";
     var hash = name;
-    var data = { "a": [ "this is not a string" ] };
+    var data = { "a": [ "this is an object type" ] };
 
     client.hmset(hash, data, cb);
     function cb(e, r) {
@@ -1628,11 +1708,29 @@ tests.HMSET_THROWS_ON_NON_STRINGS = function () {
 
     // alternative way it throws
     function thrower() {
-        client.hmset(hash, data);
+        this.hmset(hash, data);
     }
-    assert.throws(thrower);
+    assert.throws(thrower.bind(client));
+
+    // Same on multi
+    var m = client.multi();
+    m.hmset(hash, data, cb);
+
+    assert.throws(thrower.bind(m));
+    m.exec();
+
     next(name);
 };
+
+tests.ARGUMENT_FORMATS = function(){
+    var name = 'ARGUMENT_FORMATS';
+    // All as array, no callback
+    client.MSETNX(["mset3", "val3", "mset4", "val4"]);
+    // All as array, callback
+    client.zadd(["some zset", 123456, "with callback", require_number(1, name)]);
+    // Variadic
+    client.hset("some hash", 'testfield', 'testvalue', last(name, require_number(1, name)));
+}
 
 tests.ENABLE_OFFLINE_QUEUE_TRUE = function () {
     var name = "ENABLE_OFFLINE_QUEUE_TRUE";

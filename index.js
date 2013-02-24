@@ -660,6 +660,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
     }
 
+    // If command is called with all arguments (including key and callback) given as a single array, make it args
+    if (args.length === 1 && Array.isArray(args[0])){
+      args = args[0];
+    }
+
     if (Array.isArray(args)) {
         if (typeof callback === "function") {
             // probably the fastest way:
@@ -684,11 +689,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array and command is sadd, expand it out:
+    // if the last argument is an array, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
     //     client.sadd(arg1, arg2, arg3, arg4, cb);
-    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
+    if (args.length > 1 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
@@ -924,76 +929,113 @@ RedisClient.prototype.auth = function () {
 };
 RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
-RedisClient.prototype.hmget = function (arg1, arg2, arg3) {
-    if (Array.isArray(arg2) && typeof arg3 === "function") {
-        return this.send_command("hmget", [arg1].concat(arg2), arg3);
-    } else if (Array.isArray(arg1) && typeof arg2 === "function") {
-        return this.send_command("hmget", arg1, arg2);
-    } else {
-        return this.send_command("hmget", to_array(arguments));
-    }
+// Handlers for hash operations. Enables richer argument signatures
+RedisClient.prototype.hmget = function () {
+    this.send_command.apply(this, this.hcommand('hmget', arguments));
 };
+
+RedisClient.prototype.hmset = function () {
+    var args = this.hcommand('hmset', arguments);
+    // In case hcommand throws, we need to return false here to curtail command execution
+    if(!args){
+      return false;
+    }
+    return this.send_command.apply(this, args);
+};
+
+RedisClient.prototype.hdel = function () {
+    this.send_command.apply(this, this.hcommand('hdel', arguments));
+    return this;
+};
+
+// Uppercase aliases to hash functions
 RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
-
-RedisClient.prototype.hmset = function (args, callback) {
-    var tmp_args, tmp_keys, i, il, key;
-
-    if (Array.isArray(args) && typeof callback === "function") {
-        return this.send_command("hmset", args, callback);
-    }
-
-    args = to_array(arguments);
-    if (typeof args[args.length - 1] === "function") {
-        callback = args[args.length - 1];
-        args.length -= 1;
-    } else {
-        callback = null;
-    }
-
-    if (args.length === 2 && typeof args[0] === "string" && typeof args[1] === "object") {
-        // User does: client.hmset(key, {key1: val1, key2: val2})
-        tmp_args = [ args[0] ];
-        tmp_keys = Object.keys(args[1]);
-        for (i = 0, il = tmp_keys.length; i < il ; i++) {
-            key = tmp_keys[i];
-            tmp_args.push(key);
-            if (typeof args[1][key] !== "string") {
-                var err = new Error("hmset expected value to be a string", key, ":", args[1][key]);
-                if (callback) {
-                    return callback(err);
-                } else {
-                    throw err;
-                }
-            }
-            tmp_args.push(args[1][key]);
-        }
-        args = tmp_args;
-    }
-
-    return this.send_command("hmset", args, callback);
-};
 RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
+RedisClient.prototype.HDEL = RedisClient.prototype.hdel;
 
+// Multi equivalents
 Multi.prototype.hmset = function () {
-    var args = to_array(arguments), tmp_args;
-    if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "object") {
-        tmp_args = [ "hmset", args[0] ];
-        Object.keys(args[1]).map(function (key) {
-            tmp_args.push(key);
-            tmp_args.push(args[1][key]);
-        });
-        if (args[2]) {
-            tmp_args.push(args[2]);
-        }
-        args = tmp_args;
-    } else {
-        args.unshift("hmset");
+    var args = this.hcommand('hmset', arguments);
+    if(!args){
+      return this;
     }
-
     this.queue.push(args);
     return this;
 };
+
+Multi.prototype.hmget = function () {
+    this.queue.push(this.hcommand('hmget', arguments));
+    return this;
+};
+
+Multi.prototype.hdel = function () {
+    this.queue.push(this.hcommand('hdel', arguments));
+    return this;
+};
+
+// Multi aliases
+Multi.prototype.HMGET = Multi.prototype.hmget;
 Multi.prototype.HMSET = Multi.prototype.hmset;
+Multi.prototype.HDEL = Multi.prototype.hdel;
+
+RedisClient.prototype.hcommand = function(command, args){
+  var callback;
+  var r = [command]; // Command name
+
+  args = to_array(args);
+  if("function" == typeof args[args.length -1]){
+    callback = args.pop();
+  }
+
+  // e.g. hmset([key, prop1, value1, prop2, value2], function);
+  if(Array.isArray(args[0])){
+    r = r.concat([args[0]]);
+  }
+  // e.g. hmget(hash, ['key1', 'key2'])
+  else if(Array.isArray(args[1])){
+    r = r.concat([[args[0]].concat(args[1])]);
+  }
+  else if(args.length === 2 && typeof args[0] === "string" && typeof args[1] === "object"){
+     var key = args[0];
+     var args = this.hmsetObj(args[1], callback);
+     if(!args){
+       return false;
+     }
+     r = r.concat([[key].concat(args)]);
+  }
+  else{
+    r = r.concat([args]);
+  }
+
+  if(callback){
+    r.push(callback);
+  }
+
+  return r;
+}
+
+RedisClient.prototype.hmsetObj = function(obj, callback){
+  var args = [], keys = Object.keys(obj), key;
+
+  for (var i = 0, il = keys.length; i < il; i++) {
+      key = keys[i];
+      args.push(key);
+      if (typeof obj[key] === "object") {
+          var err = new Error("hmset expects value to be a string or number", key, ":", obj[key]);
+          if (callback) {
+              callback(err);
+              return false;
+          } else {
+              throw err;
+          }
+      }
+      args.push(obj[key]);
+  }
+  return args;
+}
+
+Multi.prototype.hcommand = RedisClient.prototype.hcommand;
+Multi.prototype.hmsetObj = RedisClient.prototype.hmsetObj;
 
 Multi.prototype.exec = function (callback) {
     var self = this;
@@ -1002,21 +1044,24 @@ Multi.prototype.exec = function (callback) {
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
         var command = args[0], obj;
+
+        // We could be given an hmget command directly on the queue with an array of keys to select
+        // where args ~ [ 'hash', [ 'key1', 'key2' ] ]
+        if(~['hmget', 'hdel'].indexOf(command.toLowerCase()) && Array.isArray(args[2])){
+          // Call hcommand helper to transform args to ~ [ 'hmget', [ 'hash', 'key1', 'key2' ] ]
+          args = self.hcommand(command, args.slice(1));
+        }
+
         if (typeof args[args.length - 1] === "function") {
-            args = args.slice(1, -1);
+            args = args.slice(1, -1); // Remove callback, we call it later if given
         } else {
-            args = args.slice(1);
+            args = args.slice(1); // Remove leading command
         }
         if (args.length === 1 && Array.isArray(args[0])) {
-            args = args[0];
+            args = args[0]; // If single remaining arg is array, make it our args sequence
         }
-        if (command.toLowerCase() === 'hmset' && typeof args[1] === 'object') {
-            obj = args.pop();
-            Object.keys(obj).forEach(function (key) {
-                args.push(key);
-                args.push(obj[key]);
-            });
-        }
+        // Otherwise args will already be single array sequence
+
         this.client.send_command(command, args, function (err, reply) {
             if (err) {
                 var cur = self.queue[index];

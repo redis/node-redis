@@ -282,7 +282,7 @@ Output:
 Multiple values in a hash can be set by supplying an object:
 
     client.HMSET(key2, {
-        "0123456789": "abcdefghij", // NOTE: the key and value must both be strings
+        "0123456789": "abcdefghij", // NOTE: the value must be number or string
         "some manner of key": "a type of value"
     });
 
