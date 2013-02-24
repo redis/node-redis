@@ -127,6 +127,11 @@ tests.FLUSHDB = function () {
 tests.INCR = function () {
     var name = "INCR";
 
+    if (bclient.reply_parser.name == "hiredis") {
+        console.log("Skipping INCR buffer test with hiredis");
+        return next(name);
+    }
+
     // Test incr with the maximum JavaScript number value. Since we are
     // returning buffers we should get back one more as a Buffer.
     bclient.set("seq", "9007199254740992", function (err, result) {
