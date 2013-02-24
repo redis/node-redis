@@ -291,6 +291,34 @@ tests.MULTI_6 = function () {
         });
 };
 
+tests.FWD_ERRORS_1 = function () {
+    var name = "FWD_ERRORS_1";
+
+    var toThrow = new Error("Forced exception");
+    var recordedError = null;
+
+    var originalHandler = client3.listeners("error").pop();
+    client3.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client3.on("message", function (channel, data) {
+        console.log("incoming");
+        if (channel == name) {
+            assert.equal(data, "Some message");
+            throw toThrow;
+        }
+    });
+    client3.subscribe(name);
+
+    client.publish(name, "Some message");
+    setTimeout(function () {
+        client3.listeners("error").push(originalHandler);
+        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
+        next(name);
+    }, 150);
+};
+
 tests.EVAL_1 = function () {
     var name = "EVAL_1";
 
