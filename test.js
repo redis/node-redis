@@ -1588,17 +1588,18 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
 
 tests.SLOWLOG = function () {
     var name = "SLOWLOG";
-    client.slowlog('reset',require_string("OK", name));
-    client.config('set', 'slowlog-log-slower-than', 0,require_string("OK", name));
-    client.set('foo','bar',require_string("OK", name));
-	client.get('foo',require_string("bar", name));
-	client.slowlog('get',function(err,res){
-		assert.equal(res.length, 4, name);
-		assert.equal(res[0][3].length, 2, name);
-		assert.deepEqual(res[1][3], ['set', 'foo', 'bar'], name);
-		assert.deepEqual(res[3][3], ['slowlog', 'reset'], name);
-		next(name);
-	});
+    client.config("set", "slowlog-log-slower-than", 0, require_string("OK", name));
+    client.slowlog("reset", require_string("OK", name));
+    client.set("foo", "bar", require_string("OK", name));
+    client.get("foo", require_string("bar", name));
+    client.slowlog("get", function (err, res) {
+        assert.equal(res.length, 3, name);
+        assert.equal(res[0][3].length, 2, name);
+        assert.deepEqual(res[1][3], ["set", "foo", "bar"], name);
+        assert.deepEqual(res[2][3], ["slowlog", "reset"], name);
+        client.config("set", "slowlog-log-slower-than", 10000, require_string("OK", name));
+        next(name);
+    });
 }
 
 // TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
