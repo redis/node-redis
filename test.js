@@ -16,6 +16,7 @@ var redis = require("./index"),
     ended = false,
     next, cur_start, run_next_test, all_tests, all_start, test_count;
 
+
 // Set this to truthy to see the wire protocol and other debugging info
 redis.debug_mode = process.argv[2];
 
@@ -91,6 +92,18 @@ function last(name, fn) {
     return function (err, results) {
         fn(err, results);
         next(name);
+    };
+}
+
+// Wraps the given callback in a timeout. If the returned function
+// is not called within the timeout period, we fail the named test.
+function with_timeout(name, cb, millis) {
+    var timeoutId = setTimeout(function() {
+        assert.fail("Callback timed out!", name);
+    }, millis);
+    return function() {
+        clearTimeout(timeoutId);
+        cb.apply(this, arguments);
     };
 }
 
@@ -720,8 +733,31 @@ tests.SUB_UNSUB_SUB = function () {
     client3.on('message', function (channel, message) {
         assert.strictEqual(channel, 'chan3');
         assert.strictEqual(message, 'foo');
+        client3.removeAllListeners();
         next(name);
     });
+};
+
+tests.SUB_UNSUB_MSG_SUB = function () {
+    var name = "SUB_UNSUB_MSG_SUB";
+    client3.subscribe('chan8');
+    client3.subscribe('chan9');
+    client3.unsubscribe('chan9');
+    client2.publish('chan8', 'something');
+    client3.subscribe('chan9', with_timeout(name, function (err, results) {
+        next(name);
+    }, 2000));
+};
+
+tests.PSUB_UNSUB_PMSG_SUB = function () {
+    var name = "PSUB_UNSUB_PMSG_SUB";
+    client3.psubscribe('abc*');
+    client3.subscribe('xyz');
+    client3.unsubscribe('xyz');
+    client2.publish('abcd', 'something');
+    client3.subscribe('xyz', with_timeout(name, function (err, results) {
+        next(name);
+    }, 2000));
 };
 
 tests.SUBSCRIBE_QUIT = function () {
@@ -764,7 +800,7 @@ tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
             c2.quit();
             assert.fail("test failed");
         }
-    })
+    });
 
     c1.subscribe("chan1", "chan2");
 
