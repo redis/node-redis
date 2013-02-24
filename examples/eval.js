@@ -7,3 +7,9 @@ client.eval("return 100.5", 0, function (err, res) {
     console.dir(err);
     console.dir(res);
 });
+
+/* dmoena: this supported format was not working */
+client.eval([ "return 100.5", 0 ], function (err, res) {
+    console.dir(err);
+    console.dir(res);
+});
