@@ -289,165 +289,164 @@ tests.MULTI_6 = function () {
 tests.EVAL_1 = function () {
     var name = "EVAL_1";
 
-    if (server_version_at_least(client, [2, 5, 0])) {
-        // test {EVAL - Lua integer -> Redis protocol type conversion}
-        client.eval("return 100.5", 0, require_number(100, name));
-        // test {EVAL - Lua string -> Redis protocol type conversion}
-        client.eval("return 'hello world'", 0, require_string("hello world", name));
-        // test {EVAL - Lua true boolean -> Redis protocol type conversion}
-        client.eval("return true", 0, require_number(1, name));
-        // test {EVAL - Lua false boolean -> Redis protocol type conversion}
-        client.eval("return false", 0, require_null(name));
-        // test {EVAL - Lua status code reply -> Redis protocol type conversion}
-        client.eval("return {ok='fine'}", 0, require_string("fine", name));
-        // test {EVAL - Lua error reply -> Redis protocol type conversion}
-        client.eval("return {err='this is an error'}", 0, require_error(name));
-        // test {EVAL - Lua table -> Redis protocol type conversion}
-        client.eval("return {1,2,3,'ciao',{1,2}}", 0, function (err, res) {
-            assert.strictEqual(5, res.length, name);
-            assert.strictEqual(1, res[0], name);
-            assert.strictEqual(2, res[1], name);
-            assert.strictEqual(3, res[2], name);
-            assert.strictEqual("ciao", res[3], name);
-            assert.strictEqual(2, res[4].length, name);
-            assert.strictEqual(1, res[4][0], name);
-            assert.strictEqual(2, res[4][1], name);
-        });
-        // test {EVAL - Are the KEYS and ARGS arrays populated correctly?}
-        client.eval("return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}", 2, "a", "b", "c", "d", function (err, res) {
-            assert.strictEqual(4, res.length, name);
-            assert.strictEqual("a", res[0], name);
-            assert.strictEqual("b", res[1], name);
-            assert.strictEqual("c", res[2], name);
-            assert.strictEqual("d", res[3], name);
-        });
+    if (!server_version_at_least(client, [2, 5, 0])) {
+        console.log("Skipping " + name + " for old Redis server version < 2.5.x");
+        return next(name);
+    }
 
-        // test {EVAL - parameters in array format gives same result}
-        client.eval(["return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}", 2, "a", "b", "c", "d"], function (err, res) {
-            assert.strictEqual(4, res.length, name);
-            assert.strictEqual("a", res[0], name);
-            assert.strictEqual("b", res[1], name);
-            assert.strictEqual("c", res[2], name);
-            assert.strictEqual("d", res[3], name);
+    // test {EVAL - Lua integer -> Redis protocol type conversion}
+    client.eval("return 100.5", 0, require_number(100, name));
+    // test {EVAL - Lua string -> Redis protocol type conversion}
+    client.eval("return 'hello world'", 0, require_string("hello world", name));
+    // test {EVAL - Lua true boolean -> Redis protocol type conversion}
+    client.eval("return true", 0, require_number(1, name));
+    // test {EVAL - Lua false boolean -> Redis protocol type conversion}
+    client.eval("return false", 0, require_null(name));
+    // test {EVAL - Lua status code reply -> Redis protocol type conversion}
+    client.eval("return {ok='fine'}", 0, require_string("fine", name));
+    // test {EVAL - Lua error reply -> Redis protocol type conversion}
+    client.eval("return {err='this is an error'}", 0, require_error(name));
+    // test {EVAL - Lua table -> Redis protocol type conversion}
+    client.eval("return {1,2,3,'ciao',{1,2}}", 0, function (err, res) {
+        assert.strictEqual(5, res.length, name);
+        assert.strictEqual(1, res[0], name);
+        assert.strictEqual(2, res[1], name);
+        assert.strictEqual(3, res[2], name);
+        assert.strictEqual("ciao", res[3], name);
+        assert.strictEqual(2, res[4].length, name);
+        assert.strictEqual(1, res[4][0], name);
+        assert.strictEqual(2, res[4][1], name);
+    });
+    // test {EVAL - Are the KEYS and ARGS arrays populated correctly?}
+    client.eval("return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}", 2, "a", "b", "c", "d", function (err, res) {
+        assert.strictEqual(4, res.length, name);
+        assert.strictEqual("a", res[0], name);
+        assert.strictEqual("b", res[1], name);
+        assert.strictEqual("c", res[2], name);
+        assert.strictEqual("d", res[3], name);
+    });
+
+    // test {EVAL - parameters in array format gives same result}
+    client.eval(["return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}", 2, "a", "b", "c", "d"], function (err, res) {
+        assert.strictEqual(4, res.length, name);
+        assert.strictEqual("a", res[0], name);
+        assert.strictEqual("b", res[1], name);
+        assert.strictEqual("c", res[2], name);
+        assert.strictEqual("d", res[3], name);
+    });
+
+    // prepare sha sum for evalsha cache test
+    var source = "return redis.call('get', 'sha test')",
+        sha = crypto.createHash('sha1').update(source).digest('hex');
+
+    client.set("sha test", "eval get sha test", function (err, res) {
+        if (err) throw err;
+        // test {EVAL - is Lua able to call Redis API?}
+        client.eval(source, 0, function (err, res) {
+            require_string("eval get sha test", name)(err, res);
+            // test {EVALSHA - Can we call a SHA1 if already defined?}
+            client.evalsha(sha, 0, require_string("eval get sha test", name));
+            // test {EVALSHA - Do we get an error on non defined SHA1?}
+            client.evalsha("ffffffffffffffffffffffffffffffffffffffff", 0, require_error(name));
         });
+    });
 
-        // prepare sha sum for evalsha cache test
-        var source = "return redis.call('get', 'sha test')",
-            sha = crypto.createHash('sha1').update(source).digest('hex');
-
-        client.set("sha test", "eval get sha test", function (err, res) {
+    // test {EVAL - Redis integer -> Lua type conversion}
+    client.set("incr key", 0, function (err, reply) {
+        if (err) throw err;
+        client.eval("local foo = redis.call('incr','incr key')\n" + "return {type(foo),foo}", 0, function (err, res) {
             if (err) throw err;
-            // test {EVAL - is Lua able to call Redis API?}
-            client.eval(source, 0, function (err, res) {
-                require_string("eval get sha test", name)(err, res);
-                // test {EVALSHA - Can we call a SHA1 if already defined?}
-                client.evalsha(sha, 0, require_string("eval get sha test", name));
-                // test {EVALSHA - Do we get an error on non defined SHA1?}
-                client.evalsha("ffffffffffffffffffffffffffffffffffffffff", 0, require_error(name));
-            });
+            assert.strictEqual(2, res.length, name);
+            assert.strictEqual("number", res[0], name);
+            assert.strictEqual(1, res[1], name);
         });
+    });
 
-        // test {EVAL - Redis integer -> Lua type conversion}
-        client.set("incr key", 0, function (err, reply) {
+    client.set("bulk reply key", "bulk reply value", function (err, res) {
+        // test {EVAL - Redis bulk -> Lua type conversion}
+        client.eval("local foo = redis.call('get','bulk reply key'); return {type(foo),foo}", 0, function (err, res) {
             if (err) throw err;
-            client.eval("local foo = redis.call('incr','incr key')\n" + "return {type(foo),foo}", 0, function (err, res) {
-                if (err) throw err;
-                assert.strictEqual(2, res.length, name);
-                assert.strictEqual("number", res[0], name);
-                assert.strictEqual(1, res[1], name);
+            assert.strictEqual(2, res.length, name);
+            assert.strictEqual("string", res[0], name);
+            assert.strictEqual("bulk reply value", res[1], name);
+        });
+    });
+
+    // test {EVAL - Redis multi bulk -> Lua type conversion}
+    client.multi()
+        .del("mylist")
+        .rpush("mylist", "a")
+        .rpush("mylist", "b")
+        .rpush("mylist", "c")
+        .exec(function (err, replies) {
+            if (err) throw err;
+            client.eval("local foo = redis.call('lrange','mylist',0,-1); return {type(foo),foo[1],foo[2],foo[3],# foo}", 0, function (err, res) {
+                assert.strictEqual(5, res.length, name);
+                assert.strictEqual("table", res[0], name);
+                assert.strictEqual("a", res[1], name);
+                assert.strictEqual("b", res[2], name);
+                assert.strictEqual("c", res[3], name);
+                assert.strictEqual(3, res[4], name);
             });
         });
-
-        client.set("bulk reply key", "bulk reply value", function (err, res) {
-            // test {EVAL - Redis bulk -> Lua type conversion}
-            client.eval("local foo = redis.call('get','bulk reply key'); return {type(foo),foo}", 0, function (err, res) {
-                if (err) throw err;
-                assert.strictEqual(2, res.length, name);
-                assert.strictEqual("string", res[0], name);
-                assert.strictEqual("bulk reply value", res[1], name);
-            });
-        });
-
-        // test {EVAL - Redis multi bulk -> Lua type conversion}
-        client.multi()
-            .del("mylist")
-            .rpush("mylist", "a")
-            .rpush("mylist", "b")
-            .rpush("mylist", "c")
-            .exec(function (err, replies) {
-                if (err) throw err;
-                client.eval("local foo = redis.call('lrange','mylist',0,-1); return {type(foo),foo[1],foo[2],foo[3],# foo}", 0, function (err, res) {
-                    assert.strictEqual(5, res.length, name);
-                    assert.strictEqual("table", res[0], name);
-                    assert.strictEqual("a", res[1], name);
-                    assert.strictEqual("b", res[2], name);
-                    assert.strictEqual("c", res[3], name);
-                    assert.strictEqual(3, res[4], name);
-                });
-            });
-        // test {EVAL - Redis status reply -> Lua type conversion}
-        client.eval("local foo = redis.call('set','mykey','myval'); return {type(foo),foo['ok']}", 0, function (err, res) {
+    // test {EVAL - Redis status reply -> Lua type conversion}
+    client.eval("local foo = redis.call('set','mykey','myval'); return {type(foo),foo['ok']}", 0, function (err, res) {
+        if (err) throw err;
+        assert.strictEqual(2, res.length, name);
+        assert.strictEqual("table", res[0], name);
+        assert.strictEqual("OK", res[1], name);
+    });
+    // test {EVAL - Redis error reply -> Lua type conversion}
+    client.set("error reply key", "error reply value", function (err, res) {
+        if (err) throw err;
+        client.eval("local foo = redis.pcall('incr','error reply key'); return {type(foo),foo['err']}", 0, function (err, res) {
             if (err) throw err;
             assert.strictEqual(2, res.length, name);
             assert.strictEqual("table", res[0], name);
-            assert.strictEqual("OK", res[1], name);
+            assert.strictEqual("ERR value is not an integer or out of range", res[1], name);
         });
-        // test {EVAL - Redis error reply -> Lua type conversion}
-        client.set("error reply key", "error reply value", function (err, res) {
+    });
+    // test {EVAL - Redis nil bulk reply -> Lua type conversion}
+    client.del("nil reply key", function (err, res) {
+        if (err) throw err;
+        client.eval("local foo = redis.call('get','nil reply key'); return {type(foo),foo == false}", 0, function (err, res) {
             if (err) throw err;
-            client.eval("local foo = redis.pcall('incr','error reply key'); return {type(foo),foo['err']}", 0, function (err, res) {
-                if (err) throw err;
-                assert.strictEqual(2, res.length, name);
-                assert.strictEqual("table", res[0], name);
-                assert.strictEqual("ERR value is not an integer or out of range", res[1], name);
-            });
+            assert.strictEqual(2, res.length, name);
+            assert.strictEqual("boolean", res[0], name);
+            assert.strictEqual(1, res[1], name);
+            next(name);
         });
-        // test {EVAL - Redis nil bulk reply -> Lua type conversion}
-        client.del("nil reply key", function (err, res) {
-            if (err) throw err;
-            client.eval("local foo = redis.call('get','nil reply key'); return {type(foo),foo == false}", 0, function (err, res) {
-                if (err) throw err;
-                assert.strictEqual(2, res.length, name);
-                assert.strictEqual("boolean", res[0], name);
-                assert.strictEqual(1, res[1], name);
-                next(name);
-            });
-        });
-    } else {
-        console.log("Skipping " + name + " because server version isn't new enough.");
-        next(name);
-    }
+    });
 };
 
 tests.SCRIPT_LOAD = function() {
-    if (server_version_at_least(bclient, [2, 5, 0])) {
-        var name = "SCRIPT_LOAD",
-            command = "return 1",
-            commandSha = crypto.createHash('sha1').update(command).digest('hex');
+    var name = "SCRIPT_LOAD",
+        command = "return 1",
+        commandSha = crypto.createHash('sha1').update(command).digest('hex');
 
-        bclient.script("load", command, function(err, result) {
-            assert.strictEqual(result.toString(), commandSha);
-            next(name);
-        });
-    } else {
-        console.log("Skipping " + name + " because server version isn't new enough.");
-        next(name);
+    if (!server_version_at_least(client, [2, 6, 0])) {
+        console.log("Skipping " + name + " for old Redis server version < 2.6.x");
+        return next(name);
     }
+
+    bclient.script("load", command, function(err, result) {
+        assert.strictEqual(result.toString(), commandSha);
+        next(name);
+    });
 };
 
 tests.WATCH_MULTI = function () {
     var name = 'WATCH_MULTI', multi;
-
-    if (server_version_at_least(client, [2, 1, 0])) {
-        client.watch(name);
-        client.incr(name);
-        multi = client.multi();
-        multi.incr(name);
-        multi.exec(last(name, require_null(name)));
-    } else {
-        console.log("Skipping " + name + " because server version isn't new enough.");
-        next(name);
+    if (!server_version_at_least(client, [2, 2, 0])) {
+        console.log("Skipping " + name + " for old Redis server version < 2.2.x");
+        return next(name);
     }
+
+    client.watch(name);
+    client.incr(name);
+    multi = client.multi();
+    multi.incr(name);
+    multi.exec(last(name, require_null(name)));
 };
 
 tests.detect_buffers = function () {
@@ -1517,7 +1516,7 @@ tests.MONITOR = function () {
     var name = "MONITOR", responses = [], monitor_client;
 
     if (!server_version_at_least(client, [2, 6, 0])) {
-        console.log("Skipping monitor for old Redis server version <= 2.6.x");
+        console.log("Skipping " + name + " for old Redis server version < 2.6.x");
         return next(name);
     }
 
