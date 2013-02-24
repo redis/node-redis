@@ -1616,24 +1616,6 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     client.get("op_cb2", last(name, require_string("y", name)));
 };
 
-tests.HMSET_THROWS_ON_NON_STRINGS = function () {
-    var name = "HMSET_THROWS_ON_NON_STRINGS";
-    var hash = name;
-    var data = { "a": [ "this is not a string" ] };
-
-    client.hmset(hash, data, cb);
-    function cb(e, r) {
-        assert(e); // should be an error!
-    }
-
-    // alternative way it throws
-    function thrower() {
-        client.hmset(hash, data);
-    }
-    assert.throws(thrower);
-    next(name);
-};
-
 tests.ENABLE_OFFLINE_QUEUE_TRUE = function () {
     var name = "ENABLE_OFFLINE_QUEUE_TRUE";
     var cli = redis.createClient(9999, null, {
