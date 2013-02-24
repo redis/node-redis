@@ -291,6 +291,35 @@ tests.MULTI_6 = function () {
         });
 };
 
+tests.MULTI_7 = function () {
+    var name = "MULTI_7";
+
+    if (bclient.reply_parser.name != "javascript") {
+        console.log("Skipping wire-protocol test for 3rd-party parser");
+        return next(name);
+    }
+
+    var p = require("./lib/parser/javascript");
+    var parser = new p.Parser(false);
+    var reply_count = 0;
+    function check_reply(reply) {
+        assert.deepEqual(reply, [['a']], "Expecting multi-bulk reply of [['a']]");
+        reply_count++;
+        assert.notEqual(reply_count, 4, "Should only parse 3 replies");
+    }
+    parser.on("reply", check_reply);
+
+    parser.execute(new Buffer('*1\r\n*1\r\n$1\r\na\r\n'));
+
+    parser.execute(new Buffer('*1\r\n*1\r'));
+    parser.execute(new Buffer('\n$1\r\na\r\n'));
+
+    parser.execute(new Buffer('*1\r\n*1\r\n'));
+    parser.execute(new Buffer('$1\r\na\r\n'));
+
+    next(name);
+};
+
 tests.FWD_ERRORS_1 = function () {
     var name = "FWD_ERRORS_1";
 
