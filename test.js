@@ -1701,6 +1701,20 @@ tests.auth = function () {
     });
 };
 
+tests.SCRIPT = function () {
+    var name = "SCRIPT";
+
+    client.script('para', 'tests/params', 3, function () {
+        client.para('hk1', 'hk2', 'hk3','abc','123', function (err, reply) {
+            if (err) {
+                assert.fail(err, name);
+            }
+
+            assert.deepEqual(reply, ['hk1', 'hk2', 'hk3', 'abc', '123'], name);
+        });
+    });
+};
+
 all_tests = Object.keys(tests);
 all_start = new Date();
 test_count = 0;

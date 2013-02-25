@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    fs = require("fs"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
@@ -1119,4 +1120,85 @@ exports.print = function (err, reply) {
     } else {
         console.log("Reply: " + reply);
     }
+};
+
+// Load lua script to Redis one and set up the client command
+RedisClient.prototype.script = function (command, scriptFile, nKeys, done) {
+    var self = this;
+
+    // If file extension not given add .lua
+    if (!scriptFile.match(/\.\w+$/)) {
+        scriptFile += '.lua';
+    }
+
+    // Read Lua script file
+    fs.readFile(scriptFile, 'utf8', function (err, script) {
+        if (err) {
+            throw err;
+        }
+
+        if (typeof self.lua[command] === 'undefined') {
+            self.lua[command] = { };
+        }
+
+        // Store the number of keys the script expects to process
+        self.lua[command].nKeys = nKeys;
+
+        // Store the script in the Redis Script Cache and get the SHA1 signature
+        // So we can call evalsha and use multi without concerns for missing scripts
+        self.send_command('SCRIPT', [ 'LOAD', script ], function(err, reply) {
+            if (err) {
+                throw err;
+            }
+
+            if (typeof reply !== 'string') {
+                throw "SCRIPT LOAD should return a SHA1 sum of the Lua script." ;
+            }
+
+            // Store the SHA1 from the script load command
+            self.lua[command].sha1 = reply;
+
+            if (exports.debug_mode) {
+                console.log(command + ' ready. (SHA1:' + reply + ')');
+            }
+
+            // Add the new command to the redis client object
+            RedisClient.prototype[command] = function () {
+                var args = to_array(arguments);
+
+                // Get the last argument to check if it is a callback function
+                var callback = args[args.length-1];
+
+                if (typeof callback === 'function') {
+                    args.pop();
+                }
+                else {
+                    // Just in case things fail and caller did not
+                    // give us a callback to hangle it
+                    callback = function (err) {
+                        if (err) {
+                            throw new Error(''+err);
+                        }
+                    };
+                }
+
+                args = [ self.lua[command].sha1,
+                         self.lua[command].nKeys].concat(args);
+
+                return self.send_command('evalsha', args, callback);
+            };
+
+            RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
+
+            Multi.prototype[command] = function () {
+                self.queue.push(['evalsha', self.lua[command].sha1, self.lua[command].nKeys].concat(to_array(arguments)));
+                return self;
+            };
+            Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
+
+            if (typeof done === 'function') {
+                done();
+            }
+        });
+    });
 };
