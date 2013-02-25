@@ -67,7 +67,7 @@ function RedisClient(stream, options) {
     this.auth_pass = null;
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
-
+    this.lua = { };  // holds the number of keys parameters and script SHA1 sums
     this.old_state = null;
 
     var self = this;
