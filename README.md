@@ -614,6 +614,12 @@ client.zadd(args, function (err, response) {
 });
 ```
 
+## Lua Scripting
+
+`eval`, `evalsha` and `script` commands are supported on the `node-redis` and you can use them for the [lua scripting](http://redis.io/commands/eval).
+
+If you are looking for fine-grade lua scripting support, look for [redis-scripto](https://github.com/arunoda/node-redis-scripto)
+
 ## TODO
 
 Better tests for auth, disconnect/reconnect, and all combinations thereof.
@@ -653,7 +659,7 @@ Ordered by date of first contribution.
 - [Louis-Philippe Perron aka `lp`](https://github.com/lp)
 - [Mark Dawson aka `markdaws`](https://github.com/markdaws)
 - [Ian Babrou aka `bobrik`](https://github.com/bobrik)
-- [Felix Geisendörfer aka `felixge`](https://github.com/felixge)
+- [Felix Geisendörfer aka `felixge`](https://github.com/felixge)
 - [Jean-Hugues Pinson aka `undefined`](https://github.com/undefined)
 - [Maksim Lin aka `maks`](https://github.com/maks)
 - [Owen Smith aka `orls`](https://github.com/orls)
