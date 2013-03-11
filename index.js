@@ -33,6 +33,7 @@ function RedisClient(stream, options) {
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
+    	this.destroy = false;
     this.connections = 0;
     if (this.options.socket_nodelay === undefined) {
         this.options.socket_nodelay = true;
@@ -70,6 +71,15 @@ function RedisClient(stream, options) {
     this.old_state = null;
 
     var self = this;
+		
+		if (this.options.connect_timeout){
+			this.stream.setTimeout (this.options.connect_timeout, function (){
+				if (!self.connected){
+					self.destroy = true;
+					self.on_error ("connect ETIMEDOUT");
+				}
+			});
+		}
 
     this.stream.on("connect", function () {
         self.on_connect();
@@ -131,6 +141,10 @@ RedisClient.prototype.flush_and_error = function (message) {
 
 RedisClient.prototype.on_error = function (msg) {
     var message = "Redis connection to " + this.host + ":" + this.port + " failed - " + msg;
+		
+		if (this.destroy){
+			this.stream.destroy ();
+		}
 
     if (this.closing) {
         return;
@@ -435,11 +449,11 @@ RedisClient.prototype.connection_gone = function (why) {
         console.log("Retry connection in " + this.retry_delay + " ms");
     }
 
-    if (this.max_attempts && this.attempts >= this.max_attempts) {
+    if (this.destroy || this.max_attempts && this.attempts >= this.max_attempts) {
         this.retry_timer = null;
         // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
         // want the program to exit.  Right now, we just log, which doesn't really help in either case.
-        console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
+        //console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
         return;
     }
 
@@ -562,18 +576,8 @@ function reply_to_strings(reply) {
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, len, type, timestamp, argindex, args, queue_len;
 
-    // If the "reply" here is actually a message received asynchronously due to a
-    // pubsub subscription, don't pop the command queue as we'll only be consuming
-    // the head command prematurely.
-    if (Array.isArray(reply) && reply.length > 0 && reply[0]) {
-        type = reply[0].toString();
-    }
-
-    if (type !== 'message' && type !== 'pmessage') {
-        command_obj = this.command_queue.shift();
-    }
-
-    queue_len = this.command_queue.getLength();
+    command_obj = this.command_queue.shift(),
+    queue_len   = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.emit("idle");
@@ -836,7 +840,6 @@ RedisClient.prototype.end = function () {
     this.stream._events = {};
     this.connected = false;
     this.ready = false;
-    this.closing = true;
     return this.stream.end();
 };
 
@@ -875,9 +878,7 @@ commands = set_union(["get", "set", "setnx", "setex", "append", "strlen", "del",
     "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch", "cluster",
     "restore", "migrate", "dump", "object", "client", "eval", "evalsha"], require("./lib/commands"));
 
-commands.forEach(function (fullCommand) {
-    var command = fullCommand.split(' ')[0];
-
+commands.forEach(function (command) {
     RedisClient.prototype[command] = function (args, callback) {
         if (Array.isArray(args) && typeof callback === "function") {
             return this.send_command(command, args, callback);
@@ -957,6 +958,14 @@ RedisClient.prototype.hmset = function (args, callback) {
         for (i = 0, il = tmp_keys.length; i < il ; i++) {
             key = tmp_keys[i];
             tmp_args.push(key);
+            if (typeof args[1][key] !== "string") {
+                var err = new Error("hmset expected value to be a string", key, ":", args[1][key]);
+                if (callback) {
+                    return callback(err);
+                } else {
+                    throw err;
+                }
+            }
             tmp_args.push(args[1][key]);
         }
         args = tmp_args;
@@ -1076,10 +1085,6 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 
     if (typeof args[args.length - 1] === "function") {
         callback = args.pop();
-    }
-
-    if (Array.isArray(args[0])) {
-        args = args[0];
     }
 
     // replace script source with sha value
