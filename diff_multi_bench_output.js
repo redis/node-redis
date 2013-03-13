@@ -50,20 +50,22 @@ before_lines.forEach(function(b, i) {
     if (ops.length != 2) return
 
     var delta = ops[1] - ops[0];
+    var pct = ((delta / ops[0]) * 100).toPrecision(3);
 
     total_ops.update(delta);
 
     delta = humanize_diff(delta);
+    pct = humanize_diff(pct, '%');
     console.log(
         // name of test
         command_name(a_words) == command_name(b_words)
             ? command_name(a_words) + ':'
             : '404:',
         // results of test
-        ops.join(' -> '), 'ops/sec (∆', delta, ')');
+        ops.join(' -> '), 'ops/sec (∆', delta, pct, ')');
 });
 
-console.log('Mean difference in ops/sec:', humanize_diff(total_ops.mean()));
+console.log('Mean difference in ops/sec:', humanize_diff(total_ops.mean().toPrecision(6)));
 
 function is_whitespace(s) {
     return !!s.trim();
@@ -74,11 +76,12 @@ function parseInt10(s) {
 }
 
 // green if greater than 0, red otherwise
-function humanize_diff(num) {
+function humanize_diff(num, unit) {
+    unit = unit || "";
     if (num > 0) {
-        return ('+' + num).green;
+        return ('+' + num + unit).green;
     }
-    return ('' + num).red;
+    return ('' + num + unit).red;
 }
 
 function command_name(words) {

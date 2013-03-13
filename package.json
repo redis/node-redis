@@ -1,17 +1,23 @@
-{   "name" : "redis",
-    "version" : "0.8.2",
-    "description" : "Redis client library",
-    "keywords" : [ "redis", "database" ],
-    "author": "Matt Ranney <mjr@ranney.com>",
-    "main": "./index.js",
-    "scripts": {
-        "test": "node ./test.js"
-    },
-    "devDependencies": {
-        "metrics": ">=0.1.5"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git://github.com/mranney/node_redis.git"
-    }
+{
+  "name": "redis",
+  "version": "0.8.2",
+  "description": "Redis client library",
+  "keywords": [
+    "redis",
+    "database"
+  ],
+  "author": "Matt Ranney <mjr@ranney.com>",
+  "main": "./index.js",
+  "scripts": {
+    "test": "node ./test.js"
+  },
+  "devDependencies": {
+    "metrics": ">=0.1.5",
+    "colors": "~0.6.0-1",
+    "underscore": "~1.4.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mranney/node_redis.git"
+  }
 }
