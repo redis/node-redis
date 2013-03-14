@@ -493,7 +493,13 @@ tests.SCRIPT_LOAD = function() {
 
     bclient.script("load", command, function(err, result) {
         assert.strictEqual(result.toString(), commandSha);
-        next(name);
+        client.multi().script("load", command).exec(function(err, result) {
+            assert.strictEqual(result[0].toString(), commandSha);
+            client.multi([['script', 'load', command]]).exec(function(err, result) {
+              assert.strictEqual(result[0].toString(), commandSha);
+              next(name);
+            });
+        });
     });
 };
 
