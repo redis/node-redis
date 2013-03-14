@@ -841,7 +841,7 @@ RedisClient.prototype.end = function () {
 };
 
 function Multi(client, args) {
-    this.client = client;
+    this._client = client;
     this.queue = [["MULTI"]];
     if (Array.isArray(args)) {
         this.queue = this.queue.concat(args);
@@ -1009,7 +1009,7 @@ Multi.prototype.exec = function (callback) {
                 args.push(obj[key]);
             });
         }
-        this.client.send_command(command, args, function (err, reply) {
+        this._client.send_command(command, args, function (err, reply) {
             if (err) {
                 var cur = self.queue[index];
                 if (typeof cur[cur.length - 1] === "function") {
@@ -1023,7 +1023,7 @@ Multi.prototype.exec = function (callback) {
     }, this);
 
     // TODO - make this callback part of Multi.prototype instead of creating it each time
-    return this.client.send_command("EXEC", [], function (err, replies) {
+    return this._client.send_command("EXEC", [], function (err, replies) {
         if (err) {
             if (callback) {
                 callback(new Error(err));

@@ -496,8 +496,39 @@ tests.SCRIPT_LOAD = function() {
         client.multi().script("load", command).exec(function(err, result) {
             assert.strictEqual(result[0].toString(), commandSha);
             client.multi([['script', 'load', command]]).exec(function(err, result) {
-              assert.strictEqual(result[0].toString(), commandSha);
-              next(name);
+                assert.strictEqual(result[0].toString(), commandSha);
+                next(name);
+            });
+        });
+    });
+};
+
+tests.CLIENT_LIST = function() {
+    var name = "CLIENT_LIST";
+
+    if (!server_version_at_least(client, [2, 4, 0])) {
+        console.log("Skipping " + name + " for old Redis server version < 2.4.x");
+        return next(name);
+    }
+
+    function checkResult(result) {
+        var lines = result.toString().split('\n').slice(0, -1);
+        assert.strictEqual(lines.length, 4);
+        assert(lines.every(function(line) {
+            return line.match(/^addr=/);
+        }));
+    }
+
+    bclient.client("list", function(err, result) {
+        console.log(result.toString());
+        checkResult(result);
+        client.multi().client("list").exec(function(err, result) {
+            console.log(result.toString());
+            checkResult(result);
+            client.multi([['client', 'list']]).exec(function(err, result) {
+                console.log(result.toString());
+                checkResult(result);
+                next(name);
             });
         });
     });
