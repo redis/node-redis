@@ -608,9 +608,9 @@ RedisClient.prototype.return_reply = function (reply) {
             type = reply[0].toString();
 
             if (type === "message") {
-                this.emit("message", reply[1].toString(), reply[2]); // channel, message
+                this.emit("message", reply[1], reply[2]); // channel, message
             } else if (type === "pmessage") {
-                this.emit("pmessage", reply[1].toString(), reply[2].toString(), reply[3]); // pattern, channel, message
+                this.emit("pmessage", reply[1].toString(), reply[2], reply[3]); // pattern, channel, message
             } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
                 if (reply[2] === 0) {
                     this.pub_sub_mode = false;
@@ -625,7 +625,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 if (command_obj && typeof command_obj.callback === "function") {
                     try_callback(command_obj.callback, reply[1].toString());
                 }
-                this.emit(type, reply[1].toString(), reply[2]); // channel, count
+                this.emit(type, reply[1], reply[2]); // channel, count
             } else {
                 throw new Error("subscriptions are active but got unknown reply type " + type);
             }
