@@ -294,6 +294,61 @@ Multiple values may also be set by supplying a list:
 
     client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
 
+## Lua scripts as client commands
+
+### client.script(command, scriptFile, numberOfKeys, callback)
+
+Load a file containing a Lua script into Redis and create a new command in the client.
+With the support for Lua server side scripting, and the fact that Lua scripts
+run atomically, as any native command would, we can easily add new behavior to Redis.
+Once loaded the scripts are cached in the server and do not need to be reloaded again,
+You can expect this to be true until a `SCRIPT FLUSH` command is issued.
+
+If a script is not found on the server you will receive a `NOSCRIPT` error message, and
+need to call `client.script()` again.
+
+Parameters:
+
+* `command` name of the command that will be registered in the client
+* `scriptFile` name of the file containing the script. If no extension is given `.lua` is used.
+* `numberOfKeys` the number of Redis keys the script uses ()
+* `callback` optional callback
+
+For more details on passing arguments to scripts and other important details about
+Lua scripting in general read the Redis EVAL command page at http://redis.io/commands/eval
+
+After the script has been loaded you can call it as any native command, by using
+
+    client.command(key1, key2, ..., [callback]);
+
+For example, imagine you need to implement a conditional increment command without
+using MULTI/EXEC/WATCH. Create a file called `cincr.lua` with the following content:
+
+    -- Conditional Increment
+    -- Increment Key if value is bigger than ARGV[1]
+    local value = tonumber(redis.call('get',KEYS[1]))
+    if value == nil then return {err="Value at key is not integer"} end
+    if value > tonumber(ARGV[1]) then
+        value = value + 1
+        redis.call('set',KEYS[1],value)
+    end
+    return value
+
+Now from your application call:
+
+    client.script('cincr', './cincr', 1, function(err, reply) {
+        if( err ) {
+            console.log( err );
+            process.exit();
+        }
+
+        client.cincr('key1', 10, function (err, reply) {
+            console.log(reply);
+            process.exit();
+        });
+    });
+
+
 
 ## Publish / Subscribe
 
