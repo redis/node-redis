@@ -542,6 +542,17 @@ function reply_to_object(reply) {
     return obj;
 }
 
+function reply_from_array(reply) {
+    var i;
+    for (i = 0; i < reply.length; i++) {
+        if (Array.isArray(reply[i])) {
+            reply_from_array(reply[i]);
+        } else if (Buffer.isBuffer(reply[i])) {
+          reply[i] = reply[i].toString();
+        }
+    }
+}
+
 function reply_to_strings(reply) {
     var i;
 
@@ -550,10 +561,7 @@ function reply_to_strings(reply) {
     }
 
     if (Array.isArray(reply)) {
-        for (i = 0; i < reply.length; i++) {
-            reply[i] = reply[i].toString();
-        }
-        return reply;
+        reply_from_array(reply);
     }
 
     return reply;
