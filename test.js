@@ -1799,25 +1799,25 @@ tests.auth = function () {
 };
 
 tests.reconnectRetryMaxDelay = function() {
-	var time = new Date().getTime(),
-		name = 'reconnectRetryMaxDelay',
-		reconnecting = false;
-	var client = redis.createClient(PORT, HOST, {
-		retry_max_delay: 1
-	});
-	client.on('ready', function() {
-		if (!reconnecting) {
-			reconnecting = true;
-			client.retry_delay = 1000;
-			client.retry_backoff = 1;
-			client.stream.end();
-		} else {
-			client.end();
-			var lasted = new Date().getTime() - time;
-			assert.ok(lasted < 1000);
-			next(name);
-		}
-	});
+    var time = new Date().getTime(),
+        name = 'reconnectRetryMaxDelay',
+        reconnecting = false;
+    var client = redis.createClient(PORT, HOST, {
+        retry_max_delay: 1
+    });
+    client.on('ready', function() {
+        if (!reconnecting) {
+            reconnecting = true;
+            client.retry_delay = 1000;
+            client.retry_backoff = 1;
+            client.stream.end();
+        } else {
+            client.end();
+            var lasted = new Date().getTime() - time;
+            assert.ok(lasted < 1000);
+            next(name);
+        }
+    });
 };
 
 all_tests = Object.keys(tests);
