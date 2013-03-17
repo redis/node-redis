@@ -205,6 +205,10 @@ with an error, or an error will be thrown if no callback is specified.
 * `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
 reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
 to maximum value, provided in miliseconds.
+* `connect_timeout` defaults to `false`. By default client will try reconnecting until connected. Setting `connect_timeout`
+limits total time for client to reconnect. Value is provided in miliseconds and is counted once the disconnect occured.
+* `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
+limits total amount of reconnects.
 
 ```js
     var redis = require("redis"),
