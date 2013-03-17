@@ -51,10 +51,13 @@ function RedisClient(stream, options) {
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
         this.connect_timeout = +options.connect_timeout;
     }
-
     this.enable_offline_queue = true;
     if (typeof this.options.enable_offline_queue === "boolean") {
         this.enable_offline_queue = this.options.enable_offline_queue;
+    }
+    this.retry_max_delay = null;
+    if (options.retry_max_delay !== undefined && !isNaN(options.retry_max_delay) && options.retry_max_delay > 0) {
+        this.retry_max_delay = options.retry_max_delay;
     }
 
     this.initialize_retry_vars();
@@ -429,7 +432,11 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
+        this.retry_delay = this.retry_max_delay;
+    } else {
+        this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+    }
 
     if (exports.debug_mode) {
         console.log("Retry connection in " + this.retry_delay + " ms");

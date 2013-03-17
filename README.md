@@ -202,6 +202,9 @@ connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
 `false` will disable this feature and the callback will be execute immediately
 with an error, or an error will be thrown if no callback is specified.
+* `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
+reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
+to maximum value, provided in miliseconds.
 
 ```js
     var redis = require("redis"),
