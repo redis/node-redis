@@ -694,6 +694,14 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
+    // if the value is undefined or null and command is set or setx, need not to send message to redis
+    if (command === 'set' || command === 'setex') {
+        if(args[args.length - 1] === undefined || args[args.length - 1] === null) {
+            var err = new Error('send_command: ' + command + ' value must not be undefined or null');
+            return callback(err);
+        }
+    }
+    
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
         if (Buffer.isBuffer(args[i])) {

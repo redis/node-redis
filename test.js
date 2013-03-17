@@ -1109,6 +1109,7 @@ tests.SET = function () {
     var name = "SET";
     client.SET(["set key", "set val"], require_string("OK", name));
     client.get(["set key"], last(name, require_string("set val", name)));
+    client.SET(["set key", undefined], require_error(name));
 };
 
 tests.GETSET = function () {
@@ -1161,6 +1162,7 @@ tests.SETEX = function () {
     client.SETEX(["setex key", "100", "setex val"], require_string("OK", name));
     client.exists(["setex key"], require_number(1, name));
     client.ttl(["setex key"], last(name, require_number_pos(name)));
+    client.SETEX(["setex key", "100", undefined], require_error(name));
 };
 
 tests.MSETNX = function () {
