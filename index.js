@@ -492,8 +492,8 @@ RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
-        this.emit("idle");
         this.command_queue = new Queue();
+        this.emit("idle");
     }
     if (this.should_buffer && queue_len <= this.command_queue_low_water) {
         this.emit("drain");
@@ -571,8 +571,8 @@ RedisClient.prototype.return_reply = function (reply) {
     queue_len   = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
-        this.emit("idle");
         this.command_queue = new Queue();  // explicitly reclaim storage from old Queue
+        this.emit("idle");
     }
     if (this.should_buffer && queue_len <= this.command_queue_low_water) {
         this.emit("drain");
