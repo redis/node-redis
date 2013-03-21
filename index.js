@@ -627,6 +627,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 } else {
                     this.pub_sub_mode = true;
                 }
+                console.log(command_obj);
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
                 if (command_obj && typeof command_obj.callback === "function") {
@@ -663,7 +664,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type, lcaseCommand;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -693,11 +694,12 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array and command is sadd, expand it out:
+    // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
     //     client.sadd(arg1, arg2, arg3, arg4, cb);
-    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
+    lcaseCommand = command.toLowerCase();
+    if ((lcaseCommand === 'sadd' || lcaseCommand === 'srem') && args.length > 0 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
