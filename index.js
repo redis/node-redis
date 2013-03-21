@@ -627,7 +627,6 @@ RedisClient.prototype.return_reply = function (reply) {
                 } else {
                     this.pub_sub_mode = true;
                 }
-                console.log(command_obj);
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
                 if (command_obj && typeof command_obj.callback === "function") {
@@ -710,7 +709,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             return callback(err);
         }
     }
-    
+
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
         if (Buffer.isBuffer(args[i])) {
