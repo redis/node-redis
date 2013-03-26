@@ -629,10 +629,12 @@ RedisClient.prototype.return_reply = function (reply) {
                 }
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
+                // reply[1] can be null
+                var reply1String = (reply[1] === null) ? null : reply[1].toString();
                 if (command_obj && typeof command_obj.callback === "function") {
-                    try_callback(command_obj.callback, reply[1].toString());
+                    try_callback(command_obj.callback, reply1String);
                 }
-                this.emit(type, reply[1].toString(), reply[2]); // channel, count
+                this.emit(type, reply1String, reply[2]); // channel, count
             } else {
                 throw new Error("subscriptions are active but got unknown reply type " + type);
             }
@@ -708,7 +710,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             return callback(err);
         }
     }
-    
+
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
         if (Buffer.isBuffer(args[i])) {
