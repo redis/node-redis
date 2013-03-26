@@ -614,7 +614,7 @@ tests.detect_buffers = function () {
             assert.strictEqual("<Buffer 76 61 6c 20 31>", reply[0].inspect(), name);
             assert.strictEqual("<Buffer 76 61 6c 20 32>", reply[1].inspect(), name);
         });
-        
+
         // array of strings with undefined values (repro #344)
         detect_client.hmget("hash key 2", "key 3", "key 4", function(err, reply) {
             assert.strictEqual(null, err, name);
@@ -862,6 +862,44 @@ tests.SUBSCRIBE = function () {
         assert.strictEqual(null, err, "result sent back unexpected error: " + err);
         assert.strictEqual("chan1", results.toString(), name);
     });
+};
+
+tests.UNSUB_EMPTY = function () {
+  // test situation where unsubscribe reply[1] is null
+  var name = "UNSUB_EMPTY";
+  client3.unsubscribe(); // unsubscribe from all so can test null
+  client3.unsubscribe(); // reply[1] will be null
+  next(name);
+};
+
+tests.PUNSUB_EMPTY = function () {
+  // test situation where punsubscribe reply[1] is null
+  var name = "PUNSUB_EMPTY";
+  client3.punsubscribe(); // punsubscribe from all so can test null
+  client3.punsubscribe(); // reply[1] will be null
+  next(name);
+};
+
+tests.UNSUB_EMPTY_CB = function () {
+  // test situation where unsubscribe reply[1] is null
+  var name = "UNSUB_EMPTY_CB";
+  client3.unsubscribe(); // unsubscribe from all so can test null
+  client3.unsubscribe(function (err, results) {
+      // reply[1] will be null
+      assert.strictEqual(null, err, "unexpected error: " + err);
+      next(name);
+  });
+};
+
+tests.PUNSUB_EMPTY_CB = function () {
+  // test situation where punsubscribe reply[1] is null
+  var name = "PUNSUB_EMPTY_CB";
+  client3.punsubscribe(); // punsubscribe from all so can test null
+  client3.punsubscribe(function (err, results) {
+      // reply[1] will be null
+      assert.strictEqual(null, err, "unexpected error: " + err);
+      next(name);
+  });
 };
 
 tests.SUB_UNSUB_SUB = function () {
