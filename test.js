@@ -1780,6 +1780,8 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
     client.del("op_cb2");
     client.set("op_cb2", "y", undefined);
     client.get("op_cb2", last(name, require_string("y", name)));
+
+    client.set("op_cb_undefined", undefined, undefined);
 };
 
 tests.ENABLE_OFFLINE_QUEUE_TRUE = function () {

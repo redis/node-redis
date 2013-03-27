@@ -710,7 +710,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     if (command === 'set' || command === 'setex') {
         if(args[args.length - 1] === undefined || args[args.length - 1] === null) {
             var err = new Error('send_command: ' + command + ' value must not be undefined or null');
-            return callback(err);
+            return callback && callback(err);
         }
     }
     
