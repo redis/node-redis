@@ -326,7 +326,8 @@ tests.FWD_ERRORS_1 = function () {
     var toThrow = new Error("Forced exception");
     var recordedError = null;
 
-    var originalHandler = client3.listeners("error").pop();
+    var originalHandlers = client3.listeners("error");
+    client3.removeAllListeners("error");
     client3.once("error", function (err) {
         recordedError = err;
     });
@@ -342,7 +343,7 @@ tests.FWD_ERRORS_1 = function () {
 
     client.publish(name, "Some message");
     setTimeout(function () {
-        client3.listeners("error").push(originalHandler);
+        client3.listeners("error").push(originalHandlers);
         assert.equal(recordedError, toThrow, "Should have caught our forced exception");
         next(name);
     }, 150);
