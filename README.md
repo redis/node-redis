@@ -333,13 +333,13 @@ channel on the other:
     client1.subscribe("a nice channel");
 ```
 
-When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into "pub/sub" mode.
+When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into a "subscriber" mode.
 At that point, only commands that modify the subscription set are valid.  When the subscription
 set is empty, the connection is put back into regular mode.
 
-If you need to send regular commands to Redis while in pub/sub mode, just open another connection.
+If you need to send regular commands to Redis while in subscriber mode, just open another connection.
 
-## Pub / Sub Events
+## Subscriber Events
 
 If a client has subscriptions active, it may emit these events:
 
@@ -368,13 +368,13 @@ original pattern as `pattern`, and the new count of subscriptions for this clien
 
 Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command.  Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`.  When
-`count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
+`count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
 ### "punsubscribe" (pattern, count)
 
 Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.  Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`.  When
-`count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
+`count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
 ## client.multi([commands])
 
