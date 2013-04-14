@@ -755,7 +755,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     } else if (command === "quit") {
         this.closing = true;
     } else if (this.pub_sub_mode === true) {
-        throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
+        throw new Error("Connection in subscriber mode, only subscriber commands may be used");
     }
     this.command_queue.push(command_obj);
     this.commands_sent += 1;
