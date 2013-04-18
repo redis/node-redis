@@ -713,7 +713,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             return callback(err);
         }
     }
-    
+
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
         if (Buffer.isBuffer(args[i])) {
@@ -1037,7 +1037,12 @@ Multi.prototype.exec = function (callback) {
                 if (typeof cur[cur.length - 1] === "function") {
                     cur[cur.length - 1](err);
                 } else {
-                    throw new Error(err);
+                  if (callback) {
+                      callback(new Error(err));
+                      return;
+                  } else {
+                      throw new Error(err);
+                  }
                 }
                 self.queue.splice(index, 1);
             }
