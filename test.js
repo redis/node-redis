@@ -1292,6 +1292,27 @@ tests.SREM = function () {
     client.scard('set0', last(name, require_number(0, name)));
 };
 
+
+tests.SREM2 = function () {
+    var name = "SREM2";
+    client.del("set0");
+    client.sadd("set0", ["member0", "member1", "member2"], require_number(3, name));
+    client.SREM("set0", ["member1", "member2"], require_number(2, name));
+    client.smembers("set0", function (err, res) {
+        assert.strictEqual(res.length, 1);
+        assert.ok(~res.indexOf("member0"));
+    });
+    client.sadd("set0", ["member3", "member4", "member5"], require_number(3, name));
+    client.srem("set0", ["member0", "member6"], require_number(1, name));
+    client.smembers("set0", function (err, res) {
+        assert.strictEqual(res.length, 3);
+        assert.ok(~res.indexOf("member3"));
+        assert.ok(~res.indexOf("member4"));
+        assert.ok(~res.indexOf("member5"));
+        next(name);
+    });
+};
+
 tests.SPOP = function () {
     var name = "SPOP";
 
