@@ -668,7 +668,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type, lcaseCommand;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -698,11 +698,12 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array and command is sadd, expand it out:
+    // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
     //     client.sadd(arg1, arg2, arg3, arg4, cb);
-    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
+    lcaseCommand = command.toLowerCase();
+    if ((lcaseCommand === 'sadd' || lcaseCommand === 'srem') && args.length > 0 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
     }
 
@@ -713,7 +714,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             return callback(err);
         }
     }
-    
+
     buffer_args = false;
     for (i = 0, il = args.length, arg; i < il; i += 1) {
         if (Buffer.isBuffer(args[i])) {
