@@ -322,11 +322,15 @@ tests.MULTI_7 = function () {
 
 
 tests.MULTI_EXCEPTION_1 = function() {
+  var name = "MULTI_EXCEPTION_1";
+
   client.multi().set("foo").exec(function (err, reply) {
-    /* ... */
-    console.log('CB:', arguments);
+    assert(Array.isArray(err), "err should be an array");
+    assert.equal(2, err.length, "err should have 2 items");
+    assert(err[0].message.match(/ERR/), "First error message should contain ERR");
+    assert(err[1].message.match(/EXECABORT/), "First error message should contain EXECABORT");
+    next(name);
   });
-  // [Error: Error: ERR wrong number of arguments for 'set' command]
 };
 
 tests.FWD_ERRORS_1 = function () {
