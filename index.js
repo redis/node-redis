@@ -118,7 +118,13 @@ RedisClient.prototype.flush_and_error = function (message) {
     while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
         if (typeof command_obj.callback === "function") {
-            command_obj.callback(message);
+            try {
+                command_obj.callback(message);
+            } catch (callback_err) {
+                process.nextTick(function () {
+                    throw callback_err;
+                });
+            }
         }
     }
     this.offline_queue = new Queue();
@@ -126,7 +132,13 @@ RedisClient.prototype.flush_and_error = function (message) {
     while (this.command_queue.length > 0) {
         command_obj = this.command_queue.shift();
         if (typeof command_obj.callback === "function") {
-            command_obj.callback(message);
+            try {
+                command_obj.callback(message);
+            } catch (callback_err) {
+                process.nextTick(function () {
+                    throw callback_err;
+                });
+            }
         }
     }
     this.command_queue = new Queue();
