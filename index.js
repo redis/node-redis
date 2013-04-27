@@ -855,12 +855,14 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
     }
 };
 
+// Warning! end() has been deprecated and will go away
+// in later versions of this client. Please consider switching to
+// quit() everywhere you use end.
 RedisClient.prototype.end = function () {
-    this.stream._events = {};
-    this.connected = false;
-    this.ready = false;
-    this.closing = true;
-    return this.stream.end();
+    if (exports.debug_mode) {
+        console.log("Using deprecated .end() method!");
+    }
+    return this.quit();
 };
 
 function Multi(client, args) {
