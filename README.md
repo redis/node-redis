@@ -411,9 +411,16 @@ Redis.  The interface in `node_redis` is to return an individual `Multi` object 
         });
 ```
 
+### Multi.exec( callback )
+
 `client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the
 same command methods as `client` objects do.  Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
+
+The `callback` of `.exec()` will get invoked with two arguments:
+
+* `err` **type:** `null | Array` err is either null or an array of Error Objects corresponding the the sequence the commands where chained. The last item of the array will always be an `EXECABORT` type of error originating from the `.exec()` itself.
+* `results` **type:** `null | Array` results is an array of responses corresponding the the sequence the commands where chained.
 
 You can either chain together `MULTI` commands as in the above example, or you can queue individual
 commands while still sending regular client command as in this example:

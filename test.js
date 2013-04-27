@@ -320,6 +320,19 @@ tests.MULTI_7 = function () {
     next(name);
 };
 
+
+tests.MULTI_EXCEPTION_1 = function() {
+  var name = "MULTI_EXCEPTION_1";
+
+  client.multi().set("foo").exec(function (err, reply) {
+    assert(Array.isArray(err), "err should be an array");
+    assert.equal(2, err.length, "err should have 2 items");
+    assert(err[0].message.match(/ERR/), "First error message should contain ERR");
+    assert(err[1].message.match(/EXECABORT/), "First error message should contain EXECABORT");
+    next(name);
+  });
+};
+
 tests.FWD_ERRORS_1 = function () {
     var name = "FWD_ERRORS_1";
 
@@ -615,7 +628,7 @@ tests.detect_buffers = function () {
             assert.strictEqual("<Buffer 76 61 6c 20 31>", reply[0].inspect(), name);
             assert.strictEqual("<Buffer 76 61 6c 20 32>", reply[1].inspect(), name);
         });
-        
+
         // array of strings with undefined values (repro #344)
         detect_client.hmget("hash key 2", "key 3", "key 4", function(err, reply) {
             assert.strictEqual(null, err, name);

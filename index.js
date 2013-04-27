@@ -1014,7 +1014,7 @@ Multi.prototype.HMSET = Multi.prototype.hmset;
 
 Multi.prototype.exec = function (callback) {
     var self = this;
-
+    var errors = [];
     // drain queue, callback will catch "QUEUED" or error
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
@@ -1040,7 +1040,7 @@ Multi.prototype.exec = function (callback) {
                 if (typeof cur[cur.length - 1] === "function") {
                     cur[cur.length - 1](err);
                 } else {
-                    throw new Error(err);
+                    errors.push(new Error(err));
                 }
                 self.queue.splice(index, 1);
             }
@@ -1051,7 +1051,8 @@ Multi.prototype.exec = function (callback) {
     return this._client.send_command("EXEC", [], function (err, replies) {
         if (err) {
             if (callback) {
-                callback(new Error(err));
+                errors.push(new Error(err));
+                callback(errors);
                 return;
             } else {
                 throw new Error(err);
