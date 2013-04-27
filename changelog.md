@@ -1,6 +1,30 @@
 Changelog
 =========
 
+## v0.8.3 - April 09, 2013
+
+Many contributed features and fixes, including:
+* Fix some tests for Node.js version 0.9.x+ changes (Roman Ivanilov)
+* Fix error when commands submitted after idle event handler (roamm)
+* Bypass Redis for no-op SET/SETEX commands (jifeng)
+* Fix HMGET + detect_buffers (Joffrey F)
+* Fix CLIENT LOAD functionality (Jonas Dohse)
+* Add percentage outputs to diff_multi_bench_output.js (Bryce Baril)
+* Add retry_max_delay option (Tomasz Durka)
+* Fix parser off-by-one errors with nested multi-bulk replies (Bryce Baril)
+* Prevent parser from sinking application-side exceptions (Bryce Baril)
+* Fix parser incorrect buffer skip when parsing multi-bulk errors (Bryce Baril)
+* Reverted previous change with throwing on non-string values with HMSET (David Trejo)
+* Fix command queue sync issue when using pubsub (Tom Leach)
+* Fix compatibility with two-word Redis commands (Jonas Dohse)
+* Add EVAL with array syntax (dmoena)
+* Fix tests due to Redis reply order changes in 2.6.5+ (Bryce Baril)
+* Added a test for the SLOWLOG command (Nitesh Sinha)
+* Fix SMEMBERS order dependency in test broken by Redis changes (Garrett Johnson)
+* Update commands for new Redis commands (David Trejo)
+* Prevent exception from SELECT on subscriber reconnection (roamm)
+
+
 ## v0.8.2 - November 11, 2012
 
 Another version bump because 0.8.1 didn't get applied properly for some mysterious reason.
