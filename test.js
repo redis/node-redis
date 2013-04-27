@@ -899,6 +899,50 @@ tests.SUBSCRIBE = function () {
     });
 };
 
+tests.UNSUB_EMPTY = function () {
+  // test situation where unsubscribe reply[1] is null
+  var name = "UNSUB_EMPTY";
+  client3.unsubscribe(); // unsubscribe from all so can test null
+  client3.unsubscribe(); // reply[1] will be null
+  next(name);
+};
+
+tests.PUNSUB_EMPTY = function () {
+  // test situation where punsubscribe reply[1] is null
+  var name = "PUNSUB_EMPTY";
+  client3.punsubscribe(); // punsubscribe from all so can test null
+  client3.punsubscribe(); // reply[1] will be null
+  next(name);
+};
+
+tests.UNSUB_EMPTY_CB = function () {
+  var name = "UNSUB_EMPTY_CB";
+  // test hangs on older versions of redis, so skip
+  if (!server_version_at_least(client, [2, 6, 11])) return next(name);
+
+  // test situation where unsubscribe reply[1] is null
+  client3.unsubscribe(); // unsubscribe from all so can test null
+  client3.unsubscribe(function (err, results) {
+      // reply[1] will be null
+      assert.strictEqual(null, err, "unexpected error: " + err);
+      next(name);
+  });
+};
+
+tests.PUNSUB_EMPTY_CB = function () {
+  var name = "PUNSUB_EMPTY_CB";
+  // test hangs on older versions of redis, so skip
+  if (!server_version_at_least(client, [2, 6, 11])) return next(name);
+
+  // test situation where punsubscribe reply[1] is null
+  client3.punsubscribe(); // punsubscribe from all so can test null
+  client3.punsubscribe(function (err, results) {
+      // reply[1] will be null
+      assert.strictEqual(null, err, "unexpected error: " + err);
+      next(name);
+  });
+};
+
 tests.SUB_UNSUB_SUB = function () {
     var name = "SUB_UNSUB_SUB";
     client3.subscribe('chan3');
