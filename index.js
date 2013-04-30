@@ -95,13 +95,22 @@ RedisClient.prototype.initialize_stream_listeners = function () {
         self.on_error(msg.message);
     });
 
-    this.stream.on("close", function () {
-        self.connection_gone("close");
+    this.stream.on("close", function (had_error) {
+        if(had_error !== true){
+            // Only in case the error event wasn't emitted earlier, to prevent duplicate call to connection_gone
+            self.connection_gone("close");
+        }
     });
 
     this.stream.on("end", function () {
         self.connection_gone("end");
     });
+
+    if(this.options.socket_timeout){
+        this.stream.setTimeout(this.options.socket_timeout, function () {
+            self.stream.destroy();
+        });
+    }
 
     this.stream.on("drain", function () {
         self.should_buffer = false;
