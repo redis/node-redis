@@ -14,81 +14,30 @@ var redis = require("./index"),
     tests = {},
     connected = false,
     ended = false,
-    next, cur_start, run_next_test, all_tests, all_start, test_count;
+    next, last, cur_start, run_next_test, all_tests, all_start, test_count;
 
 
 // Set this to truthy to see the wire protocol and other debugging info
 redis.debug_mode = process.argv[2];
 
-function server_version_at_least(connection, desired_version) {
-    // Return true if the server version >= desired_version
-    var version = connection.server_info.versions;
-    for (var i = 0; i < 3; i++) {
-        if (version[i] > desired_version[i]) return true;
-        if (version[i] < desired_version[i]) return false;
-    }
-    return true;
-}
+// separated test helpers
+var testUtils = require('./utils'),
+    buffers_to_strings = testUtils.buffers_to_strings,
+    require_number = testUtils.require_number,
+    require_number_any = testUtils.require_number_any,
+    require_number_pos = testUtils.require_number_pos,
+    require_string = testUtils.require_string,
+    require_null = testUtils.require_null,
+    require_error = testUtils.require_error,
+    is_empty_array = testUtils.is_empty_array,
+    server_version_at_least = testUtils.server_version_at_least;
 
-function buffers_to_strings(arr) {
-    return arr.map(function (val) {
-        return val.toString();
-    });
-}
+next = exports.next = function next(name) {
+    console.log(" \x1b[33m" + (Date.now() - cur_start) + "\x1b[0m ms");
+    run_next_test();
+};
 
-function require_number(expected, label) {
-    return function (err, results) {
-        assert.strictEqual(null, err, label + " expected " + expected + ", got error: " + err);
-        assert.strictEqual(expected, results, label + " " + expected + " !== " + results);
-        assert.strictEqual(typeof results, "number", label);
-        return true;
-    };
-}
-
-function require_number_any(label) {
-    return function (err, results) {
-        assert.strictEqual(null, err, label + " expected any number, got error: " + err);
-        assert.strictEqual(typeof results, "number", label + " " + results + " is not a number");
-        return true;
-    };
-}
-
-function require_number_pos(label) {
-    return function (err, results) {
-        assert.strictEqual(null, err, label + " expected positive number, got error: " + err);
-        assert.strictEqual(true, (results > 0), label + " " + results + " is not a positive number");
-        return true;
-    };
-}
-
-function require_string(str, label) {
-    return function (err, results) {
-        assert.strictEqual(null, err, label + " expected string '" + str + "', got error: " + err);
-        assert.equal(str, results, label + " " + str + " does not match " + results);
-        return true;
-    };
-}
-
-function require_null(label) {
-    return function (err, results) {
-        assert.strictEqual(null, err, label + " expected null, got error: " + err);
-        assert.strictEqual(null, results, label + ": " + results + " is not null");
-        return true;
-    };
-}
-
-function require_error(label) {
-    return function (err, results) {
-        assert.notEqual(err, null, label + " err is null, but an error is expected here.");
-        return true;
-    };
-}
-
-function is_empty_array(obj) {
-    return Array.isArray(obj) && obj.length === 0;
-}
-
-function last(name, fn) {
+last = exports.last = function last(name, fn) {
     return function (err, results) {
         fn(err, results);
         next(name);
