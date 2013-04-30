@@ -114,6 +114,11 @@ RedisClient.prototype.initialize_retry_vars = function () {
 
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
+
+    if (this.options.disable_flush) {
+        return;
+    }
+
     var command_obj;
     while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
