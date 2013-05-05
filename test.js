@@ -322,15 +322,20 @@ tests.MULTI_7 = function () {
 
 
 tests.MULTI_EXCEPTION_1 = function() {
-  var name = "MULTI_EXCEPTION_1";
+    var name = "MULTI_EXCEPTION_1";
 
-  client.multi().set("foo").exec(function (err, reply) {
-    assert(Array.isArray(err), "err should be an array");
-    assert.equal(2, err.length, "err should have 2 items");
-    assert(err[0].message.match(/ERR/), "First error message should contain ERR");
-    assert(err[1].message.match(/EXECABORT/), "First error message should contain EXECABORT");
-    next(name);
-  });
+    if (!server_version_at_least(client, [2, 6, 5])) {
+        console.log("Skipping " + name + " for old Redis server version < 2.6.5");
+        return next(name);
+    }
+
+    client.multi().set("foo").exec(function (err, reply) {
+        assert(Array.isArray(err), "err should be an array");
+        assert.equal(2, err.length, "err should have 2 items");
+        assert(err[0].message.match(/ERR/), "First error message should contain ERR");
+        assert(err[1].message.match(/EXECABORT/), "First error message should contain EXECABORT");
+        next(name);
+    });
 };
 
 tests.FWD_ERRORS_1 = function () {
@@ -945,6 +950,9 @@ tests.PUNSUB_EMPTY_CB = function () {
 
 tests.SUB_UNSUB_SUB = function () {
     var name = "SUB_UNSUB_SUB";
+    // test hangs on older versions of redis, so skip
+    if (!server_version_at_least(client, [2, 6, 11])) return next(name);
+
     client3.subscribe('chan3');
     client3.unsubscribe('chan3');
     client3.subscribe('chan3', function (err, results) {
@@ -961,6 +969,9 @@ tests.SUB_UNSUB_SUB = function () {
 
 tests.SUB_UNSUB_MSG_SUB = function () {
     var name = "SUB_UNSUB_MSG_SUB";
+    // test hangs on older versions of redis, so skip
+    if (!server_version_at_least(client, [2, 6, 11])) return next(name);
+
     client3.subscribe('chan8');
     client3.subscribe('chan9');
     client3.unsubscribe('chan9');
@@ -972,6 +983,9 @@ tests.SUB_UNSUB_MSG_SUB = function () {
 
 tests.PSUB_UNSUB_PMSG_SUB = function () {
     var name = "PSUB_UNSUB_PMSG_SUB";
+    // test hangs on older versions of redis, so skip
+    if (!server_version_at_least(client, [2, 6, 11])) return next(name);
+
     client3.psubscribe('abc*');
     client3.subscribe('xyz');
     client3.unsubscribe('xyz');
