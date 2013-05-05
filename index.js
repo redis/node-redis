@@ -874,7 +874,7 @@ RedisClient.prototype.end = function () {
     this.connected = false;
     this.ready = false;
     this.closing = true;
-    return this.stream.end();
+    return this.stream.destroySoon();
 };
 
 function Multi(client, args) {
