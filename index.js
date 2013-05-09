@@ -182,6 +182,10 @@ RedisClient.prototype.do_auth = function () {
                     self.do_auth();
                 }, 2000); // TODO - magic number alert
                 return;
+            } else if (err.toString().match("no password is set")) {
+                console.log("Warning: Redis server does not require a password, but a password was supplied.")
+                err = null;
+                res = "OK";
             } else {
                 return self.emit("error", new Error("Auth error: " + err.message));
             }
