@@ -453,10 +453,9 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
+    this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
     if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
         this.retry_delay = this.retry_max_delay;
-    } else {
-        this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
     }
 
     if (exports.debug_mode) {
