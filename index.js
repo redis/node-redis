@@ -663,6 +663,7 @@ RedisClient.prototype.return_reply = function (reply) {
             throw new Error("subscriptions are active but got an invalid reply: " + reply);
         }
     } else if (this.monitoring) {
+        reply = reply.toString();
         len = reply.indexOf(" ");
         timestamp = reply.slice(0, len);
         argindex = reply.indexOf('"');
