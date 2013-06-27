@@ -1,6 +1,17 @@
 Changelog
 =========
 
+## v0.8.4 - June 24, 2013
+Many contributed features and fixes, including:
+* Ignore password set if not needed. (jbergknoff)
+* Improved compatibility with 0.10.X for tests and client.end() (Bryce Baril)
+* Protect connection retries from application exceptions. (Amos Barreto)
+* Better exception handling for Multi/Exec (Thanasis Polychronakis)
+* Renamed pubsub mode to subscriber mode (Luke Plaster)
+* Treat SREM like SADD when passed an array (Martin Ciparelli)
+* Fix empty unsub/punsub TypeError (Jeff Barczewski)
+* Only attempt to run a callback if it one was provided (jifeng)
+
 ## v0.8.3 - April 09, 2013
 
 Many contributed features and fixes, including:
