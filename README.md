@@ -202,6 +202,7 @@ connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
 `false` will disable this feature and the callback will be execute immediately
 with an error, or an error will be thrown if no callback is specified.
+* `persist_offline_queue`: Defaults to `false`. By default the offline queue will be flushed after one retry attempt, although this behavior may be changed in the future. If `persist_offline_queue` is set to `true`, the offline queue will never be flushed outside of sending it. This includes when a connection is closed by the user. However, outstanding commands are still flushed, for instance, when a connection breaks after writing to the output stream, so client code should not rely on the assumption that offline queue items are always submitted when the connection is restored.
 * `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
 reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
 to maximum value, provided in milliseconds.
