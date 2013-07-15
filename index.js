@@ -55,6 +55,11 @@ function RedisClient(stream, options) {
     if (typeof this.options.enable_offline_queue === "boolean") {
         this.enable_offline_queue = this.options.enable_offline_queue;
     }
+
+    this.persist_offline_queue = false;
+    if(typeof this.options.persist_offline_queue === "boolean") {
+        this.persist_offline_queue = this.options.persist_offline_queue;
+    }
     this.retry_max_delay = null;
     if (options.retry_max_delay !== undefined && !isNaN(options.retry_max_delay) && options.retry_max_delay > 0) {
         this.retry_max_delay = options.retry_max_delay;
@@ -115,20 +120,22 @@ RedisClient.prototype.initialize_retry_vars = function () {
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
     var command_obj;
-    while (this.offline_queue.length > 0) {
-        command_obj = this.offline_queue.shift();
-        if (typeof command_obj.callback === "function") {
-            try {
-                command_obj.callback(message);
-            } catch (callback_err) {
-                process.nextTick(function () {
-                    throw callback_err;
-                });
+
+    if (!this.persist_offline_queue) {
+        while (this.offline_queue.length > 0) {
+            command_obj = this.offline_queue.shift();
+            if (typeof command_obj.callback === "function") {
+                try {
+                    command_obj.callback(message);
+                } catch (callback_err) {
+                    process.nextTick(function () {
+                        throw callback_err;
+                    });
+                }
             }
         }
+        this.offline_queue = new Queue();
     }
-    this.offline_queue = new Queue();
-
     while (this.command_queue.length > 0) {
         command_obj = this.command_queue.shift();
         if (typeof command_obj.callback === "function") {
