@@ -67,7 +67,7 @@ function RedisClient(stream, options) {
     this.closing = false;
     this.server_info = {};
     this.auth_pass = null;
-    if(options.auth_pass !== undefined) {
+    if (options.auth_pass !== undefined) {
         this.auth_pass = options.auth_pass;
     }
     this.parser_module = null;

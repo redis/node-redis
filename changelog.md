@@ -1,6 +1,9 @@
 Changelog
 =========
 
+## v0.8.5 - (pending release)
+* Add `auth_pass` option to connect and immediately authenticate (Henrik Peinar)
+
 ## v0.8.4 - June 24, 2013
 Many contributed features and fixes, including:
 * Ignore password set if not needed. (jbergknoff)
