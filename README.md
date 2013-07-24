@@ -209,6 +209,7 @@ to maximum value, provided in milliseconds.
 limits total time for client to reconnect. Value is provided in milliseconds and is counted once the disconnect occured.
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
+* `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
 
 ```js
     var redis = require("redis"),
