@@ -51,10 +51,13 @@ function RedisClient(stream, options) {
     if (options.connect_timeout && !isNaN(options.connect_timeout) && options.connect_timeout > 0) {
         this.connect_timeout = +options.connect_timeout;
     }
-
     this.enable_offline_queue = true;
     if (typeof this.options.enable_offline_queue === "boolean") {
         this.enable_offline_queue = this.options.enable_offline_queue;
+    }
+    this.retry_max_delay = null;
+    if (options.retry_max_delay !== undefined && !isNaN(options.retry_max_delay) && options.retry_max_delay > 0) {
+        this.retry_max_delay = options.retry_max_delay;
     }
 
     this.initialize_retry_vars();
@@ -64,6 +67,9 @@ function RedisClient(stream, options) {
     this.closing = false;
     this.server_info = {};
     this.auth_pass = null;
+    if (options.auth_pass !== undefined) {
+        this.auth_pass = options.auth_pass;
+    }
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
 
@@ -115,7 +121,13 @@ RedisClient.prototype.flush_and_error = function (message) {
     while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
         if (typeof command_obj.callback === "function") {
-            command_obj.callback(message);
+            try {
+                command_obj.callback(message);
+            } catch (callback_err) {
+                process.nextTick(function () {
+                    throw callback_err;
+                });
+            }
         }
     }
     this.offline_queue = new Queue();
@@ -123,7 +135,13 @@ RedisClient.prototype.flush_and_error = function (message) {
     while (this.command_queue.length > 0) {
         command_obj = this.command_queue.shift();
         if (typeof command_obj.callback === "function") {
-            command_obj.callback(message);
+            try {
+                command_obj.callback(message);
+            } catch (callback_err) {
+                process.nextTick(function () {
+                    throw callback_err;
+                });
+            }
         }
     }
     this.command_queue = new Queue();
@@ -167,6 +185,10 @@ RedisClient.prototype.do_auth = function () {
                     self.do_auth();
                 }, 2000); // TODO - magic number alert
                 return;
+            } else if (err.toString().match("no password is set")) {
+                console.log("Warning: Redis server does not require a password, but a password was supplied.")
+                err = null;
+                res = "OK";
             } else {
                 return self.emit("error", new Error("Auth error: " + err.message));
             }
@@ -282,7 +304,12 @@ RedisClient.prototype.on_ready = function () {
 
     // magically restore any modal commands from a previous connection
     if (this.selected_db !== null) {
+        // this trick works if and only if the following send_command
+        // never goes into the offline queue
+        var pub_sub_mode = this.pub_sub_mode;
+        this.pub_sub_mode = false;
         this.send_command('select', [this.selected_db]);
+        this.pub_sub_mode = pub_sub_mode;
     }
     if (this.pub_sub_mode === true) {
         // only emit "ready" when all subscriptions were made again
@@ -429,7 +456,11 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
+        this.retry_delay = this.retry_max_delay;
+    } else {
+        this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+    }
 
     if (exports.debug_mode) {
         console.log("Retry connection in " + this.retry_delay + " ms");
@@ -487,8 +518,8 @@ RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
-        this.emit("idle");
         this.command_queue = new Queue();
+        this.emit("idle");
     }
     if (this.should_buffer && queue_len <= this.command_queue_low_water) {
         this.emit("drain");
@@ -551,7 +582,9 @@ function reply_to_strings(reply) {
 
     if (Array.isArray(reply)) {
         for (i = 0; i < reply.length; i++) {
-            reply[i] = reply[i].toString();
+            if (reply[i] !== null && reply[i] !== undefined) {
+                reply[i] = reply[i].toString();
+            }
         }
         return reply;
     }
@@ -562,12 +595,22 @@ function reply_to_strings(reply) {
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, len, type, timestamp, argindex, args, queue_len;
 
-    command_obj = this.command_queue.shift(),
-    queue_len   = this.command_queue.getLength();
+    // If the "reply" here is actually a message received asynchronously due to a
+    // pubsub subscription, don't pop the command queue as we'll only be consuming
+    // the head command prematurely.
+    if (Array.isArray(reply) && reply.length > 0 && reply[0]) {
+        type = reply[0].toString();
+    }
+
+    if (type !== 'message' && type !== 'pmessage') {
+        command_obj = this.command_queue.shift();
+    }
+
+    queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
-        this.emit("idle");
         this.command_queue = new Queue();  // explicitly reclaim storage from old Queue
+        this.emit("idle");
     }
     if (this.should_buffer && queue_len <= this.command_queue_low_water) {
         this.emit("drain");
@@ -610,10 +653,12 @@ RedisClient.prototype.return_reply = function (reply) {
                 }
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
+                // reply[1] can be null
+                var reply1String = (reply[1] === null) ? null : reply[1].toString();
                 if (command_obj && typeof command_obj.callback === "function") {
-                    try_callback(command_obj.callback, reply[1].toString());
+                    try_callback(command_obj.callback, reply1String);
                 }
-                this.emit(type, reply[1].toString(), reply[2]); // channel, count
+                this.emit(type, reply1String, reply[2]); // channel, count
             } else {
                 throw new Error("subscriptions are active but got unknown reply type " + type);
             }
@@ -644,7 +689,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type, lcaseCommand;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -674,12 +719,21 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         throw new Error("send_command: second argument must be an array");
     }
 
-    // if the last argument is an array and command is sadd, expand it out:
+    // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
     //     client.sadd(arg1, arg2, arg3, arg4, cb);
-    if ((command === 'sadd' || command === 'SADD') && args.length > 0 && Array.isArray(args[args.length - 1])) {
+    lcaseCommand = command.toLowerCase();
+    if ((lcaseCommand === 'sadd' || lcaseCommand === 'srem') && args.length > 0 && Array.isArray(args[args.length - 1])) {
         args = args.slice(0, -1).concat(args[args.length - 1]);
+    }
+
+    // if the value is undefined or null and command is set or setx, need not to send message to redis
+    if (command === 'set' || command === 'setex') {
+        if(args[args.length - 1] === undefined || args[args.length - 1] === null) {
+            var err = new Error('send_command: ' + command + ' value must not be undefined or null');
+            return callback && callback(err);
+        }
     }
 
     buffer_args = false;
@@ -723,7 +777,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     } else if (command === "quit") {
         this.closing = true;
     } else if (this.pub_sub_mode === true) {
-        throw new Error("Connection in pub/sub mode, only pub/sub commands may be used");
+        throw new Error("Connection in subscriber mode, only subscriber commands may be used");
     }
     this.command_queue.push(command_obj);
     this.commands_sent += 1;
@@ -827,11 +881,11 @@ RedisClient.prototype.end = function () {
     this.connected = false;
     this.ready = false;
     this.closing = true;
-    return this.stream.end();
+    return this.stream.destroySoon();
 };
 
 function Multi(client, args) {
-    this.client = client;
+    this._client = client;
     this.queue = [["MULTI"]];
     if (Array.isArray(args)) {
         this.queue = this.queue.concat(args);
@@ -865,7 +919,9 @@ commands = set_union(["get", "set", "setnx", "setex", "append", "strlen", "del",
     "persist", "slaveof", "debug", "config", "subscribe", "unsubscribe", "psubscribe", "punsubscribe", "publish", "watch", "unwatch", "cluster",
     "restore", "migrate", "dump", "object", "client", "eval", "evalsha"], require("./lib/commands"));
 
-commands.forEach(function (command) {
+commands.forEach(function (fullCommand) {
+    var command = fullCommand.split(' ')[0];
+
     RedisClient.prototype[command] = function (args, callback) {
         if (Array.isArray(args) && typeof callback === "function") {
             return this.send_command(command, args, callback);
@@ -945,14 +1001,6 @@ RedisClient.prototype.hmset = function (args, callback) {
         for (i = 0, il = tmp_keys.length; i < il ; i++) {
             key = tmp_keys[i];
             tmp_args.push(key);
-            if (typeof args[1][key] !== "string") {
-                var err = new Error("hmset expected value to be a string", key, ":", args[1][key]);
-                if (callback) {
-                    return callback(err);
-                } else {
-                    throw err;
-                }
-            }
             tmp_args.push(args[1][key]);
         }
         args = tmp_args;
@@ -985,7 +1033,7 @@ Multi.prototype.HMSET = Multi.prototype.hmset;
 
 Multi.prototype.exec = function (callback) {
     var self = this;
-
+    var errors = [];
     // drain queue, callback will catch "QUEUED" or error
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
@@ -1005,13 +1053,13 @@ Multi.prototype.exec = function (callback) {
                 args.push(obj[key]);
             });
         }
-        this.client.send_command(command, args, function (err, reply) {
+        this._client.send_command(command, args, function (err, reply) {
             if (err) {
                 var cur = self.queue[index];
                 if (typeof cur[cur.length - 1] === "function") {
                     cur[cur.length - 1](err);
                 } else {
-                    throw new Error(err);
+                    errors.push(new Error(err));
                 }
                 self.queue.splice(index, 1);
             }
@@ -1019,10 +1067,11 @@ Multi.prototype.exec = function (callback) {
     }, this);
 
     // TODO - make this callback part of Multi.prototype instead of creating it each time
-    return this.client.send_command("EXEC", [], function (err, replies) {
+    return this._client.send_command("EXEC", [], function (err, replies) {
         if (err) {
             if (callback) {
-                callback(new Error(err));
+                errors.push(new Error(err));
+                callback(errors);
                 return;
             } else {
                 throw new Error(err);
@@ -1072,6 +1121,10 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 
     if (typeof args[args.length - 1] === "function") {
         callback = args.pop();
+    }
+
+    if (Array.isArray(args[0])) {
+        args = args[0];
     }
 
     // replace script source with sha value

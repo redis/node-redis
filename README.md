@@ -202,6 +202,14 @@ connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
 `false` will disable this feature and the callback will be execute immediately
 with an error, or an error will be thrown if no callback is specified.
+* `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
+reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
+to maximum value, provided in milliseconds.
+* `connect_timeout` defaults to `false`. By default client will try reconnecting until connected. Setting `connect_timeout`
+limits total time for client to reconnect. Value is provided in milliseconds and is counted once the disconnect occured.
+* `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
+limits total amount of reconnects.
+* `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
 
 ```js
     var redis = require("redis"),
@@ -282,7 +290,7 @@ Output:
 Multiple values in a hash can be set by supplying an object:
 
     client.HMSET(key2, {
-        "0123456789": "abcdefghij", // NOTE: the key and value must both be strings
+        "0123456789": "abcdefghij", // NOTE: key and value will be coerced to strings
         "some manner of key": "a type of value"
     });
 
@@ -326,13 +334,13 @@ channel on the other:
     client1.subscribe("a nice channel");
 ```
 
-When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into "pub/sub" mode.
+When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into a "subscriber" mode.
 At that point, only commands that modify the subscription set are valid.  When the subscription
 set is empty, the connection is put back into regular mode.
 
-If you need to send regular commands to Redis while in pub/sub mode, just open another connection.
+If you need to send regular commands to Redis while in subscriber mode, just open another connection.
 
-## Pub / Sub Events
+## Subscriber Events
 
 If a client has subscriptions active, it may emit these events:
 
@@ -361,13 +369,13 @@ original pattern as `pattern`, and the new count of subscriptions for this clien
 
 Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command.  Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`.  When
-`count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
+`count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
 ### "punsubscribe" (pattern, count)
 
 Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.  Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`.  When
-`count` is 0, this client has left pub/sub mode and no more pub/sub events will be emitted.
+`count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
 ## client.multi([commands])
 
@@ -404,9 +412,16 @@ Redis.  The interface in `node_redis` is to return an individual `Multi` object 
         });
 ```
 
+### Multi.exec( callback )
+
 `client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the
 same command methods as `client` objects do.  Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
+
+The `callback` of `.exec()` will get invoked with two arguments:
+
+* `err` **type:** `null | Array` err is either null or an array of Error Objects corresponding the the sequence the commands where chained. The last item of the array will always be an `EXECABORT` type of error originating from the `.exec()` itself.
+* `results` **type:** `null | Array` results is an array of responses corresponding the the sequence the commands where chained.
 
 You can either chain together `MULTI` commands as in the above example, or you can queue individual
 commands while still sending regular client command as in this example:
@@ -542,6 +557,15 @@ This will display:
     on_data: +OK
 
 `send command` is data sent into Redis and `on_data` is data received from Redis.
+
+## Multi-word commands
+
+To execute redis multi-word commands like `SCRIPT LOAD` or `CLIENT LIST` pass
+the second word as first parameter:
+
+    client.script('load', 'return 1');
+    client.multi().script('load', 'return 1').exec(...);
+    client.multi([['script', 'load', 'return 1']]).exec(...);
 
 ## client.send_command(command_name, args, callback)
 
