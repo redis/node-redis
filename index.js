@@ -577,9 +577,13 @@ function reply_to_strings(reply) {
     var i;
 
     if (Buffer.isBuffer(reply)) {
-        return reply.toString();
+        if(reply.redisType == 58) { // :
+            return parseInt(reply.toString(), 10);
+        }
+        else {
+            return reply.toString();
+        }
     }
-
     if (Array.isArray(reply)) {
         for (i = 0; i < reply.length; i++) {
             if (reply[i] !== null && reply[i] !== undefined) {
