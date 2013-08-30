@@ -302,7 +302,11 @@ RedisClient.prototype.init_parser = function () {
 
     // "reply error" is an error sent back by Redis
     this.reply_parser.on("reply error", function (reply) {
-        self.return_error(new Error(reply));
+        if (reply instanceof Error) {
+            self.return_error(reply);
+        } else {
+            self.return_error(new Error(reply));
+        }
     });
     this.reply_parser.on("reply", function (reply) {
         self.return_reply(reply);
