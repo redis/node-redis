@@ -14,6 +14,12 @@ var net = require("net"),
 // can set this to true to enable for all connections
 exports.debug_mode = false;
 
+var arraySlice = Array.prototype.slice
+function trace() {
+    if (!exports.debug_mode) return;
+    console.log.apply(null, arraySlice.call(arguments))
+}
+
 // hiredis might not be installed
 try {
     require("./lib/parser/hiredis");
@@ -602,7 +608,10 @@ RedisClient.prototype.return_reply = function (reply) {
         type = reply[0].toString();
     }
 
-    if (type !== 'message' && type !== 'pmessage') {
+    if (this.pub_sub_mode && (type == 'message' || type == 'pmessage')) {
+        trace("received pubsub message");
+    }
+    else {
         command_obj = this.command_queue.shift();
     }
 

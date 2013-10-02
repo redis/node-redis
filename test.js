@@ -1281,6 +1281,17 @@ tests.HGETALL = function () {
     });
 };
 
+tests.HGETALL_MESSAGE = function () {
+    var name = "HGETALL_MESSAGE";
+    client.hmset("msg_test", {message: "hello"}, require_string("OK", name));
+    client.hgetall("msg_test", function (err, obj) {
+        assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
+        assert.strictEqual(1, Object.keys(obj).length, name);
+        assert.strictEqual(obj.message, "hello")
+        next(name);
+    });
+};
+
 tests.HGETALL_NULL = function () {
     var name = "HGETALL_NULL";
 
