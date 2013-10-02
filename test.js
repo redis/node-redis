@@ -10,6 +10,7 @@ var redis = require("./index"),
     assert = require("assert"),
     crypto = require("crypto"),
     util = require("./lib/util"),
+    fork = require("child_process").fork,
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
     connected = false,
@@ -2011,6 +2012,23 @@ tests.reconnectRetryMaxDelay = function() {
             next(name);
         }
     });
+};
+
+tests.unref = function () {
+    var name = "unref";
+    var external = fork("./test-unref.js");
+    var done = false;
+    external.on("close", function (code) {
+        assert(code == 0, "test-unref.js failed");
+        done = true;
+    })
+    setTimeout(function () {
+        if (!done) {
+            external.kill();
+        }
+        assert(done, "test-unref.js didn't finish in time.");
+        next(name);
+    }, 100);
 };
 
 all_tests = Object.keys(tests);

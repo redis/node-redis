@@ -121,6 +121,20 @@ RedisClient.prototype.initialize_retry_vars = function () {
     this.attempts = 1;
 };
 
+RedisClient.prototype.unref = function () {
+    trace("User requesting to unref the connection");
+    if (this.connected) {
+        trace("unref'ing the socket connection");
+        this.stream.unref();
+    }
+    else {
+        trace("Not connected yet, will unref later");
+        this.once("connect", function () {
+            this.unref();
+        })
+    }
+};
+
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
     var command_obj;
