@@ -30,6 +30,9 @@ function RedisClient(stream, options) {
     this.stream = stream;
     this.options = options = options || {};
 
+    if (options.unref) {
+      this.stream.unref();
+    }
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;

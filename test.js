@@ -9,6 +9,7 @@ var redis = require("./index"),
     bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
     assert = require("assert"),
     crypto = require("crypto"),
+    spawn = require("child_process").spawn,
     util = require("./lib/util"),
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
@@ -1999,6 +2000,16 @@ tests.reconnectRetryMaxDelay = function() {
             assert.ok(lasted < 1000);
             next(name);
         }
+    });
+};
+
+tests.unref = function () {
+    var name = 'unref';
+    var testunref = spawn('node', [ './test-unref.js', HOST, PORT ]);
+
+    testunref.on('exit', function (code) {
+        assert.notEqual(code, 255);
+        next(name);
     });
 };
 
