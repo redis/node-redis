@@ -478,11 +478,12 @@ RedisClient.prototype.connection_gone = function (why) {
         }
         return;
     }
-    
-    if (this.retry_max_delay !== null && (this.retry_delay * this.retry_backoff) > this.retry_max_delay) {
+
+    var nextDelay = Math.floor(this.retry_delay * this.retry_backoff);
+    if (this.retry_max_delay !== null && nextDelay > this.retry_max_delay) {
         this.retry_delay = this.retry_max_delay;
     } else {
-        this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+        this.retry_delay = nextDelay;
     }
 
     if (exports.debug_mode) {
