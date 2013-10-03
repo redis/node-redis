@@ -1,10 +1,20 @@
 Changelog
 =========
 
+## v0.8.6 - October 2, 2013
+
+* If error is alredy an Error, don't wrap it in another Error. (Mathieu M-Gosselin)
+* Fix retry delay logic (Ian Babrou)
+* Return Errors instead of strings where Errors are expected (Ian Babrou)
+* Add experimental `.unref()` method to RedisClient (Bryce Baril / Olivier Lalonde)
+* Strengthen checking of reply to prevent conflating "message" or "pmessage" fields with pub_sub replies. (Bryce Baril)
+
 ## v0.8.5 - September 26, 2013
+
 * Add `auth_pass` option to connect and immediately authenticate (Henrik Peinar)
 
 ## v0.8.4 - June 24, 2013
+
 Many contributed features and fixes, including:
 * Ignore password set if not needed. (jbergknoff)
 * Improved compatibility with 0.10.X for tests and client.end() (Bryce Baril)
