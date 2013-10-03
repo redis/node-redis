@@ -2028,7 +2028,7 @@ tests.unref = function () {
         }
         assert(done, "test-unref.js didn't finish in time.");
         next(name);
-    }, 100);
+    }, 500);
 };
 
 all_tests = Object.keys(tests);
