@@ -231,6 +231,25 @@ limits total amount of reconnects.
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
+### Unix Domain Socket
+
+You can also create a connection to Redis server via the unix domain socket if the server
+has it enabled:
+
+```js
+var redis = require("redis");
+var client = redis.createClient("/tmp/redis.sock");
+```
+
+Sample `redis.conf` configuration to enable unix domain socket listening:
+
+```conf
+unixsocket /tmp/redis.sock
+unixsocketperm 755
+```
+
+See [issue #204](https://github.com/mranney/node_redis/issues/204) for more information.
+
 ## client.auth(password, callback)
 
 When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
