@@ -3,7 +3,7 @@ Changelog
 
 ## v0.8.6 - October 2, 2013
 
-* If error is alredy an Error, don't wrap it in another Error. (Mathieu M-Gosselin)
+* If error is already an Error, don't wrap it in another Error. (Mathieu M-Gosselin)
 * Fix retry delay logic (Ian Babrou)
 * Return Errors instead of strings where Errors are expected (Ian Babrou)
 * Add experimental `.unref()` method to RedisClient (Bryce Baril / Olivier Lalonde)
