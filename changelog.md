@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.9.0 - October 17, 2013
+
+* Domains support. (Forrest L Norvell)
+
 ## v0.8.6 - October 2, 2013
 
 * If error is already an Error, don't wrap it in another Error. (Mathieu M-Gosselin)
