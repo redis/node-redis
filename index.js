@@ -581,6 +581,7 @@ function try_callback(callback, reply) {
     } catch (err) {
         if (process.domain) {
             process.domain.emit('error', err);
+            process.domain.exit();
         } else {
             process.nextTick(function () {
                 throw err;
