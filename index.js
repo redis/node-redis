@@ -573,14 +573,20 @@ RedisClient.prototype.return_error = function (err) {
 };
 
 // if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
+// if a domain is active, emit the error on the domain, which will serve the same function.
 // put this try/catch in its own function because V8 doesn't optimize this well yet.
 function try_callback(callback, reply) {
     try {
         callback(null, reply);
     } catch (err) {
-        process.nextTick(function () {
-            throw err;
-        });
+        if (process.domain) {
+            process.domain.emit('error', err);
+            process.domain.exit();
+        } else {
+            process.nextTick(function () {
+                throw err;
+            });
+        }
     }
 }
 
@@ -749,6 +755,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     } else {
         throw new Error("send_command: second argument must be an array");
     }
+
+    if (callback && process.domain) callback = process.domain.bind(callback);
 
     // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
