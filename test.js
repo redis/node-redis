@@ -376,6 +376,10 @@ tests.EVAL_1 = function () {
         return next(name);
     }
 
+    client.script("flush");
+
+    // test {EVAL - withou callback}
+    client.eval("return true", 0);
     // test {EVAL - Lua integer -> Redis protocol type conversion}
     client.eval("return 100.5", 0, require_number(100, name));
     // test {EVAL - Lua string -> Redis protocol type conversion}
