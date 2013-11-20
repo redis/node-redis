@@ -1033,8 +1033,15 @@ RedisClient.prototype.hmset = function (args, callback) {
         callback = null;
     }
 
-    if (args.length === 2 && typeof args[0] === "string" && typeof args[1] === "object") {
+    if (args.length === 2 && (typeof args[0] === "string" || typeof args[0] === "number") && typeof args[1] === "object") {
         // User does: client.hmset(key, {key1: val1, key2: val2})
+        // assuming key is a string, i.e. email address
+
+        // if key is a number, i.e. timestamp, convert to string
+        if (typeof args[0] === "number") {
+            args[0] = args[0].toString();
+        }
+
         tmp_args = [ args[0] ];
         tmp_keys = Object.keys(args[1]);
         for (i = 0, il = tmp_keys.length; i < il ; i++) {
@@ -1044,7 +1051,7 @@ RedisClient.prototype.hmset = function (args, callback) {
         }
         args = tmp_args;
     }
-
+    
     return this.send_command("hmset", args, callback);
 };
 RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
