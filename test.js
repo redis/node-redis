@@ -811,7 +811,7 @@ tests.HLEN = function () {
             next(name);
         });
     });
-}
+};
 
 tests.HMSET_BUFFER_AND_ARRAY = function () {
     // Saving a buffer and an array to the same key should not error
@@ -828,8 +828,7 @@ tests.HMSET_BUFFER_AND_ARRAY = function () {
 // TODO - add test for HMSET with optional callbacks
 
 tests.HMGET = function () {
-    var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
-
+    var key1 = "test hash 1", key2 = "test hash 2", key3 = 123456789, name = "HMGET";
     // redis-like hmset syntax
     client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
 
@@ -839,12 +838,23 @@ tests.HMGET = function () {
         "some manner of key": "a type of value"
     }, require_string("OK", name));
 
+    // test for numeric key
+    client.HMSET(key3, {
+        "0123456789": "abcdefghij",
+        "some manner of key": "a type of value"
+    }, require_string("OK", name));    
+
     client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
     });
 
     client.HMGET(key2, "0123456789", "some manner of key", function (err, reply) {
+        assert.strictEqual("abcdefghij", reply[0].toString(), name);
+        assert.strictEqual("a type of value", reply[1].toString(), name);
+    });
+
+    client.HMGET(key3, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
     });
