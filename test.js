@@ -829,6 +829,7 @@ tests.HMSET_BUFFER_AND_ARRAY = function () {
 
 tests.HMGET = function () {
     var key1 = "test hash 1", key2 = "test hash 2", key3 = 123456789, name = "HMGET";
+    
     // redis-like hmset syntax
     client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
 
