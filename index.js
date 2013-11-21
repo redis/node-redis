@@ -1051,7 +1051,7 @@ RedisClient.prototype.hmset = function (args, callback) {
         }
         args = tmp_args;
     }
-    
+
     return this.send_command("hmset", args, callback);
 };
 RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
