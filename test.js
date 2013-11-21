@@ -614,6 +614,13 @@ tests.detect_buffers = function () {
             assert.strictEqual(true, Buffer.isBuffer(reply), name);
             assert.strictEqual("<Buffer 73 74 72 69 6e 67 20 76 61 6c 75 65>", reply.inspect(), name);
         });
+        
+        detect_client.strlen("string key 1", require_number("string key 1".length, name));
+        detect_client.get(new Buffer("number key 1"), function (err, reply) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual(true, Buffer.isBuffer(reply), name);
+            assert.strictEqual("<Buffer 31>", reply.inspect(), name);
+        });
 
         detect_client.hmset("hash key 2", "key 1", "val 1", "key 2", "val 2");
         // array of Buffers or Strings
@@ -661,7 +668,6 @@ tests.detect_buffers = function () {
             assert.strictEqual("<Buffer 76 61 6c 20 32>", reply["key 2"].inspect(), name);
         });
 
-        // Multi command
         detect_client.multi()
           .hgetall("hash key 2") 
           .get("string key 1")
@@ -677,7 +683,19 @@ tests.detect_buffers = function () {
             require_string("string value", name)(null, replies[1]);
          });
 
-         /*
+
+        detect_client.multi()
+          .strlen("string key 1") 
+          .get("string key 1")
+          .exec(function (err, replies) {
+            assert.strictEqual(null, err, name);
+            assert.strictEqual(true, Array.isArray(replies), name);
+            
+            require_string("string value".length, name)(null, replies[0]);
+            require_string("string value", name)(null, replies[1]);
+         });
+
+        /*
         detect_client.multi()
           .get(new Buffer("string key 1"))
           .hgetall(new Buffer("hash key 2"))
