@@ -616,10 +616,10 @@ tests.detect_buffers = function () {
         });
         
         detect_client.strlen("string key 1", require_number("string key 1".length, name));
-        detect_client.get(new Buffer("number key 1"), function (err, reply) {
+        detect_client.strlen(new Buffer("string key 1"), function (err, reply) {
             assert.strictEqual(null, err, name);
             assert.strictEqual(true, Buffer.isBuffer(reply), name);
-            assert.strictEqual("<Buffer 31>", reply.inspect(), name);
+            assert.strictEqual("<Buffer 31 32>", reply.inspect(), name);
         });
 
         detect_client.hmset("hash key 2", "key 1", "val 1", "key 2", "val 2");
