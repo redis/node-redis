@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## v0.9.1 - November 23, 2013
+
+* Allow hmset to accept numeric keys. (Alex Stokes)
+* Fix TypeError for multiple MULTI/EXEC errors. (Kwangsu Kim)
+
 ## v0.9.0 - October 17, 2013
 
 * Domains support. (Forrest L Norvell)
