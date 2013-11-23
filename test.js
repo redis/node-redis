@@ -339,6 +339,40 @@ tests.MULTI_EXCEPTION_1 = function() {
     });
 };
 
+tests.MULTI_8 = function () {
+    var name = "MULTI_8", multi1, multi2;
+
+    // Provoke an error at queue time
+    multi1 = client.multi();
+    multi1.mset("multifoo_8", "10", "multibar_8", "20", require_string("OK", name));
+    multi1.set("foo2", require_error(name));
+    multi1.set("foo3", require_error(name));
+    multi1.incr("multifoo_8", require_number(11, name));
+    multi1.incr("multibar_8", require_number(21, name));
+    multi1.exec(function () {
+        require_error(name);
+
+        // Redis 2.6.5+ will abort transactions with errors
+        // see: http://redis.io/topics/transactions
+        var multibar_expected = 22;
+        var multifoo_expected = 12;
+        if (server_version_at_least(client, [2, 6, 5])) {
+            multibar_expected = 1;
+            multifoo_expected = 1;
+        }
+
+        // Confirm that the previous command, while containing an error, still worked.
+        multi2 = client.multi();
+        multi2.incr("multibar_8", require_number(multibar_expected, name));
+        multi2.incr("multifoo_8", require_number(multifoo_expected, name));
+        multi2.exec(function (err, replies) {
+            assert.strictEqual(multibar_expected, replies[0]);
+            assert.strictEqual(multifoo_expected, replies[1]);
+            next(name);
+        });
+    });
+};
+
 tests.FWD_ERRORS_1 = function () {
     var name = "FWD_ERRORS_1";
 
