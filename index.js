@@ -1107,7 +1107,6 @@ Multi.prototype.exec = function (callback) {
                 } else {
                     errors.push(new Error(err));
                 }
-                self.queue.splice(index, 1);
             }
         });
     }, this);
