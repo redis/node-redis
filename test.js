@@ -2103,6 +2103,60 @@ tests.tls = function () {
     });
 };
 
+tests.tlsReconnect = function() {
+	var time = new Date().getTime(),
+		name = 'tlsReconnect',
+		reconnecting = false;
+
+	// set up the tunnel; NOTE this relies on the previous tls test having run
+	// at least once
+	var conf_file = resolve(__dirname, './test_assets/stunnel.conf'),
+		stunnel = spawn('stunnel', [conf_file]);
+
+	// handle failure to set up tunnel
+	stunnel.on('error', function() {
+		console.log("Skipping tlsReconnect test: unable to start stunnel");
+		next(name);
+	});
+	stunnel.on('exit', function(code) {
+		if(code) {
+			console.log("Skipping tlsReconnect test: stunnel exited unexpectedly (code = " + code + ")");
+			next(name);
+		}
+	});
+
+	// wait to stunnel to start
+	stunnel.stderr.on("data", function(data) {
+		if(data.toString().indexOf("Service redis bound") > -1) {
+			// the test cert is self-signed with a CN of "localhost"
+			var tls_options = {
+				servername: "localhost",
+				ca: [ fs.readFileSync(resolve(__dirname, "./test_assets/server.crt")) ]
+			};
+			var client = redis.createClient(TLS_PORT, HOST, {
+				tls: tls_options,
+				retry_max_delay: 1
+			});
+
+			// Forcibly close the stream and wait for the reconnection to occur
+			client.on('ready', function() {
+				if (!reconnecting) {
+					reconnecting = true;
+					client.retry_delay = 1000;
+					client.retry_backoff = 1;
+					client.stream.end();
+				} else {
+					client.end();
+					stunnel.kill();
+					var lasted = new Date().getTime() - time;
+					assert.ok(lasted < 1000);
+					next(name);
+				}
+			});
+		}
+	});
+};
+
 all_tests = Object.keys(tests);
 all_start = new Date();
 test_count = 0;
