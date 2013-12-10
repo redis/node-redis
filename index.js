@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    tls = require("tls"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
@@ -83,7 +84,8 @@ function RedisClient(stream, options) {
 
     var self = this;
 
-    this.stream.on("connect", function () {
+    var connect_event = options.tls ? "secureConnect" : "connect";
+    this.stream.on(connect_event, function () {
         self.on_connect();
     });
 
@@ -1187,7 +1189,11 @@ exports.createClient = function (port_arg, host_arg, options) {
         host = host_arg || default_host,
         redis_client, net_client;
 
-    net_client = net.createConnection(port, host);
+    if(options && options.tls) {
+        net_client = tls.connect(port, host, options.tls);
+    } else {
+        net_client = net.createConnection(port, host);
+    }
 
     redis_client = new RedisClient(net_client, options);
 
