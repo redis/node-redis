@@ -82,9 +82,33 @@ function RedisClient(stream, options) {
 
     this.old_state = null;
 
+    this.bind_to_stream();
+
+    events.EventEmitter.call(this);
+}
+util.inherits(RedisClient, events.EventEmitter);
+exports.RedisClient = RedisClient;
+
+RedisClient.prototype.reconnect = function() {
+    var options = this.options;
+
+    if(options && options.tls) {
+        // We cannot simply reconnect the existing stream instance,
+        // so it needs to be recreated
+        this.stream.destroy();
+        this.stream.removeAllListeners();
+        this.stream = tls.connect(this.port, this.host, options.tls);
+        this.bind_to_stream();
+    } else {
+        this.stream.connect(this.port, this.host);
+    }
+};
+
+// Attach event listeners to the current stream
+RedisClient.prototype.bind_to_stream = function() {
     var self = this;
 
-    var connect_event = options.tls ? "secureConnect" : "connect";
+    var connect_event = this.options.tls ? "secureConnect" : "connect";
     this.stream.on(connect_event, function () {
         self.on_connect();
     });
@@ -109,11 +133,7 @@ function RedisClient(stream, options) {
         self.should_buffer = false;
         self.emit("drain");
     });
-
-    events.EventEmitter.call(this);
-}
-util.inherits(RedisClient, events.EventEmitter);
-exports.RedisClient = RedisClient;
+};
 
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
@@ -523,7 +543,7 @@ RedisClient.prototype.connection_gone = function (why) {
             return;
         }
 
-        self.stream.connect(self.port, self.host);
+        self.reconnect();
         self.retry_timer = null;
     }, this.retry_delay);
 };
