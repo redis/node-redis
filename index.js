@@ -245,7 +245,6 @@ RedisClient.prototype.on_connect = function () {
 
     this.connected = true;
     this.ready = false;
-    this.attempts = 0;
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
