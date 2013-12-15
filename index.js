@@ -229,6 +229,8 @@ RedisClient.prototype.do_auth = function () {
 
         // now we are really connected
         self.emit("connect");
+        self.initialize_retry_vars();
+
         if (self.options.no_ready_check) {
             self.on_ready();
         } else {
@@ -245,11 +247,9 @@ RedisClient.prototype.on_connect = function () {
 
     this.connected = true;
     this.ready = false;
-    this.attempts = 0;
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
-    this.initialize_retry_vars();
     if (this.options.socket_nodelay) {
         this.stream.setNoDelay();
     }
@@ -261,6 +261,7 @@ RedisClient.prototype.on_connect = function () {
         this.do_auth();
     } else {
         this.emit("connect");
+        this.initialize_retry_vars();
 
         if (this.options.no_ready_check) {
             this.on_ready();
