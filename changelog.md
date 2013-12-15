@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## v0.9.2 - December 15, 2013
+
+* Regenerate commands for new 2.8.x Redis commands. (Marek Ventur)
+* Correctly time reconnect counts when using 'auth'. (William Hockey)
+
 ## v0.9.1 - November 23, 2013
 
 * Allow hmset to accept numeric keys. (Alex Stokes)
