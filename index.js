@@ -181,8 +181,6 @@ RedisClient.prototype.on_error = function (msg) {
         console.warn(message);
     }
 
-    this.flush_and_error(message);
-
     this.connected = false;
     this.ready = false;
 
