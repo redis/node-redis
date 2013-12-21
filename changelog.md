@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.10.0 - December 21, 2013
+
+* Instead of throwing errors asynchronously, emit errors on client. (Bryce Baril)
+
 ## v0.9.2 - December 15, 2013
 
 * Regenerate commands for new 2.8.x Redis commands. (Marek Ventur)
