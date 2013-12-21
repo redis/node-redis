@@ -402,6 +402,72 @@ tests.FWD_ERRORS_1 = function () {
     }, 150);
 };
 
+tests.FWD_ERRORS_2 = function () {
+    var name = "FWD_ERRORS_2";
+
+    var toThrow = new Error("Forced exception");
+    var recordedError = null;
+
+    var originalHandler = client.listeners("error").pop();
+    client.removeAllListeners("error");
+    client.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client.get("no_such_key", function (err, reply) {
+        throw toThrow;
+    });
+
+    setTimeout(function () {
+        client.listeners("error").push(originalHandler);
+        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
+        next(name);
+    }, 150);
+};
+
+tests.FWD_ERRORS_3 = function () {
+    var name = "FWD_ERRORS_3";
+
+    var recordedError = null;
+
+    var originalHandler = client.listeners("error").pop();
+    client.removeAllListeners("error");
+    client.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client.send_command("no_such_command", []);
+
+    setTimeout(function () {
+        client.listeners("error").push(originalHandler);
+        assert.ok(recordedError instanceof Error);
+        next(name);
+    }, 150);
+};
+
+tests.FWD_ERRORS_4 = function () {
+    var name = "FWD_ERRORS_4";
+
+    var toThrow = new Error("Forced exception");
+    var recordedError = null;
+
+    var originalHandler = client.listeners("error").pop();
+    client.removeAllListeners("error");
+    client.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client.send_command("no_such_command", [], function () {
+        throw toThrow;
+    });
+
+    setTimeout(function () {
+        client.listeners("error").push(originalHandler);
+        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
+        next(name);
+    }, 150);
+};
+
 tests.EVAL_1 = function () {
     var name = "EVAL_1";
 
