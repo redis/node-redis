@@ -1073,7 +1073,9 @@ Multi.prototype.exec = function (callback) {
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
         var command = args[0], obj;
-        if (typeof args[args.length - 1] === "function") {
+        
+		// if the last argument is null, undefined or a function remove it from processing.
+        if (typeof args[args.length - 1] "function" || /null|undefined/.test(args[args.length - 1])) {
             args = args.slice(1, -1);
         } else {
             args = args.slice(1);
