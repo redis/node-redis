@@ -364,7 +364,7 @@ RedisClient.prototype.on_ready = function () {
 RedisClient.prototype.on_info_cmd = function (err, res) {
     var self = this, obj = {}, lines, retry_time;
 
-    if (err) {
+    if (err || !res) {
         return self.emit("error", new Error("Ready check failed: " + err.message));
     }
 
