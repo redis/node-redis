@@ -365,7 +365,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     var self = this, obj = {}, lines, retry_time;
 
     if (err || !res) {
-        return self.emit("error", new Error("Ready check failed: " + err.message));
+        return self.emit("error", new Error("Ready check failed: " + (err && err.message)));
     }
 
     lines = res.toString().split("\r\n");
