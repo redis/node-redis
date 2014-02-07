@@ -747,6 +747,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     if (callback && process.domain) callback = process.domain.bind(callback);
 
+    if (callback && !this.connected) {
+        callback(new Error('Not connected'));
+        return;
+    }
+
     // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
