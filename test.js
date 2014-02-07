@@ -10,6 +10,7 @@ var redis = require("./index"),
     assert = require("assert"),
     crypto = require("crypto"),
     util = require("./lib/util"),
+    fork = require("child_process").fork,
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
     connected = false,
@@ -338,6 +339,40 @@ tests.MULTI_EXCEPTION_1 = function() {
     });
 };
 
+tests.MULTI_8 = function () {
+    var name = "MULTI_8", multi1, multi2;
+
+    // Provoke an error at queue time
+    multi1 = client.multi();
+    multi1.mset("multifoo_8", "10", "multibar_8", "20", require_string("OK", name));
+    multi1.set("foo2", require_error(name));
+    multi1.set("foo3", require_error(name));
+    multi1.incr("multifoo_8", require_number(11, name));
+    multi1.incr("multibar_8", require_number(21, name));
+    multi1.exec(function () {
+        require_error(name);
+
+        // Redis 2.6.5+ will abort transactions with errors
+        // see: http://redis.io/topics/transactions
+        var multibar_expected = 22;
+        var multifoo_expected = 12;
+        if (server_version_at_least(client, [2, 6, 5])) {
+            multibar_expected = 1;
+            multifoo_expected = 1;
+        }
+
+        // Confirm that the previous command, while containing an error, still worked.
+        multi2 = client.multi();
+        multi2.incr("multibar_8", require_number(multibar_expected, name));
+        multi2.incr("multifoo_8", require_number(multifoo_expected, name));
+        multi2.exec(function (err, replies) {
+            assert.strictEqual(multibar_expected, replies[0]);
+            assert.strictEqual(multifoo_expected, replies[1]);
+            next(name);
+        });
+    });
+};
+
 tests.FWD_ERRORS_1 = function () {
     var name = "FWD_ERRORS_1";
 
@@ -362,6 +397,72 @@ tests.FWD_ERRORS_1 = function () {
     client.publish(name, "Some message");
     setTimeout(function () {
         client3.listeners("error").push(originalHandlers);
+        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
+        next(name);
+    }, 150);
+};
+
+tests.FWD_ERRORS_2 = function () {
+    var name = "FWD_ERRORS_2";
+
+    var toThrow = new Error("Forced exception");
+    var recordedError = null;
+
+    var originalHandler = client.listeners("error").pop();
+    client.removeAllListeners("error");
+    client.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client.get("no_such_key", function (err, reply) {
+        throw toThrow;
+    });
+
+    setTimeout(function () {
+        client.listeners("error").push(originalHandler);
+        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
+        next(name);
+    }, 150);
+};
+
+tests.FWD_ERRORS_3 = function () {
+    var name = "FWD_ERRORS_3";
+
+    var recordedError = null;
+
+    var originalHandler = client.listeners("error").pop();
+    client.removeAllListeners("error");
+    client.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client.send_command("no_such_command", []);
+
+    setTimeout(function () {
+        client.listeners("error").push(originalHandler);
+        assert.ok(recordedError instanceof Error);
+        next(name);
+    }, 150);
+};
+
+tests.FWD_ERRORS_4 = function () {
+    var name = "FWD_ERRORS_4";
+
+    var toThrow = new Error("Forced exception");
+    var recordedError = null;
+
+    var originalHandler = client.listeners("error").pop();
+    client.removeAllListeners("error");
+    client.once("error", function (err) {
+        recordedError = err;
+    });
+
+    client.send_command("no_such_command", [], function () {
+        throw toThrow;
+    });
+
+    setTimeout(function () {
+        client.listeners("error").push(originalHandler);
         assert.equal(recordedError, toThrow, "Should have caught our forced exception");
         next(name);
     }, 150);
@@ -810,7 +911,7 @@ tests.HLEN = function () {
             next(name);
         });
     });
-}
+};
 
 tests.HMSET_BUFFER_AND_ARRAY = function () {
     // Saving a buffer and an array to the same key should not error
@@ -827,7 +928,7 @@ tests.HMSET_BUFFER_AND_ARRAY = function () {
 // TODO - add test for HMSET with optional callbacks
 
 tests.HMGET = function () {
-    var key1 = "test hash 1", key2 = "test hash 2", name = "HMGET";
+    var key1 = "test hash 1", key2 = "test hash 2", key3 = 123456789, name = "HMGET";
 
     // redis-like hmset syntax
     client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value", require_string("OK", name));
@@ -838,12 +939,23 @@ tests.HMGET = function () {
         "some manner of key": "a type of value"
     }, require_string("OK", name));
 
+    // test for numeric key
+    client.HMSET(key3, {
+        "0123456789": "abcdefghij",
+        "some manner of key": "a type of value"
+    }, require_string("OK", name));    
+
     client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
     });
 
     client.HMGET(key2, "0123456789", "some manner of key", function (err, reply) {
+        assert.strictEqual("abcdefghij", reply[0].toString(), name);
+        assert.strictEqual("a type of value", reply[1].toString(), name);
+    });
+
+    client.HMGET(key3, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
         assert.strictEqual("a type of value", reply[1].toString(), name);
     });
@@ -1277,6 +1389,17 @@ tests.HGETALL = function () {
         assert.strictEqual("1", obj.mjr.toString(), name);
         assert.strictEqual("23", obj.another.toString(), name);
         assert.strictEqual("1234", obj.home.toString(), name);
+        next(name);
+    });
+};
+
+tests.HGETALL_MESSAGE = function () {
+    var name = "HGETALL_MESSAGE";
+    client.hmset("msg_test", {message: "hello"}, require_string("OK", name));
+    client.hgetall("msg_test", function (err, obj) {
+        assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
+        assert.strictEqual(1, Object.keys(obj).length, name);
+        assert.strictEqual(obj.message, "hello")
         next(name);
     });
 };
@@ -1938,6 +2061,30 @@ tests.SLOWLOG = function () {
     });
 }
 
+tests.DOMAIN = function () {
+    var name = "DOMAIN";
+
+    var domain;
+    try {
+        domain = require('domain').create();
+    } catch (err) {
+        console.log("Skipping " + name + " because this version of node doesn't have domains.");
+        next(name);
+    }
+
+    if (domain) {
+        domain.run(function () {
+            client.set('domain', 'value', function (err, res) {
+                assert.ok(process.domain);
+                var notFound = res.not.existing.thing; // ohhh nooooo
+            });
+        });
+
+        // this is the expected and desired behavior
+        domain.on('error', function (err) { next(name); });
+    }
+};
+
 // TODO - need a better way to test auth, maybe auto-config a local Redis server or something.
 // Yes, this is the real password.  Please be nice, thanks.
 tests.auth = function () {
@@ -2000,6 +2147,23 @@ tests.reconnectRetryMaxDelay = function() {
             next(name);
         }
     });
+};
+
+tests.unref = function () {
+    var name = "unref";
+    var external = fork("./test-unref.js");
+    var done = false;
+    external.on("close", function (code) {
+        assert(code == 0, "test-unref.js failed");
+        done = true;
+    })
+    setTimeout(function () {
+        if (!done) {
+            external.kill();
+        }
+        assert(done, "test-unref.js didn't finish in time.");
+        next(name);
+    }, 500);
 };
 
 all_tests = Object.keys(tests);

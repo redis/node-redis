@@ -231,6 +231,25 @@ limits total amount of reconnects.
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
+### Unix Domain Socket
+
+You can also create a connection to Redis server via the unix domain socket if the server
+has it enabled:
+
+```js
+var redis = require("redis");
+var client = redis.createClient("/tmp/redis.sock");
+```
+
+Sample `redis.conf` configuration to enable unix domain socket listening:
+
+```conf
+unixsocket /tmp/redis.sock
+unixsocketperm 755
+```
+
+See [issue #204](https://github.com/mranney/node_redis/issues/204) for more information.
+
 ## client.auth(password, callback)
 
 When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
@@ -263,6 +282,26 @@ want to do this:
 
 `client.end()` is useful for timeout cases where something is stuck or taking too long and you want
 to start over.
+
+## client.unref()
+
+Call `unref()` on the underlying socket connection to the Redis server, allowing the program to exit once no more commands are pending.
+
+This is an **experimental** feature, and only supports a subset of the Redis protocol. Any commands where client state is saved on the Redis server, e.g. `*SUBSCRIBE` or the blocking `BL*` commands will *NOT* work with `.unref()`.
+
+```js
+var redis = require("redis")
+var client = redis.createClient()
+
+/*
+    Calling unref() will allow this program to exit immediately after the get command finishes. Otherwise the client would hang as long as the client-server connection is alive.
+*/
+client.unref()
+client.get("foo", function (err, value){
+    if (err) throw(err)
+    console.log(value)
+})
+```
 
 ## Friendlier hash commands
 

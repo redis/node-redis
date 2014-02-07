@@ -14,6 +14,12 @@ var net = require("net"),
 // can set this to true to enable for all connections
 exports.debug_mode = false;
 
+var arraySlice = Array.prototype.slice
+function trace() {
+    if (!exports.debug_mode) return;
+    console.log.apply(null, arraySlice.call(arguments))
+}
+
 // hiredis might not be installed
 try {
     require("./lib/parser/hiredis");
@@ -115,18 +121,33 @@ RedisClient.prototype.initialize_retry_vars = function () {
     this.attempts = 1;
 };
 
+RedisClient.prototype.unref = function () {
+    trace("User requesting to unref the connection");
+    if (this.connected) {
+        trace("unref'ing the socket connection");
+        this.stream.unref();
+    }
+    else {
+        trace("Not connected yet, will unref later");
+        this.once("connect", function () {
+            this.unref();
+        })
+    }
+};
+
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
-    var command_obj;
+    var command_obj, error;
+
+    error = new Error(message);
+
     while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
         if (typeof command_obj.callback === "function") {
             try {
-                command_obj.callback(message);
+                command_obj.callback(error);
             } catch (callback_err) {
-                process.nextTick(function () {
-                    throw callback_err;
-                });
+                this.emit("error", callback_err);
             }
         }
     }
@@ -136,11 +157,9 @@ RedisClient.prototype.flush_and_error = function (message) {
         command_obj = this.command_queue.shift();
         if (typeof command_obj.callback === "function") {
             try {
-                command_obj.callback(message);
+                command_obj.callback(error);
             } catch (callback_err) {
-                process.nextTick(function () {
-                    throw callback_err;
-                });
+                this.emit("error", callback_err);
             }
         }
     }
@@ -206,6 +225,8 @@ RedisClient.prototype.do_auth = function () {
 
         // now we are really connected
         self.emit("connect");
+        self.initialize_retry_vars();
+
         if (self.options.no_ready_check) {
             self.on_ready();
         } else {
@@ -222,11 +243,9 @@ RedisClient.prototype.on_connect = function () {
 
     this.connected = true;
     this.ready = false;
-    this.attempts = 0;
     this.connections += 1;
     this.command_queue = new Queue();
     this.emitted_end = false;
-    this.initialize_retry_vars();
     if (this.options.socket_nodelay) {
         this.stream.setNoDelay();
     }
@@ -238,6 +257,7 @@ RedisClient.prototype.on_connect = function () {
         this.do_auth();
     } else {
         this.emit("connect");
+        this.initialize_retry_vars();
 
         if (this.options.no_ready_check) {
             this.on_ready();
@@ -279,7 +299,11 @@ RedisClient.prototype.init_parser = function () {
 
     // "reply error" is an error sent back by Redis
     this.reply_parser.on("reply error", function (reply) {
-        self.return_error(new Error(reply));
+        if (reply instanceof Error) {
+            self.return_error(reply);
+        } else {
+            self.return_error(new Error(reply));
+        }
     });
     this.reply_parser.on("reply", function (reply) {
         self.return_reply(reply);
@@ -456,10 +480,11 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
+    var nextDelay = Math.floor(this.retry_delay * this.retry_backoff);
+    if (this.retry_max_delay !== null && nextDelay > this.retry_max_delay) {
         this.retry_delay = this.retry_max_delay;
     } else {
-        this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+        this.retry_delay = nextDelay;
     }
 
     if (exports.debug_mode) {
@@ -530,29 +555,27 @@ RedisClient.prototype.return_error = function (err) {
         try {
             command_obj.callback(err);
         } catch (callback_err) {
-            // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
-            process.nextTick(function () {
-                throw callback_err;
-            });
+            this.emit("error", callback_err);
         }
     } else {
         console.log("node_redis: no callback to send error: " + err.message);
-        // this will probably not make it anywhere useful, but we might as well throw
-        process.nextTick(function () {
-            throw err;
-        });
+        this.emit("error", err);
     }
 };
 
 // if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
+// if a domain is active, emit the error on the domain, which will serve the same function.
 // put this try/catch in its own function because V8 doesn't optimize this well yet.
-function try_callback(callback, reply) {
+function try_callback(client, callback, reply) {
     try {
         callback(null, reply);
     } catch (err) {
-        process.nextTick(function () {
-            throw err;
-        });
+        if (process.domain) {
+            process.domain.emit('error', err);
+            process.domain.exit();
+        } else {
+            client.emit("error", err);
+        }
     }
 }
 
@@ -602,7 +625,10 @@ RedisClient.prototype.return_reply = function (reply) {
         type = reply[0].toString();
     }
 
-    if (type !== 'message' && type !== 'pmessage') {
+    if (this.pub_sub_mode && (type == 'message' || type == 'pmessage')) {
+        trace("received pubsub message");
+    }
+    else {
         command_obj = this.command_queue.shift();
     }
 
@@ -630,7 +656,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 reply = reply_to_object(reply);
             }
 
-            try_callback(command_obj.callback, reply);
+            try_callback(this, command_obj.callback, reply);
         } else if (exports.debug_mode) {
             console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
@@ -656,7 +682,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 // reply[1] can be null
                 var reply1String = (reply[1] === null) ? null : reply[1].toString();
                 if (command_obj && typeof command_obj.callback === "function") {
-                    try_callback(command_obj.callback, reply1String);
+                    try_callback(this, command_obj.callback, reply1String);
                 }
                 this.emit(type, reply1String, reply[2]); // channel, count
             } else {
@@ -718,6 +744,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     } else {
         throw new Error("send_command: second argument must be an array");
     }
+
+    if (callback && process.domain) callback = process.domain.bind(callback);
 
     // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
@@ -994,8 +1022,15 @@ RedisClient.prototype.hmset = function (args, callback) {
         callback = null;
     }
 
-    if (args.length === 2 && typeof args[0] === "string" && typeof args[1] === "object") {
+    if (args.length === 2 && (typeof args[0] === "string" || typeof args[0] === "number") && typeof args[1] === "object") {
         // User does: client.hmset(key, {key1: val1, key2: val2})
+        // assuming key is a string, i.e. email address
+
+        // if key is a number, i.e. timestamp, convert to string
+        if (typeof args[0] === "number") {
+            args[0] = args[0].toString();
+        }
+
         tmp_args = [ args[0] ];
         tmp_keys = Object.keys(args[1]);
         for (i = 0, il = tmp_keys.length; i < il ; i++) {
@@ -1061,7 +1096,6 @@ Multi.prototype.exec = function (callback) {
                 } else {
                     errors.push(new Error(err));
                 }
-                self.queue.splice(index, 1);
             }
         });
     }, this);
