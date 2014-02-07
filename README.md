@@ -127,7 +127,7 @@ JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keye
 
 ### "ready"
 
-`client` will emit `ready` a connection is established to the Redis server and the server reports
+`client` will emit `ready` when a connection is established to the Redis server and the server reports
 that it is ready to receive commands.  Commands issued before the `ready` event are queued,
 then replayed just before this event is emitted.
 
@@ -168,8 +168,7 @@ It would be nice to distinguish these two cases.
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable.  This event can be used to stream commands in to Redis and adapt to backpressure.  Right now,
-you need to check `client.command_queue.length` to decide when to reduce your send rate.  Then you can
-resume sending when you get `drain`.
+you need to check `client.command_queue.length` to decide when to reduce your send rate and resume sending commands when you get `drain`.
 
 ### "idle"
 
@@ -193,7 +192,7 @@ every command on a client.
 Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the
 cost of more latency.  Most applications will want this set to `true`.
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
-be loading the database from disk.  While loading, the server not respond to any commands.  To work around this,
+be loading the database from disk.  While loading the server will not respond to any commands.  To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command
 indicates whether the server is ready for more commands.  When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
@@ -202,9 +201,8 @@ connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
 `false` will disable this feature and the callback will be execute immediately
 with an error, or an error will be thrown if no callback is specified.
-* `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
-reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
-to maximum value, provided in milliseconds.
+* `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails the delay before
+reconnection almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
 * `connect_timeout` defaults to `false`. By default client will try reconnecting until connected. Setting `connect_timeout`
 limits total time for client to reconnect. Value is provided in milliseconds and is counted once the disconnect occured.
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
@@ -252,7 +250,7 @@ See [issue #204](https://github.com/mranney/node_redis/issues/204) for more info
 
 ## client.auth(password, callback)
 
-When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
+When connecting to a Redis servers that requires authentication, the `AUTH` command must be sent as the
 first command after connecting.  This can be tricky to coordinate with reconnections, the ready check,
 etc.  To make this easier, `client.auth()` stashes `password` and will send it after each connection,
 including reconnections.  `callback` is invoked only once, after the response to the very first
@@ -674,7 +672,7 @@ Better tests for auth, disconnect/reconnect, and all combinations thereof.
 
 Stream large set/get values into and out of Redis.  Otherwise the entire value must be in node's memory.
 
-Performance can be better for very large values.
+Performance should be better for very large values.
 
 I think there are more performance improvements left in there for smaller values, especially for large lists of small values.
 
