@@ -250,7 +250,7 @@ See [issue #204](https://github.com/mranney/node_redis/issues/204) for more info
 
 ## client.auth(password, callback)
 
-When connecting to a Redis servers that requires authentication, the `AUTH` command must be sent as the
+When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
 first command after connecting.  This can be tricky to coordinate with reconnections, the ready check,
 etc.  To make this easier, `client.auth()` stashes `password` and will send it after each connection,
 including reconnections.  `callback` is invoked only once, after the response to the very first
