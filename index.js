@@ -378,9 +378,11 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     });
 
     obj.versions = [];
-    obj.redis_version.split('.').forEach(function (num) {
-        obj.versions.push(+num);
-    });
+    if( obj.redis_version ){
+        obj.redis_version.split('.').forEach(function (num) {
+            obj.versions.push(+num);
+        });
+    }
 
     // expose info key/vals to users
     this.server_info = obj;
