@@ -978,6 +978,8 @@ RedisClient.prototype.select = function (db, callback) {
         }
         if (typeof(callback) === 'function') {
             callback(err, res);
+        } else if (err) {
+            self.emit('error', err);
         }
     });
 };
