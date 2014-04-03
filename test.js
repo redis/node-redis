@@ -865,6 +865,16 @@ tests.reconnect_select_db_after_pubsub = function() {
     });
 };
 
+tests.select_error_emits_if_no_callback = function () {
+    var name = "select_error_emits_if_no_callback";
+
+    client.on('error', with_timeout(name, function (err) {
+        require_error(name)(err);
+        next(name);
+    }, 500));
+    client.select(9999);
+};
+
 tests.idle = function () {
   var name = "idle";
 

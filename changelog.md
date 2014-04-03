@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.10.1 - February 17, 2014
+
+* Skip plucking redis version from the INFO stream if INFO results weren't provided. (Robert Sköld)
+
 ## v0.10.0 - December 21, 2013
 
 * Instead of throwing errors asynchronously, emit errors on client. (Bryce Baril)
