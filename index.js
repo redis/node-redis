@@ -908,6 +908,7 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 
 RedisClient.prototype.end = function () {
     this.stream._events = {};
+    this.stream.on('error', function() { /* ignore future errors to prevent uncatchable exceptoin */ });
     this.connected = false;
     this.ready = false;
     this.closing = true;
