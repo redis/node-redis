@@ -318,6 +318,7 @@ RedisClient.prototype.on_ready = function () {
     var self = this;
 
     this.ready = true;
+    this.ended = false;
 
     if (this.old_state !== null) {
         this.monitoring = this.old_state.monitoring;
@@ -749,6 +750,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     if (callback && process.domain) callback = process.domain.bind(callback);
 
+    if(this.ended) {
+        return callback && callback(new Error('Redis connection has been ended'));
+    }
+
     // if the last argument is an array and command is sadd or srem, expand it out:
     //     client.sadd(arg1, [arg2, arg3, arg4], cb);
     //  converts to:
@@ -909,6 +914,8 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 RedisClient.prototype.end = function () {
     this.stream._events = {};
     this.stream.on('error', function() { /* ignore future errors to prevent uncatchable exceptoin */ });
+    this.flush_and_error('Connection ended.');
+    this.ended = true;
     this.connected = false;
     this.ready = false;
     this.closing = true;
