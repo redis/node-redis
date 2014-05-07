@@ -590,7 +590,7 @@ function reply_to_object(reply) {
     }
 
     for (j = 0, jl = reply.length; j < jl; j += 2) {
-        key = reply[j].toString();
+        key = reply[j].toString('binary');
         val = reply[j + 1];
         obj[key] = val;
     }
