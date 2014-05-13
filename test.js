@@ -1403,6 +1403,21 @@ tests.HGETALL = function () {
     });
 };
 
+tests.HGETALL_2 = function () {
+    var name = "HGETALL (Binary client)";
+    bclient.hmset(["bhosts", "mjr", "1", "another", "23", "home", "1234", new Buffer([0xAA, 0xBB, 0x00, 0xF0]), new Buffer([0xCC, 0xDD, 0x00, 0xF0])], require_string("OK", name));
+    bclient.HGETALL(["bhosts"], function (err, obj) {
+        assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
+        assert.strictEqual(4, Object.keys(obj).length, name);
+        assert.strictEqual("1", obj.mjr.toString(), name);
+        assert.strictEqual("23", obj.another.toString(), name);
+        assert.strictEqual("1234", obj.home.toString(), name);
+        assert.strictEqual((new Buffer([0xAA, 0xBB, 0x00, 0xF0])).toString('binary'), Object.keys(obj)[3], name);
+        assert.strictEqual((new Buffer([0xCC, 0xDD, 0x00, 0xF0])).toString('binary'), obj[(new Buffer([0xAA, 0xBB, 0x00, 0xF0])).toString('binary')].toString('binary'), name);
+        next(name);
+    });
+};
+
 tests.HGETALL_MESSAGE = function () {
     var name = "HGETALL_MESSAGE";
     client.hmset("msg_test", {message: "hello"}, require_string("OK", name));
