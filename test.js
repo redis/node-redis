@@ -867,11 +867,12 @@ tests.reconnect_select_db_after_pubsub = function() {
 
 tests.select_error_emits_if_no_callback = function () {
     var name = "select_error_emits_if_no_callback";
-
-    client.on('error', with_timeout(name, function (err) {
+    var handler = with_timeout(name, function (err) {
         require_error(name)(err);
+        client.removeListener('error', handler);
         next(name);
-    }, 500));
+    }, 500);
+    client.on('error', handler);
     client.select(9999);
 };
 
