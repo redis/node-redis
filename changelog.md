@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## v0.10.2 - May 18, 2014
+
+* Fix test not resetting `error` handler. (CrypticSwarm)
+* Fix SELECT error semantics. (Bryan English)
+
 ## v0.10.1 - February 17, 2014
 
 * Skip plucking redis version from the INFO stream if INFO results weren't provided. (Robert Sköld)
