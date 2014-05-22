@@ -408,9 +408,10 @@ tests.FWD_ERRORS_2 = function () {
     var toThrow = new Error("Forced exception");
     var recordedError = null;
 
-    var originalHandler = client.listeners("error").pop();
-    client.removeAllListeners("error");
-    client.once("error", function (err) {
+    var originalHandler = process.listeners("uncaughtException")[0];
+    process.removeAllListeners("uncaughtException");
+
+    process.once("uncaughtException", function (err) {
         recordedError = err;
     });
 
@@ -419,7 +420,7 @@ tests.FWD_ERRORS_2 = function () {
     });
 
     setTimeout(function () {
-        client.listeners("error").push(originalHandler);
+        process.on("uncaughtException", originalHandler);
         assert.equal(recordedError, toThrow, "Should have caught our forced exception");
         next(name);
     }, 150);
@@ -954,7 +955,7 @@ tests.HMGET = function () {
     client.HMSET(key3, {
         "0123456789": "abcdefghij",
         "some manner of key": "a type of value"
-    }, require_string("OK", name));    
+    }, require_string("OK", name));
 
     client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
