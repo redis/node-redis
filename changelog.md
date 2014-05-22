@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.10.3 - May 22, 2014
+
+* Update command list to match Redis 2.8.9 (Charles Feng)
+
 ## v0.10.2 - May 18, 2014
 
 * Better binay key handlign for HGETALL. (Nick Apperson)
