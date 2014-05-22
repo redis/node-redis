@@ -576,7 +576,9 @@ function try_callback(client, callback, reply) {
             process.domain.emit('error', err);
             process.domain.exit();
         } else {
-            client.emit("error", err);
+            process.nextTick(function() {
+                throw err;
+            });
         }
     }
 }
