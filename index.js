@@ -908,6 +908,14 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 
 RedisClient.prototype.end = function () {
     this.stream._events = {};
+
+    if(this.retry_timer){
+        clearTimeout(this.retry_timer);
+        this.retry_timer=null;
+        this.stream.on("error", function(){
+        });
+    }
+
     this.connected = false;
     this.ready = false;
     this.closing = true;
