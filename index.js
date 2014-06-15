@@ -668,6 +668,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
             if (type === "message") {
                 this.emit("message", reply[1].toString(), reply[2]); // channel, message
+                this.emit(reply[1].toString(), reply[2]);
             } else if (type === "pmessage") {
                 this.emit("pmessage", reply[1].toString(), reply[2].toString(), reply[3]); // pattern, channel, message
             } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
