@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    tls = require("tls"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
@@ -81,9 +82,34 @@ function RedisClient(stream, options) {
 
     this.old_state = null;
 
+    this.bind_to_stream();
+
+    events.EventEmitter.call(this);
+}
+util.inherits(RedisClient, events.EventEmitter);
+exports.RedisClient = RedisClient;
+
+RedisClient.prototype.reconnect = function() {
+    var options = this.options;
+
+    if(options && options.tls) {
+        // We cannot simply reconnect the existing stream instance,
+        // so it needs to be recreated
+        this.stream.destroy();
+        this.stream.removeAllListeners();
+        this.stream = tls.connect(this.port, this.host, options.tls);
+        this.bind_to_stream();
+    } else {
+        this.stream.connect(this.port, this.host);
+    }
+};
+
+// Attach event listeners to the current stream
+RedisClient.prototype.bind_to_stream = function() {
     var self = this;
 
-    this.stream.on("connect", function () {
+    var connect_event = this.options.tls ? "secureConnect" : "connect";
+    this.stream.on(connect_event, function () {
         self.on_connect();
     });
 
@@ -107,11 +133,7 @@ function RedisClient(stream, options) {
         self.should_buffer = false;
         self.emit("drain");
     });
-
-    events.EventEmitter.call(this);
-}
-util.inherits(RedisClient, events.EventEmitter);
-exports.RedisClient = RedisClient;
+};
 
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
@@ -520,7 +542,7 @@ RedisClient.prototype.connection_gone = function (why) {
             return;
         }
 
-        self.stream.connect(self.port, self.host);
+        self.reconnect();
         self.retry_timer = null;
     }, this.retry_delay);
 };
@@ -1186,7 +1208,11 @@ exports.createClient = function (port_arg, host_arg, options) {
         host = host_arg || default_host,
         redis_client, net_client;
 
-    net_client = net.createConnection(port, host);
+    if(options && options.tls) {
+        net_client = tls.connect(port, host, options.tls);
+    } else {
+        net_client = net.createConnection(port, host);
+    }
 
     redis_client = new RedisClient(net_client, options);
 
