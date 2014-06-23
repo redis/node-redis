@@ -144,6 +144,16 @@ tests.INCR = function () {
     });
 };
 
+tests.INFO = function() {
+    var name = "INFO";
+    client.set( "key", "value", function(err, result) {
+        client.info(function(err, result) {
+          assert.equal(client.server_info.db0.hasOwnProperty("keys"), true)
+          next(name);
+        });
+    });
+}
+
 tests.MULTI_1 = function () {
     var name = "MULTI_1", multi1, multi2;
 

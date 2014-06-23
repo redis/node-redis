@@ -362,7 +362,7 @@ RedisClient.prototype.on_ready = function () {
 };
 
 RedisClient.prototype.on_info_cmd = function (err, res) {
-    var self = this, obj = {}, lines, retry_time;
+    var self = this, obj = {}, lines, retry_time, sub_lines;
 
     if (err) {
         return self.emit("error", new Error("Ready check failed: " + err.message));
@@ -373,7 +373,18 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     lines.forEach(function (line) {
         var parts = line.split(':');
         if (parts[1]) {
-            obj[parts[0]] = parts[1];
+            if (/^db[0-9]*$/.test(parts[0])) {
+              obj[parts[0]] = {};
+                sub_lines = parts[1].split(',');
+                sub_lines.forEach(function (sub_line) {
+                    var sub_parts = sub_line.split('=');
+                    if (sub_parts[1]) {
+                        obj[parts[0]][sub_parts[0]] = sub_parts[1];
+                    }
+                });
+            } else {
+                obj[parts[0]] = parts[1];
+            }
         }
     });
 
