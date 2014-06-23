@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v0.10.4 - Jun 23, 2014
+
+* Add redis-cli createClient(port, host, options) full IPv6 Network capability
+ Specify the family type IPv4 or IPv6 in the options object.
+
+ eg: { 'family' : 'IPv6' }
+
 ## v0.10.3 - May 22, 2014
 
 * Update command list to match Redis 2.8.9 (Charles Feng)

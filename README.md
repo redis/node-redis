@@ -210,6 +210,7 @@ limits total time for client to reconnect. Value is provided in milliseconds and
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
+* `family` defaults to `IPv4`. By default client will try connecting with a IPv4 DNS resolution when a FQDN host is set. You can also specify and IPv6 for forcing a IPv6 FQDN resolution.
 
 ```js
     var redis = require("redis"),
