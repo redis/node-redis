@@ -81,6 +81,17 @@ function RedisClient(stream, options) {
 
     this.old_state = null;
 
+		if(typeof options.commands_renamed !== undefined) {
+			this.options._commands_renamed = {};
+			for(var key in options.commands_renamed) {
+				if(options.commands_renamed.hasOwnProperty(key)) {
+					this.options._commands_renamed[key.toLowerCase()] = options.commands_renamed[key];
+				}
+			}
+			this.options.commands_renamed = this.options._commands_renamed;
+			delete this.options._commands_renamed;
+		}
+
     var self = this;
 
     this.stream.on("connect", function () {
@@ -717,7 +728,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type, lcaseCommand;
+    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type, lcaseCommand, command_renamed;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -817,7 +828,12 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     // Always use "Multi bulk commands", but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
 
-    command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
+		command_renamed = lcaseCommand;
+		if(typeof this.options.commands_renamed !== undefined && this.options.commands_renamed[command_renamed]) {
+			command_renamed = this.options.commands_renamed[command_renamed];
+		}
+
+    command_str = "*" + elem_count + "\r\n$" + command_renamed.length + "\r\n" + command_renamed + "\r\n";
 
     if (! buffer_args) { // Build up a string and send entire command in one write
         for (i = 0, il = args.length, arg; i < il; i += 1) {
