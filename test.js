@@ -115,6 +115,51 @@ next = function next(name) {
 
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
+tests.IPV4 = function () {
+	var ipv4Client = redis.createClient( PORT, "127.0.0.1", { "family" : "IPv4" } );
+	
+	ipv4Client.once("ready", function start_tests() {
+		console.log("Connected to " + ipv4Client.host + ":" + ipv4Client.port + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
+		console.log("Using reply parser " + ipv4Client.reply_parser.name);
+
+		ipv4Client.quit();
+		run_next_test();
+	});
+
+	ipv4Client.on('end', function () {
+		
+	});
+
+	// Exit immediately on connection failure, which triggers "exit", below, which fails the test
+	ipv4Client.on("error", function (err) {
+		console.error("client: " + err.stack);
+		process.exit();
+	});	
+}
+
+tests.IPV6 = function () {
+	var ipv6Client = redis.createClient( PORT, "::1", { "family" : "IPv6" } );
+	
+	ipv6Client.once("ready", function start_tests() {
+		console.log("Connected to " + ipv6Client.host + ":" + ipv6Client.port + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
+		console.log("Using reply parser " + ipv6Client.reply_parser.name);
+
+		ipv6Client.quit();
+		run_next_test();
+	});
+
+	ipv6Client.on('end', function () {
+		
+	});
+
+	// Exit immediately on connection failure, which triggers "exit", below, which fails the test
+	ipv6Client.on("error", function (err) {
+		console.error("client: " + err.stack);
+		process.exit();
+	});
+}
+
+
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
     client.select(test_db_num, require_string("OK", name));

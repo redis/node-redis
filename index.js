@@ -1183,10 +1183,16 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 
 exports.createClient = function (port_arg, host_arg, options) {
 
+	var cnxFamily;
+	
+	if (options && options.family) {
+		cnxFamily = (options.family == 'IPv6' ? 6 : 4);
+	}
+	
     var cnxOptions = {
         'port' : port_arg || default_port,
         'host' : host_arg || default_host,
-        'family' : options.family || 'IPv4'
+        'family' : cnxFamily || '4'
     };
 
     var  redis_client, net_client;
