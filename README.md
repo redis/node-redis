@@ -192,7 +192,7 @@ every command on a client.
 * `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
 Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the
 cost of more latency.  Most applications will want this set to `true`.
-* `socket_keepalive` defaults to `false`. Whether the keep-alive functionality is enabled on the underlying socket. 
+* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket. 
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
 be loading the database from disk.  While loading, the server not respond to any commands.  To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command

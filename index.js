@@ -44,7 +44,7 @@ function RedisClient(stream, options) {
         this.options.socket_nodelay = true;
     }
     if (this.options.socket_keepalive === undefined) {
-        this.options.socket_keepalive = false;
+        this.options.socket_keepalive = true;
     }
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
