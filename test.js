@@ -800,10 +800,13 @@ tests.reconnect_select_db_after_pubsub = function() {
 };
 
 tests.select_error_emits_if_no_callback = function () {
+    var prev = client.listeners("error")[0];
+    client.removeListener("error", prev);
     var name = "select_error_emits_if_no_callback";
     var handler = with_timeout(name, function (err) {
         require_error(name)(err);
         client.removeListener('error', handler);
+        client.on("error", prev);
         next(name);
     }, 500);
     client.on('error', handler);
@@ -888,7 +891,7 @@ tests.HMGET = function () {
     client.HMSET(key3, {
         "0123456789": "abcdefghij",
         "some manner of key": "a type of value"
-    }, require_string("OK", name));    
+    }, require_string("OK", name));
 
     client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
