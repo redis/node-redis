@@ -154,7 +154,9 @@ RedisClient.prototype.flush_and_error = function (message) {
             try {
                 command_obj.callback(error);
             } catch (callback_err) {
-                this.emit("error", callback_err);
+                process.nextTick(function () {
+                    throw callback_err;
+                });
             }
         }
     }
@@ -166,7 +168,9 @@ RedisClient.prototype.flush_and_error = function (message) {
             try {
                 command_obj.callback(error);
             } catch (callback_err) {
-                this.emit("error", callback_err);
+                process.nextTick(function () {
+                    throw callback_err;
+                });
             }
         }
     }
@@ -566,18 +570,24 @@ RedisClient.prototype.return_error = function (err) {
         try {
             command_obj.callback(err);
         } catch (callback_err) {
-            this.emit("error", callback_err);
+            // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
+            process.nextTick(function () {
+                throw callback_err;
+            });
         }
     } else {
         console.log("node_redis: no callback to send error: " + err.message);
-        this.emit("error", err);
+        // this will probably not make it anywhere useful, but we might as well throw
+        process.nextTick(function () {
+            throw err;
+        });
     }
 };
 
 // if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
 // if a domain is active, emit the error on the domain, which will serve the same function.
 // put this try/catch in its own function because V8 doesn't optimize this well yet.
-function try_callback(client, callback, reply) {
+function try_callback(callback, reply) {
     try {
         callback(null, reply);
     } catch (err) {
@@ -588,7 +598,9 @@ function try_callback(client, callback, reply) {
                 currDomain.exit();
             }
         } else {
-            client.emit("error", err);
+            process.nextTick(function () {
+                throw err;
+            });
         }
     }
 }
@@ -670,7 +682,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 reply = reply_to_object(reply);
             }
 
-            try_callback(this, command_obj.callback, reply);
+            try_callback(command_obj.callback, reply);
         } else if (exports.debug_mode) {
             console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
@@ -696,7 +708,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 // reply[1] can be null
                 var reply1String = (reply[1] === null) ? null : reply[1].toString();
                 if (command_obj && typeof command_obj.callback === "function") {
-                    try_callback(this, command_obj.callback, reply1String);
+                    try_callback(command_obj.callback, reply1String);
                 }
                 this.emit(type, reply1String, reply[2]); // channel, count
             } else {
