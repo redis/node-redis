@@ -81,6 +81,14 @@ function RedisClient(stream, options) {
 
     this.old_state = null;
 
+    this.install_stream_listeners();
+
+    events.EventEmitter.call(this);
+}
+util.inherits(RedisClient, events.EventEmitter);
+exports.RedisClient = RedisClient;
+
+RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
 
     this.stream.on("connect", function () {
@@ -107,11 +115,7 @@ function RedisClient(stream, options) {
         self.should_buffer = false;
         self.emit("drain");
     });
-
-    events.EventEmitter.call(this);
-}
-util.inherits(RedisClient, events.EventEmitter);
-exports.RedisClient = RedisClient;
+};
 
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
@@ -520,7 +524,8 @@ RedisClient.prototype.connection_gone = function (why) {
             return;
         }
 
-        self.stream.connect(self.port, self.host);
+        self.stream = net.createConnection(self.port, self.host);
+        self.install_stream_listeners();
         self.retry_timer = null;
     }, this.retry_delay);
 };
