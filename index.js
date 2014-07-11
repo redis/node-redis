@@ -578,8 +578,11 @@ function try_callback(client, callback, reply) {
         callback(null, reply);
     } catch (err) {
         if (process.domain) {
-            process.domain.emit('error', err);
-            process.domain.exit();
+            var currDomain = process.domain;
+            currDomain.emit('error', err);
+            if (process.domain === currDomain) {
+                currDomain.exit();
+            }
         } else {
             client.emit("error", err);
         }
