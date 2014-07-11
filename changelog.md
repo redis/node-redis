@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.11.0 - Jul 10, 2014
+
+* IPv6 Support. (Yann Stephan)
+* Revert error emitting and go back to throwing errors. (Bryce Baril)
 * Set socket_keepalive to prevent long-lived client timeouts. (mohit)
 * Correctly reset retry timer. (ouotuo)
 * Domains protection from bad user exit. (Jake Verbaten)
