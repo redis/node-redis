@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* Correctly reset retry timer. (ouotuo)
 * Domains protection from bad user exit. (Jake Verbaten)
 * Fix reconnection socket logic to prevent misqueued entries. (Iain Proctor)
 
