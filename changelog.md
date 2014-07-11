@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* Fix reconnection socket logic to prevent misqueued entries. (Iain Proctor)
+
 ## v0.10.3 - May 22, 2014
 
 * Update command list to match Redis 2.8.9 (Charles Feng)
