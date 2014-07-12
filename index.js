@@ -1215,11 +1215,11 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 
 exports.createClient = function (port_arg, host_arg, options) {
 
-	var cnxFamily;
+    var cnxFamily;
 	
-	if (options && options.family) {
-		cnxFamily = (options.family == 'IPv6' ? 6 : 4);
-	}
+    if (options && options.family) {
+        cnxFamily = (options.family == 'IPv6' ? 6 : 4);
+    }
 	
     var cnxOptions = {
         'port' : port_arg || default_port,
@@ -1228,6 +1228,12 @@ exports.createClient = function (port_arg, host_arg, options) {
     };
 
     var  redis_client, net_client;
+    
+    if (port_arg && !/^\d+$/.test(port_arg)) {
+        cnxOptions = {
+            path: port_arg
+        };
+    }
 
     net_client = net.createConnection(cnxOptions);
 
