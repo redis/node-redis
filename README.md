@@ -175,6 +175,11 @@ resume sending when you get `drain`.
 
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
+### "reconnecting"
+
+`client` will emit `reconnecting` when trying to reconnect to the Redis server after losing the connection. Listeners
+are passed an object containing `delay` (in ms) and `attempt` (the attempt #) attributes.
+
 ## redis.createClient(port, host, options)
 
 Create a new client connection.  `port` defaults to `6379` and `host` defaults
