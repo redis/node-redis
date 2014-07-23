@@ -495,6 +495,51 @@ tests.EVAL_1 = function () {
         assert.strictEqual("c", res[2], name);
         assert.strictEqual("d", res[3], name);
     });
+    
+    //test {EVAL - Allow variadic KEYS and ARGS to be passed to script}
+    client.eval("return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}", ["a", "b"], ["c", "d"], function (err, res) {
+        assert.strictEqual(4, res.length, name);
+        assert.strictEqual("a", res[0], name);
+        assert.strictEqual("b", res[1], name);
+        assert.strictEqual("c", res[2], name);
+        assert.strictEqual("d", res[3], name);
+    });
+    
+     //test {EVAL - Allow variadic KEYS and ARGS to be passed to script in array format}
+    client.eval(["return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}", ["a", "b"], ["c", "d"]], function (err, res) {
+        assert.strictEqual(4, res.length, name);
+        assert.strictEqual("a", res[0], name);
+        assert.strictEqual("b", res[1], name);
+        assert.strictEqual("c", res[2], name);
+        assert.strictEqual("d", res[3], name);
+    });
+    
+    //test {EVAL - Script with no arguments}
+    client.eval("return 1", function (err, res) {
+        assert.strictEqual(1, res, name);
+    });
+    
+    //test {EVAL - Script with no arguments in array format}
+    client.eval(["return 1"], function (err, res) {
+        assert.strictEqual(1, res, name);
+    });
+    
+    //test {EVAL - Script with only KEYS}
+    client.eval("return {KEYS[1], KEYS[2]}", ["key1", "key2"], function (err, res) {
+        assert.strictEqual(2, res.length, name);
+        assert.strictEqual(res[0], "key1", name);
+        assert.strictEqual(res[1], "key2", name);
+    });
+    
+    //test {EVAL - Script with only KEYS in array format}
+    client.eval(["return {KEYS[1], KEYS[2]}", ["key1", "key2"]], function (err, res) {
+        assert.strictEqual(2, res.length, name);
+        assert.strictEqual(res[0], "key1", name);
+        assert.strictEqual(res[1], "key2", name);
+    });
+    
+    
+    
 
     // prepare sha sum for evalsha cache test
     var source = "return redis.call('get', 'sha test')",
