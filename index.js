@@ -994,7 +994,14 @@ commands.forEach(function (fullCommand) {
     RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
 
     Multi.prototype[command] = function () {
-        this.queue.push([command].concat(to_array(arguments)));
+        if(Array.isArray(arguments[0])){
+            this.queue.push([command].concat(arguments[0]));
+        }else if(Array.isArray(arguments[1])){
+            this.queue.push([command].concat([arguments[0]]).concat(arguments[1]));
+        }else{
+            this.queue.push([command].concat(to_array(arguments)));
+        }
+
         return this;
     };
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
