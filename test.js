@@ -300,25 +300,6 @@ tests.MULTI_4 = function () {
         });
 };
 
-tests.MULTI_4 = function () {
-    var name = "MULTI_4";
-
-    client.multi()
-        .mset('some', '10', 'keys', '20')
-        .incr('some')
-        .incr('keys')
-        .mget('some', 'keys')
-        .exec(function (err, replies) {
-            assert.strictEqual(null, err);
-            assert.equal('OK', replies[0]);
-            assert.equal(11, replies[1]);
-            assert.equal(21, replies[2]);
-            assert.equal(11, replies[3][0].toString());
-            assert.equal(21, replies[3][1].toString());
-            next(name);
-        });
-};
-
 tests.MULTI_5 = function () {
     var name = "MULTI_5";
 
@@ -332,6 +313,28 @@ tests.MULTI_5 = function () {
         assert.strictEqual(replies[0].length, 4, name);
         next(name);
     });
+};
+
+tests.MULTI_6 = function () {
+    var name = "MULTI_6";
+
+    client.multi()
+        .hmset("multihash", "a", "foo", "b", 1)
+        .hmset("multihash", {
+            extra: "fancy",
+            things: "here"
+        })
+        .hgetall("multihash")
+        .exec(function (err, replies) {
+            assert.strictEqual(null, err);
+            assert.equal("OK", replies[0]);
+            assert.equal(Object.keys(replies[2]).length, 4);
+            assert.equal("foo", replies[2].a);
+            assert.equal("1", replies[2].b);
+            assert.equal("fancy", replies[2].extra);
+            assert.equal("here", replies[2].things);
+            next(name);
+        });
 };
 
 tests.MULTI_7 = function () {
