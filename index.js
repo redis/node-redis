@@ -1221,22 +1221,26 @@ exports.createClient = function (port_arg, host_arg, options) {
 		cnxFamily = (options.family == 'IPv6' ? 6 : 4);
 	}
 	
-    var cnxOptions = {
-        'port' : port_arg || default_port,
-        'host' : host_arg || default_host,
-        'family' : cnxFamily || '4'
-    };
+  var cnxOptions = {
+      'port' : port_arg || default_port,
+      'host' : host_arg || default_host,
+      'family' : cnxFamily || '4'
+  };
 
-    var  redis_client, net_client;
+  // Unix Domain Sockets
+  if (typeof port_arg === 'string') cnxOptions.path = port_arg;
 
-    net_client = net.createConnection(cnxOptions);
+  var redis_client, net_client;
 
-    redis_client = new RedisClient(net_client, options);
+  net_client = net.createConnection(cnxOptions);
 
-    redis_client.port = cnxOptions.port;
-    redis_client.host = cnxOptions.host;
+  redis_client = new RedisClient(net_client, options);
 
-    return redis_client;
+  redis_client.port = cnxOptions.port;
+  redis_client.host = cnxOptions.host;
+
+  return redis_client;
+
 };
 
 exports.print = function (err, reply) {
