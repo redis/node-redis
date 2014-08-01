@@ -1214,29 +1214,37 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 
 
 exports.createClient = function (port_arg, host_arg, options) {
+  var cnxFamily, cnxOptions;
 
-	var cnxFamily;
-	
-	if (options && options.family) {
-		cnxFamily = (options.family == 'IPv6' ? 6 : 4);
-	}
-	
-    var cnxOptions = {
+  if (typeof port_arg === 'string' && parseInt(port_arg, 10) !== port_arg) {
+    cnxOptions = {
+      path: port_arg
+    };
+  } else {
+    if (options && options.family) {
+      cnxFamily = (options.family == 'IPv6' ? 6 : 4);
+    }
+
+    cnxOptions = {
         'port' : port_arg || default_port,
         'host' : host_arg || default_host,
         'family' : cnxFamily || '4'
     };
+  }
+  var redis_client, net_client;
 
-    var  redis_client, net_client;
+  net_client = net.createConnection(cnxOptions);
 
-    net_client = net.createConnection(cnxOptions);
+  redis_client = new RedisClient(net_client, options);
 
-    redis_client = new RedisClient(net_client, options);
-
+  if (cnxOptions.port) {
     redis_client.port = cnxOptions.port;
     redis_client.host = cnxOptions.host;
+  } else if (cnxOptions.path) {
+    redis_client.path = cnxOptions.path;
+  }
 
-    return redis_client;
+  return redis_client;
 };
 
 exports.print = function (err, reply) {
