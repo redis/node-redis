@@ -1216,7 +1216,9 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 exports.createClient = function (port_arg, host_arg, options) {
   var cnxFamily, cnxOptions;
 
-  if (typeof port_arg === 'string' && parseInt(port_arg, 10) !== port_arg) {
+  if (typeof port_arg === 'object') {
+    cnxOptions = port_arg;
+  } else if (typeof port_arg === 'string' && parseInt(port_arg, 10) !== port_arg) {
     cnxOptions = {
       path: port_arg
     };
