@@ -613,6 +613,8 @@ function reply_to_object(reply) {
         return null;
     }
 
+    if (typeof reply == 'string') reply = reply.split(',');
+
     for (j = 0, jl = reply.length; j < jl; j += 2) {
         key = reply[j].toString('binary');
         val = reply[j + 1];
