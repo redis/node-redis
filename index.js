@@ -178,7 +178,7 @@ RedisClient.prototype.flush_and_error = function (message) {
 };
 
 RedisClient.prototype.on_error = function (msg) {
-    var message = "Redis connection to " + this.host + ":" + this.port + " failed - " + msg;
+    var message = "Redis connection to " + this.address + " failed - " + msg;
 
     if (this.closing) {
         return;
@@ -203,7 +203,7 @@ RedisClient.prototype.do_auth = function () {
     var self = this;
 
     if (exports.debug_mode) {
-        console.log("Sending auth to " + self.host + ":" + self.port + " id " + self.connection_id);
+        console.log("Sending auth to " + self.address + " id " + self.connection_id);
     }
     self.send_anyway = true;
     self.send_command("auth", [this.auth_pass], function (err, res) {
@@ -227,7 +227,7 @@ RedisClient.prototype.do_auth = function () {
             return self.emit("error", new Error("Auth failed: " + res.toString()));
         }
         if (exports.debug_mode) {
-            console.log("Auth succeeded " + self.host + ":" + self.port + " id " + self.connection_id);
+            console.log("Auth succeeded " + self.address + " id " + self.connection_id);
         }
         if (self.auth_callback) {
             self.auth_callback(err, res);
@@ -249,7 +249,7 @@ RedisClient.prototype.do_auth = function () {
 
 RedisClient.prototype.on_connect = function () {
     if (exports.debug_mode) {
-        console.log("Stream connected " + this.host + ":" + this.port + " id " + this.connection_id);
+        console.log("Stream connected " + this.address + " id " + this.connection_id);
     }
 
     this.connected = true;
@@ -532,7 +532,7 @@ RedisClient.prototype.connection_gone = function (why) {
             return;
         }
 
-        self.stream = net.createConnection(self.port, self.host);
+        self.stream = net.createConnection(self.connectionOption);
         self.install_stream_listeners();
         self.retry_timer = null;
     }, this.retry_delay);
@@ -540,7 +540,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
 RedisClient.prototype.on_data = function (data) {
     if (exports.debug_mode) {
-        console.log("net read " + this.host + ":" + this.port + " id " + this.connection_id + ": " + data.toString());
+        console.log("net read " + this.address + " id " + this.connection_id + ": " + data.toString());
     }
 
     try {
@@ -852,7 +852,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         }
         if (exports.debug_mode) {
-            console.log("send " + this.host + ":" + this.port + " id " + this.connection_id + ": " + command_str);
+            console.log("send " + this.address + " id " + this.connection_id + ": " + command_str);
         }
         buffered_writes += !stream.write(command_str);
     } else {
@@ -1213,28 +1213,64 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 };
 
 
-exports.createClient = function (port_arg, host_arg, options) {
+exports.createClient = function(arg0, arg1, arg2){
+    if( arguments.length === 0 ){
 
-	var cnxFamily;
-	
-	if (options && options.family) {
-		cnxFamily = (options.family == 'IPv6' ? 6 : 4);
-	}
-	
+        // createClient() 
+        return createClient_tcp(default_port, default_host, {});
+
+    } else if( typeof arg0 === 'number' || 
+        typeof arg0 === 'string' && arg0.match(/^\d+$/) ){
+
+        // createClient( 3000, host, options)
+        // createClient('3000', host, options)
+        return createClient_tcp(arg0, arg1, arg2);
+
+    } else if( typeof arg0 === 'string' ){
+
+        // createClient( '/tmp/redis.sock', options)
+        return createClient_unix(arg0,arg1);
+
+    } else if( arg0 !== null && typeof arg0 === 'object' ){
+
+        // createClient(options)
+        return createClient_tcp(default_port, default_host, arg0 );
+
+    } else if( arg0 === null && arg1 === null ){
+
+        // for backward compatibility 
+        // createClient(null,null,options)
+        return createClient_tcp(default_port, default_host, arg2);
+        
+    } else {
+        throw new Error('unknown type of connection in createClient()');
+    }
+}
+
+var createClient_unix = function(path, options){
+    var cnxOptions = {
+        path: path
+    };
+    var net_client = net.createConnection(cnxOptions);
+    var redis_client = new RedisClient(net_client, options || {});
+
+    redis_client.connectionOption = cnxOptions;
+    redis_client.address = path;
+
+    return redis_client;
+}
+
+var createClient_tcp = function (port_arg, host_arg, options) {
     var cnxOptions = {
         'port' : port_arg || default_port,
         'host' : host_arg || default_host,
-        'family' : cnxFamily || '4'
+        'family' : (options && options.family === 'IPv6') ? 'IPv6' : 'IPv4' 
     };
+    var net_client = net.createConnection(cnxOptions);
+    var redis_client = new RedisClient(net_client, options || {});
 
-    var  redis_client, net_client;
-
-    net_client = net.createConnection(cnxOptions);
-
-    redis_client = new RedisClient(net_client, options);
-
-    redis_client.port = cnxOptions.port;
-    redis_client.host = cnxOptions.host;
+    redis_client.connectionOption = cnxOptions;
+    redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
 
     return redis_client;
 };
