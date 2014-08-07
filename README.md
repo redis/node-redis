@@ -221,7 +221,7 @@ You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns mod
 
 ```js
     var redis = require("redis"),
-        client = redis.createClient(null, null, {detect_buffers: true});
+        client = redis.createClient({detect_buffers: true});
 
     client.set("foo_rand000000000000", "OK");
 
