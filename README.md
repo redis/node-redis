@@ -175,10 +175,15 @@ resume sending when you get `drain`.
 
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
-## redis.createClient(port, host, options)
+## redis.createClient()
 
-Create a new client connection.  `port` defaults to `6379` and `host` defaults
-to `127.0.0.1`.  If you have `redis-server` running on the same computer as node, then the defaults for
+### overloading
+* redis.createClient() = redis.createClient(6379, '127.0.0.1', {})
+* redis.createClient(options) = redis.createClient(6379, '127.0.0.1', options)
+* redis.createClient(unix_socket, options)
+* redis.createClient(port, host, options)
+
+If you have `redis-server` running on the same computer as node, then the defaults for
 port and host are probably fine.  `options` in an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
@@ -234,24 +239,6 @@ You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns mod
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
-### Unix Domain Socket
-
-You can also create a connection to Redis server via the unix domain socket if the server
-has it enabled:
-
-```js
-var redis = require("redis");
-var client = redis.createClient("/tmp/redis.sock");
-```
-
-Sample `redis.conf` configuration to enable unix domain socket listening:
-
-```conf
-unixsocket /tmp/redis.sock
-unixsocketperm 755
-```
-
-See [issue #204](https://github.com/mranney/node_redis/issues/204) for more information.
 
 ## client.auth(password, callback)
 
