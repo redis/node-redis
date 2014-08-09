@@ -116,47 +116,51 @@ next = function next(name) {
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 tests.IPV4 = function () {
-	var ipv4Client = redis.createClient( PORT, "127.0.0.1", { "family" : "IPv4" } );
-	
-	ipv4Client.once("ready", function start_tests() {
-		console.log("Connected to " + ipv4Client.address + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
-		console.log("Using reply parser " + ipv4Client.reply_parser.name);
+    var ipv4Client = redis.createClient( PORT, "127.0.0.1", { "family" : "IPv4" } );
 
-		ipv4Client.quit();
-		run_next_test();
-	});
+    ipv4Client.once("ready", function start_tests() {
+        console.log("Connected to " + ipv4Client.address + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
+        console.log("Using reply parser " + ipv4Client.reply_parser.name);
 
-	ipv4Client.on('end', function () {
-		
-	});
+        ipv4Client.quit();
+        run_next_test();
+    });
 
-	// Exit immediately on connection failure, which triggers "exit", below, which fails the test
-	ipv4Client.on("error", function (err) {
-		console.error("client: " + err.stack);
-		process.exit();
-	});	
+    ipv4Client.on('end', function () {
+
+    });
+
+    // Exit immediately on connection failure, which triggers "exit", below, which fails the test
+    ipv4Client.on("error", function (err) {
+        console.error("client: " + err.stack);
+        process.exit();
+    });
 }
 
 tests.IPV6 = function () {
-	var ipv6Client = redis.createClient( PORT, "::1", { "family" : "IPv6" } );
-	
-	ipv6Client.once("ready", function start_tests() {
-		console.log("Connected to " + ipv6Client.address + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
-		console.log("Using reply parser " + ipv6Client.reply_parser.name);
+    if (!server_version_at_least(client, [2, 8, 0])) {
+        console.log("Skipping IPV6 for old Redis server version < 2.8.0");
+        return run_next_test();
+    }
+    var ipv6Client = redis.createClient( PORT, "::1", { "family" : "IPv6" } );
 
-		ipv6Client.quit();
-		run_next_test();
-	});
+    ipv6Client.once("ready", function start_tests() {
+        console.log("Connected to " + ipv6Client.address + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
+        console.log("Using reply parser " + ipv6Client.reply_parser.name);
 
-	ipv6Client.on('end', function () {
-		
-	});
+        ipv6Client.quit();
+        run_next_test();
+    });
 
-	// Exit immediately on connection failure, which triggers "exit", below, which fails the test
-	ipv6Client.on("error", function (err) {
-		console.error("client: " + err.stack);
-		process.exit();
-	});
+    ipv6Client.on('end', function () {
+
+    });
+
+    // Exit immediately on connection failure, which triggers "exit", below, which fails the test
+    ipv6Client.on("error", function (err) {
+        console.error("client: " + err.stack);
+        process.exit();
+    });
 }
 
 tests.UNIX_SOCKET = function () {
@@ -635,7 +639,7 @@ tests.CLIENT_LIST = function() {
         return next(name);
     }
 
-    var pattern = /^add=/; 
+    var pattern = /^addr=/;
     if ( server_version_at_least(client, [2, 8, 12])) {
         pattern = /^id=\d+ addr=/;
     }
