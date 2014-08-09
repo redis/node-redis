@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## v0.12.0 - Aug 9, 2014
+* Fix unix socket support (Jack Tang)
+* Improve createClient argument handling (Jack Tang)
+
 ## v0.11.0 - Jul 10, 2014
 
 * IPv6 Support. (Yann Stephan)
