@@ -1216,10 +1216,10 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 exports.createClient = function(arg0, arg1, arg2){
     if( arguments.length === 0 ){
 
-        // createClient() 
+        // createClient()
         return createClient_tcp(default_port, default_host, {});
 
-    } else if( typeof arg0 === 'number' || 
+    } else if( typeof arg0 === 'number' ||
         typeof arg0 === 'string' && arg0.match(/^\d+$/) ){
 
         // createClient( 3000, host, options)
@@ -1238,10 +1238,10 @@ exports.createClient = function(arg0, arg1, arg2){
 
     } else if( arg0 === null && arg1 === null ){
 
-        // for backward compatibility 
+        // for backward compatibility
         // createClient(null,null,options)
         return createClient_tcp(default_port, default_host, arg2);
-        
+
     } else {
         throw new Error('unknown type of connection in createClient()');
     }
@@ -1264,7 +1264,7 @@ var createClient_tcp = function (port_arg, host_arg, options) {
     var cnxOptions = {
         'port' : port_arg || default_port,
         'host' : host_arg || default_host,
-        'family' : (options && options.family === 'IPv6') ? 'IPv6' : 'IPv4' 
+        'family' : (options && options.family === 'IPv6') ? 6 : 4
     };
     var net_client = net.createConnection(cnxOptions);
     var redis_client = new RedisClient(net_client, options || {});
