@@ -1,6 +1,9 @@
 Changelog
 =========
 
+## v0.12.1 - Aug 10, 2014
+* Fix IPv6/IPv4 family selection in node 0.11+ (Various)
+
 ## v0.12.0 - Aug 9, 2014
 * Fix unix socket support (Jack Tang)
 * Improve createClient argument handling (Jack Tang)
