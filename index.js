@@ -1264,7 +1264,7 @@ var createClient_tcp = function (port_arg, host_arg, options) {
     var cnxOptions = {
         'port' : port_arg || default_port,
         'host' : host_arg || default_host,
-        'family' : (options && options.family === 'IPv6') ? 'IPv6' : 'IPv4' 
+        'family' : (options && options.family === 'IPv6') ? '6' : '4' 
     };
     var net_client = net.createConnection(cnxOptions);
     var redis_client = new RedisClient(net_client, options || {});
