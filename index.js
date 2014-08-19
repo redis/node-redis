@@ -118,6 +118,8 @@ RedisClient.prototype.install_stream_listeners = function() {
         self.should_buffer = false;
         self.emit("drain");
     });
+    
+    return this;
 };
 
 RedisClient.prototype.initialize_retry_vars = function () {
@@ -126,6 +128,8 @@ RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_delay = 150;
     this.retry_backoff = 1.7;
     this.attempts = 1;
+    
+    return this;
 };
 
 RedisClient.prototype.unref = function () {
@@ -140,6 +144,8 @@ RedisClient.prototype.unref = function () {
             this.unref();
         })
     }
+    
+    return this;
 };
 
 // flush offline_queue and command_queue, erroring any items with a callback first
@@ -175,13 +181,15 @@ RedisClient.prototype.flush_and_error = function (message) {
         }
     }
     this.command_queue = new Queue();
+    
+    return this;
 };
 
 RedisClient.prototype.on_error = function (msg) {
     var message = "Redis connection to " + this.address + " failed - " + msg;
 
     if (this.closing) {
-        return;
+        return this;
     }
 
     if (exports.debug_mode) {
@@ -197,6 +205,8 @@ RedisClient.prototype.on_error = function (msg) {
     // "error" events get turned into exceptions if they aren't listened for.  If the user handled this error
     // then we should try to reconnect.
     this.connection_gone("error");
+    
+    return this;
 };
 
 RedisClient.prototype.do_auth = function () {
@@ -245,6 +255,8 @@ RedisClient.prototype.do_auth = function () {
         }
     });
     self.send_anyway = false;
+    
+    return this;
 };
 
 RedisClient.prototype.on_connect = function () {
@@ -277,6 +289,8 @@ RedisClient.prototype.on_connect = function () {
             this.ready_check();
         }
     }
+    
+    return this;
 };
 
 RedisClient.prototype.init_parser = function () {
@@ -364,13 +378,15 @@ RedisClient.prototype.on_ready = function () {
             callback_count++;
             self.send_command(parts[0] + "scribe", [parts[1]], callback);
         });
-        return;
+        return this;
     } else if (this.monitoring) {
         this.send_command("monitor");
     } else {
         this.send_offline_queue();
     }
     this.emit("ready");
+    
+    return this;
 };
 
 RedisClient.prototype.on_info_cmd = function (err, res) {
@@ -430,6 +446,8 @@ RedisClient.prototype.ready_check = function () {
         self.on_info_cmd(err, res);
     });
     this.send_anyway = false;
+    
+    return this;
 };
 
 RedisClient.prototype.send_offline_queue = function () {
@@ -449,6 +467,8 @@ RedisClient.prototype.send_offline_queue = function () {
         this.should_buffer = false;
         this.emit("drain");
     }
+    
+    return this;
 };
 
 RedisClient.prototype.connection_gone = function (why) {
@@ -456,7 +476,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
     // If a retry is already in progress, just let that happen
     if (this.retry_timer) {
-        return;
+        return this;
     }
 
     if (exports.debug_mode) {
@@ -491,7 +511,7 @@ RedisClient.prototype.connection_gone = function (why) {
         if (exports.debug_mode) {
             console.warn("connection ended from quit command, not retrying.");
         }
-        return;
+        return this;
     }
 
     var nextDelay = Math.floor(this.retry_delay * this.retry_backoff);
@@ -510,7 +530,7 @@ RedisClient.prototype.connection_gone = function (why) {
         // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
         // want the program to exit.  Right now, we just log, which doesn't really help in either case.
         console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
-        return;
+        return this;
     }
 
     this.attempts += 1;
@@ -536,6 +556,8 @@ RedisClient.prototype.connection_gone = function (why) {
         self.install_stream_listeners();
         self.retry_timer = null;
     }, this.retry_delay);
+    
+    return this;
 };
 
 RedisClient.prototype.on_data = function (data) {
@@ -552,6 +574,8 @@ RedisClient.prototype.on_data = function (data) {
         // TODO - it might be nice to have a different "error" event for different types of errors
         this.emit("error", err);
     }
+    
+    return this;
 };
 
 RedisClient.prototype.return_error = function (err) {
@@ -582,6 +606,8 @@ RedisClient.prototype.return_error = function (err) {
             throw err;
         });
     }
+    
+    return this;
 };
 
 // if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
@@ -928,6 +954,8 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
             delete this.subscription_set[key + " " + args[i]];
         }
     }
+    
+    return this;
 };
 
 RedisClient.prototype.end = function () {
@@ -1004,7 +1032,7 @@ commands.forEach(function (fullCommand) {
 RedisClient.prototype.select = function (db, callback) {
     var self = this;
 
-    this.send_command('select', [db], function (err, res) {
+    return this.send_command('select', [db], function (err, res) {
         if (err === null) {
             self.selected_db = db;
         }
@@ -1029,6 +1057,8 @@ RedisClient.prototype.auth = function () {
     if (this.connected) {
         this.send_command("auth", args);
     }
+    
+    return this;
 };
 RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
@@ -1201,7 +1231,7 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
     var source = args[0];
     args[0] = crypto.createHash("sha1").update(source).digest("hex");
 
-    self.evalsha(args, function (err, reply) {
+    return self.evalsha(args, function (err, reply) {
         if (err && /NOSCRIPT/.test(err.message)) {
             args[0] = source;
             eval_orig.call(self, args, callback);
