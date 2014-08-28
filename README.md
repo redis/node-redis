@@ -181,6 +181,8 @@ every command on a client.
 Nagle algorithm on the underlying socket. Setting this option to `false` can result in additional throughput at the
 cost of more latency. Most applications will want this set to `true`.
 * `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket.
+* `socket_connect_timeout` defaults to `null`. By default a connection attempts use the operating system's timeout, but 
+setting `socket_connect_timeout` will time-out the connection attempt after this many milliseconds instead.
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
 be loading the database from disk. While loading, the server not respond to any commands. To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command
