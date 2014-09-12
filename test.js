@@ -2169,6 +2169,25 @@ tests.auth2 = function () {
     });
 };
 
+// auth password specified by URL string.
+tests.auth3 = function () {
+    var name = "AUTH3", client4, ready_count = 0;
+
+    client4 = redis.createClient('redis://redistogo:664b1b6aaf134e1ec281945a8de702a9@filefish.redistogo.com:9006/');
+
+    // test auth, then kill the connection so it'll auto-reconnect and auto-re-auth
+    client4.on("ready", function () {
+        ready_count++;
+        if (ready_count === 1) {
+            client4.stream.destroy();
+        } else {
+            client4.quit(function (err, res) {
+                next(name);
+            });
+        }
+    });
+};
+
 tests.reconnectRetryMaxDelay = function() {
     var time = new Date().getTime(),
         name = 'reconnectRetryMaxDelay',
