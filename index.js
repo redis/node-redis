@@ -1236,7 +1236,8 @@ exports.createClient = function(arg0, arg1, arg2){
         // createClient(options)
         return createClient_tcp(default_port, default_host, arg0 );
 
-    } else if( arg0 === null && arg1 === null ){
+    } else if( arg0 === null && arg1 === null
+        || (arg0 === undefined && arg1 === undefined)) {
 
         // for backward compatibility
         // createClient(null,null,options)
