@@ -193,7 +193,13 @@ RedisClient.prototype.on_error = function (msg) {
     this.connected = false;
     this.ready = false;
 
-    this.emit("error", new Error(message));
+    try {
+        this.emit("error", new Error(message));
+    } catch (error) {
+        this.flush_and_error(message);
+        throw error;
+    }
+
     // "error" events get turned into exceptions if they aren't listened for.  If the user handled this error
     // then we should try to reconnect.
     this.connection_gone("error");
@@ -483,11 +489,10 @@ RedisClient.prototype.connection_gone = function (why) {
         this.emitted_end = true;
     }
 
-    this.flush_and_error("Redis connection gone from " + why + " event.");
-
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
         this.retry_timer = null;
+        this.flush_and_error("Redis connection gone from " + why + " event.");
         if (exports.debug_mode) {
             console.warn("connection ended from quit command, not retrying.");
         }
@@ -507,6 +512,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
     if (this.max_attempts && this.attempts >= this.max_attempts) {
         this.retry_timer = null;
+        this.flush_and_error("Redis connection gone from " + why + " event.");
         // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
         // want the program to exit.  Right now, we just log, which doesn't really help in either case.
         console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
