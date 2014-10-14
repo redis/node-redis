@@ -678,7 +678,7 @@ RedisClient.prototype.return_reply = function (reply) {
             }
 
             // TODO - confusing and error-prone that hgetall is special cased in two places
-            if (reply && command_obj.replyAsObject()) {
+            if (reply && command_obj.replyWithObject()) {
                 reply = reply_to_object(reply);
             }
 
@@ -733,7 +733,6 @@ RedisClient.prototype.return_reply = function (reply) {
 // This Command constructor is ever so slightly faster than using an object literal, but more importantly, using
 // a named constructor helps it show up meaningfully in the V8 CPU profiler and in heap snapshots.
 function Command(command, args, sub_command, buffer_args, callback) {
-	console.log('New command', command, args, sub_command, buffer_args, callback);
     this.command = command;
     this.args = args;
     this.sub_command = sub_command;
@@ -741,7 +740,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
     this.callback = callback;
 }
 
-Command.replyAsObject = function (command, args) {
+Command.replyWithObject = function (command, args) {
 	switch(command.toLowerCase()) {
 		case 'hgetall':
 			return true;
@@ -752,8 +751,8 @@ Command.replyAsObject = function (command, args) {
 	return false;
 };
 
-Command.prototype.replyAsObject = function () {
-	return Command.replyAsObject(this.command, this.args);
+Command.prototype.replyWithObject = function () {
+	return Command.replyWithObject(this.command, this.args);
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
@@ -1172,7 +1171,7 @@ Multi.prototype.exec = function (callback) {
                 args = self.queue[i];
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
-                if (reply && Command.replyAsObject(args[0], args.slice(1))) {
+                if (reply && Command.replyWithObject(args[0], args.slice(1))) {
                     replies[i - 1] = reply = reply_to_object(reply);
                 }
 
