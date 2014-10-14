@@ -678,7 +678,7 @@ RedisClient.prototype.return_reply = function (reply) {
             }
 
             // TODO - confusing and error-prone that hgetall is special cased in two places
-            if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
+            if (reply && command_obj.replyAsObject()) {
                 reply = reply_to_object(reply);
             }
 
@@ -733,11 +733,27 @@ RedisClient.prototype.return_reply = function (reply) {
 // This Command constructor is ever so slightly faster than using an object literal, but more importantly, using
 // a named constructor helps it show up meaningfully in the V8 CPU profiler and in heap snapshots.
 function Command(command, args, sub_command, buffer_args, callback) {
+	console.log('New command', command, args, sub_command, buffer_args, callback);
     this.command = command;
     this.args = args;
     this.sub_command = sub_command;
     this.buffer_args = buffer_args;
     this.callback = callback;
+}
+
+Command.replyAsObject = function (command, args) {
+	switch(command.toLowerCase()) {
+		case 'hgetall':
+			return true;
+		case 'zrange':
+		case 'zrevrange':
+			return /withscores/i.test(args[args.length - 1]);
+		}
+	return false;
+};
+
+Command.prototype.replyAsObject = function () {
+	return Command.replyAsObject(this.command, this.args);
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
@@ -1156,7 +1172,7 @@ Multi.prototype.exec = function (callback) {
                 args = self.queue[i];
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
-                if (reply && args[0].toLowerCase() === "hgetall") {
+                if (reply && Command.replyAsObject(args[0], args.slice(1))) {
                     replies[i - 1] = reply = reply_to_object(reply);
                 }
 
