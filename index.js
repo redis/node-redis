@@ -144,37 +144,39 @@ RedisClient.prototype.unref = function () {
 
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (message) {
-    var command_obj, error;
+    if(!this.options.disable_flush === true) {
+      var command_obj, error;
 
-    error = new Error(message);
+      error = new Error(message);
 
-    while (this.offline_queue.length > 0) {
+      while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
         if (typeof command_obj.callback === "function") {
-            try {
-                command_obj.callback(error);
-            } catch (callback_err) {
-                process.nextTick(function () {
-                    throw callback_err;
-                });
-            }
+          try {
+            command_obj.callback(error);
+          } catch (callback_err) {
+            process.nextTick(function () {
+              throw callback_err;
+            });
+          }
         }
-    }
-    this.offline_queue = new Queue();
+      }
+      this.offline_queue = new Queue();
 
-    while (this.command_queue.length > 0) {
+      while (this.command_queue.length > 0) {
         command_obj = this.command_queue.shift();
         if (typeof command_obj.callback === "function") {
-            try {
-                command_obj.callback(error);
-            } catch (callback_err) {
-                process.nextTick(function () {
-                    throw callback_err;
-                });
-            }
+          try {
+            command_obj.callback(error);
+          } catch (callback_err) {
+            process.nextTick(function () {
+              throw callback_err;
+            });
+          }
         }
+      }
+      this.command_queue = new Queue();
     }
-    this.command_queue = new Queue();
 };
 
 RedisClient.prototype.on_error = function (msg) {
@@ -188,9 +190,7 @@ RedisClient.prototype.on_error = function (msg) {
         console.warn(message);
     }
 
-    if(!this.options.disable_flush === true){
-      this.flush_and_error(message);
-    }
+    this.flush_and_error(message);
 
     this.connected = false;
     this.ready = false;
