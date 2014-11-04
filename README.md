@@ -9,15 +9,6 @@ Install with:
 
     npm install redis
 
-Pieter Noordhuis has provided a binding to the official `hiredis` C library, which is non-blocking and fast.  To use `hiredis`, do:
-
-    npm install hiredis redis
-
-If `hiredis` is installed, `node_redis` will use it by default.  Otherwise, a pure JavaScript parser will be used.
-
-If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of node.  There are mysterious failures that can
-happen between node and native code modules after a node upgrade.
-
 
 ## Usage
 
@@ -86,7 +77,19 @@ hiredis parser:
 The performance of `node_redis` improves dramatically with pipelining, which happens automatically in most normal programs.
 
 
-### Sending Commands
+## Hiredis
+
+Pieter Noordhuis has provided a binding to the official `hiredis` C library, which is non-blocking and fast.  To use `hiredis`, do:
+
+    npm install hiredis redis
+
+If `hiredis` is installed, `node_redis` will use it by default.  Otherwise, a pure JavaScript parser will be used.
+
+If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of node.  There are mysterious failures that can
+happen between node and native code modules after a node upgrade. Also note that `node_redis` has gotten so fast that you can do without `hiredis` and save you the hassle of having to build the C code on different platforms.
+
+
+## Sending Commands
 
 Each Redis command is exposed as a function on the `client` object.
 All functions take either an `args` Array plus optional `callback` Function or
