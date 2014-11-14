@@ -651,11 +651,16 @@ RedisClient.prototype.return_reply = function (reply) {
         type = reply[0].toString();
     }
 
-    if (this.pub_sub_mode && (type == 'message' || type == 'pmessage')) {
+    if (this.pub_sub_mode && (type === 'message' || type === 'pmessage')) {
         trace("received pubsub message");
-    }
-    else {
-        command_obj = this.command_queue.shift();
+    } else {
+        command_obj = this.command_queue.peek();
+
+        if (command_obj && command_obj.pub_sub_replies > 1) {
+            --command_obj.pub_sub_replies;
+        } else {
+            this.command_queue.shift();
+        }
     }
 
     queue_len = this.command_queue.getLength();
@@ -928,6 +933,8 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
             delete this.subscription_set[key + " " + args[i]];
         }
     }
+
+    command_obj.pub_sub_replies = args.length;
 };
 
 RedisClient.prototype.end = function () {
