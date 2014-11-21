@@ -712,7 +712,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 // TODO - document this or fix it so it works in a more obvious way
                 // reply[1] can be null
                 var reply1String = (reply[1] === null) ? null : reply[1].toString();
-                if (command_obj && typeof command_obj.callback === "function") {
+                if (command_obj && typeof command_obj.callback === "function" && command_obj.pub_sub_replies === 1) {
                     try_callback(command_obj.callback, reply1String);
                 }
                 this.emit(type, reply1String, reply[2]); // channel, count
