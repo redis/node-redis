@@ -43,12 +43,20 @@ describe("publish/subscribe", function () {
             });
 
             describe('subscribe', function () {
-                it('fires a subscribe event for each channel subscribed to', function (done) {
+                it('fires a subscribe event for each channel subscribed to even after reconnecting', function (done) {
+                    var a = false;
                     sub.on("subscribe", function (chnl, count) {
                         if (chnl === channel2) {
                             assert.equal(2, count);
-                            return done();
+                            if (a) {
+                                return done();
+                            }
+                            sub.stream.destroy();
                         }
+                    });
+
+                    sub.on('reconnecting', function() {
+                        a = true;
                     });
 
                     sub.subscribe(channel, channel2);

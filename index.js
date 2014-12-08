@@ -308,7 +308,8 @@ RedisClient.prototype.on_ready = function () {
             }
         };
         Object.keys(this.subscription_set).forEach(function (key) {
-            var parts = key.split(" ");
+            var space_index = key.indexOf(" ");
+            var parts = [key.slice(0, space_index), key.slice(space_index + 1)];
             debug("Sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
             callback_count++;
             self.send_command(parts[0] + "scribe", [parts[1]], callback);
