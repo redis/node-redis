@@ -2220,7 +2220,7 @@ tests.tls = function () {
         conf_text = fs.readFileSync(conf_file + '.template').toString().replace(/__dirname/g, __dirname);
 
     fs.writeFileSync(conf_file, conf_text);
-    var stunnel = spawn('tstunnel', [conf_file]);
+    var stunnel = spawn('stunnel', [conf_file]);
 
     // handle failure to set up tunnel
     stunnel.on('error', function() {
@@ -2264,7 +2264,7 @@ tests.tlsReconnect = function() {
     // set up the tunnel; NOTE this relies on the previous tls test having run
     // at least once
     var conf_file = resolve(__dirname, './test_assets/stunnel.conf'),
-        stunnel = spawn('tstunnel', [conf_file]);
+        stunnel = spawn('stunnel', [conf_file]);
 
     // handle failure to set up tunnel
     stunnel.on('error', function() {
