@@ -1,2 +1,5 @@
 node_modules
 .tern-port
+stunnel.conf
+stunnel.log
+stunnel.pid

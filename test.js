@@ -1,5 +1,6 @@
 /*global require console setTimeout process Buffer */
 var PORT = 6379;
+var TLS_PORT = 6380;
 var HOST = '127.0.0.1';
 
 var redis = require("./index"),
@@ -9,8 +10,11 @@ var redis = require("./index"),
     bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
     assert = require("assert"),
     crypto = require("crypto"),
+    fs = require("fs"),
     util = require("./lib/util"),
     fork = require("child_process").fork,
+    spawn = require("child_process").spawn,
+    resolve = require("path").resolve,
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
     connected = false,
@@ -2206,6 +2210,102 @@ tests.unref = function () {
         assert(done, "test-unref.js didn't finish in time.");
         next(name);
     }, 500);
+tests.tls = function () {
+    var name = "tls";
+
+    // set up an stunnel to redis; edit the conf file to include required absolute paths
+    var conf_file = resolve(__dirname, './test_assets/stunnel.conf'),
+        conf_text = fs.readFileSync(conf_file + '.template').toString().replace(/__dirname/g, __dirname);
+
+    fs.writeFileSync(conf_file, conf_text);
+    var stunnel = spawn('tstunnel', [conf_file]);
+
+    // handle failure to set up tunnel
+    stunnel.on('error', function() {
+        console.log("Skipping tls test: unable to start stunnel");
+        next(name);
+    });
+    stunnel.on('exit', function(code) {
+        if(code) {
+            console.log("Skipping tls test: stunnel exited unexpectedly (code = " + code + ")");
+            next(name);
+        }
+    });
+
+    // wait to stunnel to start
+    stunnel.stderr.on("data", function(data) {
+        if(data.toString().indexOf("Service redis bound") > -1) {
+            // the test cert is self-signed with a CN of "localhost"
+            var tls_options = {
+                servername: "localhost",
+                ca: [ fs.readFileSync(resolve(__dirname, "./test_assets/server.crt")) ]
+            };
+            var tls_client = redis.createClient(TLS_PORT, HOST, { tls: tls_options });
+            tls_client.on("ready", function() {
+                tls_client.set("foo", "bar", require_string("OK", name));
+                tls_client.get("foo", function (err, result) {
+                    require_string("bar", name)(err, result);
+                    stunnel.kill();
+                    tls_client.quit();
+                    next(name);
+                });
+            });
+        }
+    });
+};
+
+tests.tlsReconnect = function() {
+    var time = new Date().getTime(),
+        name = 'tlsReconnect',
+        reconnecting = false;
+
+    // set up the tunnel; NOTE this relies on the previous tls test having run
+    // at least once
+    var conf_file = resolve(__dirname, './test_assets/stunnel.conf'),
+        stunnel = spawn('tstunnel', [conf_file]);
+
+    // handle failure to set up tunnel
+    stunnel.on('error', function() {
+        console.log("Skipping tlsReconnect test: unable to start stunnel");
+        next(name);
+    });
+    stunnel.on('exit', function(code) {
+        if(code) {
+            console.log("Skipping tlsReconnect test: stunnel exited unexpectedly (code = " + code + ")");
+            next(name);
+        }
+    });
+
+    // wait to stunnel to start
+    stunnel.stderr.on("data", function(data) {
+        if(data.toString().indexOf("Service redis bound") > -1) {
+            // the test cert is self-signed with a CN of "localhost"
+            var tls_options = {
+                servername: "localhost",
+                ca: [ fs.readFileSync(resolve(__dirname, "./test_assets/server.crt")) ]
+            };
+            var client = redis.createClient(TLS_PORT, HOST, {
+                tls: tls_options,
+                retry_max_delay: 1
+            });
+
+            // Forcibly close the stream and wait for the reconnection to occur
+            client.on('ready', function() {
+                if (!reconnecting) {
+                    reconnecting = true;
+                    client.retry_delay = 1000;
+                    client.retry_backoff = 1;
+                    client.stream.end();
+                } else {
+                    client.end();
+                    stunnel.kill();
+                    var lasted = new Date().getTime() - time;
+                    assert.ok(lasted < 1000);
+                    next(name);
+                }
+            });
+        }
+    });
 };
 
 all_tests = Object.keys(tests);

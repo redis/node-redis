@@ -216,6 +216,8 @@ limits total time for client to reconnect. Value is provided in milliseconds and
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
+* `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback), 
+to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
 * `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address. 
 You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type. 
 

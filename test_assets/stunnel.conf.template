@@ -1,0 +1,10 @@
+pid = __dirname/test_assets/stunnel.pid
+output = __dirname/test_assets/stunnel.log
+cert = __dirname/test_assets/server.pem
+client = no
+foreground = yes
+libwrap = no
+debug = 7
+[redis]
+accept = 127.0.0.1:6380
+connect = 127.0.0.1:6379

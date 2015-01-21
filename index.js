@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    tls = require("tls"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
@@ -94,7 +95,8 @@ exports.RedisClient = RedisClient;
 RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
 
-    this.stream.on("connect", function () {
+    var connect_event = this.options.tls ? "secureConnect" : "connect";
+    this.stream.on(connect_event, function () {
         self.on_connect();
     });
 
@@ -118,6 +120,20 @@ RedisClient.prototype.install_stream_listeners = function() {
         self.should_buffer = false;
         self.emit("drain");
     });
+};
+
+RedisClient.prototype.reconnect = function() {
+    var options = this.options;
+    this.stream.destroy();
+    this.stream.removeAllListeners();
+
+    if(options && options.tls) {
+        this.stream = tls.connect(this.connectionOption);
+    } else {
+        this.stream = net.createConnection(this.connectionOption);
+    }
+
+    this.install_stream_listeners();
 };
 
 RedisClient.prototype.initialize_retry_vars = function () {
@@ -532,8 +548,7 @@ RedisClient.prototype.connection_gone = function (why) {
             return;
         }
 
-        self.stream = net.createConnection(self.connectionOption);
-        self.install_stream_listeners();
+        self.reconnect();
         self.retry_timer = null;
     }, this.retry_delay);
 };
@@ -1233,7 +1248,10 @@ exports.createClient = function(arg0, arg1, arg2){
 
     } else if( arg0 !== null && typeof arg0 === 'object' ){
 
-        // createClient(options)
+        if (arg0.tls) {
+            return createClient_tls(arg0);
+        }
+
         return createClient_tcp(default_port, default_host, arg0 );
 
     } else if( arg0 === null && arg1 === null ){
@@ -1268,6 +1286,19 @@ var createClient_tcp = function (port_arg, host_arg, options) {
     };
     var net_client = net.createConnection(cnxOptions);
     var redis_client = new RedisClient(net_client, options || {});
+
+    redis_client.connectionOption = cnxOptions;
+    redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
+
+    return redis_client;
+};
+
+var createClient_tls = function (options) {
+    options.tls.port = options.tls.port || options.port || default_port;
+    options.tls.host = options.tls.host || options.host || default_host;
+    var cnxOptions = options.tls;
+    var net_client = tls.connect(cnxOptions);
+    var redis_client = new RedisClient(net_client, options);
 
     redis_client.connectionOption = cnxOptions;
     redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
