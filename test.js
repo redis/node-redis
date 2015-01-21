@@ -2236,7 +2236,7 @@ tests.tls = function () {
 
     // wait to stunnel to start
     stunnel.stderr.on("data", function(data) {
-        if(data.toString().indexOf("Service redis bound") > -1) {
+        if(data.toString().match(/Service \[?redis\]? (\(.*?\) )?bound/) !== null) {
             // the test cert is self-signed with a CN of "localhost"
             var tls_options = {
                 servername: "localhost",
@@ -2280,7 +2280,7 @@ tests.tlsReconnect = function() {
 
     // wait to stunnel to start
     stunnel.stderr.on("data", function(data) {
-        if(data.toString().indexOf("Service redis bound") > -1) {
+        if(data.toString().match(/Service \[?redis\]? (\(.*?\) )?bound/) !== null) {
             // the test cert is self-signed with a CN of "localhost"
             var tls_options = {
                 servername: "localhost",
