@@ -115,6 +115,80 @@ next = function next(name) {
 
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
+tests.IPV4 = function () {
+    var ipv4Client = redis.createClient( PORT, "127.0.0.1", { "family" : "IPv4" } );
+
+    ipv4Client.once("ready", function start_tests() {
+        console.log("Connected to " + ipv4Client.address + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
+        console.log("Using reply parser " + ipv4Client.reply_parser.name);
+
+        ipv4Client.quit();
+        run_next_test();
+    });
+
+    ipv4Client.on('end', function () {
+
+    });
+
+    // Exit immediately on connection failure, which triggers "exit", below, which fails the test
+    ipv4Client.on("error", function (err) {
+        console.error("client: " + err.stack);
+        process.exit();
+    });
+}
+
+tests.IPV6 = function () {
+    if (!server_version_at_least(client, [2, 8, 0])) {
+        console.log("Skipping IPV6 for old Redis server version < 2.8.0");
+        return run_next_test();
+    }
+    var ipv6Client = redis.createClient( PORT, "::1", { "family" : "IPv6" } );
+
+    ipv6Client.once("ready", function start_tests() {
+        console.log("Connected to " + ipv6Client.address + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
+        console.log("Using reply parser " + ipv6Client.reply_parser.name);
+
+        ipv6Client.quit();
+        run_next_test();
+    });
+
+    ipv6Client.on('end', function () {
+
+    });
+
+    // Exit immediately on connection failure, which triggers "exit", below, which fails the test
+    ipv6Client.on("error", function (err) {
+        console.error("client: " + err.stack);
+        process.exit();
+    });
+}
+
+tests.UNIX_SOCKET = function () {
+    var unixClient = redis.createClient('/tmp/redis.sock');
+
+    // if this fails, check the permission of unix socket.
+    // unixsocket /tmp/redis.sock
+    // unixsocketperm 777
+
+    unixClient.once('ready', function start_tests(){
+        console.log("Connected to " + unixClient.address + ", Redis server version " + unixClient.server_info.redis_version + "\n");
+        console.log("Using reply parser " + unixClient.reply_parser.name);
+
+        unixClient.quit();
+        run_next_test();
+    });
+
+    unixClient.on( 'end', function(){
+
+    });
+
+    // Exit immediately on connection failure, which triggers "exit", below, which fails the test
+    unixClient.on("error", function (err) {
+        console.error("client: " + err.stack);
+        process.exit();
+    });
+}
+
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
     client.select(test_db_num, require_string("OK", name));
@@ -402,72 +476,6 @@ tests.FWD_ERRORS_1 = function () {
     }, 150);
 };
 
-tests.FWD_ERRORS_2 = function () {
-    var name = "FWD_ERRORS_2";
-
-    var toThrow = new Error("Forced exception");
-    var recordedError = null;
-
-    var originalHandler = client.listeners("error").pop();
-    client.removeAllListeners("error");
-    client.once("error", function (err) {
-        recordedError = err;
-    });
-
-    client.get("no_such_key", function (err, reply) {
-        throw toThrow;
-    });
-
-    setTimeout(function () {
-        client.listeners("error").push(originalHandler);
-        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
-        next(name);
-    }, 150);
-};
-
-tests.FWD_ERRORS_3 = function () {
-    var name = "FWD_ERRORS_3";
-
-    var recordedError = null;
-
-    var originalHandler = client.listeners("error").pop();
-    client.removeAllListeners("error");
-    client.once("error", function (err) {
-        recordedError = err;
-    });
-
-    client.send_command("no_such_command", []);
-
-    setTimeout(function () {
-        client.listeners("error").push(originalHandler);
-        assert.ok(recordedError instanceof Error);
-        next(name);
-    }, 150);
-};
-
-tests.FWD_ERRORS_4 = function () {
-    var name = "FWD_ERRORS_4";
-
-    var toThrow = new Error("Forced exception");
-    var recordedError = null;
-
-    var originalHandler = client.listeners("error").pop();
-    client.removeAllListeners("error");
-    client.once("error", function (err) {
-        recordedError = err;
-    });
-
-    client.send_command("no_such_command", [], function () {
-        throw toThrow;
-    });
-
-    setTimeout(function () {
-        client.listeners("error").push(originalHandler);
-        assert.equal(recordedError, toThrow, "Should have caught our forced exception");
-        next(name);
-    }, 150);
-};
-
 tests.EVAL_1 = function () {
     var name = "EVAL_1";
 
@@ -631,11 +639,16 @@ tests.CLIENT_LIST = function() {
         return next(name);
     }
 
+    var pattern = /^addr=/;
+    if ( server_version_at_least(client, [2, 8, 12])) {
+        pattern = /^id=\d+ addr=/;
+    }
+
     function checkResult(result) {
         var lines = result.toString().split('\n').slice(0, -1);
         assert.strictEqual(lines.length, 4);
         assert(lines.every(function(line) {
-            return line.match(/^addr=/);
+            return line.match(pattern);
         }));
     }
 
@@ -704,7 +717,7 @@ tests.WATCH_TRANSACTION = function () {
 
 
 tests.detect_buffers = function () {
-    var name = "detect_buffers", detect_client = redis.createClient(null, null, {detect_buffers: true});
+    var name = "detect_buffers", detect_client = redis.createClient({detect_buffers: true});
 
     detect_client.on("ready", function () {
         // single Buffer or String
@@ -771,9 +784,9 @@ tests.detect_buffers = function () {
 tests.socket_nodelay = function () {
     var name = "socket_nodelay", c1, c2, c3, ready_count = 0, quit_count = 0;
 
-    c1 = redis.createClient(null, null, {socket_nodelay: true});
-    c2 = redis.createClient(null, null, {socket_nodelay: false});
-    c3 = redis.createClient(null, null);
+    c1 = redis.createClient({socket_nodelay: true});
+    c2 = redis.createClient({socket_nodelay: false});
+    c3 = redis.createClient();
 
     function quit_check() {
         quit_count++;
@@ -865,6 +878,20 @@ tests.reconnect_select_db_after_pubsub = function() {
     });
 };
 
+tests.select_error_emits_if_no_callback = function () {
+    var prev = client.listeners("error")[0];
+    client.removeListener("error", prev);
+    var name = "select_error_emits_if_no_callback";
+    var handler = with_timeout(name, function (err) {
+        require_error(name)(err);
+        client.removeListener('error', handler);
+        client.on("error", prev);
+        next(name);
+    }, 500);
+    client.on('error', handler);
+    client.select(9999);
+};
+
 tests.idle = function () {
   var name = "idle";
 
@@ -943,7 +970,7 @@ tests.HMGET = function () {
     client.HMSET(key3, {
         "0123456789": "abcdefghij",
         "some manner of key": "a type of value"
-    }, require_string("OK", name));    
+    }, require_string("OK", name));
 
     client.HMGET(key1, "0123456789", "some manner of key", function (err, reply) {
         assert.strictEqual("abcdefghij", reply[0].toString(), name);
@@ -1389,6 +1416,21 @@ tests.HGETALL = function () {
         assert.strictEqual("1", obj.mjr.toString(), name);
         assert.strictEqual("23", obj.another.toString(), name);
         assert.strictEqual("1234", obj.home.toString(), name);
+        next(name);
+    });
+};
+
+tests.HGETALL_2 = function () {
+    var name = "HGETALL (Binary client)";
+    bclient.hmset(["bhosts", "mjr", "1", "another", "23", "home", "1234", new Buffer([0xAA, 0xBB, 0x00, 0xF0]), new Buffer([0xCC, 0xDD, 0x00, 0xF0])], require_string("OK", name));
+    bclient.HGETALL(["bhosts"], function (err, obj) {
+        assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
+        assert.strictEqual(4, Object.keys(obj).length, name);
+        assert.strictEqual("1", obj.mjr.toString(), name);
+        assert.strictEqual("23", obj.another.toString(), name);
+        assert.strictEqual("1234", obj.home.toString(), name);
+        assert.strictEqual((new Buffer([0xAA, 0xBB, 0x00, 0xF0])).toString('binary'), Object.keys(obj)[3], name);
+        assert.strictEqual((new Buffer([0xCC, 0xDD, 0x00, 0xF0])).toString('binary'), obj[(new Buffer([0xAA, 0xBB, 0x00, 0xF0])).toString('binary')].toString('binary'), name);
         next(name);
     });
 };
@@ -2186,7 +2228,7 @@ run_next_test = function run_next_test() {
 };
 
 client.once("ready", function start_tests() {
-    console.log("Connected to " + client.host + ":" + client.port + ", Redis server version " + client.server_info.redis_version + "\n");
+    console.log("Connected to " + client.address + ", Redis server version " + client.server_info.redis_version + "\n");
     console.log("Using reply parser " + client.reply_parser.name);
 
     run_next_test();

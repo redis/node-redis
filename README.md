@@ -175,10 +175,15 @@ resume sending when you get `drain`.
 
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
-## redis.createClient(port, host, options)
+## redis.createClient()
 
-Create a new client connection.  `port` defaults to `6379` and `host` defaults
-to `127.0.0.1`.  If you have `redis-server` running on the same computer as node, then the defaults for
+### overloading
+* redis.createClient() = redis.createClient(6379, '127.0.0.1', {})
+* redis.createClient(options) = redis.createClient(6379, '127.0.0.1', options)
+* redis.createClient(unix_socket, options)
+* redis.createClient(port, host, options)
+
+If you have `redis-server` running on the same computer as node, then the defaults for
 port and host are probably fine.  `options` in an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
@@ -192,6 +197,7 @@ every command on a client.
 * `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
 Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the
 cost of more latency.  Most applications will want this set to `true`.
+* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket. 
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
 be loading the database from disk.  While loading, the server not respond to any commands.  To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command
@@ -210,10 +216,12 @@ limits total time for client to reconnect. Value is provided in milliseconds and
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
+* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address. 
+You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type. 
 
 ```js
     var redis = require("redis"),
-        client = redis.createClient(null, null, {detect_buffers: true});
+        client = redis.createClient({detect_buffers: true});
 
     client.set("foo_rand000000000000", "OK");
 
@@ -231,24 +239,6 @@ limits total amount of reconnects.
 
 `createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
-### Unix Domain Socket
-
-You can also create a connection to Redis server via the unix domain socket if the server
-has it enabled:
-
-```js
-var redis = require("redis");
-var client = redis.createClient("/tmp/redis.sock");
-```
-
-Sample `redis.conf` configuration to enable unix domain socket listening:
-
-```conf
-unixsocket /tmp/redis.sock
-unixsocketperm 755
-```
-
-See [issue #204](https://github.com/mranney/node_redis/issues/204) for more information.
 
 ## client.auth(password, callback)
 

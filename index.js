@@ -43,6 +43,9 @@ function RedisClient(stream, options) {
     if (this.options.socket_nodelay === undefined) {
         this.options.socket_nodelay = true;
     }
+    if (this.options.socket_keepalive === undefined) {
+        this.options.socket_keepalive = true;
+    }
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
@@ -81,6 +84,14 @@ function RedisClient(stream, options) {
 
     this.old_state = null;
 
+    this.install_stream_listeners();
+
+    events.EventEmitter.call(this);
+}
+util.inherits(RedisClient, events.EventEmitter);
+exports.RedisClient = RedisClient;
+
+RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
 
     this.stream.on("connect", function () {
@@ -107,11 +118,7 @@ function RedisClient(stream, options) {
         self.should_buffer = false;
         self.emit("drain");
     });
-
-    events.EventEmitter.call(this);
-}
-util.inherits(RedisClient, events.EventEmitter);
-exports.RedisClient = RedisClient;
+};
 
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
@@ -147,7 +154,9 @@ RedisClient.prototype.flush_and_error = function (message) {
             try {
                 command_obj.callback(error);
             } catch (callback_err) {
-                this.emit("error", callback_err);
+                process.nextTick(function () {
+                    throw callback_err;
+                });
             }
         }
     }
@@ -159,7 +168,9 @@ RedisClient.prototype.flush_and_error = function (message) {
             try {
                 command_obj.callback(error);
             } catch (callback_err) {
-                this.emit("error", callback_err);
+                process.nextTick(function () {
+                    throw callback_err;
+                });
             }
         }
     }
@@ -167,7 +178,7 @@ RedisClient.prototype.flush_and_error = function (message) {
 };
 
 RedisClient.prototype.on_error = function (msg) {
-    var message = "Redis connection to " + this.host + ":" + this.port + " failed - " + msg;
+    var message = "Redis connection to " + this.address + " failed - " + msg;
 
     if (this.closing) {
         return;
@@ -192,7 +203,7 @@ RedisClient.prototype.do_auth = function () {
     var self = this;
 
     if (exports.debug_mode) {
-        console.log("Sending auth to " + self.host + ":" + self.port + " id " + self.connection_id);
+        console.log("Sending auth to " + self.address + " id " + self.connection_id);
     }
     self.send_anyway = true;
     self.send_command("auth", [this.auth_pass], function (err, res) {
@@ -216,7 +227,7 @@ RedisClient.prototype.do_auth = function () {
             return self.emit("error", new Error("Auth failed: " + res.toString()));
         }
         if (exports.debug_mode) {
-            console.log("Auth succeeded " + self.host + ":" + self.port + " id " + self.connection_id);
+            console.log("Auth succeeded " + self.address + " id " + self.connection_id);
         }
         if (self.auth_callback) {
             self.auth_callback(err, res);
@@ -238,7 +249,7 @@ RedisClient.prototype.do_auth = function () {
 
 RedisClient.prototype.on_connect = function () {
     if (exports.debug_mode) {
-        console.log("Stream connected " + this.host + ":" + this.port + " id " + this.connection_id);
+        console.log("Stream connected " + this.address + " id " + this.connection_id);
     }
 
     this.connected = true;
@@ -249,6 +260,7 @@ RedisClient.prototype.on_connect = function () {
     if (this.options.socket_nodelay) {
         this.stream.setNoDelay();
     }
+    this.stream.setKeepAlive(this.options.socket_keepalive);
     this.stream.setTimeout(0);
 
     this.init_parser();
@@ -378,9 +390,11 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     });
 
     obj.versions = [];
-    obj.redis_version.split('.').forEach(function (num) {
-        obj.versions.push(+num);
-    });
+    if( obj.redis_version ){
+        obj.redis_version.split('.').forEach(function (num) {
+            obj.versions.push(+num);
+        });
+    }
 
     // expose info key/vals to users
     this.server_info = obj;
@@ -518,14 +532,15 @@ RedisClient.prototype.connection_gone = function (why) {
             return;
         }
 
-        self.stream.connect(self.port, self.host);
+        self.stream = net.createConnection(self.connectionOption);
+        self.install_stream_listeners();
         self.retry_timer = null;
     }, this.retry_delay);
 };
 
 RedisClient.prototype.on_data = function (data) {
     if (exports.debug_mode) {
-        console.log("net read " + this.host + ":" + this.port + " id " + this.connection_id + ": " + data.toString());
+        console.log("net read " + this.address + " id " + this.connection_id + ": " + data.toString());
     }
 
     try {
@@ -555,26 +570,37 @@ RedisClient.prototype.return_error = function (err) {
         try {
             command_obj.callback(err);
         } catch (callback_err) {
-            this.emit("error", callback_err);
+            // if a callback throws an exception, re-throw it on a new stack so the parser can keep going
+            process.nextTick(function () {
+                throw callback_err;
+            });
         }
     } else {
         console.log("node_redis: no callback to send error: " + err.message);
-        this.emit("error", err);
+        // this will probably not make it anywhere useful, but we might as well throw
+        process.nextTick(function () {
+            throw err;
+        });
     }
 };
 
 // if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
 // if a domain is active, emit the error on the domain, which will serve the same function.
 // put this try/catch in its own function because V8 doesn't optimize this well yet.
-function try_callback(client, callback, reply) {
+function try_callback(callback, reply) {
     try {
         callback(null, reply);
     } catch (err) {
         if (process.domain) {
-            process.domain.emit('error', err);
-            process.domain.exit();
+            var currDomain = process.domain;
+            currDomain.emit('error', err);
+            if (process.domain === currDomain) {
+                currDomain.exit();
+            }
         } else {
-            client.emit("error", err);
+            process.nextTick(function () {
+                throw err;
+            });
         }
     }
 }
@@ -588,7 +614,7 @@ function reply_to_object(reply) {
     }
 
     for (j = 0, jl = reply.length; j < jl; j += 2) {
-        key = reply[j].toString();
+        key = reply[j].toString('binary');
         val = reply[j + 1];
         obj[key] = val;
     }
@@ -656,7 +682,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 reply = reply_to_object(reply);
             }
 
-            try_callback(this, command_obj.callback, reply);
+            try_callback(command_obj.callback, reply);
         } else if (exports.debug_mode) {
             console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
         }
@@ -682,7 +708,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 // reply[1] can be null
                 var reply1String = (reply[1] === null) ? null : reply[1].toString();
                 if (command_obj && typeof command_obj.callback === "function") {
-                    try_callback(this, command_obj.callback, reply1String);
+                    try_callback(command_obj.callback, reply1String);
                 }
                 this.emit(type, reply1String, reply[2]); // channel, count
             } else {
@@ -826,7 +852,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         }
         if (exports.debug_mode) {
-            console.log("send " + this.host + ":" + this.port + " id " + this.connection_id + ": " + command_str);
+            console.log("send " + this.address + " id " + this.connection_id + ": " + command_str);
         }
         buffered_writes += !stream.write(command_str);
     } else {
@@ -906,6 +932,14 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 
 RedisClient.prototype.end = function () {
     this.stream._events = {};
+
+    //clear retry_timer
+    if(this.retry_timer){
+        clearTimeout(this.retry_timer);
+        this.retry_timer=null;
+    }
+    this.stream.on("error", function(){});
+
     this.connected = false;
     this.ready = false;
     this.closing = true;
@@ -976,6 +1010,8 @@ RedisClient.prototype.select = function (db, callback) {
         }
         if (typeof(callback) === 'function') {
             callback(err, res);
+        } else if (err) {
+            self.emit('error', err);
         }
     });
 };
@@ -1177,17 +1213,64 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
 };
 
 
-exports.createClient = function (port_arg, host_arg, options) {
-    var port = port_arg || default_port,
-        host = host_arg || default_host,
-        redis_client, net_client;
+exports.createClient = function(arg0, arg1, arg2){
+    if( arguments.length === 0 ){
 
-    net_client = net.createConnection(port, host);
+        // createClient()
+        return createClient_tcp(default_port, default_host, {});
 
-    redis_client = new RedisClient(net_client, options);
+    } else if( typeof arg0 === 'number' ||
+        typeof arg0 === 'string' && arg0.match(/^\d+$/) ){
 
-    redis_client.port = port;
-    redis_client.host = host;
+        // createClient( 3000, host, options)
+        // createClient('3000', host, options)
+        return createClient_tcp(arg0, arg1, arg2);
+
+    } else if( typeof arg0 === 'string' ){
+
+        // createClient( '/tmp/redis.sock', options)
+        return createClient_unix(arg0,arg1);
+
+    } else if( arg0 !== null && typeof arg0 === 'object' ){
+
+        // createClient(options)
+        return createClient_tcp(default_port, default_host, arg0 );
+
+    } else if( arg0 === null && arg1 === null ){
+
+        // for backward compatibility
+        // createClient(null,null,options)
+        return createClient_tcp(default_port, default_host, arg2);
+
+    } else {
+        throw new Error('unknown type of connection in createClient()');
+    }
+}
+
+var createClient_unix = function(path, options){
+    var cnxOptions = {
+        path: path
+    };
+    var net_client = net.createConnection(cnxOptions);
+    var redis_client = new RedisClient(net_client, options || {});
+
+    redis_client.connectionOption = cnxOptions;
+    redis_client.address = path;
+
+    return redis_client;
+}
+
+var createClient_tcp = function (port_arg, host_arg, options) {
+    var cnxOptions = {
+        'port' : port_arg || default_port,
+        'host' : host_arg || default_host,
+        'family' : (options && options.family === 'IPv6') ? 6 : 4
+    };
+    var net_client = net.createConnection(cnxOptions);
+    var redis_client = new RedisClient(net_client, options || {});
+
+    redis_client.connectionOption = cnxOptions;
+    redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
 
     return redis_client;
 };

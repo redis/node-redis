@@ -1,6 +1,36 @@
 Changelog
 =========
 
+## v0.12.1 - Aug 10, 2014
+* Fix IPv6/IPv4 family selection in node 0.11+ (Various)
+
+## v0.12.0 - Aug 9, 2014
+* Fix unix socket support (Jack Tang)
+* Improve createClient argument handling (Jack Tang)
+
+## v0.11.0 - Jul 10, 2014
+
+* IPv6 Support. (Yann Stephan)
+* Revert error emitting and go back to throwing errors. (Bryce Baril)
+* Set socket_keepalive to prevent long-lived client timeouts. (mohit)
+* Correctly reset retry timer. (ouotuo)
+* Domains protection from bad user exit. (Jake Verbaten)
+* Fix reconnection socket logic to prevent misqueued entries. (Iain Proctor)
+
+## v0.10.3 - May 22, 2014
+
+* Update command list to match Redis 2.8.9 (Charles Feng)
+
+## v0.10.2 - May 18, 2014
+
+* Better binay key handlign for HGETALL. (Nick Apperson)
+* Fix test not resetting `error` handler. (CrypticSwarm)
+* Fix SELECT error semantics. (Bryan English)
+
+## v0.10.1 - February 17, 2014
+
+* Skip plucking redis version from the INFO stream if INFO results weren't provided. (Robert Sköld)
+
 ## v0.10.0 - December 21, 2013
 
 * Instead of throwing errors asynchronously, emit errors on client. (Bryce Baril)
