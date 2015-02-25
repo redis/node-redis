@@ -127,7 +127,7 @@ JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keye
 
 ### "ready"
 
-`client` will emit `ready` a connection is established to the Redis server and the server reports
+`client` will emit `ready` once a connection is established to the Redis server and the server reports
 that it is ready to receive commands.  Commands issued before the `ready` event are queued,
 then replayed just before this event is emitted.
 
