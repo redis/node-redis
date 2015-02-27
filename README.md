@@ -1,6 +1,8 @@
 redis - a node.js redis client
 ===========================
 
+[![Join the chat at https://gitter.im/mranney/node_redis](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/mranney/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 This is a complete Redis client for node.js.  It supports all Redis commands, including many recently added commands like EVAL from
 experimental Redis server branches.
 
