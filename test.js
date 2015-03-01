@@ -351,6 +351,7 @@ tests.MULTI_6 = function () {
         .hmset("multihash", "a", "foo", "b", 1)
         .hmset("multihash", {
             extra: "fancy",
+
             things: "here"
         })
         .hgetall("multihash")
@@ -1213,6 +1214,29 @@ tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
 
         c2.publish("chan1", "hi on channel 1");
 
+    });
+};
+
+tests.RESUBSCRIBE_CHANNEL_NAMES = function () {
+    var name = "RESUBSCRIBE_CHANNEL_NAMES", channel_name = "RESUBSCRIBE CHANNEL NAMES";
+    var c1 = redis.createClient();
+    var c2 = redis.createClient();
+    // Force a retry and make sure the client resubscribes to the same channel name
+    c1.on("subscribe", function (channel, count) {
+        assert.strictEqual(channel, channel_name);
+    });
+
+    c1.subscribe(channel_name);
+
+    c2.once("ready", function(err, results) {
+        c1.once("ready", function(err, results) {
+            c1.quit(function() {
+                c2.quit(function() {
+                    next(name);
+                });
+            });
+        });
+        c1.stream.end();
     });
 };
 
