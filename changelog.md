@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* Fix extraneous error output due to pubsub tests (Mikael Kohlmyr)
+
 ## v0.12.1 - Aug 10, 2014
 * Fix IPv6/IPv4 family selection in node 0.11+ (Various)
 
