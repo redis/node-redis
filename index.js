@@ -677,6 +677,11 @@ RedisClient.prototype.return_reply = function (reply) {
                 reply = reply_to_strings(reply);
             }
 
+            if (this.options.log_commands) {
+                var command = command_obj.command + ' ' + command_obj.args.join(' ');
+                console.log('EXECUTING REDIS: ' + command + ' REPLY: ' + reply);
+            }
+
             // TODO - confusing and error-prone that hgetall is special cased in two places
             if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
                 reply = reply_to_object(reply);
