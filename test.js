@@ -447,6 +447,23 @@ tests.MULTI_8 = function () {
     });
 };
 
+tests.MULTI_9 = function () {
+    var name = "MULTI_9";
+
+    client.multi()
+        .zadd("foobar", [1, "foo", 2, "bar"])
+        .expire("foobar", 20)
+        .zrange(["foobar", 0, -1])
+        .exec(function (err, replies) {
+            assert.strictEqual(null, err);
+            assert.equal(2, replies[0]);
+            assert.equal(1, replies[1]);
+            assert.equal("foo", replies[2][0]);
+            assert.equal("bar", replies[2][1]);
+            next(name);
+        });
+};
+
 tests.FWD_ERRORS_1 = function () {
     var name = "FWD_ERRORS_1";
 
