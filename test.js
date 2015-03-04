@@ -2183,22 +2183,27 @@ tests.auth2 = function () {
 tests.reconnectRetryMaxDelay = function() {
     var time = new Date().getTime(),
         name = 'reconnectRetryMaxDelay',
-        reconnecting = false;
-    var client = redis.createClient(PORT, HOST, {
-        retry_max_delay: 1
+            //initial retry delay is 150. with backoff of 1.7.   This value
+            //ensures that the next retry delay will exceed the retry_max_delay
+        retry_max_delay = 200;  
+        noconnport = PORT + 1;  //choose port to ensure failed connections
+    var client = redis.createClient( noconnport, HOST, {
+        retry_max_delay: retry_max_delay
+    });
+    var reconnAttempts = 0;
+    client.on( 'error', function(err) {
+        if ( /ECONNREFUSED/.test(err) ) {
+            assert.ok( client.retry_delay <= retry_max_delay, 'retry_max_delay time exceeeded' );
+            if ( ++reconnAttempts > 3 ) {
+                client.end();
+                next(name);
+            }
+        }
     });
     client.on('ready', function() {
-        if (!reconnecting) {
-            reconnecting = true;
-            client.retry_delay = 1000;
-            client.retry_backoff = 1;
-            client.stream.end();
-        } else {
-            client.end();
-            var lasted = new Date().getTime() - time;
-            assert.ok(lasted < 1000);
-            next(name);
-        }
+        assert.ok( false, 'Unexpected connection on port: ' + noconnport);
+        client.end();
+        next( name );
     });
 };
 
