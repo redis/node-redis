@@ -1204,7 +1204,8 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
     self.evalsha(args, function (err, reply) {
         if (err && /NOSCRIPT/.test(err.message)) {
             args[0] = source;
-            eval_orig.call(self, args, callback);
+            args.push(callback);
+            eval_orig.apply(self, args);
 
         } else if (callback) {
             callback(err, reply);
