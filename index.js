@@ -1108,8 +1108,12 @@ Multi.prototype.exec = function (callback) {
     // drain queue, callback will catch "QUEUED" or error
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
-        var command = args[0], obj;
-        if (typeof args[args.length - 1] === "function") {
+        var command = args[0],
+			finalArg = args[args.length - 1],
+			obj;
+        
+		// if the last argument is null, undefined or a function remove it from processing.
+        if (typeof finalArg == "function" || /null|undefined/.test(finalArg)) {
             args = args.slice(1, -1);
         } else {
             args = args.slice(1);
