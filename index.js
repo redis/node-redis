@@ -451,6 +451,29 @@ RedisClient.prototype.send_offline_queue = function () {
     }
 };
 
+
+
+RedisClient.prototype._retry_connection = function () {
+    self = this;
+    if (exports.debug_mode) {
+        console.log("Retrying connection...");
+    }
+
+    self.retry_totaltime += self.retry_delay;
+
+    if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
+        self.retry_timer = null;
+        // TODO - engage Redis is Broken mode for future commands, or whatever
+        console.error("node_redis: Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
+        return;
+    }
+
+    self.stream = net.createConnection(self.connectionOption);
+    self.install_stream_listeners();
+    self.retry_timer = null;
+};
+
+
 RedisClient.prototype.connection_gone = function (why) {
     var self = this;
 
@@ -518,24 +541,7 @@ RedisClient.prototype.connection_gone = function (why) {
         delay: self.retry_delay,
         attempt: self.attempts
     });
-    this.retry_timer = setTimeout(function () {
-        if (exports.debug_mode) {
-            console.log("Retrying connection...");
-        }
-
-        self.retry_totaltime += self.retry_delay;
-
-        if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
-            self.retry_timer = null;
-            // TODO - engage Redis is Broken mode for future commands, or whatever
-            console.error("node_redis: Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
-            return;
-        }
-
-        self.stream = net.createConnection(self.connectionOption);
-        self.install_stream_listeners();
-        self.retry_timer = null;
-    }, this.retry_delay);
+    this.retry_timer = setTimeout(this._retry_connection.bind(this), this.retry_delay);
 };
 
 RedisClient.prototype.on_data = function (data) {
