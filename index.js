@@ -33,6 +33,8 @@ try {
 parsers.push(require("./lib/parser/javascript"));
 
 function RedisClient(stream, options) {
+    events.EventEmitter.call(this);
+
     this.stream = stream;
     this.options = options = options || {};
 
@@ -84,12 +86,26 @@ function RedisClient(stream, options) {
 
     this.old_state = null;
 
+    if (options.event_handlers !== undefined) {
+        this.install_event_handlers(options.event_handlers);
+    }
     this.install_stream_listeners();
-
-    events.EventEmitter.call(this);
 }
 util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
+
+RedisClient.prototype.install_event_handlers = function(handlers) {
+    var self = this;
+    //Allow custom handler setter function
+    if (typeof handlers === "function") {
+        handlers(self);
+        return;
+    }
+
+    Object.keys(handlers).forEach(function (key) {
+        self.on(key, handlers[key]);
+    });
+};
 
 RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
