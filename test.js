@@ -1467,6 +1467,30 @@ tests.HGETALL_NULL = function () {
     });
 };
 
+tests.HGETALL_MAP = function () {
+    var name = "HGETALL_MAP";
+
+    if (typeof Map === 'undefined') {
+        console.log("Skipping", name, "since es6 Map is not available.");
+        return next(name);
+    }
+
+    client.options.use_es6_map = true;
+
+    client.hmset(["map_test", "key1", "val1", "key2", "val2"], require_string("OK", name));
+    client.hgetall("map_test", function (err, obj) {
+        assert.strictEqual(null, err);
+        assert.strictEqual(obj instanceof Map, true);
+        assert.strictEqual(obj.size, 2);
+        assert.strictEqual(obj.get("key1"), "val1");
+        assert.strictEqual(obj.get("key2"), "val2");
+
+        client.options.use_es6_map = false;
+
+        next(name);
+    });
+};
+
 tests.UTF8 = function () {
     var name = "UTF8",
         utf8_sample = "ಠ_ಠ";
