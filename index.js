@@ -1183,7 +1183,12 @@ Multi.prototype.exec = function (callback) {
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
                 if (reply && args[0].toLowerCase() === "hgetall") {
-                    replies[i - 1] = reply = reply_to_object(reply);
+                    if (self.options.use_es6_map) {
+                        replies[i - 1] = reply = reply_to_map(reply);
+                    }
+                    else {
+                        replies[i - 1] = reply = reply_to_object(reply);
+                    }
                 }
 
                 if (typeof args[args.length - 1] === "function") {
