@@ -82,6 +82,10 @@ function RedisClient(stream, options) {
     this.parser_module = null;
     this.selected_db = null;	// save the selected db here, used when reconnecting
 
+    if (this.options.use_es6_map === undefined || typeof Map === 'undefined') {
+      this.options.use_es6_map = false;
+    }
+
     this.old_state = null;
 
     this.install_stream_listeners();
@@ -605,7 +609,7 @@ function try_callback(callback, reply) {
     }
 }
 
-// hgetall converts its replies to an Object.  If the reply is empty, null is returned.
+// hgetall converts its replies to an Object (if Map is not available).  If the reply is empty, null is returned.
 function reply_to_object(reply) {
     var obj = {}, j, jl, key, val;
 
@@ -617,6 +621,23 @@ function reply_to_object(reply) {
         key = reply[j].toString('binary');
         val = reply[j + 1];
         obj[key] = val;
+    }
+
+    return obj;
+}
+
+// hgetall converts its replies to a Map (if Map is available).  If the reply is empty, null is returned.
+function reply_to_map(reply) {
+    var obj = new Map(), j, jl, key, val;
+
+    if (reply.length === 0) {
+        return null;
+    }
+
+    for (j = 0, jl = reply.length; j < jl; j += 2) {
+        key = reply[j].toString('binary');
+        val = reply[j + 1];
+        obj.set(key, val);
     }
 
     return obj;
@@ -679,7 +700,12 @@ RedisClient.prototype.return_reply = function (reply) {
 
             // TODO - confusing and error-prone that hgetall is special cased in two places
             if (reply && 'hgetall' === command_obj.command.toLowerCase()) {
-                reply = reply_to_object(reply);
+                if (this.options.use_es6_map) {
+                    reply = reply_to_map(reply);
+                }
+                else {
+                    reply = reply_to_object(reply);
+                }
             }
 
             try_callback(command_obj.callback, reply);
