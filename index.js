@@ -14,10 +14,10 @@ var net = require("net"),
 // can set this to true to enable for all connections
 exports.debug_mode = false;
 
-var arraySlice = Array.prototype.slice
+var arraySlice = Array.prototype.slice;
 function trace() {
     if (!exports.debug_mode) return;
-    console.log.apply(null, arraySlice.call(arguments))
+    console.log.apply(null, arraySlice.call(arguments));
 }
 
 // hiredis might not be installed
@@ -154,7 +154,7 @@ RedisClient.prototype.unref = function () {
         trace("Not connected yet, will unref later");
         this.once("connect", function () {
             this.unref();
-        })
+        });
     }
 };
 
@@ -232,7 +232,7 @@ RedisClient.prototype.do_auth = function () {
                 }, 2000); // TODO - magic number alert
                 return;
             } else if (err.toString().match("no password is set")) {
-                console.log("Warning: Redis server does not require a password, but a password was supplied.")
+                console.log("Warning: Redis server does not require a password, but a password was supplied.");
                 err = null;
                 res = "OK";
             } else {
@@ -1261,7 +1261,7 @@ exports.createClient = function(arg0, arg1, arg2){
     } else {
         throw new Error('unknown type of connection in createClient()');
     }
-}
+};
 
 var createClient_unix = function(path, options){
     var cnxOptions = {
@@ -1274,7 +1274,7 @@ var createClient_unix = function(path, options){
     redis_client.address = path;
 
     return redis_client;
-}
+};
 
 var createClient_tcp = function (port_arg, host_arg, options) {
     var cnxOptions = {
