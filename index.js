@@ -648,7 +648,7 @@ RedisClient.prototype.return_reply = function (reply) {
     // If the "reply" here is actually a message received asynchronously due to a
     // pubsub subscription, don't pop the command queue as we'll only be consuming
     // the head command prematurely.
-    if (Array.isArray(reply) && reply.length > 0 && reply[0]) {
+    if (this.pub_sub_mode && Array.isArray(reply) && reply.length > 0 && reply[0]) {
         type = reply[0].toString();
     }
 
