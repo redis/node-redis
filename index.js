@@ -672,7 +672,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
-            if (this.options.detect_buffers && command_obj.buffer_args === false) {
+            if (this.options.detect_buffers && command_obj.buffer_args === false && 'exec' !== command_obj.command.toLowerCase()) {
                 // If detect_buffers option was specified, then the reply from the parser will be Buffers.
                 // If this command did not use Buffer arguments, then convert the reply to Strings here.
                 reply = reply_to_strings(reply);
