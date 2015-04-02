@@ -182,6 +182,8 @@ resume sending when you get `drain`.
 * redis.createClient(options) = redis.createClient(6379, '127.0.0.1', options)
 * redis.createClient(unix_socket, options)
 * redis.createClient(port, host, options)
+* redis.createClient('127.0.0.1:6379', options)
+* redis.createClient('redis://127.0.0.1:6379', options)
 
 If you have `redis-server` running on the same computer as node, then the defaults for
 port and host are probably fine.  `options` in an object with the following possible properties:

@@ -3,7 +3,7 @@ var PORT = 6379;
 var HOST = '127.0.0.1';
 
 var redis = require("./index"),
-    client = redis.createClient(PORT, HOST),
+    client = redis.createClient(HOST + ':' + PORT),
     client2 = redis.createClient(PORT, HOST),
     client3 = redis.createClient(PORT, HOST),
     bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
