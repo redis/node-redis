@@ -6,6 +6,7 @@ var net = require("net"),
     to_array = require("./lib/to_array"),
     events = require("events"),
     crypto = require("crypto"),
+    url = require("url"),
     parsers = [], commands,
     connection_id = 0,
     default_port = 6379,
@@ -1227,9 +1228,25 @@ exports.createClient = function(arg0, arg1, arg2){
         return createClient_tcp(arg0, arg1, arg2);
 
     } else if( typeof arg0 === 'string' ){
-
-        // createClient( '/tmp/redis.sock', options)
-        return createClient_unix(arg0,arg1);
+        /**
+         * Support create client from given url.
+         *
+         * For example:
+         *
+         *    redis://localhost:6379
+         *    localhost:6379
+         */
+        var urlObj;
+        if (arg0.indexOf('redis://') !== -1) {
+            urlObj = url.parse(arg0);
+            return createClient_tcp(urlObj.port, urlObj.hostname);
+        } else if (arg0.indexOf(':') !== -1) {
+            urlObj = arg0.split(':');
+            return createClient_tcp(urlObj[1], urlObj[0]);
+        } else {
+            // createClient( '/tmp/redis.sock', options)
+            return createClient_unix(arg0,arg1);
+        }
 
     } else if( arg0 !== null && typeof arg0 === 'object' ){
 
