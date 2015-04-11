@@ -25,7 +25,7 @@ Changelog
 
 ## v0.10.2 - May 18, 2014
 
-* Better binay key handlign for HGETALL. (Nick Apperson)
+* Better binay key handling for HGETALL. (Nick Apperson)
 * Fix test not resetting `error` handler. (CrypticSwarm)
 * Fix SELECT error semantics. (Bryan English)
 
