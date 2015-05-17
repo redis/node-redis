@@ -413,6 +413,24 @@ tests.MULTI_EXCEPTION_1 = function() {
     });
 };
 
+tests.MULTI_EXCEPTION_2 = function() {
+    var name = "MULTI_EXCEPTION_2";
+
+    if (!server_version_at_least(client, [2, 6, 5])) {
+        console.log("Skipping " + name + " for old Redis server version < 2.6.5");
+        return next(name);
+    }
+
+    client.multi().set("foo", "bar").lpop("foo").exec(function(err, reply) {
+        assert.strictEqual(null, err);
+        assert(Array.isArray(reply));
+        assert.strictEqual(2, reply.length);
+        assert.strictEqual("OK", reply[0]);
+        assert(reply[1] instanceof Error);
+        next(name);
+    });
+};
+
 tests.MULTI_8 = function () {
     var name = "MULTI_8", multi1, multi2;
 
