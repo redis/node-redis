@@ -1,5 +1,6 @@
 /*global require console setTimeout process Buffer */
 var PORT = 6379;
+var TLS_PORT = 6380;
 var HOST = '127.0.0.1';
 
 var redis = require("./index"),
@@ -9,8 +10,11 @@ var redis = require("./index"),
     bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
     assert = require("assert"),
     crypto = require("crypto"),
+    fs = require("fs"),
     util = require("./lib/util"),
     fork = require("child_process").fork,
+    spawn = require("child_process").spawn,
+    resolve = require("path").resolve,
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
     connected = false,
@@ -135,7 +139,7 @@ tests.IPV4 = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.IPV6 = function () {
     if (!server_version_at_least(client, [2, 8, 0])) {
@@ -161,7 +165,7 @@ tests.IPV6 = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.UNIX_SOCKET = function () {
     var unixClient = redis.createClient('/tmp/redis.sock');
@@ -187,7 +191,7 @@ tests.UNIX_SOCKET = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
@@ -1452,7 +1456,7 @@ tests.HGETALL_MESSAGE = function () {
     client.hgetall("msg_test", function (err, obj) {
         assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
         assert.strictEqual(1, Object.keys(obj).length, name);
-        assert.strictEqual(obj.message, "hello")
+        assert.strictEqual(obj.message, "hello");
         next(name);
     });
 };
@@ -2085,8 +2089,8 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
         // ignore, see above
     });
     assert.throws(function () {
-        cli.set(name, name)
-    })
+        cli.set(name, name);
+    });
     assert.doesNotThrow(function () {
         cli.set(name, name, function (err) {
             // should callback with an error
@@ -2112,7 +2116,7 @@ tests.SLOWLOG = function () {
         client.config("set", "slowlog-log-slower-than", 10000, require_string("OK", name));
         next(name);
     });
-}
+};
 
 tests.DOMAIN = function () {
     var name = "DOMAIN";
@@ -2207,9 +2211,9 @@ tests.unref = function () {
     var external = fork("./test-unref.js");
     var done = false;
     external.on("close", function (code) {
-        assert(code == 0, "test-unref.js failed");
+        assert(code === 0, "test-unref.js failed");
         done = true;
-    })
+    });
     setTimeout(function () {
         if (!done) {
             external.kill();
@@ -2217,6 +2221,104 @@ tests.unref = function () {
         assert(done, "test-unref.js didn't finish in time.");
         next(name);
     }, 500);
+};
+
+tests.tls = function () {
+    var name = "tls";
+
+    // set up an stunnel to redis; edit the conf file to include required absolute paths
+    var conf_file = resolve(__dirname, './test_assets/stunnel.conf'),
+        conf_text = fs.readFileSync(conf_file + '.template').toString().replace(/__dirname/g, __dirname);
+
+    fs.writeFileSync(conf_file, conf_text);
+    var stunnel = spawn('stunnel', [conf_file]);
+
+    // handle failure to set up tunnel
+    stunnel.on('error', function() {
+        console.log("Skipping tls test: unable to start stunnel");
+        next(name);
+    });
+    stunnel.on('exit', function(code) {
+        if(code) {
+            console.log("Skipping tls test: stunnel exited unexpectedly (code = " + code + ")");
+            next(name);
+        }
+    });
+
+    // wait to stunnel to start
+    stunnel.stderr.on("data", function(data) {
+        if(data.toString().match(/Service \[?redis\]? (\(.*?\) )?bound/) !== null) {
+            // the test cert is self-signed with a CN of "localhost"
+            var tls_options = {
+                servername: "localhost",
+                ca: [ fs.readFileSync(resolve(__dirname, "./test_assets/server.crt")) ]
+            };
+            var tls_client = redis.createClient(TLS_PORT, HOST, { tls: tls_options });
+            tls_client.on("ready", function() {
+                tls_client.set("foo", "bar", require_string("OK", name));
+                tls_client.get("foo", function (err, result) {
+                    require_string("bar", name)(err, result);
+                    stunnel.kill();
+                    tls_client.quit();
+                    next(name);
+                });
+            });
+        }
+    });
+};
+
+tests.tlsReconnect = function() {
+    var time = new Date().getTime(),
+        name = 'tlsReconnect',
+        reconnecting = false;
+
+    // set up the tunnel; NOTE this relies on the previous tls test having run
+    // at least once
+    var conf_file = resolve(__dirname, './test_assets/stunnel.conf'),
+        stunnel = spawn('stunnel', [conf_file]);
+
+    // handle failure to set up tunnel
+    stunnel.on('error', function() {
+        console.log("Skipping tlsReconnect test: unable to start stunnel");
+        next(name);
+    });
+    stunnel.on('exit', function(code) {
+        if(code) {
+            console.log("Skipping tlsReconnect test: stunnel exited unexpectedly (code = " + code + ")");
+            next(name);
+        }
+    });
+
+    // wait to stunnel to start
+    stunnel.stderr.on("data", function(data) {
+        if(data.toString().match(/Service \[?redis\]? (\(.*?\) )?bound/) !== null) {
+            // the test cert is self-signed with a CN of "localhost"
+            var tls_options = {
+                servername: "localhost",
+                ca: [ fs.readFileSync(resolve(__dirname, "./test_assets/server.crt")) ]
+            };
+            var client = redis.createClient(TLS_PORT, HOST, {
+                tls: tls_options,
+                retry_max_delay: 1
+            });
+
+            // Forcibly close the stream and wait for the reconnection to occur
+            client.on('ready', function() {
+                if (!reconnecting) {
+                    reconnecting = true;
+                    client.retry_delay = 1000;
+                    client.retry_backoff = 1;
+                    client.stream.end();
+                } else {
+                    client.end();
+                    stunnel.kill();
+                    var lasted = new Date().getTime() - time;
+                    assert.ok(lasted < 1000);
+                    next(name);
+                }
+            });
+        }
+    });
 };
 
 all_tests = Object.keys(tests);
