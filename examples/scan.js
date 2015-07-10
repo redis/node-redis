@@ -1,7 +1,7 @@
 var redis  = require("redis"),
     client = redis.createClient();
 
-var cursor = 0;
+var cursor = '0';
 
 function scan() {
     client.scan(
@@ -17,7 +17,7 @@ function scan() {
             // From <http://redis.io/commands/scan>:
             // An iteration starts when the cursor is set to 0,
             // and terminates when the cursor returned by the server is 0.
-            if (cursor === 0) {
+            if (cursor === '0') {
                 return console.log('Iteration complete');
             } else {
                 // Remember, more keys than COUNT or no keys may be returned
