@@ -10,11 +10,13 @@
   "license": "MIT",
   "main": "./index.js",
   "scripts": {
-    "test": "node ./test.js"
+    "test": "node ./test.js",
+    "coverage": "nyc npm test && nyc report"
   },
   "devDependencies": {
-    "metrics": ">=0.1.5",
     "colors": "~0.6.0-1",
+    "metrics": ">=0.1.5",
+    "nyc": "^2.2.0",
     "underscore": "~1.4.4"
   },
   "repository": {
