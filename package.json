@@ -3,20 +3,22 @@
   "version": "0.12.1",
   "description": "Redis client library",
   "keywords": [
-    "redis",
-    "database"
+    "database",
+    "redis"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
   "license": "MIT",
   "main": "./index.js",
   "scripts": {
-    "test": "node ./test.js",
-    "coverage": "nyc npm test && nyc report"
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "test": "nyc ./test/run.sh"
   },
   "devDependencies": {
     "colors": "~0.6.0-1",
+    "coveralls": "^2.11.2",
+    "hiredis": "^0.4.0",
     "metrics": ">=0.1.5",
-    "nyc": "^2.2.0",
+    "nyc": "^3.0.0",
     "underscore": "~1.4.4"
   },
   "repository": {
