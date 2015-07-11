@@ -7,6 +7,7 @@
     "database"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
+  "license": "MIT",
   "main": "./index.js",
   "scripts": {
     "test": "node ./test.js"
