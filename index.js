@@ -626,13 +626,12 @@ function reply_to_strings(reply) {
     var i;
 
     if (Buffer.isBuffer(reply)) {
-        return reply.toString();
+		return reply.toString();
     }
-
     if (Array.isArray(reply)) {
         for (i = 0; i < reply.length; i++) {
             if (reply[i] !== null && reply[i] !== undefined) {
-                reply[i] = reply[i].toString();
+                reply[i] = reply_to_strings(reply[i]);
             }
         }
         return reply;
@@ -1154,6 +1153,18 @@ Multi.prototype.exec = function (callback) {
             for (i = 1, il = self.queue.length; i < il; i += 1) {
                 reply = replies[i - 1];
                 args = self.queue[i];
+                var bufferArgs = false;
+                args.forEach(function(arg) { 
+                    if(Buffer.isBuffer(arg)) {
+                        bufferArgs = true;
+                        return false;
+                    }
+                });
+                if (self._client.options.detect_buffers && !bufferArgs) {
+                    // If detect_buffers option was specified, then the reply from the parser will be Buffers.
+                    // If this command did not use Buffer arguments, then convert the reply to Strings here.
+                    reply = reply_to_strings(reply); 
+                }
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
                 if (reply && args[0].toLowerCase() === "hgetall") {
