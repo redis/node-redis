@@ -4,4 +4,8 @@ node_js:
   - "0.10"
   - "0.12"
   - "iojs"
+before_install:
+  - 'printf ''bind ::1 127.0.0.1\nunixsocket /tmp/redis.sock'' >> /tmp/redis.conf'
+before_script:
+  - sudo redis-server /tmp/redis.conf
 after_success: npm run coverage
