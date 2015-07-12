@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* Refactor tests, and improve test coverage (Ben Coe)
 * Fix extraneous error output due to pubsub tests (Mikael Kohlmyr)
 
 ## v0.12.1 - Aug 10, 2014

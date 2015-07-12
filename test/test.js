@@ -1,15 +1,16 @@
 /*global require console setTimeout process Buffer */
 var PORT = 6379;
 var HOST = '127.0.0.1';
+var parser = process.argv[3];
 
-var redis = require("./index"),
-    client = redis.createClient(PORT, HOST),
-    client2 = redis.createClient(PORT, HOST),
-    client3 = redis.createClient(PORT, HOST),
-    bclient = redis.createClient(PORT, HOST, { return_buffers: true }),
+var redis = require("../index"),
+    client = redis.createClient(PORT, HOST, { parser: parser }),
+    client2 = redis.createClient(PORT, HOST, { parser: parser }),
+    client3 = redis.createClient(PORT, HOST, { parser: parser }),
+    bclient = redis.createClient(PORT, HOST, { return_buffers: true, parser: parser }),
     assert = require("assert"),
     crypto = require("crypto"),
-    util = require("./lib/util"),
+    util = require("../lib/util"),
     fork = require("child_process").fork,
     test_db_num = 15, // this DB will be flushed and used for testing
     tests = {},
@@ -17,9 +18,8 @@ var redis = require("./index"),
     ended = false,
     next, cur_start, run_next_test, all_tests, all_start, test_count;
 
-
 // Set this to truthy to see the wire protocol and other debugging info
-redis.debug_mode = process.argv[2];
+redis.debug_mode = process.argv[2] ? JSON.parse(process.argv[2]) : false;
 
 function server_version_at_least(connection, desired_version) {
     // Return true if the server version >= desired_version
@@ -116,7 +116,7 @@ next = function next(name) {
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 tests.IPV4 = function () {
-    var ipv4Client = redis.createClient( PORT, "127.0.0.1", { "family" : "IPv4" } );
+    var ipv4Client = redis.createClient( PORT, "127.0.0.1", { family : "IPv4", parser: parser } );
 
     ipv4Client.once("ready", function start_tests() {
         console.log("Connected to " + ipv4Client.address + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
@@ -142,7 +142,7 @@ tests.IPV6 = function () {
         console.log("Skipping IPV6 for old Redis server version < 2.8.0");
         return run_next_test();
     }
-    var ipv6Client = redis.createClient( PORT, "::1", { "family" : "IPv6" } );
+    var ipv6Client = redis.createClient( PORT, "::1", { family: "IPv6", parser: parser } );
 
     ipv6Client.once("ready", function start_tests() {
         console.log("Connected to " + ipv6Client.address + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
@@ -164,7 +164,7 @@ tests.IPV6 = function () {
 }
 
 tests.UNIX_SOCKET = function () {
-    var unixClient = redis.createClient('/tmp/redis.sock');
+    var unixClient = redis.createClient('/tmp/redis.sock', { parser: parser });
 
     // if this fails, check the permission of unix socket.
     // unixsocket /tmp/redis.sock
@@ -374,7 +374,7 @@ tests.MULTI_7 = function () {
         return next(name);
     }
 
-    var p = require("./lib/parser/javascript");
+    var p = require("../lib/parser/javascript");
     var parser = new p.Parser(false);
     var reply_count = 0;
     function check_reply(reply) {
@@ -728,7 +728,7 @@ tests.WATCH_TRANSACTION = function () {
 
 
 tests.detect_buffers = function () {
-    var name = "detect_buffers", detect_client = redis.createClient({detect_buffers: true});
+    var name = "detect_buffers", detect_client = redis.createClient({ detect_buffers: true, parser: parser });
 
     detect_client.on("ready", function () {
         // single Buffer or String
@@ -795,9 +795,9 @@ tests.detect_buffers = function () {
 tests.socket_nodelay = function () {
     var name = "socket_nodelay", c1, c2, c3, ready_count = 0, quit_count = 0;
 
-    c1 = redis.createClient({socket_nodelay: true});
-    c2 = redis.createClient({socket_nodelay: false});
-    c3 = redis.createClient();
+    c1 = redis.createClient({ socket_nodelay: true, parser: parser });
+    c2 = redis.createClient({ socket_nodelay: false, parser: parser });
+    c3 = redis.createClient({ parser: parser });
 
     function quit_check() {
         quit_count++;
@@ -1158,8 +1158,8 @@ tests.SUBSCRIBE_QUIT = function () {
 
 tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
     var name = "SUBSCRIBE_CLOSE_RESUBSCRIBE";
-    var c1 = redis.createClient();
-    var c2 = redis.createClient();
+    var c1 = redis.createClient({ parser: parser });
+    var c2 = redis.createClient({ parser: parser });
     var count = 0;
 
     /* Create two clients. c1 subscribes to two channels, c2 will publish to them.
@@ -1955,7 +1955,7 @@ tests.MONITOR = function () {
         return next(name);
     }
 
-    monitor_client = redis.createClient();
+    monitor_client = redis.createClient({ parser: parser });
     monitor_client.monitor(function (err, res) {
         client.mget("some", "keys", "foo", "bar");
         client.set("json", JSON.stringify({
@@ -2056,7 +2056,8 @@ tests.OPTIONAL_CALLBACK_UNDEFINED = function () {
 tests.ENABLE_OFFLINE_QUEUE_TRUE = function () {
     var name = "ENABLE_OFFLINE_QUEUE_TRUE";
     var cli = redis.createClient(9999, null, {
-        max_attempts: 1
+        max_attempts: 1,
+        parser: parser
         // default :)
         // enable_offline_queue: true
     });
@@ -2078,6 +2079,7 @@ tests.ENABLE_OFFLINE_QUEUE_TRUE = function () {
 tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
     var name = "ENABLE_OFFLINE_QUEUE_FALSE";
     var cli = redis.createClient(9999, null, {
+        parser: parser,
         max_attempts: 1,
         enable_offline_queue: false
     });
@@ -2134,7 +2136,10 @@ tests.DOMAIN = function () {
         });
 
         // this is the expected and desired behavior
-        domain.on('error', function (err) { next(name); });
+        domain.on('error', function (err) {
+          domain.exit();
+          next(name);
+        });
     }
 };
 
@@ -2143,7 +2148,7 @@ tests.DOMAIN = function () {
 tests.auth = function () {
     var name = "AUTH", client4, ready_count = 0;
 
-    client4 = redis.createClient(9006, "filefish.redistogo.com");
+    client4 = redis.createClient(9006, "filefish.redistogo.com", { parser: parser });
     client4.auth("664b1b6aaf134e1ec281945a8de702a9", function (err, res) {
         assert.strictEqual(null, err, name);
         assert.strictEqual("OK", res.toString(), name);
@@ -2165,7 +2170,7 @@ tests.auth = function () {
 tests.auth2 = function () {
     var name = "AUTH2", client4, ready_count = 0;
 
-    client4 = redis.createClient(9006, "filefish.redistogo.com", {auth_pass: "664b1b6aaf134e1ec281945a8de702a9"});
+    client4 = redis.createClient(9006, "filefish.redistogo.com", { auth_pass: "664b1b6aaf134e1ec281945a8de702a9", parser: parser });
 
     // test auth, then kill the connection so it'll auto-reconnect and auto-re-auth
     client4.on("ready", function () {
@@ -2204,7 +2209,8 @@ tests.reconnectRetryMaxDelay = function() {
         name = 'reconnectRetryMaxDelay',
         reconnecting = false;
     var client = redis.createClient(PORT, HOST, {
-        retry_max_delay: 1
+        retry_max_delay: 1,
+        parser: parser
     });
     client.on('ready', function() {
         if (!reconnecting) {
@@ -2223,7 +2229,7 @@ tests.reconnectRetryMaxDelay = function() {
 
 tests.unref = function () {
     var name = "unref";
-    var external = fork("./test-unref.js");
+    var external = fork("./test/test-unref.js");
     var done = false;
     external.on("close", function (code) {
         assert(code == 0, "test-unref.js failed");
@@ -2235,8 +2241,11 @@ tests.unref = function () {
         }
         assert(done, "test-unref.js didn't finish in time.");
         next(name);
-    }, 500);
+    }, 1500);
 };
+
+// starting to split tests into multiple files.
+require('./queue-test')(tests, next)
 
 all_tests = Object.keys(tests);
 all_start = new Date();

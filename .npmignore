@@ -1,6 +1,6 @@
 examples/
 benches/
-test.js
+test/
 diff_multi_bench_output.js
 generate_commands.js
 multi_bench.js

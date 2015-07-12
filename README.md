@@ -1,6 +1,9 @@
 redis - a node.js redis client
 ===========================
 
+[![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
+[![Coverage Status](https://coveralls.io/reposNodeRedis/node_redisbadge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
+
 This is a complete Redis client for node.js.  It supports all Redis commands,
 including many recently added commands like EVAL from experimental Redis server
 branches.
@@ -162,7 +165,7 @@ every command on a client.
 * `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
 Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the
 cost of more latency.  Most applications will want this set to `true`.
-* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket. 
+* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket.
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
 be loading the database from disk.  While loading, the server not respond to any commands.  To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command
@@ -181,8 +184,8 @@ limits total time for client to reconnect. Value is provided in milliseconds and
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
-* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address. 
-You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type. 
+* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
+You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
 
 ```js
     var redis = require("redis"),
