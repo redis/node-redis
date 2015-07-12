@@ -2,7 +2,7 @@ redis - a node.js redis client
 ===========================
 
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
-[![Coverage Status](https://coveralls.io/reposNodeRedis/node_redisbadge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
+[![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 
 This is a complete Redis client for node.js.  It supports all Redis commands,
 including many recently added commands like EVAL from experimental Redis server
