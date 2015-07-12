@@ -117,6 +117,7 @@ next = function next(name) {
 
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
+<<<<<<< HEAD
 tests.IPV4 = function () {
     var ipv4addr = process.env.REDIS_PORT_6379_TCP_ADDR || "127.0.0.1";
     var ipv4Client = redis.createClient( PORT, ipv4addr, { family : "IPv4", parser: parser } );
@@ -935,51 +936,6 @@ tests.socket_nodelay = function () {
     c1.on("ready", ready_check);
     c2.on("ready", ready_check);
     c3.on("ready", ready_check);
-};
-
-tests.reconnect = function () {
-    var name = "reconnect";
-
-    client.set("recon 1", "one");
-    client.set("recon 2", "two", function (err, res) {
-        // Do not do this in normal programs. This is to simulate the server closing on us.
-        // For orderly shutdown in normal programs, do client.quit()
-        client.stream.destroy();
-    });
-
-    client.on("reconnecting", function on_recon(params) {
-        client.on("connect", function on_connect() {
-            client.select(test_db_num, require_string("OK", name));
-            client.get("recon 1", require_string("one", name));
-            client.get("recon 1", require_string("one", name));
-            client.get("recon 2", require_string("two", name));
-            client.get("recon 2", require_string("two", name));
-            client.removeListener("connect", on_connect);
-            client.removeListener("reconnecting", on_recon);
-            next(name);
-        });
-    });
-};
-
-tests.reconnect_select_db_after_pubsub = function() {
-    var name = "reconnect_select_db_after_pubsub";
-
-    client.select(test_db_num);
-    client.set(name, "one");
-    client.subscribe('ChannelV', function (err, res) {
-        client.stream.destroy();
-    });
-
-    client.on("reconnecting", function on_recon(params) {
-        client.on("ready", function on_connect() {
-            client.unsubscribe('ChannelV', function (err, res) {
-                client.get(name, require_string("one", name));
-                client.removeListener("connect", on_connect);
-                client.removeListener("reconnecting", on_recon);
-                next(name);
-            });
-        });
-    });
 };
 
 tests.select_error_emits_if_no_callback = function () {
