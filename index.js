@@ -610,7 +610,7 @@ function try_callback(callback, reply) {
 function reply_to_object(reply) {
     var obj = {}, j, jl, key, val;
 
-    if (reply.length === 0) {
+    if (reply.length === 0 || !Array.isArray(reply)) {
         return null;
     }
 
@@ -648,7 +648,7 @@ RedisClient.prototype.return_reply = function (reply) {
     // If the "reply" here is actually a message received asynchronously due to a
     // pubsub subscription, don't pop the command queue as we'll only be consuming
     // the head command prematurely.
-    if (Array.isArray(reply) && reply.length > 0 && reply[0]) {
+    if (this.pub_sub_mode && Array.isArray(reply) && reply.length > 0 && reply[0]) {
         type = reply[0].toString();
     }
 
@@ -672,7 +672,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
-            if (this.options.detect_buffers && command_obj.buffer_args === false) {
+            if (this.options.detect_buffers && command_obj.buffer_args === false && 'exec' !== command_obj.command.toLowerCase()) {
                 // If detect_buffers option was specified, then the reply from the parser will be Buffers.
                 // If this command did not use Buffer arguments, then convert the reply to Strings here.
                 reply = reply_to_strings(reply);
@@ -1106,15 +1106,24 @@ Multi.prototype.HMSET = Multi.prototype.hmset;
 Multi.prototype.exec = function (callback) {
     var self = this;
     var errors = [];
+    var wants_buffers = [];
     // drain queue, callback will catch "QUEUED" or error
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
-        var command = args[0], obj;
+        var command = args[0], obj, i, il, buffer_args;
         if (typeof args[args.length - 1] === "function") {
             args = args.slice(1, -1);
         } else {
             args = args.slice(1);
         }
+        // Keep track of who wants buffer responses:
+        buffer_args = false;
+        for (i = 0, il = args.length; i < il; i += 1) {
+            if (Buffer.isBuffer(args[i])) {
+                buffer_args = true;
+            }
+        }
+        wants_buffers.push(buffer_args);
         if (args.length === 1 && Array.isArray(args[0])) {
             args = args[0];
         }
@@ -1149,12 +1158,18 @@ Multi.prototype.exec = function (callback) {
             }
         }
 
-        var i, il, reply, args;
+        var i, il, reply, to_buffer, args;
 
         if (replies) {
             for (i = 1, il = self.queue.length; i < il; i += 1) {
                 reply = replies[i - 1];
                 args = self.queue[i];
+                to_buffer = wants_buffers[i];
+
+                // If we asked for strings, even in detect_buffers mode, then return strings:
+                if (self._client.options.detect_buffers && to_buffer === false) {
+                    replies[i - 1] = reply = reply_to_strings(reply);
+                }
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
                 if (reply && args[0].toLowerCase() === "hgetall") {
