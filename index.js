@@ -1,6 +1,7 @@
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
+    URL = require("url"),
     util = require("./lib/util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
@@ -1227,9 +1228,19 @@ exports.createClient = function(arg0, arg1, arg2){
         return createClient_tcp(arg0, arg1, arg2);
 
     } else if( typeof arg0 === 'string' ){
+        var parsed = URL.parse(arg0, true, true),
+            options = (arg1 || {});
 
-        // createClient( '/tmp/redis.sock', options)
-        return createClient_unix(arg0,arg1);
+        if (parsed.hostname) {
+            if (parsed.auth) {
+                options.auth_pass = parsed.auth.split(':')[1];
+            }
+            // createClient(3000, host, options)
+            return createClient_tcp((parsed.port || default_port), parsed.hostname, options);
+        } else {
+            // createClient( '/tmp/redis.sock', options)
+            return createClient_unix(arg0,options);
+        }
 
     } else if( arg0 !== null && typeof arg0 === 'object' ){
 
