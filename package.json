@@ -28,5 +28,8 @@
   "repository": {
     "type": "git",
     "url": "git://github.com/mranney/node_redis.git"
+  },
+  "dependencies": {
+    "uuid": "^2.0.1"
   }
 }

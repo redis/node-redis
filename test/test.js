@@ -118,6 +118,8 @@ next = function next(name) {
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 tests.IPV4 = function () {
     var ipv4addr = process.env.REDIS_PORT_6379_TCP_ADDR || "127.0.0.1";
     var ipv4Client = redis.createClient( PORT, ipv4addr, { family : "IPv4", parser: parser } );
@@ -1365,38 +1367,6 @@ tests.RENAMENX = function () {
     client.exists(["foo2"], last(name, require_number(1, name)));
 };
 
-tests.DBSIZE = function () {
-    var name = "DBSIZE";
-    client.set(['foo', 'bar'], require_string("OK", name));
-    client.DBSIZE([], last(name, require_number_pos("DBSIZE")));
-};
-
-tests.GET_1 = function () {
-    var name = "GET_1";
-    client.set(["get key", "get val"], require_string("OK", name));
-    client.GET(["get key"], last(name, require_string("get val", name)));
-};
-
-tests.GET_2 = function() {
-    var name = "GET_2";
-
-    // tests handling of non-existent keys
-    client.GET('this_key_shouldnt_exist', last(name, require_null(name)));
-};
-
-tests.SET = function () {
-    var name = "SET";
-    client.SET(["set key", "set val"], require_string("OK", name));
-    client.get(["set key"], last(name, require_string("set val", name)));
-    client.SET(["set key", undefined], require_error(name));
-};
-
-tests.GETSET = function () {
-    var name = "GETSET";
-    client.set(["getset key", "getset val"], require_string("OK", name));
-    client.GETSET(["getset key", "new getset val"], require_string("getset val", name));
-    client.get(["getset key"], last(name, require_string("new getset val", name)));
-};
 
 tests.MGET = function () {
     var name = "MGET";
