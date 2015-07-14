@@ -9,16 +9,16 @@ describe("The 'select' method", function () {
 
     var rp;
     before(function (done) {
-      RedisProcess.start(function (err, _rp) {
-        rp = _rp;
-        return done(err);
-      });
+        RedisProcess.start(function (err, _rp) {
+            rp = _rp;
+            return done(err);
+        });
     })
 
     function removeMochaListener () {
-      var mochaListener = process.listeners('uncaughtException').pop();
-      process.removeListener('uncaughtException', mochaListener);
-      return mochaListener;
+        var mochaListener = process.listeners('uncaughtException').pop();
+        process.removeListener('uncaughtException', mochaListener);
+        return mochaListener;
     }
 
     function allTests(parser, ip) {
@@ -32,10 +32,10 @@ describe("The 'select' method", function () {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("error", done);
                     client.once("connect", function () {
-                      client.quit();
+                        client.quit();
                     });
                     client.on('end', function () {
-                      return done();
+                        return done();
                     });
                 });
 
@@ -70,6 +70,28 @@ describe("The 'select' method", function () {
                     });
                 });
 
+                describe("and a callback is specified", function () {
+                    describe("with a valid db index", function () {
+                        it("selects the appropriate database", function (done) {
+                            assert.strictEqual(client.selected_db, null, "default db should be null");
+                            client.select(1, function () {
+                                assert.equal(client.selected_db, 1, "we should have selected the new valid DB");
+                                return done();
+                            });
+                        });
+                    });
+
+                    describe("with an invalid db index", function () {
+                        it("emits an error", function (done) {
+                            assert.strictEqual(client.selected_db, null, "default db should be null");
+                            client.select(9999, function (err) {
+                                assert.equal(err.message, 'ERR invalid DB index')
+                                return done();
+                            });
+                        });
+                    });
+                });
+
                 describe("and no callback is specified", function () {
                     describe("with a valid db index", function () {
                         it("selects the appropriate database", function (done) {
@@ -83,22 +105,14 @@ describe("The 'select' method", function () {
                     });
 
                     describe("with an invalid db index", function () {
-                        it("emits an error", function (done) {
-                            assert.strictEqual(client.selected_db, null, "default db should be null");
-                            client.select(9999, function (err) {
-                                assert.equal(err.message, 'ERR invalid DB index')
-                                return done();
-                            });
-                        });
-
                         it("throws an error when callback not provided", function (done) {
                             var mochaListener = removeMochaListener();
                             assert.strictEqual(client.selected_db, null, "default db should be null");
 
                             process.once('uncaughtException', function (err) {
-                              process.on('uncaughtException', mochaListener);
-                              assert.equal(err.message, 'ERR invalid DB index');
-                              return done();
+                                process.on('uncaughtException', mochaListener);
+                                assert.equal(err.message, 'ERR invalid DB index');
+                                return done();
                             });
 
                             client.select(9999);

@@ -938,19 +938,6 @@ tests.socket_nodelay = function () {
     c3.on("ready", ready_check);
 };
 
-tests.select_error_emits_if_no_callback = function () {
-    var prev = client.listeners("error")[0];
-    client.removeListener("error", prev);
-    var name = "select_error_emits_if_no_callback";
-    var handler = with_timeout(name, function (err) {
-        require_error(name)(err);
-        client.removeListener('error', handler);
-        client.on("error", prev);
-        next(name);
-    }, 500);
-    client.on('error', handler);
-    client.select(9999);
-};
 
 tests.idle = function () {
   var name = "idle";

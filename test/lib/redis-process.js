@@ -23,7 +23,9 @@ module.exports = {
                           stop: function (done) {
                               rp.once("exit", function (code) {
                                   var error = null;
-                                  if (code !== 0) error = Error('failed to shutdown redis');
+                                  if (code !== null && code !== 0) {
+                                      error = Error('Redis shutdown failed with code ' + code);
+                                  }
                                   return done(error);
                               });
                               rp.kill("SIGINT");
