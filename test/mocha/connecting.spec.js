@@ -1,11 +1,21 @@
-var nodeAssert = require("../lib/nodeify-assertions");
-var config = require("../lib/config");
-var redis = config.redis;
 var async = require("async");
+var config = require("../lib/config");
+var nodeAssert = require("../lib/nodeify-assertions");
+var redis = config.redis;
+var RedisProcess = require("../lib/redis-process");
 
 describe("A node_redis client", function () {
-    function allTests(parser, ip, isSocket) {
-        var args = config.configureClient(parser, ip, isSocket);
+
+    var rp;
+    before(function (done) {
+      RedisProcess.start(function (err, _rp) {
+        rp = _rp;
+        return done(err);
+      });
+    })
+
+    function allTests(parser, ip) {
+        var args = config.configureClient(parser, ip);
 
         describe("using " + parser + " and " + ip, function () {
             var client;
@@ -157,9 +167,13 @@ describe("A node_redis client", function () {
     }
 
     ['javascript', 'hiredis'].forEach(function (parser) {
-        allTests(parser, "/tmp/redis.sock", true);
+        allTests(parser, "/tmp/redis.sock");
         ['IPv4', 'IPv6'].forEach(function (ip) {
             allTests(parser, ip);
         })
     });
+
+    after(function (done) {
+        if (rp) rp.stop(done);
+    })
 });

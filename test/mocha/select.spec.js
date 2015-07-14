@@ -1,12 +1,28 @@
-var nodeAssert = require("../lib/nodeify-assertions");
+var async = require('async');
+var assert = require('assert');
 var config = require("../lib/config");
+var nodeAssert = require('../lib/nodeify-assertions');
 var redis = config.redis;
-var async = require("async");
-var assert = require("assert");
+var RedisProcess = require("../lib/redis-process");
 
 describe("The 'select' method", function () {
-    function allTests(parser, ip, isSocket) {
-        var args = config.configureClient(parser, ip, isSocket);
+
+    var rp;
+    before(function (done) {
+      RedisProcess.start(function (err, _rp) {
+        rp = _rp;
+        return done(err);
+      });
+    })
+
+    function removeMochaListener () {
+      var mochaListener = process.listeners('uncaughtException').pop();
+      process.removeListener('uncaughtException', mochaListener);
+      return mochaListener;
+    }
+
+    function allTests(parser, ip) {
+        var args = config.configureClient(parser, ip);
 
         describe("using " + parser + " and " + ip, function () {
             describe("when not connected", function () {
@@ -15,26 +31,19 @@ describe("The 'select' method", function () {
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("error", done);
-
                     client.once("connect", function () {
-                        client.set("doot", "good calsum", function (err, res) {
-                            client.end();
-                            done();
-                        });
+                      client.quit();
+                    });
+                    client.on('end', function () {
+                      return done();
                     });
                 });
 
-                it("doesn't even throw an error or call the callback at all WTF", function (done) {
-                    this.timeout(50);
-
+                it("throws an error if redis is not connected", function (done) {
                     client.select(1, function (err, res) {
-                        nodeAssert.isNotError()(err, res);
+                        assert.equal(err.message, 'Redis connection gone from end event.');
                         done();
                     });
-
-                    setTimeout(function () {
-                        done();
-                    }, 45);
                 });
             });
 
@@ -44,10 +53,7 @@ describe("The 'select' method", function () {
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("error", done);
-
-                    client.once("connect", function () {
-                        done();
-                    });
+                    client.once("connect", function () { done(); });
                 });
 
                 afterEach(function () {
@@ -65,54 +71,37 @@ describe("The 'select' method", function () {
                 });
 
                 describe("and no callback is specified", function () {
-                    // select_error_emits_if_no_callback
-                    // this is another test that was testing the wrong thing. The old test did indeed emit an error,
-                    // but not because of the lacking callback, but because 9999 was an invalid db index.
                     describe("with a valid db index", function () {
-                        it("works just fine and does not actually emit an error like the old tests assert WTF", function (done) {
+                        it("selects the appropriate database", function (done) {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
-                            this.timeout(50);
-                            client.on("error", function (err) {
-                                nodeAssert.isNotError()(err);
-                                assert.strictEqual(client.selected_db, 1, "db should be 1 after select");
-                                done(new Error("the old tests were crap"));
-                            });
                             client.select(1);
-
                             setTimeout(function () {
-                                done();
-                            }, 45);
+                                assert.equal(client.selected_db, 1, "we should have selected the new valid DB");
+                                return done();
+                            }, 100);
                         });
                     });
 
-                    // Can't seem to catch the errors thrown here.
-                    xdescribe("with an invalid db index", function () {
+                    describe("with an invalid db index", function () {
                         it("emits an error", function (done) {
-                            this.timeout(50);
-
                             assert.strictEqual(client.selected_db, null, "default db should be null");
-                            client.on("error", function (err) {
-                                console.log('got an error', err);
-                                done();
+                            client.select(9999, function (err) {
+                                assert.equal(err.message, 'ERR invalid DB index')
+                                return done();
                             });
-
-                            try {
-                                client.select(9999);
-                            } catch (err) {}
-
-                            setTimeout(function () {
-                                done(new Error("It was supposed to emit an error."));
-                            }, 45);
                         });
 
-                        it("throws an error bc a callback is not", function (done) {
+                        it("throws an error when callback not provided", function (done) {
+                            var mochaListener = removeMochaListener();
                             assert.strictEqual(client.selected_db, null, "default db should be null");
-                            try {
-                                client.select(9999);
-                                done(new Error("Was supposed to throw an invalid db index error."));
-                            } catch (err) {
-                                done();
-                            }
+
+                            process.once('uncaughtException', function (err) {
+                              process.on('uncaughtException', mochaListener);
+                              assert.equal(err.message, 'ERR invalid DB index');
+                              return done();
+                            });
+
+                            client.select(9999);
                         });
                     });
                 });
@@ -121,10 +110,13 @@ describe("The 'select' method", function () {
     }
 
     ['javascript', 'hiredis'].forEach(function (parser) {
-        //allTests(parser, "/tmp/redis.sock", true);
-        //['IPv4', 'IPv6'].forEach(function (ip) {
-        ['IPv4'].forEach(function (ip) {
+        allTests(parser, "/tmp/redis.sock");
+        ['IPv4', 'IPv6'].forEach(function (ip) {
             allTests(parser, ip);
         })
+    });
+
+    after(function (done) {
+        if (rp) rp.stop(done);
     });
 });

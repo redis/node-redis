@@ -1,23 +1,40 @@
 var cp = require('child_process');
+var config = require('./config');
+var path = require('path');
+var tcpPortUsed = require('tcp-port-used');
 
 module.exports = {
-    start: function (done, isSocket) {
-        var confFile = isSocket ? "test/conf/redis-socket.conf" : "test/conf/redis.conf";
-        var redis = cp.spawn("redis-server", [confFile]);
+    start: function (done) {
+        // spawn redis with our testing configuration.
+        var confFile = path.resolve(__dirname, '../conf/redis.conf');
+        var rp = cp.spawn("redis-server", [confFile], {});
 
-        redis.once('err', done);
-        setTimeout(function (data) {
-            redis.removeListener('err', done);
-            done();
-        }, 1000);
+        // wait for redis to become available, by
+        // checking the port we bind on.
+        var id = setInterval(function () {
+          tcpPortUsed.check(config.PORT, '127.0.0.1')
+              .then(function (inUse) {
+                  if (inUse) {
+                      clearInterval(id);
 
-        return {
-            stop: function (done) {
-                redis.once("exit", function () {
-                    done();
-                });
-                redis.kill("SIGINT");
-            }
-        };
+                      // return an object that can be used in
+                      // an after() block to shutdown redis.
+                      return done(null, {
+                          stop: function (done) {
+                              rp.once("exit", function (code) {
+                                  var error = null;
+                                  if (code !== 0) error = Error('failed to shutdown redis');
+                                  return done(error);
+                              });
+                              rp.kill("SIGINT");
+                          }
+                      });
+                  }
+              })
+              .catch(function (err) {
+                  clearInterval(id);
+                  return done(err);
+              })
+        }, 100);
     }
 };
