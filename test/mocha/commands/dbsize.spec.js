@@ -1,9 +1,9 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../lib/config");
-var nodeAssert = require('../lib/nodeify-assertions');
+var config = require("../../lib/config");
+var nodeAssert = require('../../lib/nodeify-assertions');
 var redis = config.redis;
-var RedisProcess = require("../lib/redis-process");
+var RedisProcess = require("../../lib/redis-process");
 var uuid = require('uuid');
 
 describe("The 'dbsize' method", function () {

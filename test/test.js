@@ -120,6 +120,7 @@ next = function next(name) {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 tests.IPV4 = function () {
     var ipv4addr = process.env.REDIS_PORT_6379_TCP_ADDR || "127.0.0.1";
     var ipv4Client = redis.createClient( PORT, ipv4addr, { family : "IPv4", parser: parser } );
@@ -373,6 +374,8 @@ tests.MULTI_6 = function () {
         });
 };
 
+// THIS TEST SHOULD BE MOVED IN TO A PARSER
+// SPECIFIC TESTING FILE.
 tests.MULTI_7 = function () {
     var name = "MULTI_7";
 
@@ -400,58 +403,6 @@ tests.MULTI_7 = function () {
     parser.execute(new Buffer('$1\r\na\r\n'));
 
     next(name);
-};
-
-
-tests.MULTI_EXCEPTION_1 = function() {
-    var name = "MULTI_EXCEPTION_1";
-
-    if (!server_version_at_least(client, [2, 6, 5])) {
-        console.log("Skipping " + name + " for old Redis server version < 2.6.5");
-        return next(name);
-    }
-
-    client.multi().set("foo").exec(function (err, reply) {
-        assert(Array.isArray(err), "err should be an array");
-        assert.equal(2, err.length, "err should have 2 items");
-        assert(err[0].message.match(/ERR/), "First error message should contain ERR");
-        assert(err[1].message.match(/EXECABORT/), "First error message should contain EXECABORT");
-        next(name);
-    });
-};
-
-tests.MULTI_8 = function () {
-    var name = "MULTI_8", multi1, multi2;
-
-    // Provoke an error at queue time
-    multi1 = client.multi();
-    multi1.mset("multifoo_8", "10", "multibar_8", "20", require_string("OK", name));
-    multi1.set("foo2", require_error(name));
-    multi1.set("foo3", require_error(name));
-    multi1.incr("multifoo_8", require_number(11, name));
-    multi1.incr("multibar_8", require_number(21, name));
-    multi1.exec(function () {
-        require_error(name);
-
-        // Redis 2.6.5+ will abort transactions with errors
-        // see: http://redis.io/topics/transactions
-        var multibar_expected = 22;
-        var multifoo_expected = 12;
-        if (server_version_at_least(client, [2, 6, 5])) {
-            multibar_expected = 1;
-            multifoo_expected = 1;
-        }
-
-        // Confirm that the previous command, while containing an error, still worked.
-        multi2 = client.multi();
-        multi2.incr("multibar_8", require_number(multibar_expected, name));
-        multi2.incr("multifoo_8", require_number(multifoo_expected, name));
-        multi2.exec(function (err, replies) {
-            assert.strictEqual(multibar_expected, replies[0]);
-            assert.strictEqual(multifoo_expected, replies[1]);
-            next(name);
-        });
-    });
 };
 
 tests.FWD_ERRORS_1 = function () {

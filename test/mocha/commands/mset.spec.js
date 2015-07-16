@@ -1,12 +1,12 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../lib/config");
-var nodeAssert = require('../lib/nodeify-assertions');
+var config = require("../../lib/config");
+var nodeAssert = require('../../lib/nodeify-assertions');
 var redis = config.redis;
-var RedisProcess = require("../lib/redis-process");
+var RedisProcess = require("../../lib/redis-process");
 var uuid = require('uuid');
 
-describe("The 'set' method", function () {
+describe("The 'mset' method", function () {
 
     var rp;
     before(function (done) {
@@ -26,11 +26,13 @@ describe("The 'set' method", function () {
         var args = config.configureClient(parser, ip);
 
         describe("using " + parser + " and " + ip, function () {
-            var key, value;
+            var key, value, key2, value2;
 
             beforeEach(function () {
                 key = uuid.v4();
                 value = uuid.v4();
+                key2 = uuid.v4();
+                value2 = uuid.v4();
             });
 
             describe("when not connected", function () {
@@ -48,7 +50,7 @@ describe("The 'set' method", function () {
                 });
 
                 it("reports an error", function (done) {
-                    client.set(key, value, function (err, res) {
+                    client.mset(key, value, key2, value2, function (err, res) {
                         assert.equal(err.message, 'Redis connection gone from end event.');
                         done();
                     });
@@ -73,19 +75,28 @@ describe("The 'set' method", function () {
                 describe("and a callback is specified", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
-                            client.set(key, value, function (err, res) {
+                            client.mset(key, value, key2, value2, function (err, res) {
                                 nodeAssert.isNotError()(err, res);
-                                client.get(key, function (err, res) {
-                                    nodeAssert.isString(value)(err, res);
-                                    done();
+                                async.parallel([function (next) {
+                                    client.get(key, function (err, res) {
+                                        nodeAssert.isString(value)(err, res);
+                                        next();
+                                    });
+                                }, function (next) {
+                                    client.get(key2, function (err, res) {
+                                        nodeAssert.isString(value2)(err, res);
+                                        next();
+                                    });
+                                }], function (err) {
+                                    done(err);
                                 });
                             });
                         });
                     });
 
-                    describe("with undefined 'key' and missing 'value' parameter", function () {
+                    describe("with undefined 'key' parameter and missing 'value' parameter", function () {
                         it("reports an error", function (done) {
-                            client.set(undefined, function (err, res) {
+                            client.mset(undefined, function (err, res) {
                                 nodeAssert.isError()(err, null);
                                 done();
                             });
@@ -94,7 +105,7 @@ describe("The 'set' method", function () {
 
                     describe("with undefined 'key' and defined 'value' parameters", function () {
                         it("reports an error", function () {
-                            client.set(undefined, value, function (err, res) {
+                            client.mset(undefined, value, undefined, value2, function (err, res) {
                                 nodeAssert.isError()(err, null);
                                 done();
                             });
@@ -105,46 +116,38 @@ describe("The 'set' method", function () {
                 describe("and no callback is specified", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
-                            client.set(key, value);
+                            client.mset(key, value, key2, value2);
+
                             setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    nodeAssert.isString(value)(err, res);
-                                    done();
+                                async.parallel([function (next) {
+                                    client.get(key, function (err, res) {
+                                        nodeAssert.isString(value)(err, res);
+                                        next();
+                                    });
+                                }, function (next) {
+                                    client.get(key2, function (err, res) {
+                                        nodeAssert.isString(value2)(err, res);
+                                        next();
+                                    });
+                                }], function (err) {
+                                    done(err);
                                 });
                             }, 100);
                         });
                     });
 
-                    describe("with undefined 'key' and missing 'value' parameter", function () {
-                        it("does not emit an error", function (done) {
-                            this.timeout(50);
-
-                            client.once("error", function (err) {
-                                nodeAssert.isError()(err, null);
-                                return done(err);
-                            });
-
-                            client.set();
-
-                            setTimeout(function () {
-                                done();
-                            }, 45);
-                        });
-
-                        it("does not throw an error", function (done) {
-                            this.timeout(50);
+                    describe("with undefined 'key' and missing 'value'  parameter", function () {
+                        // this behavior is different from the 'set' behavior.
+                        it("throws an error", function (done) {
                             var mochaListener = removeMochaListener();
 
                             process.once('uncaughtException', function (err) {
                                 process.on('uncaughtException', mochaListener);
-                                return done(err);
+                                nodeAssert.isError()(err, null);
+                                return done();
                             });
 
-                            client.set();
-
-                            setTimeout(function () {
-                                done();
-                            }, 45);
+                            client.mset();
                         });
                     });
 
@@ -157,7 +160,7 @@ describe("The 'set' method", function () {
                                 nodeAssert.isError()(err, null);
                             });
 
-                            client.set(undefined, value);
+                            client.mset(undefined, value, undefined, value2);
                         });
                     });
                 });

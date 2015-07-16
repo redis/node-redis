@@ -1,12 +1,12 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../lib/config");
-var nodeAssert = require('../lib/nodeify-assertions');
+var config = require("../../lib/config");
+var nodeAssert = require('../../lib/nodeify-assertions');
 var redis = config.redis;
-var RedisProcess = require("../lib/redis-process");
+var RedisProcess = require("../../lib/redis-process");
 var uuid = require('uuid');
 
-describe("The 'getset' method", function () {
+describe("The 'flushdb' method", function () {
 
     var rp;
     before(function (done) {
@@ -26,12 +26,11 @@ describe("The 'getset' method", function () {
         var args = config.configureClient(parser, ip);
 
         describe("using " + parser + " and " + ip, function () {
-            var key, value, value2;
+            var key, key2;
 
             beforeEach(function () {
                 key = uuid.v4();
-                value = uuid.v4();
-                value2 = uuid.v4();
+                key2 = uuid.v4();
             });
 
             describe("when not connected", function () {
@@ -49,7 +48,7 @@ describe("The 'getset' method", function () {
                 });
 
                 it("reports an error", function (done) {
-                    client.get(key, function (err, res) {
+                    client.flushdb(function (err, res) {
                         assert.equal(err.message, 'Redis connection gone from end event.');
                         done();
                     });
@@ -71,30 +70,50 @@ describe("The 'getset' method", function () {
                     client.end();
                 });
 
-                describe("when the key exists in Redis", function () {
-                    beforeEach(function (done) {
-                        client.set(key, value, function (err, res) {
-                            nodeAssert.isNotError()(err, res);
-                            done();
-                        });
-                    });
+                describe("when there is data in Redis", function () {
+                    var oldSize;
 
-                    it("gets the value correctly", function (done) {
-                        client.getset(key, value2, function (err, res) {
-                            nodeAssert.isString(value)(err, res);
-                            client.get(key, function (err, res) {
-                                nodeAssert.isString(value2)(err, res);
+                    beforeEach(function (done) {
+                        async.parallel([function (next) {
+                            client.mset(key, uuid.v4(), key2, uuid.v4(), function (err, res) {
+                                nodeAssert.isNotError()(err, res);
+                                next(err);
+                            });
+                        }, function (next) {
+                            client.dbsize([], function (err, res) {
+                                nodeAssert.isType.positiveNumber()(err, res);
+                                oldSize = res;
+                                next(err);
+                            });
+                        }], function (err) {
+                            if (err) {
+                                return done(err);
+                            }
+
+                            client.flushdb(function (err, res) {
+                                nodeAssert.isString("OK")(err, res);
                                 done(err);
                             });
                         });
                     });
-                });
 
-                describe("when the key does not exist in Redis", function () {
-                    it("gets a null value", function (done) {
-                        client.getset(key, value, function (err, res) {
-                            nodeAssert.isNull()(err, res);
+                    it("deletes all the keys", function (done) {
+                        client.mget(key, key2, function (err, res) {
+                            assert.strictEqual(null, err, "Unexpected error returned");
+                            assert.strictEqual(true, Array.isArray(res), "Results object should be an array.");
+                            assert.strictEqual(2, res.length, "Results array should have length 2.");
+                            assert.strictEqual(null, res[0], "Redis key should have been flushed.");
+                            assert.strictEqual(null, res[1], "Redis key should have been flushed.");
                             done(err);
+                        });
+                    });
+
+                    it("results in a db size of zero", function (done) {
+                        client.dbsize([], function (err, res) {
+                            nodeAssert.isNotError()(err, res);
+                            nodeAssert.isType.number()(err, res);
+                            assert.strictEqual(0, res, "Flushing db should result in db size 0");
+                            done();
                         });
                     });
                 });
