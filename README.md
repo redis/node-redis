@@ -152,9 +152,8 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `redis.createClient()` is equivalent to `redis.createClient(6379, '127.0.0.1', {})`
 * `redis.createClient(options)` is equivalent to `redis.createClient(6379, '127.0.0.1', options)`
 * `redis.createClient(unix_socket, options)`
-* `redis.createClient(port, host, options)`
 
- `options` in an object with the following possible properties:
+ `options` is an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
 This may also be set to `javascript`.
