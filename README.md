@@ -145,7 +145,7 @@ resume sending when you get `drain`.
 
 ## redis.createClient()
 If you have `redis-server` running on the same computer as node, then the defaults for
-port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient`.
+port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
 ### overloading
 * `redis.createClient(port,host,options)`
