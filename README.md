@@ -144,15 +144,16 @@ resume sending when you get `drain`.
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
 ## redis.createClient()
+If you have `redis-server` running on the same computer as node, then the defaults for
+port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
 ### overloading
-* redis.createClient() = redis.createClient(6379, '127.0.0.1', {})
-* redis.createClient(options) = redis.createClient(6379, '127.0.0.1', options)
-* redis.createClient(unix_socket, options)
-* redis.createClient(port, host, options)
+* `redis.createClient(port,host,options)`
+* `redis.createClient()` is equivalent to `redis.createClient(6379, '127.0.0.1', {})`
+* `redis.createClient(options)` is equivalent to `redis.createClient(6379, '127.0.0.1', options)`
+* `redis.createClient(unix_socket, options)`
 
-If you have `redis-server` running on the same computer as node, then the defaults for
-port and host are probably fine.  `options` in an object with the following possible properties:
+ `options` is an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
 This may also be set to `javascript`.
@@ -205,7 +206,6 @@ You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns mod
     client.end();
 ```
 
-`createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
 
 ## client.auth(password, callback)
