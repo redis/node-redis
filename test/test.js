@@ -204,7 +204,7 @@ tests.FLUSHDB = function () {
 tests.INCR = function () {
     var name = "INCR";
 
-    if (bclient.reply_parser.name == "hiredis") {
+    if (bclient.reply_parser.name === "hiredis") {
         console.log("Skipping INCR buffer test with hiredis");
         return next(name);
     }
@@ -371,7 +371,7 @@ tests.MULTI_6 = function () {
 tests.MULTI_7 = function () {
     var name = "MULTI_7";
 
-    if (bclient.reply_parser.name != "javascript") {
+    if (bclient.reply_parser.name !== "javascript") {
         console.log("Skipping wire-protocol test for 3rd-party parser");
         return next(name);
     }
@@ -467,7 +467,7 @@ tests.FWD_ERRORS_1 = function () {
 
     client3.on("message", function (channel, data) {
         console.log("incoming");
-        if (channel == name) {
+        if (channel === name) {
             assert.equal(data, "Some message");
             throw toThrow;
         }
@@ -1286,11 +1286,11 @@ tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
             console.log("c1 is ready", count);
 
             count++;
-            if (count == 1) {
+            if (count === 1) {
                 c2.publish("chan1", "hi on channel 1");
                 return;
 
-            } else if (count == 2) {
+            } else if (count === 2) {
                 c2.publish("chan2", "hi on channel 2");
 
             } else {
