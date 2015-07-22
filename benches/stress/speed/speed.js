@@ -1,3 +1,5 @@
+'use strict';
+
 var msgpack = require('node-msgpack');
 var bison = require('bison');
 var codec = {

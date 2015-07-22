@@ -1,3 +1,5 @@
+'use strict';
+
 var Parser = require('../lib/parser/hiredis').Parser;
 var assert = require('assert');
 

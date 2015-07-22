@@ -1,3 +1,5 @@
+'use strict';
+
 var redis = require("./index"),
     metrics = require("metrics"),
     num_clients = parseInt(process.argv[2], 10) || 5,

@@ -1,3 +1,5 @@
+'use strict';
+
 var client = require("redis").createClient(),
     client2 = require("redis").createClient();
 

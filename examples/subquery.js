@@ -1,3 +1,5 @@
+'use strict';
+
 var client = require("redis").createClient();
 
 function print_results(obj) {

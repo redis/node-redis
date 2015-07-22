@@ -1,3 +1,5 @@
+'use strict';
+
 var redis = require("redis"),
     client1 = redis.createClient(),
     client2 = redis.createClient(),

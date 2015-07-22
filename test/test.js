@@ -1,3 +1,5 @@
+'use strict';
+
 /*global require console setTimeout process Buffer */
 var PORT = 6379;
 var HOST = '127.0.0.1';

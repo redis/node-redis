@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+'use strict';
+
 var colors = require('colors'),
     fs = require('fs'),
     _ = require('underscore'),

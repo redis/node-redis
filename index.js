@@ -1,3 +1,5 @@
+'use strict';
+
 /*global Buffer require exports console setTimeout */
 
 var net = require("net"),
