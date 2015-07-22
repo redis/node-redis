@@ -30,6 +30,7 @@
     "url": "git://github.com/mranney/node_redis.git"
   },
   "dependencies": {
+    "sinon": "^1.15.4",
     "uuid": "^2.0.1"
   }
 }
