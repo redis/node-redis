@@ -2,7 +2,7 @@
 
 var source = new Buffer(100),
     dest = new Buffer(100), i, j, k, tmp, count = 1000000, bytes = 100;
-    
+
 for (i = 99 ; i >= 0 ; i--) {
     source[i] = 120;
 }

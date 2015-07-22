@@ -9,7 +9,7 @@ function print_results(obj) {
 // build a map of all keys and their types
 client.keys("*", function (err, all_keys) {
     var key_types = {};
-    
+
     all_keys.forEach(function (key, pos) { // use second arg of forEach to get pos
         client.type(key, function (err, type) {
             key_types[key] = type;
