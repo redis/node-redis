@@ -1228,50 +1228,29 @@ RedisClient.prototype.eval = RedisClient.prototype.EVAL = function () {
     });
 };
 
+exports.createClient = function(arg0, arg1, options) {
+    if (typeof arg0 === 'object' || arg0 === undefined) {
+        options = arg0 || options;
+        return createClient_tcp(default_port, default_host, options);
+    }
+    if (typeof arg0 === 'number' || typeof arg0 === 'string' && arg0.match(/^\d+$/)){
+        return createClient_tcp(arg0, arg1, options);
+    }
+    if (typeof arg0 === 'string') {
+        options = arg1 || {};
 
-exports.createClient = function(arg0, arg1, arg2){
-    if( arguments.length === 0 ){
-
-        // createClient()
-        return createClient_tcp(default_port, default_host, {});
-
-    } else if( typeof arg0 === 'number' ||
-        typeof arg0 === 'string' && arg0.match(/^\d+$/) ){
-
-        // createClient( 3000, host, options)
-        // createClient('3000', host, options)
-        return createClient_tcp(arg0, arg1, arg2);
-
-    } else if( typeof arg0 === 'string' ){
-        var parsed = URL.parse(arg0, true, true),
-            options = (arg1 || {});
-
+        var parsed = URL.parse(arg0, true, true);
         if (parsed.hostname) {
             if (parsed.auth) {
                 options.auth_pass = parsed.auth.split(':')[1];
             }
-            // createClient(3000, host, options)
             return createClient_tcp((parsed.port || default_port), parsed.hostname, options);
-        } else {
-            // createClient( '/tmp/redis.sock', options)
-            return createClient_unix(arg0,options);
         }
 
-    } else if( arg0 !== null && typeof arg0 === 'object' ){
-
-        // createClient(options)
-        return createClient_tcp(default_port, default_host, arg0 );
-
-    } else if( arg0 === null && arg1 === null ){
-
-        // for backward compatibility
-        // createClient(null,null,options)
-        return createClient_tcp(default_port, default_host, arg2);
-
-    } else {
-        throw new Error('unknown type of connection in createClient()');
+        return createClient_unix(arg0, options);
     }
-}
+    throw new Error('unknown type of connection in createClient()');
+};
 
 var createClient_unix = function(path, options){
     var cnxOptions = {
