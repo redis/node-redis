@@ -1,9 +1,11 @@
+'use strict';
+
 var redis = require("redis"),
     client = redis.createClient("/tmp/redis.sock"),
     profiler = require("v8-profiler");
 
 client.on("connect", function () {
-    console.log("Got Unix socket connection.")
+    console.log("Got Unix socket connection.");
 });
 
 client.on("error", function (err) {

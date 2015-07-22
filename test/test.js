@@ -137,7 +137,7 @@ tests.IPV4 = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.IPV6 = function () {
     if (!server_version_at_least(client, [2, 8, 0])) {
@@ -163,7 +163,7 @@ tests.IPV6 = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.UNIX_SOCKET = function () {
     var unixClient = redis.createClient('/tmp/redis.sock', { parser: parser });
@@ -189,7 +189,7 @@ tests.UNIX_SOCKET = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
@@ -1543,7 +1543,7 @@ tests.HGETALL_MESSAGE = function () {
     client.hgetall("msg_test", function (err, obj) {
         assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
         assert.strictEqual(1, Object.keys(obj).length, name);
-        assert.strictEqual(obj.message, "hello")
+        assert.strictEqual(obj.message, "hello");
         next(name);
     });
 };
@@ -2178,8 +2178,8 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
         // ignore, see above
     });
     assert.throws(function () {
-        cli.set(name, name)
-    })
+        cli.set(name, name);
+    });
     assert.doesNotThrow(function () {
         cli.set(name, name, function (err) {
             // should callback with an error
@@ -2205,7 +2205,7 @@ tests.SLOWLOG = function () {
         client.config("set", "slowlog-log-slower-than", 10000, require_string("OK", name));
         next(name);
     });
-}
+};
 
 tests.DOMAIN = function () {
     var name = "DOMAIN";
@@ -2323,9 +2323,9 @@ tests.unref = function () {
     var external = fork("./test/test-unref.js");
     var done = false;
     external.on("close", function (code) {
-        assert(code == 0, "test-unref.js failed");
+        assert(code === 0, "test-unref.js failed");
         done = true;
-    })
+    });
     setTimeout(function () {
         if (!done) {
             external.kill();
@@ -2336,7 +2336,7 @@ tests.unref = function () {
 };
 
 // starting to split tests into multiple files.
-require('./queue-test')(tests, next)
+require('./queue-test')(tests, next);
 
 all_tests = Object.keys(tests);
 all_start = new Date();

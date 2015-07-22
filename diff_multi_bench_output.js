@@ -49,7 +49,7 @@ before_lines.forEach(function(b, i) {
             var isNaN = !num && num !== 0;
             return !isNaN;
         });
-    if (ops.length != 2) return
+    if (ops.length != 2) return;
 
     var delta = ops[1] - ops[0];
     var pct = ((delta / ops[0]) * 100).toPrecision(3);

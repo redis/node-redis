@@ -16,7 +16,7 @@ redis.RedisClient.prototype.parse_info = function (callback) {
                 obj[parts[0]] = parts[1];
             }
         });
-        callback(obj)
+        callback(obj);
     });
 };
 
