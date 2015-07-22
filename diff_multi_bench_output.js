@@ -37,8 +37,8 @@ before_lines.forEach(function(b, i) {
         return;
     }
 
-    b_words = b.split(' ').filter(is_whitespace);
-    a_words = a.split(' ').filter(is_whitespace);
+    var b_words = b.split(' ').filter(is_whitespace);
+    var a_words = a.split(' ').filter(is_whitespace);
 
     var ops =
         [b_words, a_words]
