@@ -1,37 +1,21 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../../lib/config");
-var nodeAssert = require('../../lib/nodeify-assertions');
+var config = require("../lib/config");
+var helper = require('../helper');
 var redis = config.redis;
-var RedisProcess = require("../../lib/redis-process");
 var uuid = require('uuid');
 
-describe("The 'getset' method", function () {
-
-    var rp;
-    before(function (done) {
-        RedisProcess.start(function (err, _rp) {
-            rp = _rp;
-            return done(err);
-        });
-    })
-
-    function removeMochaListener () {
-        var mochaListener = process.listeners('uncaughtException').pop();
-        process.removeListener('uncaughtException', mochaListener);
-        return mochaListener;
-    }
+describe("The 'get' method", function () {
 
     function allTests(parser, ip) {
         var args = config.configureClient(parser, ip);
 
         describe("using " + parser + " and " + ip, function () {
-            var key, value, value2;
+            var key, value;
 
             beforeEach(function () {
                 key = uuid.v4();
                 value = uuid.v4();
-                value2 = uuid.v4();
             });
 
             describe("when not connected", function () {
@@ -74,26 +58,23 @@ describe("The 'getset' method", function () {
                 describe("when the key exists in Redis", function () {
                     beforeEach(function (done) {
                         client.set(key, value, function (err, res) {
-                            nodeAssert.isNotError()(err, res);
+                            helper.isNotError()(err, res);
                             done();
                         });
                     });
 
                     it("gets the value correctly", function (done) {
-                        client.getset(key, value2, function (err, res) {
-                            nodeAssert.isString(value)(err, res);
-                            client.get(key, function (err, res) {
-                                nodeAssert.isString(value2)(err, res);
-                                done(err);
-                            });
+                        client.get(key, function (err, res) {
+                            helper.isString(value)(err, res);
+                            done(err);
                         });
                     });
                 });
 
                 describe("when the key does not exist in Redis", function () {
                     it("gets a null value", function (done) {
-                        client.getset(key, value, function (err, res) {
-                            nodeAssert.isNull()(err, res);
+                        client.get(key, function (err, res) {
+                            helper.isNull()(err, res);
                             done(err);
                         });
                     });
@@ -107,9 +88,5 @@ describe("The 'getset' method", function () {
         ['IPv4', 'IPv6'].forEach(function (ip) {
             allTests(parser, ip);
         })
-    });
-
-    after(function (done) {
-        if (rp) rp.stop(done);
     });
 });

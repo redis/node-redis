@@ -1,19 +1,10 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../../lib/config");
-var nodeAssert = require('../../lib/nodeify-assertions');
+var config = require("../lib/config");
+var helper = require('../helper');
 var redis = config.redis;
-var RedisProcess = require("../../lib/redis-process");
 
 describe("The 'select' method", function () {
-
-    var rp;
-    before(function (done) {
-        RedisProcess.start(function (err, _rp) {
-            rp = _rp;
-            return done(err);
-        });
-    })
 
     function removeMochaListener () {
         var mochaListener = process.listeners('uncaughtException').pop();
@@ -64,7 +55,7 @@ describe("The 'select' method", function () {
                     // default value of null means database 0 will be used.
                     assert.strictEqual(client.selected_db, null, "default db should be null");
                     client.select(1, function (err, res) {
-                        nodeAssert.isNotError()(err, res);
+                        helper.isNotError()(err, res);
                         assert.strictEqual(client.selected_db, 1, "db should be 1 after select");
                         done();
                     });
@@ -128,9 +119,5 @@ describe("The 'select' method", function () {
         ['IPv4', 'IPv6'].forEach(function (ip) {
             allTests(parser, ip);
         })
-    });
-
-    after(function (done) {
-        if (rp) rp.stop(done);
     });
 });

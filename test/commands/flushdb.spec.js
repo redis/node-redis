@@ -1,26 +1,11 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../../lib/config");
-var nodeAssert = require('../../lib/nodeify-assertions');
+var config = require("../lib/config");
+var helper = require('../helper');
 var redis = config.redis;
-var RedisProcess = require("../../lib/redis-process");
 var uuid = require('uuid');
 
 describe("The 'flushdb' method", function () {
-
-    var rp;
-    before(function (done) {
-        RedisProcess.start(function (err, _rp) {
-            rp = _rp;
-            return done(err);
-        });
-    })
-
-    function removeMochaListener () {
-        var mochaListener = process.listeners('uncaughtException').pop();
-        process.removeListener('uncaughtException', mochaListener);
-        return mochaListener;
-    }
 
     function allTests(parser, ip) {
         var args = config.configureClient(parser, ip);
@@ -76,12 +61,12 @@ describe("The 'flushdb' method", function () {
                     beforeEach(function (done) {
                         async.parallel([function (next) {
                             client.mset(key, uuid.v4(), key2, uuid.v4(), function (err, res) {
-                                nodeAssert.isNotError()(err, res);
+                                helper.isNotError()(err, res);
                                 next(err);
                             });
                         }, function (next) {
                             client.dbsize([], function (err, res) {
-                                nodeAssert.isType.positiveNumber()(err, res);
+                                helper.isType.positiveNumber()(err, res);
                                 oldSize = res;
                                 next(err);
                             });
@@ -91,7 +76,7 @@ describe("The 'flushdb' method", function () {
                             }
 
                             client.flushdb(function (err, res) {
-                                nodeAssert.isString("OK")(err, res);
+                                helper.isString("OK")(err, res);
                                 done(err);
                             });
                         });
@@ -110,8 +95,8 @@ describe("The 'flushdb' method", function () {
 
                     it("results in a db size of zero", function (done) {
                         client.dbsize([], function (err, res) {
-                            nodeAssert.isNotError()(err, res);
-                            nodeAssert.isType.number()(err, res);
+                            helper.isNotError()(err, res);
+                            helper.isType.number()(err, res);
                             assert.strictEqual(0, res, "Flushing db should result in db size 0");
                             done();
                         });
@@ -126,9 +111,5 @@ describe("The 'flushdb' method", function () {
         ['IPv4', 'IPv6'].forEach(function (ip) {
             allTests(parser, ip);
         })
-    });
-
-    after(function (done) {
-        if (rp) rp.stop(done);
     });
 });

@@ -1,26 +1,11 @@
 var async = require('async');
 var assert = require('assert');
-var config = require("../../lib/config");
-var nodeAssert = require('../../lib/nodeify-assertions');
+var config = require("../lib/config");
+var helper = require('../helper');
 var redis = config.redis;
-var RedisProcess = require("../../lib/redis-process");
 var uuid = require('uuid');
 
-describe("The 'get' method", function () {
-
-    var rp;
-    before(function (done) {
-        RedisProcess.start(function (err, _rp) {
-            rp = _rp;
-            return done(err);
-        });
-    })
-
-    function removeMochaListener () {
-        var mochaListener = process.listeners('uncaughtException').pop();
-        process.removeListener('uncaughtException', mochaListener);
-        return mochaListener;
-    }
+describe("The 'dbsize' method", function () {
 
     function allTests(parser, ip) {
         var args = config.configureClient(parser, ip);
@@ -48,7 +33,7 @@ describe("The 'get' method", function () {
                 });
 
                 it("reports an error", function (done) {
-                    client.get(key, function (err, res) {
+                    client.dbsize([], function (err, res) {
                         assert.equal(err.message, 'Redis connection gone from end event.');
                         done();
                     });
@@ -62,7 +47,10 @@ describe("The 'get' method", function () {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("error", done);
                     client.once("connect", function () {
-                        done();
+                        client.flushdb(function (err, res) {
+                            helper.isString("OK")(err, res);
+                            done();
+                        });
                     });
                 });
 
@@ -70,27 +58,38 @@ describe("The 'get' method", function () {
                     client.end();
                 });
 
-                describe("when the key exists in Redis", function () {
-                    beforeEach(function (done) {
-                        client.set(key, value, function (err, res) {
-                            nodeAssert.isNotError()(err, res);
-                            done();
-                        });
-                    });
-
-                    it("gets the value correctly", function (done) {
-                        client.get(key, function (err, res) {
-                            nodeAssert.isString(value)(err, res);
-                            done(err);
-                        });
+                it("returns a zero db size", function (done) {
+                    client.dbsize([], function (err, res) {
+                        helper.isNotError()(err, res);
+                        helper.isType.number()(err, res);
+                        assert.strictEqual(res, 0, "Initial db size should be 0");
+                        done();
                     });
                 });
 
-                describe("when the key does not exist in Redis", function () {
-                    it("gets a null value", function (done) {
-                        client.get(key, function (err, res) {
-                            nodeAssert.isNull()(err, res);
-                            done(err);
+                describe("when more data is added to Redis", function () {
+                    var oldSize;
+
+                    beforeEach(function (done) {
+                        client.dbsize([], function (err, res) {
+                            helper.isType.number()(err, res);
+                            assert.strictEqual(res, 0, "Initial db size should be 0");
+
+                            oldSize = res;
+
+                            client.set(key, value, function (err, res) {
+                                helper.isNotError()(err, res);
+                                done();
+                            });
+                        });
+                    });
+
+                    it("returns a larger db size", function (done) {
+                        client.dbsize([], function (err, res) {
+                            helper.isNotError()(err, res);
+                            helper.isType.positiveNumber()(err, res);
+                            assert.strictEqual(true, (oldSize < res), "Adding data should increase db size.");
+                            done();
                         });
                     });
                 });
@@ -103,9 +102,5 @@ describe("The 'get' method", function () {
         ['IPv4', 'IPv6'].forEach(function (ip) {
             allTests(parser, ip);
         })
-    });
-
-    after(function (done) {
-        if (rp) rp.stop(done);
     });
 });

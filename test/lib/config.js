@@ -1,3 +1,5 @@
+// helpers for configuring a redis client in
+// its various modes, ipV6, ipV4, socket.
 module.exports = (function () {
     var redis = require('../../index');
     redis.debug_mode = process.env.DEBUG ? JSON.parse(process.env.DEBUG) : false;
@@ -11,17 +13,20 @@ module.exports = (function () {
         }
     };
 
-    config.configureClient = function (parser, ip, isSocket) {
+    config.configureClient = function (parser, ip, opts) {
         var args = [];
+        opts = opts || {};
 
-        if (!isSocket) {
+        if (ip.match(/\.sock/)) {
+            args.push(ip)
+        } else {
             args.push(config.PORT);
             args.push(config.HOST[ip]);
-            args.push({ family: ip, parser: parser });
-        } else {
-            args.push(ip);
-            args.push({ parser: parser });
+            opts.family = ip;
         }
+
+        opts.parser = parser;
+        args.push(opts);
 
         return args;
     };
