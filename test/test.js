@@ -739,7 +739,7 @@ tests.WATCH_TRANSACTION = function () {
 
 
 tests.detect_buffers = function () {
-    var name = "detect_buffers", detect_client = redis.createClient({ detect_buffers: true, parser: parser });
+    var name = "detect_buffers", detect_client = redis.createClient(PORT, HOST, { detect_buffers: true, parser: parser });
 
     detect_client.on("ready", function () {
         // single Buffer or String
@@ -804,7 +804,7 @@ tests.detect_buffers = function () {
 };
 
 tests.detect_buffers_multi = function () {
-    var name = "detect_buffers_multi", detect_client = redis.createClient({detect_buffers: true});
+    var name = "detect_buffers_multi", detect_client = redis.createClient(PORT, HOST, {detect_buffers: true});
 
     detect_client.on("ready", function () {
         // single Buffer or String
@@ -895,9 +895,9 @@ tests.detect_buffers_multi = function () {
 tests.socket_nodelay = function () {
     var name = "socket_nodelay", c1, c2, c3, ready_count = 0, quit_count = 0;
 
-    c1 = redis.createClient({ socket_nodelay: true, parser: parser });
-    c2 = redis.createClient({ socket_nodelay: false, parser: parser });
-    c3 = redis.createClient({ parser: parser });
+    c1 = redis.createClient(PORT, HOST, { socket_nodelay: true, parser: parser });
+    c2 = redis.createClient(PORT, HOST, { socket_nodelay: false, parser: parser });
+    c3 = redis.createClient(PORT, HOST, { parser: parser });
 
     function quit_check() {
         quit_count++;
@@ -1258,8 +1258,8 @@ tests.SUBSCRIBE_QUIT = function () {
 
 tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
     var name = "SUBSCRIBE_CLOSE_RESUBSCRIBE";
-    var c1 = redis.createClient({ parser: parser });
-    var c2 = redis.createClient({ parser: parser });
+    var c1 = redis.createClient(PORT, HOST, { parser: parser });
+    var c2 = redis.createClient(PORT, HOST, { parser: parser });
     var count = 0;
 
     /* Create two clients. c1 subscribes to two channels, c2 will publish to them.
@@ -2055,7 +2055,7 @@ tests.MONITOR = function () {
         return next(name);
     }
 
-    monitor_client = redis.createClient({ parser: parser });
+    monitor_client = redis.createClient(PORT, HOST, { parser: parser });
     monitor_client.monitor(function (err, res) {
         client.mget("some", "keys", "foo", "bar");
         client.set("json", JSON.stringify({
@@ -2329,7 +2329,7 @@ tests.reconnectRetryMaxDelay = function() {
 
 tests.unref = function () {
     var name = "unref";
-    var external = fork("./test/test-unref.js");
+    var external = fork("./test/test-unref.js", [PORT, HOST]);
     var done = false;
     external.on("close", function (code) {
         assert(code == 0, "test-unref.js failed");
