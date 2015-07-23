@@ -1,6 +1,6 @@
 /*global require console setTimeout process Buffer */
-var PORT = 6379;
-var HOST = '127.0.0.1';
+var PORT = process.env.REDIS_1_PORT_6379_TCP_PORT || 6379;
+var HOST = process.env.REDIS_1_PORT_6379_TCP_ADDR || '127.0.0.1';
 var parser = process.argv[3];
 
 var redis = require("../index"),
@@ -116,7 +116,8 @@ next = function next(name) {
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 tests.IPV4 = function () {
-    var ipv4Client = redis.createClient( PORT, "127.0.0.1", { family : "IPv4", parser: parser } );
+    var ipv4addr = process.env.REDIS_1_PORT_6379_TCP_ADDR || "127.0.0.1";
+    var ipv4Client = redis.createClient( PORT, ipv4addr, { family : "IPv4", parser: parser } );
 
     ipv4Client.once("ready", function start_tests() {
         console.log("Connected to " + ipv4Client.address + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
@@ -142,7 +143,8 @@ tests.IPV6 = function () {
         console.log("Skipping IPV6 for old Redis server version < 2.8.0");
         return run_next_test();
     }
-    var ipv6Client = redis.createClient( PORT, "::1", { family: "IPv6", parser: parser } );
+    var ipv6addr = process.env.REDIS_1_PORT_6379_TCP_ADDR || "::1";
+    var ipv6Client = redis.createClient( PORT, ipv6addr, { family: "IPv6", parser: parser } );
 
     ipv6Client.once("ready", function start_tests() {
         console.log("Connected to " + ipv6Client.address + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
