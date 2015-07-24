@@ -166,15 +166,6 @@ tests.IPV6 = function () {
 }
 
 tests.UNIX_SOCKET = function () {
-    try {
-      var stat = require('fs').accessSync('/tmp/redis.sock');
-    } catch(err) {
-      if (err.code === 'ENOENT') {
-        console.log("Skipping SOCKET since none exists");
-        return run_next_test();
-      }
-    }
-
     var unixClient = redis.createClient('/tmp/redis.sock', { parser: parser });
 
     // if this fails, check the permission of unix socket.
