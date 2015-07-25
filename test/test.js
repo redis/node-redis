@@ -1,6 +1,6 @@
 /*global require console setTimeout process Buffer */
-var PORT = 6379;
-var HOST = '127.0.0.1';
+var PORT = process.env.REDIS_PORT_6379_TCP_PORT || 6379;
+var HOST = process.env.REDIS_PORT_6379_TCP_ADDR || '127.0.0.1';
 var parser = process.argv[3];
 
 var redis = require("../index"),
@@ -116,7 +116,8 @@ next = function next(name) {
 // Tests are run in the order they are defined, so FLUSHDB should always be first.
 
 tests.IPV4 = function () {
-    var ipv4Client = redis.createClient( PORT, "127.0.0.1", { family : "IPv4", parser: parser } );
+    var ipv4addr = process.env.REDIS_PORT_6379_TCP_ADDR || "127.0.0.1";
+    var ipv4Client = redis.createClient( PORT, ipv4addr, { family : "IPv4", parser: parser } );
 
     ipv4Client.once("ready", function start_tests() {
         console.log("Connected to " + ipv4Client.address + ", Redis server version " + ipv4Client.server_info.redis_version + "\n");
@@ -142,7 +143,8 @@ tests.IPV6 = function () {
         console.log("Skipping IPV6 for old Redis server version < 2.8.0");
         return run_next_test();
     }
-    var ipv6Client = redis.createClient( PORT, "::1", { family: "IPv6", parser: parser } );
+    var ipv6addr = process.env.REDIS_PORT_6379_TCP_ADDR || "::1";
+    var ipv6Client = redis.createClient( PORT, ipv6addr, { family: "IPv6", parser: parser } );
 
     ipv6Client.once("ready", function start_tests() {
         console.log("Connected to " + ipv6Client.address + ", Redis server version " + ipv6Client.server_info.redis_version + "\n");
@@ -728,7 +730,7 @@ tests.WATCH_TRANSACTION = function () {
 
 
 tests.detect_buffers = function () {
-    var name = "detect_buffers", detect_client = redis.createClient({ detect_buffers: true, parser: parser });
+    var name = "detect_buffers", detect_client = redis.createClient(PORT, HOST, { detect_buffers: true, parser: parser });
 
     detect_client.on("ready", function () {
         // single Buffer or String
@@ -793,7 +795,7 @@ tests.detect_buffers = function () {
 };
 
 tests.detect_buffers_multi = function () {
-    var name = "detect_buffers_multi", detect_client = redis.createClient({detect_buffers: true});
+    var name = "detect_buffers_multi", detect_client = redis.createClient(PORT, HOST, {detect_buffers: true});
 
     detect_client.on("ready", function () {
         // single Buffer or String
@@ -884,9 +886,9 @@ tests.detect_buffers_multi = function () {
 tests.socket_nodelay = function () {
     var name = "socket_nodelay", c1, c2, c3, ready_count = 0, quit_count = 0;
 
-    c1 = redis.createClient({ socket_nodelay: true, parser: parser });
-    c2 = redis.createClient({ socket_nodelay: false, parser: parser });
-    c3 = redis.createClient({ parser: parser });
+    c1 = redis.createClient(PORT, HOST, { socket_nodelay: true, parser: parser });
+    c2 = redis.createClient(PORT, HOST, { socket_nodelay: false, parser: parser });
+    c3 = redis.createClient(PORT, HOST, { parser: parser });
 
     function quit_check() {
         quit_count++;
@@ -1247,8 +1249,8 @@ tests.SUBSCRIBE_QUIT = function () {
 
 tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
     var name = "SUBSCRIBE_CLOSE_RESUBSCRIBE";
-    var c1 = redis.createClient({ parser: parser });
-    var c2 = redis.createClient({ parser: parser });
+    var c1 = redis.createClient(PORT, HOST, { parser: parser });
+    var c2 = redis.createClient(PORT, HOST, { parser: parser });
     var count = 0;
 
     /* Create two clients. c1 subscribes to two channels, c2 will publish to them.
@@ -2044,7 +2046,7 @@ tests.MONITOR = function () {
         return next(name);
     }
 
-    monitor_client = redis.createClient({ parser: parser });
+    monitor_client = redis.createClient(PORT, HOST, { parser: parser });
     monitor_client.monitor(function (err, res) {
         client.mget("some", "keys", "foo", "bar");
         client.set("json", JSON.stringify({
@@ -2318,7 +2320,7 @@ tests.reconnectRetryMaxDelay = function() {
 
 tests.unref = function () {
     var name = "unref";
-    var external = fork("./test/test-unref.js");
+    var external = fork("./test/test-unref.js", [PORT, HOST]);
     var done = false;
     external.on("close", function (code) {
         assert(code == 0, "test-unref.js failed");
