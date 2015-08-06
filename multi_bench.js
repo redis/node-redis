@@ -1,3 +1,5 @@
+'use strict';
+
 var redis = require("./index"),
     metrics = require("metrics"),
     num_clients = parseInt(process.argv[2], 10) || 5,
@@ -23,13 +25,13 @@ function lpad(input, len, chr) {
 
 metrics.Histogram.prototype.print_line = function () {
     var obj = this.printObj();
-    
+
     return lpad(obj.min, 4) + "/" + lpad(obj.max, 4) + "/" + lpad(obj.mean.toFixed(2), 7) + "/" + lpad(obj.p95.toFixed(2), 7);
 };
 
 function Test(args) {
     this.args = args;
-    
+
     this.callback = null;
     this.clients = [];
     this.clients_ready = 0;
@@ -56,7 +58,7 @@ Test.prototype.run = function (callback) {
 
 Test.prototype.new_client = function (id) {
     var self = this, new_client;
-    
+
     new_client = redis.createClient(6379, "127.0.0.1", this.client_options);
     new_client.create_time = Date.now();
 
@@ -95,7 +97,7 @@ Test.prototype.fill_pipeline = function () {
         pipeline++;
         this.send_next();
     }
-    
+
     if (this.commands_completed === this.num_requests) {
         this.print_stats();
         this.stop_clients();
@@ -104,7 +106,7 @@ Test.prototype.fill_pipeline = function () {
 
 Test.prototype.stop_clients = function () {
     var self = this;
-    
+
     this.clients.forEach(function (client, pos) {
         if (pos === self.clients.length - 1) {
             client.quit(function (err, res) {
@@ -133,7 +135,7 @@ Test.prototype.send_next = function () {
 
 Test.prototype.print_stats = function () {
     var duration = Date.now() - this.test_start;
-    
+
     console.log("min/max/avg/p95: " + this.command_latency.print_line() + " " + lpad(duration, 6) + "ms total, " +
         lpad((this.num_requests / (duration / 1000)).toFixed(2), 8) + " ops/sec");
 };

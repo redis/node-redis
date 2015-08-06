@@ -1,3 +1,5 @@
+'use strict';
+
 // Read a file from disk, store it in Redis, then read it back from Redis.
 
 var redis = require("redis"),
@@ -11,9 +13,9 @@ var redis = require("redis"),
 
 // Read a file from fs, store it in Redis, get it back from Redis, write it back to fs.
 fs.readFile(filename, function (err, data) {
-    if (err) throw err
+    if (err) throw err;
     console.log("Read " + data.length + " bytes from filesystem.");
-    
+
     client.set(filename, data, redis.print); // set entire file
     client.get(filename, function (err, reply) { // get entire file
         if (err) {
@@ -21,7 +23,7 @@ fs.readFile(filename, function (err, data) {
         } else {
             fs.writeFile("duplicate_" + filename, reply, function (err) {
                 if (err) {
-                    console.log("Error on write: " + err)
+                    console.log("Error on write: " + err);
                 } else {
                     console.log("File written.");
                 }

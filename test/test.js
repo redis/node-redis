@@ -1,3 +1,5 @@
+'use strict';
+
 /*global require console setTimeout process Buffer */
 var PORT = process.env.REDIS_PORT_6379_TCP_PORT || 6379;
 var HOST = process.env.REDIS_PORT_6379_TCP_ADDR || '127.0.0.1';
@@ -136,7 +138,7 @@ tests.IPV4 = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.IPV6 = function () {
     if (!server_version_at_least(client, [2, 8, 0])) {
@@ -163,7 +165,7 @@ tests.IPV6 = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.UNIX_SOCKET = function () {
     var unixClient = redis.createClient('/tmp/redis.sock', { parser: parser });
@@ -189,7 +191,7 @@ tests.UNIX_SOCKET = function () {
         console.error("client: " + err.stack);
         process.exit();
     });
-}
+};
 
 tests.FLUSHDB = function () {
     var name = "FLUSHDB";
@@ -204,7 +206,7 @@ tests.FLUSHDB = function () {
 tests.INCR = function () {
     var name = "INCR";
 
-    if (bclient.reply_parser.name == "hiredis") {
+    if (bclient.reply_parser.name === "hiredis") {
         console.log("Skipping INCR buffer test with hiredis");
         return next(name);
     }
@@ -371,7 +373,7 @@ tests.MULTI_6 = function () {
 tests.MULTI_7 = function () {
     var name = "MULTI_7";
 
-    if (bclient.reply_parser.name != "javascript") {
+    if (bclient.reply_parser.name !== "javascript") {
         console.log("Skipping wire-protocol test for 3rd-party parser");
         return next(name);
     }
@@ -467,7 +469,7 @@ tests.FWD_ERRORS_1 = function () {
 
     client3.on("message", function (channel, data) {
         console.log("incoming");
-        if (channel == name) {
+        if (channel === name) {
             assert.equal(data, "Some message");
             throw toThrow;
         }
@@ -1286,11 +1288,11 @@ tests.SUBSCRIBE_CLOSE_RESUBSCRIBE = function () {
             console.log("c1 is ready", count);
 
             count++;
-            if (count == 1) {
+            if (count === 1) {
                 c2.publish("chan1", "hi on channel 1");
                 return;
 
-            } else if (count == 2) {
+            } else if (count === 2) {
                 c2.publish("chan2", "hi on channel 2");
 
             } else {
@@ -1543,7 +1545,7 @@ tests.HGETALL_MESSAGE = function () {
     client.hgetall("msg_test", function (err, obj) {
         assert.strictEqual(null, err, name + " result sent back unexpected error: " + err);
         assert.strictEqual(1, Object.keys(obj).length, name);
-        assert.strictEqual(obj.message, "hello")
+        assert.strictEqual(obj.message, "hello");
         next(name);
     });
 };
@@ -2178,8 +2180,8 @@ tests.ENABLE_OFFLINE_QUEUE_FALSE = function () {
         // ignore, see above
     });
     assert.throws(function () {
-        cli.set(name, name)
-    })
+        cli.set(name, name);
+    });
     assert.doesNotThrow(function () {
         cli.set(name, name, function (err) {
             // should callback with an error
@@ -2205,7 +2207,7 @@ tests.SLOWLOG = function () {
         client.config("set", "slowlog-log-slower-than", 10000, require_string("OK", name));
         next(name);
     });
-}
+};
 
 tests.DOMAIN = function () {
     var name = "DOMAIN";
@@ -2323,9 +2325,9 @@ tests.unref = function () {
     var external = fork("./test/test-unref.js", [PORT, HOST]);
     var done = false;
     external.on("close", function (code) {
-        assert(code == 0, "test-unref.js failed");
+        assert(code === 0, "test-unref.js failed");
         done = true;
-    })
+    });
     setTimeout(function () {
         if (!done) {
             external.kill();
@@ -2336,7 +2338,7 @@ tests.unref = function () {
 };
 
 // starting to split tests into multiple files.
-require('./queue-test')(tests, next)
+require('./queue-test')(tests, next);
 
 all_tests = Object.keys(tests);
 all_start = new Date();
@@ -2345,7 +2347,7 @@ test_count = 0;
 run_next_test = function run_next_test() {
     var test_name = all_tests.shift();
     if (typeof tests[test_name] === "function") {
-        util.print('- \x1b[1m' + test_name.toLowerCase() + '\x1b[0m:');
+        console.log('- \x1b[1m' + test_name.toLowerCase() + '\x1b[0m:');
         cur_start = new Date();
         test_count += 1;
         tests[test_name]();

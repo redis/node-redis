@@ -1,3 +1,5 @@
+'use strict';
+
 // A simple web server that generates dyanmic content based on responses from Redis
 
 var http = require("http"), server,
@@ -7,9 +9,9 @@ server = http.createServer(function (request, response) {
     response.writeHead(200, {
         "Content-Type": "text/plain"
     });
-    
+
     var redis_info, total_requests;
-    
+
     redis_client.info(function (err, reply) {
         redis_info = reply; // stash response in outer scope
     });

@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var Queue = require('../lib/queue');
 
@@ -9,12 +11,12 @@ module.exports = function (tests, next) {
     q.push(3);
     assert.equal(q.length, 2);
     return next();
-  }
+  };
 
   tests.shift = function () {
     assert.equal(q.shift(), 'a');
     return next();
-  }
+  };
 
   tests.forEach = function () {
     q.forEach(function (v) {
@@ -22,7 +24,7 @@ module.exports = function (tests, next) {
     });
 
     return next();
-  }
+  };
 
   tests.forEachWithScope = function () {
     q.forEach(function (v) {
@@ -31,5 +33,5 @@ module.exports = function (tests, next) {
     }, {foo: 'bar'});
 
     return next();
-  }
-}
+  };
+};

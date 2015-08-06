@@ -1,3 +1,5 @@
+'use strict';
+
 var client  = require("../index").createClient(),
     util = require("util");
 
