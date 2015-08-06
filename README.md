@@ -807,3 +807,13 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
+
+## Other Legal Stuff
+
+Redis, and the Redis logo are the trademarks of Salvatore Sanfilippo in the U.S. and other countries:
+
+http://redis.io/topics/trademark
+
+Node.js is a trademark of Joyent:
+
+https://nodejs.org/trademark-policy.pdf
