@@ -1,4 +1,1 @@
-node_modules
-.tern-port
-.nyc_output
-coverage
+.DS_Store
