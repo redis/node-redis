@@ -66,22 +66,9 @@ describe("The 'mset' method", function () {
                 describe("and a callback is specified", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
-                            client.mset(key, value, key2, value2, function (err, res) {
-                                helper.isNotError()(err, res);
-                                async.parallel([function (next) {
-                                    client.get(key, function (err, res) {
-                                        helper.isString(value)(err, res);
-                                        next();
-                                    });
-                                }, function (next) {
-                                    client.get(key2, function (err, res) {
-                                        helper.isString(value2)(err, res);
-                                        next();
-                                    });
-                                }], function (err) {
-                                    done(err);
-                                });
-                            });
+                            client.mset(key, value, key2, value2);
+                            client.get(key, helper.isString(value));
+                            client.get(key2, helper.isString(value2, done));
                         });
                     });
 
@@ -108,22 +95,8 @@ describe("The 'mset' method", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
                             client.mset(key, value, key2, value2);
-
-                            setTimeout(function () {
-                                async.parallel([function (next) {
-                                    client.get(key, function (err, res) {
-                                        helper.isString(value)(err, res);
-                                        next();
-                                    });
-                                }, function (next) {
-                                    client.get(key2, function (err, res) {
-                                        helper.isString(value2)(err, res);
-                                        next();
-                                    });
-                                }], function (err) {
-                                    done(err);
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value));
+                            client.get(key2, helper.isString(value2, done));
                         });
                     });
 
