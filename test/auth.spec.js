@@ -41,13 +41,14 @@ describe("client authentication", function () {
                 client.auth(auth + 'bad');
             });
 
-            if (ip === 'IPv4')
-            it('allows auth to be provided as config option for client', function (done) {
-                client = redis.createClient('redis://foo:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
-                client.on("ready", function () {
-                    return done();
+            if (ip === 'IPv4') {
+                it('allows auth to be provided as config option for client', function (done) {
+                    client = redis.createClient('redis://foo:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
+                    client.on("ready", function () {
+                        return done();
+                    });
                 });
-            });
+            }
 
             it('allows auth to be provided as part of redis url', function (done) {
                 var args = config.configureClient(parser, ip, {
