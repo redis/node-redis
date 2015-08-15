@@ -1,29 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>redis.js.org</title>
-    <style>
-      body {
-        font-family: Verdana, sans-serif;
-        text-align: center;
-      }
+<!doctype html>
+<!--
 
-      .logo { max-width: 200px; }
-    </style>
-  </head>
-  <body>
-    <img class="logo" src="https://cloud.githubusercontent.com/assets/1152927/8677879/35748710-2a17-11e5-8cc6-7aeb72caaa52.png" />
-    <p>Documentation site is coming soon.</p>
-    <p>For now you can reference the project page on <a href="https://github.com/NodeRedis/node_redis">GitHub</a>.</p>
+  Instructions:
 
-    <!-- Place this tag where you want the button to render. -->
-    <a class="github-button" href="https://github.com/noderedis/node_redis" data-icon="octicon-star" data-style="mega" data-count-href="/noderedis/node_redis/stargazers" data-count-api="/repos/noderedis/node_redis#stargazers_count" data-count-aria-label="# stargazers on GitHub" aria-label="Star noderedis/node_redis on GitHub">Star</a>
+  - Save this file.
+  - Replace "USER" with your GitHub username.
+  - Replace "REPO" with your GitHub repo name.
+  - Replace "Your Project" with your project name.
+  - Upload this file (or commit to GitHub Pages).
 
-    <!-- Place this tag right after the last button or just before your close body tag. -->
-    <script async defer id="github-bjs" src="https://buttons.github.io/buttons.js"></script>
-  </body>
+  Customize as you see fit!
+
+-->
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width">
+
+  <title>Node Redis</title>
+
+  <!-- Flatdoc -->
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script src='https://cdn.rawgit.com/rstacruz/flatdoc/v0.9.0/legacy.js'></script>
+  <script src='https://cdn.rawgit.com/rstacruz/flatdoc/v0.9.0/flatdoc.js'></script>
+
+  <!-- Flatdoc theme -->
+  <link  href='https://cdn.rawgit.com/rstacruz/flatdoc/v0.9.0/theme-white/style.css' rel='stylesheet'>
+  <script src='https://cdn.rawgit.com/rstacruz/flatdoc/v0.9.0/theme-white/script.js'></script>
+
+  <!-- Meta -->
+  <meta content="Node Redis" property="og:title">
+  <meta content="Your Project description goes here." name="description">
+
+  <!-- Initializer -->
+  <script>
+    Flatdoc.run({
+      fetcher: Flatdoc.github('noderedis/node_redis')
+    });
+  </script>
+
+  <!-- Theme Overrides -->
+  <style>
+  .header {
+    line-height: 50px;
+  }
+  .header h1 {
+    width: 0px;
+    text-indent: -9999px;
+  }
+  .header ul {
+    margin-left: 0;
+  }
+  .logo {
+    float: left;
+    height: 50px;
+  }
+  </style>
+</head>
+<body role='flatdoc'>
+
+  <div class='header'>
+    <div class='left'>
+      <h1>Node Redis</h1>
+      <img class="logo" src="https://cloud.githubusercontent.com/assets/1152927/8677879/35748710-2a17-11e5-8cc6-7aeb72caaa52.png" />
+      <ul>
+        <li><a href='https://github.com/noderedis/node_redis'>View on GitHub</a></li>
+        <li><a href='https://github.com/noderedis/node_redis/issues'>Issues</a></li>
+      </ul>
+    </div>
+    <div class='right'>
+      <!-- GitHub buttons: see http://ghbtns.com -->
+      <iframe src="http://ghbtns.com/github-btn.html?user=noderedis&amp;repo=node_redis&amp;type=watch&amp;count=true" allowtransparency="true" frameborder="0" scrolling="0" width="110" height="20"></iframe>
+    </div>
+  </div>
+
+  <div class='content-root'>
+    <div class='menubar'>
+      <div class='menu section' role='flatdoc-menu'></div>
+    </div>
+    <div role='flatdoc-content' class='content'></div>
+  </div>
+
+</body>
 </html>
