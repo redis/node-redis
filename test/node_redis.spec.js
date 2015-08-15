@@ -84,27 +84,22 @@ describe("The node_redis client", function () {
                         });
                     });
 
+                    // TODO: we should only have a single subscription in this this
+                    // test but unsubscribing from the single channel indicates
+                    // that one subscriber still exists, let's dig into this.
                     describe("and it's subscribed to a channel", function () {
                         // reconnect_select_db_after_pubsub
                         // Does not pass.
                         // "Connection in subscriber mode, only subscriber commands may be used"
-                        xit("reconnects, unsubscribes, and can retrieve the pre-existing data", function (done) {
+                        it("reconnects, unsubscribes, and can retrieve the pre-existing data", function (done) {
                             client.on("reconnecting", function on_recon(params) {
                                 client.on("ready", function on_connect() {
-                                    async.parallel([function (cb) {
-                                        client.unsubscribe("recon channel", function (err, res) {
-                                            helper.isNotError()(err, res);
-                                            cb();
-                                        });
-                                    }, function (cb) {
-                                        client.get("recon 1", function (err, res) {
-                                            helper.isString("one")(err, res);
-                                            cb();
-                                        });
-                                    }], function (err, results) {
-                                        client.removeListener("connect", on_connect);
-                                        client.removeListener("reconnecting", on_recon);
-                                        done(err);
+                                    client.unsubscribe(helper.isNotError());
+
+                                    client.on('unsubscribe', function (channel, count) {
+                                        // we should now be out of subscriber mode.
+                                        client.set('foo', 'bar', helper.isNumber(1));
+                                        return done();
                                     });
                                 });
                             });
