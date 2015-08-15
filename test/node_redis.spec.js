@@ -5,7 +5,7 @@ var helper = require('./helper')
 var fork = require("child_process").fork;
 var redis = config.redis;
 
-describe("a node_redis client", function () {
+describe("The node_redis client", function () {
 
     function allTests(parser, ip) {
         var args = config.configureClient(parser, ip);
@@ -178,8 +178,43 @@ describe("a node_redis client", function () {
                                   return done()
                                 });
                             }
-                        })
-                    })
+                        });
+                    });
+
+                    describe('monitor', function () {
+                        it('monitors commands on all other redis clients', function (done) {
+                            if (!helper.serverVersionAtLeast(client, [2, 6, 0])) return done();
+
+                            var monitorClient = redis.createClient.apply(redis.createClient, args);
+                            var responses = [];
+
+                            monitorClient.monitor(function (err, res) {
+                                client.mget("some", "keys", "foo", "bar");
+                                client.set("json", JSON.stringify({
+                                    foo: "123",
+                                    bar: "sdflkdfsjk",
+                                    another: false
+                                }));
+                            });
+
+                            monitorClient.on("monitor", function (time, args) {
+                                responses.push(args);
+                                if (responses.length === 2) {
+                                    assert.strictEqual(5, responses[0].length);
+                                    assert.strictEqual("mget", responses[0][0]);
+                                    assert.strictEqual("some", responses[0][1]);
+                                    assert.strictEqual("keys", responses[0][2]);
+                                    assert.strictEqual("foo", responses[0][3]);
+                                    assert.strictEqual("bar", responses[0][4]);
+                                    assert.strictEqual(3, responses[1].length);
+                                    assert.strictEqual("set", responses[1][0]);
+                                    assert.strictEqual("json", responses[1][1]);
+                                    assert.strictEqual('{"foo":"123","bar":"sdflkdfsjk","another":false}', responses[1][2]);
+                                    monitorClient.quit(done);
+                                }
+                            });
+                        });
+                    });
 
                 });
 
