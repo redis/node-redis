@@ -208,6 +208,20 @@ describe("publish/subscribe", function () {
                 });
             });
 
+            describe('psubscribe', function () {
+                // test motivated by issue #753
+                it('allows all channels to be subscribed to using a * pattern', function (done) {
+                    sub.psubscribe('*');
+                    sub.on("pmessage", function(pattern, channel, message) {
+                        assert.strictEqual(pattern, '*');
+                        assert.strictEqual(channel, '/foo');
+                        assert.strictEqual(message, 'hello world');
+                        return done();
+                    })
+                    pub.publish('/foo', 'hello world');
+                });
+            });
+
             describe('punsubscribe', function () {
                 it('does not complain when punsubscribe is called and there are no subscriptions', function () {
                     sub.punsubscribe()
