@@ -1,3 +1,5 @@
+'use strict';
+
 var redis = require("../index").createClient(null, null, {
 //    max_attempts: 4
 });

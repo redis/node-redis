@@ -1,3 +1,5 @@
+'use strict';
+
 var redis = require("../index"),
     client = redis.createClient(null, null, {
         command_queue_high_water: 5,

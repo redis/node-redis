@@ -1,3 +1,5 @@
+'use strict';
+
 var net = require('net');
 
 var proxyPort = 6379;

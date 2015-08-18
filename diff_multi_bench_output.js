@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+'use strict';
+
 var colors = require('colors'),
     fs = require('fs'),
     _ = require('underscore'),
@@ -35,8 +37,8 @@ before_lines.forEach(function(b, i) {
         return;
     }
 
-    b_words = b.split(' ').filter(is_whitespace);
-    a_words = a.split(' ').filter(is_whitespace);
+    var b_words = b.split(' ').filter(is_whitespace);
+    var a_words = a.split(' ').filter(is_whitespace);
 
     var ops =
         [b_words, a_words]
@@ -47,7 +49,7 @@ before_lines.forEach(function(b, i) {
             var isNaN = !num && num !== 0;
             return !isNaN;
         });
-    if (ops.length != 2) return
+    if (ops.length !== 2) return;
 
     var delta = ops[1] - ops[0];
     var pct = ((delta / ops[0]) * 100).toPrecision(3);
@@ -58,7 +60,7 @@ before_lines.forEach(function(b, i) {
     pct = humanize_diff(pct, '%');
     console.log(
         // name of test
-        command_name(a_words) == command_name(b_words)
+        command_name(a_words) === command_name(b_words)
             ? command_name(a_words) + ':'
             : '404:',
         // results of test

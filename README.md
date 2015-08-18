@@ -1,23 +1,16 @@
 redis - a node.js redis client
 ===========================
 
-This is a complete Redis client for node.js.  It supports all Redis commands, including many recently added commands like EVAL from
-experimental Redis server branches.
+[![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
+[![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 
+This is a complete Redis client for node.js.  It supports all Redis commands,
+including many recently added commands like EVAL from experimental Redis server
+branches.
 
 Install with:
 
     npm install redis
-
-Pieter Noordhuis has provided a binding to the official `hiredis` C library, which is non-blocking and fast.  To use `hiredis`, do:
-
-    npm install hiredis redis
-
-If `hiredis` is installed, `node_redis` will use it by default.  Otherwise, a pure JavaScript parser will be used.
-
-If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of node.  There are mysterious failures that can
-happen between node and native code modules after a node upgrade.
-
 
 ## Usage
 
@@ -57,34 +50,9 @@ This will display:
         1: hashtest 2
     mjr:~/work/node_redis (master)$
 
-
-## Performance
-
-Here are typical results of `multi_bench.js` which is similar to `redis-benchmark` from the Redis distribution.
-It uses 50 concurrent connections with no pipelining.
-
-JavaScript parser:
-
-    PING: 20000 ops 42283.30 ops/sec 0/5/1.182
-    SET: 20000 ops 32948.93 ops/sec 1/7/1.515
-    GET: 20000 ops 28694.40 ops/sec 0/9/1.740
-    INCR: 20000 ops 39370.08 ops/sec 0/8/1.269
-    LPUSH: 20000 ops 36429.87 ops/sec 0/8/1.370
-    LRANGE (10 elements): 20000 ops 9891.20 ops/sec 1/9/5.048
-    LRANGE (100 elements): 20000 ops 1384.56 ops/sec 10/91/36.072
-
-hiredis parser:
-
-    PING: 20000 ops 46189.38 ops/sec 1/4/1.082
-    SET: 20000 ops 41237.11 ops/sec 0/6/1.210
-    GET: 20000 ops 39682.54 ops/sec 1/7/1.257
-    INCR: 20000 ops 40080.16 ops/sec 0/8/1.242
-    LPUSH: 20000 ops 41152.26 ops/sec 0/3/1.212
-    LRANGE (10 elements): 20000 ops 36563.07 ops/sec 1/8/1.363
-    LRANGE (100 elements): 20000 ops 21834.06 ops/sec 0/9/2.287
-
-The performance of `node_redis` improves dramatically with pipelining, which happens automatically in most normal programs.
-
+Note that the API is entire asynchronous. To get data back from the server,
+you'll need to use a callback. The return value from most of the API is a
+backpressure indicator.
 
 ### Sending Commands
 
@@ -176,15 +144,16 @@ resume sending when you get `drain`.
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
 ## redis.createClient()
+If you have `redis-server` running on the same computer as node, then the defaults for
+port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
 ### overloading
-* redis.createClient() = redis.createClient(6379, '127.0.0.1', {})
-* redis.createClient(options) = redis.createClient(6379, '127.0.0.1', options)
-* redis.createClient(unix_socket, options)
-* redis.createClient(port, host, options)
+* `redis.createClient(port,host,options)`
+* `redis.createClient()` is equivalent to `redis.createClient(6379, '127.0.0.1', {})`
+* `redis.createClient(options)` is equivalent to `redis.createClient(6379, '127.0.0.1', options)`
+* `redis.createClient(unix_socket, options)`
 
-If you have `redis-server` running on the same computer as node, then the defaults for
-port and host are probably fine.  `options` in an object with the following possible properties:
+ `options` is an object with the following possible properties:
 
 * `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
 This may also be set to `javascript`.
@@ -197,7 +166,7 @@ every command on a client.
 * `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
 Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the
 cost of more latency.  Most applications will want this set to `true`.
-* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket. 
+* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket.
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
 be loading the database from disk.  While loading, the server not respond to any commands.  To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command
@@ -216,8 +185,8 @@ limits total time for client to reconnect. Value is provided in milliseconds and
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
-* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address. 
-You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type. 
+* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
+You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
 
 ```js
     var redis = require("redis"),
@@ -237,7 +206,6 @@ You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns mod
     client.end();
 ```
 
-`createClient()` returns a `RedisClient` object that is named `client` in all of the examples here.
 
 
 ## client.auth(password, callback)
@@ -658,6 +626,105 @@ client.zadd(args, function (err, response) {
 });
 ```
 
+## Performance
+
+Much effort has been spent to make `node_redis` as fast as possible for common
+operations. As pipelining happens naturally from shared connections, overall
+efficiency goes up.
+
+Here are typical results of `multi_bench.js` which is similar to
+`redis-benchmark` from the Redis distribution.  It uses 5 concurrent connections
+and shows the difference between pipelines of 1 and 50.
+
+JavaScript parser:
+
+	Client count: 5, node version: 0.10.32, server version: 2.8.18, parser: javascript
+	PING,             1/5 min/max/avg/p95:    0/   3/   0.05/   1.00   1103ms total, 18132.37 ops/sec
+	PING,            50/5 min/max/avg/p95:    0/   4/   0.81/   2.00    327ms total, 61162.08 ops/sec
+	SET 4B str,       1/5 min/max/avg/p95:    0/   2/   0.05/   0.00   1104ms total, 18115.94 ops/sec
+	SET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.83/   2.00    333ms total, 60060.06 ops/sec
+	SET 4B buf,       1/5 min/max/avg/p95:    0/   2/   0.09/   1.00   1876ms total, 10660.98 ops/sec
+	SET 4B buf,      50/5 min/max/avg/p95:    0/  11/   2.55/   4.00   1025ms total, 19512.20 ops/sec
+	GET 4B str,       1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1117ms total, 17905.10 ops/sec
+	GET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.87/   2.00    347ms total, 57636.89 ops/sec
+	GET 4B buf,       1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1110ms total, 18018.02 ops/sec
+	GET 4B buf,      50/5 min/max/avg/p95:    0/   2/   0.85/   2.00    342ms total, 58479.53 ops/sec
+	SET 4KiB str,     1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1119ms total, 17873.10 ops/sec
+	SET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   0.89/   2.00    358ms total, 55865.92 ops/sec
+	SET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.09/   1.00   1894ms total, 10559.66 ops/sec
+	SET 4KiB buf,    50/5 min/max/avg/p95:    0/   7/   2.57/   4.00   1031ms total, 19398.64 ops/sec
+	GET 4KiB str,     1/5 min/max/avg/p95:    0/   6/   0.06/   1.00   1248ms total, 16025.64 ops/sec
+	GET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   1.03/   2.00    415ms total, 48192.77 ops/sec
+	GET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1177ms total, 16992.35 ops/sec
+	GET 4KiB buf,    50/5 min/max/avg/p95:    0/  10/   1.02/   2.00    409ms total, 48899.76 ops/sec
+	INCR,             1/5 min/max/avg/p95:    0/   2/   0.05/   0.55   1137ms total, 17590.15 ops/sec
+	INCR,            50/5 min/max/avg/p95:    0/   2/   0.85/   2.00    343ms total, 58309.04 ops/sec
+	LPUSH,            1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1143ms total, 17497.81 ops/sec
+	LPUSH,           50/5 min/max/avg/p95:    0/   3/   0.87/   2.00    350ms total, 57142.86 ops/sec
+	LRANGE 10,        1/5 min/max/avg/p95:    0/   2/   0.06/   1.00   1283ms total, 15588.46 ops/sec
+	LRANGE 10,       50/5 min/max/avg/p95:    0/   3/   1.12/   2.00    449ms total, 44543.43 ops/sec
+	LRANGE 100,       1/5 min/max/avg/p95:    0/   1/   0.09/   1.00   1932ms total, 10351.97 ops/sec
+	LRANGE 100,      50/5 min/max/avg/p95:    0/   5/   2.46/   4.00    985ms total, 20304.57 ops/sec
+	SET 4MiB buf,     1/5 min/max/avg/p95:    1/   4/   1.37/   2.00    691ms total,   723.59 ops/sec
+	SET 4MiB buf,    50/5 min/max/avg/p95:    3/ 166/  57.66/ 116.00    601ms total,   831.95 ops/sec
+	GET 4MiB str,     1/5 min/max/avg/p95:   84/ 110/  93.18/ 106.95   9320ms total,    10.73 ops/sec
+	GET 4MiB str,    50/5 min/max/avg/p95:  156/7375/3400.10/6840.40   8928ms total,    11.20 ops/sec
+	GET 4MiB buf,     1/5 min/max/avg/p95:   84/ 105/  91.21/  99.00   9129ms total,    10.95 ops/sec
+	GET 4MiB buf,    50/5 min/max/avg/p95:  424/5704/3518.94/5626.65   9145ms total,    10.93 ops/sec
+
+If you use very large responses in your application, the JavaScript parser
+performs badly. Until the JS parser is fixed, you can use the C-based `hiredis`
+parser bound to the official `hiredis` C library. To use `hiredis`, do:
+
+    npm install hiredis redis
+
+If the `hiredis` npm module is installed, `node_redis` will use it by default.
+Otherwise, the pure JavaScript parser will be used.
+
+If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of
+node.  There are mysterious failures that can happen between node and native
+code modules after a node upgrade.
+
+Most users find that the JS parser is faster than the `hiredis` parser. Because
+of the pain associated with upgrading native code modules, you should only use
+`hiredis` if your application needs it.
+
+hiredis parser:
+
+	Client count: 5, node version: 0.10.32, server version: 2.8.18, parser: hiredis
+	PING,             1/5 min/max/avg/p95:    0/   3/   0.05/   1.00   1092ms total, 18315.02 ops/sec
+	PING,            50/5 min/max/avg/p95:    0/   5/   0.87/   2.00    347ms total, 57636.89 ops/sec
+	SET 4B str,       1/5 min/max/avg/p95:    0/   2/   0.06/   1.00   1151ms total, 17376.19 ops/sec
+	SET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.83/   2.00    334ms total, 59880.24 ops/sec
+	SET 4B buf,       1/5 min/max/avg/p95:    0/   3/   0.09/   1.00   1932ms total, 10351.97 ops/sec
+	SET 4B buf,      50/5 min/max/avg/p95:    0/   9/   2.64/   4.00   1059ms total, 18885.74 ops/sec
+	GET 4B str,       1/5 min/max/avg/p95:    0/   1/   0.06/   0.00   1185ms total, 16877.64 ops/sec
+	GET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.85/   2.00    341ms total, 58651.03 ops/sec
+	GET 4B buf,       1/5 min/max/avg/p95:    0/   1/   0.06/   0.00   1179ms total, 16963.53 ops/sec
+	GET 4B buf,      50/5 min/max/avg/p95:    0/   3/   0.85/   2.00    340ms total, 58823.53 ops/sec
+	SET 4KiB str,     1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1210ms total, 16528.93 ops/sec
+	SET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   0.93/   2.00    372ms total, 53763.44 ops/sec
+	SET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.10/   1.00   1967ms total, 10167.77 ops/sec
+	SET 4KiB buf,    50/5 min/max/avg/p95:    0/   6/   2.63/   4.00   1053ms total, 18993.35 ops/sec
+	GET 4KiB str,     1/5 min/max/avg/p95:    0/   6/   0.06/   1.00   1176ms total, 17006.80 ops/sec
+	GET 4KiB str,    50/5 min/max/avg/p95:    0/   4/   1.00/   2.00    399ms total, 50125.31 ops/sec
+	GET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1158ms total, 17271.16 ops/sec
+	GET 4KiB buf,    50/5 min/max/avg/p95:    0/   3/   0.99/   2.00    398ms total, 50251.26 ops/sec
+	INCR,             1/5 min/max/avg/p95:    0/   1/   0.05/   0.00   1112ms total, 17985.61 ops/sec
+	INCR,            50/5 min/max/avg/p95:    0/   3/   0.84/   2.00    339ms total, 58997.05 ops/sec
+	LPUSH,            1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1131ms total, 17683.47 ops/sec
+	LPUSH,           50/5 min/max/avg/p95:    0/   3/   0.86/   2.00    345ms total, 57971.01 ops/sec
+	LRANGE 10,        1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1228ms total, 16286.64 ops/sec
+	LRANGE 10,       50/5 min/max/avg/p95:    0/   3/   0.95/   2.00    382ms total, 52356.02 ops/sec
+	LRANGE 100,       1/5 min/max/avg/p95:    0/   1/   0.08/   1.00   1567ms total, 12763.24 ops/sec
+	LRANGE 100,      50/5 min/max/avg/p95:    0/   6/   1.68/   3.00    675ms total, 29629.63 ops/sec
+	SET 4MiB buf,     1/5 min/max/avg/p95:    1/   4/   1.37/   2.00    692ms total,   722.54 ops/sec
+	SET 4MiB buf,    50/5 min/max/avg/p95:    3/ 183/  57.79/ 125.00    605ms total,   826.45 ops/sec
+	GET 4MiB str,     1/5 min/max/avg/p95:    5/  16/   8.14/  12.95    816ms total,   122.55 ops/sec
+	GET 4MiB str,    50/5 min/max/avg/p95:   24/ 323/ 202.98/ 309.00    519ms total,   192.68 ops/sec
+	GET 4MiB buf,     1/5 min/max/avg/p95:    6/  13/   8.01/  11.95    802ms total,   124.69 ops/sec
+	GET 4MiB buf,    50/5 min/max/avg/p95:   16/ 480/ 203.85/ 435.70    531ms total,   188.32 ops/sec
+
 ## TODO
 
 Better tests for auth, disconnect/reconnect, and all combinations thereof.
@@ -674,7 +741,7 @@ I think there are more performance improvements left in there for smaller values
   comment again with indignation!)
 
 ## Contributors
-Some people have have added features and fixed bugs in `node_redis` other than me.
+Many people have have added features and fixed bugs in `node_redis`.
 
 Ordered by date of first contribution.
 [Auto-generated](http://github.com/dtrejo/node-authors) on Wed Jul 25 2012 19:14:59 GMT-0700 (PDT).
@@ -740,5 +807,3 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
-
-![spacer](http://ranney.com/1px.gif)

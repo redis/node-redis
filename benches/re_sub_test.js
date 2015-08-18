@@ -1,3 +1,5 @@
+'use strict';
+
 var client = require('../index').createClient()
   , client2 = require('../index').createClient()
   , assert = require('assert');

@@ -1,3 +1,5 @@
+'use strict';
+
 // Sending commands in response to other commands.
 // This example runs "type" against every key in the database
 //

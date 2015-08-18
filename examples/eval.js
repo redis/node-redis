@@ -1,3 +1,5 @@
+'use strict';
+
 var redis = require("../index"),
     client = redis.createClient();
 
