@@ -317,7 +317,15 @@ RedisClient.prototype.init_parser = function () {
         if (reply instanceof Error) {
             self.return_error(reply);
         } else {
-            self.return_error(new Error(reply));
+            var err, match = /^([A-Z]+)\s+(.+)$/.exec(reply);
+            if (match) {
+                err = new Error(match[2]);
+                err.code = match[1];
+            } else {
+                err = new Error(reply);
+                err.code = 'ERR';
+            }
+            self.return_error(err);
         }
     });
     this.reply_parser.on("reply", function (reply) {
