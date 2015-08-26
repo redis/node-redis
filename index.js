@@ -1109,6 +1109,31 @@ Multi.prototype.exec = function (callback) {
     var self = this;
     var errors = [];
     var wants_buffers = [];
+
+    // check for a queue of just one command (after MULTI)
+    if (this.queue.length === 2) {
+        var args = this.queue[1];
+        var command = args[0];
+        var commandCallback;
+        if (typeof args[args.length - 1] === "function") {
+            commandCallback = args[args.length - 1];
+        }
+        args = args.slice(1, commandCallback ? -1 : args.length);
+        return this._client.send_command(command, args, function(err, resp) {
+            if (err) {
+                if (callback) {
+                    callback([ new Error(err) ]);
+                    return;
+                } else {
+                    throw new Error(err);
+                }
+            }
+
+            if (commandCallback) commandCallback(err, resp);
+            if (callback) callback(err, [ resp ]);
+        });
+    }
+
     // drain queue, callback will catch "QUEUED" or error
     // TODO - get rid of all of these anonymous functions which are elegant but slow
     this.queue.forEach(function (args, index) {
