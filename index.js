@@ -369,7 +369,7 @@ RedisClient.prototype.on_ready = function () {
         });
         return;
     } else if (this.monitoring) {
-        this.send_command("monitor");
+        this.send_command("monitor", []);
     } else {
         this.send_offline_queue();
     }

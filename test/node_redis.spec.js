@@ -84,6 +84,28 @@ describe("The node_redis client", function () {
                         });
                     });
 
+                    it("reconnects properly when monitoring", function (done) {
+                        client.on("reconnecting", function on_recon(params) {
+                            client.on("ready", function on_ready() {
+                                assert.strictEqual(client.monitoring, true, "monitoring after reconnect");
+                                client.removeListener("ready", on_ready);
+                                client.removeListener("reconnecting", on_recon);
+                                done();
+                            });
+                        });
+
+                        assert.strictEqual(client.monitoring, false, "monitoring off at start");
+                        client.set("recon 1", "one");
+                        client.monitor(function (err, res) {
+                                assert.strictEqual(client.monitoring, true, "monitoring on after monitor()");
+                                client.set("recon 2", "two", function (err, res) {
+                                    // Do not do this in normal programs. This is to simulate the server closing on us.
+                                    // For orderly shutdown in normal programs, do client.quit()
+                                    client.stream.destroy();
+                                });
+                        });
+                    });
+
                     // TODO: we should only have a single subscription in this this
                     // test but unsubscribing from the single channel indicates
                     // that one subscriber still exists, let's dig into this.
