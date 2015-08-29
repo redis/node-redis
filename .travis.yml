@@ -3,5 +3,5 @@ sudo: true
 node_js:
   - "0.10"
   - "0.12"
-  - "iojs-v2"
+  - "iojs"
 after_success: npm run coverage
