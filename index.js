@@ -181,11 +181,11 @@ RedisClient.prototype.flush_and_error = function (message) {
 };
 
 RedisClient.prototype.on_error = function (msg) {
-    var message = "Redis connection to " + this.address + " failed - " + msg;
-
     if (this.closing) {
         return;
     }
+
+    var message = "Redis connection to " + this.address + " failed - " + msg;
 
     if (exports.debug_mode) {
         console.warn(message);
