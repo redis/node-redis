@@ -402,7 +402,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     // expose info key/vals to users
     this.server_info = obj;
 
-    if (!obj.loading || (obj.loading && obj.loading === "0")) {
+    if (!obj.loading || obj.loading === "0") {
         if (exports.debug_mode) {
             console.log("Redis server ready.");
         }
