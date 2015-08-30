@@ -1,7 +1,13 @@
 Changelog
 =========
 
-* Refactor tests, and improve test coverage (Ben Coe)
+## v1.0.0 - Aug 30, 2015
+
+* Huge issue and pull-request cleanup. Thanks Blain! (@blainsmith)
+* [#658](https://github.com/NodeRedis/node_redis/pull/658) Client now parses URL-format connection strings (e.g., redis://foo:pass@127.0.0.1:8080) (@kuwabarahiroshi)
+* [#749](https://github.com/NodeRedis/node_redis/pull/749) Fix reconnection bug when client is in monitoring mode (@danielbprice)
+* [#786](https://github.com/NodeRedis/node_redis/pull/786) Refactor createClient. Fixes #651 (@BridgeAR)
+* [#793](https://github.com/NodeRedis/node_redis/pull/793) Refactor tests and improve test coverage (@erinspice, @bcoe)
 * Fix extraneous error output due to pubsub tests (Mikael Kohlmyr)
 
 ## v0.12.1 - Aug 10, 2014
