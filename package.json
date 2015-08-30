@@ -1,5 +1,5 @@
 {
-  "name": "redis",
+  "name": "lever-redis",
   "version": "0.12.1",
   "description": "Redis client library",
   "keywords": [
@@ -27,6 +27,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/mranney/node_redis.git"
+    "url": "git://github.com/noansknv/node_redis.git"
   }
 }

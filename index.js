@@ -654,11 +654,16 @@ RedisClient.prototype.return_reply = function (reply) {
         type = reply[0].toString();
     }
 
-    if (this.pub_sub_mode && (type == 'message' || type == 'pmessage')) {
+    if (this.pub_sub_mode && (type === 'message' || type === 'pmessage')) {
         trace("received pubsub message");
-    }
-    else {
-        command_obj = this.command_queue.shift();
+    } else {
+        command_obj = this.command_queue.peek();
+
+        if (command_obj && command_obj.pub_sub_replies > 1) {
+            --command_obj.pub_sub_replies;
+        } else {
+            this.command_queue.shift();
+        }
     }
 
     queue_len = this.command_queue.getLength();
@@ -710,7 +715,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 // TODO - document this or fix it so it works in a more obvious way
                 // reply[1] can be null
                 var reply1String = (reply[1] === null) ? null : reply[1].toString();
-                if (command_obj && typeof command_obj.callback === "function") {
+                if (command_obj && typeof command_obj.callback === "function" && command_obj.pub_sub_replies === 1) {
                     try_callback(command_obj.callback, reply1String);
                 }
                 this.emit(type, reply1String, reply[2]); // channel, count
@@ -931,6 +936,8 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
             delete this.subscription_set[key + " " + args[i]];
         }
     }
+
+    command_obj.pub_sub_replies = args.length;
 };
 
 RedisClient.prototype.end = function () {
