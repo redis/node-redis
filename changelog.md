@@ -8,6 +8,7 @@ Changelog
 * [#749](https://github.com/NodeRedis/node_redis/pull/749) Fix reconnection bug when client is in monitoring mode (@danielbprice)
 * [#786](https://github.com/NodeRedis/node_redis/pull/786) Refactor createClient. Fixes #651 (@BridgeAR)
 * [#793](https://github.com/NodeRedis/node_redis/pull/793) Refactor tests and improve test coverage (@erinspice, @bcoe)
+* [#733](https://github.com/NodeRedis/node_redis/pull/733) Fixes detect_buffers functionality in the context of exec. Fixes #732, #263 (@raydog)
 * Fix extraneous error output due to pubsub tests (Mikael Kohlmyr)
 
 ## v0.12.1 - Aug 10, 2014
