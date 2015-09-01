@@ -302,11 +302,7 @@ RedisClient.prototype.init_parser = function () {
 
     // "reply error" is an error sent back by Redis
     this.reply_parser.on("reply error", function (reply) {
-        if (reply instanceof Error) {
-            self.return_error(reply);
-        } else {
-            self.return_error(new Error(reply));
-        }
+        self.return_error(reply);
     });
     this.reply_parser.on("reply", function (reply) {
         self.return_reply(reply);
@@ -654,7 +650,9 @@ RedisClient.prototype.return_reply = function (reply) {
             }
 
             try_callback(command_obj.callback, reply);
-        } else debug("no callback for reply: " + (reply && reply.toString && reply.toString()));
+        } else {
+            debug("no callback for reply: " + (reply && reply.toString && reply.toString()));
+        }
     } else if (this.pub_sub_mode || (command_obj && command_obj.sub_command)) {
         if (Array.isArray(reply)) {
             type = reply[0].toString();
