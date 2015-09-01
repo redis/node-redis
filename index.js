@@ -199,6 +199,9 @@ RedisClient.prototype.on_error = function (msg) {
     this.connection_gone("error");
 };
 
+var noPasswordIsSet = /no password is set/;
+var loading = /LOADING/;
+
 RedisClient.prototype.do_auth = function () {
     var self = this;
 
@@ -207,14 +210,14 @@ RedisClient.prototype.do_auth = function () {
     self.send_anyway = true;
     self.send_command("auth", [this.auth_pass], function (err, res) {
         if (err) {
-            if (err.toString().match("LOADING")) {
+            if (loading.test(err.message)) {
                 // if redis is still loading the db, it will not authenticate and everything else will fail
                 console.log("Redis still loading, trying to authenticate later");
                 setTimeout(function () {
                     self.do_auth();
                 }, 2000); // TODO - magic number alert
                 return;
-            } else if (err.toString().match("no password is set")) {
+            } else if (noPasswordIsSet.test(err.message)) {
                 console.log("Warning: Redis server does not require a password, but a password was supplied.");
                 err = null;
                 res = "OK";
