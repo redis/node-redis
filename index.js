@@ -955,7 +955,7 @@ RedisClient.prototype.select = function (db, callback) {
         if (err === null) {
             self.selected_db = db;
         }
-        if (typeof(callback) === 'function') {
+        if (typeof callback === 'function') {
             callback(err, res);
         } else if (err) {
             self.emit('error', err);

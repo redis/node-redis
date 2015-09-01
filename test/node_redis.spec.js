@@ -124,19 +124,23 @@ describe("The node_redis client", function () {
                             client.on("connect", function on_connect() {
                                 async.parallel([function (cb) {
                                     client.get("recon 1", function (err, res) {
-                                        helper.isString("one", cb)(err, res);
+                                        helper.isString("one")(err, res);
+                                        cb();
                                     });
                                 }, function (cb) {
                                     client.get("recon 1", function (err, res) {
-                                        helper.isString("one", cb)(err, res);
+                                        helper.isString("one")(err, res);
+                                        cb();
                                     });
                                 }, function (cb) {
                                     client.get("recon 2", function (err, res) {
-                                        helper.isString("two", cb)(err, res);
+                                        helper.isString("two")(err, res);
+                                        cb();
                                     });
                                 }, function (cb) {
                                     client.get("recon 2", function (err, res) {
-                                        helper.isString("two", cb)(err, res);
+                                        helper.isString("two")(err, res);
+                                        cb();
                                     });
                                 }], function (err, results) {
                                     client.removeListener("connect", on_connect);
