@@ -11,7 +11,8 @@ describe("client authentication", function () {
         });
     });
 
-    function allTests(parser, ip) {
+    helper.allTests(function(parser, ip, args) {
+
         describe("using " + parser + " and " + ip, function () {
             var args = config.configureClient(parser, ip);
             var auth = 'porkchopsandwiches';
@@ -73,13 +74,6 @@ describe("client authentication", function () {
                 });
             });
         });
-    }
-
-    ['javascript', 'hiredis'].forEach(function (parser) {
-        allTests(parser, "/tmp/redis.sock");
-        ['IPv4', 'IPv6'].forEach(function (ip) {
-            allTests(parser, ip);
-        })
     });
 
     after(function (done) {

@@ -5,8 +5,7 @@ var redis = config.redis;
 
 describe("The 'sort' method", function () {
 
-    function allTests(parser, ip) {
-        var args = config.configureClient(parser, ip);
+    helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
             var client;
@@ -90,7 +89,7 @@ describe("The 'sort' method", function () {
                 client.end();
             });
         });
-    }
+    });
 
     function setupData(client, done) {
         client.rpush('y', 'd');
@@ -119,10 +118,4 @@ describe("The 'sort' method", function () {
         client.set('p9', 'tux', done);
     }
 
-    ['javascript', 'hiredis'].forEach(function (parser) {
-        allTests(parser, "/tmp/redis.sock");
-        ['IPv4', 'IPv6'].forEach(function (ip) {
-            allTests(parser, ip);
-        })
-    });
 });
