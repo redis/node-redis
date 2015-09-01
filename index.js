@@ -4,7 +4,7 @@
 
 var net = require("net"),
     URL = require("url"),
-    util = require("./lib/util"),
+    util = require("util"),
     Queue = require("./lib/queue"),
     to_array = require("./lib/to_array"),
     events = require("events"),
