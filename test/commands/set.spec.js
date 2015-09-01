@@ -76,15 +76,6 @@ describe("The 'set' method", function () {
                             });
                         });
                     });
-
-                    describe("with undefined 'key' and defined 'value' parameters", function () {
-                        it("reports an error", function () {
-                            client.set(undefined, value, function (err, res) {
-                                helper.isError()(err, null);
-                                done();
-                            });
-                        });
-                    });
                 });
 
                 describe("and no callback is specified", function () {
@@ -130,19 +121,6 @@ describe("The 'set' method", function () {
                             setTimeout(function () {
                                 done();
                             }, 100);
-                        });
-                    });
-
-                    describe("with undefined 'key' and defined 'value' parameters", function () {
-                        it("throws an error", function () {
-                            var mochaListener = helper.removeMochaListener();
-
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
-                                helper.isError()(err, null);
-                            });
-
-                            client.set(undefined, value);
                         });
                     });
                 });

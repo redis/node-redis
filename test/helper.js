@@ -58,7 +58,7 @@ module.exports = {
     },
     isError: function (done) {
         return function (err, results) {
-            assert.notEqual(err, null, "err is null, but an error is expected here.");
+            assert(err instanceof Error, "err is not instance of 'Error', but an error is expected here.");
             if (done) return done();
         };
     },

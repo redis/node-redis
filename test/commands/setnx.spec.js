@@ -28,7 +28,6 @@ describe("The 'setnx' method", function () {
                 client.set('foo', 'bar', helper.isString('OK'));
                 client.setnx('foo', 'banana', helper.isNumber(0));
                 client.get('foo', helper.isString('bar', done));
-                return done();
             });
 
             afterEach(function () {

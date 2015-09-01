@@ -60,9 +60,13 @@ describe("The 'mset' method", function () {
                 describe("and a callback is specified", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
-                            client.mset(key, value, key2, value2);
-                            client.get(key, helper.isString(value));
-                            client.get(key2, helper.isString(value2, done));
+                            client.mset(key, value, key2, value2, function(err) {
+                                if (err) {
+                                    return done(err);
+                                }
+                                client.get(key, helper.isString(value));
+                                client.get(key2, helper.isString(value2, done));
+                            });
                         });
                     });
 
@@ -75,14 +79,6 @@ describe("The 'mset' method", function () {
                         });
                     });
 
-                    describe("with undefined 'key' and defined 'value' parameters", function () {
-                        it("reports an error", function () {
-                            client.mset(undefined, value, undefined, value2, function (err, res) {
-                                helper.isError()(err, null);
-                                done();
-                            });
-                        });
-                    });
                 });
 
                 describe("and no callback is specified", function () {
@@ -106,19 +102,6 @@ describe("The 'mset' method", function () {
                             });
 
                             client.mset();
-                        });
-                    });
-
-                    describe("with undefined 'key' and defined 'value' parameters", function () {
-                        it("throws an error", function () {
-                            var mochaListener = helper.removeMochaListener();
-
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
-                                helper.isError()(err, null);
-                            });
-
-                            client.mset(undefined, value, undefined, value2);
                         });
                     });
                 });
