@@ -17,7 +17,7 @@ describe("The 'sort' method", function () {
                 client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb();
-                    setupData(client, done)
+                    setupData(client, done);
                 });
             });
 

@@ -50,7 +50,7 @@ describe("The 'multi' method", function () {
                     client.once("connect", function () {
                         client.flushdb(function (err) {
                             return done(err);
-                        })
+                        });
                     });
                 });
 

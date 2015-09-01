@@ -20,7 +20,7 @@ if (!process.env.REDIS_TESTS_STARTED) {
 
   before(function (done) {
       startRedis('./conf/redis.conf', done);
-  })
+  });
 
   after(function (done) {
       if (rp) rp.stop(done);

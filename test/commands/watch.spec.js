@@ -20,11 +20,10 @@ describe("The 'watch' method", function () {
                 client.once("connect", function () {
                     client.flushdb(function (err) {
                         if (!helper.serverVersionAtLeast(client, [2, 2, 0])) {
-                          err = Error('some watch commands not supported in redis <= 2.2.0')
+                          err = Error('some watch commands not supported in redis <= 2.2.0');
                         }
                         return done(err);
-
-                    })
+                    });
                 });
             });
 
@@ -38,7 +37,7 @@ describe("The 'watch' method", function () {
                 var multi = client.multi();
                 multi.incr(watched);
                 multi.exec(helper.isNull(done));
-            })
+            });
 
             it('successfully modifies other keys independently of transaction', function (done) {
               client.set("unwatched", 200);

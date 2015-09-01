@@ -58,7 +58,7 @@ module.exports = {
                         }
                         waitForRedis(false, function () {
                             return done(error);
-                        })
+                        });
                     });
                     rp.kill("SIGTERM");
                 }

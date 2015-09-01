@@ -16,7 +16,7 @@ var config = {
         opts = opts || {};
 
         if (ip.match(/\.sock/)) {
-            args.push(ip)
+            args.push(ip);
         } else {
             args.push(config.PORT);
             args.push(config.HOST[ip]);

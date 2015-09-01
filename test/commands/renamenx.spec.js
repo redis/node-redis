@@ -32,7 +32,7 @@ describe("The 'renamenx' method", function () {
                 client.renamenx('foo', 'foo2', helper.isNumber(0));
                 client.exists('foo', helper.isNumber(1));
                 client.exists(['foo2'], helper.isNumber(1, done));
-            })
+            });
 
             afterEach(function () {
                 client.end();

@@ -27,7 +27,7 @@ describe("The 'hmset' method", function () {
                     assert.equal(obj['0123456789'], 'abcdefghij');
                     assert.equal(obj['some manner of key'], 'a type of value');
                     return done(err);
-                })
+                });
             });
 
             it('handles object-style syntax', function (done) {
@@ -36,7 +36,7 @@ describe("The 'hmset' method", function () {
                     assert.equal(obj['0123456789'], 'abcdefghij');
                     assert.equal(obj['some manner of key'], 'a type of value');
                     return done(err);
-                })
+                });
             });
 
             it('handles object-style syntax and the key being a number', function (done) {

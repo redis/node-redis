@@ -36,7 +36,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
 
                 client.once('error', function (error) {
-                    assert.ok(/ERR invalid password/.test(error))
+                    assert.ok(/ERR invalid password/.test(error));
                     return done();
                 });
 
@@ -47,7 +47,8 @@ describe("client authentication", function () {
                 it('allows auth to be provided as part of redis url', function (done) {
                     client = redis.createClient('redis://foo:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
                     client.on("ready", function () {
-                        return done()                    });
+                        return done();
+                    });
                 });
             }
 

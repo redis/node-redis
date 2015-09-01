@@ -19,10 +19,10 @@ describe("The 'eval' method", function () {
                 client.once("connect", function () {
                     client.flushdb(function (err) {
                         if (!helper.serverVersionAtLeast(client, [2, 5, 0])) {
-                          err = Error('exec not supported in redis <= 2.5.0')
+                          err = Error('exec not supported in redis <= 2.5.0');
                         }
                         return done(err);
-                    })
+                    });
                 });
             });
 
