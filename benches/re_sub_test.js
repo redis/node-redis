@@ -1,8 +1,7 @@
 'use strict';
 
-var client = require('../index').createClient()
-  , client2 = require('../index').createClient()
-  , assert = require('assert');
+var client = require('../index').createClient();
+var client2 = require('../index').createClient();
 
 client.once('subscribe', function (channel, count) {
   client.unsubscribe('x');

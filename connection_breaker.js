@@ -42,8 +42,6 @@ server.listen(6479);
 
 var redis = require('./');
 
-var port = 6479;
-
 var client = redis.createClient(6479, 'localhost');
 
 function iter() {

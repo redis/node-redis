@@ -1,3 +1,5 @@
+'use strict';
+
 var async = require('async');
 var assert = require('assert');
 var config = require("../lib/config");

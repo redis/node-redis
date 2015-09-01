@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("./lib/config");
 var helper = require("./helper");
@@ -10,10 +12,9 @@ describe("publish/subscribe", function () {
         describe("using " + parser + " and " + ip, function () {
             var pub = null;
             var sub = null;
-            var channel = "test channel"
-            var channel2 = "test channel 2"
-            var message = "test message"
-            var hash = "test hash";
+            var channel = "test channel";
+            var channel2 = "test channel 2";
+            var message = "test message";
 
             beforeEach(function (done) {
                 var pubConnected;
@@ -166,7 +167,7 @@ describe("publish/subscribe", function () {
             });
 
             describe('unsubscribe', function () {
-                it('fires an unsubscribe event', function () {
+                it('fires an unsubscribe event', function (done) {
                     sub.on("subscribe", function (chnl, count) {
                         sub.unsubscribe(channel)
                     });

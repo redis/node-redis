@@ -27,5 +27,5 @@ function done() {
 
 setTimeout(function () {
     console.log("Taking snapshot.");
-    var snap = profiler.takeSnapshot();
+    profiler.takeSnapshot();
 }, 5000);

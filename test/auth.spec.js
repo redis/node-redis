@@ -1,7 +1,8 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("./lib/config");
-var helper = require('./helper')
-var path = require('path');
+var helper = require('./helper');
 var redis = config.redis;
 
 describe("client authentication", function () {

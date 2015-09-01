@@ -1,3 +1,5 @@
+'use strict';
+
 // helpers for configuring a redis client in
 // its various modes, ipV6, ipV4, socket.
 var redis = require('../../index');

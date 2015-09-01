@@ -7,7 +7,8 @@ var id = Math.random();
 var recv = 0;
 
 var cmd = require('redis').createClient();
-var sub = require('redis').createClient()
+
+require('redis').createClient()
 	.on('ready', function() {
 		this.emit('timeline');
 	})
