@@ -12,25 +12,15 @@ var net = require("net"),
     parsers = [], commands,
     connection_id = 0,
     default_port = 6379,
-    default_host = "127.0.0.1";
-
-// can set this to true to enable for all connections
-exports.debug_mode = false;
-
-var arraySlice = Array.prototype.slice;
-function trace() {
-    if (!exports.debug_mode) return;
-    console.log.apply(null, arraySlice.call(arguments));
-}
+    default_host = "127.0.0.1",
+    debug = util.debuglog('redis');
 
 // hiredis might not be installed
 try {
     require("./lib/parser/hiredis");
     parsers.push(require("./lib/parser/hiredis"));
 } catch (err) {
-    if (exports.debug_mode) {
-        console.warn("hiredis parser not installed.");
-    }
+    debug("hiredis parser not installed.");
 }
 
 parsers.push(require("./lib/parser/javascript"));
@@ -132,13 +122,13 @@ RedisClient.prototype.initialize_retry_vars = function () {
 };
 
 RedisClient.prototype.unref = function () {
-    trace("User requesting to unref the connection");
+    debug("User requesting to unref the connection");
     if (this.connected) {
-        trace("unref'ing the socket connection");
+        debug("unref'ing the socket connection");
         this.stream.unref();
     }
     else {
-        trace("Not connected yet, will unref later");
+        debug("Not connected yet, will unref later");
         this.once("connect", function () {
             this.unref();
         });
@@ -187,9 +177,7 @@ RedisClient.prototype.on_error = function (msg) {
 
     var message = "Redis connection to " + this.address + " failed - " + msg;
 
-    if (exports.debug_mode) {
-        console.warn(message);
-    }
+    debug(message);
 
     this.flush_and_error(message);
 
@@ -205,9 +193,8 @@ RedisClient.prototype.on_error = function (msg) {
 RedisClient.prototype.do_auth = function () {
     var self = this;
 
-    if (exports.debug_mode) {
-        console.log("Sending auth to " + self.address + " id " + self.connection_id);
-    }
+    debug("Sending auth to " + self.address + " id " + self.connection_id);
+
     self.send_anyway = true;
     self.send_command("auth", [this.auth_pass], function (err, res) {
         if (err) {
@@ -229,9 +216,9 @@ RedisClient.prototype.do_auth = function () {
         if (res.toString() !== "OK") {
             return self.emit("error", new Error("Auth failed: " + res.toString()));
         }
-        if (exports.debug_mode) {
-            console.log("Auth succeeded " + self.address + " id " + self.connection_id);
-        }
+
+        debug("Auth succeeded " + self.address + " id " + self.connection_id);
+
         if (self.auth_callback) {
             self.auth_callback(err, res);
             self.auth_callback = null;
@@ -251,9 +238,7 @@ RedisClient.prototype.do_auth = function () {
 };
 
 RedisClient.prototype.on_connect = function () {
-    if (exports.debug_mode) {
-        console.log("Stream connected " + this.address + " id " + this.connection_id);
-    }
+    debug("Stream connected " + this.address + " id " + this.connection_id);
 
     this.connected = true;
     this.ready = false;
@@ -289,22 +274,16 @@ RedisClient.prototype.init_parser = function () {
         if (! parsers.some(function (parser) {
             if (parser.name === self.options.parser) {
                 self.parser_module = parser;
-                if (exports.debug_mode) {
-                    console.log("Using parser module: " + self.parser_module.name);
-                }
+                debug("Using parser module: " + self.parser_module.name);
                 return true;
             }
         })) {
             throw new Error("Couldn't find named parser " + self.options.parser + " on this system");
         }
     } else {
-        if (exports.debug_mode) {
-            console.log("Using default parser module: " + parsers[0].name);
-        }
+        debug("Using default parser module: " + parsers[0].name);
         this.parser_module = parsers[0];
     }
-
-    this.parser_module.debug_mode = exports.debug_mode;
 
     // return_buffers sends back Buffers from parser to callback. detect_buffers sends back Buffers from parser, but
     // converts to Strings if the input arguments are not Buffers.
@@ -361,9 +340,7 @@ RedisClient.prototype.on_ready = function () {
         };
         Object.keys(this.subscription_set).forEach(function (key) {
             var parts = key.split(" ");
-            if (exports.debug_mode) {
-                console.warn("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
-            }
+            debug("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
             callback_count++;
             self.send_command(parts[0] + "scribe", [parts[1]], callback);
         });
@@ -403,18 +380,14 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     this.server_info = obj;
 
     if (!obj.loading || obj.loading === "0") {
-        if (exports.debug_mode) {
-            console.log("Redis server ready.");
-        }
+        debug("Redis server ready.");
         this.on_ready();
     } else {
         retry_time = obj.loading_eta_seconds * 1000;
         if (retry_time > 1000) {
             retry_time = 1000;
         }
-        if (exports.debug_mode) {
-            console.log("Redis server still loading, trying again in " + retry_time);
-        }
+        debug("Redis server still loading, trying again in " + retry_time);
         setTimeout(function () {
             self.ready_check();
         }, retry_time);
@@ -424,9 +397,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
 RedisClient.prototype.ready_check = function () {
     var self = this;
 
-    if (exports.debug_mode) {
-        console.log("checking server ready state...");
-    }
+    debug("checking server ready state...");
 
     this.send_anyway = true;  // secret flag to send_command to send something even if not "ready"
     this.info(function (err, res) {
@@ -440,9 +411,7 @@ RedisClient.prototype.send_offline_queue = function () {
 
     while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
-        if (exports.debug_mode) {
-            console.log("Sending offline command: " + command_obj.command);
-        }
+        debug("Sending offline command: " + command_obj.command);
         buffered_writes += !this.send_command(command_obj.command, command_obj.args, command_obj.callback);
     }
     this.offline_queue = new Queue();
@@ -462,9 +431,7 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    if (exports.debug_mode) {
-        console.warn("Redis connection is gone from " + why + " event.");
-    }
+    debug("Redis connection is gone from " + why + " event.");
     this.connected = false;
     this.ready = false;
 
@@ -491,9 +458,7 @@ RedisClient.prototype.connection_gone = function (why) {
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
         this.retry_timer = null;
-        if (exports.debug_mode) {
-            console.warn("connection ended from quit command, not retrying.");
-        }
+        debug("connection ended from quit command, not retrying.");
         return;
     }
 
@@ -504,9 +469,7 @@ RedisClient.prototype.connection_gone = function (why) {
         this.retry_delay = nextDelay;
     }
 
-    if (exports.debug_mode) {
-        console.log("Retry connection in " + this.retry_delay + " ms");
-    }
+    debug("Retry connection in " + this.retry_delay + " ms");
 
     if (this.max_attempts && this.attempts >= this.max_attempts) {
         this.retry_timer = null;
@@ -522,9 +485,7 @@ RedisClient.prototype.connection_gone = function (why) {
         attempt: self.attempts
     });
     this.retry_timer = setTimeout(function () {
-        if (exports.debug_mode) {
-            console.log("Retrying connection...");
-        }
+        debug("Retrying connection...");
 
         self.retry_totaltime += self.retry_delay;
 
@@ -542,9 +503,7 @@ RedisClient.prototype.connection_gone = function (why) {
 };
 
 RedisClient.prototype.on_data = function (data) {
-    if (exports.debug_mode) {
-        console.log("net read " + this.address + " id " + this.connection_id + ": " + data.toString());
-    }
+    debug("net read " + this.address + " id " + this.connection_id + ": " + data.toString());
 
     try {
         this.reply_parser.execute(data);
@@ -655,7 +614,7 @@ RedisClient.prototype.return_reply = function (reply) {
     }
 
     if (this.pub_sub_mode && (type == 'message' || type == 'pmessage')) {
-        trace("received pubsub message");
+        debug("received pubsub message");
     }
     else {
         command_obj = this.command_queue.shift();
@@ -686,9 +645,7 @@ RedisClient.prototype.return_reply = function (reply) {
             }
 
             try_callback(command_obj.callback, reply);
-        } else if (exports.debug_mode) {
-            console.log("no callback for reply: " + (reply && reply.toString && reply.toString()));
-        }
+        } else debug("no callback for reply: " + (reply && reply.toString && reply.toString()));
     } else if (this.pub_sub_mode || (command_obj && command_obj.sub_command)) {
         if (Array.isArray(reply)) {
             type = reply[0].toString();
@@ -700,9 +657,7 @@ RedisClient.prototype.return_reply = function (reply) {
             } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
                 if (reply[2] === 0) {
                     this.pub_sub_mode = false;
-                    if (this.debug_mode) {
-                        console.log("All subscriptions removed, exiting pub/sub mode");
-                    }
+                    debug("All subscriptions removed, exiting pub/sub mode");
                 } else {
                     this.pub_sub_mode = true;
                 }
@@ -803,16 +758,12 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     command_obj = new Command(command, args, false, buffer_args, callback);
 
     if ((!this.ready && !this.send_anyway) || !stream.writable) {
-        if (exports.debug_mode) {
-            if (!stream.writable) {
-                console.log("send command: stream is not writeable.");
-            }
+        if (!stream.writable) {
+            debug("send command: stream is not writeable.");
         }
 
         if (this.enable_offline_queue) {
-            if (exports.debug_mode) {
-                console.log("Queueing " + command + " for next server connection.");
-            }
+            debug("Queueing " + command + " for next server connection.");
             this.offline_queue.push(command_obj);
             this.should_buffer = true;
         } else {
@@ -854,14 +805,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             }
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         }
-        if (exports.debug_mode) {
-            console.log("send " + this.address + " id " + this.connection_id + ": " + command_str);
-        }
+        debug("send " + this.address + " id " + this.connection_id + ": " + command_str);
         buffered_writes += !stream.write(command_str);
     } else {
-        if (exports.debug_mode) {
-            console.log("send command (" + command_str + ") has Buffer arguments");
-        }
+        debug("send command (" + command_str + ") has Buffer arguments");
         buffered_writes += !stream.write(command_str);
 
         for (i = 0, il = args.length, arg; i < il; i += 1) {
@@ -872,29 +819,21 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
             if (Buffer.isBuffer(arg)) {
                 if (arg.length === 0) {
-                    if (exports.debug_mode) {
-                        console.log("send_command: using empty string for 0 length buffer");
-                    }
+                    debug("send_command: using empty string for 0 length buffer");
                     buffered_writes += !stream.write("$0\r\n\r\n");
                 } else {
                     buffered_writes += !stream.write("$" + arg.length + "\r\n");
                     buffered_writes += !stream.write(arg);
                     buffered_writes += !stream.write("\r\n");
-                    if (exports.debug_mode) {
-                        console.log("send_command: buffer send " + arg.length + " bytes");
-                    }
+                    debug("send_command: buffer send " + arg.length + " bytes");
                 }
             } else {
-                if (exports.debug_mode) {
-                    console.log("send_command: string send " + Buffer.byteLength(arg) + " bytes: " + arg);
-                }
+                debug("send_command: string send " + Buffer.byteLength(arg) + " bytes: " + arg);
                 buffered_writes += !stream.write("$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n");
             }
         }
     }
-    if (exports.debug_mode) {
-        console.log("send_command buffered_writes: " + buffered_writes, " should_buffer: " + this.should_buffer);
-    }
+    debug("send_command buffered_writes: " + buffered_writes, " should_buffer: " + this.should_buffer);
     if (buffered_writes || this.command_queue.getLength() >= this.command_queue_high_water) {
         this.should_buffer = true;
     }
@@ -904,8 +843,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 RedisClient.prototype.pub_sub_command = function (command_obj) {
     var i, key, command, args;
 
-    if (this.pub_sub_mode === false && exports.debug_mode) {
-        console.log("Entering pub/sub mode from " + command_obj.command);
+    if (this.pub_sub_mode === false) {
+        debug("Entering pub/sub mode from " + command_obj.command);
     }
     this.pub_sub_mode = true;
     command_obj.sub_command = true;
@@ -1025,9 +964,7 @@ RedisClient.prototype.auth = function () {
     var args = to_array(arguments);
     this.auth_pass = args[0];
     this.auth_callback = args[1];
-    if (exports.debug_mode) {
-        console.log("Saving auth as " + this.auth_pass);
-    }
+    debug("Saving auth as " + this.auth_pass);
 
     if (this.connected) {
         this.send_command("auth", args);

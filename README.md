@@ -539,36 +539,6 @@ This will print:
 
 Note that this program will not exit cleanly because the client is still connected.
 
-## redis.debug_mode
-
-Boolean to enable debug mode and protocol tracing.
-
-```js
-var redis = require("redis"),
-    client = redis.createClient();
-
-redis.debug_mode = true;
-
-client.on("connect", function () {
-    client.set("foo_rand000000000000", "some fantastic value");
-});
-```
-
-This will display:
-
-    mjr:~/work/node_redis (master)$ node ~/example.js
-    send command: *3
-    $3
-    SET
-    $20
-    foo_rand000000000000
-    $20
-    some fantastic value
-
-    on_data: +OK
-
-`send command` is data sent into Redis and `on_data` is data received from Redis.
-
 ## Multi-word commands
 
 To execute redis multi-word commands like `SCRIPT LOAD` or `CLIENT LIST` pass

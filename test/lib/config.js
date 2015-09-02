@@ -1,19 +1,15 @@
 // helpers for configuring a redis client in
 // its various modes, ipV6, ipV4, socket.
-module.exports = (function () {
-    var redis = require('../../index');
-    redis.debug_mode = process.env.DEBUG ? JSON.parse(process.env.DEBUG) : false;
+var redis = require('../../index');
 
-    var config = {
-        redis: redis,
-        PORT: 6378,
-        HOST: {
-            IPv4: "127.0.0.1",
-            IPv6: "::1"
-        }
-    };
-
-    config.configureClient = function (parser, ip, opts) {
+var config = {
+    redis: redis,
+    PORT: 6378,
+    HOST: {
+        IPv4: "127.0.0.1",
+        IPv6: "::1"
+    },
+    configureClient: function (parser, ip, opts) {
         var args = [];
         opts = opts || {};
 
@@ -29,7 +25,7 @@ module.exports = (function () {
         args.push(opts);
 
         return args;
-    };
+    }
+};
 
-    return config;
-})();
+module.exports = config;
