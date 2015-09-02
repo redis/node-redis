@@ -11,7 +11,7 @@
   "main": "./index.js",
   "scripts": {
     "coverage": "nyc report --reporter=text-lcov | coveralls",
-    "test": "nyc ./node_modules/.bin/_mocha ./test/*.js ./test/commands/*.js ./test/parser/*.js --timeout=8000",
+    "test": "./node_modules/.bin/jshint *.js **/*.js **/**/*.js --exclude=node_modules/**/* && nyc ./node_modules/.bin/_mocha ./test/*.js ./test/commands/*.js ./test/parser/*.js --timeout=8000",
     "jshint": "./node_modules/.bin/jshint *.js **/*.js **/**/*.js --exclude=node_modules/**/*"
   },
   "devDependencies": {
