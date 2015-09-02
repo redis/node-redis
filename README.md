@@ -4,9 +4,8 @@ redis - a node.js redis client
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 
-This is a complete Redis client for node.js.  It supports all Redis commands,
-including many recently added commands like EVAL from experimental Redis server
-branches.
+This is a complete Redis client for node.js. It supports all Redis commands,
+including many recently added commands.
 
 Install with:
 
@@ -81,11 +80,11 @@ If the key is missing, reply will be null (probably):
 
 For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
 
-The commands can be specified in uppercase or lowercase for convenience.  `client.get()` is the same as `client.GET()`.
+The commands can be specified in uppercase or lowercase for convenience. `client.get()` is the same as `client.GET()`.
 
-Minimal parsing is done on the replies.  Commands that return a single line reply return JavaScript Strings,
+Minimal parsing is done on the replies. Commands that return a single line reply return JavaScript Strings,
 integer replies return JavaScript Numbers, "bulk" replies return node Buffers, and "multi bulk" replies return a
-JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keyed by the hash keys.
+JavaScript Array of node Buffers. `HGETALL` returns an Object with Buffers keyed by the hash keys.
 
 # API
 
@@ -96,21 +95,21 @@ JavaScript Array of node Buffers.  `HGETALL` returns an Object with Buffers keye
 ### "ready"
 
 `client` will emit `ready` once a connection is established to the Redis server and the server reports
-that it is ready to receive commands.  Commands issued before the `ready` event are queued,
+that it is ready to receive commands. Commands issued before the `ready` event are queued,
 then replayed just before this event is emitted.
 
 ### "connect"
 
 `client` will emit `connect` at the same time as it emits `ready` unless `client.options.no_ready_check`
-is set.  If this options is set, `connect` will be emitted when the stream is connected, and then
+is set. If this options is set, `connect` will be emitted when the stream is connected, and then
 you are free to try to send commands.
 
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
 
-Note that "error" is a special event type in node.  If there are no listeners for an
-"error" event, node will exit.  This is usually what you want, but it can lead to some
+Note that "error" is a special event type in node. If there are no listeners for an
+"error" event, node will exit. This is usually what you want, but it can lead to some
 cryptic error messages like this:
 
     mjr:~/work/node_redis (master)$ node example.js
@@ -135,8 +134,8 @@ It would be nice to distinguish these two cases.
 ### "drain"
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
-writable.  This event can be used to stream commands in to Redis and adapt to backpressure.  Right now,
-you need to check `client.command_queue.length` to decide when to reduce your send rate.  Then you can
+writable. This event can be used to stream commands in to Redis and adapt to backpressure. Right now,
+you need to check `client.command_queue.length` to decide when to reduce your send rate. Then you can
 resume sending when you get `drain`.
 
 ### "idle"
@@ -155,22 +154,22 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 
  `options` is an object with the following possible properties:
 
-* `parser`: which Redis protocol reply parser to use.  Defaults to `hiredis` if that module is installed.
+* `parser`: which Redis protocol reply parser to use. Defaults to `hiredis` if that module is installed.
 This may also be set to `javascript`.
-* `return_buffers`: defaults to `false`.  If set to `true`, then all replies will be sent to callbacks as node Buffer
+* `return_buffers`: defaults to `false`. If set to `true`, then all replies will be sent to callbacks as node Buffer
 objects instead of JavaScript Strings.
 * `detect_buffers`: default to `false`. If set to `true`, then replies will be sent to callbacks as node Buffer objects
 if any of the input arguments to the original command were Buffer objects.
 This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
 every command on a client.
 * `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
-Nagle algorithm on the underlying socket.  Setting this option to `false` can result in additional throughput at the
-cost of more latency.  Most applications will want this set to `true`.
+Nagle algorithm on the underlying socket. Setting this option to `false` can result in additional throughput at the
+cost of more latency. Most applications will want this set to `true`.
 * `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket.
 * `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
-be loading the database from disk.  While loading, the server not respond to any commands.  To work around this,
-`node_redis` has a "ready check" which sends the `INFO` command to the server.  The response from the `INFO` command
-indicates whether the server is ready for more commands.  When ready, `node_redis` emits a `ready` event.
+be loading the database from disk. While loading, the server not respond to any commands. To work around this,
+`node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command
+indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
 * `enable_offline_queue`: defaults to `true`. By default, if there is no active
 connection to the redis server, commands are added to a queue and are executed
@@ -211,9 +210,9 @@ You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns mod
 ## client.auth(password, callback)
 
 When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
-first command after connecting.  This can be tricky to coordinate with reconnections, the ready check,
-etc.  To make this easier, `client.auth()` stashes `password` and will send it after each connection,
-including reconnections.  `callback` is invoked only once, after the response to the very first
+first command after connecting. This can be tricky to coordinate with reconnections, the ready check,
+etc. To make this easier, `client.auth()` stashes `password` and will send it after each connection,
+including reconnections. `callback` is invoked only once, after the response to the very first
 `AUTH` command sent.
 NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
@@ -221,10 +220,10 @@ something like this `Error: Ready check failed: ERR operation not permitted`.
 
 ## client.end()
 
-Forcibly close the connection to the Redis server.  Note that this does not wait until all replies have been parsed.
+Forcibly close the connection to the Redis server. Note that this does not wait until all replies have been parsed.
 If you want to exit cleanly, call `client.quit()` to send the `QUIT` command after you have handled all replies.
 
-This example closes the connection to the Redis server before the replies have been read.  You probably don't
+This example closes the connection to the Redis server before the replies have been read. You probably don't
 want to do this:
 
 ```js
@@ -268,7 +267,7 @@ When dealing with hash values, there are a couple of useful exceptions to this.
 
 ### client.hgetall(hash)
 
-The reply from an HGETALL command will be converted into a JavaScript Object by `node_redis`.  That way you can interact
+The reply from an HGETALL command will be converted into a JavaScript Object by `node_redis`. That way you can interact
 with the responses using JavaScript syntax.
 
 Example:
@@ -302,7 +301,7 @@ Multiple values may also be set by supplying a list:
 
 ## Publish / Subscribe
 
-Here is a simple example of the API for publish / subscribe.  This program opens two
+Here is a simple example of the API for publish / subscribe. This program opens two
 client connections, subscribes to a channel on one of them, and publishes to that
 channel on the other:
 
@@ -332,7 +331,7 @@ channel on the other:
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into a "subscriber" mode.
-At that point, only commands that modify the subscription set are valid.  When the subscription
+At that point, only commands that modify the subscription set are valid. When the subscription
 set is empty, the connection is put back into regular mode.
 
 If you need to send regular commands to Redis while in subscriber mode, just open another connection.
@@ -354,30 +353,30 @@ name as `channel`, and the message Buffer as `message`.
 
 ### "subscribe" (channel, count)
 
-Client will emit `subscribe` in response to a `SUBSCRIBE` command.  Listeners are passed the
+Client will emit `subscribe` in response to a `SUBSCRIBE` command. Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`.
 
 ### "psubscribe" (pattern, count)
 
-Client will emit `psubscribe` in response to a `PSUBSCRIBE` command.  Listeners are passed the
+Client will emit `psubscribe` in response to a `PSUBSCRIBE` command. Listeners are passed the
 original pattern as `pattern`, and the new count of subscriptions for this client as `count`.
 
 ### "unsubscribe" (channel, count)
 
-Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command.  Listeners are passed the
-channel name as `channel` and the new count of subscriptions for this client as `count`.  When
+Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command. Listeners are passed the
+channel name as `channel` and the new count of subscriptions for this client as `count`. When
 `count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
 ### "punsubscribe" (pattern, count)
 
-Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.  Listeners are passed the
-channel name as `channel` and the new count of subscriptions for this client as `count`.  When
+Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command. Listeners are passed the
+channel name as `channel` and the new count of subscriptions for this client as `count`. When
 `count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
 ## client.multi([commands])
 
 `MULTI` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
-Redis.  The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
+Redis. The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
 
 ```js
     var redis  = require("./index"),
@@ -411,8 +410,8 @@ Redis.  The interface in `node_redis` is to return an individual `Multi` object 
 
 ### Multi.exec( callback )
 
-`client.multi()` is a constructor that returns a `Multi` object.  `Multi` objects share all of the
-same command methods as `client` objects do.  Commands are queued up inside the `Multi` object
+`client.multi()` is a constructor that returns a `Multi` object. `Multi` objects share all of the
+same command methods as `client` objects do. Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
 
 The `callback` of `.exec()` will get invoked with two arguments:
@@ -469,8 +468,8 @@ of commands and arguments to the constructor:
 Redis supports the `MONITOR` command, which lets you see all commands received by the Redis server
 across all client connections, including from other client libraries and other computers.
 
-After you send the `MONITOR` command, no other commands are valid on that connection.  `node_redis`
-will emit a `monitor` event for every new monitor message that comes across.  The callback for the
+After you send the `MONITOR` command, no other commands are valid on that connection. `node_redis`
+will emit a `monitor` event for every new monitor message that comes across. The callback for the
 `monitor` event takes a timestamp from the Redis server and an array of command arguments.
 
 Here is a simple example:
@@ -506,7 +505,7 @@ The `versions` key contains an array of the elements of the version string for e
 
 ## redis.print()
 
-A handy callback function for displaying return values when testing.  Example:
+A handy callback function for displaying return values when testing. Example:
 
 ```js
     var redis = require("redis"),
@@ -566,11 +565,11 @@ the second word as first parameter:
 
 ## client.send_command(command_name, args, callback)
 
-Used internally to send commands to Redis.  For convenience, nearly all commands that are published on the Redis
-Wiki have been added to the `client` object.  However, if I missed any, or if new commands are introduced before
+Used internally to send commands to Redis. For convenience, nearly all commands that are published on the Redis
+Wiki have been added to the `client` object. However, if I missed any, or if new commands are introduced before
 this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
 
-All commands are sent as multi-bulk commands.  `args` can either be an Array of arguments, or omitted.
+All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted.
 
 ## client.connected
 
@@ -578,24 +577,24 @@ Boolean tracking the state of the connection to the Redis server.
 
 ## client.command_queue.length
 
-The number of commands that have been sent to the Redis server but not yet replied to.  You can use this to
+The number of commands that have been sent to the Redis server but not yet replied to. You can use this to
 enforce some kind of maximum queue depth for commands while connected.
 
 Don't mess with `client.command_queue` though unless you really know what you are doing.
 
 ## client.offline_queue.length
 
-The number of commands that have been queued up for a future connection.  You can use this to enforce
+The number of commands that have been queued up for a future connection. You can use this to enforce
 some kind of maximum queue depth for pre-connection commands.
 
 ## client.retry_delay
 
-Current delay in milliseconds before a connection retry will be attempted.  This starts at `250`.
+Current delay in milliseconds before a connection retry will be attempted. This starts at `250`.
 
 ## client.retry_backoff
 
-Multiplier for future retry timeouts.  This should be larger than 1 to add more time between retries.
-Defaults to 1.7.  The default initial connection retry is 250, so the second retry will be 425, followed by 723.5, etc.
+Multiplier for future retry timeouts. This should be larger than 1 to add more time between retries.
+Defaults to 1.7. The default initial connection retry is 250, so the second retry will be 425, followed by 723.5, etc.
 
 ### Commands with Optional and Keyword arguments
 
@@ -633,7 +632,7 @@ operations. As pipelining happens naturally from shared connections, overall
 efficiency goes up.
 
 Here are typical results of `multi_bench.js` which is similar to
-`redis-benchmark` from the Redis distribution.  It uses 5 concurrent connections
+`redis-benchmark` from the Redis distribution. It uses 5 concurrent connections
 and shows the difference between pipelines of 1 and 50.
 
 JavaScript parser:
@@ -682,7 +681,7 @@ If the `hiredis` npm module is installed, `node_redis` will use it by default.
 Otherwise, the pure JavaScript parser will be used.
 
 If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of
-node.  There are mysterious failures that can happen between node and native
+node. There are mysterious failures that can happen between node and native
 code modules after a node upgrade.
 
 Most users find that the JS parser is faster than the `hiredis` parser. Because
@@ -727,65 +726,20 @@ hiredis parser:
 
 ## TODO
 
-Better tests for auth, disconnect/reconnect, and all combinations thereof.
-
-Stream large set/get values into and out of Redis.  Otherwise the entire value must be in node's memory.
-
-Performance can be better for very large values.
-
-I think there are more performance improvements left in there for smaller values, especially for large lists of small values.
+1. 100% coverage
+2. More performance improvements
+3. Stream large set/get values into and out of Redis. Otherwise the entire value must be in node's memory.
+4. Performance can be better for very large values in the js parser.
 
 ## How to Contribute
-- open a pull request and then wait for feedback (if
-  [DTrejo](http://github.com/dtrejo) does not get back to you within 2 days,
-  comment again with indignation!)
+- open a pull request and then wait for feedback
 
 ## Contributors
-Many people have have added features and fixed bugs in `node_redis`.
-
-Ordered by date of first contribution.
-[Auto-generated](http://github.com/dtrejo/node-authors) on Wed Jul 25 2012 19:14:59 GMT-0700 (PDT).
-
-- [Matt Ranney aka `mranney`](https://github.com/mranney)
-- [Tim-Smart aka `tim-smart`](https://github.com/tim-smart)
-- [Tj Holowaychuk aka `visionmedia`](https://github.com/visionmedia)
-- [rick aka `technoweenie`](https://github.com/technoweenie)
-- [Orion Henry aka `orionz`](https://github.com/orionz)
-- [Aivo Paas aka `aivopaas`](https://github.com/aivopaas)
-- [Hank Sims aka `hanksims`](https://github.com/hanksims)
-- [Paul Carey aka `paulcarey`](https://github.com/paulcarey)
-- [Pieter Noordhuis aka `pietern`](https://github.com/pietern)
-- [nithesh aka `nithesh`](https://github.com/nithesh)
-- [Andy Ray aka `andy2ray`](https://github.com/andy2ray)
-- [unknown aka `unknowdna`](https://github.com/unknowdna)
-- [Dave Hoover aka `redsquirrel`](https://github.com/redsquirrel)
-- [Vladimir Dronnikov aka `dvv`](https://github.com/dvv)
-- [Umair Siddique aka `umairsiddique`](https://github.com/umairsiddique)
-- [Louis-Philippe Perron aka `lp`](https://github.com/lp)
-- [Mark Dawson aka `markdaws`](https://github.com/markdaws)
-- [Ian Babrou aka `bobrik`](https://github.com/bobrik)
-- [Felix Geisendörfer aka `felixge`](https://github.com/felixge)
-- [Jean-Hugues Pinson aka `undefined`](https://github.com/undefined)
-- [Maksim Lin aka `maks`](https://github.com/maks)
-- [Owen Smith aka `orls`](https://github.com/orls)
-- [Zachary Scott aka `zzak`](https://github.com/zzak)
-- [TEHEK Firefox aka `TEHEK`](https://github.com/TEHEK)
-- [Isaac Z. Schlueter aka `isaacs`](https://github.com/isaacs)
-- [David Trejo aka `DTrejo`](https://github.com/DTrejo)
-- [Brian Noguchi aka `bnoguchi`](https://github.com/bnoguchi)
-- [Philip Tellis aka `bluesmoon`](https://github.com/bluesmoon)
-- [Marcus Westin aka `marcuswestin2`](https://github.com/marcuswestin2)
-- [Jed Schmidt aka `jed`](https://github.com/jed)
-- [Dave Peticolas aka `jdavisp3`](https://github.com/jdavisp3)
-- [Trae Robrock aka `trobrock`](https://github.com/trobrock)
-- [Shankar Karuppiah aka `shankar0306`](https://github.com/shankar0306)
-- [Ignacio Burgueño aka `ignacio`](https://github.com/ignacio)
-
-Thanks.
+Many people have have added features and fixed bugs in `node_redis`. Thanks to all of them!
 
 ## LICENSE - "MIT License"
 
-Copyright (c) 2010 Matthew Ranney, http://ranney.com/
+Copyright (c) 2015 Matthew Ranney, http://ranney.com/
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
