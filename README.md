@@ -17,26 +17,26 @@ Install with:
 Simple example, included as `examples/simple.js`:
 
 ```js
-    var redis = require("redis"),
-        client = redis.createClient();
+var redis = require("redis"),
+    client = redis.createClient();
 
-    // if you'd like to select database 3, instead of 0 (default), call
-    // client.select(3, function() { /* ... */ });
+// if you'd like to select database 3, instead of 0 (default), call
+// client.select(3, function() { /* ... */ });
 
-    client.on("error", function (err) {
-        console.log("Error " + err);
+client.on("error", function (err) {
+    console.log("Error " + err);
+});
+
+client.set("string key", "string val", redis.print);
+client.hset("hash key", "hashtest 1", "some value", redis.print);
+client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
+client.hkeys("hash key", function (err, replies) {
+    console.log(replies.length + " replies:");
+    replies.forEach(function (reply, i) {
+        console.log("    " + i + ": " + reply);
     });
-
-    client.set("string key", "string val", redis.print);
-    client.hset("hash key", "hashtest 1", "some value", redis.print);
-    client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
-    client.hkeys("hash key", function (err, replies) {
-        console.log(replies.length + " replies:");
-        replies.forEach(function (reply, i) {
-            console.log("    " + i + ": " + reply);
-        });
-        client.quit();
-    });
+    client.quit();
+});
 ```
 
 This will display:
@@ -61,23 +61,31 @@ All functions take either an `args` Array plus optional `callback` Function or
 a variable number of individual arguments followed by an optional callback.
 Here is an example of passing an array of arguments and a callback:
 
-    client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+```js
+client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+```
 
 Here is that same call in the second style:
 
-    client.mset("test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
+```js
+client.mset("test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
+```
 
 Note that in either form the `callback` is optional:
 
-    client.set("some key", "some val");
-    client.set(["some other key", "some val"]);
+```js
+client.set("some key", "some val");
+client.set(["some other key", "some val"]);
+```
 
 If the key is missing, reply will be null (probably):
 
-    client.get("missingkey", function(err, reply) {
-        // reply is null when the key is missing
-        console.log(reply);
-    });
+```js
+client.get("missingkey", function(err, reply) {
+    // reply is null when the key is missing
+    console.log(reply);
+});
+```
 
 For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
 
@@ -189,21 +197,21 @@ limits total amount of reconnects.
 You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
 
 ```js
-    var redis = require("redis"),
-        client = redis.createClient({detect_buffers: true});
+var redis = require("redis"),
+    client = redis.createClient({detect_buffers: true});
 
-    client.set("foo_rand000000000000", "OK");
+client.set("foo_rand000000000000", "OK");
 
-    // This will return a JavaScript String
-    client.get("foo_rand000000000000", function (err, reply) {
-        console.log(reply.toString()); // Will print `OK`
-    });
+// This will return a JavaScript String
+client.get("foo_rand000000000000", function (err, reply) {
+    console.log(reply.toString()); // Will print `OK`
+});
 
-    // This will return a Buffer since original key is specified as a Buffer
-    client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
-        console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
-    });
-    client.end();
+// This will return a Buffer since original key is specified as a Buffer
+client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
+    console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
+});
+client.end();
 ```
 
 
@@ -228,14 +236,14 @@ This example closes the connection to the Redis server before the replies have b
 want to do this:
 
 ```js
-    var redis = require("redis"),
-        client = redis.createClient();
+var redis = require("redis"),
+    client = redis.createClient();
 
-    client.set("foo_rand000000000000", "some fantastic value");
-    client.get("foo_rand000000000000", function (err, reply) {
-        console.log(reply.toString());
-    });
-    client.end();
+client.set("foo_rand000000000000", "some fantastic value");
+client.get("foo_rand000000000000", function (err, reply) {
+    console.log(reply.toString());
+});
+client.end();
 ```
 
 `client.end()` is useful for timeout cases where something is stuck or taking too long and you want
@@ -273,23 +281,29 @@ with the responses using JavaScript syntax.
 
 Example:
 
-    client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
-    client.hgetall("hosts", function (err, obj) {
-        console.dir(obj);
-    });
+```js
+client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
+client.hgetall("hosts", function (err, obj) {
+    console.dir(obj);
+});
+```
 
 Output:
 
-    { mjr: '1', another: '23', home: '1234' }
+```js
+{ mjr: '1', another: '23', home: '1234' }
+```
 
 ### client.hmset(hash, obj, [callback])
 
 Multiple values in a hash can be set by supplying an object:
 
-    client.HMSET(key2, {
-        "0123456789": "abcdefghij", // NOTE: key and value will be coerced to strings
-        "some manner of key": "a type of value"
-    });
+```js
+client.HMSET(key2, {
+    "0123456789": "abcdefghij", // NOTE: key and value will be coerced to strings
+    "some manner of key": "a type of value"
+});
+```
 
 The properties and values of this Object will be set as keys and values in the Redis hash.
 
@@ -297,8 +311,9 @@ The properties and values of this Object will be set as keys and values in the R
 
 Multiple values may also be set by supplying a list:
 
-    client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
-
+```js
+client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
+```
 
 ## Publish / Subscribe
 
@@ -307,28 +322,28 @@ client connections, subscribes to a channel on one of them, and publishes to tha
 channel on the other:
 
 ```js
-    var redis = require("redis"),
-        client1 = redis.createClient(), client2 = redis.createClient(),
-        msg_count = 0;
+var redis = require("redis"),
+    client1 = redis.createClient(), client2 = redis.createClient(),
+    msg_count = 0;
 
-    client1.on("subscribe", function (channel, count) {
-        client2.publish("a nice channel", "I am sending a message.");
-        client2.publish("a nice channel", "I am sending a second message.");
-        client2.publish("a nice channel", "I am sending my last message.");
-    });
+client1.on("subscribe", function (channel, count) {
+    client2.publish("a nice channel", "I am sending a message.");
+    client2.publish("a nice channel", "I am sending a second message.");
+    client2.publish("a nice channel", "I am sending my last message.");
+});
 
-    client1.on("message", function (channel, message) {
-        console.log("client1 channel " + channel + ": " + message);
-        msg_count += 1;
-        if (msg_count === 3) {
-            client1.unsubscribe();
-            client1.end();
-            client2.end();
-        }
-    });
+client1.on("message", function (channel, message) {
+    console.log("client1 channel " + channel + ": " + message);
+    msg_count += 1;
+    if (msg_count === 3) {
+        client1.unsubscribe();
+        client1.end();
+        client2.end();
+    }
+});
 
-    client1.incr("did a thing");
-    client1.subscribe("a nice channel");
+client1.incr("did a thing");
+client1.subscribe("a nice channel");
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into a "subscriber" mode.
@@ -380,33 +395,33 @@ channel name as `channel` and the new count of subscriptions for this client as 
 Redis.  The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
 
 ```js
-    var redis  = require("./index"),
-        client = redis.createClient(), set_size = 20;
+var redis  = require("./index"),
+    client = redis.createClient(), set_size = 20;
 
-    client.sadd("bigset", "a member");
-    client.sadd("bigset", "another member");
+client.sadd("bigset", "a member");
+client.sadd("bigset", "another member");
 
-    while (set_size > 0) {
-        client.sadd("bigset", "member " + set_size);
-        set_size -= 1;
-    }
+while (set_size > 0) {
+    client.sadd("bigset", "member " + set_size);
+    set_size -= 1;
+}
 
-    // multi chain with an individual callback
-    client.multi()
-        .scard("bigset")
-        .smembers("bigset")
-        .keys("*", function (err, replies) {
-            // NOTE: code in this callback is NOT atomic
-            // this only happens after the the .exec call finishes.
-            client.mget(replies, redis.print);
-        })
-        .dbsize()
-        .exec(function (err, replies) {
-            console.log("MULTI got " + replies.length + " replies");
-            replies.forEach(function (reply, index) {
-                console.log("Reply " + index + ": " + reply.toString());
-            });
+// multi chain with an individual callback
+client.multi()
+    .scard("bigset")
+    .smembers("bigset")
+    .keys("*", function (err, replies) {
+        // NOTE: code in this callback is NOT atomic
+        // this only happens after the the .exec call finishes.
+        client.mget(replies, redis.print);
+    })
+    .dbsize()
+    .exec(function (err, replies) {
+        console.log("MULTI got " + replies.length + " replies");
+        replies.forEach(function (reply, index) {
+            console.log("Reply " + index + ": " + reply.toString());
         });
+    });
 ```
 
 ### Multi.exec( callback )
@@ -424,43 +439,43 @@ You can either chain together `MULTI` commands as in the above example, or you c
 commands while still sending regular client command as in this example:
 
 ```js
-    var redis  = require("redis"),
-        client = redis.createClient(), multi;
+var redis  = require("redis"),
+    client = redis.createClient(), multi;
 
-    // start a separate multi command queue
-    multi = client.multi();
-    multi.incr("incr thing", redis.print);
-    multi.incr("incr other thing", redis.print);
+// start a separate multi command queue
+multi = client.multi();
+multi.incr("incr thing", redis.print);
+multi.incr("incr other thing", redis.print);
 
-    // runs immediately
-    client.mset("incr thing", 100, "incr other thing", 1, redis.print);
+// runs immediately
+client.mset("incr thing", 100, "incr other thing", 1, redis.print);
 
-    // drains multi queue and runs atomically
-    multi.exec(function (err, replies) {
-        console.log(replies); // 101, 2
-    });
+// drains multi queue and runs atomically
+multi.exec(function (err, replies) {
+    console.log(replies); // 101, 2
+});
 
-    // you can re-run the same transaction if you like
-    multi.exec(function (err, replies) {
-        console.log(replies); // 102, 3
-        client.quit();
-    });
+// you can re-run the same transaction if you like
+multi.exec(function (err, replies) {
+    console.log(replies); // 102, 3
+    client.quit();
+});
 ```
 
 In addition to adding commands to the `MULTI` queue individually, you can also pass an array
 of commands and arguments to the constructor:
 
 ```js
-    var redis  = require("redis"),
-        client = redis.createClient(), multi;
+var redis  = require("redis"),
+    client = redis.createClient(), multi;
 
-    client.multi([
-        ["mget", "multifoo", "multibar", redis.print],
-        ["incr", "multifoo"],
-        ["incr", "multibar"]
-    ]).exec(function (err, replies) {
-        console.log(replies);
-    });
+client.multi([
+    ["mget", "multifoo", "multibar", redis.print],
+    ["incr", "multifoo"],
+    ["incr", "multibar"]
+]).exec(function (err, replies) {
+    console.log(replies);
+});
 ```
 
 
@@ -476,16 +491,16 @@ will emit a `monitor` event for every new monitor message that comes across.  Th
 Here is a simple example:
 
 ```js
-    var client  = require("redis").createClient(),
-        util = require("util");
+var client  = require("redis").createClient(),
+    util = require("util");
 
-    client.monitor(function (err, res) {
-        console.log("Entering monitoring mode.");
-    });
+client.monitor(function (err, res) {
+    console.log("Entering monitoring mode.");
+});
 
-    client.on("monitor", function (time, args) {
-        console.log(time + ": " + util.inspect(args));
-    });
+client.on("monitor", function (time, args) {
+    console.log(time + ": " + util.inspect(args));
+});
 ```
 
 # Extras
@@ -509,13 +524,13 @@ The `versions` key contains an array of the elements of the version string for e
 A handy callback function for displaying return values when testing.  Example:
 
 ```js
-    var redis = require("redis"),
-        client = redis.createClient();
+var redis = require("redis"),
+    client = redis.createClient();
 
-    client.on("connect", function () {
-        client.set("foo_rand000000000000", "some fantastic value", redis.print);
-        client.get("foo_rand000000000000", redis.print);
-    });
+client.on("connect", function () {
+    client.set("foo_rand000000000000", "some fantastic value", redis.print);
+    client.get("foo_rand000000000000", redis.print);
+});
 ```
 
 This will print:
@@ -530,14 +545,14 @@ Note that this program will not exit cleanly because the client is still connect
 Boolean to enable debug mode and protocol tracing.
 
 ```js
-    var redis = require("redis"),
-        client = redis.createClient();
+var redis = require("redis"),
+    client = redis.createClient();
 
-    redis.debug_mode = true;
+redis.debug_mode = true;
 
-    client.on("connect", function () {
-        client.set("foo_rand000000000000", "some fantastic value");
-    });
+client.on("connect", function () {
+    client.set("foo_rand000000000000", "some fantastic value");
+});
 ```
 
 This will display:
