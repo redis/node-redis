@@ -800,7 +800,7 @@ Thanks.
 
 ## LICENSE - "MIT License"
 
-Copyright (c) 2010 Matthew Ranney, http://ranney.com/
+Copyright (c) 2014 Matthew Ranney, http://ranney.com/
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
