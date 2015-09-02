@@ -6,8 +6,7 @@ var redis = config.redis;
 
 describe("The 'script' method", function () {
 
-    function allTests(parser, ip) {
-        var args = config.configureClient(parser, ip);
+    helper.allTests(function(parser, ip, args) {
         var command = "return 99";
         var commandSha = crypto.createHash('sha1').update(command).digest('hex');
 
@@ -57,12 +56,5 @@ describe("The 'script' method", function () {
                 })
             })
         });
-    }
-
-    ['javascript', 'hiredis'].forEach(function (parser) {
-        allTests(parser, "/tmp/redis.sock");
-        ['IPv4', 'IPv6'].forEach(function (ip) {
-            allTests(parser, ip);
-        })
     });
 });

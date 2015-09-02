@@ -1,5 +1,6 @@
 var assert = require("assert");
 var path = require('path');
+var config = require("./lib/config");
 var RedisProcess = require("./lib/redis-process");
 var rp;
 
@@ -89,6 +90,14 @@ module.exports = {
             if (version[i] < desired_version[i]) return false;
         }
         return true;
+    },
+    allTests: function (cb) {
+        ['javascript', 'hiredis'].forEach(function (parser) {
+            cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock"));
+            ['IPv4', 'IPv6'].forEach(function (ip) {
+                cb(parser, ip, config.configureClient(parser, ip));
+            });
+        });
     }
 }
 

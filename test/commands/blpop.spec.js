@@ -5,8 +5,7 @@ var redis = config.redis;
 
 describe("The 'blpop' method", function () {
 
-    function allTests(parser, ip) {
-        var args = config.configureClient(parser, ip);
+    helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
             var client;
@@ -53,12 +52,5 @@ describe("The 'blpop' method", function () {
                 bclient.end();
             });
         });
-    }
-
-    ['javascript', 'hiredis'].forEach(function (parser) {
-        allTests(parser, "/tmp/redis.sock");
-        ['IPv4', 'IPv6'].forEach(function (ip) {
-            allTests(parser, ip);
-        })
     });
 });

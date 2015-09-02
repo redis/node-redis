@@ -13,8 +13,7 @@ describe("The 'mset' method", function () {
         return mochaListener;
     }
 
-    function allTests(parser, ip) {
-        var args = config.configureClient(parser, ip);
+    helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
             var key, value, key2, value2;
@@ -130,12 +129,5 @@ describe("The 'mset' method", function () {
                 });
             });
         });
-    }
-
-    ['javascript', 'hiredis'].forEach(function (parser) {
-        allTests(parser, "/tmp/redis.sock");
-        ['IPv4', 'IPv6'].forEach(function (ip) {
-            allTests(parser, ip);
-        })
     });
 });
