@@ -11,8 +11,6 @@ var redis = require("./index"),
     },
     small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
 
-redis.debug_mode = false;
-
 function lpad(input, len, chr) {
     var str = input.toString();
     chr = chr || " ";

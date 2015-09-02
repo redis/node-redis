@@ -7,8 +7,6 @@ var redis = require("redis"),
     client4 = redis.createClient(),
     msg_count = 0;
 
-redis.debug_mode = false;
-
 client1.on("psubscribe", function (pattern, count) {
     console.log("client1 psubscribed to " + pattern + ", " + count + " total subscriptions");
     client2.publish("channeltwo", "Me!");

@@ -4,7 +4,6 @@
 'use strict';
 
 var redis = require("../../");
-//redis.debug_mode = true
 var HOST = process.argv[2] || '127.0.0.1';
 var PORT = process.argv[3]
 var args = PORT ? [PORT, HOST] : [HOST]

@@ -4,8 +4,6 @@ var redis = require("redis"),
     client1 = redis.createClient(), msg_count = 0,
     client2 = redis.createClient();
 
-redis.debug_mode = false;
-
 // Most clients probably don't do much on "subscribe".  This example uses it to coordinate things within one program.
 client1.on("subscribe", function (channel, count) {
     console.log("client1 subscribed to " + channel + ", " + count + " total subscriptions");
