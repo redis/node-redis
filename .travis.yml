@@ -13,4 +13,4 @@ node_js:
   - "0.12"
   - "4.0"
   - "iojs"
-after_success: npm run coverage
+after_success: npm run coveralls
