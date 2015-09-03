@@ -27,6 +27,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/mranney/node_redis.git"
+    "url": "git://github.com/NodeRedis/node_redis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NodeRedis/node_redis/issues"
+  },
+  "homepage": "https://github.com/NodeRedis/node_redis",
+  "directories": {
+    "example": "examples",
+    "test": "test"
   }
 }
