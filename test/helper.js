@@ -92,12 +92,21 @@ module.exports = {
         return true;
     },
     allTests: function (cb) {
-        ['javascript', 'hiredis'].forEach(function (parser) {
-            cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock"));
-            ['IPv4', 'IPv6'].forEach(function (ip) {
-                cb(parser, ip, config.configureClient(parser, ip));
+        [undefined].forEach(function (options) { // add buffer option at some point
+            describe(options && options.return_buffers ? "returning buffers" : "returning strings", function () {
+                ['hiredis', 'javascript'].forEach(function (parser) {
+                    cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock", options));
+                    ['IPv4', 'IPv6'].forEach(function (ip) {
+                        cb(parser, ip, config.configureClient(parser, ip, options));
+                    });
+                });
             });
         });
+    },
+    removeMochaListener: function () {
+        var mochaListener = process.listeners('uncaughtException').pop();
+        process.removeListener('uncaughtException', mochaListener);
+        return mochaListener;
     }
 }
 

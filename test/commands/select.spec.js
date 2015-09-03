@@ -6,12 +6,6 @@ var redis = config.redis;
 
 describe("The 'select' method", function () {
 
-    function removeMochaListener () {
-        var mochaListener = process.listeners('uncaughtException').pop();
-        process.removeListener('uncaughtException', mochaListener);
-        return mochaListener;
-    }
-
     helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
@@ -96,7 +90,7 @@ describe("The 'select' method", function () {
 
                     describe("with an invalid db index", function () {
                         it("throws an error when callback not provided", function (done) {
-                            var mochaListener = removeMochaListener();
+                            var mochaListener = helper.removeMochaListener();
                             assert.strictEqual(client.selected_db, null, "default db should be null");
 
                             process.once('uncaughtException', function (err) {
