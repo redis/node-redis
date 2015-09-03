@@ -23,7 +23,7 @@ describe("The 'hmget' method", function () {
             });
 
             it('allows keys to be specified using multiple arguments', function (done) {
-                client.HMGET(hash, "0123456789", "some manner of key", function (err, reply) {
+                client.hmget(hash, "0123456789", "some manner of key", function (err, reply) {
                     assert.strictEqual("abcdefghij", reply[0].toString());
                     assert.strictEqual("a type of value", reply[1].toString());
                     return done(err);

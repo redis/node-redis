@@ -35,7 +35,7 @@ describe("The 'eval' method", function () {
             });
 
             it('returns a string', function (done) {
-                client.eval("return 'hello world'", 0, helper.isString('hello world', done));
+                client.EVAL("return 'hello world'", 0, helper.isString('hello world', done));
             });
 
             it('converts boolean true to integer 1', function (done) {

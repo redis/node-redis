@@ -62,7 +62,7 @@ describe("The 'multi' method", function () {
                     var multi1, multi2;
 
                     // Provoke an error at queue time
-                    multi1 = client.multi();
+                    multi1 = client.MULTI();
                     multi1.mset("multifoo", "10", "multibar", "20", helper.isString("OK"));
                     multi1.set("foo2", helper.isError());
                     multi1.incr("multifoo", helper.isNumber(11));

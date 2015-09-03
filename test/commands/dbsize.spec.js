@@ -59,7 +59,7 @@ describe("The 'dbsize' method", function () {
                 });
 
                 it("returns a zero db size", function (done) {
-                    client.dbsize([], function (err, res) {
+                    client.DBSIZE([], function (err, res) {
                         helper.isNotError()(err, res);
                         helper.isType.number()(err, res);
                         assert.strictEqual(res, 0, "Initial db size should be 0");

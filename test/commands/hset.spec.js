@@ -25,7 +25,7 @@ describe("The 'hset' method", function () {
                 var field = new Buffer("0123456789");
                 var value = new Buffer("abcdefghij");
 
-                client.HSET(hash, field, value, helper.isNumber(1));
+                client.hset(hash, field, value, helper.isNumber(1));
                 client.HGET(hash, field, helper.isString(value.toString(), done));
             });
 

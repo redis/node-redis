@@ -30,7 +30,7 @@ describe("The 'sort' method", function () {
                 });
 
                 it('sorts in descending alphabetical order', function (done) {
-                    client.sort('y', 'desc', 'alpha', function (err, sorted) {
+                    client.SORT('y', 'desc', 'alpha', function (err, sorted) {
                         assert.deepEqual(sorted, ['d', 'c', 'b', 'a']);
                         return done(err);
                     });

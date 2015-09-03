@@ -76,7 +76,7 @@ describe("The 'flushdb' method", function () {
                                 return done(err);
                             }
 
-                            client.flushdb(function (err, res) {
+                            client.FLUSHDB(function (err, res) {
                                 helper.isString("OK")(err, res);
                                 done(err);
                             });

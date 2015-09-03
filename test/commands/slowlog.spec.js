@@ -25,7 +25,7 @@ describe("The 'slowlog' method", function () {
                 client.slowlog("reset", helper.isString("OK"));
                 client.set("foo", "bar", helper.isString("OK"));
                 client.get("foo", helper.isString("bar"));
-                client.slowlog("get", function (err, res) {
+                client.SLOWLOG("get", function (err, res) {
                     assert.equal(res.length, 3);
                     assert.equal(res[0][3].length, 2);
                     assert.deepEqual(res[1][3], ["set", "foo", "bar"]);

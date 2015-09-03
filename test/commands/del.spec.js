@@ -21,7 +21,7 @@ describe("The 'del' method", function () {
 
             it('allows a single key to be deleted', function (done) {
                 client.set('foo', 'bar');
-                client.del('foo', helper.isNumber(1));
+                client.DEL('foo', helper.isNumber(1));
                 client.get('foo', helper.isNull(done));
             });
 

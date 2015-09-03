@@ -58,7 +58,7 @@ describe("The 'set' method", function () {
                 describe("and a callback is specified", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
-                            client.set(key, value, function (err, res) {
+                            client.SET(key, value, function (err, res) {
                                 helper.isNotError()(err, res);
                                 client.get(key, function (err, res) {
                                     helper.isString(value)(err, res);

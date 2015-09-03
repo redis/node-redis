@@ -21,7 +21,7 @@ describe("The 'rename' method", function () {
 
             it('populates the new key', function (done) {
                 client.set(['foo', 'bar'], helper.isString("OK"));
-                client.RENAME(["foo", "new foo"], helper.isString("OK"));
+                client.rename(["foo", "new foo"], helper.isString("OK"));
                 client.exists(["new foo"], helper.isNumber(1, done));
             });
 

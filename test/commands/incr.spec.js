@@ -69,7 +69,7 @@ describe("The 'incr' method", function () {
                 });
 
                 it("changes the last digit from 2 to 3", function (done) {
-                    client.incr(key, function (err, res) {
+                    client.INCR(key, function (err, res) {
                         helper.isString("9007199254740993")(err, res);
                         done(err);
                     });

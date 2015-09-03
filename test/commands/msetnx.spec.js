@@ -26,7 +26,7 @@ describe("The 'msetnx' method", function () {
             });
 
             it('sets multiple keys if all keys are not set', function (done) {
-                client.MSETNX(["mset3", "val3", "mset4", "val4"], helper.isNumber(1));
+                client.msetnx(["mset3", "val3", "mset4", "val4"], helper.isNumber(1));
                 client.exists(["mset3"], helper.isNumber(1));
                 client.exists(["mset3"], helper.isNumber(1, done));
             });

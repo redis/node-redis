@@ -29,7 +29,7 @@ describe("The 'sinter' method", function () {
                 client.sadd('sb', 'c', helper.isNumber(1));
                 client.sadd('sb', 'd', helper.isNumber(1));
 
-                client.sinter('sa', 'sb', function (err, intersection) {
+                client.SINTER('sa', 'sb', function (err, intersection) {
                     assert.equal(intersection.length, 2);
                     assert.deepEqual(intersection.sort(), [ 'b', 'c' ]);
                     return done(err);

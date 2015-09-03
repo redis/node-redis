@@ -28,7 +28,7 @@ describe("The 'smove' method", function () {
 
             it("does not move a value if it does not exist in the first set", function (done) {
                 client.sadd('foo', 'x', helper.isNumber(1));
-                client.smove('foo', 'bar', 'y', helper.isNumber(0));
+                client.SMOVE('foo', 'bar', 'y', helper.isNumber(0));
                 client.sismember('foo', 'y', helper.isNumber(0));
                 client.sismember('bar', 'y', helper.isNumber(0, done));
             });

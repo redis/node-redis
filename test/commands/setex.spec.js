@@ -21,7 +21,7 @@ describe("The 'setex' method", function () {
             });
 
             it('sets a key with an expiry', function (done) {
-                client.SETEX(["setex key", "100", "setex val"], helper.isString("OK"));
+                client.setex(["setex key", "100", "setex val"], helper.isString("OK"));
                 client.exists(["setex key"], helper.isNumber(1));
                 client.ttl(['setex key'], function (err, ttl) {
                     assert.ok(ttl > 0);

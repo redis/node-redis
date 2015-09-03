@@ -33,7 +33,7 @@ describe("The 'script' method", function () {
             });
 
             it("loads script with client.script('load')", function (done) {
-                client.script("load", command, function(err, result) {
+                client.SCRIPT("load", command, function(err, result) {
                     assert.strictEqual(result, commandSha);
                     return done();
                 });
