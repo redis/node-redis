@@ -118,6 +118,14 @@ describe("The 'eval' method", function () {
                     helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
                     client.evalsha('ffffffffffffffffffffffffffffffffffffffff', 0, helper.isError(done));
                 });
+
+                it('emits an error if SHA does not exist and no callback has been provided', function (done) {
+                    client.on('error', function (err) {
+                        assert.equal(err.message, 'NOSCRIPT No matching script. Please use EVAL.');
+                        done();
+                    });
+                    client.evalsha('ffffffffffffffffffffffffffffffffffffffff', 0);
+                });
             });
 
             it('allows a key to be incremented, and performs appropriate conversion from LUA type', function (done) {
