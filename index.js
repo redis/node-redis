@@ -13,16 +13,13 @@ var net = require("net"),
     connection_id = 0,
     default_port = 6379,
     default_host = "127.0.0.1",
-    debug;
+    debug = function(msg) {
+        if (exports.debug_mode) {
+            console.error(msg);
+        }
+    };
 
-/* istanbul ignore next */
-if (util.debuglog) {
-    debug = util.debuglog('redis');
-} else if (/\bredis\b/i.test(process.env.NODE_DEBUG)) {
-    debug = console.error;
-} else {
-    debug = function() {};
-}
+exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 // hiredis might not be installed
 try {
