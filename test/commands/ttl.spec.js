@@ -28,7 +28,7 @@ describe("The 'ttl' method", function () {
                         assert.ok(ttl > 50 && ttl <= 100);
                         return done(err);
                     });
-                }, 500);
+                }, 200);
             });
 
             afterEach(function () {
