@@ -937,7 +937,7 @@ commands.forEach(function (fullCommand) {
     var command = fullCommand.split(' ')[0];
 
     RedisClient.prototype[command] = function (args, callback) {
-        if (Array.isArray(args) && typeof callback === "function") {
+        if (Array.isArray(args)) {
             return this.send_command(command, args, callback);
         } else {
             return this.send_command(command, to_array(arguments));
