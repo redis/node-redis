@@ -37,6 +37,14 @@ describe("The 'hmget' method", function () {
                 });
             });
 
+            it('allows keys to be specified by passing an array as first argument', function (done) {
+                client.HMGET([hash, "0123456789", "some manner of key"], function (err, reply) {
+                    assert.strictEqual("abcdefghij", reply[0].toString());
+                    assert.strictEqual("a type of value", reply[1].toString());
+                    return done(err);
+                });
+            });
+
             it('allows a single key to be specified in an array', function (done) {
                 client.HMGET(hash, ["0123456789"], function (err, reply) {
                     assert.strictEqual("abcdefghij", reply[0].toString());
