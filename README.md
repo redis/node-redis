@@ -155,10 +155,11 @@ If you have `redis-server` running on the same computer as node, then the defaul
 port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
 ### overloading
-* `redis.createClient(port,host,options)`
+* `redis.createClient(port, host, options)`
 * `redis.createClient()` is equivalent to `redis.createClient(6379, '127.0.0.1', {})`
 * `redis.createClient(options)` is equivalent to `redis.createClient(6379, '127.0.0.1', options)`
 * `redis.createClient(unix_socket, options)`
+* `redis.createClient('redis://user:pass@host:port', options)`
 
  `options` is an object with the following possible properties:
 
@@ -708,6 +709,10 @@ hiredis parser:
 	GET 4MiB str,    50/5 min/max/avg/p95:   24/ 323/ 202.98/ 309.00    519ms total,   192.68 ops/sec
 	GET 4MiB buf,     1/5 min/max/avg/p95:    6/  13/   8.01/  11.95    802ms total,   124.69 ops/sec
 	GET 4MiB buf,    50/5 min/max/avg/p95:   16/ 480/ 203.85/ 435.70    531ms total,   188.32 ops/sec
+
+## Debugging
+
+To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
 ## TODO
 
