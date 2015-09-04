@@ -996,7 +996,7 @@ RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
 RedisClient.prototype.hmset = function (args, callback) {
     var tmp_args, tmp_keys, i, il, key;
 
-    if (Array.isArray(args) && typeof callback === "function") {
+    if (Array.isArray(args)) {
         return this.send_command("hmset", args, callback);
     }
 
