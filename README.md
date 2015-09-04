@@ -710,6 +710,10 @@ hiredis parser:
 	GET 4MiB buf,     1/5 min/max/avg/p95:    6/  13/   8.01/  11.95    802ms total,   124.69 ops/sec
 	GET 4MiB buf,    50/5 min/max/avg/p95:   16/ 480/ 203.85/ 435.70    531ms total,   188.32 ops/sec
 
+## Debugging
+
+To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
+
 ## TODO
 
 1. 100% coverage
