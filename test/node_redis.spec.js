@@ -117,6 +117,44 @@ describe("The node_redis client", function () {
                     client.end();
                 });
 
+                describe("send_command", function () {
+
+                    it("omitting args should be fine in some cases", function (done) {
+                        client.send_command("info", undefined, function(err, res) {
+                            assert(/redis_version/.test(res));
+                            done();
+                        });
+                    });
+
+                    it("using another type as cb should just work as if there were no callback parameter", function (done) {
+                        client.send_command('set', ['test', 'bla'], [true]);
+                        client.get('test', function(err, res) {
+                            assert.equal(res, 'bla');
+                            done();
+                        });
+                    });
+
+                    it("misusing the function should eventually throw (no command)", function (done) {
+                        var mochaListener = helper.removeMochaListener();
+
+                        process.once('uncaughtException', function (err) {
+                            process.on('uncaughtException', mochaListener);
+                            assert(/is not a function|toUpperCase/.test(err));
+                            done();
+                        });
+
+                        client.send_command(true, 'info');
+                    });
+
+                    it("misusing the function should eventually throw (wrong args)", function (done) {
+                        client.send_command('info', false, function(err, res) {
+                            assert.equal(err.message, 'ERR Protocol error: invalid multibulk length');
+                            done();
+                        });
+                    });
+
+                });
+
                 describe("when redis closes unexpectedly", function () {
                     it("reconnects and can retrieve the pre-existing data", function (done) {
                         client.on("reconnecting", function on_recon(params) {
