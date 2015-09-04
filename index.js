@@ -483,7 +483,10 @@ RedisClient.prototype.connection_gone = function (why) {
         this.retry_timer = null;
         // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
         // want the program to exit.  Right now, we just log, which doesn't really help in either case.
-        console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
+        // And some want a debug mode where I dont see anything hit my console unless I explicitly ask it to
+        if(exports.debug_mode) {
+            console.error("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
+        }
         return;
     }
 
@@ -500,7 +503,9 @@ RedisClient.prototype.connection_gone = function (why) {
         if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
             self.retry_timer = null;
             // TODO - engage Redis is Broken mode for future commands, or whatever
-            console.error("node_redis: Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
+            if(exports.debug_mode) {
+                console.error("node_redis: Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
+            }
             return;
         }
 
