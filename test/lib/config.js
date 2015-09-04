@@ -4,7 +4,7 @@ var redis = require('../../index');
 
 var config = {
     redis: redis,
-    PORT: 6378,
+    PORT: 6379,
     HOST: {
         IPv4: "127.0.0.1",
         IPv6: "::1"

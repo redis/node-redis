@@ -50,7 +50,7 @@ describe("The node_redis client", function () {
                     });
                 });
 
-                it("connects correctly with defaults values", function (done) {
+                it("connects correctly with default values", function (done) {
                     client = redis.createClient();
                     client.on("error", done);
 
@@ -74,7 +74,7 @@ describe("The node_redis client", function () {
                     });
                 });
 
-                it("throws on strange connection infos", function () {
+                it("throws on strange connection info", function () {
                     try {
                         redis.createClient(true);
                         throw new Error('failed');

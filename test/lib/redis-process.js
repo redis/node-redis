@@ -11,6 +11,17 @@ module.exports = {
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
         var rp = cp.spawn("redis-server", [confFile], {});
 
+        // capture a failure booting redis, and give
+        // the user running the test some directions.
+        rp.once("exit", function (code) {
+            if (code !== 0) {
+                console.error('failed to starting redis with exit code "' + code + '" ' +
+                  'stop any other redis processes currently running (' +
+                  'hint: lsof -i :6379)');
+                process.exit(code)
+            }
+        })
+
         // wait for redis to become available, by
         // checking the port we bind on.
         waitForRedis(true, function () {
