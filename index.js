@@ -302,18 +302,8 @@ RedisClient.prototype.init_parser = function () {
     this.reply_parser = new this.parser_module.Parser({
         return_buffers: self.options.return_buffers || self.options.detect_buffers || false
     });
-
-    // "reply error" is an error sent back by Redis
-    this.reply_parser.on("reply error", function (reply) {
-        self.return_error(reply);
-    });
-    this.reply_parser.on("reply", function (reply) {
-        self.return_reply(reply);
-    });
-    // "error" is bad.  Somehow the parser got confused.  It'll try to reset and continue.
-    this.reply_parser.on("error", function (err) {
-        self.emit("error", new Error("Redis reply parser error: " + err.stack));
-    });
+    this.reply_parser.send_error = this.return_error.bind(self);
+    this.reply_parser.send_reply = this.return_reply.bind(self);
 };
 
 RedisClient.prototype.on_ready = function () {
