@@ -231,8 +231,8 @@ describe("The 'multi' method", function () {
                     client.multi().set("foo").exec(function (err, reply) {
                         assert(Array.isArray(err), "err should be an array");
                         assert.equal(2, err.length, "err should have 2 items");
-                        assert(err[0].message.match(/ERR/), "First error message should contain ERR");
-                        assert(err[1].message.match(/EXECABORT/), "First error message should contain EXECABORT");
+                        assert(err[0].message.match(/^ERR/), "First error message should begin with ERR");
+                        assert(err[1].message.match(/^EXECABORT/), "First error message should begin with EXECABORT");
                         return done();
                     });
                 });
