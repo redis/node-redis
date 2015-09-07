@@ -389,7 +389,6 @@ RedisClient.prototype.ready_check = function () {
 RedisClient.prototype.send_offline_queue = function () {
     var command_obj, buffered_writes = 0;
 
-    // TODO: Implement queue.pop() as it should be faster than shift and evaluate petka antonovs queue
     while (command_obj = this.offline_queue.shift()) {
         debug("Sending offline command: " + command_obj.command);
         buffered_writes += !this.send_command(command_obj.command, command_obj.args, command_obj.callback);
@@ -995,15 +994,15 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
     return this;
 };
 
-Multi.prototype.send_command = function (command, args, cb) {
+Multi.prototype.send_command = function (command, args, index, cb) {
     var self = this;
     this._client.send_command(command, args, function (err, reply) {
         if (err) {
             if (cb) {
                 cb(err);
-            } else {
-                self.errors.push(err);
             }
+            err.position = index - 1;
+            self.errors.push(err);
         }
     });
 };
@@ -1029,7 +1028,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
                 break;
             }
         }
-        this.send_command(command, args, cb);
+        this.send_command(command, args, index, cb);
     }
 
     this._client.send_command('exec', [], function(err, replies) {
@@ -1042,9 +1041,10 @@ Multi.prototype.execute_callback = function (err, replies) {
 
     if (err) {
         if (err.code !== 'CONNECTION_BROKEN') {
+            err.code = 'EXECABORT';
+            err.errors = this.errors;
             if (this.callback) {
-                this.errors.push(err);
-                this.callback(this.errors);
+                this.callback(err);
             } else {
                 // Exclude CONNECTION_BROKEN so that error won't be emitted twice
                 this._client.emit('error', err);
@@ -1059,17 +1059,22 @@ Multi.prototype.execute_callback = function (err, replies) {
             args = this.queue[i];
 
             // If we asked for strings, even in detect_buffers mode, then return strings:
-            if (this._client.options.detect_buffers && this.wants_buffers[i] === false) {
-                replies[i - 1] = reply = reply_to_strings(reply);
-            }
-
-            // TODO - confusing and error-prone that hgetall is special cased in two places
-            if (reply && args[0] === "hgetall") {
-                replies[i - 1] = reply = reply_to_object(reply);
+            if (reply) {
+                if (this._client.options.detect_buffers && this.wants_buffers[i] === false) {
+                    replies[i - 1] = reply = reply_to_strings(reply);
+                }
+                if (args[0] === "hgetall") {
+                    // TODO - confusing and error-prone that hgetall is special cased in two places
+                    replies[i - 1] = reply = reply_to_object(reply);
+                }
             }
 
             if (typeof args[args.length - 1] === "function") {
-                args[args.length - 1](null, reply);
+                if (reply instanceof Error) {
+                    args[args.length - 1](reply);
+                } else {
+                    args[args.length - 1](null, reply);
+                }
             }
         }
     }

@@ -6,3 +6,4 @@ generate_commands.js
 multi_bench.js
 test-unref.js
 changelog.md
+*.log

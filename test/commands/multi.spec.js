@@ -249,15 +249,52 @@ describe("The 'multi' method", function () {
                         });
                 });
 
-                it('reports multiple exceptions when they occur', function (done) {
+                it('reports EXECABORT exceptions when they occur (while queueing)', function (done) {
+                    client.multi().config("bar").set("foo").exec(function (err, reply) {
+                        assert.equal(err.code, "EXECABORT");
+                        assert.equal(reply, undefined, "The reply should have been discarded");
+                        assert(err.message.match(/^EXECABORT/), "Error message should begin with EXECABORT");
+                        assert.equal(err.errors.length, 1, "err.errors should have 1 items");
+                        assert.strictEqual(err.errors[0].command_used, 'SET');
+                        assert.strictEqual(err.errors[0].position, 1);
+                        assert(/^ERR/.test(err.errors[0].message), "Actuall error message should begin with ERR");
+                        return done();
+                    });
+                });
+
+                it('reports multiple exceptions when they occur (while EXEC is running)', function (done) {
+                    client.multi().config("bar").debug("foo").exec(function (err, reply) {
+                        assert.strictEqual(reply.length, 2);
+                        assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
+                        assert(/^ERR/.test(reply[1].message), "Error message should begin with ERR");
+                        return done();
+                    });
+                });
+
+                it('reports multiple exceptions when they occur (while EXEC is running) and calls cb', function (done) {
+                    var multi = client.multi();
+                    multi.config("bar", helper.isError());
+                    multi.set('foo', 'bar', helper.isString('OK'));
+                    multi.debug("foo").exec(function (err, reply) {
+                        assert.strictEqual(reply.length, 3);
+                        assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
+                        assert(/^ERR/.test(reply[2].message), "Error message should begin with ERR");
+                        assert.strictEqual(reply[1], "OK");
+                        client.get('foo', helper.isString('bar', done));
+                    });
+                });
+
+                it("emits an error if no callback has been provided and execabort error occured", function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
 
-                    client.multi().set("foo").exec(function (err, reply) {
-                        assert(Array.isArray(err), "err should be an array");
-                        assert.equal(2, err.length, "err should have 2 items");
-                        assert(err[0].message.match(/^ERR/), "First error message should begin with ERR");
-                        assert(err[1].message.match(/^EXECABORT/), "First error message should begin with EXECABORT");
-                        return done();
+                    var multi = client.multi();
+                    multi.config("bar");
+                    multi.set("foo");
+                    multi.exec();
+
+                    client.on('error', function(err) {
+                        assert.equal(err.code, "EXECABORT");
+                        done();
                     });
                 });
 
