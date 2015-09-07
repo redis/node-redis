@@ -96,8 +96,7 @@ describe("The 'set' method", function () {
                             this.timeout(200);
 
                             client.once("error", function (err) {
-                                helper.isError()(err, null);
-                                return done(err);
+                                done(err);
                             });
 
                             client.set();
@@ -107,20 +106,13 @@ describe("The 'set' method", function () {
                             }, 100);
                         });
 
-                        it("does not throw an error", function (done) {
-                            this.timeout(200);
-                            var mochaListener = helper.removeMochaListener();
-
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
-                                return done(err);
+                        it("does emit an error", function (done) {
+                            client.on('error', function (err) {
+                                assert.equal(err.message, "ERR wrong number of arguments for 'set' command");
+                                done();
                             });
 
-                            client.set();
-
-                            setTimeout(function () {
-                                done();
-                            }, 100);
+                            client.set('foo');
                         });
                     });
                 });

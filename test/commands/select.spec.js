@@ -24,7 +24,7 @@ describe("The 'select' method", function () {
                     });
                 });
 
-                it("throws an error if redis is not connected", function (done) {
+                it("returns an error if redis is not connected", function (done) {
                     client.select(1, function (err, res) {
                         assert(err.message.match(/Redis connection gone/));
                         done();
@@ -67,7 +67,7 @@ describe("The 'select' method", function () {
                     });
 
                     describe("with an invalid db index", function () {
-                        it("emits an error", function (done) {
+                        it("returns an error", function (done) {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
                             client.select(9999, function (err) {
                                 assert.equal(err.message, 'ERR invalid DB index');
@@ -90,14 +90,12 @@ describe("The 'select' method", function () {
                     });
 
                     describe("with an invalid db index", function () {
-                        it("throws an error when callback not provided", function (done) {
-                            var mochaListener = helper.removeMochaListener();
+                        it("emits an error when callback not provided", function (done) {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
 
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
+                            client.on('error', function (err) {
                                 assert.equal(err.message, 'ERR invalid DB index');
-                                return done();
+                                done();
                             });
 
                             client.select(9999);

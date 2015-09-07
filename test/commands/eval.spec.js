@@ -114,7 +114,7 @@ describe("The 'eval' method", function () {
                     client.evalsha(sha, 0, helper.isString('eval get sha test', done));
                 });
 
-                it('throws an error if SHA does not exist', function (done) {
+                it('returns an error if SHA does not exist', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
                     client.evalsha('ffffffffffffffffffffffffffffffffffffffff', 0, helper.isError(done));
                 });
