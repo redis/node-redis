@@ -526,6 +526,7 @@ RedisClient.prototype.on_data = function (data) {
 
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.getLength();
+    err.redis_command = command_obj
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.command_queue = new Queue();
