@@ -8,7 +8,9 @@ var redis = config.redis;
 
 describe("The node_redis client", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests({
+        allConnections: true
+    }, function(parser, ip, args) {
 
         if (args[2]) { // skip if options are undefined
             describe("testing parser existence", function () {
@@ -624,7 +626,6 @@ describe("The node_redis client", function () {
 
                 describe('defaults to true', function () {
                     var client;
-                    var args = config.configureClient(parser, ip);
 
                     it("fires client.on('ready')", function (done) {
                         client = redis.createClient.apply(redis.createClient, args);
@@ -703,7 +704,7 @@ describe("The node_redis client", function () {
                                 if (err) return done(err);
                             });
 
-                            return setTimeout(function(){
+                            return setTimeout(function() {
                                 assert.strictEqual(client.offline_queue.length, 1);
                                 return done();
                             }, 25);

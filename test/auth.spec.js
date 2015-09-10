@@ -12,10 +12,11 @@ describe("client authentication", function () {
         });
     });
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests({
+        allConnections: true
+    }, function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
-            var args = config.configureClient(parser, ip);
             var auth = 'porkchopsandwiches';
             var client = null;
 

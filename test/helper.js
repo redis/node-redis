@@ -108,22 +108,27 @@ module.exports = {
         }
         return true;
     },
-    allTests: function (cb) {
-        [undefined].forEach(function (options) { // add buffer option at some point
-            describe(options && options.return_buffers ? "returning buffers" : "returning strings", function () {
-                var parsers = ['javascript'];
-                var protocols = ['IPv4'];
-                if (process.platform !== 'win32') {
-                    parsers.push('hiredis');
-                    protocols.push('IPv6');
+    allTests: function (options, cb) {
+        if (!cb) {
+            cb = options;
+            options = {};
+        }
+        // TODO: Test all different option cases at some point (e.g. buffers)
+        // [undefined, { return_buffers: true }].forEach(function (config_options) {
+        //     describe(config_options && config_options.return_buffers ? "returning buffers" : "returning strings", function () {
+        //     });
+        // });
+        var parsers = ['javascript'];
+        var protocols = ['IPv4'];
+        if (process.platform !== 'win32') {
+            parsers.push('hiredis');
+            protocols.push('IPv6', '/tmp/redis.sock');
+        }
+        parsers.forEach(function (parser) {
+            protocols.forEach(function (ip, i) {
+                if (i === 0 || options.allConnections) {
+                    cb(parser, ip, config.configureClient(parser, ip));
                 }
-
-                parsers.forEach(function (parser) {
-                    if (process.platform !== 'win32') cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock", options));
-                    protocols.forEach(function (ip) {
-                        cb(parser, ip, config.configureClient(parser, ip, options));
-                    });
-                });
             });
         });
     },
