@@ -52,10 +52,7 @@ function RedisClient(stream, options) {
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
-    this.max_attempts = null;
-    if (options.max_attempts || options.max_attempts === 0 || options.max_attempts === '0') {
-        this.max_attempts = +options.max_attempts;
-    }
+    this.max_attempts = +options.max_attempts || 0;
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
@@ -418,16 +415,6 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    if (this.max_attempts !== null && this.attempts > this.max_attempts) {
-        this.emit('error', new Error("Redis connection in broken state: maximum connection attempts exceeded."));
-        return;
-    }
-
-    if (this.retry_totaltime >= this.connect_timeout) {
-        this.emit('error', new Error("Redis connection in broken state: connection timeout exceeded."));
-        return;
-    }
-
     debug("Redis connection is gone from " + why + " event.");
     this.connected = false;
     this.ready = false;
@@ -450,16 +437,23 @@ RedisClient.prototype.connection_gone = function (why) {
         this.emitted_end = true;
     }
 
-    this.flush_and_error("Redis connection gone from " + why + " event.");
-
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
-        this.retry_timer = null;
-        debug("Connection ended from quit command, not retrying.");
+        debug("connection ended from quit command, not retrying.");
+        this.flush_and_error("Redis connection gone from " + why + " event.");
         return;
     }
 
-    this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+    if (this.max_attempts !== 0 && this.attempts >= this.max_attempts || this.retry_totaltime >= this.connect_timeout) {
+        this.flush_and_error("Redis connection gone from " + why + " event.");
+        this.end();
+        var message = this.retry_totaltime >= this.connect_timeout ?
+            'connection timeout exceeded.' :
+            'maximum connection attempts exceeded.';
+        this.emit('error', new Error("Redis connection in broken state: " + message));
+        return;
+    }
+
     if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
         this.retry_delay = this.retry_max_delay;
     } else if (this.retry_totaltime + this.retry_delay > this.connect_timeout) {
@@ -479,6 +473,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
         self.retry_totaltime += self.retry_delay;
         self.attempts += 1;
+        self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
 
         self.stream = net.createConnection(self.connectionOption);
         self.install_stream_listeners();
@@ -834,7 +829,7 @@ RedisClient.prototype.end = function () {
     //clear retry_timer
     if(this.retry_timer){
         clearTimeout(this.retry_timer);
-        this.retry_timer=null;
+        this.retry_timer = null;
     }
     this.stream.on("error", function(){});
 

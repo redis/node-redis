@@ -688,7 +688,7 @@ describe("The node_redis client", function () {
                 describe('true', function () {
                     it("does not return an error and enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
-                            max_attempts: 0,
+                            max_attempts: 1,
                             parser: parser
                         });
 
@@ -709,6 +709,34 @@ describe("The node_redis client", function () {
                                 return done();
                             }, 25);
                         }, 50);
+                    });
+
+                    it("enqueues operation and keep the queue while trying to reconnect", function (done) {
+                        var client = redis.createClient(9999, null, {
+                            max_attempts: 4,
+                            parser: parser
+                        });
+                        var i = 0;
+
+                        client.on('error', function(err) {
+                            if (err.message === 'Redis connection in broken state: maximum connection attempts exceeded.') {
+                                assert(i, 3);
+                                assert.strictEqual(client.offline_queue.length, 0);
+                                done();
+                            }
+                        });
+
+                        client.on('reconnecting', function(params) {
+                            i++;
+                            assert.equal(params.attempt, i);
+                            assert.strictEqual(client.offline_queue.length, 1);
+                        });
+
+                        client.set('foo', 'bar', function(err, result) {
+                            assert(i, 3);
+                            assert('Redis connection gone from error event', err.message);
+                            assert.strictEqual(client.offline_queue.length, 0);
+                        });
                     });
                 });
 
