@@ -113,6 +113,11 @@ then replayed just before this event is emitted.
 is set. If this options is set, `connect` will be emitted when the stream is connected, and then
 you are free to try to send commands.
 
+### "reconnecting"
+
+`client` will emit `reconnecting` when trying to reconnect to the Redis server after losing the connection. Listeners
+are passed an object containing `delay` (in ms) and `attempt` (the attempt #) attributes.
+
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
