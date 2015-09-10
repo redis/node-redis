@@ -423,7 +423,7 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    if (this.retry_totaltime > this.connect_timeout) {
+    if (this.retry_totaltime >= this.connect_timeout) {
         this.emit('error', new Error("Redis connection in broken state: connection timeout exceeded."));
         return;
     }
@@ -459,11 +459,12 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    var nextDelay = Math.floor(this.retry_delay * this.retry_backoff);
-    if (this.retry_max_delay !== null && nextDelay > this.retry_max_delay) {
+    this.retry_delay = Math.floor(this.retry_delay * this.retry_backoff);
+    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
         this.retry_delay = this.retry_max_delay;
-    } else {
-        this.retry_delay = nextDelay;
+    } else if (this.retry_totaltime + this.retry_delay > this.connect_timeout) {
+        // Do not exceed the maximum
+        this.retry_delay = this.connect_timeout - this.retry_totaltime;
     }
 
     debug("Retry connection in " + this.retry_delay + " ms");

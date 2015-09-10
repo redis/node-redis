@@ -45,7 +45,6 @@ describe("on lost connection", function () {
                     connect_timeout: connect_timeout
                 });
                 var time = 0;
-                var multiplier = 0;
 
                 client.once('ready', function() {
                     // Pretend that redis can't reconnect
@@ -54,17 +53,13 @@ describe("on lost connection", function () {
                 });
 
                 client.on("reconnecting", function (params) {
-                    if (time > 0 && multiplier === 0) {
-                        multiplier = params.delay / time;
-                    }
                     time += params.delay;
                 });
 
                 client.on('error', function(err) {
                     if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
                         setTimeout(function () {
-                            assert(time > connect_timeout);
-                            assert(time / multiplier < connect_timeout);
+                            assert(time === connect_timeout);
                             done();
                         }, 1500);
                     }
