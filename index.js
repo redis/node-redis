@@ -895,6 +895,7 @@ RedisClient.prototype.end = function () {
     this.connected = false;
     this.ready = false;
     this.closing = true;
+    clearTimeout(this.retry_timer);
     return this.stream.destroySoon();
 };
 
