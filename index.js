@@ -58,9 +58,7 @@ function RedisClient(stream, options) {
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
-    if (options.connect_timeout && options.connect_timeout > 0) {
-        this.connect_timeout = +options.connect_timeout;
-    }
+    this.connect_timeout = +options.connect_timeout || 86400000; // 24 * 60 * 60 * 1000 ms
     this.enable_offline_queue = true;
     if (this.options.enable_offline_queue === false) {
         this.enable_offline_queue = false;
