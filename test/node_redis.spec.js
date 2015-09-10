@@ -687,7 +687,7 @@ describe("The node_redis client", function () {
                 describe('true', function () {
                     it("does not return an error and enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
-                            max_attempts: 1,
+                            max_attempts: 0,
                             parser: parser
                         });
 
@@ -715,7 +715,7 @@ describe("The node_redis client", function () {
                     it("does not emit an error and enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
                             parser: parser,
-                            max_attempts: 1,
+                            max_attempts: 0,
                             enable_offline_queue: false
                         });
 

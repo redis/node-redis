@@ -198,7 +198,7 @@ to maximum value, provided in milliseconds.
 Value is provided in milliseconds and is counted once the disconnect occured. The last retry is going to happen once after the connect_timeout value is exceeded.
 That way the default is to try reconnecting until at least 24h passed.
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
-limits total amount of reconnects.
+limits total amount of reconnects. Setting this to 0 will prevent any reconnect tries.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
 * `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
 You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
