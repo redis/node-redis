@@ -221,6 +221,7 @@ RedisClient.prototype.do_auth = function () {
                 console.log("Warning: Redis server does not require a password, but a password was supplied.");
                 err = null;
                 res = "OK";
+                self.auth_no_password = true;
             } else {
                 return self.emit("error", new Error("Auth error: " + err.message));
             }
@@ -420,7 +421,7 @@ RedisClient.prototype.send_offline_queue = function () {
     while (this.offline_queue.length > 0) {
         command_obj = this.offline_queue.shift();
         debug("Sending offline command: " + command_obj.command);
-        buffered_writes += !this.send_command(command_obj.command, command_obj.args, command_obj.callback);
+        buffered_writes += !send_command_obj.call(this, command_obj);
     }
     this.offline_queue = new Queue();
     // Even though items were shifted off, Queue backing store still uses memory until next add, so just get a new Queue
@@ -524,8 +525,30 @@ RedisClient.prototype.on_data = function (data) {
     }
 };
 
+
+var AUTH_ERROR = /NOAUTH|authentication required|operation not permitted/i;
 RedisClient.prototype.return_error = function (err) {
-    var command_obj = this.command_queue.shift(), queue_len = this.command_queue.getLength();
+    var command_obj = this.command_queue.shift();
+
+    if (this.auth_no_password && AUTH_ERROR.test(err.message)) {
+        debug('Operation not permitted, try to re-authenticate');
+        var self = this;
+        this.send_command('auth', [this.auth_pass], function (e, res) {
+            if (e) {
+                _return_error.call(self, err, command_obj);
+            } else {
+                self.auth_no_password = false;
+                send_command_obj.call(self, command_obj);
+            }
+        });
+    } else {
+        _return_error.call(this, err, command_obj);
+    }
+};
+
+
+function _return_error(err, command_obj) {
+    var queue_len = this.command_queue.getLength();
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.command_queue = new Queue();
@@ -552,7 +575,7 @@ RedisClient.prototype.return_error = function (err) {
             throw err;
         });
     }
-};
+}
 
 // if a callback throws an exception, re-throw it on a new stack so the parser can keep going.
 // if a domain is active, emit the error on the domain, which will serve the same function.
@@ -706,6 +729,10 @@ function Command(command, args, sub_command, buffer_args, callback) {
     this.sub_command = sub_command;
     this.buffer_args = buffer_args;
     this.callback = callback;
+}
+
+function send_command_obj(command_obj) {
+    return this.send_command(command_obj.command, command_obj.args, command_obj.callback);
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
