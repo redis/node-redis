@@ -5,9 +5,14 @@ var helper = require('./helper')
 var redis = config.redis;
 
 
-describe('enabling password in redis', function() {
+describe('enabling/changing password in redis', function() {
     var auth = 'porkchopsandwiches';
+    var new_auth = 'fishsandwiches';
     var client;
+
+    afterEach(function (done) {
+        client.config('set', 'requirepass', '', done);
+    });
 
     helper.allTests(function(parser, ip, args) {
         it('should re-authenticate if password is enabled in redis', function (done) {
@@ -16,20 +21,29 @@ describe('enabling password in redis', function() {
             });
             client = redis.createClient.apply(redis.createClient, args);
             client.on('ready', function () {
-                testSet(1, function(err) {
+                testSet(1, function (err) {
                     if (err) return done(err);
-                    client.config('set', 'requirepass', auth, function (err, res) {
-                        if (err) return done(err);
+                    setRedisPass(auth, done, function() {
+                        testSet(2, authOk(auth, done));
+                    });
+                });
+            });
+        });
+
+        it('should fail re-authenticating if different password is enabled', function (done) {
+            var args = config.configureClient(parser, ip, {
+                auth_pass: auth
+            });
+            client = redis.createClient.apply(redis.createClient, args);
+            client.on('ready', function () {
+                testSet(1, function (err) {
+                    if (err) return done(err);
+                    setRedisPass(new_auth, done, function() {
                         testSet(2, function (err) {
                             if (err) {
-                                client.auth(auth, function(e, res) {
-                                    if (e) return done(e);
-                                    client.config('set', 'requirepass', '', function() {
-                                        done(new Error('Did not authenticate'));
-                                    });
-                                });
+                                client.auth(new_auth, done);
                             } else {
-                                client.config('set', 'requirepass', '', done);
+                                done(new Error('it should have failed'));
                             }
                         });
                     });
@@ -37,33 +51,44 @@ describe('enabling password in redis', function() {
             });
         });
 
-        it('should fail re-authenticating if password is changed to different', function (done) {
+
+        it('should re-authenticate if the password is changed and new_auth_pass option is present', function (done) {
             var args = config.configureClient(parser, ip, {
-                auth_pass: auth
+                auth_pass: auth,
+                new_auth_pass: new_auth
             });
             client = redis.createClient.apply(redis.createClient, args);
+            var readyCount = 0;
             client.on('ready', function () {
-                testSet(1, function(err) {
-                    if (err) return done(err);
-                    client.config('set', 'requirepass', 'fishsandwiches', function (err, res) {
-                        if (err) return done(err);
-                        testSet(2, function (err) {
-                            if (err) {
-                                client.auth('fishsandwiches', function(e, res) {
-                                    if (e) return done(e);
-                                    client.config('set', 'requirepass', '', done);
+                readyCount++;
+                if (readyCount == 1) {
+                    setRedisPass(auth, done, function() {
+                        testSet(1, function (err) {
+                            if (err) return done(err);
+                            setRedisPass(new_auth, done, function() {
+                                // no authentication is needed when password is changed and the client already authenticated
+                                testSet(2, function (err) {
+                                    if (err) return done(err);
+                                    // only on re-connection it will happen
+                                    client.stream.destroy();
                                 });
-                            } else {
-                                client.config('set', 'requirepass', '', function() {
-                                    done(new Error('it should have failed'));
-                                });
-                            }
+                            });
                         });
                     });
-                });
+                } else {
+                    testSet(3, authOk(new_auth, done));
+                }
             });
         });
     });
+
+
+    function setRedisPass(pass, errCb, cb) {
+        client.config('set', 'requirepass', pass, function (err, res) {
+            if (err) errCb(err);
+            else cb(res);
+        });
+    }
 
 
     function testSet(i, cb) {
@@ -82,5 +107,19 @@ describe('enabling password in redis', function() {
                 });
             });
         });
+    }
+
+
+    function authOk(pass, done) {
+        return function (err) {
+            if (err) {
+                client.auth(pass, function(e, res) {
+                    if (e) return done(e);
+                    done(new Error('Did not authenticate'));
+                });
+            } else {
+                done();
+            }
+        }
     }
 });

@@ -192,7 +192,8 @@ to maximum value, provided in milliseconds.
 limits total time for client to reconnect. Value is provided in milliseconds and is counted once the disconnect occured.
 * `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of reconnects.
-* `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
+* `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect. If the `auth_pass` is set and there is no password in redis the driver will log the warning. If the password is enabled in redis at a later point (using `config set requirepass`) the client will seemlessly authenticate when some command fails and reissue the failed command, so there will be no failed command from the application perspective.
+* `new_auth_pass` defaults to undefined. This option allows changing redis password without application restart. If authentication with `auth_pass` password fails, the driver will try authenticating with `new_auth_pass`.
 * `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
 You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
 

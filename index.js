@@ -207,8 +207,25 @@ RedisClient.prototype.do_auth = function () {
 
     debug("Sending auth to " + self.address + " id " + self.connection_id);
 
-    self.send_anyway = true;
-    self.send_command("auth", [this.auth_pass], function (err, res) {
+    _do_auth.call(this, this.auth_pass, function (err) {
+        if (err) {
+            var new_auth_pass = self.options.new_auth_pass;
+            if (new_auth_pass) {
+                _do_auth.call(self, new_auth_pass, function (err) {
+                    if (err) self.emit("error", err);
+                });
+            } else {
+                self.emit("error", err);
+            }
+        }
+    });
+};
+
+
+function _do_auth(pass, cb) {
+    var self = this;
+    this.send_anyway = true;
+    this.send_command("auth", [pass], function (err, res) {
         if (err) {
             if (loading.test(err.message)) {
                 // if redis is still loading the db, it will not authenticate and everything else will fail
@@ -216,18 +233,18 @@ RedisClient.prototype.do_auth = function () {
                 setTimeout(function () {
                     self.do_auth();
                 }, 2000); // TODO - magic number alert
-                return;
+                return cb();
             } else if (noPasswordIsSet.test(err.message)) {
                 console.log("Warning: Redis server does not require a password, but a password was supplied.");
                 err = null;
                 res = "OK";
                 self.auth_no_password = true;
             } else {
-                return self.emit("error", new Error("Auth error: " + err.message));
+                return cb(new Error("Auth error: " + err.message));
             }
         }
         if (res.toString() !== "OK") {
-            return self.emit("error", new Error("Auth failed: " + res.toString()));
+            return cb(new Error("Auth failed: " + res.toString()));
         }
 
         debug("Auth succeeded " + self.address + " id " + self.connection_id);
@@ -246,9 +263,12 @@ RedisClient.prototype.do_auth = function () {
         } else {
             self.ready_check();
         }
+
+        cb();
     });
-    self.send_anyway = false;
-};
+    this.send_anyway = false;
+}
+
 
 RedisClient.prototype.on_connect = function () {
     debug("Stream connected " + this.address + " id " + this.connection_id);
@@ -529,9 +549,11 @@ RedisClient.prototype.on_data = function (data) {
 var AUTH_ERROR = /NOAUTH|authentication required|operation not permitted/i;
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift();
-
-    if (this.auth_no_password && AUTH_ERROR.test(err.message)) {
-        debug('Operation not permitted, try to re-authenticate');
+    var should_retry_auth = this.auth_no_password
+                            && command_obj.command != 'auth'
+                            && AUTH_ERROR.test(err.message);
+    if (should_retry_auth) {
+        debug('Authentication error, possibly password enabled, try to re-authenticate');
         var self = this;
         this.send_command('auth', [this.auth_pass], function (e, res) {
             if (e) {
@@ -720,6 +742,7 @@ RedisClient.prototype.return_reply = function (reply) {
         throw new Error("node_redis command queue state error. If you can reproduce this, please report it.");
     }
 };
+
 
 // This Command constructor is ever so slightly faster than using an object literal, but more importantly, using
 // a named constructor helps it show up meaningfully in the V8 CPU profiler and in heap snapshots.
