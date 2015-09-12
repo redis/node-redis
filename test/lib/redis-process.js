@@ -5,6 +5,7 @@ var cp = require('child_process');
 var config = require('./config');
 var fs = require('fs');
 var path = require('path');
+var spawnFailed = false;
 var tcpPortUsed = require('tcp-port-used');
 
 // wait for redis to be listening in
@@ -36,13 +37,8 @@ module.exports = {
         // capture a failure booting redis, and give
         // the user running the test some directions.
         rp.once("exit", function (code) {
-            if (code !== 0) {
-                console.error('failed to starting redis with exit code "' + code + '" ' +
-                  'stop any other redis processes currently running (' +
-                  'hint: lsof -i :6379)');
-                process.exit(code);
-            }
-        });
+            if (code !== 0) spawnFailed = true;
+        })
 
         // wait for redis to become available, by
         // checking the port we bind on.
@@ -50,7 +46,11 @@ module.exports = {
             // return an object that can be used in
             // an after() block to shutdown redis.
             return done(null, {
+                spawnFailed: function () {
+                    return spawnFailed;
+                },
                 stop: function (done) {
+                    if (spawnFailed) return done();
                     rp.once("exit", function (code) {
                         var error = null;
                         if (code !== null && code !== 0) {

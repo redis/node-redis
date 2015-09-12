@@ -24,6 +24,8 @@ describe("client authentication", function () {
             });
 
             it("allows auth to be provided with 'auth' method", function (done) {
+                abortOnSpawnFailure(done);
+
                 client = redis.createClient.apply(redis.createClient, args);
                 client.auth(auth, function (err, res) {
                     assert.strictEqual(null, err);
@@ -33,6 +35,8 @@ describe("client authentication", function () {
             });
 
             it("raises error when auth is bad", function (done) {
+                abortOnSpawnFailure(done);
+
                 client = redis.createClient.apply(redis.createClient, args);
 
                 client.once('error', function (error) {
@@ -45,6 +49,8 @@ describe("client authentication", function () {
 
             if (ip === 'IPv4') {
                 it('allows auth to be provided as part of redis url', function (done) {
+                    abortOnSpawnFailure(done);
+
                     client = redis.createClient('redis://foo:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
                     client.on("ready", function () {
                         return done();
@@ -53,6 +59,8 @@ describe("client authentication", function () {
             }
 
             it('allows auth to be provided as config option for client', function (done) {
+                abortOnSpawnFailure(done);
+
                 var args = config.configureClient(parser, ip, {
                     auth_pass: auth
                 });
@@ -63,6 +71,8 @@ describe("client authentication", function () {
             });
 
             it('reconnects with appropriate authentication', function (done) {
+                abortOnSpawnFailure(done);
+
                 var readyCount = 0;
                 client = redis.createClient.apply(redis.createClient, args);
                 client.auth(auth);
@@ -83,4 +93,13 @@ describe("client authentication", function () {
             helper.startRedis('./conf/redis.conf', done);
         });
     });
+
+    // if we fail to spawn Redis (spawning Redis directly is
+    // not possible in some CI environments) skip the auth tests.
+    function abortOnSpawnFailure (done) {
+        if (helper.redisProcess().spawnFailed()) {
+            console.warn('skipped authentication test')
+            return done();
+        }
+    }
 });
