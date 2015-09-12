@@ -7,12 +7,6 @@ var uuid = require('uuid');
 
 describe("The 'mset' method", function () {
 
-    function removeMochaListener () {
-        var mochaListener = process.listeners('uncaughtException').pop();
-        process.removeListener('uncaughtException', mochaListener);
-        return mochaListener;
-    }
-
     helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
@@ -102,7 +96,7 @@ describe("The 'mset' method", function () {
                     describe("with undefined 'key' and missing 'value'  parameter", function () {
                         // this behavior is different from the 'set' behavior.
                         it("throws an error", function (done) {
-                            var mochaListener = removeMochaListener();
+                            var mochaListener = helper.removeMochaListener();
 
                             process.once('uncaughtException', function (err) {
                                 process.on('uncaughtException', mochaListener);
@@ -116,7 +110,7 @@ describe("The 'mset' method", function () {
 
                     describe("with undefined 'key' and defined 'value' parameters", function () {
                         it("throws an error", function () {
-                            var mochaListener = removeMochaListener();
+                            var mochaListener = helper.removeMochaListener();
 
                             process.once('uncaughtException', function (err) {
                                 process.on('uncaughtException', mochaListener);
