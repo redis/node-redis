@@ -9,15 +9,36 @@ describe("The node_redis client", function () {
 
     helper.allTests(function(parser, ip, args) {
 
+        if (args[2]) { // skip if options are undefined
+            describe("testing parser existence", function () {
+                it('throws on non-existence', function (done) {
+                    var mochaListener = helper.removeMochaListener();
+
+                    process.once('uncaughtException', function (err) {
+                        process.on('uncaughtException', mochaListener);
+                        assert.equal(err.message, 'Couldn\'t find named parser nonExistingParser on this system');
+                        return done();
+                    });
+
+                    // Don't pollute the args for the other connections
+                    var tmp = JSON.parse(JSON.stringify(args));
+                    tmp[2].parser = 'nonExistingParser';
+                    redis.createClient.apply(redis.createClient, tmp);
+                });
+            });
+        }
+
         describe("using " + parser + " and " + ip, function () {
             var client;
 
             describe("when not connected", function () {
                 afterEach(function () {
-                    client.end();
+                    if (client) {
+                        client.end();
+                    }
                 });
 
-                it("connects correctly", function (done) {
+                it("connects correctly with args", function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.on("error", done);
 
@@ -28,6 +49,58 @@ describe("The node_redis client", function () {
                         });
                     });
                 });
+
+                it("connects correctly with default values", function (done) {
+                    client = redis.createClient();
+                    client.on("error", done);
+
+                    client.once("ready", function () {
+                        client.removeListener("error", done);
+                        client.get("recon 1", function (err, res) {
+                            done(err);
+                        });
+                    });
+                });
+
+                it("connects correctly to localhost", function (done) {
+                    client = redis.createClient(null, null);
+                    client.on("error", done);
+
+                    client.once("ready", function () {
+                        client.removeListener("error", done);
+                        client.get("recon 1", function (err, res) {
+                            done(err);
+                        });
+                    });
+                });
+
+                it("throws on strange connection info", function () {
+                    try {
+                        redis.createClient(true);
+                        throw new Error('failed');
+                    } catch (err) {
+                        assert.equal(err.message, 'unknown type of connection in createClient()');
+                    }
+                });
+
+                if (ip === 'IPv4') {
+                    it('allows connecting with the redis url and the default port', function (done) {
+                        client = redis.createClient('redis://foo:porkchopsandwiches@' + config.HOST[ip]);
+                        client.on("ready", function () {
+                            return done();
+                        });
+                    });
+
+                    it('allows connecting with the redis url and no auth', function (done) {
+                        client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, {
+                            detect_buffers: false
+                        });
+                        client.on("ready", function () {
+                            return done();
+                        });
+                    });
+                }
+
             });
 
             describe("when connected", function () {
