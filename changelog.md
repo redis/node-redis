@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## Upcoming
+
+* [#815](https://github.com/NodeRedis/node_redis/pull/815) Consistently use new debug functionality (@BridgeAR)
+
 ## v1.0.0 - Aug 30, 2015
 
 * Huge issue and pull-request cleanup. Thanks Blain! (@blainsmith)
