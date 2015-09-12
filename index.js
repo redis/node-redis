@@ -142,16 +142,14 @@ RedisClient.prototype.flush_and_error = function (message) {
 
     error = new Error(message);
 
-    while (this.offline_queue.length > 0) {
-        command_obj = this.offline_queue.shift();
+    while (command_obj = this.offline_queue.shift()) {
         if (typeof command_obj.callback === "function") {
             command_obj.callback(error);
         }
     }
     this.offline_queue = new Queue();
 
-    while (this.command_queue.length > 0) {
-        command_obj = this.command_queue.shift();
+    while (command_obj = this.command_queue.shift()) {
         if (typeof command_obj.callback === "function") {
             command_obj.callback(error);
         }
@@ -393,8 +391,8 @@ RedisClient.prototype.ready_check = function () {
 RedisClient.prototype.send_offline_queue = function () {
     var command_obj, buffered_writes = 0;
 
-    while (this.offline_queue.length > 0) {
-        command_obj = this.offline_queue.shift();
+    // TODO: Implement queue.pop() as it should be faster than shift and evaluate petka antonovs queue
+    while (command_obj = this.offline_queue.shift()) {
         debug("Sending offline command: " + command_obj.command);
         buffered_writes += !this.send_command(command_obj.command, command_obj.args, command_obj.callback);
     }
@@ -826,12 +824,12 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 RedisClient.prototype.end = function () {
     this.stream._events = {};
 
-    //clear retry_timer
-    if(this.retry_timer){
+    // Clear retry_timer
+    if (this.retry_timer){
         clearTimeout(this.retry_timer);
         this.retry_timer = null;
     }
-    this.stream.on("error", function(){});
+    this.stream.on("error", function noop(){});
 
     this.connected = false;
     this.ready = false;
