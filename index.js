@@ -137,10 +137,8 @@ RedisClient.prototype.unref = function () {
 };
 
 // flush offline_queue and command_queue, erroring any items with a callback first
-RedisClient.prototype.flush_and_error = function (message) {
-    var command_obj, error;
-
-    error = new Error(message);
+RedisClient.prototype.flush_and_error = function (error) {
+    var command_obj;
 
     while (command_obj = this.offline_queue.shift()) {
         if (typeof command_obj.callback === "function") {
@@ -438,17 +436,19 @@ RedisClient.prototype.connection_gone = function (why) {
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
         debug("connection ended from quit command, not retrying.");
-        this.flush_and_error("Redis connection gone from " + why + " event.");
+        this.flush_and_error(new Error("Redis connection gone from " + why + " event."));
         return;
     }
 
     if (this.max_attempts !== 0 && this.attempts >= this.max_attempts || this.retry_totaltime >= this.connect_timeout) {
-        this.flush_and_error("Redis connection gone from " + why + " event.");
-        this.end();
         var message = this.retry_totaltime >= this.connect_timeout ?
             'connection timeout exceeded.' :
             'maximum connection attempts exceeded.';
-        this.emit('error', new Error("Redis connection in broken state: " + message));
+        var error = new Error("Redis connection in broken state: " + message);
+        error.code = 'CONNECTION_BROKEN';
+        this.flush_and_error(error);
+        this.emit('error', error);
+        this.end();
         return;
     }
 
@@ -1035,7 +1035,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
 
     // TODO - make this callback part of Multi.prototype instead of creating it each time
     return this._client.send_command("exec", [], function (err, replies) {
-        if (err) {
+        if (err && !err.code) {
             if (callback) {
                 errors.push(err);
                 callback(errors);
@@ -1071,6 +1071,9 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
 
         if (callback) {
             callback(null, replies);
+        } else if (err && err.code !== 'CONNECTION_BROKEN') {
+            // Exclude CONNECTION_BROKEN so that error won't be emitted twice
+            self._client.emit('error', err);
         }
     });
 };
