@@ -1,7 +1,9 @@
+'use strict';
+
 var async = require("async");
 var assert = require("assert");
 var config = require("./lib/config");
-var helper = require('./helper')
+var helper = require('./helper');
 var fork = require("child_process").fork;
 var redis = config.redis;
 
@@ -108,7 +110,7 @@ describe("The node_redis client", function () {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("error", done);
                     client.once("connect", function () {
-                        client.flushdb(done)
+                        client.flushdb(done);
                     });
                 });
 
@@ -186,54 +188,16 @@ describe("The node_redis client", function () {
                         // Does not pass.
                         // "Connection in subscriber mode, only subscriber commands may be used"
                         it("reconnects, unsubscribes, and can retrieve the pre-existing data", function (done) {
-                            client.on("reconnecting", function on_recon(params) {
-                                client.on("ready", function on_connect() {
-                                    client.unsubscribe(helper.isNotError());
+                            client.on("ready", function on_connect() {
+                                client.unsubscribe(helper.isNotError());
 
-                                    client.on('unsubscribe', function (channel, count) {
-                                        // we should now be out of subscriber mode.
-                                        client.set('foo', 'bar', helper.isNumber(1));
-                                        return done();
-                                    });
+                                client.on('unsubscribe', function (channel, count) {
+                                    // we should now be out of subscriber mode.
+                                    client.set('foo', 'bar', helper.isString('OK', done));
                                 });
                             });
 
                             client.set("recon 1", "one");
-                            client.subscribe("recon channel", function (err, res) {
-                                // Do not do this in normal programs. This is to simulate the server closing on us.
-                                // For orderly shutdown in normal programs, do client.quit()
-                                client.stream.destroy();
-                            });
-                        });
-
-                        it("remains subscribed", function () {
-                            var client2 = redis.createClient.apply(redis.createClient, args);
-
-                            client.on("reconnecting", function on_recon(params) {
-                                client.on("ready", function on_connect() {
-                                    async.parallel([function (cb) {
-                                        client.on("message", function (channel, message) {
-                                            try {
-                                                helper.isString("recon channel")(null, channel);
-                                                helper.isString("a test message")(null, message);
-                                            } catch (err) {
-                                                cb(err);
-                                            }
-                                        });
-
-                                        client2.subscribe("recon channel", function (err, res) {
-                                            if (err) {
-                                                cb(err);
-                                                return;
-                                            }
-                                            client2.publish("recon channel", "a test message");
-                                        });
-                                    }], function (err, results) {
-                                        done(err);
-                                    });
-                                });
-                            });
-
                             client.subscribe("recon channel", function (err, res) {
                                 // Do not do this in normal programs. This is to simulate the server closing on us.
                                 // For orderly shutdown in normal programs, do client.quit()
@@ -249,7 +213,7 @@ describe("The node_redis client", function () {
                             try {
                                 domain = require('domain').create();
                             } catch (err) {
-                                console.log("Skipping " + name + " because this version of node doesn't have domains.");
+                                console.log("Skipping test because this version of node doesn't have domains.");
                                 return done();
                             }
 
@@ -257,14 +221,14 @@ describe("The node_redis client", function () {
                                 domain.run(function () {
                                     client.set('domain', 'value', function (err, res) {
                                         assert.ok(process.domain);
-                                        var notFound = res.not.existing.thing; // ohhh nooooo
+                                        throw new Error('ohhhh noooo');
                                     });
                                 });
 
                                 // this is the expected and desired behavior
                                 domain.on('error', function (err) {
                                   domain.exit();
-                                  return done()
+                                  return done();
                                 });
                             }
                         });
@@ -316,7 +280,7 @@ describe("The node_redis client", function () {
                     });
 
                     client2.on("message", function (channel, data) {
-                        if (channel == name) {
+                        if (channel === name) {
                             assert.equal(data, "some message");
                             throw Error('forced exception');
                         }
@@ -678,7 +642,7 @@ describe("The node_redis client", function () {
                 });
 
                 it("sets upper bound on how long client waits before reconnecting", function (done) {
-                    var time = new Date().getTime()
+                    var time = new Date().getTime();
                     var reconnecting = false;
 
                     client = redis.createClient.apply(redis.createClient, args);
@@ -736,7 +700,7 @@ describe("The node_redis client", function () {
                         });
 
                         assert.throws(function () {
-                            cli.set('foo', 'bar');
+                            client.set('foo', 'bar');
                         });
 
                         assert.doesNotThrow(function () {

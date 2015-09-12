@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -15,7 +17,7 @@ describe("The 'sort' method", function () {
                 client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb();
-                    setupData(client, done)
+                    setupData(client, done);
                 });
             });
 

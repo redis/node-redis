@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -17,11 +19,10 @@ describe("The 'client' method", function () {
                 client.once("connect", function () {
                     client.flushdb(function (err) {
                         if (!helper.serverVersionAtLeast(client, [2, 4, 0])) {
-                          err = Error('script not supported in redis <= 2.4.0')
+                          err = Error('script not supported in redis <= 2.4.0');
                         }
                         return done(err);
-
-                    })
+                    });
                 });
             });
 
@@ -37,15 +38,15 @@ describe("The 'client' method", function () {
                 it("lists connected clients when invoked with multi's chaining syntax", function (done) {
                     client.multi().client("list").exec(function(err, results) {
                         assert(pattern.test(results[0]), "expected string '" + results + "' to match " + pattern.toString());
-                        return done()
-                    })
+                        return done();
+                    });
                 });
 
                 it("lists connected clients when invoked with multi's array syntax", function (done) {
                     client.multi().client("list").exec(function(err, results) {
                         assert(pattern.test(results[0]), "expected string '" + results + "' to match " + pattern.toString());
-                        return done()
-                    })
+                        return done();
+                    });
                 });
             });
         });

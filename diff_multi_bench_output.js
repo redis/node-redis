@@ -2,9 +2,9 @@
 
 'use strict';
 
-var colors = require('colors'),
-    fs = require('fs'),
-    _ = require('underscore'),
+/* jshint -W079: Ignore redefinitions (before & after) */
+
+var fs = require('fs'),
     metrics = require('metrics'),
 
     // `node diff_multi_bench_output.js before.txt after.txt`
@@ -29,6 +29,28 @@ console.log('Comparing before,', before.green, '(', before_lines.length,
     'lines)', 'to after,', after.green, '(', after_lines.length, 'lines)');
 
 var total_ops = new metrics.Histogram.createUniformHistogram();
+
+function is_whitespace(s) {
+    return !!s.trim();
+}
+
+function parseInt10(s) {
+    return parseInt(s, 10);
+}
+
+// green if greater than 0, red otherwise
+function humanize_diff(num, unit) {
+    unit = unit || "";
+    if (num > 0) {
+        return ('+' + num + unit).green;
+    }
+    return ('' + num + unit).red;
+}
+
+function command_name(words) {
+    var line = words.join(' ');
+    return line.substr(0, line.indexOf(','));
+}
 
 before_lines.forEach(function(b, i) {
     var a = after_lines[i];
@@ -60,33 +82,11 @@ before_lines.forEach(function(b, i) {
     pct = humanize_diff(pct, '%');
     console.log(
         // name of test
-        command_name(a_words) === command_name(b_words)
-            ? command_name(a_words) + ':'
-            : '404:',
+        command_name(a_words) === command_name(b_words) ?
+            command_name(a_words) + ':' :
+            '404:',
         // results of test
         ops.join(' -> '), 'ops/sec (∆', delta, pct, ')');
 });
 
 console.log('Mean difference in ops/sec:', humanize_diff(total_ops.mean().toPrecision(6)));
-
-function is_whitespace(s) {
-    return !!s.trim();
-}
-
-function parseInt10(s) {
-    return parseInt(s, 10);
-}
-
-// green if greater than 0, red otherwise
-function humanize_diff(num, unit) {
-    unit = unit || "";
-    if (num > 0) {
-        return ('+' + num + unit).green;
-    }
-    return ('' + num + unit).red;
-}
-
-function command_name(words) {
-    var line = words.join(' ');
-    return line.substr(0, line.indexOf(','));
-}

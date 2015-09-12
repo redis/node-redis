@@ -1,4 +1,5 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require("../lib/config");
 var helper = require('../helper');
@@ -49,7 +50,7 @@ describe("The 'multi' method", function () {
                     client.once("connect", function () {
                         client.flushdb(function (err) {
                             return done(err);
-                        })
+                        });
                     });
                 });
 
@@ -58,7 +59,7 @@ describe("The 'multi' method", function () {
                 });
 
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
-                    var name = "MULTI_1", multi1, multi2;
+                    var multi1, multi2;
 
                     // Provoke an error at queue time
                     multi1 = client.multi();
@@ -91,7 +92,7 @@ describe("The 'multi' method", function () {
                 // I'm unclear as to the difference between this test in the test above,
                 // perhaps @mranney can clarify?
                 it('roles back a transaction when an error was provoked at queue time', function (done) {
-                    multi1 = client.multi();
+                    var multi1 = client.multi();
                     multi1.mset("multifoo_8", "10", "multibar_8", "20", helper.isString("OK"));
                     multi1.set("foo2", helper.isError());
                     multi1.set("foo3", helper.isError());
@@ -108,7 +109,7 @@ describe("The 'multi' method", function () {
                         }
 
                         // Confirm that the previous command, while containing an error, still worked.
-                        multi2 = client.multi();
+                        var multi2 = client.multi();
                         multi2.incr("multibar_8", helper.isNumber(multibar_expected));
                         multi2.incr("multifoo_8", helper.isNumber(multifoo_expected));
                         multi2.exec(function (err, replies) {

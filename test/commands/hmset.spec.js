@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -25,7 +27,7 @@ describe("The 'hmset' method", function () {
                     assert.equal(obj['0123456789'], 'abcdefghij');
                     assert.equal(obj['some manner of key'], 'a type of value');
                     return done(err);
-                })
+                });
             });
 
             it('handles object-style syntax', function (done) {
@@ -34,7 +36,7 @@ describe("The 'hmset' method", function () {
                     assert.equal(obj['0123456789'], 'abcdefghij');
                     assert.equal(obj['some manner of key'], 'a type of value');
                     return done(err);
-                })
+                });
             });
 
             it('handles object-style syntax and the key being a number', function (done) {
@@ -58,7 +60,7 @@ describe("The 'hmset' method", function () {
                 client.HMSET(hash, 99, 'banana', 'test', 25);
                 client.HGETALL(hash, function (err, obj) {
                     assert.equal(obj['99'], 'banana');
-                    assert.equal(obj['test'], '25');
+                    assert.equal(obj.test, '25');
                     return done(err);
                 });
             });
@@ -67,7 +69,7 @@ describe("The 'hmset' method", function () {
                 client.HMSET([hash, 99, 'banana', 'test', 25]);
                 client.HGETALL(hash, function (err, obj) {
                     assert.equal(obj['99'], 'banana');
-                    assert.equal(obj['test'], '25');
+                    assert.equal(obj.test, '25');
                     return done(err);
                 });
             });
@@ -76,7 +78,7 @@ describe("The 'hmset' method", function () {
                 client.HMSET([hash, 99, 'banana', 'test', 25], helper.isString('OK'));
                 client.HGETALL(hash, function (err, obj) {
                     assert.equal(obj['99'], 'banana');
-                    assert.equal(obj['test'], '25');
+                    assert.equal(obj.test, '25');
                     return done(err);
                 });
             });
@@ -87,7 +89,7 @@ describe("The 'hmset' method", function () {
                     assert.equal(obj['0123456789'], 'abcdefghij');
                     assert.equal(obj['some manner of key'], 'a type of value');
                     return done(err);
-                })
+                });
             });
 
             afterEach(function () {

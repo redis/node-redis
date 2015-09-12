@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -26,7 +28,7 @@ describe("The 'ttl' method", function () {
                         assert.ok(ttl > 50 && ttl <= 100);
                         return done(err);
                     });
-                }, 500);
+                }, 200);
             });
 
             afterEach(function () {

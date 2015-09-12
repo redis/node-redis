@@ -1,4 +1,4 @@
-/* global describe, it */
+'use strict';
 
 var assert = require('assert');
 var Parser = require("../../lib/parser/javascript").Parser;

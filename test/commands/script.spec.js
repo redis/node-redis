@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var crypto = require("crypto");
@@ -19,11 +21,10 @@ describe("The 'script' method", function () {
                 client.once("connect", function () {
                     client.flushdb(function (err) {
                         if (!helper.serverVersionAtLeast(client, [2, 6, 0])) {
-                          err = Error('script not supported in redis <= 2.6.0')
+                          err = Error('script not supported in redis <= 2.6.0');
                         }
                         return done(err);
-
-                    })
+                    });
                 });
             });
 
@@ -40,21 +41,21 @@ describe("The 'script' method", function () {
 
             it('allows a loaded script to be evaluated', function (done) {
                 client.evalsha(commandSha, 0, helper.isString('99', done));
-            })
+            });
 
             it('allows a script to be loaded as part of a chained transaction', function (done) {
                 client.multi().script("load", command).exec(function(err, result) {
                     assert.strictEqual(result[0], commandSha);
-                    return done()
-                })
-            })
+                    return done();
+                });
+            });
 
             it("allows a script to be loaded using a transaction's array syntax", function (done) {
                 client.multi([['script', 'load', command]]).exec(function(err, result) {
                     assert.strictEqual(result[0], commandSha);
-                    return done()
-                })
-            })
+                    return done();
+                });
+            });
         });
     });
 });

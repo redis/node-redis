@@ -16,6 +16,40 @@ var codec = {
 
 var obj, l;
 
+function run(obj, codec) {
+	var t1 = Date.now();
+	var n = 10000;
+	for (var i = 0; i < n; ++i) {
+		codec.decode(l = codec.encode(obj));
+	}
+	var t2 = Date.now();
+	//console.log('DONE', n*1000/(t2-t1), 'codecs/sec, length=', l.length);
+	return [n*1000/(t2-t1), l.length];
+}
+
+function series(obj, cname, n) {
+	var rate = 0;
+	var len = 0;
+	for (var i = 0; i < n; ++i) {
+		var r = run(obj, codec[cname]);
+		rate += r[0];
+		len += r[1];
+	}
+	rate /= n;
+	len /= n;
+	console.log(cname + '	' + rate + '	' + len);
+	return [rate, len];
+}
+
+function forObj(obj) {
+	var r = {
+		JSON: series(obj, 'JSON', 20),
+		msgpack: series(obj, 'msgpack', 20),
+		bison: series(obj, 'bison', 20)
+	};
+	return r;
+}
+
 var s = '0';
 for (var i = 0; i < 12; ++i) s += s;
 
@@ -50,37 +84,3 @@ obj = {
 	rand: []
 };
 forObj(obj);
-
-function run(obj, codec) {
-	var t1 = Date.now();
-	var n = 10000;
-	for (var i = 0; i < n; ++i) {
-		codec.decode(l = codec.encode(obj));
-	}
-	var t2 = Date.now();
-	//console.log('DONE', n*1000/(t2-t1), 'codecs/sec, length=', l.length);
-	return [n*1000/(t2-t1), l.length];
-}
-
-function series(obj, cname, n) {
-	var rate = 0;
-	var len = 0;
-	for (var i = 0; i < n; ++i) {
-		var r = run(obj, codec[cname]);
-		rate += r[0];
-		len += r[1];
-	}
-	rate /= n;
-	len /= n;
-	console.log(cname + '	' + rate + '	' + len);
-	return [rate, len];
-}
-
-function forObj(obj) {
-	var r = {
-		JSON: series(obj, 'JSON', 20),
-		msgpack: series(obj, 'msgpack', 20),
-		bison: series(obj, 'bison', 20)
-	};
-	return r;
-}

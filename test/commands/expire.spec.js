@@ -1,4 +1,5 @@
-var assert = require("assert");
+'use strict';
+
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
@@ -23,7 +24,7 @@ describe("The 'expire' method", function () {
                 client.EXPIRE(["expiry key", "1"], helper.isNumber(1));
                 setTimeout(function () {
                     client.exists(["expiry key"], helper.isNumber(0, done));
-                }, 1500);
+                }, 1100);
             });
 
             afterEach(function () {

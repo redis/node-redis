@@ -1,4 +1,5 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require("../lib/config");
 var helper = require('../helper');
@@ -69,7 +70,7 @@ describe("The 'select' method", function () {
                         it("emits an error", function (done) {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
                             client.select(9999, function (err) {
-                                assert.equal(err.message, 'ERR invalid DB index')
+                                assert.equal(err.message, 'ERR invalid DB index');
                                 return done();
                             });
                         });

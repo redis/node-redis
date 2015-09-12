@@ -1,8 +1,17 @@
+'use strict';
+
 var assert = require("assert");
 var path = require('path');
 var config = require("./lib/config");
 var RedisProcess = require("./lib/redis-process");
 var rp;
+
+function startRedis (conf, done) {
+    RedisProcess.start(function (err, _rp) {
+        rp = _rp;
+        return done(err);
+    }, path.resolve(__dirname, conf));
+}
 
 // don't start redis every time we
 // include this helper file!
@@ -11,7 +20,7 @@ if (!process.env.REDIS_TESTS_STARTED) {
 
   before(function (done) {
       startRedis('./conf/redis.conf', done);
-  })
+  });
 
   after(function (done) {
       if (rp) rp.stop(done);
@@ -49,7 +58,7 @@ module.exports = {
     },
     isError: function (done) {
         return function (err, results) {
-            assert.notEqual(err, null, "err is null, but an error is expected here.");
+            assert(err instanceof Error, "err is not instance of 'Error', but an error is expected here.");
             if (done) return done();
         };
     },
@@ -108,11 +117,4 @@ module.exports = {
         process.removeListener('uncaughtException', mochaListener);
         return mochaListener;
     }
-}
-
-function startRedis (conf, done) {
-    RedisProcess.start(function (err, _rp) {
-        rp = _rp;
-        return done(err);
-    }, path.resolve(__dirname, conf));
-}
+};

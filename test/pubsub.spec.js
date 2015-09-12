@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("./lib/config");
 var helper = require("./helper");
@@ -10,10 +12,9 @@ describe("publish/subscribe", function () {
         describe("using " + parser + " and " + ip, function () {
             var pub = null;
             var sub = null;
-            var channel = "test channel"
-            var channel2 = "test channel 2"
-            var message = "test message"
-            var hash = "test hash";
+            var channel = "test channel";
+            var channel2 = "test channel 2";
+            var message = "test message";
 
             beforeEach(function (done) {
                 var pubConnected;
@@ -45,7 +46,7 @@ describe("publish/subscribe", function () {
                 it('fires a subscribe event for each channel subscribed to', function (done) {
                     sub.on("subscribe", function (chnl, count) {
                         if (chnl === channel2) {
-                            assert.equal(2, count)
+                            assert.equal(2, count);
                             return done();
                         }
                     });
@@ -166,9 +167,9 @@ describe("publish/subscribe", function () {
             });
 
             describe('unsubscribe', function () {
-                it('fires an unsubscribe event', function () {
+                it('fires an unsubscribe event', function (done) {
                     sub.on("subscribe", function (chnl, count) {
-                        sub.unsubscribe(channel)
+                        sub.unsubscribe(channel);
                     });
 
                     sub.subscribe(channel);
@@ -182,7 +183,7 @@ describe("publish/subscribe", function () {
 
                 it('puts client back into write mode', function (done) {
                     sub.on("subscribe", function (chnl, count) {
-                        sub.unsubscribe(channel)
+                        sub.unsubscribe(channel);
                     });
 
                     sub.subscribe(channel);
@@ -190,10 +191,10 @@ describe("publish/subscribe", function () {
                     sub.on("unsubscribe", function (chnl, count) {
                         pub.incr("foo", helper.isNumber(1, done));
                     });
-                })
+                });
 
                 it('does not complain when unsubscribe is called and there are no subscriptions', function () {
-                    sub.unsubscribe()
+                    sub.unsubscribe();
                 });
 
                 it('executes callback when unsubscribe is called and there are no subscriptions', function (done) {
@@ -216,15 +217,15 @@ describe("publish/subscribe", function () {
                         assert.strictEqual(channel, '/foo');
                         assert.strictEqual(message, 'hello world');
                         return done();
-                    })
+                    });
                     pub.publish('/foo', 'hello world');
                 });
             });
 
             describe('punsubscribe', function () {
                 it('does not complain when punsubscribe is called and there are no subscriptions', function () {
-                    sub.punsubscribe()
-                })
+                    sub.punsubscribe();
+                });
 
                 it('executes callback when punsubscribe is called and there are no subscriptions', function (done) {
                     // test hangs on older versions of redis, so skip

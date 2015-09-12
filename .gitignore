@@ -2,3 +2,4 @@ node_modules
 .tern-port
 .nyc_output
 coverage
+npm-debug.log
