@@ -1,6 +1,5 @@
 'use strict';
 
-var async = require("async");
 var assert = require("assert");
 var config = require("./lib/config");
 var helper = require('./helper');
@@ -122,31 +121,15 @@ describe("The node_redis client", function () {
                     it("reconnects and can retrieve the pre-existing data", function (done) {
                         client.on("reconnecting", function on_recon(params) {
                             client.on("connect", function on_connect() {
-                                async.parallel([function (cb) {
-                                    client.get("recon 1", function (err, res) {
-                                        helper.isString("one")(err, res);
-                                        cb();
-                                    });
-                                }, function (cb) {
-                                    client.get("recon 1", function (err, res) {
-                                        helper.isString("one")(err, res);
-                                        cb();
-                                    });
-                                }, function (cb) {
-                                    client.get("recon 2", function (err, res) {
-                                        helper.isString("two")(err, res);
-                                        cb();
-                                    });
-                                }, function (cb) {
-                                    client.get("recon 2", function (err, res) {
-                                        helper.isString("two")(err, res);
-                                        cb();
-                                    });
-                                }], function (err, results) {
+                                var end = helper.callFuncAfter(function () {
                                     client.removeListener("connect", on_connect);
                                     client.removeListener("reconnecting", on_recon);
-                                    done(err);
-                                });
+                                    done();
+                                }, 4);
+                                client.get("recon 1", helper.isString("one", end));
+                                client.get("recon 1", helper.isString("one", end));
+                                client.get("recon 2", helper.isString("two", end));
+                                client.get("recon 2", helper.isString("two", end));
                             });
                         });
 

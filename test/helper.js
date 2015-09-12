@@ -116,5 +116,14 @@ module.exports = {
         var mochaListener = process.listeners('uncaughtException').pop();
         process.removeListener('uncaughtException', mochaListener);
         return mochaListener;
+    },
+    callFuncAfter: function (func, max) {
+        var i = 0;
+        return function () {
+            i++;
+            if (i === max) {
+                func();
+            }
+        };
     }
 };

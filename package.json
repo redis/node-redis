@@ -16,7 +16,6 @@
     "jshint": "./node_modules/.bin/jshint *"
   },
   "devDependencies": {
-    "async": "^1.3.0",
     "coveralls": "^2.11.2",
     "hiredis": "^0.4.1",
     "jshint": "^2.8.0",
