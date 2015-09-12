@@ -1055,7 +1055,7 @@ Multi.prototype.exec = function (callback) {
                 if (typeof cur[cur.length - 1] === "function") {
                     cur[cur.length - 1](err);
                 } else {
-                    errors.push(new Error(err));
+                    errors.push(err);
                 }
             }
         });
@@ -1065,7 +1065,7 @@ Multi.prototype.exec = function (callback) {
     return this._client.send_command("exec", [], function (err, replies) {
         if (err) {
             if (callback) {
-                errors.push(new Error(err));
+                errors.push(err);
                 callback(errors);
                 return;
             } else {
