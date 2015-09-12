@@ -11,5 +11,6 @@ addons:
 node_js:
   - "0.10"
   - "0.12"
+  - "4.0"
   - "iojs"
 after_success: npm run coverage
