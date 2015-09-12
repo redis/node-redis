@@ -4,6 +4,7 @@ Changelog
 ## Upcoming
 
 * [#815](https://github.com/NodeRedis/node_redis/pull/815) Consistently use new debug functionality (@BridgeAR)
+* [#814](https://github.com/NodeRedis/node_redis/pull/814) Support new commands and drop support for deprecated 'substr' (@BridgeAR)
 
 ## v1.0.0 - Aug 30, 2015
 
