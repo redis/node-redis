@@ -33,7 +33,7 @@ describe("The 'mget' method", function () {
             });
 
             it('handles fetching multiple keys via an array', function (done) {
-                client.MGET(["mget keys 1", "mget keys 2", "mget keys 3"], function (err, results) {
+                client.mget(["mget keys 1", "mget keys 2", "mget keys 3"], function (err, results) {
                     assert.strictEqual("mget val 1", results[0].toString());
                     assert.strictEqual("mget val 2", results[1].toString());
                     assert.strictEqual("mget val 3", results[2].toString());

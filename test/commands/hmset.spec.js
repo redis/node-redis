@@ -31,7 +31,7 @@ describe("The 'hmset' method", function () {
             });
 
             it('handles object-style syntax', function (done) {
-                client.HMSET(hash, {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}, helper.isString('OK'));
+                client.hmset(hash, {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}, helper.isString('OK'));
                 client.HGETALL(hash, function (err, obj) {
                     assert.equal(obj['0123456789'], 'abcdefghij');
                     assert.equal(obj['some manner of key'], 'a type of value');

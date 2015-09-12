@@ -32,7 +32,7 @@ describe("The 'client' method", function () {
 
             describe('list', function () {
                 it('lists connected clients', function (done) {
-                    client.client("list", helper.match(pattern, done));
+                    client.client("LIST", helper.match(pattern, done));
                 });
 
                 it("lists connected clients when invoked with multi's chaining syntax", function (done) {

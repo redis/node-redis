@@ -35,7 +35,7 @@ describe("The 'hgetall' method", function () {
                 });
 
                 it('handles fetching keys set using an object', function (done) {
-                    client.hmset("msg_test", {message: "hello"}, helper.isString("OK"));
+                    client.HMSET("msg_test", {message: "hello"}, helper.isString("OK"));
                     client.hgetall("msg_test", function (err, obj) {
                         assert.strictEqual(1, Object.keys(obj).length);
                         assert.strictEqual(obj.message, "hello");

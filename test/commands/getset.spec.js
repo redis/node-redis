@@ -65,7 +65,7 @@ describe("The 'getset' method", function () {
                     });
 
                     it("gets the value correctly", function (done) {
-                        client.getset(key, value2, function (err, res) {
+                        client.GETSET(key, value2, function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
                                 helper.isString(value2)(err, res);
