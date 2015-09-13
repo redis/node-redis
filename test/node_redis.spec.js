@@ -662,7 +662,7 @@ describe("The node_redis client", function () {
                                 // TODO: figure out why we emit an error on
                                 // even though we've enabled the offline queue.
                                 if (process.platform === 'win32') return;
-                                if (err) return done(err)
+                                if (err) return done(err);
                             });
 
                             return setTimeout(function(){
