@@ -219,7 +219,7 @@ describe("The node_redis client", function () {
 
                     describe('monitor', function () {
                         it('monitors commands on all other redis clients', function (done) {
-                            if (!helper.serverVersionAtLeast(client, [2, 6, 0])) return done();
+                            helper.serverVersionAtLeast.bind(this)(client, [2, 6, 0]);
 
                             var monitorClient = redis.createClient.apply(redis.createClient, args);
                             var responses = [];

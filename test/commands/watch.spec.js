@@ -18,12 +18,7 @@ describe("The 'watch' method", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("error", done);
                 client.once("connect", function () {
-                    client.flushdb(function (err) {
-                        if (!helper.serverVersionAtLeast(client, [2, 2, 0])) {
-                          err = Error('some watch commands not supported in redis <= 2.2.0');
-                        }
-                        return done(err);
-                    });
+                    client.flushdb(done);
                 });
             });
 

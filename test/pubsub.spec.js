@@ -69,7 +69,7 @@ describe("publish/subscribe", function () {
                 });
 
                 it('receives messages if subscribe is called after unsubscribe', function (done) {
-                    if (!helper.serverVersionAtLeast(pub, [2, 6, 11])) return done();
+                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
                     sub.once("subscribe", function (chnl, count) {
                         pub.publish(channel, message, helper.isNumber(1));
@@ -87,7 +87,7 @@ describe("publish/subscribe", function () {
                 });
 
                 it('handles SUB_UNSUB_MSG_SUB', function (done) {
-                    if (!helper.serverVersionAtLeast(pub, [2, 6, 11])) return done();
+                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
                     sub.subscribe('chan8');
                     sub.subscribe('chan9');
@@ -99,7 +99,7 @@ describe("publish/subscribe", function () {
                 });
 
                 it('handles SUB_UNSUB_MSG_SUB', function (done) {
-                    if (!helper.serverVersionAtLeast(pub, [2, 6, 11])) return done();
+                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
                     sub.psubscribe('abc*');
                     sub.subscribe('xyz');
@@ -198,8 +198,7 @@ describe("publish/subscribe", function () {
                 });
 
                 it('executes callback when unsubscribe is called and there are no subscriptions', function (done) {
-                    // test hangs on older versions of redis, so skip
-                    if (!helper.serverVersionAtLeast(pub, [2, 6, 11])) return done();
+                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
                     pub.unsubscribe(function (err, results) {
                         assert.strictEqual(null, results);
@@ -228,8 +227,7 @@ describe("publish/subscribe", function () {
                 });
 
                 it('executes callback when punsubscribe is called and there are no subscriptions', function (done) {
-                    // test hangs on older versions of redis, so skip
-                    if (!helper.serverVersionAtLeast(pub, [2, 6, 11])) return done();
+                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
                     pub.punsubscribe(function (err, results) {
                         assert.strictEqual(null, results);
