@@ -36,7 +36,7 @@ describe("The 'mset' method", function () {
 
                 it("reports an error", function (done) {
                     client.mset(key, value, key2, value2, function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });

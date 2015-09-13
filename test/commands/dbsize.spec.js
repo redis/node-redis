@@ -34,7 +34,7 @@ describe("The 'dbsize' method", function () {
 
                 it("reports an error", function (done) {
                     client.dbsize([], function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });

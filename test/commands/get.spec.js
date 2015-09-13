@@ -34,7 +34,7 @@ describe("The 'get' method", function () {
 
                 it("reports an error", function (done) {
                     client.get(key, function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });

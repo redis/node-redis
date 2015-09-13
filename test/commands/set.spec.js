@@ -34,7 +34,7 @@ describe("The 'set' method", function () {
 
                 it("reports an error", function (done) {
                     client.set(key, value, function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });
