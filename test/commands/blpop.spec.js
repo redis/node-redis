@@ -23,7 +23,9 @@ describe("The 'blpop' method", function () {
 
             it('pops value immediately if list contains values', function (done) {
                 bclient = redis.createClient.apply(redis.createClient, args);
+                redis.debug_mode = true;
                 client.rpush("blocking list", "initial value", helper.isNumber(1));
+                redis.debug_mode = false;
                 bclient.blpop("blocking list", 0, function (err, value) {
                     assert.strictEqual(value[0], "blocking list");
                     assert.strictEqual(value[1], "initial value");
