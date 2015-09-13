@@ -126,12 +126,12 @@ describe("The 'multi' method", function () {
                       client.multi([
                           ["mget", "multifoo", "multibar", function (err, res) {
                               assert.strictEqual(2, res.length);
-                              assert.strictEqual("0", res[0].toString());
-                              assert.strictEqual("0", res[1].toString());
+                              assert.strictEqual(0, +res[0]);
+                              assert.strictEqual(0, +res[1]);
                           }],
-                          ["set", "foo2", helper.isError()],
-                          ["incr", "multifoo", helper.isNumber(1)],
-                          ["incr", "multibar", helper.isNumber(1)]
+                          ["set", "foo2"],
+                          ["incr", "multifoo"],
+                          ["incr", "multibar"]
                       ]).exec(function (err, replies) {
                           if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
                               assert.notEqual(err, null);
