@@ -17,7 +17,6 @@
   },
   "devDependencies": {
     "coveralls": "^2.11.2",
-    "hiredis": "^0.4.1",
     "jshint": "^2.8.0",
     "metrics": ">=0.1.5",
     "mocha": "^2.2.5",
