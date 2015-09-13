@@ -28,7 +28,7 @@ describe("The 'script' method", function () {
             });
 
             it("loads script with client.script('load')", function (done) {
-                helper.serverVersionAtLeast.bind(this)(client, [2, 6, 0]);
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.script("load", command, function(err, result) {
                     assert.strictEqual(result, commandSha);
                     return done();
@@ -36,12 +36,12 @@ describe("The 'script' method", function () {
             });
 
             it('allows a loaded script to be evaluated', function (done) {
-                helper.serverVersionAtLeast.bind(this)(client, [2, 6, 0]);
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.evalsha(commandSha, 0, helper.isString('99', done));
             });
 
             it('allows a script to be loaded as part of a chained transaction', function (done) {
-                helper.serverVersionAtLeast.bind(this)(client, [2, 6, 0]);
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.multi().script("load", command).exec(function(err, result) {
                     assert.strictEqual(result[0], commandSha);
                     return done();
@@ -49,7 +49,7 @@ describe("The 'script' method", function () {
             });
 
             it("allows a script to be loaded using a transaction's array syntax", function (done) {
-                helper.serverVersionAtLeast.bind(this)(client, [2, 6, 0]);
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.multi([['script', 'load', command]]).exec(function(err, result) {
                     assert.strictEqual(result[0], commandSha);
                     return done();

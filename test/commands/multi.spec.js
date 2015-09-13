@@ -195,7 +195,7 @@ describe("The 'multi' method", function () {
                 });
 
                 it('reports multiple exceptions when they occur', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(client, [2, 6, 5]);
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
 
                     client.multi().set("foo").exec(function (err, reply) {
                         assert(Array.isArray(err), "err should be an array");
