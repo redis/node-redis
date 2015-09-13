@@ -10,17 +10,15 @@ environment:
 
 # Install scripts. (runs after repo cloning)
 install:
-  # Get the latest stable version of Node 0.STABLE.latest
-  - ps: Install-Product node $env:nodejs_version
-  # Typical npm stuff.
-  - npm install
-
-# Install Redis.
-before_build:
+  # Install the Redis
   - nuget restore .\Hangfire.Redis.StackExchange.sln
   - packages\Redis-32.2.6.12.1\tools\redis-server.exe --service-install
   - packages\Redis-32.2.6.12.1\tools\redis-server.exe --service-start
   - '@ECHO Redis Started'
+  # Get the latest stable version of Node 0.STABLE.latest
+  - ps: Install-Product node $env:nodejs_version
+  # Typical npm stuff.
+  - npm install
 
 # Post-install test scripts.
 test_script:
