@@ -112,7 +112,7 @@ module.exports = {
                 var protocols = ['IPv4'];
                 if (process.platform !== 'win32') {
                     parsers.push('hiredis');
-                    protocols.push('IPv6')
+                    protocols.push('IPv6');
                 }
 
                 parsers.forEach(function (parser) {

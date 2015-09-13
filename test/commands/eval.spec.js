@@ -17,7 +17,7 @@ describe("The 'eval' method", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("error", done);
                 client.once("connect", function () {
-                    client.flushdb(done)
+                    client.flushdb(done);
                 });
             });
 

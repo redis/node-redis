@@ -89,38 +89,6 @@ describe("The 'multi' method", function () {
                     });
                 });
 
-<<<<<<< HEAD
-                // I'm unclear as to the difference between this test in the test above,
-                // perhaps @mranney can clarify?
-                it('roles back a transaction when an error was provoked at queue time', function (done) {
-                    var multi1 = client.multi();
-                    multi1.mset("multifoo_8", "10", "multibar_8", "20", helper.isString("OK"));
-                    multi1.set("foo2", helper.isError());
-                    multi1.set("foo3", helper.isError());
-                    multi1.incr("multifoo_8", helper.isNumber(11));
-                    multi1.incr("multibar_8", helper.isNumber(21));
-                    multi1.exec(function () {
-                        // Redis 2.6.5+ will abort transactions with errors
-                        // see: http://redis.io/topics/transactions
-                        var multibar_expected = 22;
-                        var multifoo_expected = 12;
-                        if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
-                            multibar_expected = 1;
-                            multifoo_expected = 1;
-                        }
-
-                        // Confirm that the previous command, while containing an error, still worked.
-                        var multi2 = client.multi();
-                        multi2.incr("multibar_8", helper.isNumber(multibar_expected));
-                        multi2.incr("multifoo_8", helper.isNumber(multifoo_expected));
-                        multi2.exec(function (err, replies) {
-                            assert.strictEqual(multibar_expected, replies[0]);
-                            assert.strictEqual(multifoo_expected, replies[1]);
-                            return done();
-                        });
-                    });
-                });
-
                 it('roles back a transaction when one command in an array of commands fails', function (done) {
                       // test nested multi-bulk replies
                       client.multi([
@@ -227,7 +195,7 @@ describe("The 'multi' method", function () {
                 });
 
                 it('reports multiple exceptions when they occur', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(client, [2, 6, 5])
+                    helper.serverVersionAtLeast.bind(this)(client, [2, 6, 5]);
 
                     client.multi().set("foo").exec(function (err, reply) {
                         assert(Array.isArray(err), "err should be an array");

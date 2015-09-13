@@ -11,6 +11,8 @@ var tcpPortUsed = require('tcp-port-used');
 // wait for redis to be listening in
 // all three modes (ipv4, ipv6, socket).
 function waitForRedis (available, cb) {
+    if (process.platform === 'win32') return cb();
+
     var ipV4 = false;
     var id = setInterval(function () {
       tcpPortUsed.check(config.PORT, '127.0.0.1')
@@ -38,7 +40,7 @@ module.exports = {
         // the user running the test some directions.
         rp.once("exit", function (code) {
             if (code !== 0) spawnFailed = true;
-        })
+        });
 
         // wait for redis to become available, by
         // checking the port we bind on.
@@ -66,26 +68,3 @@ module.exports = {
         });
     }
 };
-
-// wait for redis to be listening in
-// all three modes (ipv4, ipv6, socket).
-function waitForRedis (available, cb) {
-    if (process.platform === 'win32') return cb();
-
-    var ipV4 = false;
-    var id = setInterval(function () {
-      tcpPortUsed.check(config.PORT, '127.0.0.1')
-          .then(function (_ipV4) {
-              ipV4 = _ipV4;
-              return tcpPortUsed.check(config.PORT, '::1');
-          })
-          .then(function (ipV6) {
-              if (ipV6 === available && ipV4 === available &&
-                fs.existsSync('/tmp/redis.sock') === available) {
-                  clearInterval(id);
-                  return cb();
-              }
-          });
-    }, 100);
-}
->>>>>>> down to one failing test on Windows, time to rebase
