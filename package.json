@@ -13,7 +13,7 @@
     "coverage": "nyc report --reporter=text-lcov | coveralls",
     "test": "nyc ./node_modules/.bin/_mocha ./test/*.js ./test/commands/*.js ./test/parser/*.js --timeout=8000",
     "pretest": "optional-dev-dependency hiredis",
-    "posttest": "jshint *"
+    "posttest": "jshint ."
   },
   "devDependencies": {
     "coveralls": "^2.11.2",
