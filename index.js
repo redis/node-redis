@@ -31,7 +31,7 @@ try {
     parsers.push(require("./lib/parser/hiredis"));
 } catch (err) {
     /* istanbul ignore next: won't be reached with tests */
-    debug("hiredis parser not installed.");
+    debug("Hiredis parser not installed.");
 }
 
 parsers.push(require("./lib/parser/javascript"));
@@ -133,7 +133,7 @@ RedisClient.prototype.initialize_retry_vars = function () {
 
 RedisClient.prototype.unref = function () {
     if (this.connected) {
-        debug("unref'ing the socket connection");
+        debug("Unref'ing the socket connection");
         this.stream.unref();
     } else {
         debug("Not connected yet, will unref later");
@@ -340,7 +340,7 @@ RedisClient.prototype.on_ready = function () {
         };
         Object.keys(this.subscription_set).forEach(function (key) {
             var parts = key.split(" ");
-            debug("sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
+            debug("Sending pub/sub on_ready " + parts[0] + ", " + parts[1]);
             callback_count++;
             self.send_command(parts[0] + "scribe", [parts[1]], callback);
         });
@@ -399,7 +399,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
 RedisClient.prototype.ready_check = function () {
     var self = this;
 
-    debug("checking server ready state...");
+    debug("Checking server ready state...");
 
     this.send_anyway = true;  // secret flag to send_command to send something even if not "ready"
     this.info(function (err, res) {
@@ -460,7 +460,7 @@ RedisClient.prototype.connection_gone = function (why) {
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
         this.retry_timer = null;
-        debug("connection ended from quit command, not retrying.");
+        debug("Connection ended from quit command, not retrying.");
         return;
     }
 
@@ -477,7 +477,7 @@ RedisClient.prototype.connection_gone = function (why) {
         this.retry_timer = null;
         // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
         // want the program to exit.  Right now, we just log, which doesn't really help in either case.
-        debug("node_redis: Couldn't get Redis connection after " + this.max_attempts + " attempts.");
+        debug("Couldn't get Redis connection after " + this.max_attempts + " attempts.");
         return;
     }
 
@@ -494,7 +494,7 @@ RedisClient.prototype.connection_gone = function (why) {
         if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
             self.retry_timer = null;
             // TODO - engage Redis is Broken mode for future commands, or whatever
-            debug("node_redis: Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
+            debug("Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
             return;
         }
 
@@ -505,7 +505,8 @@ RedisClient.prototype.connection_gone = function (why) {
 };
 
 RedisClient.prototype.on_data = function (data) {
-    debug("net read " + this.address + " id " + this.connection_id + ": " + data.toString());
+    // The data.toString() has a significant impact on big chunks and therefor this should only be used if necessary
+    // debug("Net read " + this.address + " id " + this.connection_id + ": " + data.toString());
 
     try {
         this.reply_parser.execute(data);
@@ -608,7 +609,7 @@ RedisClient.prototype.return_reply = function (reply) {
     }
 
     if (this.pub_sub_mode && (type === 'message' || type === 'pmessage')) {
-        debug("received pubsub message");
+        debug("Received pubsub message");
     }
     else {
         command_obj = this.command_queue.shift();
@@ -640,7 +641,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
             try_callback(command_obj.callback, reply);
         } else {
-            debug("no callback for reply: " + (reply && reply.toString && reply.toString()));
+            debug("No callback for reply");
         }
     } else if (this.pub_sub_mode || (command_obj && command_obj.sub_command)) {
         if (Array.isArray(reply)) {
@@ -754,12 +755,11 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     command_obj = new Command(command, args, false, buffer_args, callback);
 
-    if ((!this.ready && !this.send_anyway) || !stream.writable) {
-        if (!stream.writable) {
-            debug("send command: stream is not writeable.");
-        }
-
+    if (!this.ready && !this.send_anyway || !stream.writable) {
         if (this.enable_offline_queue) {
+            if (!stream.writable) {
+                debug("send command: stream is not writeable.");
+            }
             debug("Queueing " + command + " for next server connection.");
             this.offline_queue.push(command_obj);
             this.should_buffer = true;
@@ -794,7 +794,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
 
-    if (! buffer_args) { // Build up a string and send entire command in one write
+    if (!buffer_args) { // Build up a string and send entire command in one write
         for (i = 0, il = args.length, arg; i < il; i += 1) {
             arg = args[i];
             if (typeof arg !== "string") {
@@ -802,10 +802,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             }
             command_str += "$" + Buffer.byteLength(arg) + "\r\n" + arg + "\r\n";
         }
-        debug("send " + this.address + " id " + this.connection_id + ": " + command_str);
+        debug("Send " + this.address + " id " + this.connection_id + ": " + command_str);
         buffered_writes += !stream.write(command_str);
     } else {
-        debug("send command (" + command_str + ") has Buffer arguments");
+        debug("Send command (" + command_str + ") has Buffer arguments");
         buffered_writes += !stream.write(command_str);
 
         for (i = 0, il = args.length, arg; i < il; i += 1) {
