@@ -39,8 +39,9 @@ describe("client authentication", function () {
 
                 client = redis.createClient.apply(redis.createClient, args);
 
-                client.once('error', function (error) {
-                    assert.ok(/ERR invalid password/.test(error));
+                client.once('error', function (err) {
+                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.ok(/ERR invalid password/.test(err.message));
                     return done();
                 });
 
