@@ -60,11 +60,13 @@ describe("The 'multi' method", function () {
 
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
                     var multi1, multi2;
+                    var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
 
                     // Provoke an error at queue time
                     multi1 = client.MULTI();
                     multi1.mset("multifoo", "10", "multibar", "20", helper.isString("OK"));
-                    multi1.set("foo2");
+
+                    multi1.set("foo2", expected);
                     multi1.incr("multifoo");
                     multi1.incr("multibar");
                     multi1.exec(function () {
@@ -90,31 +92,33 @@ describe("The 'multi' method", function () {
                 });
 
                 it('roles back a transaction when one command in an array of commands fails', function (done) {
-                      // test nested multi-bulk replies
-                      client.multi([
-                          ["mget", "multifoo", "multibar", function (err, res) {
-                              assert.strictEqual(2, res.length);
-                              assert.strictEqual(0, +res[0]);
-                              assert.strictEqual(0, +res[1]);
-                          }],
-                          ["set", "foo2"],
-                          ["incr", "multifoo"],
-                          ["incr", "multibar"]
-                      ]).exec(function (err, replies) {
-                          if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
-                              assert.notEqual(err, null);
-                              assert.equal(replies, undefined);
-                          } else {
-                              assert.strictEqual(2, replies[0].length);
-                              assert.strictEqual(null, replies[0][0]);
-                              assert.strictEqual(null, replies[0][1]);
+                    var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
 
-                              assert.strictEqual("1", replies[1].toString());
-                              assert.strictEqual("1", replies[2].toString());
-                          }
+                    // test nested multi-bulk replies
+                    client.multi([
+                        ["mget", "multifoo", "multibar", function (err, res) {
+                            assert.strictEqual(2, res.length);
+                            assert.strictEqual(0, +res[0]);
+                            assert.strictEqual(0, +res[1]);
+                        }],
+                        ["set", "foo2", expected],
+                        ["incr", "multifoo"],
+                        ["incr", "multibar"]
+                    ]).exec(function (err, replies) {
+                        if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
+                            assert.notEqual(err, null);
+                            assert.equal(replies, undefined);
+                        } else {
+                            assert.strictEqual(2, replies[0].length);
+                            assert.strictEqual(null, replies[0][0]);
+                            assert.strictEqual(null, replies[0][1]);
 
-                          return done();
-                      });
+                            assert.strictEqual("1", replies[1].toString());
+                            assert.strictEqual("1", replies[2].toString());
+                        }
+
+                        return done();
+                    });
                 });
 
                 it('handles multiple operations being applied to a set', function (done) {
