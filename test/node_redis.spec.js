@@ -647,7 +647,7 @@ describe("The node_redis client", function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
-                    it("does not throw an error and enqueues operation", function (done) {
+                    it("does not return an error and enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
                             max_attempts: 1,
                             parser: parser
@@ -674,20 +674,18 @@ describe("The node_redis client", function () {
                 });
 
                 describe('false', function () {
-                    it("does not throw an error and enqueues operation", function (done) {
+                    it("does not emit an error and enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
                             parser: parser,
                             max_attempts: 1,
                             enable_offline_queue: false
                         });
 
-                        client.on('error', function() {
-                            // ignore, b/c expecting a "can't connect" error
+                        client.on('error', function(err) {
+                            assert(/send_command: stream not writeable|ECONNREFUSED/.test(err.message));
                         });
 
-                        assert.throws(function () {
-                            client.set('foo', 'bar');
-                        });
+                        client.set('foo', 'bar');
 
                         assert.doesNotThrow(function () {
                             client.set('foo', 'bar', function (err) {

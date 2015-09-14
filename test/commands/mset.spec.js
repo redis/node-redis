@@ -92,13 +92,10 @@ describe("The 'mset' method", function () {
 
                     describe("with undefined 'key' and missing 'value'  parameter", function () {
                         // this behavior is different from the 'set' behavior.
-                        it("throws an error", function (done) {
-                            var mochaListener = helper.removeMochaListener();
-
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
-                                helper.isError()(err, null);
-                                return done();
+                        it("emits an error", function (done) {
+                            client.on('error', function (err) {
+                                assert.equal(err.message, "ERR wrong number of arguments for 'mset' command");
+                                done();
                             });
 
                             client.mset();
