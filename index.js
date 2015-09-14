@@ -579,15 +579,17 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === "function") {
-            if (this.options.detect_buffers && command_obj.buffer_args === false && 'exec' !== command_obj.command) {
-                // If detect_buffers option was specified, then the reply from the parser will be Buffers.
-                // If this command did not use Buffer arguments, then convert the reply to Strings here.
-                reply = reply_to_strings(reply);
-            }
+            if ('exec' !== command_obj.command) {
+                if (this.options.detect_buffers && command_obj.buffer_args === false) {
+                    // If detect_buffers option was specified, then the reply from the parser will be Buffers.
+                    // If this command did not use Buffer arguments, then convert the reply to Strings here.
+                    reply = reply_to_strings(reply);
+                }
 
-            // TODO - confusing and error-prone that hgetall is special cased in two places
-            if (reply && 'hgetall' === command_obj.command) {
-                reply = reply_to_object(reply);
+                // TODO - confusing and error-prone that hgetall is special cased in two places
+                if (reply && 'hgetall' === command_obj.command) {
+                    reply = reply_to_object(reply);
+                }
             }
 
             command_obj.callback(null, reply);
@@ -993,92 +995,88 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
     return this;
 };
 
-Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
+Multi.prototype.send_command = function (command, args, cb) {
     var self = this;
-    var errors = [];
-    var wants_buffers = [];
-    // drain queue, callback will catch "QUEUED" or error
-    // TODO - get rid of all of these anonymous functions which are elegant but slow
-    this.queue.forEach(function (args, index) {
-        var command = args[0], obj, i, il, buffer_args;
-        if (typeof args[args.length - 1] === "function") {
-            args = args.slice(1, -1);
-        } else {
-            args = args.slice(1);
-        }
-        // Keep track of who wants buffer responses:
-        buffer_args = false;
-        for (i = 0, il = args.length; i < il; i += 1) {
-            if (Buffer.isBuffer(args[i])) {
-                buffer_args = true;
-            }
-        }
-        wants_buffers.push(buffer_args);
-        if (args.length === 1 && Array.isArray(args[0])) {
-            args = args[0];
-        }
-        if (command === 'hmset' && typeof args[1] === 'object') {
-            obj = args.pop();
-            Object.keys(obj).forEach(function (key) {
-                args.push(key);
-                args.push(obj[key]);
-            });
-        }
-        this._client.send_command(command, args, function (err, reply) {
-            if (err) {
-                var cur = self.queue[index];
-                if (typeof cur[cur.length - 1] === "function") {
-                    cur[cur.length - 1](err);
-                } else {
-                    errors.push(err);
-                }
-            }
-        });
-    }, this);
-
-    // TODO - make this callback part of Multi.prototype instead of creating it each time
-    return this._client.send_command("exec", [], function (err, replies) {
-        if (err && !err.code) {
-            if (callback) {
-                errors.push(err);
-                callback(errors);
-                return;
+    this._client.send_command(command, args, function (err, reply) {
+        if (err) {
+            if (cb) {
+                cb(err);
             } else {
-                self._client.emit('error', err);
+                self.errors.push(err);
             }
-        }
-
-        var i, il, reply, to_buffer, args;
-
-        if (replies) {
-            for (i = 1, il = self.queue.length; i < il; i += 1) {
-                reply = replies[i - 1];
-                args = self.queue[i];
-                to_buffer = wants_buffers[i];
-
-                // If we asked for strings, even in detect_buffers mode, then return strings:
-                if (self._client.options.detect_buffers && to_buffer === false) {
-                    replies[i - 1] = reply = reply_to_strings(reply);
-                }
-
-                // TODO - confusing and error-prone that hgetall is special cased in two places
-                if (reply && args[0] === "hgetall") {
-                    replies[i - 1] = reply = reply_to_object(reply);
-                }
-
-                if (typeof args[args.length - 1] === "function") {
-                    args[args.length - 1](null, reply);
-                }
-            }
-        }
-
-        if (callback) {
-            callback(null, replies);
-        } else if (err && err.code !== 'CONNECTION_BROKEN') {
-            // Exclude CONNECTION_BROKEN so that error won't be emitted twice
-            self._client.emit('error', err);
         }
     });
+};
+
+Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
+    var self = this;
+    this.errors = [];
+    this.callback = callback;
+    this.wants_buffers = new Array(this.queue.length);
+    // drain queue, callback will catch "QUEUED" or error
+    for (var index = 0; index < this.queue.length; index++) {
+        var args = this.queue[index].slice();
+        var command = args.shift();
+        var cb;
+        if (typeof args[args.length - 1] === "function") {
+            cb = args.pop();
+        }
+        // Keep track of who wants buffer responses:
+        this.wants_buffers[index] = false;
+        for (var i = 0; i < args.length; i += 1) {
+            if (Buffer.isBuffer(args[i])) {
+                this.wants_buffers[index] = true;
+                break;
+            }
+        }
+        this.send_command(command, args, cb);
+    }
+
+    this._client.send_command('exec', [], function(err, replies) {
+        self.execute_callback(err, replies);
+    });
+};
+
+Multi.prototype.execute_callback = function (err, replies) {
+    var i, reply, args;
+
+    if (err) {
+        if (err.code !== 'CONNECTION_BROKEN') {
+            if (this.callback) {
+                this.errors.push(err);
+                this.callback(this.errors);
+            } else {
+                // Exclude CONNECTION_BROKEN so that error won't be emitted twice
+                this._client.emit('error', err);
+            }
+        }
+        return;
+    }
+
+    if (replies) {
+        for (i = 1; i < this.queue.length; i += 1) {
+            reply = replies[i - 1];
+            args = this.queue[i];
+
+            // If we asked for strings, even in detect_buffers mode, then return strings:
+            if (this._client.options.detect_buffers && this.wants_buffers[i] === false) {
+                replies[i - 1] = reply = reply_to_strings(reply);
+            }
+
+            // TODO - confusing and error-prone that hgetall is special cased in two places
+            if (reply && args[0] === "hgetall") {
+                replies[i - 1] = reply = reply_to_object(reply);
+            }
+
+            if (typeof args[args.length - 1] === "function") {
+                args[args.length - 1](null, reply);
+            }
+        }
+    }
+
+    if (this.callback) {
+        this.callback(null, replies);
+    }
 };
 
 RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
