@@ -210,6 +210,19 @@ describe("The 'multi' method", function () {
                     });
                 });
 
+                it('allows an array to be provided to hmset', function (done) {
+                    client.multi()
+                        .hmset("arrayhash", ['a', 'b', 'c'])
+                        .hgetall("arrayhash")
+                        .exec(function (err, replies) {
+                            assert.strictEqual(null, err);
+                            assert.equal("OK", replies[0]);
+                            assert.equal(Object.keys(replies[1]).length, 3);
+                            assert.equal("b", replies[1]['1']);
+                            return done();
+                        });
+                });
+
             });
         });
     });
