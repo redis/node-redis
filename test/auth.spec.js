@@ -70,6 +70,17 @@ describe("client authentication", function () {
                 });
             });
 
+            it('allows auth to be provided post-hoc with auth method', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip);
+                client = redis.createClient.apply(redis.createClient, args);
+                client.auth(auth);
+                client.on("ready", function () {
+                    return done();
+                });
+            });
+
             it('reconnects with appropriate authentication', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
