@@ -28,6 +28,9 @@ if (!process.env.REDIS_TESTS_STARTED) {
 }
 
 module.exports = {
+    redisProcess: function () {
+        return rp;
+    },
     stopRedis: function (done) {
         rp.stop(done);
     },
@@ -95,17 +98,26 @@ module.exports = {
         // Return true if the server version >= desired_version
         var version = connection.server_info.versions;
         for (var i = 0; i < 3; i++) {
-            if (version[i] > desired_version[i]) return true;
-            if (version[i] < desired_version[i]) return false;
+            if (version[i] < desired_version[i]) {
+                if (this.skip) this.skip();
+                return false;
+            }
         }
         return true;
     },
     allTests: function (cb) {
         [undefined].forEach(function (options) { // add buffer option at some point
             describe(options && options.return_buffers ? "returning buffers" : "returning strings", function () {
-                ['hiredis', 'javascript'].forEach(function (parser) {
-                    cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock", options));
-                    ['IPv4', 'IPv6'].forEach(function (ip) {
+                var parsers = ['javascript'];
+                var protocols = ['IPv4'];
+                if (process.platform !== 'win32') {
+                    parsers.push('hiredis');
+                    protocols.push('IPv6');
+                }
+
+                parsers.forEach(function (parser) {
+                    if (process.platform !== 'win32') cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock", options));
+                    protocols.forEach(function (ip) {
                         cb(parser, ip, config.configureClient(parser, ip, options));
                     });
                 });

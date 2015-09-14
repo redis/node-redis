@@ -24,6 +24,8 @@ describe("client authentication", function () {
             });
 
             it("allows auth to be provided with 'auth' method", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
                 client = redis.createClient.apply(redis.createClient, args);
                 client.auth(auth, function (err, res) {
                     assert.strictEqual(null, err);
@@ -33,6 +35,8 @@ describe("client authentication", function () {
             });
 
             it("raises error when auth is bad", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
                 client = redis.createClient.apply(redis.createClient, args);
 
                 client.once('error', function (error) {
@@ -45,6 +49,8 @@ describe("client authentication", function () {
 
             if (ip === 'IPv4') {
                 it('allows auth to be provided as part of redis url', function (done) {
+                    if (helper.redisProcess().spawnFailed()) this.skip();
+
                     client = redis.createClient('redis://foo:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
                     client.on("ready", function () {
                         return done();
@@ -53,6 +59,8 @@ describe("client authentication", function () {
             }
 
             it('allows auth to be provided as config option for client', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
                 var args = config.configureClient(parser, ip, {
                     auth_pass: auth
                 });
@@ -62,7 +70,20 @@ describe("client authentication", function () {
                 });
             });
 
+            it('allows auth to be provided post-hoc with auth method', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip);
+                client = redis.createClient.apply(redis.createClient, args);
+                client.auth(auth);
+                client.on("ready", function () {
+                    return done();
+                });
+            });
+
             it('reconnects with appropriate authentication', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
                 var readyCount = 0;
                 client = redis.createClient.apply(redis.createClient, args);
                 client.auth(auth);

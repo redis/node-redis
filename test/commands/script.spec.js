@@ -19,12 +19,7 @@ describe("The 'script' method", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("error", done);
                 client.once("connect", function () {
-                    client.flushdb(function (err) {
-                        if (!helper.serverVersionAtLeast(client, [2, 6, 0])) {
-                          err = Error('script not supported in redis <= 2.6.0');
-                        }
-                        return done(err);
-                    });
+                    client.flushdb(done);
                 });
             });
 
@@ -33,17 +28,20 @@ describe("The 'script' method", function () {
             });
 
             it("loads script with client.script('load')", function (done) {
-                client.SCRIPT("load", command, function(err, result) {
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
+                client.script("load", command, function(err, result) {
                     assert.strictEqual(result, commandSha);
                     return done();
                 });
             });
 
             it('allows a loaded script to be evaluated', function (done) {
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.evalsha(commandSha, 0, helper.isString('99', done));
             });
 
             it('allows a script to be loaded as part of a chained transaction', function (done) {
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.multi().script("load", command).exec(function(err, result) {
                     assert.strictEqual(result[0], commandSha);
                     return done();
@@ -51,6 +49,7 @@ describe("The 'script' method", function () {
             });
 
             it("allows a script to be loaded using a transaction's array syntax", function (done) {
+                helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
                 client.multi([['script', 'load', command]]).exec(function(err, result) {
                     assert.strictEqual(result[0], commandSha);
                     return done();

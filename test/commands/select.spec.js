@@ -26,7 +26,7 @@ describe("The 'select' method", function () {
 
                 it("throws an error if redis is not connected", function (done) {
                     client.select(1, function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });

@@ -17,12 +17,7 @@ describe("The 'client' method", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("error", done);
                 client.once("connect", function () {
-                    client.flushdb(function (err) {
-                        if (!helper.serverVersionAtLeast(client, [2, 4, 0])) {
-                          err = Error('script not supported in redis <= 2.4.0');
-                        }
-                        return done(err);
-                    });
+                    client.flushdb(done);
                 });
             });
 

@@ -35,7 +35,7 @@ describe("The 'multi' method", function () {
                 it("reports an error", function (done) {
                     client.multi();
                     client.exec(function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });
@@ -60,13 +60,15 @@ describe("The 'multi' method", function () {
 
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
                     var multi1, multi2;
+                    var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
 
                     // Provoke an error at queue time
                     multi1 = client.MULTI();
                     multi1.mset("multifoo", "10", "multibar", "20", helper.isString("OK"));
-                    multi1.set("foo2", helper.isError());
-                    multi1.incr("multifoo", helper.isNumber(11));
-                    multi1.incr("multibar", helper.isNumber(21));
+
+                    multi1.set("foo2", expected);
+                    multi1.incr("multifoo");
+                    multi1.incr("multibar");
                     multi1.exec(function () {
                         // Redis 2.6.5+ will abort transactions with errors
                         // see: http://redis.io/topics/transactions
@@ -89,63 +91,34 @@ describe("The 'multi' method", function () {
                     });
                 });
 
-                // I'm unclear as to the difference between this test in the test above,
-                // perhaps @mranney can clarify?
-                it('roles back a transaction when an error was provoked at queue time', function (done) {
-                    var multi1 = client.multi();
-                    multi1.mset("multifoo_8", "10", "multibar_8", "20", helper.isString("OK"));
-                    multi1.set("foo2", helper.isError());
-                    multi1.set("foo3", helper.isError());
-                    multi1.incr("multifoo_8", helper.isNumber(11));
-                    multi1.incr("multibar_8", helper.isNumber(21));
-                    multi1.exec(function () {
-                        // Redis 2.6.5+ will abort transactions with errors
-                        // see: http://redis.io/topics/transactions
-                        var multibar_expected = 22;
-                        var multifoo_expected = 12;
+                it('roles back a transaction when one command in an array of commands fails', function (done) {
+                    var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
+
+                    // test nested multi-bulk replies
+                    client.multi([
+                        ["mget", "multifoo", "multibar", function (err, res) {
+                            assert.strictEqual(2, res.length);
+                            assert.strictEqual(0, +res[0]);
+                            assert.strictEqual(0, +res[1]);
+                        }],
+                        ["set", "foo2", expected],
+                        ["incr", "multifoo"],
+                        ["incr", "multibar"]
+                    ]).exec(function (err, replies) {
                         if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
-                            multibar_expected = 1;
-                            multifoo_expected = 1;
+                            assert.notEqual(err, null);
+                            assert.equal(replies, undefined);
+                        } else {
+                            assert.strictEqual(2, replies[0].length);
+                            assert.strictEqual(null, replies[0][0]);
+                            assert.strictEqual(null, replies[0][1]);
+
+                            assert.strictEqual("1", replies[1].toString());
+                            assert.strictEqual("1", replies[2].toString());
                         }
 
-                        // Confirm that the previous command, while containing an error, still worked.
-                        var multi2 = client.multi();
-                        multi2.incr("multibar_8", helper.isNumber(multibar_expected));
-                        multi2.incr("multifoo_8", helper.isNumber(multifoo_expected));
-                        multi2.exec(function (err, replies) {
-                            assert.strictEqual(multibar_expected, replies[0]);
-                            assert.strictEqual(multifoo_expected, replies[1]);
-                            return done();
-                        });
+                        return done();
                     });
-                });
-
-                it('roles back a transaction when one command in an array of commands fails', function (done) {
-                      // test nested multi-bulk replies
-                      client.multi([
-                          ["mget", "multifoo", "multibar", function (err, res) {
-                              assert.strictEqual(2, res.length);
-                              assert.strictEqual("0", res[0].toString());
-                              assert.strictEqual("0", res[1].toString());
-                          }],
-                          ["set", "foo2", helper.isError()],
-                          ["incr", "multifoo", helper.isNumber(1)],
-                          ["incr", "multibar", helper.isNumber(1)]
-                      ]).exec(function (err, replies) {
-                          if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
-                              assert.notEqual(err, null);
-                              assert.equal(replies, undefined);
-                          } else {
-                              assert.strictEqual(2, replies[0].length);
-                              assert.strictEqual("0", replies[0][0].toString());
-                              assert.strictEqual("0", replies[0][1].toString());
-
-                              assert.strictEqual("1", replies[1].toString());
-                              assert.strictEqual("1", replies[2].toString());
-                          }
-
-                          return done();
-                      });
                 });
 
                 it('handles multiple operations being applied to a set', function (done) {
@@ -226,7 +199,7 @@ describe("The 'multi' method", function () {
                 });
 
                 it('reports multiple exceptions when they occur', function (done) {
-                    if (!helper.serverVersionAtLeast(client, [2, 6, 5])) return done();
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
 
                     client.multi().set("foo").exec(function (err, reply) {
                         assert(Array.isArray(err), "err should be an array");
@@ -235,6 +208,19 @@ describe("The 'multi' method", function () {
                         assert(err[1].message.match(/^EXECABORT/), "First error message should begin with EXECABORT");
                         return done();
                     });
+                });
+
+                it('allows an array to be provided to hmset', function (done) {
+                    client.multi()
+                        .hmset("arrayhash", ['a', 'b', 'c'])
+                        .hgetall("arrayhash")
+                        .exec(function (err, replies) {
+                            assert.strictEqual(null, err);
+                            assert.equal("OK", replies[0]);
+                            assert.equal(Object.keys(replies[1]).length, 3);
+                            assert.equal("b", replies[1]['1']);
+                            return done();
+                        });
                 });
 
             });
