@@ -206,20 +206,20 @@ RedisClient.prototype.do_auth = function () {
                 debug("Warning: Redis server does not require a password, but a password was supplied.");
                 err = null;
                 res = "OK";
+            } else if (self.auth_callback) {
+                self.auth_callback(err);
+                self.auth_callback = null;
             } else {
-                return self.emit("error", new Error("Auth error: " + err.message));
+                self.emit("error", err);
+                return;
             }
         }
 
         res = res.toString();
-        if (res !== "OK") {
-            return self.emit("error", new Error("Auth failed: " + res));
-        }
-
         debug("Auth succeeded " + self.address + " id " + self.connection_id);
 
         if (self.auth_callback) {
-            self.auth_callback(err, res);
+            self.auth_callback(null, res);
             self.auth_callback = null;
         }
 
