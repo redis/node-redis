@@ -193,7 +193,7 @@ RedisClient.prototype.on_error = function (msg) {
     this.ready = false;
 
     this.emit("error", new Error(message));
-    // "error" events get turned into exceptions if they aren't listened for.  If the user handled this error
+    // "error" events get turned into exceptions if they aren't listened for. If the user handled this error
     // then we should try to reconnect.
     this.connection_gone("error");
 };
@@ -211,11 +211,11 @@ RedisClient.prototype.do_auth = function () {
         if (err) {
             /* istanbul ignore if: this is almost impossible to test */
             if (loading.test(err.message)) {
-                // if redis is still loading the db, it will not authenticate and everything else will fail
+                // If redis is still loading the db, it will not authenticate and everything else will fail
                 debug("Redis still loading, trying to authenticate later");
                 setTimeout(function () {
                     self.do_auth();
-                }, 2000); // TODO - magic number alert
+                }, 333);
                 return;
             } else if (noPasswordIsSet.test(err.message)) {
                 debug("Warning: Redis server does not require a password, but a password was supplied.");
@@ -238,7 +238,7 @@ RedisClient.prototype.do_auth = function () {
             self.auth_callback = null;
         }
 
-        // now we are really connected
+        // Now we are really connected
         self.emit("connect");
         self.initialize_retry_vars();
 
