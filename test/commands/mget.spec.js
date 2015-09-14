@@ -42,7 +42,7 @@ describe("The 'mget' method", function () {
             });
 
             it('handles fetching multiple keys, when some keys do not exist', function (done) {
-                client.MGET(["mget keys 1", "some random shit", "mget keys 2", "mget keys 3"], function (err, results) {
+                client.MGET("mget keys 1", ["some random shit", "mget keys 2", "mget keys 3"], function (err, results) {
                     assert.strictEqual(4, results.length);
                     assert.strictEqual("mget val 1", results[0].toString());
                     assert.strictEqual(null, results[1]);

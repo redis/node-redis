@@ -123,7 +123,7 @@ describe("The 'multi' method", function () {
 
                 it('handles multiple operations being applied to a set', function (done) {
                     client.sadd("some set", "mem 1");
-                    client.sadd("some set", "mem 2");
+                    client.sadd(["some set", "mem 2"]);
                     client.sadd("some set", "mem 3");
                     client.sadd("some set", "mem 4");
 
@@ -136,7 +136,7 @@ describe("The 'multi' method", function () {
 
                     // test nested multi-bulk replies with empty mb elements.
                     client.multi([
-                        ["smembers", "some set"],
+                        ["smembers", ["some set"]],
                         ["del", "some set"],
                         ["smembers", "some set"]
                     ])
@@ -144,6 +144,40 @@ describe("The 'multi' method", function () {
                     .exec(function (err, replies) {
                         assert.strictEqual(4, replies[0].length);
                         assert.strictEqual(0, replies[2].length);
+                        return done();
+                    });
+                });
+
+                it('allows multiple operations to be performed using constructor with all kinds of syntax', function (done) {
+                    var now = Date.now();
+                    client.multi([
+                        ["mset", [578, "multibar"], helper.isString('OK')],
+                        [["mset", "multifoo2", "multibar2", "multifoo3", "multibar3"], helper.isString('OK')],
+                        ["hmset", ["multihmset", "multibar", "multibaz"]],
+                        [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test", helper.isString('OK')]],
+                        ["hmset", ["multihmset", "multibar", "multifoo", helper.isString('OK')]],
+                        ["hmset", [5768, "multibarx", "multifoox"], helper.isString('OK')],
+                        ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
+                        ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
+                        ["hmset", "multihmset", ["multibar", "multibaz"]],
+                        ["hmset", "multihmset", ["multibar", "multibaz"], helper.isString('OK')],
+                    ])
+                    .hmget(now, 123456789, 'otherTypes')
+                    .hmget('key2', ['some manner of key', 'otherTypes'])
+                    .hmget(['multihmset2', 'some manner of key', 'multibar3'])
+                    .mget('multifoo2', ['multifoo3', 'multifoo'], function(err, res) {
+                        assert(res[0], 'multifoo3');
+                        assert(res[1], 'multifoo');
+                    })
+                    .exec(function (err, replies) {
+                        assert.strictEqual(null, err);
+                        assert.equal(replies[10][1], '555');
+                        assert.equal(replies[11][0], 'a type of value');
+                        assert.strictEqual(replies[12][0], null);
+                        assert.equal(replies[12][1], 'test');
+                        assert.equal(replies[13][0], 'multibar2');
+                        assert.equal(replies[13].length, 3);
+                        assert.equal(replies.length, 14);
                         return done();
                     });
                 });
@@ -168,8 +202,8 @@ describe("The 'multi' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API', function (done) {
                     client.multi()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr('some')
-                        .incr('keys')
+                        .incr(['some', helper.isNumber(11)])
+                        .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .exec(function (err, replies) {
                             assert.strictEqual(null, err);

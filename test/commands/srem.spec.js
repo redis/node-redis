@@ -41,8 +41,8 @@ describe("The 'srem' method", function () {
             });
 
             it('handles a value missing from the set of values being removed', function (done) {
-                client.sadd("set0", ["member0", "member1", "member2"], helper.isNumber(3));
-                client.SREM("set0", ["member3", "member4"], helper.isNumber(0));
+                client.sadd(["set0", "member0", "member1", "member2"], helper.isNumber(3));
+                client.SREM(["set0", "member3", "member4"], helper.isNumber(0));
                 client.smembers("set0", function (err, res) {
                     assert.strictEqual(res.length, 3);
                     assert.ok(~res.indexOf("member0"));

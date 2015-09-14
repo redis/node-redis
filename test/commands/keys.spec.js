@@ -23,7 +23,7 @@ describe("The 'keys' method", function () {
 
             it('returns matching keys', function (done) {
                 client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], helper.isString("OK"));
-                client.KEYS(["test keys*"], function (err, results) {
+                client.KEYS("test keys*", function (err, results) {
                     assert.strictEqual(2, results.length);
                     assert.ok(~results.indexOf("test keys 1"));
                     assert.ok(~results.indexOf("test keys 2"));

@@ -35,12 +35,12 @@ describe("The 'type' method", function () {
             });
 
             it('reports zset type', function (done) {
-                client.zadd(["zset key", "10.0", "should be a zset"], helper.isNumber(1));
+                client.zadd("zset key", ["10.0", "should be a zset"], helper.isNumber(1));
                 client.TYPE(["zset key"], helper.isString("zset", done));
             });
 
             it('reports hash type', function (done) {
-                client.hset(["hash key", "hashtest", "should be a hash"], helper.isNumber(1));
+                client.hset("hash key", "hashtest", "should be a hash", helper.isNumber(1));
                 client.TYPE(["hash key"], helper.isString("hash", done));
             });
 
