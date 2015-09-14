@@ -5,8 +5,7 @@ redis - a node.js redis client
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 [![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/node-redis)
 
-This is a complete Redis client for node.js. It supports all Redis commands,
-including many recently added commands.
+This is a complete Redis client for node.js. It supports all Redis commands and focuses on performance.
 
 Install with:
 
@@ -54,21 +53,26 @@ Note that the API is entire asynchronous. To get data back from the server,
 you'll need to use a callback. The return value from most of the API is a
 backpressure indicator.
 
+You can also use node_redis with promises by promisifying node_redis with [bluebird](https://github.com/petkaantonov/bluebird) as in:
+
+```js
+var redis = require('redis');
+bluebird.promisifyAll(redis.RedisClient.prototype);
+```
+
 ### Sending Commands
 
 Each Redis command is exposed as a function on the `client` object.
 All functions take either an `args` Array plus optional `callback` Function or
 a variable number of individual arguments followed by an optional callback.
-Here is an example of passing an array of arguments and a callback:
+Here are examples how to use the api:
 
 ```js
-client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
-```
-
-Here is that same call in the second style:
-
-```js
-client.mset("test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
+client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+// Works the same as
+client.hmset("key", ["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+// Or
+client.hmset("key", "test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
 ```
 
 Note that in either form the `callback` is optional:
@@ -78,7 +82,7 @@ client.set("some key", "some val");
 client.set(["some other key", "some val"]);
 ```
 
-If the key is missing, reply will be null (probably):
+If the key is missing, reply will be null. Only if the [Redis Command Reference](http://redis.io/commands) states something else it will not be null.
 
 ```js
 client.get("missingkey", function(err, reply) {
@@ -103,15 +107,13 @@ JavaScript Array of node Buffers. `HGETALL` returns an Object with Buffers keyed
 
 ### "ready"
 
-`client` will emit `ready` once a connection is established to the Redis server and the server reports
-that it is ready to receive commands. Commands issued before the `ready` event are queued,
+`client` will emit `ready` once a connection is established. Commands issued before the `ready` event are queued,
 then replayed just before this event is emitted.
 
 ### "connect"
 
 `client` will emit `connect` at the same time as it emits `ready` unless `client.options.no_ready_check`
-is set. If this options is set, `connect` will be emitted when the stream is connected, and then
-you are free to try to send commands.
+is set. If this options is set, `connect` will be emitted when the stream is connected.
 
 ### "reconnecting"
 
@@ -120,26 +122,9 @@ are passed an object containing `delay` (in ms) and `attempt` (the attempt #) at
 
 ### "error"
 
-`client` will emit `error` when encountering an error connecting to the Redis server.
+`client` will emit `error` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
 
-Note that "error" is a special event type in node. If there are no listeners for an
-"error" event, node will exit. This is usually what you want, but it can lead to some
-cryptic error messages like this:
-
-    mjr:~/work/node_redis (master)$ node example.js
-
-    node.js:50
-        throw e;
-        ^
-    Error: ECONNREFUSED, Connection refused
-        at IOWatcher.callback (net:870:22)
-        at node.js:607:9
-
-Not very useful in diagnosing the problem, but if your program isn't ready to handle this,
-it is probably the right thing to just exit.
-
-`client` will also emit `error` if an exception is thrown inside of `node_redis` for whatever reason.
-It would be nice to distinguish these two cases.
+So please attach the error listener to node_redis.
 
 ### "end"
 
@@ -149,8 +134,7 @@ It would be nice to distinguish these two cases.
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure. Right now,
-you need to check `client.command_queue.length` to decide when to reduce your send rate. Then you can
-resume sending when you get `drain`.
+you need to check `client.command_queue.length` to decide when to reduce your send rate and resume sending commands when you get `drain`.
 
 ### "idle"
 
@@ -169,39 +153,35 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 
  `options` is an object with the following possible properties:
 
-* `parser`: which Redis protocol reply parser to use. Defaults to `hiredis` if that module is installed.
-This may also be set to `javascript`.
-* `return_buffers`: defaults to `false`. If set to `true`, then all replies will be sent to callbacks as node Buffer
-objects instead of JavaScript Strings.
-* `detect_buffers`: default to `false`. If set to `true`, then replies will be sent to callbacks as node Buffer objects
-if any of the input arguments to the original command were Buffer objects.
+* `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
+* `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
+* `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers
+if any of the input arguments to the original command were Buffers.
 This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
 every command on a client.
-* `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
-Nagle algorithm on the underlying socket. Setting this option to `false` can result in additional throughput at the
-cost of more latency. Most applications will want this set to `true`.
-* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket.
-* `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
-be loading the database from disk. While loading, the server not respond to any commands. To work around this,
+* `socket_nodelay`: *true*; Disables the [Nagle algorithm](https://en.wikipedia.org/wiki/Nagle%27s_algorithm).
+Setting this option to `false` can result in additional throughput at the cost of more latency.
+Most applications will want this set to `true`.
+* `socket_keepalive` *true*; Whether the keep-alive functionality is enabled on the underlying socket.
+* `no_ready_check`: *false*; When a connection is established to the Redis server, the server might still
+be loading the database from disk. While loading the server will not respond to any commands. To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command
 indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
-* `enable_offline_queue`: defaults to `true`. By default, if there is no active
+* `enable_offline_queue`: *true*; By default, if there is no active
 connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
-`false` will disable this feature and the callback will be execute immediately
-with an error, or an error will be thrown if no callback is specified.
-* `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
-reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
-to maximum value, provided in milliseconds.
-* `connect_timeout` defaults to `86400000`. Setting `connect_timeout` limits total time for client to reconnect.
-Value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
+`false` will disable this feature and the callback will be executed immediately
+with an error, or an error will be emitted if no callback is specified.
+* `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
+This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
+* `connect_timeout` *86400000*; Setting `connect_timeout` limits total time for client to reconnect.
+The value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
 That way the default is to try reconnecting until 24h passed.
-* `max_attempts` defaults to `0`. By default client will try reconnecting until connected. Setting `max_attempts`
+* `max_attempts` *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
-* `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
-* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
-You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
+* `auth_pass` *null*; If set, client will run redis auth command on connect.
+* `family` *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 
 ```js
 var redis = require("redis"),
@@ -221,11 +201,9 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.end();
 ```
 
-
-
 ## client.auth(password, callback)
 
-When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
+When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
 first command after connecting. This can be tricky to coordinate with reconnections, the ready check,
 etc. To make this easier, `client.auth()` stashes `password` and will send it after each connection,
 including reconnections. `callback` is invoked only once, after the response to the very first
@@ -247,10 +225,11 @@ var redis = require("redis"),
     client = redis.createClient();
 
 client.set("foo_rand000000000000", "some fantastic value");
+client.end(); // No further commands will be processed
 client.get("foo_rand000000000000", function (err, reply) {
-    console.log(reply.toString());
+    // This won't be called anymore
+    console.log(err);
 });
-client.end();
 ```
 
 `client.end()` is useful for timeout cases where something is stuck or taking too long and you want
@@ -436,10 +415,8 @@ client.multi()
 same command methods as `client` objects do. Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
 
-The `callback` of `.exec()` will get invoked with two arguments:
-
-* `err` **type:** `null | Array` err is either null or an array of Error Objects corresponding the the sequence the commands where chained. The last item of the array will always be an `EXECABORT` type of error originating from the `.exec()` itself.
-* `results` **type:** `null | Array` results is an array of responses corresponding the the sequence the commands where chained.
+If your code contains an syntax error an EXECABORT error is going to be thrown and all commands are going to be aborted. That error contains a `.errors` property that contains the concret errors.
+If all commands were queued successfully and an error is thrown by redis while processing the commands that error is going to be returned in the result array! No other command is going to be aborted though than the onces failing.
 
 You can either chain together `MULTI` commands as in the above example, or you can queue individual
 commands while still sending regular client command as in this example:
@@ -561,7 +538,7 @@ Used internally to send commands to Redis. Nearly all Redis commands have been a
 However, if new commands are introduced before this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
 The command has to be lower case.
 
-All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted.
+All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
 
 ## client.connected
 
@@ -720,22 +697,15 @@ hiredis parser:
 
 To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
-## TODO
-
-1. 100% coverage
-2. More performance improvements
-3. Stream large set/get values into and out of Redis. Otherwise the entire value must be in node's memory.
-4. Performance can be better for very large values in the js parser.
-
 ## How to Contribute
 - open a pull request and then wait for feedback
 
 ## Contributors
-Many people have have added features and fixed bugs in `node_redis`. Thanks to all of them!
+Many [people](https://github.com/NodeRedis/node_redis/graphs/contributors) have have added features and fixed bugs in `node_redis`. Thanks to all of them!
 
 ## LICENSE - "MIT License"
 
-Copyright (c) 2015 Matthew Ranney, http://ranney.com/
+Copyright (c) by NodeRedis
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -757,3 +727,5 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
+
+Originally developed by Matthew Ranney, http://ranney.com/

@@ -1,10 +1,84 @@
 Changelog
 =========
 
-## Upcoming
+## v2.0.0 - Sep 21, 2015
 
-* [#815](https://github.com/NodeRedis/node_redis/pull/815) Consistently use new debug functionality (@BridgeAR)
-* [#814](https://github.com/NodeRedis/node_redis/pull/814) Support new commands and drop support for deprecated 'substr' (@BridgeAR)
+This is the biggest release that node_redis had since it was released in 2010. A long list of outstanding bugs has been fixed, so we are very happy to present you redis 2.0 and we highly recommend updating as soon as possible.
+
+#What's new in 2.0
+
+- Implemented a "connection is broken" mode if no connection could be established
+- node_redis no longer throws under any circumstances, preventing it from terminating applications.
+- Multi error handling is now working properly
+- Consistent command behavior including multi
+- Windows support
+- Improved performance
+- A lot of code cleanup
+- Many bug fixes
+- Better user support!
+
+## Features:
+
+- Added a "redis connection is broken" mode after reaching max connection attempts / exceeding connection timeout. (@BridgeAR)
+- Added NODE_DEBUG=redis env to activate the debug_mode (@BridgeAR)
+- Added a default connection timeout of 24h instead of never timing out as a default (@BridgeAR)
+- Added: Network errors and other stream errors will from now on include the error code as `err.code` property (@BridgeAR)
+- Added: Errors thrown by redis will now include the redis error code as `err.code` property. (@skeggse & @BridgeAR)
+- Added: Errors thrown by node_redis will now include a `err.command` property for the command used (@BridgeAR)
+- Added new commands and drop support for deprecated *substr* (@BridgeAR)
+- Added new possibilities how to provide the command arguments (@BridgeAR)
+- The entries in the keyspace of the server_info is now an object instead of a string. (@SinisterLight & @BridgeAR)
+- Small speedup here and there (e.g. by not using .toLowerCase() anymore) (@BridgeAR)
+- Full windows support (@bcoe)
+- Increased coverage by 10% and add a lot of tests to make sure everything works as it should. We now reached 97% :-) (@BridgeAR)
+- Remove dead code, clean up and refactor very old chunks (@BridgeAR)
+- Don't flush the offline queue if reconnecting (@BridgeAR)
+- Emit all errors insteaf of throwing sometimes and sometimes emitting them (@BridgeAR)
+- *auth_pass* passwords are now checked to be a valid password (@jcppman & @BridgeAR)
+
+## Bug fixes:
+
+- Don't kill the app anymore by randomly throwing errors sync instead of emitting them (@BridgeAR)
+- Don't catch user errors anymore occuring in callbacks (no try callback anymore & more fixes for the parser) (@BridgeAR)
+- Early garbage collection of queued items (@dohse)
+- Fix js parser returning errors as strings (@BridgeAR)
+- Do not wrap errors into other errors (@BridgeAR)
+- Authentication failures are now returned in the callback instead of being emitted (@BridgeAR)
+- Fix a memory leak on reconnect (@rahar)
+- Using `send_command` directly may no also be called without the args as stated in the [README.md](./README.md) (@BridgeAR)
+- Fix the multi.exec error handling (@BridgeAR)
+- Fix commands being inconsistent and behaving wrong (@BridgeAR)
+- Channel names with spaces are now properly resubscribed after a reconnection (@pbihler)
+- Do not try to reconnect after the connection timeout has been exceeded (@BridgeAR)
+- Removed bad .eval implementation (@BridgeAR)
+- Fix commands not being rejected after calling .quit (@BridgeAR)
+- Fix .auth calling the callback twice if already connected (@BridgeAR)
+- Fix detect_buffers not working in pub sub mode and while monitoring (@BridgeAR)
+- Fix channel names always being strings instead of buffers while return_buffers is true (@BridgeAR)
+- Don't print any debug statements if not asked for (@BridgeAR)
+- Fix a couple small other bugs
+
+## Breaking changes:
+
+1. redis.send_command commands have to be lower case from now on. This does only apply if you use `.send_command` directly instead of the convenient methods like `redis.command`.
+2. Error messages have changed quite a bit. If you depend on a specific wording please check your application carfully.
+3. Errors are from now on always either returned if a callback is present or emitted. They won't be thrown (neither sync, nor async).
+4. The Multi error handling has changed a lot!
+ - All errors are from now on errors instead of strings (this only applied to the js parser).
+ - If an error occurs while queueing the commands an EXECABORT error will be returned including the failed commands as `.errors` property instead of an array with errors.
+ - If an error occurs while executing the commands and that command has a callback it'll return the error as first parameter (`err, undefined` instead of `null, undefined`).
+ - All the errors occuring while executing the commands will stay in the result value as error instance (if you used the js parser before they would have been strings). Be aware that the transaction won't be aborted if those error occurr!
+ - If `multi.exec` does not have a callback and an EXECABORT error occurrs, it'll emit that error instead.
+5. If redis can't connect to your redis server it'll give up after a certain point of failures (either max connection attempts or connection timeout exceeded). If that is the case it'll emit an CONNECTION_BROKEN error. You'll have to initiate a new client to try again afterwards.
+6. The offline queue is not flushed anymore on a reconnect. It'll stay until node_redis gives up trying to reach the server or until you close the connection.
+7. Before this release node_redis catched user errors and threw them async back. This is not the case anymore! No user behavior of what so ever will be tracked or catched.
+8. The keyspace of `redis.server_info` (db0...) is from now on an object instead of an string.
+
+NodeRedis also thanks @qdb, @tobek, @cvibhagool, @frewsxcv, @davidbanham, @serv, @vitaliylag, @chrishamant, @GamingCoder and all other contributors that I may have missed for their contributions!
+
+From now on we'll push new releases more frequently out and fix further long outstanding things and implement new features.
+
+<hr>
 
 ## v1.0.0 - Aug 30, 2015
 
@@ -14,6 +88,7 @@ Changelog
 * [#786](https://github.com/NodeRedis/node_redis/pull/786) Refactor createClient. Fixes #651 (@BridgeAR)
 * [#793](https://github.com/NodeRedis/node_redis/pull/793) Refactor tests and improve test coverage (@erinspice, @bcoe)
 * [#733](https://github.com/NodeRedis/node_redis/pull/733) Fixes detect_buffers functionality in the context of exec. Fixes #732, #263 (@raydog)
+* [#785](https://github.com/NodeRedis/node_redis/pull/785) Tiny speedup by using 'use strict' (@BridgeAR)
 * Fix extraneous error output due to pubsub tests (Mikael Kohlmyr)
 
 ## v0.12.1 - Aug 10, 2014
