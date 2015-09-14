@@ -165,6 +165,23 @@ describe("The 'multi' method", function () {
                         });
                 });
 
+                it('allows multiple commands to work the same as normal to be performed using a chaining API', function (done) {
+                    client.multi()
+                        .mset(['some', '10', 'keys', '20'])
+                        .incr('some')
+                        .incr('keys')
+                        .mget('some', 'keys')
+                        .exec(function (err, replies) {
+                            assert.strictEqual(null, err);
+                            assert.equal('OK', replies[0]);
+                            assert.equal(11, replies[1]);
+                            assert.equal(21, replies[2]);
+                            assert.equal(11, replies[3][0].toString());
+                            assert.equal(21, replies[3][1].toString());
+                            return done();
+                        });
+                });
+
                 it('allows an array to be provided indicating multiple operations to perform', function (done) {
                     // test nested multi-bulk replies with nulls.
                     client.multi([

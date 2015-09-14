@@ -33,6 +33,16 @@ describe("The 'blpop' method", function () {
                 });
             });
 
+            it('pops value immediately if list contains values using array notation', function (done) {
+                bclient = redis.createClient.apply(redis.createClient, args);
+                client.rpush(["blocking list", "initial value"], helper.isNumber(1));
+                bclient.blpop(["blocking list", 0], function (err, value) {
+                    assert.strictEqual(value[0], "blocking list");
+                    assert.strictEqual(value[1], "initial value");
+                    return done(err);
+                });
+            });
+
             it('waits for value if list is not yet populated', function (done) {
                 bclient = redis.createClient.apply(redis.createClient, args);
                 bclient.blpop("blocking list 2", 5, function (err, value) {

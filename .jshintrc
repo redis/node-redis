@@ -16,6 +16,9 @@
     "node": true, // Enable globals available when code is running inside of the NodeJS runtime environment.
     "mocha": true,
 
+    // Relaxing options
+    "boss": true, // Accept things like `while (command = keys.shift()) { ... }`
+
     "overrides": {
         "examples/*.js": {
             "unused": false

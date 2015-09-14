@@ -74,6 +74,26 @@ describe("The 'getset' method", function () {
                             });
                         });
                     });
+
+                    it("gets the value correctly with array syntax", function (done) {
+                        client.GETSET([key, value2], function (err, res) {
+                            helper.isString(value)(err, res);
+                            client.get(key, function (err, res) {
+                                helper.isString(value2)(err, res);
+                                done(err);
+                            });
+                        });
+                    });
+
+                    it("gets the value correctly with array syntax style 2", function (done) {
+                        client.GETSET(key, [value2], function (err, res) {
+                            helper.isString(value)(err, res);
+                            client.get(key, function (err, res) {
+                                helper.isString(value2)(err, res);
+                                done(err);
+                            });
+                        });
+                    });
                 });
 
                 describe("when the key does not exist in Redis", function () {
