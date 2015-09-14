@@ -98,6 +98,9 @@ module.exports = {
         // Return true if the server version >= desired_version
         var version = connection.server_info.versions;
         for (var i = 0; i < 3; i++) {
+            if (version[i] > desired_version[i]) {
+                return true;
+            }
             if (version[i] < desired_version[i]) {
                 if (this.skip) this.skip();
                 return false;
