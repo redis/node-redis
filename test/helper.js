@@ -1,8 +1,17 @@
+'use strict';
+
 var assert = require("assert");
 var path = require('path');
 var config = require("./lib/config");
 var RedisProcess = require("./lib/redis-process");
 var rp;
+
+function startRedis (conf, done) {
+    RedisProcess.start(function (err, _rp) {
+        rp = _rp;
+        return done(err);
+    }, path.resolve(__dirname, conf));
+}
 
 // don't start redis every time we
 // include this helper file!
@@ -11,7 +20,7 @@ if (!process.env.REDIS_TESTS_STARTED) {
 
   before(function (done) {
       startRedis('./conf/redis.conf', done);
-  })
+  });
 
   after(function (done) {
       if (rp) rp.stop(done);
@@ -19,6 +28,9 @@ if (!process.env.REDIS_TESTS_STARTED) {
 }
 
 module.exports = {
+    redisProcess: function () {
+        return rp;
+    },
     stopRedis: function (done) {
         rp.stop(done);
     },
@@ -49,7 +61,7 @@ module.exports = {
     },
     isError: function (done) {
         return function (err, results) {
-            assert.notEqual(err, null, "err is null, but an error is expected here.");
+            assert(err instanceof Error, "err is not instance of 'Error', but an error is expected here.");
             if (done) return done();
         };
     },
@@ -86,17 +98,29 @@ module.exports = {
         // Return true if the server version >= desired_version
         var version = connection.server_info.versions;
         for (var i = 0; i < 3; i++) {
-            if (version[i] > desired_version[i]) return true;
-            if (version[i] < desired_version[i]) return false;
+            if (version[i] > desired_version[i]) {
+                return true;
+            }
+            if (version[i] < desired_version[i]) {
+                if (this.skip) this.skip();
+                return false;
+            }
         }
         return true;
     },
     allTests: function (cb) {
         [undefined].forEach(function (options) { // add buffer option at some point
             describe(options && options.return_buffers ? "returning buffers" : "returning strings", function () {
-                ['hiredis', 'javascript'].forEach(function (parser) {
-                    cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock", options));
-                    ['IPv4', 'IPv6'].forEach(function (ip) {
+                var parsers = ['javascript'];
+                var protocols = ['IPv4'];
+                if (process.platform !== 'win32') {
+                    parsers.push('hiredis');
+                    protocols.push('IPv6');
+                }
+
+                parsers.forEach(function (parser) {
+                    if (process.platform !== 'win32') cb(parser, "/tmp/redis.sock", config.configureClient(parser, "/tmp/redis.sock", options));
+                    protocols.forEach(function (ip) {
                         cb(parser, ip, config.configureClient(parser, ip, options));
                     });
                 });
@@ -107,12 +131,14 @@ module.exports = {
         var mochaListener = process.listeners('uncaughtException').pop();
         process.removeListener('uncaughtException', mochaListener);
         return mochaListener;
+    },
+    callFuncAfter: function (func, max) {
+        var i = 0;
+        return function () {
+            i++;
+            if (i === max) {
+                func();
+            }
+        };
     }
-}
-
-function startRedis (conf, done) {
-    RedisProcess.start(function (err, _rp) {
-        rp = _rp;
-        return done(err);
-    }, path.resolve(__dirname, conf));
-}
+};

@@ -1,4 +1,5 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require("../lib/config");
 var helper = require('../helper');
@@ -33,8 +34,9 @@ describe("The 'getset' method", function () {
                 });
 
                 it("reports an error", function (done) {
+                    client.GET(key, redis.print); // Use the utility function to print the error
                     client.get(key, function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });
@@ -64,7 +66,7 @@ describe("The 'getset' method", function () {
                     });
 
                     it("gets the value correctly", function (done) {
-                        client.getset(key, value2, function (err, res) {
+                        client.GETSET(key, value2, function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
                                 helper.isString(value2)(err, res);

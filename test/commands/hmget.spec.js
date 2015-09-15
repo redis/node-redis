@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -16,13 +18,12 @@ describe("The 'hmget' method", function () {
                 client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb();
-                    client.HMSET(hash, {"0123456789": "abcdefghij", "some manner of key": "a type of value"}, helper.isString('OK'));
-                    return done();
+                    client.HMSET(hash, {"0123456789": "abcdefghij", "some manner of key": "a type of value"}, helper.isString('OK', done));
                 });
             });
 
             it('allows keys to be specified using multiple arguments', function (done) {
-                client.HMGET(hash, "0123456789", "some manner of key", function (err, reply) {
+                client.hmget(hash, "0123456789", "some manner of key", function (err, reply) {
                     assert.strictEqual("abcdefghij", reply[0].toString());
                     assert.strictEqual("a type of value", reply[1].toString());
                     return done(err);

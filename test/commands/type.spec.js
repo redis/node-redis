@@ -1,4 +1,5 @@
-var assert = require("assert");
+'use strict';
+
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
@@ -25,7 +26,7 @@ describe("The 'type' method", function () {
 
             it('reports list type', function (done) {
                 client.rpush(["list key", "should be a list"], helper.isNumber(1));
-                client.TYPE(["list key"], helper.isString("list", done));
+                client.type(["list key"], helper.isString("list", done));
             });
 
             it('reports set type', function (done) {

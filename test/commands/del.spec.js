@@ -1,4 +1,5 @@
-var assert = require("assert");
+'use strict';
+
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
@@ -20,7 +21,7 @@ describe("The 'del' method", function () {
 
             it('allows a single key to be deleted', function (done) {
                 client.set('foo', 'bar');
-                client.del('foo', helper.isNumber(1));
+                client.DEL('foo', helper.isNumber(1));
                 client.get('foo', helper.isNull(done));
             });
 

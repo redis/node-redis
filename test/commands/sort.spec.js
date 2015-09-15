@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -15,7 +17,7 @@ describe("The 'sort' method", function () {
                 client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb();
-                    setupData(client, done)
+                    setupData(client, done);
                 });
             });
 
@@ -28,7 +30,7 @@ describe("The 'sort' method", function () {
                 });
 
                 it('sorts in descending alphabetical order', function (done) {
-                    client.sort('y', 'desc', 'alpha', function (err, sorted) {
+                    client.SORT('y', 'desc', 'alpha', function (err, sorted) {
                         assert.deepEqual(sorted, ['d', 'c', 'b', 'a']);
                         return done(err);
                     });

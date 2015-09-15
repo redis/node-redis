@@ -1,4 +1,5 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require("../lib/config");
 var helper = require('../helper');
@@ -33,7 +34,7 @@ describe("The 'set' method", function () {
 
                 it("reports an error", function (done) {
                     client.set(key, value, function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });
@@ -57,7 +58,7 @@ describe("The 'set' method", function () {
                 describe("and a callback is specified", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
-                            client.set(key, value, function (err, res) {
+                            client.SET(key, value, function (err, res) {
                                 helper.isNotError()(err, res);
                                 client.get(key, function (err, res) {
                                     helper.isString(value)(err, res);
@@ -70,15 +71,6 @@ describe("The 'set' method", function () {
                     describe("with undefined 'key' and missing 'value' parameter", function () {
                         it("reports an error", function (done) {
                             client.set(undefined, function (err, res) {
-                                helper.isError()(err, null);
-                                done();
-                            });
-                        });
-                    });
-
-                    describe("with undefined 'key' and defined 'value' parameters", function () {
-                        it("reports an error", function () {
-                            client.set(undefined, value, function (err, res) {
                                 helper.isError()(err, null);
                                 done();
                             });
@@ -104,8 +96,7 @@ describe("The 'set' method", function () {
                             this.timeout(200);
 
                             client.once("error", function (err) {
-                                helper.isError()(err, null);
-                                return done(err);
+                                done(err);
                             });
 
                             client.set();
@@ -115,33 +106,13 @@ describe("The 'set' method", function () {
                             }, 100);
                         });
 
-                        it("does not throw an error", function (done) {
-                            this.timeout(200);
-                            var mochaListener = helper.removeMochaListener();
-
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
-                                return done(err);
-                            });
-
-                            client.set();
-
-                            setTimeout(function () {
+                        it("does emit an error", function (done) {
+                            client.on('error', function (err) {
+                                assert.equal(err.message, "ERR wrong number of arguments for 'set' command");
                                 done();
-                            }, 100);
-                        });
-                    });
-
-                    describe("with undefined 'key' and defined 'value' parameters", function () {
-                        it("throws an error", function () {
-                            var mochaListener = helper.removeMochaListener();
-
-                            process.once('uncaughtException', function (err) {
-                                process.on('uncaughtException', mochaListener);
-                                helper.isError()(err, null);
                             });
 
-                            client.set(undefined, value);
+                            client.set('foo');
                         });
                     });
                 });

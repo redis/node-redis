@@ -1,4 +1,5 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require("../lib/config");
 var helper = require('../helper');
@@ -33,7 +34,7 @@ describe("The 'dbsize' method", function () {
 
                 it("reports an error", function (done) {
                     client.dbsize([], function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });
@@ -58,7 +59,7 @@ describe("The 'dbsize' method", function () {
                 });
 
                 it("returns a zero db size", function (done) {
-                    client.dbsize([], function (err, res) {
+                    client.DBSIZE([], function (err, res) {
                         helper.isNotError()(err, res);
                         helper.isType.number()(err, res);
                         assert.strictEqual(res, 0, "Initial db size should be 0");

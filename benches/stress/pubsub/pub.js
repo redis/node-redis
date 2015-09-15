@@ -3,8 +3,8 @@
 var freemem = require('os').freemem;
 var profiler = require('v8-profiler');
 var codec = require('../codec');
-
 var sent = 0;
+var exec;
 
 var pub = require('redis').createClient(null, null, {
 	//command_queue_high_water: 5,

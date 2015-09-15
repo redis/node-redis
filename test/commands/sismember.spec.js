@@ -1,4 +1,5 @@
-var assert = require("assert");
+'use strict';
+
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
@@ -24,7 +25,7 @@ describe("The 'sismember' method", function () {
 
             it('returns 1 if the value is in the set', function (done) {
                 client.sadd('foo', 'banana', helper.isNumber(1));
-                client.sismember('foo', 'banana', helper.isNumber(1, done));
+                client.SISMEMBER('foo', 'banana', helper.isNumber(1, done));
             });
 
             afterEach(function () {

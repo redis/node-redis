@@ -1,4 +1,5 @@
-var assert = require("assert");
+'use strict';
+
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
@@ -23,7 +24,7 @@ describe("The 'hincrby' method", function () {
                 var field = "field 1";
 
                 client.HSET(hash, field, 33);
-                client.HINCRBY(hash, field, 10, helper.isNumber(43, done));
+                client.hincrby(hash, field, 10, helper.isNumber(43, done));
             });
 
             it('increments a key that has not been set', function (done) {

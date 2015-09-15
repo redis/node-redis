@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
@@ -25,7 +27,7 @@ describe("The 'srem' method", function () {
             });
 
             it('handles attempting to remove a missing value', function (done) {
-                client.srem('set0', 'member0', helper.isNumber(0, done));
+                client.SREM('set0', 'member0', helper.isNumber(0, done));
             });
 
             it('allows multiple values to be removed', function (done) {

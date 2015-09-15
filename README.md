@@ -3,6 +3,7 @@ redis - a node.js redis client
 
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
+[![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/node-redis)
 
 This is a complete Redis client for node.js. It supports all Redis commands,
 including many recently added commands.
@@ -552,9 +553,9 @@ the second word as first parameter:
 
 ## client.send_command(command_name, args, callback)
 
-Used internally to send commands to Redis. For convenience, nearly all commands that are published on the Redis
-Wiki have been added to the `client` object. However, if I missed any, or if new commands are introduced before
-this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
+Used internally to send commands to Redis. Nearly all Redis commands have been added to the `client` object.
+However, if new commands are introduced before this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
+The command has to be lower case.
 
 All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted.
 

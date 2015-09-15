@@ -1,4 +1,5 @@
-var assert = require("assert");
+'use strict';
+
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
@@ -19,7 +20,7 @@ describe("The 'setnx' method", function () {
             });
 
             it('sets key if it does not have a value', function (done) {
-                client.setnx('foo', 'banana', helper.isNumber(1));
+                client.SETNX('foo', 'banana', helper.isNumber(1));
                 client.get('foo', helper.isString('banana', done));
             });
 
@@ -27,7 +28,6 @@ describe("The 'setnx' method", function () {
                 client.set('foo', 'bar', helper.isString('OK'));
                 client.setnx('foo', 'banana', helper.isNumber(0));
                 client.get('foo', helper.isString('bar', done));
-                return done();
             });
 
             afterEach(function () {

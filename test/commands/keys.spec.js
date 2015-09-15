@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require("assert");
 var config = require("../lib/config");
 var crypto = require("crypto");
@@ -44,7 +46,7 @@ describe("The 'keys' method", function () {
                     return a.concat(b);
                 }), helper.isString("OK"));
 
-                client.KEYS("multibulk:*", function(err, results) {
+                client.keys("multibulk:*", function(err, results) {
                     assert.deepEqual(keys_values.map(function(val) {
                         return val[0];
                     }).sort(), results.sort());

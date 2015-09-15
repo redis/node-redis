@@ -1,9 +1,9 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require("../lib/config");
 var helper = require('../helper');
 var redis = config.redis;
-var uuid = require('uuid');
 
 describe("The 'incr' method", function () {
 
@@ -35,7 +35,7 @@ describe("The 'incr' method", function () {
 
                 it("reports an error", function (done) {
                     client.incr(function (err, res) {
-                        assert.equal(err.message, 'Redis connection gone from end event.');
+                        assert(err.message.match(/Redis connection gone/));
                         done();
                     });
                 });
@@ -69,7 +69,7 @@ describe("The 'incr' method", function () {
                 });
 
                 it("changes the last digit from 2 to 3", function (done) {
-                    client.incr(key, function (err, res) {
+                    client.INCR(key, function (err, res) {
                         helper.isString("9007199254740993")(err, res);
                         done(err);
                     });
