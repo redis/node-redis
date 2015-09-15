@@ -252,7 +252,7 @@ RedisClient.prototype.on_connect = function () {
 
     this.init_parser();
 
-    if (this.auth_pass) {
+    if (typeof this.auth_pass === 'string') {
         this.do_auth();
     } else {
         this.emit("connect");
@@ -911,6 +911,16 @@ RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, call
 
 // Stash auth for connect and reconnect. Send immediately if already connected.
 RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callback) {
+    if (typeof pass !== 'string') {
+        var err = new Error('The password has to be of type "string"');
+        err.command_used = 'AUTH';
+        if (callback) {
+            callback(err);
+        } else {
+            this.emit('error', err);
+        }
+        return;
+    }
     this.auth_pass = pass;
     this.auth_callback = callback;
     debug("Saving auth as " + this.auth_pass);
