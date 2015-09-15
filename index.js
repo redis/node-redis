@@ -683,6 +683,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             if (last_arg_type === "function" || last_arg_type === "undefined") {
                 callback = args.pop();
             }
+        } else if ( this.pub_sub_mode == false && queue_len == 0 ) {
+            this.pub_sub_mode = true;
         } else {
             throw new Error("send_command: last argument must be a callback or undefined");
         }
