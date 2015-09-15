@@ -34,17 +34,30 @@ describe("client authentication", function () {
                 });
             });
 
-            it("raises error when auth is bad", function (done) {
+            it("emits error when auth is bad without callback", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(redis.createClient, args);
 
-                client.once('error', function (error) {
-                    assert.ok(/ERR invalid password/.test(error));
+                client.once('error', function (err) {
+                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.ok(/ERR invalid password/.test(err.message));
                     return done();
                 });
 
                 client.auth(auth + 'bad');
+            });
+
+            it("returns an error when auth is bad with a callback", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                client = redis.createClient.apply(redis.createClient, args);
+
+                client.auth(auth + 'bad', function (err, res) {
+                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.ok(/ERR invalid password/.test(err.message));
+                    done();
+                });
             });
 
             if (ip === 'IPv4') {
@@ -67,6 +80,19 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.on("ready", function () {
                     return done();
+                });
+            });
+
+            it('allows auth and no_ready_check to be provided as config option for client', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip, {
+                    auth_pass: auth,
+                    no_ready_check: true
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+                client.on("ready", function () {
+                    done();
                 });
             });
 
