@@ -75,17 +75,12 @@ function RedisClient(stream, options) {
     this.monitoring = false;
     this.closing = false;
     this.server_info = {};
-    this.auth_pass = null;
-    if (options.auth_pass !== undefined) {
-        this.auth_pass = options.auth_pass;
-    }
+    this.auth_pass = process.env.NODE_REDIS_AUTH_PASS || options.auth_pass;
     this.parser_module = null;
-    this.selected_db = null;	// save the selected db here, used when reconnecting
-
+    this.selected_db = null; // save the selected db here, used when reconnecting
     this.old_state = null;
 
     this.install_stream_listeners();
-
     events.EventEmitter.call(this);
 }
 util.inherits(RedisClient, events.EventEmitter);
@@ -1135,7 +1130,9 @@ var createClient_tcp = function (port_arg, host_arg, options) {
 };
 
 exports.createClient = function(port_arg, host_arg, options) {
-    if (typeof port_arg === 'object' || port_arg === undefined) {
+    if (process.env.NODE_REDIS_URL) {
+        port_arg = process.env.NODE_REDIS_URL;
+    } else if (typeof port_arg === 'object' || port_arg === undefined) {
         options = port_arg || options;
         return createClient_tcp(default_port, default_host, options);
     }
