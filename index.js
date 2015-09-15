@@ -359,6 +359,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     });
 
     obj.versions = [];
+    /* istanbul ignore else: some redis servers do not send the version */
     if (obj.redis_version) {
         obj.redis_version.split('.').forEach(function (num) {
             obj.versions.push(+num);
@@ -572,8 +573,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
     if (this.pub_sub_mode && (type === 'message' || type === 'pmessage')) {
         debug("Received pubsub message");
-    }
-    else {
+    } else {
         command_obj = this.command_queue.shift();
     }
 
@@ -660,7 +660,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, il, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
 
     if (typeof command !== "string") {
         throw new Error("First argument to send_command must be the command name string, not " + typeof command);
@@ -718,9 +718,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     }
 
     buffer_args = false;
-    for (i = 0, il = args.length, arg; i < il; i += 1) {
+    for (i = 0; i < args.length; i += 1) {
         if (Buffer.isBuffer(args[i])) {
             buffer_args = true;
+            break;
         }
     }
 
@@ -768,7 +769,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     command_str = "*" + elem_count + "\r\n$" + command.length + "\r\n" + command + "\r\n";
 
     if (!buffer_args) { // Build up a string and send entire command in one write
-        for (i = 0, il = args.length, arg; i < il; i += 1) {
+        for (i = 0; i < args.length; i += 1) {
             arg = args[i];
             if (typeof arg !== "string") {
                 arg = String(arg);
@@ -781,7 +782,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         debug("Send command (" + command_str + ") has Buffer arguments");
         buffered_writes += !stream.write(command_str);
 
-        for (i = 0, il = args.length, arg; i < il; i += 1) {
+        for (i = 0; i < args.length; i += 1) {
             arg = args[i];
             if (!(Buffer.isBuffer(arg) || arg instanceof String)) {
                 arg = String(arg);
@@ -892,7 +893,7 @@ commands.forEach(function (fullCommand) {
 });
 
 // store db in this.select_db to restore it on reconnect
-RedisClient.prototype.select = function (db, callback) {
+RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, callback) {
     var self = this;
 
     this.send_command('select', [db], function (err, res) {
@@ -906,22 +907,18 @@ RedisClient.prototype.select = function (db, callback) {
         }
     });
 };
-RedisClient.prototype.SELECT = RedisClient.prototype.select;
 
-// Stash auth for connect and reconnect.  Send immediately if already connected.
-RedisClient.prototype.auth = function () {
-    var args = to_array(arguments);
-    this.auth_pass = args[0];
-    this.auth_callback = args[1];
+// Stash auth for connect and reconnect. Send immediately if already connected.
+RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callback) {
+    this.auth_pass = pass;
+    this.auth_callback = callback;
     debug("Saving auth as " + this.auth_pass);
-
     if (this.connected) {
-        this.send_command("auth", args);
+        this.send_command("auth", pass, callback);
     }
 };
-RedisClient.prototype.AUTH = RedisClient.prototype.auth;
 
-RedisClient.prototype.hmget = function (arg1, arg2, arg3) {
+RedisClient.prototype.hmget = RedisClient.prototype.HMGET = function (arg1, arg2, arg3) {
     if (Array.isArray(arg2) && typeof arg3 === "function") {
         return this.send_command("hmget", [arg1].concat(arg2), arg3);
     } else if (Array.isArray(arg1) && typeof arg2 === "function") {
@@ -930,9 +927,8 @@ RedisClient.prototype.hmget = function (arg1, arg2, arg3) {
         return this.send_command("hmget", to_array(arguments));
     }
 };
-RedisClient.prototype.HMGET = RedisClient.prototype.hmget;
 
-RedisClient.prototype.hmset = function (args, callback) {
+RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (args, callback) {
     var tmp_args, tmp_keys, i, il, key;
 
     if (Array.isArray(args)) {
@@ -968,9 +964,8 @@ RedisClient.prototype.hmset = function (args, callback) {
 
     return this.send_command("hmset", args, callback);
 };
-RedisClient.prototype.HMSET = RedisClient.prototype.hmset;
 
-Multi.prototype.hmset = function () {
+Multi.prototype.hmset = Multi.prototype.HMSET = function () {
     var args = to_array(arguments), tmp_args;
     if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "object") {
         tmp_args = [ "hmset", args[0] ];
@@ -989,9 +984,8 @@ Multi.prototype.hmset = function () {
     this.queue.push(args);
     return this;
 };
-Multi.prototype.HMSET = Multi.prototype.hmset;
 
-Multi.prototype.exec = function (callback) {
+Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
     var self = this;
     var errors = [];
     var wants_buffers = [];
@@ -1075,13 +1069,10 @@ Multi.prototype.exec = function (callback) {
         }
     });
 };
-Multi.prototype.EXEC = Multi.prototype.exec;
 
-RedisClient.prototype.multi = function (args) {
+RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
     return new Multi(this, args);
 };
-RedisClient.prototype.MULTI = RedisClient.prototype.multi;
-
 
 // stash original eval method
 var eval_orig = RedisClient.prototype.eval;
