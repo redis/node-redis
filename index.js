@@ -910,7 +910,7 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
     this.auth_callback = callback;
     debug("Saving auth as " + this.auth_pass);
     if (this.connected) {
-        this.send_command("auth", pass, callback);
+        this.send_command("auth", [pass], callback);
     }
 };
 
