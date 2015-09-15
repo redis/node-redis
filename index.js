@@ -957,6 +957,7 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (args, call
         tmp_keys = Object.keys(args[1]);
         for (i = 0, il = tmp_keys.length; i < il ; i++) {
             key = tmp_keys[i];
+            if(args[1][key] == null) continue;
             tmp_args.push(key);
             tmp_args.push(args[1][key]);
         }
