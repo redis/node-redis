@@ -1,7 +1,8 @@
-var async = require('async');
+'use strict';
+
 var assert = require('assert');
 var config = require('./lib/config');
-var helper = require('./helper')
+var helper = require('./helper');
 var redis = config.redis;
 
 
@@ -61,7 +62,7 @@ describe('enabling/changing password in redis', function() {
             var readyCount = 0;
             client.on('ready', function () {
                 readyCount++;
-                if (readyCount == 1) {
+                if (readyCount === 1) {
                     setRedisPass(auth, done, function() {
                         testSet(1, function (err) {
                             if (err) return done(err);
@@ -92,8 +93,8 @@ describe('enabling/changing password in redis', function() {
 
 
     function testSet(i, cb) {
-        var key = 'test_key_' + i
-            , value = 'test_value_' + i;
+        var key = 'test_key_' + i,
+            value = 'test_value_' + i;
         client.set(key, value, function (err, res) {
             if (err) return cb(err);
             assert.equal(res, 'OK');
@@ -120,6 +121,6 @@ describe('enabling/changing password in redis', function() {
             } else {
                 done();
             }
-        }
+        };
     }
 });
