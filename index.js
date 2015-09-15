@@ -252,7 +252,7 @@ RedisClient.prototype.on_connect = function () {
 
     this.init_parser();
 
-    if (this.auth_pass) {
+    if (this.auth_pass != undefined) { // use != to coalesce null and undefined
         this.do_auth();
     } else {
         this.emit("connect");
