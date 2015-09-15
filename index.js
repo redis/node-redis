@@ -661,7 +661,7 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0;
+    var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, err;
 
     // if (typeof callback === "function") {}
     // probably the fastest way:
@@ -698,7 +698,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             return;
         }
         if (args[args.length - 1] === undefined || args[args.length - 1] === null) {
-            var err = new Error('send_command: ' + command + ' value must not be undefined or null');
+            command = command.toUpperCase();
+            err = new Error('send_command: ' + command + ' value must not be undefined or null');
+            err.command_used = command;
             if (callback) {
                 return callback && callback(err);
             }
@@ -718,24 +720,25 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     command_obj = new Command(command, args, false, buffer_args, callback);
 
     if (!this.ready && !this.send_anyway || !stream.writable) {
-        if (this.enable_offline_queue) {
-            if (!stream.writable) {
-                debug("send command: stream is not writeable.");
+        if (this.closing || !this.enable_offline_queue) {
+            command = command.toUpperCase();
+            if (!this.closing) {
+                err = new Error(command + ' can\'t be processed. Stream not writeable and enable_offline_queue is deactivated.');
+            } else {
+                err = new Error(command + ' can\'t be processed. The connection has already been closed.');
             }
+            err.command_used = command;
+            if (callback) {
+                callback(err);
+            } else {
+                this.emit('error', err);
+            }
+        } else {
             debug("Queueing " + command + " for next server connection.");
             this.offline_queue.push(command_obj);
             this.should_buffer = true;
-        } else {
-            var not_writeable_error = new Error('send_command: stream not writeable. enable_offline_queue is false');
-            if (command_obj.callback) {
-                command_obj.callback(not_writeable_error);
-            } else {
-                this.emit("error", not_writeable_error);
-                return;
-            }
         }
-
-        return false;
+        return;
     }
 
     if (command === "subscribe" || command === "psubscribe" || command === "unsubscribe" || command === "punsubscribe") {
