@@ -854,6 +854,9 @@ RedisClient.prototype.end = function () {
     }
     this.stream.on("error", function(){});
 
+    // Flush queue
+    this.flush_and_error("Redis connection ended.");
+
     this.connected = false;
     this.ready = false;
     this.closing = true;
