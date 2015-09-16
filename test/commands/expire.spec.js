@@ -21,6 +21,14 @@ describe("The 'expire' method", function () {
 
             it('expires key after timeout', function (done) {
                 client.set(['expiry key', 'bar'], helper.isString("OK"));
+                client.EXPIRE("expiry key", "1", helper.isNumber(1));
+                setTimeout(function () {
+                    client.exists(["expiry key"], helper.isNumber(0, done));
+                }, 1100);
+            });
+
+            it('expires key after timeout with array syntax', function (done) {
+                client.set(['expiry key', 'bar'], helper.isString("OK"));
                 client.EXPIRE(["expiry key", "1"], helper.isNumber(1));
                 setTimeout(function () {
                     client.exists(["expiry key"], helper.isNumber(0, done));

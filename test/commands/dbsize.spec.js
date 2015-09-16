@@ -71,7 +71,7 @@ describe("The 'dbsize' method", function () {
                     var oldSize;
 
                     beforeEach(function (done) {
-                        client.dbsize([], function (err, res) {
+                        client.dbsize(function (err, res) {
                             helper.isType.number()(err, res);
                             assert.strictEqual(res, 0, "Initial db size should be 0");
 

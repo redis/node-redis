@@ -88,6 +88,12 @@ describe("The 'mset' method", function () {
                             client.get(key, helper.isString(value2));
                             client.get(key2, helper.isString(value, done));
                         });
+
+                        it("sets the value correctly with array syntax", function (done) {
+                            client.mset([key, value2, key2, value]);
+                            client.get([key, helper.isString(value2)]);
+                            client.get(key2, helper.isString(value, done));
+                        });
                     });
 
                     describe("with undefined 'key' and missing 'value'  parameter", function () {

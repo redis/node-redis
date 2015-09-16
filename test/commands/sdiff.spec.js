@@ -22,11 +22,11 @@ describe("The 'sdiff' method", function () {
 
             it('returns set difference', function (done) {
                 client.sadd('foo', 'x', helper.isNumber(1));
-                client.sadd('foo', 'a', helper.isNumber(1));
+                client.sadd('foo', ['a'], helper.isNumber(1));
                 client.sadd('foo', 'b', helper.isNumber(1));
-                client.sadd('foo', 'c', helper.isNumber(1));
+                client.sadd(['foo', 'c'], helper.isNumber(1));
 
-                client.sadd('bar', 'c', helper.isNumber(1));
+                client.sadd(['bar', 'c', helper.isNumber(1)]);
 
                 client.sadd('baz', 'a', helper.isNumber(1));
                 client.sadd('baz', 'd', helper.isNumber(1));

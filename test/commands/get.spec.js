@@ -70,6 +70,21 @@ describe("The 'get' method", function () {
                             done(err);
                         });
                     });
+
+                    it("gets the value correctly with array syntax and the callback being in the array", function (done) {
+                        client.GET([key, function (err, res) {
+                            helper.isString(value)(err, res);
+                            done(err);
+                        }]);
+                    });
+
+                    it("should not throw on a get without callback (even if it's not useful", function (done) {
+                        client.GET(key);
+                        client.on('error', function(err) {
+                            throw err;
+                        });
+                        setTimeout(done, 50);
+                    });
                 });
 
                 describe("when the key does not exist in Redis", function () {

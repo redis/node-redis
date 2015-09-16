@@ -37,8 +37,17 @@ describe("The 'client' method", function () {
                     });
                 });
 
+                it("lists connected clients when invoked with array syntax on client", function (done) {
+                    client.multi().client(["list"]).exec(function(err, results) {
+                        assert(pattern.test(results[0]), "expected string '" + results + "' to match " + pattern.toString());
+                        return done();
+                    });
+                });
+
                 it("lists connected clients when invoked with multi's array syntax", function (done) {
-                    client.multi().client("list").exec(function(err, results) {
+                    client.multi([
+                        ['client', 'list']
+                    ]).exec(function(err, results) {
                         assert(pattern.test(results[0]), "expected string '" + results + "' to match " + pattern.toString());
                         return done();
                     });

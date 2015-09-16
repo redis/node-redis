@@ -75,6 +75,13 @@ describe("The 'sort' method", function () {
                     });
                 });
 
+                it("handles sorting with a 'by' pattern and 2 'get' patterns with the array syntax", function (done) {
+                    client.sort(['x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*'], function (err, sorted) {
+                        assert.deepEqual(sorted, ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux']);
+                        return done(err);
+                    });
+                });
+
                 it("sorting with a 'by' pattern and 2 'get' patterns and stores results", function (done) {
                     client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*', 'store', 'bacon', function (err) {
                         if (err) return done(err);

@@ -44,6 +44,17 @@ describe("The 'sadd' method", function () {
                 });
             });
 
+            it('allows multiple values to be added to the set with a different syntax', function (done) {
+                client.sadd(["set0", "member0", "member1", "member2"], helper.isNumber(3));
+                client.smembers("set0", function (err, res) {
+                    assert.strictEqual(res.length, 3);
+                    assert.ok(~res.indexOf("member0"));
+                    assert.ok(~res.indexOf("member1"));
+                    assert.ok(~res.indexOf("member2"));
+                    return done(err);
+                });
+            });
+
             afterEach(function () {
                 client.end();
             });

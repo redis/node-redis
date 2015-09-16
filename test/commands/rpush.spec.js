@@ -3,8 +3,9 @@
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
+var assert = require('assert');
 
-describe("The 'exits' method", function () {
+describe("The 'rpush' command", function () {
 
     helper.allTests(function(parser, ip, args) {
 
@@ -19,18 +20,13 @@ describe("The 'exits' method", function () {
                 });
             });
 
-            it('returns 1 if the key exists', function (done) {
-                client.set('foo', 'bar');
-                client.EXISTS('foo', helper.isNumber(1, done));
-            });
-
-            it('returns 1 if the key exists with array syntax', function (done) {
-                client.set('foo', 'bar');
-                client.EXISTS(['foo'], helper.isNumber(1, done));
-            });
-
-            it('returns 0 if the key does not exist', function (done) {
-                client.exists('bar', helper.isNumber(0, done));
+            it('inserts multiple values at a time into a list', function (done) {
+                client.rpush('test', ['list key', 'should be a list']);
+                client.lrange('test', 0, -1, function(err, res) {
+                    assert.equal(res[0], 'list key');
+                    assert.equal(res[1], 'should be a list');
+                    done(err);
+                });
             });
 
             afterEach(function () {

@@ -863,8 +863,16 @@ RedisClient.prototype.end = function () {
 function Multi(client, args) {
     this._client = client;
     this.queue = [["multi"]];
+    var command, tmp_args;
     if (Array.isArray(args)) {
-        this.queue = this.queue.concat(args);
+        while (tmp_args = args.shift()) {
+            command = tmp_args.shift();
+            if (Array.isArray(command)) {
+                this[command[0]].apply(this, command.slice(1).concat(tmp_args));
+            } else {
+                this[command].apply(this, tmp_args);
+            }
+        }
     }
 }
 
@@ -878,16 +886,32 @@ commands.forEach(function (fullCommand) {
         return;
     }
 
-    RedisClient.prototype[command] = function (args, callback) {
-        if (Array.isArray(args)) {
-            return this.send_command(command, args, callback);
+    RedisClient.prototype[command] = function (key, arg, callback) {
+        if (Array.isArray(key)) {
+            return this.send_command(command, key, arg);
+        }
+        if (Array.isArray(arg)) {
+            arg.unshift(key);
+            return this.send_command(command, arg, callback);
         }
         return this.send_command(command, to_array(arguments));
     };
     RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
 
-    Multi.prototype[command] = function () {
-        this.queue.push([command].concat(to_array(arguments)));
+    Multi.prototype[command] = function (key, arg, callback) {
+        if (Array.isArray(key)) {
+            if (arg) {
+                key.push(arg);
+            }
+            this.queue.push([command].concat(key));
+        } else if (Array.isArray(arg)) {
+            if (callback) {
+                arg.push(callback);
+            }
+            this.queue.push([command, key].concat(arg));
+        } else {
+            this.queue.push([command].concat(to_array(arguments)));
+        }
         return this;
     };
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
@@ -919,70 +943,63 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
     }
 };
 
-RedisClient.prototype.hmget = RedisClient.prototype.HMGET = function (arg1, arg2, arg3) {
-    if (Array.isArray(arg2) && typeof arg3 === "function") {
-        return this.send_command("hmget", [arg1].concat(arg2), arg3);
-    } else if (Array.isArray(arg1) && typeof arg2 === "function") {
-        return this.send_command("hmget", arg1, arg2);
-    } else {
-        return this.send_command("hmget", to_array(arguments));
+RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args, callback) {
+    var field, tmp_args;
+    if (Array.isArray(key)) {
+        return this.send_command("hmset", key, args);
     }
-};
-
-RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (args, callback) {
-    var tmp_args, tmp_keys, i, il, key;
-
     if (Array.isArray(args)) {
-        return this.send_command("hmset", args, callback);
+        return this.send_command("hmset", [key].concat(args), callback);
     }
-
-    args = to_array(arguments);
-    if (typeof args[args.length - 1] === "function") {
-        callback = args[args.length - 1];
-        args.length -= 1;
-    } else {
-        callback = null;
-    }
-
-    if (args.length === 2 && (typeof args[0] === "string" || typeof args[0] === "number") && typeof args[1] === "object") {
+    if (typeof args === "object") {
         // User does: client.hmset(key, {key1: val1, key2: val2})
         // assuming key is a string, i.e. email address
 
         // if key is a number, i.e. timestamp, convert to string
-        if (typeof args[0] === "number") {
-            args[0] = args[0].toString();
+        // TODO: This seems random and no other command get's the key converted => either all or none should behave like this
+        if (typeof key !== "string") {
+            key = key.toString();
         }
-
-        tmp_args = [ args[0] ];
-        tmp_keys = Object.keys(args[1]);
-        for (i = 0, il = tmp_keys.length; i < il ; i++) {
-            key = tmp_keys[i];
-            tmp_args.push(key);
-            tmp_args.push(args[1][key]);
+        tmp_args = [key];
+        var fields = Object.keys(args);
+        while (field = fields.shift()) {
+            tmp_args.push(field, args[field]);
         }
-        args = tmp_args;
+        return this.send_command("hmset", tmp_args, callback);
     }
-
-    return this.send_command("hmset", args, callback);
+    return this.send_command("hmset", to_array(arguments));
 };
 
-Multi.prototype.hmset = Multi.prototype.HMSET = function () {
-    var args = to_array(arguments), tmp_args;
-    if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "object") {
-        tmp_args = [ "hmset", args[0] ];
-        Object.keys(args[1]).map(function (key) {
-            tmp_args.push(key);
-            tmp_args.push(args[1][key]);
-        });
-        if (args[2]) {
-            tmp_args.push(args[2]);
+Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
+    var tmp_args, field;
+    if (Array.isArray(key)) {
+        if (args) {
+            key.push(args);
         }
-        args = tmp_args;
+        tmp_args = ['hmset'].concat(key);
+    } else if (Array.isArray(args)) {
+        if (callback) {
+            args.push(callback);
+        }
+        tmp_args = ['hmset', key].concat(args);
+    } else if (typeof args === "object") {
+        tmp_args = ["hmset", key];
+        if (typeof key !== "string") {
+            key = key.toString();
+        }
+        var fields = Object.keys(args);
+        while (field = fields.shift()) {
+            tmp_args.push(field);
+            tmp_args.push(args[field]);
+        }
+        if (callback) {
+            tmp_args.push(callback);
+        }
     } else {
-        args.unshift("hmset");
+        tmp_args = to_array(arguments);
+        tmp_args.unshift("hmset");
     }
-
-    this.queue.push(args);
+    this.queue.push(tmp_args);
     return this;
 };
 
