@@ -36,7 +36,7 @@ describe("The 'getset' method", function () {
                 it("reports an error", function (done) {
                     client.GET(key, redis.print); // Use the utility function to print the error
                     client.get(key, function (err, res) {
-                        assert(err.message.match(/Redis connection gone/));
+                        assert(err.message.match(/The connection has already been closed/));
                         done();
                     });
                 });

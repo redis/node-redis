@@ -157,6 +157,54 @@ describe("The node_redis client", function () {
 
                 });
 
+                describe("commands after using .quit should fail", function () {
+
+                    it("return an error in the callback", function (done) {
+                        if (helper.redisProcess().spawnFailed()) this.skip();
+
+                        var client = redis.createClient();
+                        client.quit(function() {
+                            client.get("foo", function(err, res) {
+                                assert.strictEqual(err.message, 'Redis connection gone from end event.');
+                                assert.strictEqual(client.offline_queue.length, 0);
+                                done();
+                            });
+                        });
+                    });
+
+                    it("return an error in the callback version two", function (done) {
+                        if (helper.redisProcess().spawnFailed()) this.skip();
+
+                        var client = redis.createClient();
+                        client.quit();
+                        setTimeout(function() {
+                            client.get("foo", function(err, res) {
+                                assert.strictEqual(err.message, 'GET can\'t be processed. The connection has already been closed.');
+                                assert.strictEqual(err.command_used, 'GET');
+                                assert.strictEqual(client.offline_queue.length, 0);
+                                done();
+                            });
+                        }, 100);
+                    });
+
+                    it("emit an error", function (done) {
+                        if (helper.redisProcess().spawnFailed()) this.skip();
+
+                        var client = redis.createClient();
+                        client.quit();
+                        client.on('error', function(err) {
+                            assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');
+                            assert.strictEqual(err.command_used, 'SET');
+                            assert.strictEqual(client.offline_queue.length, 0);
+                            done();
+                        });
+                        setTimeout(function() {
+                            client.set('foo', 'bar');
+                        }, 50);
+                    });
+
+                });
+
                 describe("when redis closes unexpectedly", function () {
                     it("reconnects and can retrieve the pre-existing data", function (done) {
                         client.on("reconnecting", function on_recon(params) {
@@ -743,15 +791,18 @@ describe("The node_redis client", function () {
                 });
 
                 describe('false', function () {
-                    it("does not emit an error and enqueues operation", function (done) {
+                    it("does emit an error and does not enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
                             parser: parser,
                             max_attempts: 0,
                             enable_offline_queue: false
                         });
+                        var end = helper.callFuncAfter(done, 3);
 
                         client.on('error', function(err) {
-                            assert(/send_command: stream not writeable|ECONNREFUSED/.test(err.message));
+                            assert(/Stream not writeable|ECONNREFUSED/.test(err.message));
+                            assert.equal(client.command_queue.length, 0);
+                            end();
                         });
 
                         client.set('foo', 'bar');
@@ -760,9 +811,7 @@ describe("The node_redis client", function () {
                             client.set('foo', 'bar', function (err) {
                                 // should callback with an error
                                 assert.ok(err);
-                                setTimeout(function () {
-                                    return done();
-                                }, 50);
+                                setTimeout(end, 50);
                             });
                         });
                     });
