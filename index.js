@@ -52,15 +52,11 @@ function RedisClient(stream, options) {
     this.should_buffer = false;
     this.command_queue_high_water = this.options.command_queue_high_water || 1000;
     this.command_queue_low_water = this.options.command_queue_low_water || 0;
-    if (options.max_attempts && options.max_attempts > 0) {
-        this.max_attempts = +options.max_attempts;
-    }
+    this.max_attempts = +options.max_attempts || 0;
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
-    if (options.connect_timeout && options.connect_timeout > 0) {
-        this.connect_timeout = +options.connect_timeout;
-    }
+    this.connect_timeout = +options.connect_timeout || 86400000; // 24 * 60 * 60 * 1000 ms
     this.enable_offline_queue = true;
     if (this.options.enable_offline_queue === false) {
         this.enable_offline_queue = false;
@@ -123,7 +119,7 @@ RedisClient.prototype.install_stream_listeners = function() {
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
     this.retry_totaltime = 0;
-    this.retry_delay = 150;
+    this.retry_delay = 200;
     this.retry_backoff = 1.7;
     this.attempts = 1;
 };
@@ -141,21 +137,17 @@ RedisClient.prototype.unref = function () {
 };
 
 // flush offline_queue and command_queue, erroring any items with a callback first
-RedisClient.prototype.flush_and_error = function (message) {
-    var command_obj, error;
+RedisClient.prototype.flush_and_error = function (error) {
+    var command_obj;
 
-    error = new Error(message);
-
-    while (this.offline_queue.length > 0) {
-        command_obj = this.offline_queue.shift();
+    while (command_obj = this.offline_queue.shift()) {
         if (typeof command_obj.callback === "function") {
             command_obj.callback(error);
         }
     }
     this.offline_queue = new Queue();
 
-    while (this.command_queue.length > 0) {
-        command_obj = this.command_queue.shift();
+    while (command_obj = this.command_queue.shift()) {
         if (typeof command_obj.callback === "function") {
             command_obj.callback(error);
         }
@@ -171,8 +163,6 @@ RedisClient.prototype.on_error = function (msg) {
     var message = "Redis connection to " + this.address + " failed - " + msg;
 
     debug(message);
-
-    this.flush_and_error(message);
 
     this.connected = false;
     this.ready = false;
@@ -399,8 +389,8 @@ RedisClient.prototype.ready_check = function () {
 RedisClient.prototype.send_offline_queue = function () {
     var command_obj, buffered_writes = 0;
 
-    while (this.offline_queue.length > 0) {
-        command_obj = this.offline_queue.shift();
+    // TODO: Implement queue.pop() as it should be faster than shift and evaluate petka antonovs queue
+    while (command_obj = this.offline_queue.shift()) {
         debug("Sending offline command: " + command_obj.command);
         buffered_writes += !this.send_command(command_obj.command, command_obj.args, command_obj.callback);
     }
@@ -438,56 +428,54 @@ RedisClient.prototype.connection_gone = function (why) {
     }
 
     // since we are collapsing end and close, users don't expect to be called twice
-    if (! this.emitted_end) {
+    if (!this.emitted_end) {
         this.emit("end");
         this.emitted_end = true;
     }
 
-    this.flush_and_error("Redis connection gone from " + why + " event.");
-
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
-        this.retry_timer = null;
-        debug("Connection ended from quit command, not retrying.");
+        debug("connection ended from quit command, not retrying.");
+        this.flush_and_error(new Error("Redis connection gone from " + why + " event."));
         return;
     }
 
-    var nextDelay = Math.floor(this.retry_delay * this.retry_backoff);
-    if (this.retry_max_delay !== null && nextDelay > this.retry_max_delay) {
+    if (this.max_attempts !== 0 && this.attempts >= this.max_attempts || this.retry_totaltime >= this.connect_timeout) {
+        var message = this.retry_totaltime >= this.connect_timeout ?
+            'connection timeout exceeded.' :
+            'maximum connection attempts exceeded.';
+        var error = new Error("Redis connection in broken state: " + message);
+        error.code = 'CONNECTION_BROKEN';
+        this.flush_and_error(error);
+        this.emit('error', error);
+        this.end();
+        return;
+    }
+
+    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
         this.retry_delay = this.retry_max_delay;
-    } else {
-        this.retry_delay = nextDelay;
+    } else if (this.retry_totaltime + this.retry_delay > this.connect_timeout) {
+        // Do not exceed the maximum
+        this.retry_delay = this.connect_timeout - this.retry_totaltime;
     }
 
     debug("Retry connection in " + this.retry_delay + " ms");
 
-    if (this.max_attempts && this.attempts >= this.max_attempts) {
-        this.retry_timer = null;
-        // TODO - some people need a "Redis is Broken mode" for future commands that errors immediately, and others
-        // want the program to exit.  Right now, we just log, which doesn't really help in either case.
-        debug("Couldn't get Redis connection after " + this.max_attempts + " attempts.");
-        return;
-    }
-
-    this.attempts += 1;
-    this.emit("reconnecting", {
-        delay: self.retry_delay,
-        attempt: self.attempts
-    });
     this.retry_timer = setTimeout(function () {
         debug("Retrying connection...");
 
-        self.retry_totaltime += self.retry_delay;
+        self.emit("reconnecting", {
+            delay: self.retry_delay,
+            attempt: self.attempts
+        });
 
-        if (self.connect_timeout && self.retry_totaltime >= self.connect_timeout) {
-            self.retry_timer = null;
-            // TODO - engage Redis is Broken mode for future commands, or whatever
-            debug("Couldn't get Redis connection after " + self.retry_totaltime + "ms.");
-            return;
-        }
+        self.retry_totaltime += self.retry_delay;
+        self.attempts += 1;
+        self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
 
         self.stream = net.createConnection(self.connectionOption);
         self.install_stream_listeners();
+
         self.retry_timer = null;
     }, this.retry_delay);
 };
@@ -836,12 +824,12 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 RedisClient.prototype.end = function () {
     this.stream._events = {};
 
-    //clear retry_timer
-    if(this.retry_timer){
+    // Clear retry_timer
+    if (this.retry_timer){
         clearTimeout(this.retry_timer);
-        this.retry_timer=null;
+        this.retry_timer = null;
     }
-    this.stream.on("error", function(){});
+    this.stream.on("error", function noop(){});
 
     this.connected = false;
     this.ready = false;
@@ -1047,7 +1035,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
 
     // TODO - make this callback part of Multi.prototype instead of creating it each time
     return this._client.send_command("exec", [], function (err, replies) {
-        if (err) {
+        if (err && !err.code) {
             if (callback) {
                 errors.push(err);
                 callback(errors);
@@ -1083,6 +1071,9 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
 
         if (callback) {
             callback(null, replies);
+        } else if (err && err.code !== 'CONNECTION_BROKEN') {
+            // Exclude CONNECTION_BROKEN so that error won't be emitted twice
+            self._client.emit('error', err);
         }
     });
 };

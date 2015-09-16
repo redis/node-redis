@@ -8,7 +8,9 @@ var redis = config.redis;
 
 describe("The node_redis client", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests({
+        allConnections: true
+    }, function(parser, ip, args) {
 
         if (args[2]) { // skip if options are undefined
             describe("testing parser existence", function () {
@@ -624,7 +626,6 @@ describe("The node_redis client", function () {
 
                 describe('defaults to true', function () {
                     var client;
-                    var args = config.configureClient(parser, ip);
 
                     it("fires client.on('ready')", function (done) {
                         client = redis.createClient.apply(redis.createClient, args);
@@ -703,11 +704,41 @@ describe("The node_redis client", function () {
                                 if (err) return done(err);
                             });
 
-                            return setTimeout(function(){
+                            return setTimeout(function() {
                                 assert.strictEqual(client.offline_queue.length, 1);
                                 return done();
                             }, 25);
                         }, 50);
+                    });
+
+                    it("enqueues operation and keep the queue while trying to reconnect", function (done) {
+                        var client = redis.createClient(9999, null, {
+                            max_attempts: 4,
+                            parser: parser
+                        });
+                        var i = 0;
+
+                        client.on('error', function(err) {
+                            if (err.message === 'Redis connection in broken state: maximum connection attempts exceeded.') {
+                                assert(i, 3);
+                                assert.strictEqual(client.offline_queue.length, 0);
+                                done();
+                            }
+                        });
+
+                        client.on('reconnecting', function(params) {
+                            i++;
+                            assert.equal(params.attempt, i);
+                            assert.strictEqual(client.offline_queue.length, 2);
+                        });
+
+                        // Should work with either a callback or without
+                        client.set('baz', 13);
+                        client.set('foo', 'bar', function(err, result) {
+                            assert(i, 3);
+                            assert('Redis connection gone from error event', err.message);
+                            assert.strictEqual(client.offline_queue.length, 0);
+                        });
                     });
                 });
 
@@ -715,7 +746,7 @@ describe("The node_redis client", function () {
                     it("does not emit an error and enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
                             parser: parser,
-                            max_attempts: 1,
+                            max_attempts: 0,
                             enable_offline_queue: false
                         });
 
@@ -733,6 +764,40 @@ describe("The node_redis client", function () {
                                     return done();
                                 }, 50);
                             });
+                        });
+                    });
+
+                    it("flushes the command queue connection if in broken connection mode", function (done) {
+                        var client = redis.createClient({
+                            parser: parser,
+                            max_attempts: 2,
+                            enable_offline_queue: false
+                        });
+
+                        client.once('ready', function() {
+                            var multi = client.multi();
+                            multi.config("bar");
+                            var cb = function(err, reply) {
+                                assert.equal(err.code, 'CONNECTION_BROKEN');
+                            };
+                            for (var i = 0; i < 10; i += 2) {
+                                multi.set("foo" + i, "bar" + i);
+                                multi.set("foo" + (i + 1), "bar" + (i + 1), cb);
+                            }
+                            multi.exec();
+                            assert.equal(client.command_queue.length, 13);
+                            helper.killConnection(client);
+                        });
+
+                        client.on("reconnecting", function (params) {
+                            assert.equal(client.command_queue.length, 13);
+                        });
+
+                        client.on('error', function(err) {
+                            if (/Redis connection in broken state:/.test(err.message)) {
+                                assert.equal(client.command_queue.length, 0);
+                                done();
+                            }
                         });
                     });
                 });

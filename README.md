@@ -113,6 +113,11 @@ then replayed just before this event is emitted.
 is set. If this options is set, `connect` will be emitted when the stream is connected, and then
 you are free to try to send commands.
 
+### "reconnecting"
+
+`client` will emit `reconnecting` when trying to reconnect to the Redis server after losing the connection. Listeners
+are passed an object containing `delay` (in ms) and `attempt` (the attempt #) attributes.
+
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server.
@@ -189,10 +194,11 @@ with an error, or an error will be thrown if no callback is specified.
 * `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
 reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
 to maximum value, provided in milliseconds.
-* `connect_timeout` defaults to `false`. By default client will try reconnecting until connected. Setting `connect_timeout`
-limits total time for client to reconnect. Value is provided in milliseconds and is counted once the disconnect occured.
-* `max_attempts` defaults to `null`. By default client will try reconnecting until connected. Setting `max_attempts`
-limits total amount of reconnects.
+* `connect_timeout` defaults to `86400000`. Setting `connect_timeout` limits total time for client to reconnect.
+Value is provided in milliseconds and is counted once the disconnect occured. The last retry is going to happen exactly at the timeout time.
+That way the default is to try reconnecting until 24h passed.
+* `max_attempts` defaults to `0`. By default client will try reconnecting until connected. Setting `max_attempts`
+limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
 * `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
 * `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
 You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
@@ -576,12 +582,12 @@ some kind of maximum queue depth for pre-connection commands.
 
 ## client.retry_delay
 
-Current delay in milliseconds before a connection retry will be attempted. This starts at `250`.
+Current delay in milliseconds before a connection retry will be attempted. This starts at `200`.
 
 ## client.retry_backoff
 
 Multiplier for future retry timeouts. This should be larger than 1 to add more time between retries.
-Defaults to 1.7. The default initial connection retry is 250, so the second retry will be 425, followed by 723.5, etc.
+Defaults to 1.7. The default initial connection retry is 200, so the second retry will be 340, followed by 578, etc.
 
 ### Commands with Optional and Keyword arguments
 

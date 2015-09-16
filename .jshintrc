@@ -17,7 +17,7 @@
     "mocha": true,
 
     // Relaxing options
-    "boss": true, // Accept things like `while (command = keys.shift()) { ... }`
+    "boss": true, // Accept statements like `while (key = keys.pop()) {}`
 
     "overrides": {
         "examples/*.js": {
