@@ -48,12 +48,12 @@ describe("client authentication", function () {
                 client.auth(auth + 'bad');
             });
 
-            it("returns an error when auth is bad with a callback", function (done) {
+            it("returns an error when auth is bad (empty string) with a callback", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(redis.createClient, args);
 
-                client.auth(auth + 'bad', function (err, res) {
+                client.auth('', function (err, res) {
                     assert.strictEqual(err.command_used, 'AUTH');
                     assert.ok(/ERR invalid password/.test(err.message));
                     done();
@@ -121,6 +121,30 @@ describe("client authentication", function () {
                         return done();
                     }
                 });
+            });
+
+            it('should return an error if the password is not of type string and a callback has been provided', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                client = redis.createClient.apply(redis.createClient, args);
+                client.auth(undefined, function(err, res) {
+                    assert.strictEqual(err.message, 'The password has to be of type "string"');
+                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.strictEqual(res, undefined);
+                    done();
+                });
+            });
+
+            it('should emit an error if the password is not of type string and no callback has been provided', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                client = redis.createClient.apply(redis.createClient, args);
+                client.on('error', function (err) {
+                    assert.strictEqual(err.message, 'The password has to be of type "string"');
+                    assert.strictEqual(err.command_used, 'AUTH');
+                    done();
+                });
+                client.auth(234567);
             });
         });
     });
