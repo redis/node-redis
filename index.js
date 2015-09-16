@@ -661,37 +661,26 @@ function Command(command, args, sub_command, buffer_args, callback) {
 }
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, last_arg_type;
+    var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0;
 
-    if (typeof command !== "string") {
-        throw new Error("First argument to send_command must be the command name string, not " + typeof command);
+    // if (typeof callback === "function") {}
+    // probably the fastest way:
+    //     client.command([arg1, arg2], cb);  (straight passthrough)
+    //         send_command(command, [arg1, arg2], cb);
+    if (args === undefined) {
+        args = [];
+    } else if (!callback && typeof args[args.length - 1] === "function") {
+        // most people find this variable argument length form more convenient, but it uses arguments, which is slower
+        //     client.command(arg1, arg2, cb);   (wraps up arguments into an array)
+        //       send_command(command, [arg1, arg2, cb]);
+        //     client.command(arg1, arg2);   (callback is optional)
+        //       send_command(command, [arg1, arg2]);
+        //     client.command(arg1, arg2, undefined);   (callback is undefined)
+        //       send_command(command, [arg1, arg2, undefined]);
+        callback = args.pop();
     }
 
-    if (Array.isArray(args)) {
-        if (typeof callback === "function") {
-            // probably the fastest way:
-            //     client.command([arg1, arg2], cb);  (straight passthrough)
-            //         send_command(command, [arg1, arg2], cb);
-        } else if (!callback) {
-            // most people find this variable argument length form more convenient, but it uses arguments, which is slower
-            //     client.command(arg1, arg2, cb);   (wraps up arguments into an array)
-            //       send_command(command, [arg1, arg2, cb]);
-            //     client.command(arg1, arg2);   (callback is optional)
-            //       send_command(command, [arg1, arg2]);
-            //     client.command(arg1, arg2, undefined);   (callback is undefined)
-            //       send_command(command, [arg1, arg2, undefined]);
-            last_arg_type = typeof args[args.length - 1];
-            if (last_arg_type === "function" || last_arg_type === "undefined") {
-                callback = args.pop();
-            }
-        } else {
-            throw new Error("send_command: last argument must be a callback or undefined");
-        }
-    } else {
-        throw new Error("send_command: second argument must be an array");
-    }
-
-    if (callback && process.domain) {
+    if (process.domain && callback) {
         callback = process.domain.bind(callback);
     }
 
