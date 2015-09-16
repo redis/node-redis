@@ -70,6 +70,15 @@ describe("client authentication", function () {
                         return done();
                     });
                 });
+
+                it('allows connecting with the redis url as provided by the NODE_REDIS_URL env', function (done) {
+                    process.env.NODE_REDIS_URL = 'redis://foo:porkchopsandwiches@' + config.HOST[ip];
+                    client = redis.createClient();
+                    client.on("ready", function () {
+                        process.env.NODE_REDIS_URL = '';
+                        done();
+                    });
+                });
             }
 
             it('allows auth to be provided as config option for client', function (done) {
@@ -97,14 +106,28 @@ describe("client authentication", function () {
                 });
             });
 
-            it('allows auth to be provided post-hoc with auth method', function (done) {
+            it('allows auth to be provided by the NODE_REDIS_AUTH_PASS env', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
+
+                process.env.NODE_REDIS_AUTH_PASS = auth;
 
                 var args = config.configureClient(parser, ip);
                 client = redis.createClient.apply(redis.createClient, args);
-                client.auth(auth);
                 client.on("ready", function () {
-                    return done();
+                    process.env.NODE_REDIS_AUTH_PASS = '';
+                    done();
+                });
+            });
+
+            it('allows auth to be provided post-hoc with auth method again', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip, {
+                    auth_pass: auth
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+                client.on("ready", function () {
+                    client.auth(auth, helper.isString('OK', done));
                 });
             });
 
