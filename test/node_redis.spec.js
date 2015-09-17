@@ -227,6 +227,8 @@ describe("The node_redis client", function () {
                                 var end = helper.callFuncAfter(function () {
                                     client.removeListener("connect", on_connect);
                                     client.removeListener("reconnecting", on_recon);
+                                    assert.strictEqual(client.server_info.db0.keys, 2);
+                                    assert.strictEqual(Object.keys(client.server_info.db0).length, 3);
                                     done();
                                 }, 4);
                                 client.get("recon 1", helper.isString("one", end));

@@ -325,20 +325,23 @@ RedisClient.prototype.on_ready = function () {
 };
 
 RedisClient.prototype.on_info_cmd = function (err, res) {
-    var self = this, obj = {}, lines, retry_time;
+    var self = this;
+    var obj = {};
+    var lines = res.toString().split("\r\n");
+    var i = 0;
+    var key = 'db' + i;
+    var line, retry_time, parts, sub_parts;
 
     if (err) {
         return self.emit("error", new Error("Ready check failed: " + err.message));
     }
 
-    lines = res.toString().split("\r\n");
-
-    lines.forEach(function (line) {
-        var parts = line.split(':');
+    for (i = 0; i < lines.length; i++) {
+        parts = lines[i].split(':');
         if (parts[1]) {
             obj[parts[0]] = parts[1];
         }
-    });
+    }
 
     obj.versions = [];
     /* istanbul ignore else: some redis servers do not send the version */
@@ -346,6 +349,19 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
         obj.redis_version.split('.').forEach(function (num) {
             obj.versions.push(+num);
         });
+    }
+
+    while (obj[key]) {
+        parts = obj[key].split(',');
+        obj[key] = {};
+        while (line = parts.pop()) {
+            sub_parts = line.split('=');
+            if (sub_parts[1]) {
+                obj[key][sub_parts[0]] = +sub_parts[1];
+            }
+        }
+        i++;
+        key = 'db' + i;
     }
 
     // expose info key/vals to users
