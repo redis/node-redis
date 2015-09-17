@@ -12,6 +12,7 @@ describe("The 'eval' method", function () {
 
         describe("using " + parser + " and " + ip, function () {
             var client;
+            var source = "return redis.call('set', 'sha', 'test')";
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
@@ -94,29 +95,39 @@ describe("The 'eval' method", function () {
                 });
             });
 
-            describe('evalsha', function () {
-                var source = "return redis.call('get', 'sha test')";
-                var sha = crypto.createHash('sha1').update(source).digest('hex');
+            it('allows a script to be executed that accesses the redis API without callback', function (done) {
+                helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
+                client.eval(source, 0);
+                client.get('sha', helper.isString('test', done));
+            });
 
-                beforeEach(function (done) {
-                    client.set("sha test", "eval get sha test", function (err, res) {
-                        return done(err);
-                    });
-                });
+            describe('evalsha', function () {
+                var sha = crypto.createHash('sha1').update(source).digest('hex');
 
                 it('allows a script to be executed that accesses the redis API', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
-                    client.eval(source, 0, helper.isString('eval get sha test', done));
+                    client.eval(source, 0, helper.isString('OK'));
+                    client.get('sha', helper.isString('test', done));
                 });
 
                 it('can execute a script if the SHA exists', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
-                    client.evalsha(sha, 0, helper.isString('eval get sha test', done));
+                    client.evalsha(sha, 0, helper.isString('OK'));
+                    client.get('sha', helper.isString('test', done));
                 });
 
                 it('returns an error if SHA does not exist', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
                     client.evalsha('ffffffffffffffffffffffffffffffffffffffff', 0, helper.isError(done));
+                });
+
+                it('emit an error if SHA does not exist without any callback', function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
+                    client.evalsha('ffffffffffffffffffffffffffffffffffffffff', 0);
+                    client.on('error', function(err) {
+                        assert(/NOSCRIPT No matching script. Please use EVAL./.test(err.message));
+                        done();
+                    });
                 });
 
                 it('emits an error if SHA does not exist and no callback has been provided', function (done) {
