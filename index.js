@@ -394,9 +394,25 @@ RedisClient.prototype.send_offline_queue = function () {
     }
 };
 
-RedisClient.prototype.connection_gone = function (why) {
-    var self = this;
+var retry_connection = function (self) {
+    debug("Retrying connection...");
 
+    self.emit("reconnecting", {
+        delay: self.retry_delay,
+        attempt: self.attempts
+    });
+
+    self.retry_totaltime += self.retry_delay;
+    self.attempts += 1;
+    self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
+
+    self.stream = net.createConnection(self.connectionOption);
+    self.install_stream_listeners();
+
+    self.retry_timer = null;
+};
+
+RedisClient.prototype.connection_gone = function (why) {
     // If a retry is already in progress, just let that happen
     if (this.retry_timer) {
         return;
@@ -452,23 +468,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
     debug("Retry connection in " + this.retry_delay + " ms");
 
-    this.retry_timer = setTimeout(function () {
-        debug("Retrying connection...");
-
-        self.emit("reconnecting", {
-            delay: self.retry_delay,
-            attempt: self.attempts
-        });
-
-        self.retry_totaltime += self.retry_delay;
-        self.attempts += 1;
-        self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
-
-        self.stream = net.createConnection(self.connectionOption);
-        self.install_stream_listeners();
-
-        self.retry_timer = null;
-    }, this.retry_delay);
+    this.retry_timer = setTimeout(retry_connection, this.retry_delay, this);
 };
 
 RedisClient.prototype.on_data = function (data) {
