@@ -250,11 +250,11 @@ describe("The 'multi' method", function () {
                 });
 
                 it('reports EXECABORT exceptions when they occur (while queueing)', function (done) {
-                    client.multi().config("bar").set("foo").exec(function (err, reply) {
+                    client.multi().config("bar").set("foo").set("bar").exec(function (err, reply) {
                         assert.equal(err.code, "EXECABORT");
                         assert.equal(reply, undefined, "The reply should have been discarded");
                         assert(err.message.match(/^EXECABORT/), "Error message should begin with EXECABORT");
-                        assert.equal(err.errors.length, 1, "err.errors should have 1 items");
+                        assert.equal(err.errors.length, 2, "err.errors should have 2 items");
                         assert.strictEqual(err.errors[0].command_used, 'SET');
                         assert.strictEqual(err.errors[0].position, 1);
                         assert(/^ERR/.test(err.errors[0].message), "Actuall error message should begin with ERR");
