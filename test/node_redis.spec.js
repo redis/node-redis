@@ -359,30 +359,6 @@ describe("The node_redis client", function () {
 
                 });
 
-                // This seems to be a broken test. The exception should be handled by the user, not by node_redis
-                it.skip('emits errors thrown from within an on("message") handler', function (done) {
-                    var client2 = redis.createClient.apply(redis.createClient, args);
-                    var name = 'channel';
-
-                    client2.subscribe(name, function () {
-                        client.publish(name, "some message");
-                    });
-
-                    client2.on("message", function (channel, data) {
-                        if (channel === name) {
-                            assert.equal(data, "some message");
-                            throw Error('forced exception');
-                        }
-                        return done();
-                    });
-
-                    client2.once("error", function (err) {
-                        client2.end();
-                        assert.equal(err.message, 'forced exception');
-                        return done();
-                    });
-                });
-
                 describe('idle', function () {
                     it('emits idle as soon as there are no outstanding commands', function (done) {
                         client.on('idle', function onIdle () {
