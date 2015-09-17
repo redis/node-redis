@@ -77,6 +77,21 @@ describe("The node_redis client", function () {
                     });
                 });
 
+                it("connects correctly to localhost and no ready check", function (done) {
+                    client = redis.createClient(undefined, undefined, {
+                        no_ready_check: true
+                    });
+                    client.on("error", done);
+
+                    client.once("ready", function () {
+                        client.set('foo', 'bar');
+                        client.get('foo', function(err, res) {
+                            assert.strictEqual(res, 'bar');
+                            done(err);
+                        });
+                    });
+                });
+
                 it("throws on strange connection info", function () {
                     try {
                         redis.createClient(true);
