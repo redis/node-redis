@@ -147,6 +147,18 @@ describe("client authentication", function () {
                 });
                 client.auth(234567);
             });
+
+            it('allows auth to be provided post-hoc with auth method again', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip, {
+                    auth_pass: auth
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+                client.on("ready", function () {
+                    client.auth(auth, helper.isString('OK', done));
+                });
+            });
         });
     });
 

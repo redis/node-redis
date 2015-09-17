@@ -50,38 +50,30 @@ function RedisClient(stream, options) {
         this.options.socket_keepalive = true;
     }
     this.should_buffer = false;
-    this.command_queue_high_water = this.options.command_queue_high_water || 1000;
-    this.command_queue_low_water = this.options.command_queue_low_water || 0;
+    this.command_queue_high_water = options.command_queue_high_water || 1000;
+    this.command_queue_low_water = options.command_queue_low_water || 0;
     this.max_attempts = +options.max_attempts || 0;
     this.command_queue = new Queue(); // holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // holds commands issued but not able to be sent
     this.commands_sent = 0;
     this.connect_timeout = +options.connect_timeout || 86400000; // 24 * 60 * 60 * 1000 ms
     this.enable_offline_queue = true;
-    if (this.options.enable_offline_queue === false) {
+    if (options.enable_offline_queue === false) {
         this.enable_offline_queue = false;
     }
-    this.retry_max_delay = null;
-    if (options.retry_max_delay && options.retry_max_delay > 0) {
-        this.retry_max_delay = +options.retry_max_delay;
-    }
+    this.retry_max_delay = +options.retry_max_delay || null;
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
     this.monitoring = false;
     this.closing = false;
     this.server_info = {};
-    this.auth_pass = null;
-    if (options.auth_pass !== undefined) {
-        this.auth_pass = options.auth_pass;
-    }
+    this.auth_pass = options.auth_pass;
     this.parser_module = null;
-    this.selected_db = null;	// save the selected db here, used when reconnecting
-
+    this.selected_db = null; // save the selected db here, used when reconnecting
     this.old_state = null;
 
     this.install_stream_listeners();
-
     events.EventEmitter.call(this);
 }
 util.inherits(RedisClient, events.EventEmitter);
@@ -199,6 +191,7 @@ RedisClient.prototype.do_auth = function () {
             } else if (self.auth_callback) {
                 self.auth_callback(err);
                 self.auth_callback = null;
+                return;
             } else {
                 self.emit("error", err);
                 return;
@@ -928,10 +921,12 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
         return;
     }
     this.auth_pass = pass;
-    this.auth_callback = callback;
     debug("Saving auth as " + this.auth_pass);
+    // Only run the callback once. So do not safe it if already connected
     if (this.connected) {
-        this.send_command("auth", pass, callback);
+        this.send_command("auth", [this.auth_pass], callback);
+    } else {
+        this.auth_callback = callback;
     }
 };
 
