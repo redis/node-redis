@@ -24,7 +24,6 @@ describe("The 'getset' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("error", done);
                     client.once("connect", function () {
                         client.quit();
                     });
@@ -47,7 +46,6 @@ describe("The 'getset' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("error", done);
                     client.once("connect", function () {
                         done();
                     });
