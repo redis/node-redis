@@ -89,7 +89,7 @@ function RedisClient(stream, options) {
         if (this.connected && name === "connect") {
           func.call(this);
         }
-        if (this.ready && !this.no_ready_check && name === "ready") {
+        if (this.ready && !this.options.no_ready_check && name === "ready") {
           func.call(this);
         }
       });
