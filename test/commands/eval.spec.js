@@ -52,7 +52,11 @@ describe("The 'eval' method", function () {
 
             it('converts lua error to an error response', function (done) {
                 helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
-                client.eval("return {err='this is an error'}", 0, helper.isError(done));
+                client.eval("return {err='this is an error'}", 0, function(err) {
+                    assert(err.code === undefined);
+                    helper.isError()(err);
+                    done();
+                });
             });
 
             it('represents a lua table appropritely', function (done) {

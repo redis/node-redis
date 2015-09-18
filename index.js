@@ -500,10 +500,17 @@ RedisClient.prototype.connection_gone = function (why) {
     this.retry_timer = setTimeout(retry_connection, this.retry_delay, this);
 };
 
+var err_code = /^([A-Z]+)\s+(.+)$/;
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.length;
     if (command_obj.command && command_obj.command.toUpperCase) {
         err.command_used = command_obj.command.toUpperCase();
+    }
+
+    var match = err.message.match(err_code);
+    // LUA script could return user errors that don't behave like all other errors!
+    if (match) {
+        err.code = match[1];
     }
 
     if (this.pub_sub_mode === false && queue_len === 0) {
