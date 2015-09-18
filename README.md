@@ -195,7 +195,7 @@ with an error, or an error will be thrown if no callback is specified.
 reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
 to maximum value, provided in milliseconds.
 * `connect_timeout` defaults to `86400000`. Setting `connect_timeout` limits total time for client to reconnect.
-Value is provided in milliseconds and is counted once the disconnect occured. The last retry is going to happen exactly at the timeout time.
+Value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
 That way the default is to try reconnecting until 24h passed.
 * `max_attempts` defaults to `0`. By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
