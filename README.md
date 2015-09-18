@@ -349,7 +349,6 @@ client1.on("message", function (channel, message) {
     }
 });
 
-client1.incr("did a thing");
 client1.subscribe("a nice channel");
 ```
 
