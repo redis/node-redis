@@ -643,6 +643,8 @@ RedisClient.prototype.return_reply = function (reply) {
             return elem.replace(/\\"/g, '"');
         });
         this.emit("monitor", timestamp, args);
+    } else if (type === "message" || type === "pmessage") {
+        // No error here, we are simply processing a message sent before exiting pubsub
     } else {
         this.emit("error", new Error("node_redis command queue state error. If you can reproduce this, please report it."));
     }
