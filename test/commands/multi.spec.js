@@ -263,6 +263,7 @@ describe("The 'multi' method", function () {
                 it('reports multiple exceptions when they occur (while EXEC is running)', function (done) {
                     client.multi().config("bar").debug("foo").exec(function (err, reply) {
                         assert.strictEqual(reply.length, 2);
+                        assert.equal(reply[0].code, 'ERR');
                         assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
                         assert(/^ERR/.test(reply[1].message), "Error message should begin with ERR");
                         return done();

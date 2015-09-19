@@ -1060,7 +1060,6 @@ Multi.prototype.execute_callback = function (err, replies) {
 
     if (err) {
         if (err.code !== 'CONNECTION_BROKEN') {
-            err.code = 'EXECABORT';
             err.errors = this.errors;
             if (this.callback) {
                 this.callback(err);

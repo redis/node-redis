@@ -128,6 +128,7 @@ describe("The 'eval' method", function () {
                     helper.serverVersionAtLeast.call(this, client, [2, 5, 0]);
                     client.evalsha('ffffffffffffffffffffffffffffffffffffffff', 0);
                     client.on('error', function(err) {
+                        assert.equal(err.code, 'NOSCRIPT');
                         assert(/NOSCRIPT No matching script. Please use EVAL./.test(err.message));
                         done();
                     });
