@@ -57,7 +57,8 @@ describe("The 'select' method", function () {
                     describe("with a valid db index", function () {
                         it("selects the appropriate database", function (done) {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
-                            client.select(1, function () {
+                            client.select(1, function (err) {
+                                assert.equal(err, null);
                                 assert.equal(client.selected_db, 1, "we should have selected the new valid DB");
                                 return done();
                             });
@@ -68,6 +69,7 @@ describe("The 'select' method", function () {
                         it("returns an error", function (done) {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
                             client.select(9999, function (err) {
+                                assert.equal(err.code, 'ERR');
                                 assert.equal(err.message, 'ERR invalid DB index');
                                 return done();
                             });
