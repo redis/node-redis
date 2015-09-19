@@ -23,7 +23,6 @@ describe("The 'multi' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("error", done);
                     client.once("connect", function () {
                         client.quit();
                     });
@@ -46,7 +45,6 @@ describe("The 'multi' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("error", done);
                     client.once("connect", function () {
                         client.flushdb(function (err) {
                             return done(err);
@@ -296,6 +294,17 @@ describe("The 'multi' method", function () {
                         assert.equal(err.code, "EXECABORT");
                         done();
                     });
+                });
+
+                it("should work without any callback", function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
+
+                    var multi = client.multi();
+                    multi.set("baz", "binary");
+                    multi.set("foo", "bar");
+                    multi.exec();
+
+                    client.get('foo', helper.isString('bar', done));
                 });
 
             });

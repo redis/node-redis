@@ -156,7 +156,7 @@ describe("The node_redis client", function () {
 
                         process.once('uncaughtException', function (err) {
                             process.on('uncaughtException', mochaListener);
-                            assert(/is not a function|toUpperCase/.test(err));
+                            assert(/ERR Protocol error/.test(err));
                             done();
                         });
 
@@ -357,29 +357,6 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                });
-
-                it('emits errors thrown from within an on("message") handler', function (done) {
-                    var client2 = redis.createClient.apply(redis.createClient, args);
-                    var name = 'channel';
-
-                    client2.subscribe(name, function () {
-                        client.publish(name, "some message");
-                    });
-
-                    client2.on("message", function (channel, data) {
-                        if (channel === name) {
-                            assert.equal(data, "some message");
-                            throw Error('forced exception');
-                        }
-                        return done();
-                    });
-
-                    client2.once("error", function (err) {
-                        client2.end();
-                        assert.equal(err.message, 'forced exception');
-                        return done();
-                    });
                 });
 
                 describe('idle', function () {

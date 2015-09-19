@@ -13,7 +13,6 @@ describe("The 'renamenx' method", function () {
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
-                client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb(done);
                 });

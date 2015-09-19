@@ -86,7 +86,9 @@ RedisClient.prototype.install_stream_listeners = function() {
     });
 
     this.stream.on("data", function (buffer_from_socket) {
-        self.on_data(buffer_from_socket);
+        // The data.toString() has a significant impact on big chunks and therefor this should only be used if necessary
+        // debug("Net read " + this.address + " id " + this.connection_id + ": " + data.toString());
+        self.reply_parser.execute(buffer_from_socket);
     });
 
     this.stream.on("error", function (msg) {
@@ -273,8 +275,18 @@ RedisClient.prototype.init_parser = function () {
     this.reply_parser = new this.parser_module.Parser({
         return_buffers: self.options.return_buffers || self.options.detect_buffers || false
     });
-    this.reply_parser.send_error = this.return_error.bind(self);
-    this.reply_parser.send_reply = this.return_reply.bind(self);
+    // Important: Only send results / errors async.
+    // That way the result / error won't stay in a try catch block and catch user things
+    this.reply_parser.send_error = function (data) {
+        process.nextTick(function() {
+            this.return_error(data);
+        }.bind(this));
+    }.bind(this);
+    this.reply_parser.send_reply = function (data) {
+        process.nextTick(function() {
+            this.return_reply(data);
+        }.bind(this));
+    }.bind(this);
 };
 
 RedisClient.prototype.on_ready = function () {
@@ -488,33 +500,22 @@ RedisClient.prototype.connection_gone = function (why) {
     this.retry_timer = setTimeout(retry_connection, this.retry_delay, this);
 };
 
-RedisClient.prototype.on_data = function (data) {
-    // The data.toString() has a significant impact on big chunks and therefor this should only be used if necessary
-    // debug("Net read " + this.address + " id " + this.connection_id + ": " + data.toString());
-
-    try {
-        this.reply_parser.execute(data);
-    } catch (err) {
-        // This is an unexpected parser problem, an exception that came from the parser code itself.
-        // Parser should emit "error" events if it notices things are out of whack.
-        // Callbacks that throw exceptions will land in return_reply(), below.
-        // TODO - it might be nice to have a different "error" event for different types of errors
-        this.emit("error", err);
-    }
-};
-
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.length;
-    err.command_used = command_obj.command.toUpperCase();
+    if (command_obj.command && command_obj.command.toUpperCase) {
+        err.command_used = command_obj.command.toUpperCase();
+    }
 
     if (this.pub_sub_mode === false && queue_len === 0) {
         this.command_queue = new Queue();
         this.emit("idle");
     }
+
     if (this.should_buffer && queue_len <= this.command_queue_low_water) {
         this.emit("drain");
         this.should_buffer = false;
     }
+
     if (command_obj.callback) {
         command_obj.callback(err);
     } else {
