@@ -1077,7 +1077,13 @@ Multi.prototype.execute_callback = function (err, replies) {
             args = this.queue[i];
 
             // If we asked for strings, even in detect_buffers mode, then return strings:
-            if (reply) {
+            if (reply instanceof Error) {
+                var match = reply.message.match(err_code);
+                // LUA script could return user errors that don't behave like all other errors!
+                if (match) {
+                    reply.code = match[1];
+                }
+            } else if (reply) {
                 if (this._client.options.detect_buffers && this.wants_buffers[i] === false) {
                     replies[i - 1] = reply = reply_to_strings(reply);
                 }

@@ -254,6 +254,7 @@ describe("The 'multi' method", function () {
                         assert(err.message.match(/^EXECABORT/), "Error message should begin with EXECABORT");
                         assert.equal(err.errors.length, 2, "err.errors should have 2 items");
                         assert.strictEqual(err.errors[0].command_used, 'SET');
+                        assert.strictEqual(err.errors[0].code, 'ERR');
                         assert.strictEqual(err.errors[0].position, 1);
                         assert(/^ERR/.test(err.errors[0].message), "Actuall error message should begin with ERR");
                         return done();
@@ -261,9 +262,11 @@ describe("The 'multi' method", function () {
                 });
 
                 it('reports multiple exceptions when they occur (while EXEC is running)', function (done) {
-                    client.multi().config("bar").debug("foo").exec(function (err, reply) {
-                        assert.strictEqual(reply.length, 2);
+                    client.multi().config("bar").debug("foo").eval("return {err='this is an error'}", 0).exec(function (err, reply) {
+                        assert.strictEqual(reply.length, 3);
                         assert.equal(reply[0].code, 'ERR');
+                        assert.equal(reply[2].code, undefined);
+                        assert(/^this is an error/.test(reply[2].message));
                         assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
                         assert(/^ERR/.test(reply[1].message), "Error message should begin with ERR");
                         return done();
@@ -276,6 +279,7 @@ describe("The 'multi' method", function () {
                     multi.set('foo', 'bar', helper.isString('OK'));
                     multi.debug("foo").exec(function (err, reply) {
                         assert.strictEqual(reply.length, 3);
+                        assert.strictEqual(reply[0].code, 'ERR');
                         assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
                         assert(/^ERR/.test(reply[2].message), "Error message should begin with ERR");
                         assert.strictEqual(reply[1], "OK");
