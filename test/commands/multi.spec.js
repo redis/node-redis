@@ -253,7 +253,7 @@ describe("The 'multi' method", function () {
                         assert.equal(reply, undefined, "The reply should have been discarded");
                         assert(err.message.match(/^EXECABORT/), "Error message should begin with EXECABORT");
                         assert.equal(err.errors.length, 2, "err.errors should have 2 items");
-                        assert.strictEqual(err.errors[0].command_used, 'SET');
+                        assert.strictEqual(err.errors[0].command, 'SET');
                         assert.strictEqual(err.errors[0].code, 'ERR');
                         assert.strictEqual(err.errors[0].position, 1);
                         assert(/^ERR/.test(err.errors[0].message), "Actuall error message should begin with ERR");
@@ -265,7 +265,9 @@ describe("The 'multi' method", function () {
                     client.multi().config("bar").debug("foo").eval("return {err='this is an error'}", 0).exec(function (err, reply) {
                         assert.strictEqual(reply.length, 3);
                         assert.equal(reply[0].code, 'ERR');
+                        assert.equal(reply[0].command, 'CONFIG');
                         assert.equal(reply[2].code, undefined);
+                        assert.equal(reply[2].command, 'EVAL');
                         assert(/^this is an error/.test(reply[2].message));
                         assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
                         assert(/^ERR/.test(reply[1].message), "Error message should begin with ERR");

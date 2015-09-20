@@ -41,7 +41,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
 
                 client.once('error', function (err) {
-                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.strictEqual(err.command, 'AUTH');
                     assert.ok(/ERR invalid password/.test(err.message));
                     return done();
                 });
@@ -55,7 +55,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
 
                 client.auth('', function (err, res) {
-                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.strictEqual(err.command, 'AUTH');
                     assert.ok(/ERR invalid password/.test(err.message));
                     done();
                 });
@@ -130,7 +130,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.auth(undefined, function(err, res) {
                     assert.strictEqual(err.message, 'The password has to be of type "string"');
-                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
                     done();
                 });
@@ -142,7 +142,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.on('error', function (err) {
                     assert.strictEqual(err.message, 'The password has to be of type "string"');
-                    assert.strictEqual(err.command_used, 'AUTH');
+                    assert.strictEqual(err.command, 'AUTH');
                     done();
                 });
                 client.auth(234567);

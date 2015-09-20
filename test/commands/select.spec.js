@@ -94,7 +94,7 @@ describe("The 'select' method", function () {
                             assert.strictEqual(client.selected_db, null, "default db should be null");
 
                             client.on('error', function (err) {
-                                assert.strictEqual(err.command_used, 'SELECT');
+                                assert.strictEqual(err.command, 'SELECT');
                                 assert.equal(err.message, 'ERR invalid DB index');
                                 done();
                             });

@@ -156,7 +156,9 @@ describe("The node_redis client", function () {
 
                         process.once('uncaughtException', function (err) {
                             process.on('uncaughtException', mochaListener);
-                            assert(/ERR Protocol error/.test(err));
+                            assert(/ERR Protocol error/.test(err.message));
+                            assert.equal(err.command, true);
+                            assert.equal(err.code, 'ERR');
                             done();
                         });
 
@@ -195,7 +197,7 @@ describe("The node_redis client", function () {
                         setTimeout(function() {
                             client.get("foo", function(err, res) {
                                 assert.strictEqual(err.message, 'GET can\'t be processed. The connection has already been closed.');
-                                assert.strictEqual(err.command_used, 'GET');
+                                assert.strictEqual(err.command, 'GET');
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
                             });
@@ -209,7 +211,7 @@ describe("The node_redis client", function () {
                         client.quit();
                         client.on('error', function(err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');
-                            assert.strictEqual(err.command_used, 'SET');
+                            assert.strictEqual(err.command, 'SET');
                             assert.strictEqual(client.offline_queue.length, 0);
                             done();
                         });

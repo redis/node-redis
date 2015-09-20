@@ -503,8 +503,11 @@ RedisClient.prototype.connection_gone = function (why) {
 var err_code = /^([A-Z]+)\s+(.+)$/;
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.length;
+    // send_command might have been used wrong => catch those cases too
     if (command_obj.command && command_obj.command.toUpperCase) {
-        err.command_used = command_obj.command.toUpperCase();
+        err.command = command_obj.command.toUpperCase();
+    } else {
+        err.command = command_obj.command;
     }
 
     var match = err.message.match(err_code);
@@ -652,7 +655,9 @@ RedisClient.prototype.return_reply = function (reply) {
         });
         this.emit("monitor", timestamp, args);
     } else {
-        this.emit("error", new Error("node_redis command queue state error. If you can reproduce this, please report it."));
+        var err = new Error("node_redis command queue state error. If you can reproduce this, please report it.");
+        err.command = command_obj.command.toUpperCase();
+        this.emit("error", err);
     }
 };
 
@@ -706,7 +711,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         if (args[args.length - 1] === undefined || args[args.length - 1] === null) {
             command = command.toUpperCase();
             err = new Error('send_command: ' + command + ' value must not be undefined or null');
-            err.command_used = command;
+            err.command = command;
             if (callback) {
                 return callback && callback(err);
             }
@@ -733,7 +738,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             } else {
                 err = new Error(command + ' can\'t be processed. The connection has already been closed.');
             }
-            err.command_used = command;
+            err.command = command;
             if (callback) {
                 callback(err);
             } else {
@@ -754,7 +759,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     } else if (command === "quit") {
         this.closing = true;
     } else if (this.pub_sub_mode === true) {
-        this.emit("error", new Error("Connection in subscriber mode, only subscriber commands may be used"));
+        err = new Error("Connection in subscriber mode, only subscriber commands may be used");
+        err.command = command.toUpperCase();
+        this.emit("error", err);
         return;
     }
     this.command_queue.push(command_obj);
@@ -935,7 +942,7 @@ RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, call
 RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callback) {
     if (typeof pass !== 'string') {
         var err = new Error('The password has to be of type "string"');
-        err.command_used = 'AUTH';
+        err.command = 'AUTH';
         if (callback) {
             callback(err);
         } else {
@@ -1056,7 +1063,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
 };
 
 Multi.prototype.execute_callback = function (err, replies) {
-    var i, reply, args;
+    var i, args;
 
     if (err) {
         if (err.code !== 'CONNECTION_BROKEN') {
@@ -1072,32 +1079,32 @@ Multi.prototype.execute_callback = function (err, replies) {
     }
 
     if (replies) {
-        for (i = 1; i < this.queue.length; i += 1) {
-            reply = replies[i - 1];
-            args = this.queue[i];
+        for (i = 0; i < this.queue.length - 1; i += 1) {
+            args = this.queue[i + 1];
 
             // If we asked for strings, even in detect_buffers mode, then return strings:
-            if (reply instanceof Error) {
-                var match = reply.message.match(err_code);
+            if (replies[i] instanceof Error) {
+                var match = replies[i].message.match(err_code);
                 // LUA script could return user errors that don't behave like all other errors!
                 if (match) {
-                    reply.code = match[1];
+                    replies[i].code = match[1];
                 }
-            } else if (reply) {
-                if (this._client.options.detect_buffers && this.wants_buffers[i] === false) {
-                    replies[i - 1] = reply = reply_to_strings(reply);
+                replies[i].command = args[0].toUpperCase();
+            } else if (replies[i]) {
+                if (this._client.options.detect_buffers && this.wants_buffers[i + 1] === false) {
+                    replies[i] = reply_to_strings(replies[i]);
                 }
                 if (args[0] === "hgetall") {
                     // TODO - confusing and error-prone that hgetall is special cased in two places
-                    replies[i - 1] = reply = reply_to_object(reply);
+                    replies[i] = reply_to_object(replies[i]);
                 }
             }
 
             if (typeof args[args.length - 1] === "function") {
-                if (reply instanceof Error) {
-                    args[args.length - 1](reply);
+                if (replies[i] instanceof Error) {
+                    args[args.length - 1](replies[i]);
                 } else {
-                    args[args.length - 1](null, reply);
+                    args[args.length - 1](null, replies[i]);
                 }
             }
         }
