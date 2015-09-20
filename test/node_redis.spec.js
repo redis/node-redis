@@ -771,8 +771,6 @@ describe("The node_redis client", function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 assert.equal(err.errno, 'ECONNREFUSED');
                                 assert.equal(err.syscall, 'connect');
-                                assert.equal(err.address, '127.0.0.1');
-                                assert.equal(err.port, 9999);
                             }
                         });
 
@@ -852,8 +850,6 @@ describe("The node_redis client", function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 assert.equal(err.errno, 'ECONNREFUSED');
                                 assert.equal(err.syscall, 'connect');
-                                assert.equal(err.address, '127.0.0.2');
-                                assert.equal(err.port, 6370);
                             }
                         });
                     });
