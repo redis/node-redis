@@ -765,6 +765,12 @@ describe("The node_redis client", function () {
                                 assert(i, 3);
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
+                            } else {
+                                assert.equal(err.code, 'ECONNREFUSED');
+                                assert.equal(err.errno, 'ECONNREFUSED');
+                                assert.equal(err.syscall, 'connect');
+                                assert.equal(err.address, '127.0.0.1');
+                                assert.equal(err.port, 9999);
                             }
                         });
 
@@ -785,7 +791,7 @@ describe("The node_redis client", function () {
                 });
 
                 describe('false', function () {
-                    it("does emit an error and does not enqueues operation", function (done) {
+                    it("emit an error and does not enqueues operation", function (done) {
                         var client = redis.createClient(9999, null, {
                             parser: parser,
                             max_attempts: 0,
@@ -840,6 +846,12 @@ describe("The node_redis client", function () {
                             if (/Redis connection in broken state:/.test(err.message)) {
                                 assert.equal(client.command_queue.length, 0);
                                 done();
+                            } else {
+                                assert.equal(err.code, 'ECONNREFUSED');
+                                assert.equal(err.errno, 'ECONNREFUSED');
+                                assert.equal(err.syscall, 'connect');
+                                assert.equal(err.address, '127.0.0.2');
+                                assert.equal(err.port, 6370);
                             }
                         });
                     });

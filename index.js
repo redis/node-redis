@@ -91,8 +91,8 @@ RedisClient.prototype.install_stream_listeners = function() {
         self.reply_parser.execute(buffer_from_socket);
     });
 
-    this.stream.on("error", function (msg) {
-        self.on_error(msg.message);
+    this.stream.on("error", function (err) {
+        self.on_error(err);
     });
 
     this.stream.on("close", function () {
@@ -148,19 +148,18 @@ RedisClient.prototype.flush_and_error = function (error) {
     this.command_queue = new Queue();
 };
 
-RedisClient.prototype.on_error = function (msg) {
+RedisClient.prototype.on_error = function (err) {
     if (this.closing) {
         return;
     }
 
-    var message = "Redis connection to " + this.address + " failed - " + msg;
+    err.message = "Redis connection to " + this.address + " failed - " + err.message;
 
-    debug(message);
+    debug(err.message);
 
     this.connected = false;
     this.ready = false;
-
-    this.emit("error", new Error(message));
+    this.emit("error", err);
     // "error" events get turned into exceptions if they aren't listened for. If the user handled this error
     // then we should try to reconnect.
     this.connection_gone("error");
@@ -346,7 +345,8 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     var line, retry_time, parts, sub_parts;
 
     if (err) {
-        return self.emit("error", new Error("Ready check failed: " + err.message));
+        err.message = "Ready check failed: " + err.message;
+        return self.emit("error", err);
     }
 
     for (i = 0; i < lines.length; i++) {
