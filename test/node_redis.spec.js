@@ -846,6 +846,96 @@ describe("The node_redis client", function () {
                 });
             });
 
+            describe('always_trigger_ready', function () {
+                describe('true', function () {
+                  var client;
+                  var args = config.configureClient(parser, ip, {
+                      always_trigger_ready: true
+                  });
+
+                  it("fires client.on('connect') after clietn.ready is true", function (done) {
+                      client = redis.createClient.apply(redis.createClient, args);
+                      client.on("connect", function () {
+                          client.on("connect", function () {
+                              client.quit();
+
+                              client.once('end', function () {
+                                  return done();
+                              });
+                          });
+                      });
+                  });
+
+                  it("fires client.on('connect') after clietn.ready is true and 'no_ready_check' is true", function (done) {
+                      client = redis.createClient.apply(redis.createClient, args);
+                      client.on("connect", function () {
+                          client.options.no_ready_check = true;
+                          client.on("connect", function () {
+                              client.quit();
+
+                              client.once('end', function () {
+                                  delete client.options.no_ready_check;
+                                  return done();
+                              });
+                          });
+                      });
+                  });
+
+                  it("fires client.on('ready') after clietn.ready is true", function (done) {
+                      client = redis.createClient.apply(redis.createClient, args);
+                      client.on("ready", function () {
+                          client.on("ready", function () {
+                              client.quit();
+
+                              client.once('end', function () {
+                                  return done();
+                              });
+                          });
+                      });
+                  });
+
+                  it("not fires client.on('ready') after clietn.ready is true and 'no_ready_check' is true", function (done) {
+                      client = redis.createClient.apply(redis.createClient, args);
+                      client.on("ready", function () {
+                          client.options.no_ready_check = true;
+                          client.on("ready", function () {
+                              assert(null);
+                          });
+                          setTimeout(function () {
+                              client.quit();
+
+                              client.once('end', function () {
+                                  delete client.options.no_ready_check;
+                                  return done();
+                              });
+                          }, 1100);
+                      });
+                  });
+                });
+
+                describe('false', function () {
+                    var client;
+                    var args = config.configureClient(parser, ip, {
+                        always_trigger_ready: false
+                    });
+
+                    it("not fires client.on('ready') after clietn.ready is true", function (done) {
+                        client = redis.createClient.apply(redis.createClient, args);
+                        client.on("ready", function () {
+                            client.on("ready", function () {
+                                assert(null);
+                            });
+                            setTimeout(function () {
+                                client.quit();
+
+                                client.once('end', function () {
+                                    return done();
+                                });
+                            }, 1100);
+                        });
+                    });
+                });
+            });
         });
     });
 });

@@ -74,11 +74,22 @@ function RedisClient(stream, options) {
 
     this.install_stream_listeners();
     events.EventEmitter.call(this);
+
+    if (options.always_trigger_ready) {
+      this.on("newListener", function (name, func) {
+        if (this.connected && name === "connect") {
+          func.call(this);
+        }
+        if (this.ready && !this.options.no_ready_check && name === "ready") {
+          func.call(this);
+        }
+      });
+    }
 }
 util.inherits(RedisClient, events.EventEmitter);
 exports.RedisClient = RedisClient;
 
-RedisClient.prototype.install_stream_listeners = function() {
+RedisClient.prototype.install_stream_listeners = function () {
     var self = this;
 
     this.stream.on("connect", function () {
