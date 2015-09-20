@@ -81,6 +81,12 @@ exports.RedisClient = RedisClient;
 RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
 
+    if (this.options.socket_connect_timeout > 0) {
+        this.stream.setTimeout(this.options.socket_connect_timeout, function () {
+            self.on_timeout();
+        });
+    }
+
     this.stream.on("connect", function () {
         self.on_connect();
     });
@@ -217,6 +223,18 @@ RedisClient.prototype.do_auth = function () {
         }
     });
     self.send_anyway = false;
+};
+
+RedisClient.prototype.on_timeout = function () {
+    if (this.connected || this.closing) {
+        // Only handle connection timeouts.
+        return;
+    }
+
+    debug("Stream timeout " + this.address + " id " + this.connection_id);
+
+    this.stream.end();
+    this.connection_gone("timeout");
 };
 
 RedisClient.prototype.on_connect = function () {
