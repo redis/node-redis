@@ -624,7 +624,7 @@ RedisClient.prototype.return_reply = function (reply) {
             } else if (type === "pmessage") {
                 this.emit("pmessage", reply[1].toString(), reply[2].toString(), reply[3]); // pattern, channel, message
             } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
-                if (reply[2] === 0) {
+                if (reply[2].toString() === "0") {
                     this.pub_sub_mode = false;
                     debug("All subscriptions removed, exiting pub/sub mode");
                 } else {
@@ -647,6 +647,7 @@ RedisClient.prototype.return_reply = function (reply) {
             return;
         }
     } else if (this.monitoring) {
+        reply = reply && reply.toString && reply.toString();
         len = reply.indexOf(" ");
         timestamp = reply.slice(0, len);
         argindex = reply.indexOf('"');
