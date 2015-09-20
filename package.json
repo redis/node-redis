@@ -20,9 +20,9 @@
     "coveralls": "^2.11.2",
     "jshint": "^2.8.0",
     "metrics": ">=0.1.5",
-    "mocha": "^2.2.5",
+    "mocha": "^2.3.2",
     "nyc": "^3.2.2",
-    "optional-dev-dependency": "^1.0.1",
+    "optional-dev-dependency": "^1.1.0",
     "tcp-port-used": "^0.1.2",
     "uuid": "^2.0.1",
     "win-spawn": "^2.0.0"
