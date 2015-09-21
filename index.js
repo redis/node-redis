@@ -271,9 +271,7 @@ RedisClient.prototype.init_parser = function () {
 
     // return_buffers sends back Buffers from parser to callback. detect_buffers sends back Buffers from parser, but
     // converts to Strings if the input arguments are not Buffers.
-    this.reply_parser = new this.parser_module.Parser({
-        return_buffers: self.options.return_buffers || self.options.detect_buffers || false
-    });
+    this.reply_parser = new this.parser_module.Parser(self.options.return_buffers || self.options.detect_buffers || false);
     // Important: Only send results / errors async.
     // That way the result / error won't stay in a try catch block and catch user things
     this.reply_parser.send_error = function (data) {
