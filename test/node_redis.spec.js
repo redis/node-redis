@@ -97,7 +97,7 @@ describe("The node_redis client", function () {
                         redis.createClient(true);
                         throw new Error('failed');
                     } catch (err) {
-                        assert.equal(err.message, 'unknown type of connection in createClient()');
+                        assert.equal(err.message, 'Unknown type of connection in createClient()');
                     }
                 });
 
