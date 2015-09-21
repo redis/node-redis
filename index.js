@@ -337,17 +337,18 @@ RedisClient.prototype.on_ready = function () {
 };
 
 RedisClient.prototype.on_info_cmd = function (err, res) {
+    if (err) {
+        err.message = "Ready check failed: " + err.message;
+        this.emit("error", err);
+        return;
+    }
+
     var self = this;
     var obj = {};
     var lines = res.toString().split("\r\n");
     var i = 0;
     var key = 'db' + i;
     var line, retry_time, parts, sub_parts;
-
-    if (err) {
-        err.message = "Ready check failed: " + err.message;
-        return self.emit("error", err);
-    }
 
     for (i = 0; i < lines.length; i++) {
         parts = lines[i].split(':');
@@ -369,9 +370,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
         obj[key] = {};
         while (line = parts.pop()) {
             sub_parts = line.split('=');
-            if (sub_parts[1]) {
-                obj[key][sub_parts[0]] = +sub_parts[1];
-            }
+            obj[key][sub_parts[0]] = +sub_parts[1];
         }
         i++;
         key = 'db' + i;
@@ -471,7 +470,7 @@ RedisClient.prototype.connection_gone = function (why) {
 
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
-        debug("connection ended from quit command, not retrying.");
+        debug("Connection ended from quit command, not retrying.");
         this.flush_and_error(new Error("Redis connection gone from " + why + " event."));
         return;
     }
@@ -656,7 +655,7 @@ RedisClient.prototype.return_reply = function (reply) {
         this.emit("monitor", timestamp, args);
     } else {
         var err = new Error("node_redis command queue state error. If you can reproduce this, please report it.");
-        err.command = command_obj.command.toUpperCase();
+        err.command_obj = command_obj;
         this.emit("error", err);
     }
 };
@@ -695,19 +694,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         callback = process.domain.bind(callback);
     }
 
-    // if the last argument is an array and command is sadd or srem, expand it out:
-    //     client.sadd(arg1, [arg2, arg3, arg4], cb);
-    //  converts to:
-    //     client.sadd(arg1, arg2, arg3, arg4, cb);
-    if ((command === 'sadd' || command === 'srem') && args.length > 0 && Array.isArray(args[args.length - 1])) {
-        args = args.slice(0, -1).concat(args[args.length - 1]);
-    }
-
-    // if the value is undefined or null and command is set or setx, need not to send message to redis
     if (command === 'set' || command === 'setex') {
-        if (args.length === 0) {
-            return;
-        }
+        // if the value is undefined or null and command is set or setx, need not to send message to redis
         if (args[args.length - 1] === undefined || args[args.length - 1] === null) {
             command = command.toUpperCase();
             err = new Error('send_command: ' + command + ' value must not be undefined or null');

@@ -159,6 +159,34 @@ describe("client authentication", function () {
                     client.auth(auth, helper.isString('OK', done));
                 });
             });
+
+            it('does not allow any commands to be processed if not authenticated using no_ready_check true', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip, {
+                    no_ready_check: true
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+                client.on("ready", function () {
+                    client.set('foo', 'bar', function (err, res) {
+                        assert.equal(err.message, 'NOAUTH Authentication required.');
+                        assert.equal(err.code, 'NOAUTH');
+                        assert.equal(err.command, 'SET');
+                        done();
+                    });
+                });
+            });
+
+            it('does not allow auth to be provided post-hoc with auth method if not authenticated before', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+                client = redis.createClient.apply(redis.createClient, args);
+                client.on("error", function (err) {
+                    assert.equal(err.code, 'NOAUTH');
+                    assert.equal(err.message, 'Ready check failed: NOAUTH Authentication required.');
+                    assert.equal(err.command, 'INFO');
+                    done();
+                });
+            });
         });
     });
 

@@ -829,17 +829,18 @@ describe("The node_redis client", function () {
                             var cb = function(err, reply) {
                                 assert.equal(err.code, 'CONNECTION_BROKEN');
                             };
-                            for (var i = 0; i < 10; i += 2) {
-                                multi.set("foo" + i, "bar" + i);
+                            for (var i = 0; i < 12; i += 3) {
+                                client.set("foo" + i, "bar" + i);
                                 multi.set("foo" + (i + 1), "bar" + (i + 1), cb);
+                                multi.set("foo" + (i + 2), "bar" + (i + 2));
                             }
                             multi.exec();
-                            assert.equal(client.command_queue.length, 13);
+                            assert.equal(client.command_queue.length, 15);
                             helper.killConnection(client);
                         });
 
                         client.on("reconnecting", function (params) {
-                            assert.equal(client.command_queue.length, 13);
+                            assert.equal(client.command_queue.length, 15);
                         });
 
                         client.on('error', function(err) {
