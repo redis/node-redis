@@ -647,7 +647,7 @@ Therefor the hiredis parser is the default used in node_redis. To use `hiredis`,
 To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
 ## How to Contribute
-- open a pull request and then wait for feedback
+- Open a pull request or an issue about what you want to implement / change. We're glad for any help!
 
 ## Contributors
 Many [people](https://github.com/NodeRedis/node_redis/graphs/contributors) have have added features and fixed bugs in `node_redis`. Thanks to all of them!
