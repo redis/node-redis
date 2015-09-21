@@ -5,8 +5,7 @@ redis - a node.js redis client
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 [![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/node-redis)
 
-This is a complete Redis client for node.js. It supports all Redis commands,
-including many recently added commands.
+This is a complete Redis client for node.js. It supports all Redis commands and focuses on performance.
 
 Install with:
 
@@ -54,21 +53,26 @@ Note that the API is entire asynchronous. To get data back from the server,
 you'll need to use a callback. The return value from most of the API is a
 backpressure indicator.
 
+You can also use node_redis with promises by promisifying node_redis with [bluebird](https://github.com/petkaantonov/bluebird) as in:
+
+```js
+var redis = require('redis');
+bluebird.promisifyAll(redis.RedisClient.prototype);
+```
+
 ### Sending Commands
 
 Each Redis command is exposed as a function on the `client` object.
 All functions take either an `args` Array plus optional `callback` Function or
 a variable number of individual arguments followed by an optional callback.
-Here is an example of passing an array of arguments and a callback:
+Here are examples how to use the api:
 
 ```js
-client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
-```
-
-Here is that same call in the second style:
-
-```js
-client.mset("test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
+client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+// Works the same as
+client.hmset("key", ["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+// Or
+client.hmset("key", "test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
 ```
 
 Note that in either form the `callback` is optional:
@@ -78,7 +82,7 @@ client.set("some key", "some val");
 client.set(["some other key", "some val"]);
 ```
 
-If the key is missing, reply will be null (probably):
+If the key is missing, reply will be null. Only if the [Redis Command Reference](http://redis.io/commands) states something else it will not be null.
 
 ```js
 client.get("missingkey", function(err, reply) {
@@ -103,15 +107,13 @@ JavaScript Array of node Buffers. `HGETALL` returns an Object with Buffers keyed
 
 ### "ready"
 
-`client` will emit `ready` once a connection is established to the Redis server and the server reports
-that it is ready to receive commands. Commands issued before the `ready` event are queued,
+`client` will emit `ready` once a connection is established. Commands issued before the `ready` event are queued,
 then replayed just before this event is emitted.
 
 ### "connect"
 
 `client` will emit `connect` at the same time as it emits `ready` unless `client.options.no_ready_check`
-is set. If this options is set, `connect` will be emitted when the stream is connected, and then
-you are free to try to send commands.
+is set. If this options is set, `connect` will be emitted when the stream is connected.
 
 ### "reconnecting"
 
@@ -120,26 +122,9 @@ are passed an object containing `delay` (in ms) and `attempt` (the attempt #) at
 
 ### "error"
 
-`client` will emit `error` when encountering an error connecting to the Redis server.
+`client` will emit `error` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
 
-Note that "error" is a special event type in node. If there are no listeners for an
-"error" event, node will exit. This is usually what you want, but it can lead to some
-cryptic error messages like this:
-
-    mjr:~/work/node_redis (master)$ node example.js
-
-    node.js:50
-        throw e;
-        ^
-    Error: ECONNREFUSED, Connection refused
-        at IOWatcher.callback (net:870:22)
-        at node.js:607:9
-
-Not very useful in diagnosing the problem, but if your program isn't ready to handle this,
-it is probably the right thing to just exit.
-
-`client` will also emit `error` if an exception is thrown inside of `node_redis` for whatever reason.
-It would be nice to distinguish these two cases.
+So please attach the error listener to node_redis.
 
 ### "end"
 
@@ -149,8 +134,7 @@ It would be nice to distinguish these two cases.
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure. Right now,
-you need to check `client.command_queue.length` to decide when to reduce your send rate. Then you can
-resume sending when you get `drain`.
+you need to check `client.command_queue.length` to decide when to reduce your send rate and resume sending commands when you get `drain`.
 
 ### "idle"
 
@@ -169,39 +153,35 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 
  `options` is an object with the following possible properties:
 
-* `parser`: which Redis protocol reply parser to use. Defaults to `hiredis` if that module is installed.
-This may also be set to `javascript`.
-* `return_buffers`: defaults to `false`. If set to `true`, then all replies will be sent to callbacks as node Buffer
-objects instead of JavaScript Strings.
-* `detect_buffers`: default to `false`. If set to `true`, then replies will be sent to callbacks as node Buffer objects
-if any of the input arguments to the original command were Buffer objects.
+* `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
+* `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
+* `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers
+if any of the input arguments to the original command were Buffers.
 This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
 every command on a client.
-* `socket_nodelay`: defaults to `true`. Whether to call setNoDelay() on the TCP stream, which disables the
-Nagle algorithm on the underlying socket. Setting this option to `false` can result in additional throughput at the
-cost of more latency. Most applications will want this set to `true`.
-* `socket_keepalive` defaults to `true`. Whether the keep-alive functionality is enabled on the underlying socket.
-* `no_ready_check`: defaults to `false`. When a connection is established to the Redis server, the server might still
-be loading the database from disk. While loading, the server not respond to any commands. To work around this,
+* `socket_nodelay`: *true*; Disables the [Nagle algorithm](https://en.wikipedia.org/wiki/Nagle%27s_algorithm).
+Setting this option to `false` can result in additional throughput at the cost of more latency.
+Most applications will want this set to `true`.
+* `socket_keepalive` *true*; Whether the keep-alive functionality is enabled on the underlying socket.
+* `no_ready_check`: *false*; When a connection is established to the Redis server, the server might still
+be loading the database from disk. While loading the server will not respond to any commands. To work around this,
 `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command
 indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event.
 Setting `no_ready_check` to `true` will inhibit this check.
-* `enable_offline_queue`: defaults to `true`. By default, if there is no active
+* `enable_offline_queue`: *true*; By default, if there is no active
 connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
-`false` will disable this feature and the callback will be execute immediately
-with an error, or an error will be thrown if no callback is specified.
-* `retry_max_delay`: defaults to `null`. By default every time the client tries to connect and fails time before
-reconnection (delay) almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits delay
-to maximum value, provided in milliseconds.
-* `connect_timeout` defaults to `86400000`. Setting `connect_timeout` limits total time for client to reconnect.
-Value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
+`false` will disable this feature and the callback will be executed immediately
+with an error, or an error will be emitted if no callback is specified.
+* `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
+This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
+* `connect_timeout` *86400000*; Setting `connect_timeout` limits total time for client to reconnect.
+The value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
 That way the default is to try reconnecting until 24h passed.
-* `max_attempts` defaults to `0`. By default client will try reconnecting until connected. Setting `max_attempts`
+* `max_attempts` *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
-* `auth_pass` defaults to `null`. By default client will try connecting without auth. If set, client will run redis auth command on connect.
-* `family` defaults to `IPv4`. The client connects in IPv4 if not specified or if the DNS resolution returns an IPv4 address.
-You can force an IPv6 if you set the family to 'IPv6'. See nodejs net or dns modules how to use the family type.
+* `auth_pass` *null*; If set, client will run redis auth command on connect.
+* `family` *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 
 ```js
 var redis = require("redis"),
@@ -221,11 +201,9 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.end();
 ```
 
-
-
 ## client.auth(password, callback)
 
-When connecting to Redis servers that require authentication, the `AUTH` command must be sent as the
+When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
 first command after connecting. This can be tricky to coordinate with reconnections, the ready check,
 etc. To make this easier, `client.auth()` stashes `password` and will send it after each connection,
 including reconnections. `callback` is invoked only once, after the response to the very first
@@ -247,10 +225,11 @@ var redis = require("redis"),
     client = redis.createClient();
 
 client.set("foo_rand000000000000", "some fantastic value");
+client.end(); // No further commands will be processed
 client.get("foo_rand000000000000", function (err, reply) {
-    console.log(reply.toString());
+    // This won't be called anymore
+    console.log(err);
 });
-client.end();
 ```
 
 `client.end()` is useful for timeout cases where something is stuck or taking too long and you want
@@ -436,10 +415,8 @@ client.multi()
 same command methods as `client` objects do. Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
 
-The `callback` of `.exec()` will get invoked with two arguments:
-
-* `err` **type:** `null | Array` err is either null or an array of Error Objects corresponding the the sequence the commands where chained. The last item of the array will always be an `EXECABORT` type of error originating from the `.exec()` itself.
-* `results` **type:** `null | Array` results is an array of responses corresponding the the sequence the commands where chained.
+If your code contains an syntax error an EXECABORT error is going to be thrown and all commands are going to be aborted. That error contains a `.errors` property that contains the concret errors.
+If all commands were queued successfully and an error is thrown by redis while processing the commands that error is going to be returned in the result array! No other command is going to be aborted though than the onces failing.
 
 You can either chain together `MULTI` commands as in the above example, or you can queue individual
 commands while still sending regular client command as in this example:
@@ -483,7 +460,6 @@ client.multi([
     console.log(replies);
 });
 ```
-
 
 ## Monitor mode
 
@@ -561,7 +537,7 @@ Used internally to send commands to Redis. Nearly all Redis commands have been a
 However, if new commands are introduced before this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
 The command has to be lower case.
 
-All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted.
+All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
 
 ## client.connected
 
@@ -623,119 +599,62 @@ Much effort has been spent to make `node_redis` as fast as possible for common
 operations. As pipelining happens naturally from shared connections, overall
 efficiency goes up.
 
-Here are typical results of `multi_bench.js` which is similar to
-`redis-benchmark` from the Redis distribution. It uses 5 concurrent connections
-and shows the difference between pipelines of 1 and 50.
+Here are results of `multi_bench.js` which is similar to `redis-benchmark` from the Redis distribution.
 
-JavaScript parser:
+hiredis parser (Lenovo T450s i7-5600U):
 
-	Client count: 5, node version: 0.10.32, server version: 2.8.18, parser: javascript
-	PING,             1/5 min/max/avg/p95:    0/   3/   0.05/   1.00   1103ms total, 18132.37 ops/sec
-	PING,            50/5 min/max/avg/p95:    0/   4/   0.81/   2.00    327ms total, 61162.08 ops/sec
-	SET 4B str,       1/5 min/max/avg/p95:    0/   2/   0.05/   0.00   1104ms total, 18115.94 ops/sec
-	SET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.83/   2.00    333ms total, 60060.06 ops/sec
-	SET 4B buf,       1/5 min/max/avg/p95:    0/   2/   0.09/   1.00   1876ms total, 10660.98 ops/sec
-	SET 4B buf,      50/5 min/max/avg/p95:    0/  11/   2.55/   4.00   1025ms total, 19512.20 ops/sec
-	GET 4B str,       1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1117ms total, 17905.10 ops/sec
-	GET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.87/   2.00    347ms total, 57636.89 ops/sec
-	GET 4B buf,       1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1110ms total, 18018.02 ops/sec
-	GET 4B buf,      50/5 min/max/avg/p95:    0/   2/   0.85/   2.00    342ms total, 58479.53 ops/sec
-	SET 4KiB str,     1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1119ms total, 17873.10 ops/sec
-	SET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   0.89/   2.00    358ms total, 55865.92 ops/sec
-	SET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.09/   1.00   1894ms total, 10559.66 ops/sec
-	SET 4KiB buf,    50/5 min/max/avg/p95:    0/   7/   2.57/   4.00   1031ms total, 19398.64 ops/sec
-	GET 4KiB str,     1/5 min/max/avg/p95:    0/   6/   0.06/   1.00   1248ms total, 16025.64 ops/sec
-	GET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   1.03/   2.00    415ms total, 48192.77 ops/sec
-	GET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1177ms total, 16992.35 ops/sec
-	GET 4KiB buf,    50/5 min/max/avg/p95:    0/  10/   1.02/   2.00    409ms total, 48899.76 ops/sec
-	INCR,             1/5 min/max/avg/p95:    0/   2/   0.05/   0.55   1137ms total, 17590.15 ops/sec
-	INCR,            50/5 min/max/avg/p95:    0/   2/   0.85/   2.00    343ms total, 58309.04 ops/sec
-	LPUSH,            1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1143ms total, 17497.81 ops/sec
-	LPUSH,           50/5 min/max/avg/p95:    0/   3/   0.87/   2.00    350ms total, 57142.86 ops/sec
-	LRANGE 10,        1/5 min/max/avg/p95:    0/   2/   0.06/   1.00   1283ms total, 15588.46 ops/sec
-	LRANGE 10,       50/5 min/max/avg/p95:    0/   3/   1.12/   2.00    449ms total, 44543.43 ops/sec
-	LRANGE 100,       1/5 min/max/avg/p95:    0/   1/   0.09/   1.00   1932ms total, 10351.97 ops/sec
-	LRANGE 100,      50/5 min/max/avg/p95:    0/   5/   2.46/   4.00    985ms total, 20304.57 ops/sec
-	SET 4MiB buf,     1/5 min/max/avg/p95:    1/   4/   1.37/   2.00    691ms total,   723.59 ops/sec
-	SET 4MiB buf,    50/5 min/max/avg/p95:    3/ 166/  57.66/ 116.00    601ms total,   831.95 ops/sec
-	GET 4MiB str,     1/5 min/max/avg/p95:   84/ 110/  93.18/ 106.95   9320ms total,    10.73 ops/sec
-	GET 4MiB str,    50/5 min/max/avg/p95:  156/7375/3400.10/6840.40   8928ms total,    11.20 ops/sec
-	GET 4MiB buf,     1/5 min/max/avg/p95:   84/ 105/  91.21/  99.00   9129ms total,    10.95 ops/sec
-	GET 4MiB buf,    50/5 min/max/avg/p95:  424/5704/3518.94/5626.65   9145ms total,    10.93 ops/sec
+    Client count: 5, node version: 2.5.0, server version: 3.0.3, parser: hiredis
+             PING,     1/5 min/max/avg/p95:    0/   3/   0.03/   0.00    540ms total, 37037.04 ops/sec
+             PING,    50/5 min/max/avg/p95:    0/   4/   0.65/   1.00    260ms total, 76923.08 ops/sec
+       SET 4B str,     1/5 min/max/avg/p95:    0/  20/   0.04/   0.00    816ms total, 24509.80 ops/sec
+       SET 4B str,    50/5 min/max/avg/p95:    0/  13/   1.00/   2.00    401ms total, 49875.31 ops/sec
+       SET 4B buf,     1/5 min/max/avg/p95:    0/   4/   0.06/   1.00   1293ms total, 15467.90 ops/sec
+       SET 4B buf,    50/5 min/max/avg/p95:    0/   5/   2.58/   4.00   1033ms total, 19361.08 ops/sec
+       GET 4B str,     1/5 min/max/avg/p95:    0/  14/   0.03/   0.00    717ms total, 27894.00 ops/sec
+       GET 4B str,    50/5 min/max/avg/p95:    0/   3/   0.62/   1.00    249ms total, 80321.29 ops/sec
+       GET 4B buf,     1/5 min/max/avg/p95:    0/   6/   0.03/   0.00    561ms total, 35650.62 ops/sec
+       GET 4B buf,    50/5 min/max/avg/p95:    0/   3/   0.64/   1.00    259ms total, 77220.08 ops/sec
+     SET 4KiB str,     1/5 min/max/avg/p95:    0/   4/   0.03/   0.00    678ms total, 29498.53 ops/sec
+     SET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   0.91/   2.00    364ms total, 54945.05 ops/sec
+     SET 4KiB buf,     1/5 min/max/avg/p95:    0/  20/   0.07/   1.00   1354ms total, 14771.05 ops/sec
+     SET 4KiB buf,    50/5 min/max/avg/p95:    0/   5/   1.86/   3.00    744ms total, 26881.72 ops/sec
+     GET 4KiB str,     1/5 min/max/avg/p95:    0/   3/   0.03/   0.00    575ms total, 34782.61 ops/sec
+     GET 4KiB str,    50/5 min/max/avg/p95:    0/   5/   0.82/   2.00    327ms total, 61162.08 ops/sec
+     GET 4KiB buf,     1/5 min/max/avg/p95:    0/  25/   0.04/   0.00    808ms total, 24752.48 ops/sec
+     GET 4KiB buf,    50/5 min/max/avg/p95:    0/   4/   0.92/   2.00    371ms total, 53908.36 ops/sec
+             INCR,     1/5 min/max/avg/p95:    0/  28/   0.03/   0.00    556ms total, 35971.22 ops/sec
+             INCR,    50/5 min/max/avg/p95:    0/   4/   0.67/   1.00    269ms total, 74349.44 ops/sec
+            LPUSH,     1/5 min/max/avg/p95:    0/   2/   0.03/   0.00    534ms total, 37453.18 ops/sec
+            LPUSH,    50/5 min/max/avg/p95:    0/   2/   0.89/   2.00    357ms total, 56022.41 ops/sec
+        LRANGE 10,     1/5 min/max/avg/p95:    0/  12/   0.04/   0.00    829ms total, 24125.45 ops/sec
+        LRANGE 10,    50/5 min/max/avg/p95:    0/   3/   1.04/   2.00    415ms total, 48192.77 ops/sec
+       LRANGE 100,     1/5 min/max/avg/p95:    0/  16/   0.06/   1.00   1212ms total, 16501.65 ops/sec
+       LRANGE 100,    50/5 min/max/avg/p95:    0/   5/   1.76/   3.00    707ms total, 28288.54 ops/sec
+     SET 4MiB buf,     1/5 min/max/avg/p95:    1/  22/   2.66/   4.00   1335ms total,   374.53 ops/sec
+     SET 4MiB buf,    50/5 min/max/avg/p95:   13/ 122/ 101.33/ 114.00   1062ms total,   470.81 ops/sec
+     GET 4MiB str,     1/5 min/max/avg/p95:    3/  14/   6.07/  12.00    607ms total,   164.74 ops/sec
+     GET 4MiB str,    50/5 min/max/avg/p95:   17/ 431/ 286.75/ 418.00    686ms total,   145.77 ops/sec
+     GET 4MiB buf,     1/5 min/max/avg/p95:    3/  38/   6.83/  12.95    684ms total,   146.20 ops/sec
+     GET 4MiB buf,    50/5 min/max/avg/p95:   10/ 273/ 194.07/ 253.90    495ms total,   202.02 ops/sec
 
-If you use very large responses in your application, the JavaScript parser
-performs badly. Until the JS parser is fixed, you can use the C-based `hiredis`
-parser bound to the official `hiredis` C library. To use `hiredis`, do:
+The hiredis and js parser should most of the time be on the same level. The js parser lacks speed for large responses though.
+Therefor the hiredis parser is the default used in node_redis. To use `hiredis`, do:
 
     npm install hiredis redis
-
-If the `hiredis` npm module is installed, `node_redis` will use it by default.
-Otherwise, the pure JavaScript parser will be used.
-
-If you use `hiredis`, be sure to rebuild it whenever you upgrade your version of
-node. There are mysterious failures that can happen between node and native
-code modules after a node upgrade.
-
-Most users find that the JS parser is faster than the `hiredis` parser. Because
-of the pain associated with upgrading native code modules, you should only use
-`hiredis` if your application needs it.
-
-hiredis parser:
-
-	Client count: 5, node version: 0.10.32, server version: 2.8.18, parser: hiredis
-	PING,             1/5 min/max/avg/p95:    0/   3/   0.05/   1.00   1092ms total, 18315.02 ops/sec
-	PING,            50/5 min/max/avg/p95:    0/   5/   0.87/   2.00    347ms total, 57636.89 ops/sec
-	SET 4B str,       1/5 min/max/avg/p95:    0/   2/   0.06/   1.00   1151ms total, 17376.19 ops/sec
-	SET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.83/   2.00    334ms total, 59880.24 ops/sec
-	SET 4B buf,       1/5 min/max/avg/p95:    0/   3/   0.09/   1.00   1932ms total, 10351.97 ops/sec
-	SET 4B buf,      50/5 min/max/avg/p95:    0/   9/   2.64/   4.00   1059ms total, 18885.74 ops/sec
-	GET 4B str,       1/5 min/max/avg/p95:    0/   1/   0.06/   0.00   1185ms total, 16877.64 ops/sec
-	GET 4B str,      50/5 min/max/avg/p95:    0/   3/   0.85/   2.00    341ms total, 58651.03 ops/sec
-	GET 4B buf,       1/5 min/max/avg/p95:    0/   1/   0.06/   0.00   1179ms total, 16963.53 ops/sec
-	GET 4B buf,      50/5 min/max/avg/p95:    0/   3/   0.85/   2.00    340ms total, 58823.53 ops/sec
-	SET 4KiB str,     1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1210ms total, 16528.93 ops/sec
-	SET 4KiB str,    50/5 min/max/avg/p95:    0/   3/   0.93/   2.00    372ms total, 53763.44 ops/sec
-	SET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.10/   1.00   1967ms total, 10167.77 ops/sec
-	SET 4KiB buf,    50/5 min/max/avg/p95:    0/   6/   2.63/   4.00   1053ms total, 18993.35 ops/sec
-	GET 4KiB str,     1/5 min/max/avg/p95:    0/   6/   0.06/   1.00   1176ms total, 17006.80 ops/sec
-	GET 4KiB str,    50/5 min/max/avg/p95:    0/   4/   1.00/   2.00    399ms total, 50125.31 ops/sec
-	GET 4KiB buf,     1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1158ms total, 17271.16 ops/sec
-	GET 4KiB buf,    50/5 min/max/avg/p95:    0/   3/   0.99/   2.00    398ms total, 50251.26 ops/sec
-	INCR,             1/5 min/max/avg/p95:    0/   1/   0.05/   0.00   1112ms total, 17985.61 ops/sec
-	INCR,            50/5 min/max/avg/p95:    0/   3/   0.84/   2.00    339ms total, 58997.05 ops/sec
-	LPUSH,            1/5 min/max/avg/p95:    0/   1/   0.05/   1.00   1131ms total, 17683.47 ops/sec
-	LPUSH,           50/5 min/max/avg/p95:    0/   3/   0.86/   2.00    345ms total, 57971.01 ops/sec
-	LRANGE 10,        1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   1228ms total, 16286.64 ops/sec
-	LRANGE 10,       50/5 min/max/avg/p95:    0/   3/   0.95/   2.00    382ms total, 52356.02 ops/sec
-	LRANGE 100,       1/5 min/max/avg/p95:    0/   1/   0.08/   1.00   1567ms total, 12763.24 ops/sec
-	LRANGE 100,      50/5 min/max/avg/p95:    0/   6/   1.68/   3.00    675ms total, 29629.63 ops/sec
-	SET 4MiB buf,     1/5 min/max/avg/p95:    1/   4/   1.37/   2.00    692ms total,   722.54 ops/sec
-	SET 4MiB buf,    50/5 min/max/avg/p95:    3/ 183/  57.79/ 125.00    605ms total,   826.45 ops/sec
-	GET 4MiB str,     1/5 min/max/avg/p95:    5/  16/   8.14/  12.95    816ms total,   122.55 ops/sec
-	GET 4MiB str,    50/5 min/max/avg/p95:   24/ 323/ 202.98/ 309.00    519ms total,   192.68 ops/sec
-	GET 4MiB buf,     1/5 min/max/avg/p95:    6/  13/   8.01/  11.95    802ms total,   124.69 ops/sec
-	GET 4MiB buf,    50/5 min/max/avg/p95:   16/ 480/ 203.85/ 435.70    531ms total,   188.32 ops/sec
 
 ## Debugging
 
 To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
-## TODO
-
-1. 100% coverage
-2. More performance improvements
-3. Stream large set/get values into and out of Redis. Otherwise the entire value must be in node's memory.
-4. Performance can be better for very large values in the js parser.
-
 ## How to Contribute
-- open a pull request and then wait for feedback
+- Open a pull request or an issue about what you want to implement / change. We're glad for any help!
 
 ## Contributors
-Many people have have added features and fixed bugs in `node_redis`. Thanks to all of them!
+Many [people](https://github.com/NodeRedis/node_redis/graphs/contributors) have have added features and fixed bugs in `node_redis`. Thanks to all of them!
 
 ## LICENSE - "MIT License"
 
-Copyright (c) 2015 Matthew Ranney, http://ranney.com/
+Copyright (c) by NodeRedis
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -757,3 +676,5 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
+
+Originally developed by Matthew Ranney, http://ranney.com/

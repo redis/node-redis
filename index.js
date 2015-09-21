@@ -1157,7 +1157,7 @@ exports.createClient = function(port_arg, host_arg, options) {
 
         return createClient_unix(port_arg, options);
     }
-    throw new Error('unknown type of connection in createClient()');
+    throw new Error('Unknown type of connection in createClient()');
 };
 
 exports.print = function (err, reply) {
