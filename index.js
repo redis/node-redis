@@ -556,9 +556,8 @@ function reply_to_strings(reply) {
 
     if (Array.isArray(reply)) {
         for (i = 0; i < reply.length; i++) {
-            if (reply[i] !== null && reply[i] !== undefined) {
-                reply[i] = reply[i].toString();
-            }
+            // Recusivly call the function as slowlog returns deep nested replies
+            reply[i] = reply_to_strings(reply[i]);
         }
         return reply;
     }
@@ -612,14 +611,17 @@ RedisClient.prototype.return_reply = function (reply) {
         } else {
             debug("No callback for reply");
         }
-    } else if (this.pub_sub_mode || (command_obj && command_obj.sub_command)) {
+    } else if (this.pub_sub_mode || command_obj && command_obj.sub_command) {
         if (Array.isArray(reply)) {
+            if (!this.options.return_buffers && (!command_obj || this.options.detect_buffers && command_obj.buffer_args === false)) {
+                reply = reply_to_strings(reply);
+            }
             type = reply[0].toString();
 
             if (type === "message") {
-                this.emit("message", reply[1].toString(), reply[2]); // channel, message
+                this.emit("message", reply[1], reply[2]); // channel, message
             } else if (type === "pmessage") {
-                this.emit("pmessage", reply[1].toString(), reply[2].toString(), reply[3]); // pattern, channel, message
+                this.emit("pmessage", reply[1], reply[2], reply[3]); // pattern, channel, message
             } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
                 if (reply[2] === 0) {
                     this.pub_sub_mode = false;
@@ -629,12 +631,10 @@ RedisClient.prototype.return_reply = function (reply) {
                 }
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
-                // reply[1] can be null
-                var reply1String = (reply[1] === null) ? null : reply[1].toString();
                 if (command_obj && typeof command_obj.callback === "function") {
-                    command_obj.callback(null, reply1String);
+                    command_obj.callback(null, reply[1]);
                 }
-                this.emit(type, reply1String, reply[2]); // channel, count
+                this.emit(type, reply[1], reply[2]); // channel, count
             } else {
                 this.emit("error", new Error("subscriptions are active but got unknown reply type " + type));
                 return;
@@ -644,6 +644,9 @@ RedisClient.prototype.return_reply = function (reply) {
             return;
         }
     } else if (this.monitoring) {
+        if (Buffer.isBuffer(reply)) {
+            reply = reply.toString();
+        }
         len = reply.indexOf(" ");
         timestamp = reply.slice(0, len);
         argindex = reply.indexOf('"');
@@ -776,7 +779,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
-            if (!(Buffer.isBuffer(arg) || arg instanceof String)) {
+            if (!(Buffer.isBuffer(arg) || typeof arg === 'string')) {
                 arg = String(arg);
             }
 

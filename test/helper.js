@@ -108,27 +108,39 @@ module.exports = {
         }
         return true;
     },
-    allTests: function (options, cb) {
+    allTests: function (opts, cb) {
         if (!cb) {
-            cb = options;
-            options = {};
+            cb = opts;
+            opts = {};
         }
-        // TODO: Test all different option cases at some point (e.g. buffers)
-        // [undefined, { return_buffers: true }].forEach(function (config_options) {
-        //     describe(config_options && config_options.return_buffers ? "returning buffers" : "returning strings", function () {
-        //     });
-        // });
         var parsers = ['javascript'];
         var protocols = ['IPv4'];
         if (process.platform !== 'win32') {
             parsers.push('hiredis');
             protocols.push('IPv6', '/tmp/redis.sock');
         }
-        parsers.forEach(function (parser) {
-            protocols.forEach(function (ip, i) {
-                if (i === 0 || options.allConnections) {
-                    cb(parser, ip, config.configureClient(parser, ip));
+        var options = [{
+            detect_buffers: true
+        // Somehow we need a undefined here - otherwise the parsers return_buffers value is always true
+        // Investigate this further
+        }, undefined];
+        options.forEach(function (options) {
+            var strOptions = '';
+            var key;
+            for (key in options) {
+                if (options.hasOwnProperty(key)) {
+                    strOptions += key + ': ' + options[key] + '; ';
                 }
+            }
+            describe('using options: ' + strOptions, function() {
+                parsers.forEach(function (parser) {
+                    protocols.forEach(function (ip, i) {
+                        if (i !== 0 && !opts.allConnections) {
+                            return;
+                        }
+                        cb(parser, ip, config.configureClient(parser, ip, options));
+                    });
+                });
             });
         });
     },
