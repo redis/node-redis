@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v2.0.1 - Sep 24, 2015
+
+Bugfixes:
+
+-  Fix argument mutation while using the array notation in combination with keys / callbacks ([#866]). (@BridgeAR)
+
 ## v2.0.0 - Sep 21, 2015
 
 This is the biggest release that node_redis had since it was released in 2010. A long list of outstanding bugs has been fixed, so we are very happy to present you redis 2.0 and we highly recommend updating as soon as possible.

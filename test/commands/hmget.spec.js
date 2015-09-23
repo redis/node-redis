@@ -30,8 +30,10 @@ describe("The 'hmget' method", function () {
                 });
             });
 
-            it('allows keys to be specified by passing an array', function (done) {
-                client.HMGET(hash, ["0123456789", "some manner of key"], function (err, reply) {
+            it('allows keys to be specified by passing an array without manipulating the array', function (done) {
+                var data = ["0123456789", "some manner of key"];
+                client.HMGET(hash, data, function (err, reply) {
+                    assert.strictEqual(data.length, 2);
                     assert.strictEqual("abcdefghij", reply[0].toString());
                     assert.strictEqual("a type of value", reply[1].toString());
                     return done(err);

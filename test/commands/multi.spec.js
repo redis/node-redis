@@ -148,26 +148,32 @@ describe("The 'multi' method", function () {
 
                 it('allows multiple operations to be performed using constructor with all kinds of syntax', function (done) {
                     var now = Date.now();
+                    var arr = ["multihmset", "multibar", "multibaz"];
+                    var arr2 = ['some manner of key', 'otherTypes'];
+                    var arr3 = [5768, "multibarx", "multifoox"];
                     client.multi([
                         ["mset", [578, "multibar"], helper.isString('OK')],
                         [["mset", "multifoo2", "multibar2", "multifoo3", "multibar3"], helper.isString('OK')],
-                        ["hmset", ["multihmset", "multibar", "multibaz"]],
+                        ["hmset", arr],
                         [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test", helper.isString('OK')]],
                         ["hmset", ["multihmset", "multibar", "multifoo", helper.isString('OK')]],
-                        ["hmset", [5768, "multibarx", "multifoox"], helper.isString('OK')],
+                        ["hmset", arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
                         ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
                         ["hmset", "multihmset", ["multibar", "multibaz"]],
                         ["hmset", "multihmset", ["multibar", "multibaz"], helper.isString('OK')],
                     ])
                     .hmget(now, 123456789, 'otherTypes')
-                    .hmget('key2', ['some manner of key', 'otherTypes'])
+                    .hmget('key2', arr2, function noop() {})
                     .hmget(['multihmset2', 'some manner of key', 'multibar3'])
                     .mget('multifoo2', ['multifoo3', 'multifoo'], function(err, res) {
                         assert(res[0], 'multifoo3');
                         assert(res[1], 'multifoo');
                     })
                     .exec(function (err, replies) {
+                        assert.equal(arr.length, 3);
+                        assert.equal(arr2.length, 2);
+                        assert.equal(arr3.length, 3);
                         assert.strictEqual(null, err);
                         assert.equal(replies[10][1], '555');
                         assert.equal(replies[11][0], 'a type of value');

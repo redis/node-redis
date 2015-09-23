@@ -885,7 +885,7 @@ commands.forEach(function (fullCommand) {
             return this.send_command(command, key, arg);
         }
         if (Array.isArray(arg)) {
-            arg.unshift(key);
+            arg = [key].concat(arg);
             return this.send_command(command, arg, callback);
         }
         return this.send_command(command, to_array(arguments));
@@ -895,12 +895,12 @@ commands.forEach(function (fullCommand) {
     Multi.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             if (arg) {
-                key.push(arg);
+                key = key.concat([arg]);
             }
             this.queue.push([command].concat(key));
         } else if (Array.isArray(arg)) {
             if (callback) {
-                arg.push(callback);
+                arg = arg.concat([callback]);
             }
             this.queue.push([command, key].concat(arg));
         } else {
@@ -980,12 +980,12 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
     var tmp_args, field;
     if (Array.isArray(key)) {
         if (args) {
-            key.push(args);
+            key = key.concat([args]);
         }
         tmp_args = ['hmset'].concat(key);
     } else if (Array.isArray(args)) {
         if (callback) {
-            args.push(callback);
+            args = args.concat([callback]);
         }
         tmp_args = ['hmset', key].concat(args);
     } else if (typeof args === "object") {
@@ -1029,7 +1029,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
     this.wants_buffers = new Array(this.queue.length);
     // drain queue, callback will catch "QUEUED" or error
     for (var index = 0; index < this.queue.length; index++) {
-        var args = this.queue[index].slice();
+        var args = this.queue[index].slice(0);
         var command = args.shift();
         var cb;
         if (typeof args[args.length - 1] === "function") {
