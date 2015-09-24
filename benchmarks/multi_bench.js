@@ -1,15 +1,21 @@
 'use strict';
 
-var redis = require("../index"),
-    metrics = require("metrics"),
-    num_clients = parseInt(process.argv[2], 10) || 5,
-    num_requests = 20000,
-    tests = [],
-    versions_logged = false,
-    client_options = {
-        return_buffers: false
-    },
-    small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
+var path = require('path');
+var RedisProcess = require("../test/lib/redis-process");
+var rp;
+var redis = require("../index");
+var totalTime = 0;
+var metrics = require("metrics");
+var num_clients = parseInt(process.argv[2], 10) || 5;
+var num_requests = 20000;
+var tests = [];
+var versions_logged = false;
+var client_options = {
+        return_buffers: false,
+        max_attempts: 4,
+        parser: process.argv.indexOf('parser=javascript') === -1 ? 'hiredis' : 'javascript'
+    };
+var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
 
 function lpad(input, len, chr) {
     var str = input.toString();
@@ -57,7 +63,7 @@ Test.prototype.run = function (callback) {
 Test.prototype.new_client = function (id) {
     var self = this, new_client;
 
-    new_client = redis.createClient(6379, "127.0.0.1", this.client_options);
+    new_client = redis.createClient(this.client_options);
     new_client.create_time = Date.now();
 
     new_client.on("connect", function () {
@@ -75,6 +81,24 @@ Test.prototype.new_client = function (id) {
         if (self.clients_ready === self.clients.length) {
             self.on_clients_ready();
         }
+    });
+
+    // If no redis server is running, start one
+    new_client.on("error", function(err) {
+        if (err.code === 'CONNECTION_BROKEN') {
+            throw err;
+        }
+        if (rp) {
+            return;
+        }
+        rp = true;
+        var conf = '../test/conf/redis.conf';
+        RedisProcess.start(function (err, _rp) {
+            if (err) {
+                throw err;
+            }
+            rp = _rp;
+        }, path.resolve(__dirname, conf));
     });
 
     self.clients[id] = new_client;
@@ -133,6 +157,7 @@ Test.prototype.send_next = function () {
 
 Test.prototype.print_stats = function () {
     var duration = Date.now() - this.test_start;
+    totalTime += duration;
 
     console.log("min/max/avg/p95: " + this.command_latency.print_line() + " " + lpad(duration, 6) + "ms total, " +
         lpad((this.num_requests / (duration / 1000)).toFixed(2), 8) + " ops/sec");
@@ -199,8 +224,14 @@ function next() {
         test.run(function () {
             next();
         });
+    } else if (rp) {
+        // Stop the redis process if started by the benchmark
+        rp.stop(function() {
+            rp = undefined;
+            next();
+        });
     } else {
-        console.log("End of tests.");
+        console.log("End of tests. Total time elapsed:", totalTime, 'ms');
         process.exit(0);
     }
 }
