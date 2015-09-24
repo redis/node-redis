@@ -212,10 +212,12 @@ NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
 
-## client.end()
+## client.end([flush])
 
 Forcibly close the connection to the Redis server. Note that this does not wait until all replies have been parsed.
 If you want to exit cleanly, call `client.quit()` to send the `QUIT` command after you have handled all replies.
+
+If flush is set to true, all commands will be rejected instead of ignored after using `.end`.
 
 This example closes the connection to the Redis server before the replies have been read. You probably don't
 want to do this:
@@ -227,7 +229,7 @@ var redis = require("redis"),
 client.set("foo_rand000000000000", "some fantastic value");
 client.end(); // No further commands will be processed
 client.get("foo_rand000000000000", function (err, reply) {
-    // This won't be called anymore
+    // This won't be called anymore, since flush has not been set to true!
     console.log(err);
 });
 ```

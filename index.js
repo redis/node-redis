@@ -838,7 +838,7 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
     }
 };
 
-RedisClient.prototype.end = function () {
+RedisClient.prototype.end = function (flush) {
     this.stream._events = {};
 
     // Clear retry_timer
@@ -848,8 +848,10 @@ RedisClient.prototype.end = function () {
     }
     this.stream.on("error", function noop(){});
 
-    // Flush queue
-    this.flush_and_error("Redis connection ended.");
+    // Flush queue if wanted
+    if (flush) {
+        this.flush_and_error("Redis connection ended.");
+    }
 
     this.connected = false;
     this.ready = false;

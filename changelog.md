@@ -1,7 +1,11 @@
 Changelog
 =========
 
-## v2.x.x - xx, 2015
+## v2.1.0 - xx, 2015
+
+Features:
+
+-  Add optional flush parameter to `.end`. If set to true, commands fired after using .end are going to be rejected instead of being ignored. (@crispy1989)
 
 Bugfixes:
 

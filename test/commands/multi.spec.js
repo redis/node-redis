@@ -196,6 +196,14 @@ describe("The 'multi' method", function () {
                     }).exec(done);
                 });
 
+                it('runs a multi without any further commands', function(done) {
+                    client.multi().exec(function(err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res.length, 0);
+                        done();
+                    });
+                });
+
                 it('allows multiple operations to be performed using a chaining API', function (done) {
                     client.multi()
                         .mset('some', '10', 'keys', '20')

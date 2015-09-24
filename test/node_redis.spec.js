@@ -174,6 +174,32 @@ describe("The node_redis client", function () {
 
                 });
 
+                describe(".end", function () {
+
+                    it('used without flush', function(done) {
+                        var err = null;
+                        client.set('foo', 'bar');
+                        client.end();
+                        client.get('foo', function(err, res) {
+                            err = new Error('failed');
+                        });
+                        setTimeout(function() {
+                            done(err);
+                        }, 200);
+                    });
+
+                    it('used with flush set to true', function(done) {
+                        client.set('foo', 'bar');
+                        client.end();
+                        client.get('foo', function(err, res) {
+                            assert.strictEqual(err.command, 'GET');
+                            assert.strictEqual(err.message, "GET can't be processed. The connection has already been closed.");
+                            done();
+                        });
+                    });
+
+                });
+
                 describe("commands after using .quit should fail", function () {
 
                     it("return an error in the callback", function (done) {
