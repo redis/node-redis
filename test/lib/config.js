@@ -13,7 +13,8 @@ var config = {
     },
     configureClient: function (parser, ip, opts) {
         var args = [];
-        opts = opts || {};
+        // Do not manipulate the opts => copy them each time
+        opts = opts ? JSON.parse(JSON.stringify(opts)) : {};
 
         if (ip.match(/\.sock/)) {
             args.push(ip);

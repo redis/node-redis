@@ -20,7 +20,7 @@
   "devDependencies": {
     "coveralls": "^2.11.2",
     "jshint": "^2.8.0",
-    "metrics": ">=0.1.5",
+    "metrics": "^0.1.9",
     "mocha": "^2.3.2",
     "nyc": "^3.2.2",
     "optional-dev-dependency": "^1.1.0",

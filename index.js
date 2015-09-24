@@ -3,8 +3,8 @@
 var net = require("net"),
     URL = require("url"),
     util = require("util"),
+    utils = require("./lib/utils"),
     Queue = require("./lib/queue"),
-    to_array = require("./lib/to_array"),
     events = require("events"),
     parsers = [],
     // This static list of commands is updated from time to time.
@@ -23,14 +23,13 @@ exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 // hiredis might not be installed
 try {
-    require("./lib/parser/hiredis");
-    parsers.push(require("./lib/parser/hiredis"));
+    parsers.push(require("./lib/parsers/hiredis"));
 } catch (err) {
     /* istanbul ignore next: won't be reached with tests */
     debug("Hiredis parser not installed.");
 }
 
-parsers.push(require("./lib/parser/javascript"));
+parsers.push(require("./lib/parsers/javascript"));
 
 function RedisClient(stream, options) {
     options = options || {};
@@ -135,6 +134,7 @@ RedisClient.prototype.flush_and_error = function (error) {
 
     while (command_obj = this.offline_queue.shift()) {
         if (typeof command_obj.callback === "function") {
+            error.command = command_obj.command.toUpperCase();
             command_obj.callback(error);
         }
     }
@@ -142,6 +142,7 @@ RedisClient.prototype.flush_and_error = function (error) {
 
     while (command_obj = this.command_queue.shift()) {
         if (typeof command_obj.callback === "function") {
+            error.command = command_obj.command.toUpperCase();
             command_obj.callback(error);
         }
     }
@@ -530,41 +531,6 @@ RedisClient.prototype.return_error = function (err) {
     }
 };
 
-// hgetall converts its replies to an Object.  If the reply is empty, null is returned.
-function reply_to_object(reply) {
-    var obj = {}, j, jl, key, val;
-
-    if (reply.length === 0 || !Array.isArray(reply)) {
-        return null;
-    }
-
-    for (j = 0, jl = reply.length; j < jl; j += 2) {
-        key = reply[j].toString('binary');
-        val = reply[j + 1];
-        obj[key] = val;
-    }
-
-    return obj;
-}
-
-function reply_to_strings(reply) {
-    var i;
-
-    if (Buffer.isBuffer(reply)) {
-        return reply.toString();
-    }
-
-    if (Array.isArray(reply)) {
-        for (i = 0; i < reply.length; i++) {
-            // Recusivly call the function as slowlog returns deep nested replies
-            reply[i] = reply_to_strings(reply[i]);
-        }
-        return reply;
-    }
-
-    return reply;
-}
-
 RedisClient.prototype.return_reply = function (reply) {
     var command_obj, len, type, timestamp, argindex, args, queue_len;
 
@@ -598,12 +564,12 @@ RedisClient.prototype.return_reply = function (reply) {
                 if (this.options.detect_buffers && command_obj.buffer_args === false) {
                     // If detect_buffers option was specified, then the reply from the parser will be Buffers.
                     // If this command did not use Buffer arguments, then convert the reply to Strings here.
-                    reply = reply_to_strings(reply);
+                    reply = utils.reply_to_strings(reply);
                 }
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
                 if (reply && 'hgetall' === command_obj.command) {
-                    reply = reply_to_object(reply);
+                    reply = utils.reply_to_object(reply);
                 }
             }
 
@@ -614,7 +580,7 @@ RedisClient.prototype.return_reply = function (reply) {
     } else if (this.pub_sub_mode || command_obj && command_obj.sub_command) {
         if (Array.isArray(reply)) {
             if (!this.options.return_buffers && (!command_obj || this.options.detect_buffers && command_obj.buffer_args === false)) {
-                reply = reply_to_strings(reply);
+                reply = utils.reply_to_strings(reply);
             }
             type = reply[0].toString();
 
@@ -850,7 +816,7 @@ RedisClient.prototype.end = function (flush) {
 
     // Flush queue if wanted
     if (flush) {
-        this.flush_and_error("Redis connection ended.");
+        this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
     }
 
     this.connected = false;
@@ -894,7 +860,7 @@ commands.forEach(function (fullCommand) {
             arg = [key].concat(arg);
             return this.send_command(command, arg, callback);
         }
-        return this.send_command(command, to_array(arguments));
+        return this.send_command(command, utils.to_array(arguments));
     };
     RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
 
@@ -910,7 +876,7 @@ commands.forEach(function (fullCommand) {
             }
             this.queue.push([command, key].concat(arg));
         } else {
-            this.queue.push([command].concat(to_array(arguments)));
+            this.queue.push([command].concat(utils.to_array(arguments)));
         }
         return this;
     };
@@ -979,7 +945,7 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args,
         }
         return this.send_command("hmset", tmp_args, callback);
     }
-    return this.send_command("hmset", to_array(arguments));
+    return this.send_command("hmset", utils.to_array(arguments));
 };
 
 Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
@@ -1008,7 +974,7 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
             tmp_args.push(callback);
         }
     } else {
-        tmp_args = to_array(arguments);
+        tmp_args = utils.to_array(arguments);
         tmp_args.unshift("hmset");
     }
     this.queue.push(tmp_args);
@@ -1087,11 +1053,11 @@ Multi.prototype.execute_callback = function (err, replies) {
                 replies[i].command = args[0].toUpperCase();
             } else if (replies[i]) {
                 if (this._client.options.detect_buffers && this.wants_buffers[i + 1] === false) {
-                    replies[i] = reply_to_strings(replies[i]);
+                    replies[i] = utils.reply_to_strings(replies[i]);
                 }
                 if (args[0] === "hgetall") {
                     // TODO - confusing and error-prone that hgetall is special cased in two places
-                    replies[i] = reply_to_object(replies[i]);
+                    replies[i] = utils.reply_to_object(replies[i]);
                 }
             }
 

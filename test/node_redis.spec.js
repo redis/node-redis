@@ -156,8 +156,8 @@ describe("The node_redis client", function () {
 
                         process.once('uncaughtException', function (err) {
                             process.on('uncaughtException', mochaListener);
-                            // assert(/ERR Protocol error/.test(err.message));
-                            // assert.equal(err.command, true);
+                            assert(/ERR Protocol error/.test(err.message));
+                            assert.equal(err.command, true);
                             assert.equal(err.code, 'ERR');
                             done();
                         });
@@ -177,25 +177,36 @@ describe("The node_redis client", function () {
                 describe(".end", function () {
 
                     it('used without flush', function(done) {
-                        var err = null;
-                        client.set('foo', 'bar');
-                        client.end();
-                        client.get('foo', function(err, res) {
-                            err = new Error('failed');
-                        });
-                        setTimeout(function() {
-                            done(err);
-                        }, 200);
+                        var end = helper.callFuncAfter(function() {
+                            done(new Error('failed'));
+                        }, 20);
+                        var cb = function(err, res) {
+                            assert.equal(err.message, "SET can't be processed. The connection has already been closed.");
+                            end();
+                        };
+                        for (var i = 0; i < 20; i++) {
+                            if (i === 10) {
+                                client.end();
+                            }
+                            client.set('foo', 'bar', cb);
+                        }
+                        setTimeout(done, 250);
                     });
 
                     it('used with flush set to true', function(done) {
-                        client.set('foo', 'bar');
-                        client.end();
-                        client.get('foo', function(err, res) {
-                            assert.strictEqual(err.command, 'GET');
-                            assert.strictEqual(err.message, "GET can't be processed. The connection has already been closed.");
+                        var end = helper.callFuncAfter(function() {
                             done();
-                        });
+                        }, 20);
+                        var cb = function(err, res) {
+                            assert(/The connection has already been closed./.test(err.message));
+                            end();
+                        };
+                        for (var i = 0; i < 20; i++) {
+                            if (i === 10) {
+                                client.end(true);
+                            }
+                            client.set('foo', 'bar', cb);
+                        }
                     });
 
                 });
@@ -730,7 +741,7 @@ describe("The node_redis client", function () {
             describe('retry_max_delay', function () {
                 var client;
                 var args = config.configureClient(parser, ip, {
-                    retry_max_delay: 1
+                    retry_max_delay: 1 // ms
                 });
 
                 it("sets upper bound on how long client waits before reconnecting", function (done) {
@@ -747,7 +758,7 @@ describe("The node_redis client", function () {
                         } else {
                             client.end();
                             var lasted = new Date().getTime() - time;
-                            assert.ok(lasted < 1000);
+                            assert.ok(lasted < 50);
                             return done();
                         }
                     });

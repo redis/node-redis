@@ -88,6 +88,16 @@ describe("The 'set' method", function () {
                                 });
                             }, 100);
                         });
+
+                        it("sets the value correctly with the array syntax", function (done) {
+                            client.set([key, value]);
+                            setTimeout(function () {
+                                client.get(key, function (err, res) {
+                                    helper.isString(value)(err, res);
+                                    done();
+                                });
+                            }, 100);
+                        });
                     });
 
                     describe("with undefined 'key' and missing 'value' parameter", function () {

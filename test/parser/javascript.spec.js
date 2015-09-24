@@ -1,7 +1,7 @@
 'use strict';
 
 var assert = require('assert');
-var Parser = require("../../lib/parser/javascript").Parser;
+var Parser = require("../../lib/parsers/javascript").Parser;
 var config = require("../lib/config");
 var redis = config.redis;
 

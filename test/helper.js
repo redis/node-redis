@@ -31,12 +31,10 @@ module.exports = {
     redisProcess: function () {
         return rp;
     },
-    stopRedis: function (done) {
+    stopRedis: function(done) {
         rp.stop(done);
     },
-    startRedis: function (conf, done) {
-        startRedis(conf, done);
-    },
+    startRedis: startRedis,
     isNumber: function (expected, done) {
         return function (err, results) {
             assert.strictEqual(null, err, "expected " + expected + ", got error: " + err);
