@@ -151,8 +151,9 @@ describe("The 'multi' method", function () {
                     var arr = ["multihmset", "multibar", "multibaz"];
                     var arr2 = ['some manner of key', 'otherTypes'];
                     var arr3 = [5768, "multibarx", "multifoox"];
+                    var arr4 = ["mset", [578, "multibar"], helper.isString('OK')];
                     client.multi([
-                        ["mset", [578, "multibar"], helper.isString('OK')],
+                        arr4,
                         [["mset", "multifoo2", "multibar2", "multifoo3", "multibar3"], helper.isString('OK')],
                         ["hmset", arr],
                         [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test", helper.isString('OK')]],
@@ -160,7 +161,7 @@ describe("The 'multi' method", function () {
                         ["hmset", arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
                         ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
-                        ["hmset", "multihmset", ["multibar", "multibaz"]],
+                        ["HMSET", "multihmset", ["multibar", "multibaz"]],
                         ["hmset", "multihmset", ["multibar", "multibaz"], helper.isString('OK')],
                     ])
                     .hmget(now, 123456789, 'otherTypes')
@@ -174,6 +175,7 @@ describe("The 'multi' method", function () {
                         assert.equal(arr.length, 3);
                         assert.equal(arr2.length, 2);
                         assert.equal(arr3.length, 3);
+                        assert.equal(arr4.length, 3);
                         assert.strictEqual(null, err);
                         assert.equal(replies[10][1], '555');
                         assert.equal(replies[11][0], 'a type of value');
@@ -184,6 +186,14 @@ describe("The 'multi' method", function () {
                         assert.equal(replies.length, 14);
                         return done();
                     });
+                });
+
+                it('converts a non string key to a string', function(done) {
+                    // TODO: Converting the key might change soon again.
+                    client.multi().hmset(true, {
+                        test: 123,
+                        bar: 'baz'
+                    }).exec(done);
                 });
 
                 it('allows multiple operations to be performed using a chaining API', function (done) {

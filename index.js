@@ -860,7 +860,8 @@ function Multi(client, args) {
     var command, tmp_args;
     if (Array.isArray(args)) {
         while (tmp_args = args.shift()) {
-            command = tmp_args.shift();
+            command = tmp_args[0];
+            tmp_args = tmp_args.slice(1);
             if (Array.isArray(command)) {
                 this[command[0]].apply(this, command.slice(1).concat(tmp_args));
             } else {
@@ -989,10 +990,10 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
         }
         tmp_args = ['hmset', key].concat(args);
     } else if (typeof args === "object") {
-        tmp_args = ["hmset", key];
         if (typeof key !== "string") {
             key = key.toString();
         }
+        tmp_args = ["hmset", key];
         var fields = Object.keys(args);
         while (field = fields.shift()) {
             tmp_args.push(field);

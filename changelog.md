@@ -1,11 +1,18 @@
 Changelog
 =========
 
+## v2.x.x - xx, 2015
+
+Bugfixes:
+
+-  Fix argument mutation while using the array notation with the multi constructor (@BridgeAR)
+-  Fix multi.hmset key not being type converted if used with an object and key not being a string (@BridgeAR)
+
 ## v2.0.1 - Sep 24, 2015
 
 Bugfixes:
 
--  Fix argument mutation while using the array notation in combination with keys / callbacks ([#866]). (@BridgeAR)
+-  Fix argument mutation while using the array notation in combination with keys / callbacks ([#866](.)). (@BridgeAR)
 
 ## v2.0.0 - Sep 21, 2015
 
