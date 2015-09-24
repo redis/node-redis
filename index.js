@@ -1187,7 +1187,8 @@ Batch.prototype.exec = Batch.prototype.EXEC = function (callback) {
     var resp = new Array(todo);
     var errors = null;
 
-    if (!todo) return setImmediate(function() { callback && callback(null); });
+    // what do we want to do if there's nothing queued?
+    if (!todo) return callback && callback(null, []);
 
     var isDone = function() {
         if (!--todo) return callback && callback(errors, resp);
