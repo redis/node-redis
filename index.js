@@ -870,7 +870,27 @@ function Multi(client, args) {
     }
 }
 
+function Batch(client, atomic, args) {
+    this._client = client;
+    this.queue = [];
+    this.atomic = atomic;
+    var command, tmp_args;
+    if (Array.isArray(args)) {
+        while (tmp_args = args.shift()) {
+            command = tmp_args.shift();
+            if (Array.isArray(command)) {
+                this[command[0]].apply(this, command.slice(1).concat(tmp_args));
+            } else {
+                this[command].apply(this, tmp_args);
+            }
+        }
+    }
+}
+
 exports.Multi = Multi;
+exports.Batch = Batch;
+
+
 
 commands.forEach(function (fullCommand) {
     var command = fullCommand.split(' ')[0];
@@ -879,6 +899,8 @@ commands.forEach(function (fullCommand) {
     if (RedisClient.prototype[command]) {
         return;
     }
+
+    var upCommand = command.toUpperCase();
 
     RedisClient.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
@@ -890,7 +912,7 @@ commands.forEach(function (fullCommand) {
         }
         return this.send_command(command, to_array(arguments));
     };
-    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
+    RedisClient.prototype[upCommand] = RedisClient.prototype[command];
 
     Multi.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
@@ -908,7 +930,19 @@ commands.forEach(function (fullCommand) {
         }
         return this;
     };
-    Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
+
+    Batch.prototype[command] = function (key, arg, callback) {
+        if (Array.isArray(key)) {
+            this.queue.push([ command, key ]);
+        } else if (Array.isArray(arg)) {
+            arg = [key].concat(arg);
+            this.queue.push([ command, arg ]);
+        }
+        this.queue.push([ command, to_array(arguments) ]);
+        return this;
+    };
+    Multi.prototype[upCommand] = Multi.prototype[command];
+    Batch.prototype[upCommand] = Batch.prototype[command];
 });
 
 // store db in this.select_db to restore it on reconnect
@@ -1009,6 +1043,38 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
     return this;
 };
 
+Batch.prototype.hmset = Batch.prototype.HMSET = function (key, args, callback) {
+    var tmp_args, field;
+    if (Array.isArray(key)) {
+        if (args) {
+            key = key.concat([args]);
+        }
+        tmp_args = key;
+    } else if (Array.isArray(args)) {
+        if (callback) {
+            args = args.concat([callback]);
+        }
+        tmp_args = [key].concat(args);
+    } else if (typeof args === "object") {
+        if (typeof key !== "string") {
+            key = key.toString();
+        }
+        tmp_args = [key];
+        var fields = Object.keys(args);
+        while (field = fields.shift()) {
+            tmp_args.push(field);
+            tmp_args.push(args[field]);
+        }
+        if (callback) {
+            tmp_args.push(callback);
+        }
+    } else {
+        tmp_args = to_array(arguments);
+    }
+    this.queue.push(['hmset',tmp_args]);
+    return this;
+};
+
 Multi.prototype.send_command = function (command, args, index, cb) {
     var self = this;
     this._client.send_command(command, args, function (err, reply) {
@@ -1104,8 +1170,60 @@ Multi.prototype.execute_callback = function (err, replies) {
     }
 };
 
+Batch.prototype.exec = Batch.prototype.EXEC = function (callback) {
+    var self = this;
+
+    // run a multi
+    if (this.atomic && this.queue.length > 1) {
+        var m = this._client.multi();
+        for (var i = 0; i < this.queue.length; i++) {
+            var q = this.queue[i];
+            m.queue.push([q[0]].concat(q[1]));
+        }
+        return m.exec(callback);
+    }
+
+    var todo = this.queue.length;
+    var resp = new Array(todo);
+    var errors = null;
+
+    if (!todo) return setImmediate(function() { callback && callback(null); });
+
+    var isDone = function() {
+        if (!--todo) return callback && callback(errors, resp);
+    };
+
+    this.queue.forEach(function(op, index) {
+        var cmd = op[0];
+        var args = op[1];
+
+        var cb = false;
+        if (typeof args[args.length -1] === 'function') cb = args.pop();
+
+        args.push(function(err, res) {
+            if (cb) cb.apply(cb, arguments);
+            if (err) {
+            if (!errors) errors = [];
+            errors.push(err);
+            }
+            resp[index] = res;
+            isDone();
+        });
+
+        self._client.send_command(cmd, args);
+    });
+};
+
 RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
     return new Multi(this, args);
+};
+
+RedisClient.prototype.batch = RedisClient.prototype.BATCH = function (args) {
+    return new Batch(this, false, args);
+};
+
+RedisClient.prototype.atomicBatch = RedisClient.prototype.ATOMICBATCH = function (args) {
+    return new Batch(this, true, args);
 };
 
 var createClient_unix = function(path, options){
