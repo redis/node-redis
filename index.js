@@ -537,12 +537,30 @@ RedisClient.prototype.return_reply = function (reply) {
     // If the "reply" here is actually a message received asynchronously due to a
     // pubsub subscription, don't pop the command queue as we'll only be consuming
     // the head command prematurely.
-    if (this.pub_sub_mode && Array.isArray(reply) && reply.length > 0 && reply[0]) {
+    if (Array.isArray(reply) && reply[0]) {
         type = reply[0].toString();
     }
 
     if (this.pub_sub_mode && (type === 'message' || type === 'pmessage')) {
         debug("Received pubsub message");
+    } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
+        command_obj = this.command_queue.peek();
+        // If in pubsub mode and subscribing / unsubscribing to multiple channels at once, we have to return the multiple results somehow
+        //
+        // e.g. subscribe '5', 'test' would result in two replies instead of one.
+        //
+        // So we just keep the command until all replies came through
+        if (command_obj) {
+            command_obj.command = type; // URGS :/
+        }
+        if (command_obj && command_obj.args.length > 1) {
+            var index = command_obj.args.indexOf(reply[1]);
+            if (index !== -1) {
+                command_obj.args.splice(index, 1);
+            }
+        } else {
+            this.command_queue.shift();
+        }
     } else {
         command_obj = this.command_queue.shift();
     }
@@ -582,18 +600,18 @@ RedisClient.prototype.return_reply = function (reply) {
             if (!this.options.return_buffers && (!command_obj || this.options.detect_buffers && command_obj.buffer_args === false)) {
                 reply = utils.reply_to_strings(reply);
             }
-            type = reply[0].toString();
 
             if (type === "message") {
                 this.emit("message", reply[1], reply[2]); // channel, message
             } else if (type === "pmessage") {
                 this.emit("pmessage", reply[1], reply[2], reply[3]); // pattern, channel, message
-            } else if (type === "subscribe" || type === "unsubscribe" || type === "psubscribe" || type === "punsubscribe") {
+            } else {
                 if (reply[2] === 0) {
                     this.pub_sub_mode = false;
                     debug("All subscriptions removed, exiting pub/sub mode");
                 } else {
                     this.pub_sub_mode = true;
+                    debug("Activating pub/sub mode if not already active");
                 }
                 // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
@@ -601,13 +619,9 @@ RedisClient.prototype.return_reply = function (reply) {
                     command_obj.callback(null, reply[1]);
                 }
                 this.emit(type, reply[1], reply[2]); // channel, count
-            } else {
-                this.emit("error", new Error("subscriptions are active but got unknown reply type " + type));
-                return;
             }
         } else if (!this.closing) {
             this.emit("error", new Error("subscriptions are active but got an invalid reply: " + reply));
-            return;
         }
     } else if (this.monitoring) {
         if (Buffer.isBuffer(reply)) {

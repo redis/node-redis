@@ -333,6 +333,123 @@ describe("The node_redis client", function () {
                         });
                     });
 
+                    describe("does not crash", function () {
+
+                        it("unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. With callbacks", function (done) {
+                            function subscribe(channels) {
+                                client.unsubscribe(function (err) {
+                                    helper.isNull(err);
+                                });
+                                client.subscribe(channels, function (err) {
+                                    helper.isNull(err);
+                                });
+                            }
+                            var all = false;
+                            var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                            client.on('subscribe', function(msg) {
+                                subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                                if (subscribeMsg.length === 0 && all) {
+                                    done();
+                                }
+                            });
+                            var unsubscribeMsg = [null, '1', '3', '2'];
+                            client.on('unsubscribe', function(msg) {
+                                unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                                if (unsubscribeMsg.length === 0) {
+                                    all = true;
+                                }
+                            });
+
+                            subscribe(['1', '3']);
+                            subscribe(['2']);
+                            subscribe(['5', 'test', 'bla']);
+                        });
+
+                        it("unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callbacks", function (done) {
+                            function subscribe(channels) {
+                                client.unsubscribe();
+                                client.subscribe(channels);
+                            }
+                            var all = false;
+                            var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                            client.on('subscribe', function(msg) {
+                                subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                                if (subscribeMsg.length === 0 && all) {
+                                    done();
+                                }
+                            });
+                            var unsubscribeMsg = [null, '1', '3', '2'];
+                            client.on('unsubscribe', function(msg) {
+                                unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                                if (unsubscribeMsg.length === 0) {
+                                    all = true;
+                                }
+                            });
+
+                            subscribe(['1', '3']);
+                            subscribe(['2']);
+                            subscribe(['5', 'test', 'bla']);
+                        });
+
+                        it("unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callback and concret channels", function (done) {
+                            function subscribe(channels) {
+                                client.unsubscribe(channels);
+                                client.subscribe(channels);
+                            }
+                            var all = false;
+                            var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                            client.on('subscribe', function(msg) {
+                                subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                                if (subscribeMsg.length === 0 && all) {
+                                    done();
+                                }
+                            });
+                            var unsubscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                            client.on('unsubscribe', function(msg) {
+                                unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                                if (unsubscribeMsg.length === 0) {
+                                    all = true;
+                                }
+                            });
+
+                            subscribe(['1', '3']);
+                            subscribe(['2']);
+                            subscribe(['5', 'test', 'bla']);
+                        });
+
+                        // TODO: Improve this by adding messages that should be read
+                        it("unsubscribes, subscribes, unsubscribes... with pattern matching", function (done) {
+                            function subscribe(channels) {
+                                client.punsubscribe('prefix:*', function (err) {
+                                    helper.isNull(err);
+                                });
+                                client.subscribe(channels, function (err) {
+                                    helper.isNull(err);
+                                });
+                            }
+                            var all = false;
+                            var subscribeMsg = ['prefix:1', 'prefix:3', 'prefix:2', '5', 'test:a', 'bla'];
+                            client.on('subscribe', function(msg) {
+                                subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                                if (subscribeMsg.length === 0) {
+                                    all = true;
+                                }
+                            });
+                            var unsubscribeMsg = ['prefix:*', 'prefix:*', 'prefix:*', '*', 'prefix:*'];
+                            client.on('punsubscribe', function(msg) {
+                                unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                                if (unsubscribeMsg.length === 0 && all) {
+                                    done();
+                                }
+                            });
+
+                            subscribe(['prefix:1', 'prefix:3']);
+                            subscribe(['prefix:2']);
+                            subscribe(['5', 'test:a', 'bla']);
+                            client.punsubscribe('*', 'prefix:*');
+                        });
+                    });
+
                     describe('domain', function () {
                         it('allows client to be executed from within domain', function (done) {
                             var domain;
