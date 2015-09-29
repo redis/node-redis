@@ -3,6 +3,11 @@
 // helpers for configuring a redis client in
 // its various modes, ipV6, ipV4, socket.
 var redis = require('../../index');
+var bluebird = require('bluebird');
+
+// Promisify everything
+bluebird.promisifyAll(redis.RedisClient.prototype);
+bluebird.promisifyAll(redis.Multi.prototype);
 
 var config = {
     redis: redis,

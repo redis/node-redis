@@ -38,6 +38,12 @@ describe("The 'multi' method", function () {
                         done();
                     });
                 });
+
+                it("reports an error if promisified", function () {
+                    return client.multi().execAsync().catch(function(err) {
+                        assert(err.message.match(/The connection has already been closed/));
+                    });
+                });
             });
 
             describe("when connected", function () {
@@ -238,6 +244,22 @@ describe("The 'multi' method", function () {
                         });
                 });
 
+                it('allows multiple commands to work the same as normal to be performed using a chaining API promisified', function () {
+                    return client.multi()
+                        .mset(['some', '10', 'keys', '20'])
+                        .incr(['some', helper.isNumber(11)])
+                        .incr(['keys'], helper.isNumber(21))
+                        .mget('some', 'keys')
+                        .execAsync()
+                        .then(function (replies) {
+                            assert.equal('OK', replies[0]);
+                            assert.equal(11, replies[1]);
+                            assert.equal(21, replies[2]);
+                            assert.equal(11, replies[3][0].toString());
+                            assert.equal(21, replies[3][1].toString());
+                        });
+                });
+
                 it('allows an array to be provided indicating multiple operations to perform', function (done) {
                     // test nested multi-bulk replies with nulls.
                     client.multi([
@@ -296,6 +318,19 @@ describe("The 'multi' method", function () {
                         assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
                         assert(/^ERR/.test(reply[1].message), "Error message should begin with ERR");
                         return done();
+                    });
+                });
+
+                it('reports multiple exceptions when they occur (while EXEC is running) promisified', function () {
+                    return client.multi().config("bar").debug("foo").eval("return {err='this is an error'}", 0).execAsync().then(function (reply) {
+                        assert.strictEqual(reply.length, 3);
+                        assert.equal(reply[0].code, 'ERR');
+                        assert.equal(reply[0].command, 'CONFIG');
+                        assert.equal(reply[2].code, undefined);
+                        assert.equal(reply[2].command, 'EVAL');
+                        assert(/^this is an error/.test(reply[2].message));
+                        assert(/^ERR/.test(reply[0].message), "Error message should begin with ERR");
+                        assert(/^ERR/.test(reply[1].message), "Error message should begin with ERR");
                     });
                 });
 

@@ -52,6 +52,16 @@ describe("The 'mget' method", function () {
                 });
             });
 
+            it('handles fetching multiple keys, when some keys do not exist promisified', function () {
+                return client.MGETAsync("mget keys 1", ["some random shit", "mget keys 2", "mget keys 3"]).then(function (results) {
+                    assert.strictEqual(4, results.length);
+                    assert.strictEqual("mget val 1", results[0].toString());
+                    assert.strictEqual(null, results[1]);
+                    assert.strictEqual("mget val 2", results[2].toString());
+                    assert.strictEqual("mget val 3", results[3].toString());
+                });
+            });
+
             afterEach(function () {
                 client.end();
             });

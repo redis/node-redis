@@ -15,18 +15,15 @@ function waitForRedis (available, cb) {
 
     var ipV4 = false;
     var id = setInterval(function () {
-      tcpPortUsed.check(config.PORT, '127.0.0.1')
-          .then(function (_ipV4) {
-              ipV4 = _ipV4;
-              return tcpPortUsed.check(config.PORT, '::1');
-          })
-          .then(function (ipV6) {
-              if (ipV6 === available && ipV4 === available &&
-                fs.existsSync('/tmp/redis.sock') === available) {
-                  clearInterval(id);
-                  return cb();
-              }
-          });
+        tcpPortUsed.check(config.PORT, '127.0.0.1').then(function (_ipV4) {
+            ipV4 = _ipV4;
+            return tcpPortUsed.check(config.PORT, '::1');
+        }).then(function (ipV6) {
+            if (ipV6 === available && ipV4 === available && fs.existsSync('/tmp/redis.sock') === available) {
+                clearInterval(id);
+                return cb();
+            }
+        });
     }, 100);
 }
 
