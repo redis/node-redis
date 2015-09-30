@@ -9,7 +9,7 @@ describe("The 'zadd' method", function () {
 
     helper.allTests(function(parser, ip, args) {
 
-        describe.only("using " + parser + " and " + ip, function () {
+        describe("using " + parser + " and " + ip, function () {
             var client;
 
             beforeEach(function (done) {
