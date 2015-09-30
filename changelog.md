@@ -11,6 +11,8 @@ Bugfixes:
 
 -  Fix argument mutation while using the array notation with the multi constructor (@BridgeAR)
 -  Fix multi.hmset key not being type converted if used with an object and key not being a string (@BridgeAR)
+-  Fix parser errors not being catched properly (@BridgeAR)
+-  Fix a crash that could occur if a redis server does return the info command as usual #541 (@BridgeAR)
 
 ## v2.0.1 - Sep 24, 2015
 

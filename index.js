@@ -343,6 +343,14 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
         return;
     }
 
+    /* istanbul ignore if: some servers might not respond with any info data. This is just a safety check that is difficult to test */
+    if (!res) {
+        debug('The info command returned without any data.');
+        this.server_info = {};
+        this.on_ready();
+        return;
+    }
+
     var self = this;
     var obj = {};
     var lines = res.toString().split("\r\n");
