@@ -5,6 +5,7 @@ var net = require("net"),
     util = require("util"),
     utils = require("./lib/utils"),
     Queue = require("./lib/queue"),
+    Command = require("./lib/command"),
     events = require("events"),
     parsers = [],
     // This static list of commands is updated from time to time.
@@ -277,14 +278,14 @@ RedisClient.prototype.init_parser = function () {
     // That way the result / error won't stay in a try catch block and catch user things
     this.reply_parser.send_error = function (data) {
         process.nextTick(function() {
-            this.return_error(data);
-        }.bind(this));
-    }.bind(this);
+            self.return_error(data);
+        });
+    };
     this.reply_parser.send_reply = function (data) {
         process.nextTick(function() {
-            this.return_reply(data);
-        }.bind(this));
-    }.bind(this);
+            self.return_reply(data);
+        });
+    };
 };
 
 RedisClient.prototype.on_ready = function () {
@@ -498,7 +499,6 @@ RedisClient.prototype.connection_gone = function (why) {
     this.retry_timer = setTimeout(retry_connection, this.retry_delay, this);
 };
 
-var err_code = /^([A-Z]+)\s+(.+)$/;
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift(), queue_len = this.command_queue.length;
     // send_command might have been used wrong => catch those cases too
@@ -508,7 +508,7 @@ RedisClient.prototype.return_error = function (err) {
         err.command = command_obj.command;
     }
 
-    var match = err.message.match(err_code);
+    var match = err.message.match(utils.errCode);
     // LUA script could return user errors that don't behave like all other errors!
     if (match) {
         err.code = match[1];
@@ -537,7 +537,7 @@ RedisClient.prototype.return_reply = function (reply) {
     // If the "reply" here is actually a message received asynchronously due to a
     // pubsub subscription, don't pop the command queue as we'll only be consuming
     // the head command prematurely.
-    if (this.pub_sub_mode && Array.isArray(reply) && reply.length > 0 && reply[0]) {
+    if (this.pub_sub_mode && Array.isArray(reply) && reply[0]) {
         type = reply[0].toString();
     }
 
@@ -613,6 +613,7 @@ RedisClient.prototype.return_reply = function (reply) {
         if (Buffer.isBuffer(reply)) {
             reply = reply.toString();
         }
+        // If in monitoring mode only two commands are valid ones: AUTH and MONITOR wich reply with OK
         len = reply.indexOf(" ");
         timestamp = reply.slice(0, len);
         argindex = reply.indexOf('"');
@@ -626,16 +627,6 @@ RedisClient.prototype.return_reply = function (reply) {
         this.emit("error", err);
     }
 };
-
-// This Command constructor is ever so slightly faster than using an object literal, but more importantly, using
-// a named constructor helps it show up meaningfully in the V8 CPU profiler and in heap snapshots.
-function Command(command, args, sub_command, buffer_args, callback) {
-    this.command = command;
-    this.args = args;
-    this.sub_command = sub_command;
-    this.buffer_args = buffer_args;
-    this.callback = callback;
-}
 
 RedisClient.prototype.send_command = function (command, args, callback) {
     var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, err;
@@ -842,8 +833,6 @@ function Multi(client, args) {
     }
 }
 
-exports.Multi = Multi;
-
 commands.forEach(function (fullCommand) {
     var command = fullCommand.split(' ')[0];
 
@@ -1045,7 +1034,7 @@ Multi.prototype.execute_callback = function (err, replies) {
 
             // If we asked for strings, even in detect_buffers mode, then return strings:
             if (replies[i] instanceof Error) {
-                var match = replies[i].message.match(err_code);
+                var match = replies[i].message.match(utils.errCode);
                 // LUA script could return user errors that don't behave like all other errors!
                 if (match) {
                     replies[i].code = match[1];
@@ -1132,10 +1121,5 @@ exports.createClient = function(port_arg, host_arg, options) {
     throw new Error('Unknown type of connection in createClient()');
 };
 
-exports.print = function (err, reply) {
-    if (err) {
-        console.log("Error: " + err);
-    } else {
-        console.log("Reply: " + reply);
-    }
-};
+exports.print = utils.print;
+exports.Multi = Multi;

@@ -16,15 +16,15 @@ function startRedis (conf, done) {
 // don't start redis every time we
 // include this helper file!
 if (!process.env.REDIS_TESTS_STARTED) {
-  process.env.REDIS_TESTS_STARTED = true;
+    process.env.REDIS_TESTS_STARTED = true;
 
-  before(function (done) {
-      startRedis('./conf/redis.conf', done);
-  });
+    before(function (done) {
+        startRedis('./conf/redis.conf', done);
+    });
 
-  after(function (done) {
-      if (rp) rp.stop(done);
-  });
+    after(function (done) {
+        if (rp) rp.stop(done);
+    });
 }
 
 module.exports = {
