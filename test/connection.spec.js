@@ -79,6 +79,34 @@ describe("on lost connection", function () {
                 });
             });
 
+            it("can not connect with wrong host / port in the options object", function (done) {
+                var client = redis.createClient({
+                    host: 'somewhere',
+                    port: 6379,
+                    max_attempts: 1
+                });
+                var end = helper.callFuncAfter(done, 2);
+
+                client.on('error', function (err) {
+                    assert(/CONNECTION_BROKEN|ENOTFOUND/.test(err.code));
+                    end();
+                });
+
+            });
+
+            it("connect with host and port provided in the options object", function (done) {
+                var client = redis.createClient({
+                    host: 'localhost',
+                    port: '6379',
+                    parser: parser,
+                    connect_timeout: 1000
+                });
+
+                client.once('ready', function() {
+                    done();
+                });
+            });
+
         });
     });
 });

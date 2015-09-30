@@ -1107,8 +1107,10 @@ var createClient_tcp = function (port_arg, host_arg, options) {
 
 exports.createClient = function(port_arg, host_arg, options) {
     if (typeof port_arg === 'object' || port_arg === undefined) {
-        options = port_arg || options;
-        return createClient_tcp(default_port, default_host, options);
+        options = port_arg || options || {};
+        var host = options.host || default_host;
+        var port = +options.port || default_port;
+        return createClient_tcp(port, host, options);
     }
     if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
         return createClient_tcp(port_arg, host_arg, options);
