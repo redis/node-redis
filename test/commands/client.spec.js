@@ -11,17 +11,25 @@ describe("The 'client' method", function () {
         var pattern = /addr=/;
 
         describe("using " + parser + " and " + ip, function () {
-            var client;
+            var client, client2;
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
-                client.once("connect", function () {
+                client.once("ready", function () {
                     client.flushdb(done);
+                });
+            });
+
+            beforeEach(function (done) {
+                client2 = redis.createClient.apply(redis.createClient, args);
+                client2.once("ready", function () {
+                    done();
                 });
             });
 
             afterEach(function () {
                 client.end();
+                client2.end();
             });
 
             describe('list', function () {
@@ -51,6 +59,25 @@ describe("The 'client' method", function () {
                         return done();
                     });
                 });
+            });
+
+            describe('setname / getname', function () {
+
+                it('sets the name', function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 9]);
+
+                    client.client("setname", "RUTH", helper.isString('OK'));
+                    client2.client("setname", "RENEE", helper.isString('OK'));
+                    client2.client("setname", "MARTIN", helper.isString('OK'));
+                    client2.client("getname", function(err, res) {
+                        assert.equal(res, 'MARTIN');
+                    });
+                    client.client("getname", function(err, res) {
+                        assert.equal(res, 'RUTH');
+                        done();
+                    });
+                });
+
             });
         });
     });

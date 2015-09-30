@@ -151,18 +151,13 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it.skip("misusing the function should eventually throw (no command)", function (done) {
-                        var mochaListener = helper.removeMochaListener();
-
-                        process.once('uncaughtException', function (err) {
-                            process.on('uncaughtException', mochaListener);
+                    it("misusing the function should eventually throw (no command)", function (done) {
+                        client.send_command(true, 'info', function (err, res) {
                             assert(/ERR Protocol error/.test(err.message));
                             assert.equal(err.command, true);
                             assert.equal(err.code, 'ERR');
                             done();
                         });
-
-                        client.send_command(true, 'info');
                     });
 
                     it("misusing the function should eventually throw (wrong args)", function (done) {
