@@ -617,7 +617,9 @@ RedisClient.prototype.return_reply = function (reply) {
             this.emit("error", new Error("subscriptions are active but got an invalid reply: " + reply));
             return;
         }
-    } else if (this.monitoring) {
+    }
+    /* istanbul ignore else: this is a safety check that we should not be able to trigger */
+    else if (this.monitoring) {
         if (Buffer.isBuffer(reply)) {
             reply = reply.toString();
         }
@@ -629,7 +631,6 @@ RedisClient.prototype.return_reply = function (reply) {
             return elem.replace(/\\"/g, '"');
         });
         this.emit("monitor", timestamp, args);
-    /* istanbul ignore else: this is a safety check that we should not be able to trigger */
     } else {
         var err = new Error("node_redis command queue state error. If you can reproduce this, please report it.");
         err.command_obj = command_obj;
