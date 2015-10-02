@@ -26,20 +26,67 @@ describe("publish/subscribe", function () {
                 pub.once("connect", function () {
                     pub.flushdb(function () {
                         pubConnected = true;
+                        if (subConnected) {
+                            done();
+                        }
                     });
                 });
 
                 sub.once("error", done);
                 sub.once("connect", function () {
                     subConnected = true;
+                    if (pubConnected) {
+                        done();
+                    }
+                });
+            });
+
+            describe('disable resubscribe', function () {
+                beforeEach(function (done) {
+                    var pubConnected;
+                    var subConnected;
+
+                    pub = redis.createClient();
+                    sub = redis.createClient({
+                        disable_resubscribing: false
+                    });
+                    pub.once("error", done);
+                    pub.once("connect", function () {
+                        pubConnected = true;
+                        if (subConnected) {
+                            done();
+                        }
+                    });
+
+                    sub.once("error", done);
+                    sub.once("connect", function () {
+                        subConnected = true;
+                        if (pubConnected) {
+                            done();
+                        }
+                    });
                 });
 
-                var id = setInterval(function () {
-                    if (pubConnected && subConnected) {
-                      clearInterval(id);
-                      return done();
-                    }
-                }, 50);
+                it('does not fire subscribe events after reconnecting', function (done) {
+                    var a = false;
+                    sub.on("subscribe", function (chnl, count) {
+                        if (chnl === channel2) {
+                            if (a) {
+                                return done(new Error('Test failed'));
+                            }
+                            assert.equal(2, count);
+                            sub.stream.destroy();
+                        }
+                    });
+
+                    sub.on('reconnecting', function() {
+                        a = true;
+                    });
+
+                    sub.subscribe(channel, channel2);
+
+                    setTimeout(done, 250);
+                });
             });
 
             describe('subscribe', function () {

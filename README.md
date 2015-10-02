@@ -203,6 +203,7 @@ That way the default is to try reconnecting until 24h passed.
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
 * `auth_pass` *null*; If set, client will run redis auth command on connect.
 * `family` *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
+* `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
 
 ```js
 var redis = require("redis"),

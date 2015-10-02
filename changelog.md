@@ -1,6 +1,16 @@
 Changelog
 =========
 
+## v.2.x.x - xx, 2015
+
+Features
+
+-  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting (@BridgeAR)
+
+Bugfixes
+
+-
+
 ## v2.1.0 - Oct 02, 2015
 
 Features:
@@ -14,7 +24,7 @@ Bugfixes:
 -  Fix argument mutation while using the array notation with the multi constructor (@BridgeAR)
 -  Fix multi.hmset key not being type converted if used with an object and key not being a string (@BridgeAR)
 -  Fix parser errors not being catched properly (@BridgeAR)
--  Fix a crash that could occur if a redis server does return the info command as usual #541 (@BridgeAR)
+-  Fix a crash that could occur if a redis server does not return the info command as usual #541 (@BridgeAR)
 -  Explicitly passing undefined as a callback statement will work again. E.g. client.publish('channel', 'message', undefined); (@BridgeAR)
 
 ## v2.0.1 - Sep 24, 2015
@@ -27,7 +37,7 @@ Bugfixes:
 
 This is the biggest release that node_redis had since it was released in 2010. A long list of outstanding bugs has been fixed, so we are very happy to present you redis 2.0 and we highly recommend updating as soon as possible.
 
-#What's new in 2.0
+# What's new in 2.0
 
 - Implemented a "connection is broken" mode if no connection could be established
 - node_redis no longer throws under any circumstances, preventing it from terminating applications.

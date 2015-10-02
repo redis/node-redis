@@ -318,6 +318,9 @@ RedisClient.prototype.on_ready = function () {
                 self.emit("ready");
             }
         };
+        if (this.options.disable_resubscribing) {
+            return;
+        }
         Object.keys(this.subscription_set).forEach(function (key) {
             var space_index = key.indexOf(" ");
             var parts = [key.slice(0, space_index), key.slice(space_index + 1)];
