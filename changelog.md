@@ -7,6 +7,7 @@ Features:
 
 -  Addded optional flush parameter to `.end`. If set to true, commands fired after using .end are going to be rejected instead of being ignored. (@crispy1989)
 -  Addded: host and port can now be provided in a single options object. E.g. redis.createClient({ host: 'localhost', port: 1337, max_attempts: 5 }); (@BridgeAR)
+-  Speedup common cases (@BridgeAR)
 
 Bugfixes:
 

@@ -164,14 +164,16 @@ If you have `redis-server` running on the same computer as node, then the defaul
 port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
 ### overloading
-* `redis.createClient(port, host, options)`
-* `redis.createClient()` is equivalent to `redis.createClient(6379, '127.0.0.1', {})`
-* `redis.createClient(options)` is equivalent to `redis.createClient(6379, '127.0.0.1', options)`
+* `redis.createClient()`
+* `redis.createClient(options)`
 * `redis.createClient(unix_socket, options)`
 * `redis.createClient('redis://user:pass@host:port', options)`
+* `redis.createClient(port, host, options)`
 
  `options` is an object with the following possible properties:
 
+* `host`: *127.0.0.1*; The host to connect to
+* `port`: *6370*; The port to connect to
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
 * `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
 * `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers
