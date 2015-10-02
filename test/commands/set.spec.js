@@ -89,6 +89,16 @@ describe("The 'set' method", function () {
                             }, 100);
                         });
 
+                        it("sets the value correctly even if the callback is explicitly set to undefined", function (done) {
+                            client.set(key, value, undefined);
+                            setTimeout(function () {
+                                client.get(key, function (err, res) {
+                                    helper.isString(value)(err, res);
+                                    done();
+                                });
+                            }, 100);
+                        });
+
                         it("sets the value correctly with the array syntax", function (done) {
                             client.set([key, value]);
                             setTimeout(function () {

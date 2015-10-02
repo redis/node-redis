@@ -20,12 +20,16 @@ describe("The 'zadd' method", function () {
             });
 
             it('reports an error', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
                 client.zadd('infinity', [+'5t', "should not be possible"], helper.isError(done));
             });
 
             it('return inf / -inf', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+                helper.serverVersionAtLeast.call(this, client, [3, 0, 2]);
                 client.zadd('infinity', [+Infinity, "should be inf"], helper.isNumber(1));
-                client.zadd('infinity', [-Infinity, "should be negative inf"], helper.isNumber(1));
+                client.zadd('infinity', ['inf', 'should be also be inf'], helper.isNumber(1));
+                client.zadd('infinity', -Infinity, "should be negative inf", helper.isNumber(1));
                 client.zadd('infinity', [99999999999999999999999, "should not be inf"], helper.isNumber(1));
                 client.zrange('infinity', 0, -1, 'WITHSCORES', function (err, res) {
                     assert.equal(res[5], 'inf');

@@ -629,6 +629,7 @@ RedisClient.prototype.return_reply = function (reply) {
             return elem.replace(/\\"/g, '"');
         });
         this.emit("monitor", timestamp, args);
+    /* istanbul ignore else: this is a safety check that we should not be able to trigger */
     } else {
         var err = new Error("node_redis command queue state error. If you can reproduce this, please report it.");
         err.command_obj = command_obj;
@@ -639,21 +640,14 @@ RedisClient.prototype.return_reply = function (reply) {
 RedisClient.prototype.send_command = function (command, args, callback) {
     var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = "", buffered_writes = 0, err;
 
-    // if (typeof callback === "function") {}
-    // probably the fastest way:
-    //     client.command([arg1, arg2], cb);  (straight passthrough)
-    //         send_command(command, [arg1, arg2], cb);
     if (args === undefined) {
         args = [];
-    } else if (!callback && typeof args[args.length - 1] === "function") {
-        // most people find this variable argument length form more convenient, but it uses arguments, which is slower
-        //     client.command(arg1, arg2, cb);   (wraps up arguments into an array)
-        //       send_command(command, [arg1, arg2, cb]);
-        //     client.command(arg1, arg2);   (callback is optional)
-        //       send_command(command, [arg1, arg2]);
-        //     client.command(arg1, arg2, undefined);   (callback is undefined)
-        //       send_command(command, [arg1, arg2, undefined]);
-        callback = args.pop();
+    } else if (!callback) {
+        if (typeof args[args.length - 1] === "function") {
+            callback = args.pop();
+        } else if (typeof args[args.length - 1] === "undefined") {
+            args.pop();
+        }
     }
 
     if (process.domain && callback) {
