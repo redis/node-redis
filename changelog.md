@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v2.1.0 - xx, 2015
+## v2.1.0 - Oct 02, 2015
 
 Features:
 
