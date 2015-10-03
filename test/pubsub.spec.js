@@ -22,7 +22,6 @@ describe("publish/subscribe", function () {
 
                 pub = redis.createClient.apply(redis.createClient, args);
                 sub = redis.createClient.apply(redis.createClient, args);
-                pub.once("error", done);
                 pub.once("connect", function () {
                     pub.flushdb(function () {
                         pubConnected = true;
@@ -31,8 +30,6 @@ describe("publish/subscribe", function () {
                         }
                     });
                 });
-
-                sub.once("error", done);
                 sub.once("connect", function () {
                     subConnected = true;
                     if (pubConnected) {
@@ -48,17 +45,14 @@ describe("publish/subscribe", function () {
 
                     pub = redis.createClient();
                     sub = redis.createClient({
-                        disable_resubscribing: false
+                        disable_resubscribing: true
                     });
-                    pub.once("error", done);
                     pub.once("connect", function () {
                         pubConnected = true;
                         if (subConnected) {
                             done();
                         }
                     });
-
-                    sub.once("error", done);
                     sub.once("connect", function () {
                         subConnected = true;
                         if (pubConnected) {
