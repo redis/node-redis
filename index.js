@@ -24,7 +24,10 @@ exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 // hiredis might not be installed
 try {
-    parsers.push(require("./lib/parsers/hiredis"));
+    // Confuse bundlers so that they won't try
+    // to include this native module.
+    var hiredisParserPath = "./lib/parsers/hiredis";
+    parsers.push(require(hiredisParserPath));
 } catch (err) {
     /* istanbul ignore next: won't be reached with tests */
     debug("Hiredis parser not installed.");
