@@ -214,7 +214,7 @@ describe("The node_redis client", function () {
                         var client = redis.createClient();
                         client.quit(function() {
                             client.get("foo", function(err, res) {
-                                assert.strictEqual(err.message, 'Redis connection gone from end event.');
+                                assert(err.message.indexOf('Redis connection gone') !== -1);
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
                             });
@@ -619,7 +619,7 @@ describe("The node_redis client", function () {
                         client.set('baz', 13);
                         client.set('foo', 'bar', function(err, result) {
                             assert(i, 3);
-                            assert('Redis connection gone from error event', err.message);
+                            assert(err);
                             assert.strictEqual(client.offline_queue.length, 0);
                         });
                     });
