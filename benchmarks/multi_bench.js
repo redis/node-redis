@@ -1,11 +1,11 @@
 'use strict';
 
 var path = require('path');
-var RedisProcess = require("../test/lib/redis-process");
+var RedisProcess = require('../test/lib/redis-process');
 var rp;
-var redis = require("../index");
+var redis = require('../index');
 var totalTime = 0;
-var metrics = require("metrics");
+var metrics = require('metrics');
 var num_clients = parseInt(process.argv[2], 10) || 5;
 var num_requests = 50000;
 var tests = [];
@@ -19,7 +19,7 @@ var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
 
 function lpad(input, len, chr) {
     var str = input.toString();
-    chr = chr || " ";
+    chr = chr || ' ';
 
     while (str.length < len) {
         str = chr + str;
@@ -30,7 +30,7 @@ function lpad(input, len, chr) {
 metrics.Histogram.prototype.print_line = function () {
     var obj = this.printObj();
 
-    return lpad(obj.min, 4) + "/" + lpad(obj.max, 4) + "/" + lpad(obj.mean.toFixed(2), 7) + "/" + lpad(obj.p95.toFixed(2), 7);
+    return lpad(obj.min, 4) + '/' + lpad(obj.max, 4) + '/' + lpad(obj.mean.toFixed(2), 7) + '/' + lpad(obj.p95.toFixed(2), 7);
 };
 
 function Test(args) {
@@ -66,14 +66,14 @@ Test.prototype.new_client = function (id) {
     new_client = redis.createClient(this.client_options);
     new_client.create_time = Date.now();
 
-    new_client.on("connect", function () {
+    new_client.on('connect', function () {
         self.connect_latency.update(Date.now() - new_client.create_time);
     });
 
-    new_client.on("ready", function () {
+    new_client.on('ready', function () {
         if (! versions_logged) {
-            console.log("Client count: " + num_clients + ", node version: " + process.versions.node + ", server version: " +
-                new_client.server_info.redis_version + ", parser: " + new_client.reply_parser.name);
+            console.log('Client count: ' + num_clients + ', node version: ' + process.versions.node + ', server version: ' +
+                new_client.server_info.redis_version + ', parser: ' + new_client.reply_parser.name);
             versions_logged = true;
         }
         self.ready_latency.update(Date.now() - new_client.create_time);
@@ -84,7 +84,7 @@ Test.prototype.new_client = function (id) {
     });
 
     // If no redis server is running, start one
-    new_client.on("error", function(err) {
+    new_client.on('error', function(err) {
         if (err.code === 'CONNECTION_BROKEN') {
             throw err;
         }
@@ -105,7 +105,7 @@ Test.prototype.new_client = function (id) {
 };
 
 Test.prototype.on_clients_ready = function () {
-    process.stdout.write(lpad(this.args.descr, 13) + ", " + lpad(this.args.pipeline, 5) + "/" + this.clients_ready + " ");
+    process.stdout.write(lpad(this.args.descr, 13) + ', ' + lpad(this.args.pipeline, 5) + '/' + this.clients_ready + ' ');
     this.test_start = Date.now();
 
     this.fill_pipeline();
@@ -159,64 +159,64 @@ Test.prototype.print_stats = function () {
     var duration = Date.now() - this.test_start;
     totalTime += duration;
 
-    console.log("min/max/avg/p95: " + this.command_latency.print_line() + " " + lpad(duration, 6) + "ms total, " +
-        lpad((this.num_requests / (duration / 1000)).toFixed(2), 8) + " ops/sec");
+    console.log('min/max/avg/p95: ' + this.command_latency.print_line() + ' ' + lpad(duration, 6) + 'ms total, ' +
+        lpad((this.num_requests / (duration / 1000)).toFixed(2), 8) + ' ops/sec');
 };
 
-small_str = "1234";
+small_str = '1234';
 small_buf = new Buffer(small_str);
-large_str = (new Array(4096 + 1).join("-"));
+large_str = (new Array(4096 + 1).join('-'));
 large_buf = new Buffer(large_str);
-very_large_str = (new Array((4 * 1024 * 1024) + 1).join("-"));
+very_large_str = (new Array((4 * 1024 * 1024) + 1).join('-'));
 very_large_buf = new Buffer(very_large_str);
 
-tests.push(new Test({descr: "PING", command: "ping", args: [], pipeline: 1}));
-tests.push(new Test({descr: "PING", command: "ping", args: [], pipeline: 50}));
+tests.push(new Test({descr: 'PING', command: 'ping', args: [], pipeline: 1}));
+tests.push(new Test({descr: 'PING', command: 'ping', args: [], pipeline: 50}));
 
-tests.push(new Test({descr: "SET 4B str", command: "set", args: ["foo_rand000000000000", small_str], pipeline: 1}));
-tests.push(new Test({descr: "SET 4B str", command: "set", args: ["foo_rand000000000000", small_str], pipeline: 50}));
+tests.push(new Test({descr: 'SET 4B str', command: 'set', args: ['foo_rand000000000000', small_str], pipeline: 1}));
+tests.push(new Test({descr: 'SET 4B str', command: 'set', args: ['foo_rand000000000000', small_str], pipeline: 50}));
 
-tests.push(new Test({descr: "SET 4B buf", command: "set", args: ["foo_rand000000000000", small_buf], pipeline: 1}));
-tests.push(new Test({descr: "SET 4B buf", command: "set", args: ["foo_rand000000000000", small_buf], pipeline: 50}));
+tests.push(new Test({descr: 'SET 4B buf', command: 'set', args: ['foo_rand000000000000', small_buf], pipeline: 1}));
+tests.push(new Test({descr: 'SET 4B buf', command: 'set', args: ['foo_rand000000000000', small_buf], pipeline: 50}));
 
-tests.push(new Test({descr: "GET 4B str", command: "get", args: ["foo_rand000000000000"], pipeline: 1}));
-tests.push(new Test({descr: "GET 4B str", command: "get", args: ["foo_rand000000000000"], pipeline: 50}));
+tests.push(new Test({descr: 'GET 4B str', command: 'get', args: ['foo_rand000000000000'], pipeline: 1}));
+tests.push(new Test({descr: 'GET 4B str', command: 'get', args: ['foo_rand000000000000'], pipeline: 50}));
 
-tests.push(new Test({descr: "GET 4B buf", command: "get", args: ["foo_rand000000000000"], pipeline: 1, client_opts: { return_buffers: true} }));
-tests.push(new Test({descr: "GET 4B buf", command: "get", args: ["foo_rand000000000000"], pipeline: 50, client_opts: { return_buffers: true} }));
+tests.push(new Test({descr: 'GET 4B buf', command: 'get', args: ['foo_rand000000000000'], pipeline: 1, client_opts: { return_buffers: true} }));
+tests.push(new Test({descr: 'GET 4B buf', command: 'get', args: ['foo_rand000000000000'], pipeline: 50, client_opts: { return_buffers: true} }));
 
-tests.push(new Test({descr: "SET 4KiB str", command: "set", args: ["foo_rand000000000001", large_str], pipeline: 1}));
-tests.push(new Test({descr: "SET 4KiB str", command: "set", args: ["foo_rand000000000001", large_str], pipeline: 50}));
+tests.push(new Test({descr: 'SET 4KiB str', command: 'set', args: ['foo_rand000000000001', large_str], pipeline: 1}));
+tests.push(new Test({descr: 'SET 4KiB str', command: 'set', args: ['foo_rand000000000001', large_str], pipeline: 50}));
 
-tests.push(new Test({descr: "SET 4KiB buf", command: "set", args: ["foo_rand000000000001", large_buf], pipeline: 1}));
-tests.push(new Test({descr: "SET 4KiB buf", command: "set", args: ["foo_rand000000000001", large_buf], pipeline: 50}));
+tests.push(new Test({descr: 'SET 4KiB buf', command: 'set', args: ['foo_rand000000000001', large_buf], pipeline: 1}));
+tests.push(new Test({descr: 'SET 4KiB buf', command: 'set', args: ['foo_rand000000000001', large_buf], pipeline: 50}));
 
-tests.push(new Test({descr: "GET 4KiB str", command: "get", args: ["foo_rand000000000001"], pipeline: 1}));
-tests.push(new Test({descr: "GET 4KiB str", command: "get", args: ["foo_rand000000000001"], pipeline: 50}));
+tests.push(new Test({descr: 'GET 4KiB str', command: 'get', args: ['foo_rand000000000001'], pipeline: 1}));
+tests.push(new Test({descr: 'GET 4KiB str', command: 'get', args: ['foo_rand000000000001'], pipeline: 50}));
 
-tests.push(new Test({descr: "GET 4KiB buf", command: "get", args: ["foo_rand000000000001"], pipeline: 1, client_opts: { return_buffers: true} }));
-tests.push(new Test({descr: "GET 4KiB buf", command: "get", args: ["foo_rand000000000001"], pipeline: 50, client_opts: { return_buffers: true} }));
+tests.push(new Test({descr: 'GET 4KiB buf', command: 'get', args: ['foo_rand000000000001'], pipeline: 1, client_opts: { return_buffers: true} }));
+tests.push(new Test({descr: 'GET 4KiB buf', command: 'get', args: ['foo_rand000000000001'], pipeline: 50, client_opts: { return_buffers: true} }));
 
-tests.push(new Test({descr: "INCR", command: "incr", args: ["counter_rand000000000000"], pipeline: 1}));
-tests.push(new Test({descr: "INCR", command: "incr", args: ["counter_rand000000000000"], pipeline: 50}));
+tests.push(new Test({descr: 'INCR', command: 'incr', args: ['counter_rand000000000000'], pipeline: 1}));
+tests.push(new Test({descr: 'INCR', command: 'incr', args: ['counter_rand000000000000'], pipeline: 50}));
 
-tests.push(new Test({descr: "LPUSH", command: "lpush", args: ["mylist", small_str], pipeline: 1}));
-tests.push(new Test({descr: "LPUSH", command: "lpush", args: ["mylist", small_str], pipeline: 50}));
+tests.push(new Test({descr: 'LPUSH', command: 'lpush', args: ['mylist', small_str], pipeline: 1}));
+tests.push(new Test({descr: 'LPUSH', command: 'lpush', args: ['mylist', small_str], pipeline: 50}));
 
-tests.push(new Test({descr: "LRANGE 10", command: "lrange", args: ["mylist", "0", "9"], pipeline: 1}));
-tests.push(new Test({descr: "LRANGE 10", command: "lrange", args: ["mylist", "0", "9"], pipeline: 50}));
+tests.push(new Test({descr: 'LRANGE 10', command: 'lrange', args: ['mylist', '0', '9'], pipeline: 1}));
+tests.push(new Test({descr: 'LRANGE 10', command: 'lrange', args: ['mylist', '0', '9'], pipeline: 50}));
 
-tests.push(new Test({descr: "LRANGE 100", command: "lrange", args: ["mylist", "0", "99"], pipeline: 1}));
-tests.push(new Test({descr: "LRANGE 100", command: "lrange", args: ["mylist", "0", "99"], pipeline: 50}));
+tests.push(new Test({descr: 'LRANGE 100', command: 'lrange', args: ['mylist', '0', '99'], pipeline: 1}));
+tests.push(new Test({descr: 'LRANGE 100', command: 'lrange', args: ['mylist', '0', '99'], pipeline: 50}));
 
-tests.push(new Test({descr: "SET 4MiB buf", command: "set", args: ["foo_rand000000000002", very_large_buf], pipeline: 1, reqs: 500}));
-tests.push(new Test({descr: "SET 4MiB buf", command: "set", args: ["foo_rand000000000002", very_large_buf], pipeline: 50, reqs: 500}));
+tests.push(new Test({descr: 'SET 4MiB buf', command: 'set', args: ['foo_rand000000000002', very_large_buf], pipeline: 1, reqs: 500}));
+tests.push(new Test({descr: 'SET 4MiB buf', command: 'set', args: ['foo_rand000000000002', very_large_buf], pipeline: 50, reqs: 500}));
 
-tests.push(new Test({descr: "GET 4MiB str", command: "get", args: ["foo_rand000000000002"], pipeline: 1, reqs: 100}));
-tests.push(new Test({descr: "GET 4MiB str", command: "get", args: ["foo_rand000000000002"], pipeline: 50, reqs: 100}));
+tests.push(new Test({descr: 'GET 4MiB str', command: 'get', args: ['foo_rand000000000002'], pipeline: 1, reqs: 100}));
+tests.push(new Test({descr: 'GET 4MiB str', command: 'get', args: ['foo_rand000000000002'], pipeline: 50, reqs: 100}));
 
-tests.push(new Test({descr: "GET 4MiB buf", command: "get", args: ["foo_rand000000000002"], pipeline: 1, reqs: 100, client_opts: { return_buffers: true} }));
-tests.push(new Test({descr: "GET 4MiB buf", command: "get", args: ["foo_rand000000000002"], pipeline: 50, reqs: 100, client_opts: { return_buffers: true} }));
+tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['foo_rand000000000002'], pipeline: 1, reqs: 100, client_opts: { return_buffers: true} }));
+tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['foo_rand000000000002'], pipeline: 50, reqs: 100, client_opts: { return_buffers: true} }));
 
 function next() {
     var test = tests.shift();
@@ -231,7 +231,7 @@ function next() {
             next();
         });
     } else {
-        console.log("End of tests. Total time elapsed:", totalTime, 'ms');
+        console.log('End of tests. Total time elapsed:', totalTime, 'ms');
         process.exit(0);
     }
 }

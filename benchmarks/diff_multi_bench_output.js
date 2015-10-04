@@ -40,7 +40,7 @@ function parseInt10(s) {
 
 // green if greater than 0, red otherwise
 function humanize_diff(num, unit) {
-    unit = unit || "";
+    unit = unit || '';
     if (num > 0) {
         return ('+' + num + unit).green;
     }

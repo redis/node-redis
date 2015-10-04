@@ -196,13 +196,13 @@ once the connection has been established. Setting `enable_offline_queue` to
 with an error, or an error will be emitted if no callback is specified.
 * `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
 This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
-* `connect_timeout` *86400000*; Setting `connect_timeout` limits total time for client to reconnect.
+* `connect_timeout`: *86400000*; Setting `connect_timeout` limits total time for client to reconnect.
 The value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
 That way the default is to try reconnecting until 24h passed.
-* `max_attempts` *0*; By default client will try reconnecting until connected. Setting `max_attempts`
+* `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
-* `auth_pass` *null*; If set, client will run redis auth command on connect.
-* `family` *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
+* `auth_pass`: *null*; If set, client will run redis auth command on connect.
+* `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
 
 ```js

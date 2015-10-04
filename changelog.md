@@ -82,7 +82,7 @@ This is the biggest release that node_redis had since it was released in 2010. A
 - Fix commands being inconsistent and behaving wrong (@BridgeAR)
 - Channel names with spaces are now properly resubscribed after a reconnection (@pbihler)
 - Do not try to reconnect after the connection timeout has been exceeded (@BridgeAR)
-- Removed bad .eval implementation (@BridgeAR)
+- Ensure the execution order is observed if using .eval (@BridgeAR)
 - Fix commands not being rejected after calling .quit (@BridgeAR)
 - Fix .auth calling the callback twice if already connected (@BridgeAR)
 - Fix detect_buffers not working in pub sub mode and while monitoring (@BridgeAR)
