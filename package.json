@@ -17,6 +17,9 @@
     "pretest": "optional-dev-dependency hiredis",
     "posttest": "jshint ."
   },
+  "dependencies": {
+    "double-ended-queue": "^2.1.0-0"
+  },
   "devDependencies": {
     "coveralls": "^2.11.2",
     "jshint": "^2.8.0",

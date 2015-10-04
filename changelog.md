@@ -7,6 +7,7 @@ Features
 
 -  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting (@BridgeAR)
 -  Added rename_commands options to handle renamed commands from the redis config (@digmxl & @BridgeAR)
+-  Increase performance by exchanging built in queue with [Petka Antonov's](@petkaantonov) [double-ended queue](https://github.com/petkaantonov/deque) and prevent polymorphism (@BridgeAR)
 
 Bugfixes
 

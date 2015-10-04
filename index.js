@@ -4,7 +4,7 @@ var net = require('net');
 var URL = require('url');
 var util = require('util');
 var utils = require('./lib/utils');
-var Queue = require('./lib/queue');
+var Queue = require('double-ended-queue');
 var Command = require('./lib/command');
 var events = require('events');
 var parsers = [];
@@ -511,7 +511,7 @@ RedisClient.prototype.connection_gone = function (why) {
         this.retry_delay = this.connect_timeout - this.retry_totaltime;
     }
 
-    debug("Retry connection in " + this.retry_delay + " ms");
+    debug('Retry connection in ' + this.retry_delay + ' ms');
 
     this.retry_timer = setTimeout(retry_connection, this.retry_delay, this);
 };
