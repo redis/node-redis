@@ -159,11 +159,11 @@ module.exports = {
     killConnection: function (client) {
         // Change the connection option to a non existing one and destroy the stream
         client.connectionOption = {
-            port: 6370,
-            host: '127.0.0.2',
+            port: 65535,
+            host: '127.0.0.1',
             family: 4
         };
-        client.address = '127.0.0.2:6370';
+        client.address = '127.0.0.1:65535';
         client.stream.destroy();
     }
 };

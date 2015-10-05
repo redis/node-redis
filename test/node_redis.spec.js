@@ -214,7 +214,7 @@ describe("The node_redis client", function () {
                         var client = redis.createClient();
                         client.quit(function() {
                             client.get("foo", function(err, res) {
-                                assert.strictEqual(err.message, 'Redis connection gone from end event.');
+                                assert(err.message.indexOf('Redis connection gone') !== -1);
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
                             });
@@ -355,42 +355,41 @@ describe("The node_redis client", function () {
                             }
                         });
                     });
+                });
 
-                    describe('monitor', function () {
-                        it('monitors commands on all other redis clients', function (done) {
-                            helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
+                describe('monitor', function () {
+                    it('monitors commands on all other redis clients', function (done) {
+                        helper.serverVersionAtLeast.call(this, client, [2, 6, 0]);
 
-                            var monitorClient = redis.createClient.apply(redis.createClient, args);
-                            var responses = [];
+                        var monitorClient = redis.createClient.apply(redis.createClient, args);
+                        var responses = [];
 
-                            monitorClient.monitor(function (err, res) {
-                                client.mget("some", "keys", "foo", "bar");
-                                client.set("json", JSON.stringify({
-                                    foo: "123",
-                                    bar: "sdflkdfsjk",
-                                    another: false
-                                }));
-                            });
+                        monitorClient.monitor(function (err, res) {
+                            client.mget("some", "keys", "foo", "bar");
+                            client.set("json", JSON.stringify({
+                                foo: "123",
+                                bar: "sdflkdfsjk",
+                                another: false
+                            }));
+                        });
 
-                            monitorClient.on("monitor", function (time, args) {
-                                responses.push(args);
-                                if (responses.length === 2) {
-                                    assert.strictEqual(5, responses[0].length);
-                                    assert.strictEqual("mget", responses[0][0]);
-                                    assert.strictEqual("some", responses[0][1]);
-                                    assert.strictEqual("keys", responses[0][2]);
-                                    assert.strictEqual("foo", responses[0][3]);
-                                    assert.strictEqual("bar", responses[0][4]);
-                                    assert.strictEqual(3, responses[1].length);
-                                    assert.strictEqual("set", responses[1][0]);
-                                    assert.strictEqual("json", responses[1][1]);
-                                    assert.strictEqual('{"foo":"123","bar":"sdflkdfsjk","another":false}', responses[1][2]);
-                                    monitorClient.quit(done);
-                                }
-                            });
+                        monitorClient.on("monitor", function (time, args) {
+                            responses.push(args);
+                            if (responses.length === 2) {
+                                assert.strictEqual(5, responses[0].length);
+                                assert.strictEqual("mget", responses[0][0]);
+                                assert.strictEqual("some", responses[0][1]);
+                                assert.strictEqual("keys", responses[0][2]);
+                                assert.strictEqual("foo", responses[0][3]);
+                                assert.strictEqual("bar", responses[0][4]);
+                                assert.strictEqual(3, responses[1].length);
+                                assert.strictEqual("set", responses[1][0]);
+                                assert.strictEqual("json", responses[1][1]);
+                                assert.strictEqual('{"foo":"123","bar":"sdflkdfsjk","another":false}', responses[1][2]);
+                                monitorClient.quit(done);
+                            }
                         });
                     });
-
                 });
 
                 describe('idle', function () {
@@ -619,7 +618,7 @@ describe("The node_redis client", function () {
                         client.set('baz', 13);
                         client.set('foo', 'bar', function(err, result) {
                             assert(i, 3);
-                            assert('Redis connection gone from error event', err.message);
+                            assert(err);
                             assert.strictEqual(client.offline_queue.length, 0);
                         });
                     });
