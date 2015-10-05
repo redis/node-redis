@@ -14,7 +14,8 @@ Features
 
 Bugfixes
 
-- Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. (@BridgeAR)
+-  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. (@BridgeAR)
+-  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned (@BridgeAR)
 
 ## v2.1.0 - Oct 02, 2015
 
