@@ -216,7 +216,7 @@ describe("The 'multi' method", function () {
                         .mset('some', '10', 'keys', '20')
                         .incr('some')
                         .incr('keys')
-                        .mget('some', 'keys')
+                        .mget('some', ['keys'])
                         .exec(function (err, replies) {
                             assert.strictEqual(null, err);
                             assert.equal('OK', replies[0]);

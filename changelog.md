@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.2.0 - xx, 2015
+## v.2.2.0 - 07, 2015 - The peregrino falcon
 
 Features
 
@@ -11,6 +11,13 @@ Features
  -  exchanging built in queue with [Petka Antonov's](@petkaantonov) [double-ended queue](https://github.com/petkaantonov/deque)
  -  prevent polymorphism
  -  optimize statements
+-  Added .batch command, similar to multi but without transaction (@BridgeAR)
+-  Improved pipelining to minimize the [RTT](http://redis.io/topics/pipelining) further (@BridgeAR)
+
+This release is mainly focusing on further speed improvements and we can proudly say that node_redis is very likely outperforming any other node redis client.
+
+If you do not rely on transactions but want to reduze the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.
+Both .multi and .batch are from now on going to fire the commands in bulk without doing any other operation in between.
 
 Bugfixes
 

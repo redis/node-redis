@@ -403,6 +403,7 @@ channel name as `channel` and the new count of subscriptions for this client as 
 
 `MULTI` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
 Redis. The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
+If any command fails to queue, all commands are rolled back and none is going to be executed (For further information look at [transactions](http://redis.io/topics/transactions)).
 
 ```js
 var redis  = require("./index"),
@@ -485,6 +486,12 @@ client.multi([
     console.log(replies);
 });
 ```
+## client.batch([commands])
+
+`BATCH` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
+Redis. The interface in `node_redis` is to return an individual `Batch` object by calling `client.batch()`.
+The only difference between .batch and .multi is that no transaction is going to be used.
+Be aware that the errors are - just like in multi statements - in the result. Otherwise both, errors and results could be returned at the same time.
 
 ## Monitor mode
 
