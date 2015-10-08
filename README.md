@@ -493,7 +493,7 @@ Redis. The interface in `node_redis` is to return an individual `Batch` object b
 The only difference between .batch and .multi is that no transaction is going to be used.
 Be aware that the errors are - just like in multi statements - in the result. Otherwise both, errors and results could be returned at the same time.
 
-If you fire many commands at once this is going to boost the execution speed significantly (see the benchmark section). Please remember that all commands are kept in memory until they are fired.
+If you fire many commands at once this is going to **boost the execution speed by up to 400%** [sic!] compared to fireing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
 
 ## Monitor mode
 
@@ -637,55 +637,56 @@ Here are results of `multi_bench.js` which is similar to `redis-benchmark` from 
 
 hiredis parser (Lenovo T450s i7-5600U):
 
-Client count: 5, node version: 4.1.1, server version: 3.0.3, parser: hiredis
-         PING,         1/5 min/max/avg/p95:    0/  11/   0.03/   0.00   1412ms total,  35410.76 ops/sec
-         PING,        50/5 min/max/avg/p95:    0/   9/   0.54/   1.00    539ms total,  92764.38 ops/sec
-         PING,  batch 50/5 min/max/avg/p95:    0/   3/   0.32/   1.00    327ms total, 152905.20 ops/sec
-   SET 4B str,         1/5 min/max/avg/p95:    0/   4/   0.03/   0.00   1450ms total,  34482.76 ops/sec
-   SET 4B str,        50/5 min/max/avg/p95:    0/   2/   0.55/   1.00    548ms total,  91240.88 ops/sec
-   SET 4B str,  batch 50/5 min/max/avg/p95:    0/  10/   0.36/   1.00    362ms total, 138121.55 ops/sec
-   SET 4B buf,         1/5 min/max/avg/p95:    0/   5/   0.06/   0.55   2838ms total,  17618.04 ops/sec
-   SET 4B buf,        50/5 min/max/avg/p95:    0/   9/   1.70/   3.00   1699ms total,  29429.08 ops/sec
-   SET 4B buf,  batch 50/5 min/max/avg/p95:    1/  11/   1.69/   3.00   1694ms total,  29515.94 ops/sec
-   GET 4B str,         1/5 min/max/avg/p95:    0/   4/   0.03/   0.00   1350ms total,  37037.04 ops/sec
-   GET 4B str,        50/5 min/max/avg/p95:    0/   7/   0.54/   1.00    539ms total,  92764.38 ops/sec
-   GET 4B str,  batch 50/5 min/max/avg/p95:    0/   2/   0.48/   1.00    483ms total, 103519.67 ops/sec
-   GET 4B buf,         1/5 min/max/avg/p95:    0/   9/   0.03/   0.00   1373ms total,  36416.61 ops/sec
-   GET 4B buf,        50/5 min/max/avg/p95:    0/   2/   0.53/   1.00    534ms total,  93632.96 ops/sec
-   GET 4B buf,  batch 50/5 min/max/avg/p95:    0/  10/   0.60/   1.00    605ms total,  82644.63 ops/sec
- SET 4KiB str,         1/5 min/max/avg/p95:    0/   5/   0.03/   0.00   1790ms total,  27932.96 ops/sec
- SET 4KiB str,        50/5 min/max/avg/p95:    0/   7/   0.80/   2.00    798ms total,  62656.64 ops/sec
- SET 4KiB str,  batch 50/5 min/max/avg/p95:    0/  10/   0.92/   1.00    924ms total,  54112.55 ops/sec
- SET 4KiB buf,         1/5 min/max/avg/p95:    0/  16/   0.05/   1.00   2687ms total,  18608.11 ops/sec
- SET 4KiB buf,        50/5 min/max/avg/p95:    0/  16/   1.88/   3.00   1885ms total,  26525.20 ops/sec
- SET 4KiB buf,  batch 50/5 min/max/avg/p95:    1/   6/   1.83/   3.00   1832ms total,  27292.58 ops/sec
- GET 4KiB str,         1/5 min/max/avg/p95:    0/   7/   0.04/   0.00   1909ms total,  26191.72 ops/sec
- GET 4KiB str,        50/5 min/max/avg/p95:    0/   8/   0.88/   2.00    887ms total,  56369.79 ops/sec
- GET 4KiB str,  batch 50/5 min/max/avg/p95:    0/   4/   0.57/   1.00    570ms total,  87719.30 ops/sec
- GET 4KiB buf,         1/5 min/max/avg/p95:    0/   7/   0.03/   0.00   1754ms total,  28506.27 ops/sec
- GET 4KiB buf,        50/5 min/max/avg/p95:    0/   6/   0.72/   1.00    717ms total,  69735.01 ops/sec
- GET 4KiB buf,  batch 50/5 min/max/avg/p95:    0/   1/   0.47/   1.00    472ms total, 105932.20 ops/sec
-         INCR,         1/5 min/max/avg/p95:    0/   8/   0.03/   0.00   1531ms total,  32658.39 ops/sec
-         INCR,        50/5 min/max/avg/p95:    0/   5/   0.64/   1.00    638ms total,  78369.91 ops/sec
-         INCR,  batch 50/5 min/max/avg/p95:    0/  13/   0.45/   1.00    452ms total, 110619.47 ops/sec
-        LPUSH,         1/5 min/max/avg/p95:    0/   4/   0.03/   0.00   1445ms total,  34602.08 ops/sec
-        LPUSH,        50/5 min/max/avg/p95:    0/   9/   0.67/   1.00    670ms total,  74626.87 ops/sec
-        LPUSH,  batch 50/5 min/max/avg/p95:    0/   2/   0.34/   1.00    339ms total, 147492.63 ops/sec
-    LRANGE 10,         1/5 min/max/avg/p95:    0/   9/   0.03/   0.00   1739ms total,  28752.16 ops/sec
-    LRANGE 10,        50/5 min/max/avg/p95:    0/  11/   0.76/   2.00    759ms total,  65876.15 ops/sec
-    LRANGE 10,  batch 50/5 min/max/avg/p95:    0/   4/   0.49/   1.00    497ms total, 100603.62 ops/sec
-   LRANGE 100,         1/5 min/max/avg/p95:    0/   7/   0.06/   1.00   3252ms total,  15375.15 ops/sec
-   LRANGE 100,        50/5 min/max/avg/p95:    0/   9/   1.90/   3.00   1905ms total,  26246.72 ops/sec
-   LRANGE 100,  batch 50/5 min/max/avg/p95:    1/   5/   1.81/   2.00   1816ms total,  27533.04 ops/sec
- SET 4MiB buf,         1/5 min/max/avg/p95:    2/   5/   2.32/   3.00   1160ms total,    431.03 ops/sec
- SET 4MiB buf,        50/5 min/max/avg/p95:   19/ 134/ 102.27/ 118.00   1071ms total,    466.85 ops/sec
- SET 4MiB buf,  batch 50/5 min/max/avg/p95:   97/ 129/ 104.90/ 129.00   1049ms total,    476.64 ops/sec
- GET 4MiB str,         1/5 min/max/avg/p95:    4/  19/   6.59/  11.00    660ms total,    151.52 ops/sec
- GET 4MiB str,        50/5 min/max/avg/p95:   19/ 278/ 200.11/ 258.85    503ms total,    198.81 ops/sec
- GET 4MiB str,  batch 50/5 min/max/avg/p95:  229/ 235/ 232.00/ 235.00    465ms total,    215.05 ops/sec
- GET 4MiB buf,         1/5 min/max/avg/p95:    4/  27/   7.11/  13.95    713ms total,    140.25 ops/sec
- GET 4MiB buf,        50/5 min/max/avg/p95:    7/ 293/ 204.74/ 269.00    518ms total,    193.05 ops/sec
- GET 4MiB buf,  batch 50/5 min/max/avg/p95:  219/ 261/ 240.00/ 261.00    480ms total,    208.33 ops/sec
+Client count: 5, node version: 4.1.2, server version: 3.0.3, parser: hiredis
+         PING,         1/5 min/max/avg/p95:    0/   5/   0.03/   0.00   1537ms total,  32530.90 ops/sec
+         PING,        50/5 min/max/avg/p95:    0/   4/   0.49/   1.00    491ms total, 101832.99 ops/sec
+         PING,  batch 50/5 min/max/avg/p95:    0/   2/   0.17/   1.00    178ms total, 280898.88 ops/sec
+   SET 4B str,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1400ms total,  35714.29 ops/sec
+   SET 4B str,        50/5 min/max/avg/p95:    0/   3/   0.61/   1.00    610ms total,  81967.21 ops/sec
+   SET 4B str,  batch 50/5 min/max/avg/p95:    0/   1/   0.19/   1.00    198ms total, 252525.25 ops/sec
+   SET 4B buf,         1/5 min/max/avg/p95:    0/   3/   0.05/   0.00   2349ms total,  21285.65 ops/sec
+   SET 4B buf,        50/5 min/max/avg/p95:    0/   5/   1.63/   3.00   1632ms total,  30637.25 ops/sec
+   SET 4B buf,  batch 50/5 min/max/avg/p95:    0/   1/   0.37/   1.00    366ms total, 136612.02 ops/sec
+   GET 4B str,         1/5 min/max/avg/p95:    0/   3/   0.03/   0.00   1348ms total,  37091.99 ops/sec
+   GET 4B str,        50/5 min/max/avg/p95:    0/   3/   0.51/   1.00    513ms total,  97465.89 ops/sec
+   GET 4B str,  batch 50/5 min/max/avg/p95:    0/   1/   0.18/   1.00    177ms total, 282485.88 ops/sec
+   GET 4B buf,         1/5 min/max/avg/p95:    0/   3/   0.03/   0.00   1336ms total,  37425.15 ops/sec
+   GET 4B buf,        50/5 min/max/avg/p95:    0/   4/   0.52/   1.00    525ms total,  95238.10 ops/sec
+   GET 4B buf,  batch 50/5 min/max/avg/p95:    0/   1/   0.18/   1.00    177ms total, 282485.88 ops/sec
+ SET 4KiB str,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1674ms total,  29868.58 ops/sec
+ SET 4KiB str,        50/5 min/max/avg/p95:    0/   3/   0.77/   1.00    775ms total,  64516.13 ops/sec
+ SET 4KiB str,  batch 50/5 min/max/avg/p95:    0/   3/   0.50/   1.00    500ms total, 100000.00 ops/sec
+ SET 4KiB buf,         1/5 min/max/avg/p95:    0/   2/   0.05/   0.00   2410ms total,  20746.89 ops/sec
+ SET 4KiB buf,        50/5 min/max/avg/p95:    0/   5/   1.64/   3.00   1643ms total,  30432.14 ops/sec
+ SET 4KiB buf,  batch 50/5 min/max/avg/p95:    0/   1/   0.41/   1.00    409ms total, 122249.39 ops/sec
+ GET 4KiB str,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1422ms total,  35161.74 ops/sec
+ GET 4KiB str,        50/5 min/max/avg/p95:    0/   4/   0.68/   1.00    680ms total,  73529.41 ops/sec
+ GET 4KiB str,  batch 50/5 min/max/avg/p95:    0/   2/   0.39/   1.00    391ms total, 127877.24 ops/sec
+ GET 4KiB buf,         1/5 min/max/avg/p95:    0/   1/   0.03/   0.00   1420ms total,  35211.27 ops/sec
+ GET 4KiB buf,        50/5 min/max/avg/p95:    0/   4/   0.68/   1.00    681ms total,  73421.44 ops/sec
+ GET 4KiB buf,  batch 50/5 min/max/avg/p95:    0/   2/   0.39/   1.00    387ms total, 129198.97 ops/sec
+         INCR,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1334ms total,  37481.26 ops/sec
+         INCR,        50/5 min/max/avg/p95:    0/   4/   0.51/   1.00    513ms total,  97465.89 ops/sec
+         INCR,  batch 50/5 min/max/avg/p95:    0/   1/   0.18/   1.00    179ms total, 279329.61 ops/sec
+        LPUSH,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1351ms total,  37009.62 ops/sec
+        LPUSH,        50/5 min/max/avg/p95:    0/   3/   0.52/   1.00    521ms total,  95969.29 ops/sec
+        LPUSH,  batch 50/5 min/max/avg/p95:    0/   2/   0.20/   1.00    200ms total, 250000.00 ops/sec
+    LRANGE 10,         1/5 min/max/avg/p95:    0/   1/   0.03/   0.00   1562ms total,  32010.24 ops/sec
+    LRANGE 10,        50/5 min/max/avg/p95:    0/   4/   0.69/   1.00    690ms total,  72463.77 ops/sec
+    LRANGE 10,  batch 50/5 min/max/avg/p95:    0/   2/   0.39/   1.00    393ms total, 127226.46 ops/sec
+   LRANGE 100,         1/5 min/max/avg/p95:    0/   3/   0.06/   1.00   3009ms total,  16616.82 ops/sec
+   LRANGE 100,        50/5 min/max/avg/p95:    0/   5/   1.85/   3.00   1850ms total,  27027.03 ops/sec
+   LRANGE 100,  batch 50/5 min/max/avg/p95:    2/   4/   2.15/   3.00   2153ms total,  23223.41 ops/sec
+ SET 4MiB buf,         1/5 min/max/avg/p95:    1/   5/   1.91/   3.00    957ms total,    522.47 ops/sec
+ SET 4MiB buf,        50/5 min/max/avg/p95:   13/ 109/  94.20/ 102.00    987ms total,    506.59 ops/sec
+ SET 4MiB buf,  batch 50/5 min/max/avg/p95:   90/ 107/  93.10/ 107.00    931ms total,    537.06 ops/sec
+ GET 4MiB str,         1/5 min/max/avg/p95:    4/  16/   5.97/  10.00    598ms total,    167.22 ops/sec
+ GET 4MiB str,        50/5 min/max/avg/p95:   10/ 249/ 179.47/ 231.90    454ms total,    220.26 ops/sec
+ GET 4MiB str,  batch 50/5 min/max/avg/p95:  215/ 226/ 220.50/ 226.00    441ms total,    226.76 ops/sec
+ GET 4MiB buf,         1/5 min/max/avg/p95:    3/  26/   6.55/  11.95    658ms total,    151.98 ops/sec
+ GET 4MiB buf,        50/5 min/max/avg/p95:   11/ 265/ 186.73/ 241.90    469ms total,    213.22 ops/sec
+ GET 4MiB buf,  batch 50/5 min/max/avg/p95:  226/ 247/ 236.50/ 247.00    473ms total,    211.42 ops/sec
+End of tests. Total time elapsed: 44952 ms
 
 The hiredis and js parser should most of the time be on the same level. The js parser lacks speed for large responses though.
 Therefor the hiredis parser is the default used in node_redis. To use `hiredis`, do:

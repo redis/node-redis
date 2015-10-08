@@ -1,28 +1,32 @@
 Changelog
 =========
 
-## v.2.2.0 - 07, 2015 - The peregrino falcon
+## v.2.2.0 - 08, 2015 - The peregrino falcon
+
+The peregrino falcon is the fasted bird on earth and this is what this release is all about: We increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
 
 Features
 
--  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting (@BridgeAR)
--  Added rename_commands options to handle renamed commands from the redis config (@digmxl & @BridgeAR)
--  Increased performance (@BridgeAR)
- -  exchanging built in queue with [Petka Antonov's](@petkaantonov) [double-ended queue](https://github.com/petkaantonov/deque)
+-  Added rename_commands options to handle renamed commands from the redis config ([@digmxl](https://github.com/digmxl) & [@BridgeAR](https://github.com/BridgeAR))
+-  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting ([@BridgeAR](https://github.com/BridgeAR))
+-  Increased performance ([@BridgeAR](https://github.com/BridgeAR))
+ -  exchanging built in queue with [@petkaantonov](https://github.com/petkaantonov)'s [double-ended queue](https://github.com/petkaantonov/deque)
  -  prevent polymorphism
  -  optimize statements
--  Added .batch command, similar to multi but without transaction (@BridgeAR)
--  Improved pipelining to minimize the [RTT](http://redis.io/topics/pipelining) further (@BridgeAR)
-
-This release is mainly focusing on further speed improvements and we can proudly say that node_redis is very likely outperforming any other node redis client.
-
-If you do not rely on transactions but want to reduze the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.
-Both .multi and .batch are from now on going to fire the commands in bulk without doing any other operation in between.
+-  Added *.batch* command, similar to .multi but without transaction ([@BridgeAR](https://github.com/BridgeAR))
+-  Improved pipelining to minimize the [RTT](http://redis.io/topics/pipelining) further ([@BridgeAR](https://github.com/BridgeAR))
 
 Bugfixes
 
--  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. (@BridgeAR)
--  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned (@BridgeAR)
+-  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned ([@BridgeAR](https://github.com/BridgeAR))
+
+If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
+Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
+
+Please consider using .batch instead of looping through a lot of commands one by one. This will significantly improve your performance.
+
+To conclude: we can proudly say that node_redis is very likely outperforming any other node redis client.
 
 ## v2.1.0 - Oct 02, 2015
 
