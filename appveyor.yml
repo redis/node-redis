@@ -17,8 +17,8 @@ install:
   - '@ECHO Redis Started'
   # Get the latest stable version of Node 0.STABLE.latest
   - ps: Install-Product node $env:nodejs_version
-  # Typical npm stuff.
-  - npm install
+  # Typical npm stuff. Use msvs 2013 for the hiredis parser
+  - npm install --msvs_version=2013
 
 # Post-install test scripts.
 test_script:
