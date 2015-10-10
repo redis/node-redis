@@ -42,11 +42,18 @@ function RedisClient(stream, options) {
     this.connected = false;
     this.ready = false;
     this.connections = 0;
-    if (this.options.socket_nodelay === undefined) {
-        this.options.socket_nodelay = true;
+    if (options.socket_nodelay === undefined) {
+        options.socket_nodelay = true;
     }
-    if (this.options.socket_keepalive === undefined) {
-        this.options.socket_keepalive = true;
+    if (options.socket_keepalive === undefined) {
+        options.socket_keepalive = true;
+    }
+    if (options.rename_commands) {
+        for (var command in options.rename_commands) {
+            if (options.rename_commands.hasOwnProperty(command)) {
+                options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
+            }
+        }
     }
     this.should_buffer = false;
     this.command_queue_high_water = options.command_queue_high_water || 1000;
@@ -719,6 +726,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     this.commands_sent += 1;
 
     elem_count = args.length + 1;
+
+    if (typeof this.options.rename_commands !== 'undefined' && this.options.rename_commands[command]) {
+        command = this.options.rename_commands[command];
+    }
 
     // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.

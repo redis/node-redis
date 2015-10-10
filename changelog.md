@@ -6,6 +6,7 @@ Changelog
 Features
 
 -  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting (@BridgeAR)
+-  Added rename_commands options to handle renamed commands from the redis config (@digmxl & @BridgeAR)
 
 Bugfixes
 
