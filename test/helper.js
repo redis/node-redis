@@ -113,8 +113,11 @@ module.exports = {
         }
         var parsers = ['javascript'];
         var protocols = ['IPv4'];
-        if (process.platform !== 'win32') {
+        try {
+            require('hiredis');
             parsers.push('hiredis');
+        } catch (e) {}
+        if (process.platform !== 'win32') {
             protocols.push('IPv6', '/tmp/redis.sock');
         }
         var options = [{
