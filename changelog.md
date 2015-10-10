@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.2.0 - 08, 2015 - The peregrino falcon
+## v.2.2.0 - xx Oct, 2015 - The peregrino falcon
 
 The peregrino falcon is the fasted bird on earth and this is what this release is all about: We increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
 
@@ -25,6 +25,32 @@ If you do not rely on transactions but want to reduce the RTT you can use .batch
 Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
 
 Please consider using .batch instead of looping through a lot of commands one by one. This will significantly improve your performance.
+
+Here are some stats compared to ioredis 1.9.1:
+
+                      simple set
+          82,496 op/s » ioredis
+         112,617 op/s » node_redis
+
+                      simple get
+          82,015 op/s » ioredis
+         105,701 op/s » node_redis
+
+                      simple get with pipeline
+          10,233 op/s » ioredis
+          26,541 op/s » node_redis
+
+                      lrange 100
+           7,321 op/s » ioredis
+          26,155 op/s » node_redis
+
+                      publish
+          90,524 op/s » ioredis
+         112,823 op/s » node_redis
+
+                      subscribe
+          43,783 op/s » ioredis
+          61,889 op/s » node_redis
 
 To conclude: we can proudly say that node_redis is very likely outperforming any other node redis client.
 

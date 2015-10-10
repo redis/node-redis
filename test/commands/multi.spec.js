@@ -385,6 +385,41 @@ describe("The 'multi' method", function () {
                     client.get('foo', helper.isString('bar', done));
                 });
 
+                it("should not use a transaction with exec_atomic if only no command is used", function () {
+                    var multi = client.multi();
+                    var test = false;
+                    multi.exec_batch = function () {
+                        test = true;
+                    };
+                    multi.exec_atomic();
+                    assert(test);
+                });
+
+                it("should not use a transaction with exec_atomic if only one command is used", function () {
+                    var multi = client.multi();
+                    var test = false;
+                    multi.exec_batch = function () {
+                        test = true;
+                    };
+                    multi.set("baz", "binary");
+                    multi.exec_atomic();
+                    assert(test);
+                });
+
+                it("should use transaction with exec_atomic and more than one command used", function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
+
+                    var multi = client.multi();
+                    var test = false;
+                    multi.exec_batch = function () {
+                        test = true;
+                    };
+                    multi.set("baz", "binary");
+                    multi.get('baz');
+                    multi.exec_atomic(done);
+                    assert(!test);
+                });
+
             });
         });
     });
