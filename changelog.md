@@ -9,7 +9,7 @@ Features
 
 Bugfixes
 
--
+- Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. (@BridgeAR)
 
 ## v2.1.0 - Oct 02, 2015
 
