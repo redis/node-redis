@@ -147,7 +147,7 @@ describe("publish/subscribe", function () {
                     });
                 });
 
-                it('handles SUB_UNSUB_MSG_SUB', function (done) {
+                it('handles SUB_UNSUB_MSG_SUB 2', function (done) {
                     helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
                     sub.psubscribe('abc*');
