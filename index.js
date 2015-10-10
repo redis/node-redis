@@ -690,7 +690,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             } else {
                 this.emit('error', err);
             }
-            return false;
+            // Singal no buffering
+            return true;
         }
     }
 
@@ -725,7 +726,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             this.offline_queue.push(command_obj);
             this.should_buffer = true;
         }
-        // Return false to signal no buffering
+        // Return false to signal buffering
         return false;
     }
 
@@ -739,7 +740,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         err = new Error('Connection in subscriber mode, only subscriber commands may be used');
         err.command = command.toUpperCase();
         this.emit('error', err);
-        return false;
+        return true;
     }
     this.command_queue.push(command_obj);
     this.commands_sent += 1;
@@ -800,7 +801,7 @@ RedisClient.prototype.writeStream = function (data) {
 
     // Do not use a pipeline
     if (this.pipeline === 0) {
-        return !this.stream.__write(data);
+        return this.stream.__write(data);
     }
     this.pipeline--;
     this.pipeline_queue.push(data);
@@ -975,11 +976,13 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
         var err = new Error('The password has to be of type "string"');
         err.command = 'AUTH';
         if (callback) {
-            callback(err);
+            setImmediate(function () {
+                callback(err);
+            });
         } else {
             this.emit('error', err);
         }
-        return false;
+        return true;
     }
     this.auth_pass = pass;
     debug('Saving auth as ' + this.auth_pass);
@@ -988,7 +991,7 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
         return this.send_command('auth', [this.auth_pass], callback);
     }
     this.auth_callback = callback;
-    return false;
+    return true;
 };
 
 RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args, callback) {
@@ -1180,9 +1183,11 @@ Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
     var args;
     if (len === 0) {
         if (callback) {
-            callback(null, []);
+            setImmediate(function () {
+                callback(null, []);
+            });
         }
-        return false;
+        return true;
     }
     this.results = new Array(len);
     this._client.pipeline = len;

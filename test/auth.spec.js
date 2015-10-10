@@ -128,12 +128,15 @@ describe("client authentication", function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(redis.createClient, args);
+                var async = true;
                 client.auth(undefined, function(err, res) {
                     assert.strictEqual(err.message, 'The password has to be of type "string"');
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
+                    async = false;
                     done();
                 });
+                assert(async);
             });
 
             it('should emit an error if the password is not of type string and no callback has been provided', function (done) {

@@ -32,11 +32,12 @@ describe("The 'multi' method", function () {
                 });
 
                 it("reports an error", function (done) {
-                    client.multi();
-                    client.exec(function (err, res) {
+                    var multi = client.multi();
+                    var notBuffering = multi.exec(function (err, res) {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
                     });
+                    assert.strictEqual(notBuffering, false);
                 });
 
                 it("reports an error if promisified", function () {
@@ -51,7 +52,7 @@ describe("The 'multi' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         client.flushdb(function (err) {
                             return done(err);
                         });
@@ -60,6 +61,16 @@ describe("The 'multi' method", function () {
 
                 afterEach(function () {
                     client.end();
+                });
+
+                it("returns an empty result array", function (done) {
+                    var multi = client.multi();
+                    var notBuffering = multi.exec(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res.length, 0);
+                        done();
+                    });
+                    assert.strictEqual(notBuffering, true);
                 });
 
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {

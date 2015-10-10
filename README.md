@@ -152,8 +152,13 @@ So please attach the error listener to node_redis.
 ### "drain"
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
-writable. This event can be used to stream commands in to Redis and adapt to backpressure. Right now,
-you need to check `client.command_queue.length` to decide when to reduce your send rate and resume sending commands when you get `drain`.
+writable. This event can be used to stream commands in to Redis and adapt to backpressure.
+
+All commands return a boolean if the stream had to buffer or not. If false is returned the stream had to buffer.
+That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
+
+You can manually control the low water and high water marks by passing ommand_queue_high_water` and `command_queue_low_water` to the client options.
+Check the [Node.js streams API](https://nodejs.org/api/stream.html) for further info.
 
 ### "idle"
 
@@ -689,7 +694,7 @@ Client count: 5, node version: 4.1.2, server version: 3.0.3, parser: hiredis
 End of tests. Total time elapsed: 44952 ms
 
 The hiredis and js parser should most of the time be on the same level. The js parser lacks speed for large responses though.
-Therefor the hiredis parser is the default used in node_redis. To use `hiredis`, do:
+Therefor the hiredis parser is the default used in node_redis and we recommend using the hiredis parser. To use `hiredis`, do:
 
     npm install hiredis redis
 

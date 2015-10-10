@@ -19,7 +19,7 @@ Features
 Bugfixes
 
 -  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
--  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
 
 If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
 Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.

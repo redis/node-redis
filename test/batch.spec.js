@@ -1,8 +1,8 @@
 'use strict';
 
 var assert = require('assert');
-var config = require("../lib/config");
-var helper = require('../helper');
+var config = require("./lib/config");
+var helper = require('./helper');
 var redis = config.redis;
 var uuid = require('uuid');
 
@@ -52,7 +52,7 @@ describe("The 'batch' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         client.flushdb(function (err) {
                             return done(err);
                         });
@@ -61,6 +61,19 @@ describe("The 'batch' method", function () {
 
                 afterEach(function () {
                     client.end();
+                });
+
+                it("returns an empty result array", function (done) {
+                    var batch = client.batch();
+                    var async = true;
+                    var notBuffering = batch.exec(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res.length, 0);
+                        async = false;
+                        done();
+                    });
+                    assert(async);
+                    assert.strictEqual(notBuffering, true);
                 });
 
                 it('fail individually when one command fails using chaining notation', function (done) {
@@ -216,8 +229,7 @@ describe("The 'batch' method", function () {
 
                 it('runs a batch without any further commands and without callback', function() {
                     var buffering = client.batch().exec();
-                    assert(typeof buffering === 'boolean');
-                    assert(!buffering);
+                    assert.strictEqual(buffering, true);
                 });
 
                 it('allows batchple operations to be performed using a chaining API', function (done) {
