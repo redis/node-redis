@@ -5,7 +5,7 @@ redis - a node.js redis client
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 [![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/node-redis)
 
-This is a complete Redis client for node.js. It supports all Redis commands and focuses on performance.
+This is a complete and feature rich Redis client for node.js. It supports all Redis commands and focuses on performance.
 
 Install with:
 
@@ -204,6 +204,7 @@ limits total amount of connection tries. Setting this to 1 will prevent any reco
 * `auth_pass`: *null*; If set, client will run redis auth command on connect.
 * `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
+* `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
 
 ```js
 var redis = require("redis"),
