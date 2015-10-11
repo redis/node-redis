@@ -15,7 +15,7 @@ describe("The 'mget' method", function () {
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("error", done);
-                client.once("connect", function () {
+                client.once("ready", function () {
                     client.flushdb();
                     client.mset(["mget keys 1", "mget val 1", "mget keys 2", "mget val 2", "mget keys 3", "mget val 3"], done);
                 });

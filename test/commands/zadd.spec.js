@@ -14,7 +14,7 @@ describe("The 'zadd' method", function () {
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
-                client.once("connect", function () {
+                client.once("ready", function () {
                     client.flushdb(done);
                 });
             });

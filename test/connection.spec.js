@@ -88,7 +88,7 @@ describe("on lost connection", function () {
                 var end = helper.callFuncAfter(done, 2);
 
                 client.on('error', function (err) {
-                    assert(/CONNECTION_BROKEN|ENOTFOUND/.test(err.code));
+                    assert(/CONNECTION_BROKEN|ENOTFOUND|EAI_AGAIN/.test(err.code));
                     end();
                 });
 

@@ -25,7 +25,7 @@ describe("The 'mset' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         client.quit();
                     });
                     client.on('end', function () {
@@ -46,7 +46,7 @@ describe("The 'mset' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         done();
                     });
                 });

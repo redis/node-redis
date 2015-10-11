@@ -17,7 +17,7 @@ describe("The 'incr' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         client.set(key, "9007199254740992", function (err, res) {
                             helper.isNotError()(err, res);
                             client.quit();
@@ -55,7 +55,7 @@ describe("The 'incr' method", function () {
                     */
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("error", done);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         client.set(key, "9007199254740992", function (err, res) {
                             helper.isNotError()(err, res);
                             done();

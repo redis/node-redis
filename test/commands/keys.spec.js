@@ -18,7 +18,7 @@ describe("The 'keys' method", function () {
                 // This is going to test if the high water is also respected
                 args.command_queue_high_water = 100;
                 client = redis.createClient.apply(redis.createClient, args);
-                client.once("connect", function () {
+                client.once("ready", function () {
                     client.flushdb(done);
                 });
             });

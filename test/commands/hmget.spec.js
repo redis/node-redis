@@ -16,7 +16,7 @@ describe("The 'hmget' method", function () {
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("error", done);
-                client.once("connect", function () {
+                client.once("ready", function () {
                     client.flushdb();
                     client.HMSET(hash, {"0123456789": "abcdefghij", "some manner of key": "a type of value"}, helper.isString('OK', done));
                 });
