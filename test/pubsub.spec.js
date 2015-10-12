@@ -285,6 +285,51 @@ describe("publish/subscribe", function () {
                 });
             });
 
+            // TODO: Fix pub sub
+            // And there's more than just those two issues
+            describe.skip('FIXME: broken pub sub', function () {
+
+                it("should not publish a message without any publish command", function (done) {
+                    pub.set('foo', 'message');
+                    pub.set('bar', 'hello');
+                    pub.mget('foo', 'bar');
+                    pub.subscribe('channel');
+                    pub.on('message', function (msg) {
+                        done(new Error('This message should not have been published: ' + msg));
+                    });
+                    setTimeout(done, 500);
+                });
+
+                it("should not publish a message multiple times per command", function (done) {
+                    var published = {};
+
+                    function subscribe(message) {
+                        sub.on('subscribe', function () {
+                            pub.publish('/foo', message);
+                        });
+                        sub.on('message', function (channel, message) {
+                            if (published[message]) {
+                                done(new Error('Message published more than once.'));
+                            }
+                            published[message] = true;
+                        });
+                        sub.on('unsubscribe', function (channel, count) {
+                            assert.strictEqual(count, 0);
+                        });
+                        sub.subscribe('/foo');
+                    }
+
+                    subscribe('hello');
+
+                    setTimeout(function () {
+                        sub.unsubscribe();
+                        setTimeout(function () {
+                            subscribe('world');
+                        }, 400);
+                    }, 400);
+                });
+            });
+
             afterEach(function () {
                 sub.end();
                 pub.end();

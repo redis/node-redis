@@ -1,9 +1,9 @@
 Changelog
 =========
 
-## v.2.2.0 - xx Oct, 2015 - The peregrino falcon
+## v.2.2.0 - 12 Oct, 2015 - The peregrino falcon
 
-The peregrino falcon is the fasted bird on earth and this is what this release is all about: We increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
+The peregrino falcon is the fasted bird on earth and this is what this release is all about: Increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
 
 Features
 
@@ -18,15 +18,17 @@ Features
 
 Bugfixes
 
--  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
+-  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. <b>*</b> ([@BridgeAR](https://github.com/BridgeAR))
 -  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
+
+* I was not able to write a regression test for this, since the error seems to only occur under heavy load with special conditions. So please have a look for timeouts with the js parser, if you use it and report all issues and switch to the hiredis parser in the meanwhile. If you're able to come up with a reproducable test case, this would be even better :)
 
 If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
 Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
 
 Please consider using .batch instead of looping through a lot of commands one by one. This will significantly improve your performance.
 
-Here are some stats compared to ioredis 1.9.1:
+Here are some stats compared to ioredis 1.9.1 (Lenovo T450s i7-5600U):
 
                       simple set
           82,496 op/s » ioredis
@@ -38,7 +40,7 @@ Here are some stats compared to ioredis 1.9.1:
 
                       simple get with pipeline
           10,233 op/s » ioredis
-          26,541 op/s » node_redis
+          26,541 op/s » node_redis (using .batch)
 
                       lrange 100
            7,321 op/s » ioredis
@@ -53,6 +55,10 @@ Here are some stats compared to ioredis 1.9.1:
           61,889 op/s » node_redis
 
 To conclude: we can proudly say that node_redis is very likely outperforming any other node redis client.
+
+Known issues
+
+-  The pub sub system has some flaws and those will be addressed in the next minor release
 
 ## v2.1.0 - Oct 02, 2015
 

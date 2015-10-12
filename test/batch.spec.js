@@ -63,6 +63,21 @@ describe("The 'batch' method", function () {
                     client.end();
                 });
 
+                it("returns an empty array", function (done) {
+                    var batch = client.batch();
+                    batch.exec(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res.length, 0);
+                        done();
+                    });
+                });
+
+                it("returns an empty array if promisified", function () {
+                    return client.batch().execAsync().then(function(res) {
+                        assert.strictEqual(res.length, 0);
+                    });
+                });
+
                 it("returns an empty result array", function (done) {
                     var batch = client.batch();
                     var async = true;
