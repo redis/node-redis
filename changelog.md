@@ -18,10 +18,9 @@ Features
 
 Bugfixes
 
--  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. <b>*</b> ([@BridgeAR](https://github.com/BridgeAR))
+-  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
+  - I was not able to write a regression test for this, since the error seems to only occur under heavy load with special conditions. So please have a look for timeouts with the js parser, if you use it and report all issues and switch to the hiredis parser in the meanwhile. If you're able to come up with a reproducable test case, this would be even better :)
 -  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
-
-* I was not able to write a regression test for this, since the error seems to only occur under heavy load with special conditions. So please have a look for timeouts with the js parser, if you use it and report all issues and switch to the hiredis parser in the meanwhile. If you're able to come up with a reproducable test case, this would be even better :)
 
 If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
 Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
