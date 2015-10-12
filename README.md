@@ -649,6 +649,7 @@ Here are results of `multi_bench.js` which is similar to `redis-benchmark` from 
 
 hiredis parser (Lenovo T450s i7-5600U):
 
+```
 Client count: 5, node version: 4.1.2, server version: 3.0.3, parser: hiredis
          PING,         1/5 min/max/avg/p95:    0/   4/   0.02/   0.00   1223ms total,  40883.07 ops/sec
          PING,        50/5 min/max/avg/p95:    0/   3/   0.50/   1.00    497ms total, 100603.62 ops/sec
@@ -699,6 +700,7 @@ Client count: 5, node version: 4.1.2, server version: 3.0.3, parser: hiredis
  GET 4MiB buf,        20/5 min/max/avg/p95:   14/ 133/  85.34/ 107.95    458ms total,    218.34 ops/sec
  GET 4MiB buf,  batch 20/5 min/max/avg/p95:   78/  96/  88.00/  96.00    440ms total,    227.27 ops/sec
 End of tests. Total time elapsed: 50421 ms
+```
 
 The hiredis and js parser should most of the time be on the same level. The js parser lacks speed for large responses though.
 Therefor the hiredis parser is the default used in node_redis and we recommend using the hiredis parser. To use `hiredis`, do:
