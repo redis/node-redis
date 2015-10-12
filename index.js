@@ -4,7 +4,7 @@ var net = require('net');
 var URL = require('url');
 var util = require('util');
 var utils = require('./lib/utils');
-var Queue = require('./lib/queue');
+var Queue = require('double-ended-queue');
 var Command = require('./lib/command');
 var events = require('events');
 var parsers = [];
@@ -34,10 +34,19 @@ parsers.push(require('./lib/parsers/javascript'));
 
 function RedisClient(stream, options) {
     options = options || {};
+    var self = this;
+
+    this.pipeline = 0;
+    if (!stream.cork) {
+        stream.cork = function noop() {
+            self.pipeline_queue = new Queue();
+        };
+        stream.uncork = function noop() {};
+        this.write = this.writeStream;
+    }
 
     this.stream = stream;
     this.options = options;
-
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
@@ -55,18 +64,22 @@ function RedisClient(stream, options) {
             }
         }
     }
+    this.options.return_buffers = !!this.options.return_buffers;
+    this.options.detect_buffers = !!this.options.detect_buffers;
+    // Override the detect_buffers setting if return_buffers is active and print a warning
+    if (this.options.return_buffers && this.options.detect_buffers) {
+        console.warn('>> WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
+        this.options.detect_buffers = false;
+    }
     this.should_buffer = false;
     this.command_queue_high_water = options.command_queue_high_water || 1000;
     this.command_queue_low_water = options.command_queue_low_water || 0;
     this.max_attempts = +options.max_attempts || 0;
-    this.command_queue = new Queue(); // holds sent commands to de-pipeline them
-    this.offline_queue = new Queue(); // holds commands issued but not able to be sent
+    this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
+    this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
     this.commands_sent = 0;
     this.connect_timeout = +options.connect_timeout || 86400000; // 24 * 60 * 60 * 1000 ms
-    this.enable_offline_queue = true;
-    if (options.enable_offline_queue === false) {
-        this.enable_offline_queue = false;
-    }
+    this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
     this.retry_max_delay = +options.retry_max_delay || null;
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
@@ -76,7 +89,7 @@ function RedisClient(stream, options) {
     this.server_info = {};
     this.auth_pass = options.auth_pass;
     this.parser_module = null;
-    this.selected_db = null; // save the selected db here, used when reconnecting
+    this.selected_db = null; // Save the selected db here, used when reconnecting
     this.old_state = null;
 
     this.install_stream_listeners();
@@ -138,21 +151,19 @@ RedisClient.prototype.unref = function () {
 // flush offline_queue and command_queue, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (error) {
     var command_obj;
-
     while (command_obj = this.offline_queue.shift()) {
         if (typeof command_obj.callback === 'function') {
             error.command = command_obj.command.toUpperCase();
             command_obj.callback(error);
         }
     }
-    this.offline_queue = new Queue();
-
     while (command_obj = this.command_queue.shift()) {
         if (typeof command_obj.callback === 'function') {
             error.command = command_obj.command.toUpperCase();
             command_obj.callback(error);
         }
     }
+    this.offline_queue = new Queue();
     this.command_queue = new Queue();
 };
 
@@ -233,7 +244,6 @@ RedisClient.prototype.on_connect = function () {
     this.connected = true;
     this.ready = false;
     this.connections += 1;
-    this.command_queue = new Queue();
     this.emitted_end = false;
     if (this.options.socket_nodelay) {
         this.stream.setNoDelay();
@@ -430,10 +440,10 @@ RedisClient.prototype.send_offline_queue = function () {
         debug('Sending offline command: ' + command_obj.command);
         buffered_writes += !this.send_command(command_obj.command, command_obj.args, command_obj.callback);
     }
-    this.offline_queue = new Queue();
     // Even though items were shifted off, Queue backing store still uses memory until next add, so just get a new Queue
+    this.offline_queue = new Queue();
 
-    if (!buffered_writes) {
+    if (buffered_writes === 0) {
         this.should_buffer = false;
         this.emit('drain');
     }
@@ -511,7 +521,7 @@ RedisClient.prototype.connection_gone = function (why) {
         this.retry_delay = this.connect_timeout - this.retry_totaltime;
     }
 
-    debug("Retry connection in " + this.retry_delay + " ms");
+    debug('Retry connection in ' + this.retry_delay + ' ms');
 
     this.retry_timer = setTimeout(retry_connection, this.retry_delay, this);
 };
@@ -531,7 +541,18 @@ RedisClient.prototype.return_error = function (err) {
         err.code = match[1];
     }
 
+    this.emit_drain_idle(queue_len);
+
+    if (command_obj.callback) {
+        command_obj.callback(err);
+    } else {
+        this.emit('error', err);
+    }
+};
+
+RedisClient.prototype.emit_drain_idle = function (queue_len) {
     if (this.pub_sub_mode === false && queue_len === 0) {
+        // Free the queue capacity memory by using a new queue
         this.command_queue = new Queue();
         this.emit('idle');
     }
@@ -539,12 +560,6 @@ RedisClient.prototype.return_error = function (err) {
     if (this.should_buffer && queue_len <= this.command_queue_low_water) {
         this.emit('drain');
         this.should_buffer = false;
-    }
-
-    if (command_obj.callback) {
-        command_obj.callback(err);
-    } else {
-        this.emit('error', err);
     }
 };
 
@@ -566,37 +581,29 @@ RedisClient.prototype.return_reply = function (reply) {
 
     queue_len = this.command_queue.length;
 
-    if (this.pub_sub_mode === false && queue_len === 0) {
-        this.command_queue = new Queue();  // explicitly reclaim storage from old Queue
-        this.emit('idle');
-    }
-    if (this.should_buffer && queue_len <= this.command_queue_low_water) {
-        this.emit('drain');
-        this.should_buffer = false;
-    }
+    this.emit_drain_idle(queue_len);
 
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === 'function') {
             if ('exec' !== command_obj.command) {
-                if (this.options.detect_buffers && command_obj.buffer_args === false) {
+                if (command_obj.buffer_args === false) {
                     // If detect_buffers option was specified, then the reply from the parser will be Buffers.
                     // If this command did not use Buffer arguments, then convert the reply to Strings here.
                     reply = utils.reply_to_strings(reply);
                 }
 
                 // TODO - confusing and error-prone that hgetall is special cased in two places
-                if (reply && 'hgetall' === command_obj.command) {
+                if ('hgetall' === command_obj.command) {
                     reply = utils.reply_to_object(reply);
                 }
             }
-
             command_obj.callback(null, reply);
         } else {
             debug('No callback for reply');
         }
     } else if (this.pub_sub_mode || command_obj && command_obj.sub_command) {
         if (Array.isArray(reply)) {
-            if (!this.options.return_buffers && (!command_obj || this.options.detect_buffers && command_obj.buffer_args === false)) {
+            if (!command_obj || command_obj.buffer_args === false) {
                 reply = utils.reply_to_strings(reply);
             }
             type = reply[0].toString();
@@ -620,11 +627,9 @@ RedisClient.prototype.return_reply = function (reply) {
                 this.emit(type, reply[1], reply[2]); // channel, count
             } else {
                 this.emit('error', new Error('subscriptions are active but got unknown reply type ' + type));
-                return;
             }
         } else if (!this.closing) {
             this.emit('error', new Error('subscriptions are active but got an invalid reply: ' + reply));
-            return;
         }
     }
     /* istanbul ignore else: this is a safety check that we should not be able to trigger */
@@ -648,7 +653,12 @@ RedisClient.prototype.return_reply = function (reply) {
 };
 
 RedisClient.prototype.send_command = function (command, args, callback) {
-    var arg, command_obj, i, elem_count, buffer_args, stream = this.stream, command_str = '', buffered_writes = 0, err;
+    var arg, command_obj, i, err,
+        stream = this.stream,
+        command_str = '',
+        buffered_writes = 0,
+        buffer_args = false,
+        buffer = this.options.return_buffers;
 
     if (args === undefined) {
         args = [];
@@ -660,7 +670,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         }
     }
 
-    if (process.domain && callback) {
+    if (callback && process.domain) {
         callback = process.domain.bind(callback);
     }
 
@@ -671,22 +681,26 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             err = new Error('send_command: ' + command + ' value must not be undefined or null');
             err.command = command;
             if (callback) {
-                return callback && callback(err);
+                callback(err);
+            } else {
+                this.emit('error', err);
             }
-            this.emit('error', err);
-            return;
+            // Singal no buffering
+            return true;
         }
     }
 
-    buffer_args = false;
     for (i = 0; i < args.length; i += 1) {
         if (Buffer.isBuffer(args[i])) {
             buffer_args = true;
             break;
         }
     }
+    if (this.options.detect_buffers) {
+        buffer = buffer_args;
+    }
 
-    command_obj = new Command(command, args, false, buffer_args, callback);
+    command_obj = new Command(command, args, false, buffer, callback);
 
     if (!this.ready && !this.send_anyway || !stream.writable) {
         if (this.closing || !this.enable_offline_queue) {
@@ -707,7 +721,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             this.offline_queue.push(command_obj);
             this.should_buffer = true;
         }
-        return;
+        // Return false to signal buffering
+        return false;
     }
 
     if (command === 'subscribe' || command === 'psubscribe' || command === 'unsubscribe' || command === 'punsubscribe') {
@@ -720,12 +735,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         err = new Error('Connection in subscriber mode, only subscriber commands may be used');
         err.command = command.toUpperCase();
         this.emit('error', err);
-        return;
+        return true;
     }
     this.command_queue.push(command_obj);
     this.commands_sent += 1;
-
-    elem_count = args.length + 1;
 
     if (typeof this.options.rename_commands !== 'undefined' && this.options.rename_commands[command]) {
         command = this.options.rename_commands[command];
@@ -734,7 +747,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
 
-    command_str = '*' + elem_count + '\r\n$' + command.length + '\r\n' + command + '\r\n';
+    command_str = '*' + (args.length + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n';
 
     if (!buffer_args) { // Build up a string and send entire command in one write
         for (i = 0; i < args.length; i += 1) {
@@ -745,38 +758,62 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             command_str += '$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n';
         }
         debug('Send ' + this.address + ' id ' + this.connection_id + ': ' + command_str);
-        buffered_writes += !stream.write(command_str);
+        buffered_writes += !this.write(command_str);
     } else {
         debug('Send command (' + command_str + ') has Buffer arguments');
-        buffered_writes += !stream.write(command_str);
+        buffered_writes += !this.write(command_str);
 
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
-            if (!(Buffer.isBuffer(arg) || typeof arg === 'string')) {
-                arg = String(arg);
-            }
-
             if (Buffer.isBuffer(arg)) {
                 if (arg.length === 0) {
                     debug('send_command: using empty string for 0 length buffer');
-                    buffered_writes += !stream.write('$0\r\n\r\n');
+                    buffered_writes += !this.write('$0\r\n\r\n');
                 } else {
-                    buffered_writes += !stream.write('$' + arg.length + '\r\n');
-                    buffered_writes += !stream.write(arg);
-                    buffered_writes += !stream.write('\r\n');
+                    buffered_writes += !this.write('$' + arg.length + '\r\n');
+                    buffered_writes += !this.write(arg);
+                    buffered_writes += !this.write('\r\n');
                     debug('send_command: buffer send ' + arg.length + ' bytes');
                 }
             } else {
+                if (typeof arg !== 'string') {
+                    arg = String(arg);
+                }
                 debug('send_command: string send ' + Buffer.byteLength(arg) + ' bytes: ' + arg);
-                buffered_writes += !stream.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
+                buffered_writes += !this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
             }
         }
     }
-    debug('send_command buffered_writes: ' + buffered_writes, ' should_buffer: ' + this.should_buffer);
-    if (buffered_writes || this.command_queue.length >= this.command_queue_high_water) {
+    if (buffered_writes !== 0 || this.command_queue.length >= this.command_queue_high_water) {
+        debug('send_command buffered_writes: ' + buffered_writes, ' should_buffer: ' + this.should_buffer);
         this.should_buffer = true;
     }
     return !this.should_buffer;
+};
+
+RedisClient.prototype.write = function (data) {
+    return this.stream.write(data);
+};
+
+RedisClient.prototype.writeStream = function (data) {
+    var nr = 0;
+
+    if (this.pipeline === 0) {
+        return this.stream.write(data);
+    }
+
+    this.pipeline--;
+    if (this.pipeline === 0) {
+        var command;
+        while (command = this.pipeline_queue.shift()) {
+            nr += !this.stream.write(command);
+        }
+        nr += !this.stream.write(data);
+        return !nr;
+    }
+
+    this.pipeline_queue.push(data);
+    return true;
 };
 
 RedisClient.prototype.pub_sub_command = function (command_obj) {
@@ -832,9 +869,14 @@ RedisClient.prototype.end = function (flush) {
     return this.stream.destroySoon();
 };
 
-function Multi(client, args) {
+function Multi(client, args, transaction) {
+    client.stream.cork();
     this._client = client;
-    this.queue = [['multi']];
+    this.queue = new Queue();
+    if (transaction) {
+        this.exec = this.exec_transaction;
+        this.EXEC = this.exec_transaction;
+    }
     var command, tmp_args;
     if (Array.isArray(args)) {
         while (tmp_args = args.shift()) {
@@ -850,7 +892,11 @@ function Multi(client, args) {
 }
 
 RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
-    return new Multi(this, args);
+    return new Multi(this, args, true);
+};
+
+RedisClient.prototype.batch = RedisClient.prototype.BATCH = function (args) {
+    return new Multi(this, args, false);
 };
 
 commands.forEach(function (fullCommand) {
@@ -861,7 +907,7 @@ commands.forEach(function (fullCommand) {
         return;
     }
 
-    RedisClient.prototype[command] = function (key, arg, callback) {
+    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             return this.send_command(command, key, arg);
         }
@@ -879,9 +925,8 @@ commands.forEach(function (fullCommand) {
         }
         return this.send_command(command, utils.to_array(arguments));
     };
-    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command];
 
-    Multi.prototype[command] = function (key, arg, callback) {
+    Multi.prototype[command.toUpperCase()] = Multi.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             if (arg) {
                 key = key.concat([arg]);
@@ -905,14 +950,12 @@ commands.forEach(function (fullCommand) {
         }
         return this;
     };
-    Multi.prototype[command.toUpperCase()] = Multi.prototype[command];
 });
 
 // store db in this.select_db to restore it on reconnect
 RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, callback) {
     var self = this;
-
-    this.send_command('select', [db], function (err, res) {
+    return this.send_command('select', [db], function (err, res) {
         if (err === null) {
             self.selected_db = db;
         }
@@ -930,20 +973,22 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
         var err = new Error('The password has to be of type "string"');
         err.command = 'AUTH';
         if (callback) {
-            callback(err);
+            setImmediate(function () {
+                callback(err);
+            });
         } else {
             this.emit('error', err);
         }
-        return;
+        return true;
     }
     this.auth_pass = pass;
     debug('Saving auth as ' + this.auth_pass);
     // Only run the callback once. So do not safe it if already connected
     if (this.connected) {
-        this.send_command('auth', [this.auth_pass], callback);
-    } else {
-        this.auth_callback = callback;
+        return this.send_command('auth', [this.auth_pass], callback);
     }
+    this.auth_callback = callback;
+    return true;
 };
 
 RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args, callback) {
@@ -1013,43 +1058,62 @@ Multi.prototype.send_command = function (command, args, index, cb) {
             if (cb) {
                 cb(err);
             }
-            err.position = index - 1;
+            err.position = index;
             self.errors.push(err);
         }
     });
 };
 
-Multi.prototype.exec = Multi.prototype.EXEC = function (callback) {
+Multi.prototype.exec_atomic = function (callback) {
+    if (this.queue.length < 2) {
+        return this.exec_batch(callback);
+    }
+    return this.exec(callback);
+};
+
+Multi.prototype.exec_transaction = function (callback) {
     var self = this;
+    var len = this.queue.length;
+    var cb;
     this.errors = [];
     this.callback = callback;
-    this.wants_buffers = new Array(this.queue.length);
+    this._client.pipeline = len + 2;
+    this.wants_buffers = new Array(len);
+    this.send_command('multi', []);
     // drain queue, callback will catch 'QUEUED' or error
-    for (var index = 0; index < this.queue.length; index++) {
-        var args = this.queue[index].slice(0);
+    for (var index = 0; index < len; index++) {
+        var args = this.queue.get(index).slice(0);
         var command = args.shift();
-        var cb;
         if (typeof args[args.length - 1] === 'function') {
             cb = args.pop();
+        } else {
+            cb = undefined;
         }
         // Keep track of who wants buffer responses:
-        this.wants_buffers[index] = false;
-        for (var i = 0; i < args.length; i += 1) {
-            if (Buffer.isBuffer(args[i])) {
-                this.wants_buffers[index] = true;
-                break;
+        if (this._client.options.return_buffers) {
+            this.wants_buffers[index] = true;
+        } else if (!this._client.options.detect_buffers) {
+            this.wants_buffers[index] = false;
+        } else {
+            this.wants_buffers[index] = false;
+            for (var i = 0; i < args.length; i += 1) {
+                if (Buffer.isBuffer(args[i])) {
+                    this.wants_buffers[index] = true;
+                    break;
+                }
             }
         }
         this.send_command(command, args, index, cb);
     }
 
-    this._client.send_command('exec', [], function(err, replies) {
+    this._client.stream.uncork();
+    return this._client.send_command('exec', [], function(err, replies) {
         self.execute_callback(err, replies);
     });
 };
 
 Multi.prototype.execute_callback = function (err, replies) {
-    var i, args;
+    var i = 0, args;
 
     if (err) {
         if (err.code !== 'CONNECTION_BROKEN') {
@@ -1065,9 +1129,7 @@ Multi.prototype.execute_callback = function (err, replies) {
     }
 
     if (replies) {
-        for (i = 0; i < this.queue.length - 1; i += 1) {
-            args = this.queue[i + 1];
-
+        while (args = this.queue.shift()) {
             // If we asked for strings, even in detect_buffers mode, then return strings:
             if (replies[i] instanceof Error) {
                 var match = replies[i].message.match(utils.errCode);
@@ -1077,7 +1139,7 @@ Multi.prototype.execute_callback = function (err, replies) {
                 }
                 replies[i].command = args[0].toUpperCase();
             } else if (replies[i]) {
-                if (this._client.options.detect_buffers && this.wants_buffers[i + 1] === false) {
+                if (this.wants_buffers[i] === false) {
                     replies[i] = utils.reply_to_strings(replies[i]);
                 }
                 if (args[0] === 'hgetall') {
@@ -1093,12 +1155,68 @@ Multi.prototype.execute_callback = function (err, replies) {
                     args[args.length - 1](null, replies[i]);
                 }
             }
+            i++;
         }
     }
 
     if (this.callback) {
         this.callback(null, replies);
     }
+};
+
+Multi.prototype.callback = function (cb, command, i) {
+    var self = this;
+    return function (err, res) {
+        if (err) {
+            self.results[i] = err;
+        } else {
+            self.results[i] = res;
+        }
+        if (cb) {
+            cb(err, res);
+        }
+        // Do not emit an error here. Otherwise each error would result in one emit.
+        // The errors will be returned in the result anyway
+    };
+};
+
+Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = function (callback) {
+    var len = this.queue.length;
+    var self = this;
+    var index = 0;
+    var args;
+    if (len === 0) {
+        if (callback) {
+            setImmediate(function () {
+                callback(null, []);
+            });
+        }
+        return true;
+    }
+    this.results = new Array(len);
+    this._client.pipeline = len;
+    var lastCallback = function (cb) {
+        return function (err, res) {
+            cb(err, res);
+            callback(null, self.results);
+        };
+    };
+    while (args = this.queue.shift()) {
+        var command = args.shift();
+        var cb;
+        if (typeof args[args.length - 1] === 'function') {
+            cb = this.callback(args.pop(), command, index);
+        } else {
+            cb = this.callback(undefined, command, index);
+        }
+        if (callback && index === len - 1) {
+            cb = lastCallback(cb);
+        }
+        this._client.send_command(command, args, cb);
+        index++;
+    }
+    this._client.stream.uncork();
+    return this._client.should_buffer;
 };
 
 var createClient_unix = function (path, options){

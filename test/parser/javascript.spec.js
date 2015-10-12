@@ -3,13 +3,15 @@
 var assert = require('assert');
 var Parser = require("../../lib/parsers/javascript").Parser;
 var config = require("../lib/config");
+var utils = require("../../lib/utils");
 var redis = config.redis;
 
 describe('javascript parser', function () {
     it('handles multi-bulk reply', function (done) {
-        var parser = new Parser(false);
+        var parser = new Parser();
         var reply_count = 0;
         function check_reply(reply) {
+            reply = utils.reply_to_strings(reply);
             assert.deepEqual(reply, [['a']], "Expecting multi-bulk reply of [['a']]");
             reply_count++;
         }

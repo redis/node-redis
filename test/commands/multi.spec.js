@@ -32,11 +32,12 @@ describe("The 'multi' method", function () {
                 });
 
                 it("reports an error", function (done) {
-                    client.multi();
-                    client.exec(function (err, res) {
+                    var multi = client.multi();
+                    var notBuffering = multi.exec(function (err, res) {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
                     });
+                    assert.strictEqual(notBuffering, false);
                 });
 
                 it("reports an error if promisified", function () {
@@ -51,7 +52,7 @@ describe("The 'multi' method", function () {
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("connect", function () {
+                    client.once("ready", function () {
                         client.flushdb(function (err) {
                             return done(err);
                         });
@@ -60,6 +61,16 @@ describe("The 'multi' method", function () {
 
                 afterEach(function () {
                     client.end();
+                });
+
+                it("returns an empty result array", function (done) {
+                    var multi = client.multi();
+                    var notBuffering = multi.exec(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res.length, 0);
+                        done();
+                    });
+                    assert.strictEqual(notBuffering, true);
                 });
 
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
@@ -203,11 +214,12 @@ describe("The 'multi' method", function () {
                 });
 
                 it('runs a multi without any further commands', function(done) {
-                    client.multi().exec(function(err, res) {
+                    var buffering = client.multi().exec(function(err, res) {
                         assert.strictEqual(err, null);
                         assert.strictEqual(res.length, 0);
                         done();
                     });
+                    assert(typeof buffering === 'boolean');
                 });
 
                 it('allows multiple operations to be performed using a chaining API', function (done) {
@@ -215,7 +227,7 @@ describe("The 'multi' method", function () {
                         .mset('some', '10', 'keys', '20')
                         .incr('some')
                         .incr('keys')
-                        .mget('some', 'keys')
+                        .mget('some', ['keys'])
                         .exec(function (err, replies) {
                             assert.strictEqual(null, err);
                             assert.equal('OK', replies[0]);
@@ -371,6 +383,41 @@ describe("The 'multi' method", function () {
                     multi.exec();
 
                     client.get('foo', helper.isString('bar', done));
+                });
+
+                it("should not use a transaction with exec_atomic if only no command is used", function () {
+                    var multi = client.multi();
+                    var test = false;
+                    multi.exec_batch = function () {
+                        test = true;
+                    };
+                    multi.exec_atomic();
+                    assert(test);
+                });
+
+                it("should not use a transaction with exec_atomic if only one command is used", function () {
+                    var multi = client.multi();
+                    var test = false;
+                    multi.exec_batch = function () {
+                        test = true;
+                    };
+                    multi.set("baz", "binary");
+                    multi.exec_atomic();
+                    assert(test);
+                });
+
+                it("should use transaction with exec_atomic and more than one command used", function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
+
+                    var multi = client.multi();
+                    var test = false;
+                    multi.exec_batch = function () {
+                        test = true;
+                    };
+                    multi.set("baz", "binary");
+                    multi.get('baz');
+                    multi.exec_atomic(done);
+                    assert(!test);
                 });
 
             });

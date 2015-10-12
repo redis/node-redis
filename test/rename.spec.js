@@ -17,19 +17,25 @@ describe("rename commands", function () {
         describe("using " + parser + " and " + ip, function () {
             var client = null;
 
-            afterEach(function () {
-                client.end();
-            });
-
-            it("allows to use renamed functions", function (done) {
-                if (helper.redisProcess().spawnFailed()) this.skip();
-
+            beforeEach(function(done)  {
                 client = redis.createClient({
                     rename_commands: {
                         set: '807081f5afa96845a02816a28b7258c3',
                         GETRANGE: '9e3102b15cf231c4e9e940f284744fe0'
                     }
                 });
+
+                client.on('ready', function () {
+                    done();
+                });
+            });
+
+            afterEach(function () {
+                client.end();
+            });
+
+            it("allows to use renamed functions", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client.set('key', 'value', function(err, reply) {
                     assert.strictEqual(reply, 'OK');
@@ -48,15 +54,25 @@ describe("rename commands", function () {
                 });
             });
 
-            it("should also work with multi", function (done) {
+            it("should also work with batch", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                client = redis.createClient({
-                    rename_commands: {
-                        SET: '807081f5afa96845a02816a28b7258c3',
-                        getrange: '9e3102b15cf231c4e9e940f284744fe0'
-                    }
+                client.batch([['set', 'key', 'value']]).exec(function (err, res) {
+                    assert.strictEqual(res[0], 'OK');
                 });
+
+                var batch = client.batch();
+                batch.getrange('key', 1, -1);
+                batch.exec(function (err, res) {
+                    assert(!err);
+                    assert.strictEqual(res.length, 1);
+                    assert.strictEqual(res[0], 'alue');
+                    done();
+                });
+            });
+
+            it("should also work with multi", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client.multi([['set', 'key', 'value']]).exec(function (err, res) {
                     assert.strictEqual(res[0], 'OK');
@@ -74,13 +90,6 @@ describe("rename commands", function () {
 
             it("should also work with multi and abort transaction", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
-
-                client = redis.createClient({
-                    rename_commands: {
-                        SET: '807081f5afa96845a02816a28b7258c3',
-                        getrange: '9e3102b15cf231c4e9e940f284744fe0'
-                    }
-                });
 
                 var multi = client.multi();
                 multi.get('key');

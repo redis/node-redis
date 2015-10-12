@@ -1,16 +1,58 @@
 Changelog
 =========
 
-## v.2.x.x - xx, 2015
+## v.2.2.0 - xx Oct, 2015 - The peregrino falcon
+
+The peregrino falcon is the fasted bird on earth and this is what this release is all about: We increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
 
 Features
 
--  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting (@BridgeAR)
--  Added rename_commands options to handle renamed commands from the redis config (@digmxl & @BridgeAR)
+-  Added rename_commands options to handle renamed commands from the redis config ([@digmxl](https://github.com/digmxl) & [@BridgeAR](https://github.com/BridgeAR))
+-  Added disable_resubscribing option to prevent a client from resubscribing after reconnecting ([@BridgeAR](https://github.com/BridgeAR))
+-  Increased performance ([@BridgeAR](https://github.com/BridgeAR))
+ -  exchanging built in queue with [@petkaantonov](https://github.com/petkaantonov)'s [double-ended queue](https://github.com/petkaantonov/deque)
+ -  prevent polymorphism
+ -  optimize statements
+-  Added *.batch* command, similar to .multi but without transaction ([@BridgeAR](https://github.com/BridgeAR))
+-  Improved pipelining to minimize the [RTT](http://redis.io/topics/pipelining) further ([@BridgeAR](https://github.com/BridgeAR))
 
 Bugfixes
 
-- Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. (@BridgeAR)
+-  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
+
+If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
+Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
+
+Please consider using .batch instead of looping through a lot of commands one by one. This will significantly improve your performance.
+
+Here are some stats compared to ioredis 1.9.1:
+
+                      simple set
+          82,496 op/s » ioredis
+         112,617 op/s » node_redis
+
+                      simple get
+          82,015 op/s » ioredis
+         105,701 op/s » node_redis
+
+                      simple get with pipeline
+          10,233 op/s » ioredis
+          26,541 op/s » node_redis
+
+                      lrange 100
+           7,321 op/s » ioredis
+          26,155 op/s » node_redis
+
+                      publish
+          90,524 op/s » ioredis
+         112,823 op/s » node_redis
+
+                      subscribe
+          43,783 op/s » ioredis
+          61,889 op/s » node_redis
+
+To conclude: we can proudly say that node_redis is very likely outperforming any other node redis client.
 
 ## v2.1.0 - Oct 02, 2015
 
