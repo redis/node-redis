@@ -72,6 +72,12 @@ describe("The 'batch' method", function () {
                     });
                 });
 
+                it("runs normal calls inbetween batch", function (done) {
+                    var batch = client.batch();
+                    batch.set("m1", "123");
+                    client.set('m2', '456', done);
+                });
+
                 it("returns an empty array if promisified", function () {
                     return client.batch().execAsync().then(function(res) {
                         assert.strictEqual(res.length, 0);

@@ -869,14 +869,9 @@ RedisClient.prototype.end = function (flush) {
     return this.stream.destroySoon();
 };
 
-function Multi(client, args, transaction) {
-    client.stream.cork();
+function Multi(client, args) {
     this._client = client;
     this.queue = new Queue();
-    if (transaction) {
-        this.exec = this.exec_transaction;
-        this.EXEC = this.exec_transaction;
-    }
     var command, tmp_args;
     if (Array.isArray(args)) {
         while (tmp_args = args.shift()) {
@@ -892,11 +887,13 @@ function Multi(client, args, transaction) {
 }
 
 RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
-    return new Multi(this, args, true);
+    var multi = new Multi(this, args);
+    multi.exec = multi.EXEC = multi.exec_transaction;
+    return multi;
 };
 
 RedisClient.prototype.batch = RedisClient.prototype.BATCH = function (args) {
-    return new Multi(this, args, false);
+    return new Multi(this, args);
 };
 
 commands.forEach(function (fullCommand) {
@@ -1077,6 +1074,7 @@ Multi.prototype.exec_transaction = function (callback) {
     var cb;
     this.errors = [];
     this.callback = callback;
+    this._client.stream.cork();
     this._client.pipeline = len + 2;
     this.wants_buffers = new Array(len);
     this.send_command('multi', []);
@@ -1194,6 +1192,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
         return true;
     }
     this.results = new Array(len);
+    this._client.stream.cork();
     this._client.pipeline = len;
     var lastCallback = function (cb) {
         return function (err, res) {

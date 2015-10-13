@@ -73,6 +73,47 @@ describe("The 'multi' method", function () {
                     assert.strictEqual(notBuffering, true);
                 });
 
+                it("runs normal calls inbetween multis", function (done) {
+                    var multi1 = client.multi();
+                    multi1.set("m1", "123");
+                    client.set('m2', '456', done);
+                });
+
+                it("runs simultaneous multis with the same client", function (done) {
+                    var end = helper.callFuncAfter(done, 2);
+
+                    var multi1 = client.multi();
+                    multi1.set("m1", "123");
+                    multi1.get('m1');
+
+                    var multi2 = client.multi();
+                    multi2.set("m2", "456");
+                    multi2.get('m2');
+
+                    multi1.exec(end);
+                    multi2.exec(function(err, res) {
+                        assert.strictEqual(res[1], '456');
+                        end();
+                    });
+                });
+
+                it("runs simultaneous multis with the same client version 2", function (done) {
+                    var end = helper.callFuncAfter(done, 2);
+                    var multi2 = client.multi();
+                    var multi1 = client.multi();
+
+                    multi2.set("m2", "456");
+                    multi1.set("m1", "123");
+                    multi1.get('m1');
+                    multi2.get('m2');
+
+                    multi1.exec(end);
+                    multi2.exec(function(err, res) {
+                        assert.strictEqual(res[1], '456');
+                        end();
+                    });
+                });
+
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
                     var multi1, multi2;
                     var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
