@@ -1,6 +1,16 @@
 Changelog
 =========
 
+## v.2.2.2 - 14 Oct, 2015
+
+Bugfixes
+
+-  Fix regular commands not being executed after a .multi until .exec was called ([@BridgeAR](https://github.com/BridgeAR))
+
+## v.2.2.1 - 12 Oct, 2015
+
+No code change
+
 ## v.2.2.0 - 12 Oct, 2015 - The peregrino falcon
 
 The peregrino falcon is the fasted bird on earth and this is what this release is all about: Increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
