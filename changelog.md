@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.2.3 - 14 Oct, 2015
+
+Bugfixes
+
+-  Fix multi not being executed on Node 0.10.x if node_redis not yet ready ([@BridgeAR](https://github.com/BridgeAR))
+
 ## v.2.2.2 - 14 Oct, 2015
 
 Bugfixes

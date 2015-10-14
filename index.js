@@ -38,9 +38,13 @@ function RedisClient(stream, options) {
 
     this.pipeline = 0;
     if (!stream.cork) {
-        stream.cork = function noop() {
-            self.pipeline_queue = new Queue();
-        };
+        this.cork = function noop (len) {};
+        this.once('ready', function () {
+            self.cork = function (len) {
+                self.pipeline = len;
+                self.pipeline_queue = new Queue(len);
+            };
+        });
         stream.uncork = function noop() {};
         this.write = this.writeStream;
     }
@@ -126,6 +130,10 @@ RedisClient.prototype.install_stream_listeners = function() {
         self.should_buffer = false;
         self.emit('drain');
     });
+};
+
+RedisClient.prototype.cork = function (len) {
+    this.stream.cork();
 };
 
 RedisClient.prototype.initialize_retry_vars = function () {
@@ -1074,8 +1082,7 @@ Multi.prototype.exec_transaction = function (callback) {
     var cb;
     this.errors = [];
     this.callback = callback;
-    this._client.stream.cork();
-    this._client.pipeline = len + 2;
+    this._client.cork(len + 2);
     this.wants_buffers = new Array(len);
     this.send_command('multi', []);
     // drain queue, callback will catch 'QUEUED' or error
@@ -1192,8 +1199,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
         return true;
     }
     this.results = new Array(len);
-    this._client.stream.cork();
-    this._client.pipeline = len;
+    this._client.cork(len);
     var lastCallback = function (cb) {
         return function (err, res) {
             cb(err, res);
