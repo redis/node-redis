@@ -36,8 +36,8 @@ function RedisClient(stream, options) {
     options = options || {};
     var self = this;
 
-    this.pipeline = 0;
     if (!stream.cork) {
+        this.pipeline = 0;
         this.cork = function noop (len) {};
         this.once('ready', function () {
             self.cork = function (len) {
