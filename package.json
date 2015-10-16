@@ -4,7 +4,9 @@
   "description": "Redis client library",
   "keywords": [
     "database",
-    "redis"
+    "redis",
+    "transaction",
+    "pipelining"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
   "license": "MIT",
@@ -13,12 +15,15 @@
     "coveralls": "nyc report --reporter=text-lcov | coveralls",
     "coverage": "nyc report --reporter=html",
     "benchmark": "node benchmarks/multi_bench.js",
-    "test": "nyc ./node_modules/.bin/_mocha ./test/*.js ./test/commands/*.js ./test/parser/*.js --timeout=8000",
+    "test": "nyc ./node_modules/.bin/_mocha ./test/*.js ./test/commands/*.js --timeout=8000",
     "pretest": "optional-dev-dependency hiredis",
     "posttest": "jshint ."
   },
   "dependencies": {
     "double-ended-queue": "^2.1.0-0"
+  },
+  "engines": {
+    "node": ">=0.10.0"
   },
   "devDependencies": {
     "coveralls": "^2.11.2",

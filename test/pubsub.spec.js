@@ -242,8 +242,12 @@ describe("publish/subscribe", function () {
                     });
                 });
 
-                it('does not complain when unsubscribe is called and there are no subscriptions', function () {
-                    sub.unsubscribe();
+                it('does not complain when unsubscribe is called and there are no subscriptions', function (done) {
+                    sub.unsubscribe(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res, null);
+                        done();
+                    });
                 });
 
                 it('executes callback when unsubscribe is called and there are no subscriptions', function (done) {
@@ -285,6 +289,34 @@ describe("publish/subscribe", function () {
                 });
             });
 
+            describe('fail for other commands while in pub sub mode', function () {
+                it('return error if only pub sub commands are allowed', function (done) {
+                    sub.subscribe('channel');
+                    // Ping is allowed even if not listed as such!
+                    sub.ping(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res[0], 'pong');
+                    });
+                    // Get is forbidden
+                    sub.get('foo', function (err, res) {
+                        assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                        assert.strictEqual(err.command, 'GET');
+                    });
+                    // Quit is allowed
+                    sub.quit(done);
+                });
+
+                it('emit error if only pub sub commands are allowed without callback', function (done) {
+                    sub.subscribe('channel');
+                    sub.on('error', function (err) {
+                        assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                        assert.strictEqual(err.command, 'GET');
+                        done();
+                    });
+                    sub.get('foo');
+                });
+            });
+
             // TODO: Fix pub sub
             // And there's more than just those two issues
             describe.skip('FIXME: broken pub sub', function () {
@@ -297,7 +329,7 @@ describe("publish/subscribe", function () {
                     pub.on('message', function (msg) {
                         done(new Error('This message should not have been published: ' + msg));
                     });
-                    setTimeout(done, 500);
+                    setTimeout(done, 200);
                 });
 
                 it("should not publish a message multiple times per command", function (done) {
@@ -325,8 +357,8 @@ describe("publish/subscribe", function () {
                         sub.unsubscribe();
                         setTimeout(function () {
                             subscribe('world');
-                        }, 400);
-                    }, 400);
+                        }, 40);
+                    }, 40);
                 });
             });
 

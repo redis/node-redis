@@ -37,6 +37,12 @@ describe("The 'get' method", function () {
                         done();
                     });
                 });
+
+                it("reports an error promisified", function () {
+                    return client.getAsync(key).then(assert, function (err) {
+                        assert(err.message.match(/The connection has already been closed/));
+                    });
+                });
             });
 
             describe("when connected", function () {
@@ -76,7 +82,7 @@ describe("The 'get' method", function () {
                         }]);
                     });
 
-                    it("should not throw on a get without callback (even if it's not useful", function (done) {
+                    it("should not throw on a get without callback (even if it's not useful)", function (done) {
                         client.GET(key);
                         client.on('error', function(err) {
                             throw err;
