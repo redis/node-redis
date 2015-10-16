@@ -6,6 +6,7 @@ var util = require('util');
 var utils = require('./lib/utils');
 var Queue = require('double-ended-queue');
 var Command = require('./lib/command');
+var failover = require('./lib/failover');
 var events = require('events');
 var parsers = [];
 // This static list of commands is updated from time to time.
@@ -84,7 +85,6 @@ function RedisClient(stream, options) {
     this.connect_timeout = +options.connect_timeout || 86400000; // 24 * 60 * 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
     this.retry_max_delay = +options.retry_max_delay || null;
-    this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
     this.monitoring = false;
@@ -95,6 +95,8 @@ function RedisClient(stream, options) {
     this.selected_db = null; // Save the selected db here, used when reconnecting
     this.old_state = null;
     this.options = options;
+    if (options.failover) failover.prepareOptions(this);
+    this.initialize_retry_vars();
 
     this.install_stream_listeners();
     events.EventEmitter.call(this);
@@ -139,8 +141,13 @@ RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
     this.retry_totaltime = 0;
     this.retry_delay = 200;
-    this.retry_backoff = 1.7;
     this.attempts = 1;
+    if (this.options.failover) {
+        this.failover_cycle = 0;
+        this.retry_backoff = 1;
+        this.failover_backoff = 1.7;
+    } else
+        this.retry_backoff = 1.7;
 };
 
 RedisClient.prototype.unref = function () {
