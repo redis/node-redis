@@ -141,13 +141,8 @@ RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
     this.retry_totaltime = 0;
     this.retry_delay = 200;
+    this.retry_backoff = this.options.failover ? 1 : 1.7;
     this.attempts = 1;
-    if (this.options.failover) {
-        this.failover_cycle = 0;
-        this.retry_backoff = 1;
-        this.failover_backoff = 1.7;
-    } else
-        this.retry_backoff = 1.7;
 };
 
 RedisClient.prototype.unref = function () {
