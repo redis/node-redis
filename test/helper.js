@@ -122,9 +122,9 @@ module.exports = {
         }
         var options = [{
             detect_buffers: true
-        // Somehow we need a undefined here - otherwise the parsers return_buffers value is always true
-        // Investigate this further
-        }, undefined];
+        }, {
+            detect_buffers: false
+        }];
         options.forEach(function (options) {
             var strOptions = '';
             var key;

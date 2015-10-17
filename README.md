@@ -175,8 +175,7 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `redis.createClient('redis://user:pass@host:port', options)`
 * `redis.createClient(port, host, options)`
 
- `options` is an object with the following possible properties:
-
+### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
@@ -229,7 +228,7 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.end();
 ```
 
-## client.auth(password, callback)
+## client.auth(password[, callback])
 
 When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
 first command after connecting. This can be tricky to coordinate with reconnections, the ready check,
@@ -290,7 +289,7 @@ client.get("foo", function (err, value){
 Most Redis commands take a single String or an Array of Strings as arguments, and replies are sent back as a single String or an Array of Strings.
 When dealing with hash values, there are a couple of useful exceptions to this.
 
-### client.hgetall(hash)
+### client.hgetall(hash, callback)
 
 The reply from an HGETALL command will be converted into a JavaScript Object by `node_redis`. That way you can interact
 with the responses using JavaScript syntax.
@@ -310,7 +309,7 @@ Output:
 { mjr: '1', another: '23', home: '1234' }
 ```
 
-### client.hmset(hash, obj, [callback])
+### client.hmset(hash, obj[, callback])
 
 Multiple values in a hash can be set by supplying an object:
 
@@ -440,7 +439,7 @@ client.multi()
     });
 ```
 
-### Multi.exec( callback )
+### Multi.exec([callback])
 
 `client.multi()` is a constructor that returns a `Multi` object. `Multi` objects share all of the
 same command methods as `client` objects do. Commands are queued up inside the `Multi` object
@@ -492,7 +491,7 @@ client.multi([
 });
 ```
 
-### Multi.exec_atomic( callback )
+### Multi.exec_atomic([callback])
 
 Identical to Multi.exec but with the difference that executing a single command will not use transactions.
 
@@ -577,7 +576,7 @@ the second word as first parameter:
     client.multi().script('load', 'return 1').exec(...);
     client.multi([['script', 'load', 'return 1']]).exec(...);
 
-## client.send_command(command_name, args, callback)
+## client.send_command(command_name[, [args][, callback]])
 
 Used internally to send commands to Redis. Nearly all Redis commands have been added to the `client` object.
 However, if new commands are introduced before this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
@@ -713,6 +712,7 @@ To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
 ## How to Contribute
 - Open a pull request or an issue about what you want to implement / change. We're glad for any help!
+ - Please be aware that we'll only accept fully tested code.
 
 ## Contributors
 Many [people](https://github.com/NodeRedis/node_redis/graphs/contributors) have have added features and fixed bugs in `node_redis`. Thanks to all of them!

@@ -19,6 +19,8 @@ describe("return_buffers", function () {
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
                 if (args[2].detect_buffers) {
+                    // Test if detect_buffer option was deactivated
+                    assert.strictEqual(client.options.detect_buffers, false);
                     args[2].detect_buffers = false;
                 }
                 client.once("error", done);

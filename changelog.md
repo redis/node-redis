@@ -1,17 +1,28 @@
 Changelog
 =========
 
+## v.2.2.4 - 17 Oct, 2015
+
+Bugfixes
+
+-  Fixed unspecific error message for unresolvable commands ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed not allowed command error in pubsub mode not being returned in a provided callback ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed to many commands forbidden in pub sub mode ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed mutation of the arguments array passed to .multi / .batch constructor ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed mutation of the options object passed to createClient ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed error callback in .multi not called if connection in broken mode ([@BridgeAR](https://github.com/BridgeAR))
+
 ## v.2.2.3 - 14 Oct, 2015
 
 Bugfixes
 
--  Fix multi not being executed on Node 0.10.x if node_redis not yet ready ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed multi not being executed on Node 0.10.x if node_redis not yet ready ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v.2.2.2 - 14 Oct, 2015
 
 Bugfixes
 
--  Fix regular commands not being executed after a .multi until .exec was called ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed regular commands not being executed after a .multi until .exec was called ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v.2.2.1 - 12 Oct, 2015
 
@@ -34,7 +45,7 @@ Features
 
 Bugfixes
 
--  Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
   - I was not able to write a regression test for this, since the error seems to only occur under heavy load with special conditions. So please have a look for timeouts with the js parser, if you use it and report all issues and switch to the hiredis parser in the meanwhile. If you're able to come up with a reproducable test case, this would be even better :)
 -  Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
 
@@ -141,7 +152,7 @@ This is the biggest release that node_redis had since it was released in 2010. A
 - Do not wrap errors into other errors (@BridgeAR)
 - Authentication failures are now returned in the callback instead of being emitted (@BridgeAR)
 - Fix a memory leak on reconnect (@rahar)
-- Using `send_command` directly may no also be called without the args as stated in the [README.md](./README.md) (@BridgeAR)
+- Using `send_command` directly may now also be called without the args as stated in the [README.md](./README.md) (@BridgeAR)
 - Fix the multi.exec error handling (@BridgeAR)
 - Fix commands being inconsistent and behaving wrong (@BridgeAR)
 - Channel names with spaces are now properly resubscribed after a reconnection (@pbihler)

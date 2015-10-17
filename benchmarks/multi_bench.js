@@ -10,6 +10,9 @@ var metrics = require('metrics');
 var num_clients = parseInt(process.argv[2], 10) || 5;
 var num_requests = 50000;
 var tests = [];
+// var bluebird = require('bluebird');
+// bluebird.promisifyAll(redis.RedisClient.prototype);
+// bluebird.promisifyAll(redis.Multi.prototype);
 var versions_logged = false;
 var client_options = {
         return_buffers: false,

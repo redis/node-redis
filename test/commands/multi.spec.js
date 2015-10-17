@@ -67,6 +67,50 @@ describe("The 'multi' method", function () {
                 });
             });
 
+            describe("when connection is broken", function () {
+                var client;
+
+                afterEach(function () {
+                    client.end();
+                });
+
+                it("return an error even if connection is in broken mode if callback is present", function (done) {
+                    client = redis.createClient({
+                        host: 'somewhere',
+                        port: 6379,
+                        max_attempts: 1
+                    });
+
+                    client.on('error', function(err) {
+                        if (/Redis connection in broken state/.test(err.message)) {
+                            done();
+                        }
+                    });
+
+                    client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec(function (err, res) {
+                        assert(/Redis connection in broken state/.test(err.message));
+                        assert.strictEqual(err.errors.length, 0);
+                    });
+                });
+
+                it("does not emit an error twice if connection is in broken mode with no callback", function (done) {
+                    client = redis.createClient({
+                        host: 'somewhere',
+                        port: 6379,
+                        max_attempts: 1
+                    });
+
+                    client.on('error', function(err) {
+                        // Results in multiple done calls if test fails
+                        if (/Redis connection in broken state/.test(err.message)) {
+                            done();
+                        }
+                    });
+
+                    client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec();
+                });
+            });
+
             describe("when ready", function () {
                 var client;
 
@@ -479,6 +523,18 @@ describe("The 'multi' method", function () {
                     multi.get('baz');
                     multi.exec_atomic(done);
                     assert(!test);
+                });
+
+                it("do not mutate arguments in the multi constructor", function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
+
+                    var input = [['set', 'foo', 'bar'], ['get', 'foo']];
+                    client.multi(input).exec(function (err, res) {
+                        assert.strictEqual(input.length, 2);
+                        assert.strictEqual(input[0].length, 3);
+                        assert.strictEqual(input[1].length, 2);
+                        done();
+                    });
                 });
 
             });

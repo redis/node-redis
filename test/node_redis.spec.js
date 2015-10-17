@@ -8,130 +8,39 @@ var redis = config.redis;
 
 describe("The node_redis client", function () {
 
+    describe("testing parser existence", function () {
+        it('throws on non-existence', function (done) {
+            var mochaListener = helper.removeMochaListener();
+
+            process.once('uncaughtException', function (err) {
+                process.on('uncaughtException', mochaListener);
+                assert.equal(err.message, 'Couldn\'t find named parser nonExistingParser on this system');
+                return done();
+            });
+
+            redis.createClient({
+                parser: 'nonExistingParser'
+            });
+        });
+    });
+
     helper.allTests({
         allConnections: true
     }, function(parser, ip, args) {
 
-        if (args[2]) { // skip if options are undefined
-            describe("testing parser existence", function () {
-                it('throws on non-existence', function (done) {
-                    var mochaListener = helper.removeMochaListener();
-
-                    process.once('uncaughtException', function (err) {
-                        process.on('uncaughtException', mochaListener);
-                        assert.equal(err.message, 'Couldn\'t find named parser nonExistingParser on this system');
-                        return done();
-                    });
-
-                    // Don't pollute the args for the other connections
-                    var tmp = JSON.parse(JSON.stringify(args));
-                    tmp[2].parser = 'nonExistingParser';
-                    redis.createClient.apply(redis.createClient, tmp);
-                });
-            });
-        }
-
         describe("using " + parser + " and " + ip, function () {
             var client;
 
-            describe("when not connected", function () {
-                afterEach(function () {
-                    if (client) {
-                        client.end();
-                    }
-                });
-
-                it("connects correctly with args", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
-                    client.on("error", done);
-
-                    client.once("ready", function () {
-                        client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
-                    });
-                });
-
-                it("connects correctly with default values", function (done) {
-                    client = redis.createClient();
-                    client.on("error", done);
-
-                    client.once("ready", function () {
-                        client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
-                    });
-                });
-
-                it("connects correctly to localhost", function (done) {
-                    client = redis.createClient(null, null);
-                    client.on("error", done);
-
-                    client.once("ready", function () {
-                        client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
-                    });
-                });
-
-                it("connects correctly to localhost and no ready check", function (done) {
-                    client = redis.createClient(undefined, undefined, {
-                        no_ready_check: true
-                    });
-                    client.on("error", done);
-
-                    client.once("ready", function () {
-                        client.set('foo', 'bar');
-                        client.get('foo', function(err, res) {
-                            assert.strictEqual(res, 'bar');
-                            done(err);
-                        });
-                    });
-                });
-
-                it("throws on strange connection info", function () {
-                    try {
-                        redis.createClient(true);
-                        throw new Error('failed');
-                    } catch (err) {
-                        assert.equal(err.message, 'Unknown type of connection in createClient()');
-                    }
-                });
-
-                if (ip === 'IPv4') {
-                    it('allows connecting with the redis url and the default port', function (done) {
-                        client = redis.createClient('redis://foo:porkchopsandwiches@' + config.HOST[ip]);
-                        client.on("ready", function () {
-                            return done();
-                        });
-                    });
-
-                    it('allows connecting with the redis url and no auth', function (done) {
-                        client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, {
-                            detect_buffers: false
-                        });
-                        client.on("ready", function () {
-                            return done();
-                        });
-                    });
-                }
-
+            afterEach(function () {
+                client.end();
             });
 
             describe("when connected", function () {
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
-                    client.once("error", done);
                     client.once("connect", function () {
                         client.flushdb(done);
                     });
-                });
-
-                afterEach(function () {
-                    client.end();
                 });
 
                 describe("send_command", function () {
@@ -211,7 +120,9 @@ describe("The node_redis client", function () {
                     it("return an error in the callback", function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
-                        var client = redis.createClient();
+                        // TODO: Investigate why this test is failing hard and killing mocha if the client is created with .apply
+                        // Seems like something is wrong while passing a socket connection to create client! args[1]
+                        client = redis.createClient();
                         client.quit(function() {
                             client.get("foo", function(err, res) {
                                 assert(err.message.indexOf('Redis connection gone') !== -1);
@@ -224,7 +135,6 @@ describe("The node_redis client", function () {
                     it("return an error in the callback version two", function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
-                        var client = redis.createClient();
                         client.quit();
                         setTimeout(function() {
                             client.get("foo", function(err, res) {
@@ -239,7 +149,6 @@ describe("The node_redis client", function () {
                     it("emit an error", function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
-                        var client = redis.createClient();
                         client.quit();
                         client.on('error', function(err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');
@@ -339,20 +248,19 @@ describe("The node_redis client", function () {
                                 return done();
                             }
 
-                            if (domain) {
-                                domain.run(function () {
-                                    client.set('domain', 'value', function (err, res) {
-                                        assert.ok(process.domain);
-                                        throw new Error('ohhhh noooo');
-                                    });
+                            domain.run(function () {
+                                client.set('domain', 'value', function (err, res) {
+                                    assert.ok(process.domain);
+                                    throw new Error('ohhhh noooo');
                                 });
+                            });
 
-                                // this is the expected and desired behavior
-                                domain.on('error', function (err) {
-                                  domain.exit();
-                                  return done();
-                                });
-                            }
+                            // this is the expected and desired behavior
+                            domain.on('error', function (err) {
+                                assert.strictEqual(err.message, 'ohhhh noooo');
+                                domain.exit();
+                                return done();
+                            });
                         });
                     });
                 });
@@ -435,7 +343,6 @@ describe("The node_redis client", function () {
 
             describe('socket_nodelay', function () {
                 describe('true', function () {
-                    var client;
                     var args = config.configureClient(parser, ip, {
                         socket_nodelay: true
                     });
@@ -470,7 +377,6 @@ describe("The node_redis client", function () {
                 });
 
                 describe('false', function () {
-                    var client;
                     var args = config.configureClient(parser, ip, {
                         socket_nodelay: false
                     });
@@ -505,7 +411,6 @@ describe("The node_redis client", function () {
                 });
 
                 describe('defaults to true', function () {
-                    var client;
 
                     it("fires client.on('ready')", function (done) {
                         client = redis.createClient.apply(redis.createClient, args);
@@ -538,7 +443,6 @@ describe("The node_redis client", function () {
             });
 
             describe('retry_max_delay', function () {
-                var client;
                 var args = config.configureClient(parser, ip, {
                     retry_max_delay: 1 // ms
                 });
@@ -566,8 +470,36 @@ describe("The node_redis client", function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
+                    it("should emit drain after info command and nothing to buffer", function (done) {
+                        client = redis.createClient({
+                            parser: parser
+                        });
+                        client.set('foo', 'bar');
+                        client.get('foo', function () {
+                            assert(!client.should_buffer);
+                            setTimeout(done, 25);
+                        });
+                        client.on('drain', function() {
+                            assert(client.offline_queue.length === 2);
+                        });
+                    });
+
+                    it("should emit drain if offline queue is flushed and nothing to buffer", function (done) {
+                        client = redis.createClient({
+                            parser: parser,
+                            no_ready_check: true
+                        });
+                        var end = helper.callFuncAfter(done, 2);
+                        client.set('foo', 'bar');
+                        client.get('foo', end);
+                        client.on('drain', function() {
+                            assert(client.offline_queue.length === 0);
+                            end();
+                        });
+                    });
+
                     it("does not return an error and enqueues operation", function (done) {
-                        var client = redis.createClient(9999, null, {
+                        client = redis.createClient(9999, null, {
                             max_attempts: 0,
                             parser: parser
                         });
@@ -578,10 +510,8 @@ describe("The node_redis client", function () {
 
                         return setTimeout(function() {
                             client.set('foo', 'bar', function(err, result) {
-                                // TODO: figure out why we emit an error on
-                                // even though we've enabled the offline queue.
-                                if (process.platform === 'win32') return;
-                                if (err) return done(err);
+                                // This should never be called
+                                return done(err);
                             });
 
                             return setTimeout(function() {
@@ -592,7 +522,7 @@ describe("The node_redis client", function () {
                     });
 
                     it("enqueues operation and keep the queue while trying to reconnect", function (done) {
-                        var client = redis.createClient(9999, null, {
+                        client = redis.createClient(9999, null, {
                             max_attempts: 4,
                             parser: parser
                         });
@@ -627,8 +557,23 @@ describe("The node_redis client", function () {
                 });
 
                 describe('false', function () {
+
+                    it('stream not writable', function(done) {
+                        client = redis.createClient({
+                            parser: parser,
+                            enable_offline_queue: false
+                        });
+                        client.on('ready', function () {
+                            client.stream.writable = false;
+                            client.set('foo', 'bar', function (err, res) {
+                                assert.strictEqual(err.message, "SET can't be processed. Stream not writeable.");
+                                done();
+                            });
+                        });
+                    });
+
                     it("emit an error and does not enqueues operation", function (done) {
-                        var client = redis.createClient(9999, null, {
+                        client = redis.createClient(9999, null, {
                             parser: parser,
                             max_attempts: 0,
                             enable_offline_queue: false
@@ -636,7 +581,7 @@ describe("The node_redis client", function () {
                         var end = helper.callFuncAfter(done, 3);
 
                         client.on('error', function(err) {
-                            assert(/Stream not writeable|ECONNREFUSED/.test(err.message));
+                            assert(/offline queue is deactivated|ECONNREFUSED/.test(err.message));
                             assert.equal(client.command_queue.length, 0);
                             end();
                         });
@@ -653,7 +598,7 @@ describe("The node_redis client", function () {
                     });
 
                     it("flushes the command queue connection if in broken connection mode", function (done) {
-                        var client = redis.createClient({
+                        client = redis.createClient({
                             parser: parser,
                             max_attempts: 2,
                             enable_offline_queue: false
