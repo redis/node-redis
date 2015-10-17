@@ -175,7 +175,7 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `redis.createClient('redis://user:pass@host:port', options)`
 * `redis.createClient(port, host, options)`
 
-### `options` is an object with the following possible properties:
+#### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
