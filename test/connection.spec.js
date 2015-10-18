@@ -4,6 +4,7 @@ var assert = require("assert");
 var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
+var net = require('net');
 
 describe("connection tests", function () {
     helper.allTests(function(parser, ip, args) {
@@ -186,27 +187,16 @@ describe("connection tests", function () {
                     });
                 });
 
-                    it("buffer commands and flush them after ", function (done) {
-                        client = redis.createClient(9999, null, {
-                            parser: parser
-                        });
-
-                        client.on('error', function(e) {
-                            // ignore, b/c expecting a "can't connect" error
-                        });
-
-                        return setTimeout(function() {
-                            client.set('foo', 'bar', function(err, result) {
-                                // This should never be called
-                                return done(err);
-                            });
-
-                            return setTimeout(function() {
-                                assert.strictEqual(client.offline_queue.length, 1);
-                                return done();
-                            }, 25);
-                        }, 50);
-                    });
+                it("works with missing options object for new redis instances", function () {
+                    // This is needed for libraries that have their own createClient function like fakeredis
+                    var cnxOptions = {
+                        port : 6379,
+                        host : '127.0.0.1',
+                        family : ip === 'IPv6' ? 6 : 4
+                    };
+                    var net_client = net.createConnection(cnxOptions);
+                    client = new redis.RedisClient(net_client);
+                });
 
                 it("throws on strange connection info", function () {
                     try {

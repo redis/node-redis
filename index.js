@@ -36,7 +36,7 @@ parsers.push(require('./lib/parsers/javascript'));
 
 function RedisClient(stream, options) {
     // Copy the options so they are not mutated
-    options = JSON.parse(JSON.stringify(options));
+    options = JSON.parse(JSON.stringify(options || {}));
     var self = this;
 
     if (!stream.cork) {

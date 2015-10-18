@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.2.5 - 18 Oct, 2015
+
+Bugfixes
+
+-  Fixed undefined options passed to a new instance not accepted (possible with individual .createClient functions) ([@BridgeAR](https://github.com/BridgeAR))
+
 ## v.2.2.4 - 17 Oct, 2015
 
 Bugfixes
