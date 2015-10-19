@@ -277,7 +277,7 @@ describe.only('failover', function() {
 
             it('should switch to the next connection using the first password', function() {
                 // password is already switched
-                client._failover.currentPass = 1;
+                client._failover.passwordIndex = 1;
                 client.auth_pass = 'new_pass1';
 
                 failover.nextConnection(client);
@@ -285,13 +285,13 @@ describe.only('failover', function() {
                 assert.deepEqual(client.connectionOption, { host: 'host2', port: 6380 });
                 assert.equal(client.auth_pass, 'current_pass2');
                 assert.equal(client._failover.cycle, 0);
-                assert.equal(client._failover.currentConnection, 1);
-                assert.equal(client._failover.currentPass, 0);
+                assert.equal(client._failover.connectionIndex, 1);
+                assert.equal(client._failover.passwordIndex, 0);
             });
 
             it('should switch back to the first connection after the second call (using the first password)', function() {
                 // password is already switched
-                client._failover.currentPass = 1;
+                client._failover.passwordIndex = 1;
                 client.auth_pass = 'new_pass1';
 
                 failover.nextConnection(client);
@@ -300,8 +300,8 @@ describe.only('failover', function() {
                 assert.deepEqual(client.connectionOption, { host: 'host1', port: 6379 });
                 assert.equal(client.auth_pass, 'current_pass1');
                 assert.equal(client._failover.cycle, 1);
-                assert.equal(client._failover.currentConnection, 0);
-                assert.equal(client._failover.currentPass, 0);
+                assert.equal(client._failover.connectionIndex, 0);
+                assert.equal(client._failover.passwordIndex, 0);
             });
         });
     });
