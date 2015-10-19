@@ -212,6 +212,8 @@ limits total amount of connection tries. Setting this to 1 will prevent any reco
 * `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
 * `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
+* `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
+to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
 
 ```js
 var redis = require("redis"),

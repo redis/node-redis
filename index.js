@@ -36,13 +36,12 @@ function RedisClient (options) {
     // Copy the options so they are not mutated
     options = clone(options);
     events.EventEmitter.call(this);
-    var self = this;
     var cnx_options = {};
     if (options.path) {
         cnx_options.path = options.path;
         this.address = options.path;
     } else {
-        cnx_options.port = options.port || default_port;
+        cnx_options.port = +options.port || default_port;
         cnx_options.host = options.host || default_host;
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;

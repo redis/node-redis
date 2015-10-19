@@ -62,9 +62,9 @@ StunnelProcess.prototype.clear = function() {
 };
 
 StunnelProcess.prototype.stop = function(done) {
-	if(this.stunnel) {
-	    this.stunnel.kill();
-	}
+    if (this.stunnel) {
+        this.stunnel.kill();
+    }
 };
 
 module.exports = {
