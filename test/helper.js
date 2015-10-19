@@ -4,13 +4,30 @@ var assert = require("assert");
 var path = require('path');
 var config = require("./lib/config");
 var RedisProcess = require("./lib/redis-process");
+var StunnelProcess = require("./lib/stunnel-process");
 var rp;
+var stunnel_process;
 
 function startRedis (conf, done) {
     RedisProcess.start(function (err, _rp) {
         rp = _rp;
         return done(err);
     }, path.resolve(__dirname, conf));
+}
+
+function startStunnel(done) {
+    StunnelProcess.start(function (err, _stunnel_process) {
+        stunnel_process = _stunnel_process;
+        return done(err);
+    }, path.resolve(__dirname, './conf'));
+}
+
+function stopStunnel(done) {
+    if(stunnel_process) {
+        StunnelProcess.stop(stunnel_process, done);
+    } else {
+        done();
+    }
 }
 
 // don't start redis every time we
@@ -35,6 +52,8 @@ module.exports = {
         rp.stop(done);
     },
     startRedis: startRedis,
+    stopStunnel: stopStunnel,
+    startStunnel: startStunnel,
     isNumber: function (expected, done) {
         return function (err, results) {
             assert.strictEqual(null, err, "expected " + expected + ", got error: " + err);
