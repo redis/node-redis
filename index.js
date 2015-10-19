@@ -35,9 +35,10 @@ try {
 
 parsers.push(require('./lib/parsers/javascript'));
 
-function RedisClient(stream, options) {
+function RedisClient(stream, options, cnxOptions) {
     // Copy the options so they are not mutated
     options = JSON.parse(JSON.stringify(options || {}));
+    this.connectionOption = cnxOptions;
     var self = this;
 
     if (!stream.cork) {
@@ -465,6 +466,7 @@ var retry_connection = function (self) {
     self.attempts += 1;
     self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
 
+    if (self._failover) failover.nextConnection(self);
     self.stream = net.createConnection(self.connectionOption);
     self.install_stream_listeners();
 
@@ -1221,9 +1223,8 @@ var createClient_unix = function (path, options){
         path: path
     };
     var net_client = net.createConnection(cnxOptions);
-    var redis_client = new RedisClient(net_client, options);
+    var redis_client = new RedisClient(net_client, options, cnxOptions);
 
-    redis_client.connectionOption = cnxOptions;
     redis_client.address = path;
 
     return redis_client;
@@ -1236,9 +1237,8 @@ var createClient_tcp = function (port_arg, host_arg, options) {
         family : options.family === 'IPv6' ? 6 : 4
     };
     var net_client = net.createConnection(cnxOptions);
-    var redis_client = new RedisClient(net_client, options);
+    var redis_client = new RedisClient(net_client, options, cnxOptions);
 
-    redis_client.connectionOption = cnxOptions;
     redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
 
     return redis_client;

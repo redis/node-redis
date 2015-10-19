@@ -3,7 +3,6 @@
 var failover = require('../lib/failover');
 var assert = require('assert');
 
-
 function CLIENT_2_CONN_NO_AUTH() {
     return {
         connectionOption: {
@@ -56,7 +55,7 @@ function CLIENT_2_CONN_WITH_AUTH() {
 }
 
 
-describe.only('failover', function() {
+describe('failover options', function() {
     describe('prepareOptions', function() {
         it('should convert options to enable redis password', function() {
             var client = {
@@ -244,7 +243,7 @@ describe.only('failover', function() {
                 assert.deepEqual(client.connectionOption, { host: 'host2', port: 6380 });
                 assert.equal(client._failover.cycle, 0);
                 assert.equal(client.retry_delay, 200);
-                assert(!client.hasOwnProperty('auth_pass'));
+                assert.equal(client.auth_pass, undefined);
             });
 
             it('should switch back to the first connection after the second call', function() {
@@ -254,7 +253,7 @@ describe.only('failover', function() {
                 assert.deepEqual(client.connectionOption, { host: 'host1', port: 6379 });
                 assert.equal(client._failover.cycle, 1);
                 assert.equal(client.retry_delay, 200 * client._failover.retry_backoff);
-                assert(!client.hasOwnProperty('auth_pass'));
+                assert.equal(client.auth_pass, undefined);
             });
         });
 

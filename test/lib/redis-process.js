@@ -10,16 +10,16 @@ var tcpPortUsed = require('tcp-port-used');
 
 // wait for redis to be listening in
 // all three modes (ipv4, ipv6, socket).
-function waitForRedis (available, cb) {
+function waitForRedis (available, cb, opts) {
     if (process.platform === 'win32') return cb();
 
     var ipV4 = false;
     var id = setInterval(function () {
-        tcpPortUsed.check(config.PORT, '127.0.0.1').then(function (_ipV4) {
+        tcpPortUsed.check(opts.port || config.PORT, '127.0.0.1').then(function (_ipV4) {
             ipV4 = _ipV4;
-            return tcpPortUsed.check(config.PORT, '::1');
+            return tcpPortUsed.check(opts.port || config.PORT, '::1');
         }).then(function (ipV6) {
-            if (ipV6 === available && ipV4 === available && fs.existsSync('/tmp/redis.sock') === available) {
+            if (ipV6 === available && ipV4 === available && fs.existsSync(opts.unixsocket || '/tmp/redis.sock') === available) {
                 clearInterval(id);
                 return cb();
             }
@@ -28,10 +28,11 @@ function waitForRedis (available, cb) {
 }
 
 module.exports = {
-    start: function (done, conf) {
+    start: function (done, conf, opts) {
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
         var rp = spawn("redis-server", [confFile], {});
+        opts = opts || {};
 
         // capture a failure booting redis, and give
         // the user running the test some directions.
@@ -57,11 +58,11 @@ module.exports = {
                         }
                         waitForRedis(false, function () {
                             return done(error);
-                        });
+                        }, opts);
                     });
                     rp.kill("SIGTERM");
                 }
             });
-        });
+        }, opts);
     }
 };
