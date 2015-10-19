@@ -1,6 +1,7 @@
 'use strict';
 
 var net = require('net');
+var tls = require('tls');
 var URL = require('url');
 var util = require('util');
 var utils = require('./lib/utils');
@@ -22,6 +23,8 @@ var debug = function(msg) {
 
 function noop () {}
 
+function clone(ob) { return JSON.parse(JSON.stringify(ob || {})); }
+
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 // hiredis might not be installed
@@ -36,23 +39,10 @@ parsers.push(require('./lib/parsers/javascript'));
 
 function RedisClient(stream, options) {
     // Copy the options so they are not mutated
-    options = JSON.parse(JSON.stringify(options || {}));
-    var self = this;
+    options = clone(options);
+    this.options = options;
+    this.stream = stream || this.create_stream();
 
-    if (!stream.cork) {
-        this.pipeline = 0;
-        this.cork = noop;
-        this.once('ready', function () {
-            self.cork = function (len) {
-                self.pipeline = len;
-                self.pipeline_queue = new Queue(len);
-            };
-        });
-        stream.uncork = noop;
-        this.write = this.writeStream;
-    }
-
-    this.stream = stream;
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
@@ -94,17 +84,65 @@ function RedisClient(stream, options) {
     this.parser_module = null;
     this.selected_db = null; // Save the selected db here, used when reconnecting
     this.old_state = null;
-    this.options = options;
 
     this.install_stream_listeners();
     events.EventEmitter.call(this);
 }
 util.inherits(RedisClient, events.EventEmitter);
 
+RedisClient.prototype.create_stream = function() {
+    var options = this.options;
+    var connection_options = this.connection_options;
+    var tls_options = options.tls;
+    var stream;
+
+    if(!connection_options) {
+        connection_options = this.connection_options = {};
+        if(options.path) {
+            //unix
+            this.address = connection_options.path = options.path;
+        } else {
+            //tcp or tls
+            connection_options.port = options.port || default_port;
+            connection_options.host = options.host || default_host;
+            connection_options.family = (options.family === 'IPv6') ? 6 : 4;
+            if(tls_options) {
+                Object.keys(tls_options).forEach(function(opt) {
+                    connection_options[opt] = tls_options[opt];
+                });
+            }
+            this.address = connection_options.host + ':' + connection_options.port;
+        }
+    }
+
+    if(tls_options) {
+	    stream = tls.connect(connection_options);
+    } else {
+	    stream = net.createConnection(connection_options);
+	}
+
+    var self = this;
+    if (!stream.cork) {
+        this.pipeline = 0;
+        this.cork = noop;
+        this.once('ready', function () {
+            self.cork = function (len) {
+                self.pipeline = len;
+                self.pipeline_queue = new Queue(len);
+            };
+        });
+        stream.uncork = noop;
+        this.write = this.writeStream;
+    }
+
+	return stream;
+};
+
 RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
 
-    this.stream.on('connect', function () {
+    var connect_event = this.options.tls ? "secureConnect" : "connect";
+    this.stream.on(connect_event, function () {
         self.on_connect();
     });
 
@@ -118,6 +156,10 @@ RedisClient.prototype.install_stream_listeners = function() {
         self.on_error(err);
     });
 
+    this.stream.on("clientError", function (msg) {
+        self.on_error(msg.message);
+    });
+
     this.stream.once('close', function () {
         self.connection_gone('close');
     });
@@ -129,6 +171,20 @@ RedisClient.prototype.install_stream_listeners = function() {
     this.stream.on('drain', function () {
         self.drain();
     });
+};
+
+RedisClient.prototype.reconnect_stream = function() {
+    // If we constructed the stream, then we reconstruct it
+    // since TLS streams can't simply be reconnected.
+    // If a caller-provided stream, just reconnect directly.
+    if(this.connection_options) {
+        this.stream.removeAllListeners();
+        this.stream.destroy();
+        this.stream = this.create_stream();
+        this.install_stream_listeners();
+    } else {
+        this.stream.connect();
+    }
 };
 
 RedisClient.prototype.cork = function (len) {
@@ -462,10 +518,7 @@ var retry_connection = function (self) {
     self.retry_totaltime += self.retry_delay;
     self.attempts += 1;
     self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
-
-    self.stream = net.createConnection(self.connectionOption);
-    self.install_stream_listeners();
-
+    self.reconnect_stream();
     self.retry_timer = null;
 };
 
@@ -1214,54 +1267,32 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     return this._client.should_buffer;
 };
 
-var createClient_unix = function (path, options){
-    var cnxOptions = {
-        path: path
-    };
-    var net_client = net.createConnection(cnxOptions);
-    var redis_client = new RedisClient(net_client, options);
-
-    redis_client.connectionOption = cnxOptions;
-    redis_client.address = path;
-
-    return redis_client;
-};
-
-var createClient_tcp = function (port_arg, host_arg, options) {
-    var cnxOptions = {
-        port : port_arg || default_port,
-        host : host_arg || default_host,
-        family : options.family === 'IPv6' ? 6 : 4
-    };
-    var net_client = net.createConnection(cnxOptions);
-    var redis_client = new RedisClient(net_client, options);
-
-    redis_client.connectionOption = cnxOptions;
-    redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
-
-    return redis_client;
-};
-
 var createClient = function (port_arg, host_arg, options) {
     if (typeof port_arg === 'object' || port_arg === undefined) {
         options = port_arg || options || {};
-        return createClient_tcp(+options.port, options.host, options);
+        return new RedisClient(null, options);
     }
     if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
-        return createClient_tcp(port_arg, host_arg, options || {});
+        options = clone(options);
+        options.port = Number(port_arg);
+        options.host = host_arg;
+        return new RedisClient(null, options);
     }
     if (typeof port_arg === 'string') {
-        options = host_arg || options || {};
+        options = clone(host_arg || options);
 
         var parsed = URL.parse(port_arg, true, true);
         if (parsed.hostname) {
             if (parsed.auth) {
                 options.auth_pass = parsed.auth.split(':')[1];
             }
-            return createClient_tcp(parsed.port, parsed.hostname, options);
+            options.port = Number(parsed.port);
+            options.host = parsed.hostname;
+            return new RedisClient(null, options);
         }
 
-        return createClient_unix(port_arg, options);
+        options.path = port_arg;
+        return new RedisClient(null, options);
     }
     throw new Error('Unknown type of connection in createClient()');
 };
