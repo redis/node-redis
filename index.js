@@ -1,6 +1,7 @@
 'use strict';
 
 var net = require('net');
+var tls = require('tls');
 var URL = require('url');
 var util = require('util');
 var utils = require('./lib/utils');
@@ -46,7 +47,10 @@ function RedisClient (options) {
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
-    this.connection_option = cnx_options;
+    for (var tls_option in options.tls) { // jshint ignore: line
+        cnx_options[tls_option] = options.tls[tls_option];
+    }
+    this.connection_options = cnx_options;
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
@@ -95,7 +99,18 @@ util.inherits(RedisClient, events.EventEmitter);
 // Attention: the function name "create_stream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.create_stream = function () {
     var self = this;
-    this.stream = net.createConnection(this.connection_option);
+
+    // On a reconnect destroy the former stream and retry
+    if (this.stream) {
+        this.stream.removeAllListeners();
+        this.stream.destroy();
+    }
+
+    if (this.options.tls) {
+	    this.stream = tls.connect(this.connection_options);
+    } else {
+	    this.stream = net.createConnection(this.connection_options);
+	}
 
     if (this.options.connect_timeout) {
         this.stream.setTimeout(this.connect_timeout, function () {
@@ -104,7 +119,8 @@ RedisClient.prototype.create_stream = function () {
         });
     }
 
-    this.stream.once('connect', function () {
+    var connect_event = this.options.tls ? "secureConnect" : "connect";
+    this.stream.on(connect_event, function () {
         this.removeAllListeners("timeout");
         self.on_connect();
     });
@@ -116,6 +132,10 @@ RedisClient.prototype.create_stream = function () {
     });
 
     this.stream.on('error', function (err) {
+        self.on_error(err);
+    });
+
+    this.stream.on('clientError', function (err) {
         self.on_error(err);
     });
 

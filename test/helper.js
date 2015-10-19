@@ -163,7 +163,7 @@ module.exports = {
     },
     killConnection: function (client) {
         // Change the connection option to a non existing one and destroy the stream
-        client.connection_option = {
+        client.connection_options = {
             port: 65535,
             host: '127.0.0.1',
             family: 4
