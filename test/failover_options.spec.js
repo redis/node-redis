@@ -265,9 +265,7 @@ describe('failover options', function() {
                 failover.prepareOptions(client);
             });
 
-            it('should switch to the next connection using the first password', function() {
-                // password is already switched
-                client._failover.passwordIndex = 1;
+            it('should switch to the next connection', function() {
                 client.auth_pass = 'new_pass1';
 
                 failover.nextConnection(client);
@@ -276,12 +274,9 @@ describe('failover options', function() {
                 assert.equal(client.auth_pass, 'current_pass2');
                 assert.equal(client._failover.cycle, 0);
                 assert.equal(client._failover.connectionIndex, 1);
-                assert.equal(client._failover.passwordIndex, 0);
             });
 
-            it('should switch back to the first connection after the second call (using the first password)', function() {
-                // password is already switched
-                client._failover.passwordIndex = 1;
+            it('should switch back to the first connection after the second call', function() {
                 client.auth_pass = 'new_pass1';
 
                 failover.nextConnection(client);
@@ -291,96 +286,7 @@ describe('failover options', function() {
                 assert.equal(client.auth_pass, 'current_pass1');
                 assert.equal(client._failover.cycle, 1);
                 assert.equal(client._failover.connectionIndex, 0);
-                assert.equal(client._failover.passwordIndex, 0);
             });
-        });
-    });
-
-    describe('alternativePasswords', function() {
-        it('should return undefined without multiple auth_pass', function() {
-            var client = CLIENT_2_CONN_NO_AUTH();
-            failover.prepareOptions(client);
-
-            var passwords = failover.alternativePasswords(client);
-            assert.equal(passwords, undefined);
-        });
-
-        it('should return all passwords of the current connection but current', function() {
-            var client = CLIENT_2_CONN_WITH_AUTH();
-            failover.prepareOptions(client);
-
-            var passwords = failover.alternativePasswords(client);
-            assert.deepEqual(passwords, ['new_pass1']);
-        });
-    });
-
-    describe('setValidPassword', function() {
-        it('should set the index of valid password', function() {
-            var client = {
-                connectionOption: {
-                    host: 'localhost',
-                    port: 6379
-                },
-                auth_pass: 'current_pass', // client constructor copies it here from options
-                options: {
-                    auth_pass: 'current_pass',
-                    failover: {
-                        connections: [
-                            {
-                                auth_pass: 'new_pass1',
-                            },
-                            {
-                                auth_pass: 'new_pass2'
-                            }
-                        ]
-                    }
-                }
-            };
-            failover.prepareOptions(client);
-            assert.equal(client._failover.passwordIndex, 0);
-
-            var passwords = failover.alternativePasswords(client);
-            assert.deepEqual(passwords, ['new_pass1', 'new_pass2']);
-
-            var valid = failover.setValidPassword(client, 'new_pass1');
-            assert.equal(valid, true);
-            assert.equal(client._failover.passwordIndex, 1);
-
-            passwords = failover.alternativePasswords(client);
-            assert.deepEqual(passwords, ['new_pass2', 'current_pass']);
-
-            valid = failover.setValidPassword(client, 'current_pass');
-            assert.equal(valid, true);
-            assert.equal(client._failover.passwordIndex, 0);
-        });
-
-        it('should return false if passed password was not defined for the current connection', function() {
-            var client = {
-                connectionOption: {
-                    host: 'localhost',
-                    port: 6379
-                },
-                auth_pass: 'current_pass', // client constructor copies it here from options
-                options: {
-                    auth_pass: 'current_pass',
-                    failover: {
-                        connections: [
-                            {
-                                auth_pass: 'new_pass1',
-                            },
-                            {
-                                auth_pass: 'new_pass2'
-                            }
-                        ]
-                    }
-                }
-            };
-            failover.prepareOptions(client);
-            assert.equal(client._failover.passwordIndex, 0);
-
-            var valid = failover.setValidPassword(client, 'another_password');
-            assert.equal(valid, false);
-            assert.equal(client._failover.passwordIndex, 0);
         });
     });
 });

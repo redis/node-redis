@@ -230,12 +230,11 @@ function getPasswords(client) {
 }
 
 function authenticateLoop(client, passwords, passIndex, callback) {
-    if (typeof passwords === 'function') {
-        callback = passwords;
-        passwords = undefined;
+    if (typeof passIndex === 'function') {
+        callback = passIndex;
+        passIndex = 0;
     }
-    passwords = passwords || getPasswords(client);
-    passIndex = passIndex || 0;
+
     if (!passwords) {
         callback(new Error('no auth_pass specified'));
         return;
@@ -259,7 +258,7 @@ function authenticateLoop(client, passwords, passIndex, callback) {
 
 RedisClient.prototype.do_auth = function (passwords) {
     var self = this;
-    authenticateLoop(this, passwords, 0, function(err, res) {
+    authenticateLoop(this, passwords, function(err, res) {
         if (err) {
             err.command_used = 'AUTH';
             if (self.auth_callback) {
@@ -629,7 +628,7 @@ RedisClient.prototype.return_error = function (err) {
     if (should_retry_auth) {
         debug('Authentication error, possibly password enabled, try to authenticate');
         var self = this;
-        authenticateLoop(this, passwords, 0, function (e, res) {
+        authenticateLoop(this, passwords, function (e, res) {
             if (e) {
                 _return_error(self, err, command_obj);
             } else {
