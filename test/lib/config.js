@@ -24,8 +24,8 @@ var config = {
         if (ip.match(/\.sock/)) {
             args.push(ip);
         } else {
-            args.push(config.PORT);
-            args.push(config.HOST[ip]);
+            args.push(opts.port || config.PORT);
+            args.push(opts.host || config.HOST[ip]);
             opts.family = ip;
         }
 

@@ -172,8 +172,8 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 client.on("ready", function () {
                     client.set('foo', 'bar', function (err, res) {
-                        assert.equal(err.message, 'NOAUTH Authentication required.');
-                        assert.equal(err.code, 'NOAUTH');
+                        assert(/ERR operation not permitted|NOAUTH Authentication required/.test(err.message));
+                        assert(/ERR|NOAUTH/.test(err.code));
                         assert.equal(err.command, 'SET');
                         done();
                     });
@@ -184,9 +184,56 @@ describe("client authentication", function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
                 client = redis.createClient.apply(redis.createClient, args);
                 client.on("error", function (err) {
-                    assert.equal(err.code, 'NOAUTH');
-                    assert.equal(err.message, 'Ready check failed: NOAUTH Authentication required.');
+                    assert(/ERR|NOAUTH/.test(err.code));
+                    assert(/Ready check failed: (ERR operation not permitted|NOAUTH Authentication required)/.test(err.message));
                     assert.equal(err.command, 'INFO');
+                    done();
+                });
+            });
+
+            it('should authenticate using any of the supplied passwords', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+                var args = config.configureClient(parser, ip, {
+                    auth_pass: 'wrong_pass1',
+                    failover: {
+                        connections: [
+                            { auth_pass: 'wrong_pass2' },
+                            { auth_pass: auth },
+                            { auth_pass: 'wrong_pass3' }
+                        ]
+                    }
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+
+                client.on('ready', function() {
+                    done();
+                });
+
+                client.on('error', function (err) {
+                    done(err);
+                });
+            });
+
+            it('should NOT authenticate if all supplied passwords are wrong', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+                var args = config.configureClient(parser, ip, {
+                    auth_pass: 'wrong_pass1',
+                    failover: {
+                        connections: [
+                            { auth_pass: 'wrong_pass2' },
+                            { auth_pass: 'wrong_pass3' }
+                        ]
+                    }
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+
+                client.on('ready', function() {
+                    done(new Error('should have failed'));
+                });
+
+                client.on('error', function(err) {
+                    assert(err instanceof Error);
+                    assert.equal(err.command, 'AUTH');
                     done();
                 });
             });

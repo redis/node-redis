@@ -197,55 +197,75 @@ RedisClient.prototype.on_error = function (err) {
 var noPasswordIsSet = /no password is set/;
 var loading = /LOADING/;
 
-RedisClient.prototype.do_auth = function () {
-    var self = this;
-
-    debug('Sending auth to ' + self.address + ' id ' + self.connection_id);
-
-    self.send_anyway = true;
-    self.send_command('auth', [this.auth_pass], function (err, res) {
+function authenticate(client, password, cb) {
+    client.send_anyway = true;
+    debug('Sending auth to ' + client.address + ' id ' + client.connection_id);
+    client.send_command('auth', [password], function (err, res) {
         if (err) {
             /* istanbul ignore if: this is almost impossible to test */
             if (loading.test(err.message)) {
                 // If redis is still loading the db, it will not authenticate and everything else will fail
                 debug('Redis still loading, trying to authenticate later');
                 setTimeout(function () {
-                    self.do_auth();
+                    authenticate(client, password, cb);
                 }, 333);
                 return;
             } else if (noPasswordIsSet.test(err.message)) {
                 debug('Warning: Redis server does not require a password, but a password was supplied.');
                 err = null;
                 res = 'OK';
-            } else if (self.auth_callback) {
-                self.auth_callback(err);
-                self.auth_callback = null;
-                return;
-            } else {
-                self.emit('error', err);
-                return;
+                // client.auth_no_password = true; // do I need it now ???
             }
         }
 
-        res = res.toString();
-        debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
-
-        if (self.auth_callback) {
-            self.auth_callback(null, res);
-            self.auth_callback = null;
-        }
-
-        // Now we are really connected
-        self.emit('connect');
-        self.initialize_retry_vars();
-
-        if (self.options.no_ready_check) {
-            self.on_ready();
-        } else {
-            self.ready_check();
-        }
+        cb(err, res);
     });
-    self.send_anyway = false;
+    client.send_anyway = false;
+}
+
+RedisClient.prototype.do_auth = function () {
+    var self = this;
+    var passwords = this._failover ? failover.getPasswords(this) : [this.auth_pass];
+    var passIndex = 0;
+
+    function authenticateLoop() {
+        authenticate(self, passwords[passIndex], function (err, res) {
+            if (err) {
+                passIndex++;
+                if (passIndex < passwords.length) {
+                    authenticateLoop();
+                } else {
+                    err.command_used = 'AUTH';
+                    if (self.auth_callback) {
+                        self.auth_callback(err);
+                        self.auth_callback = null;
+                    } else {
+                        self.emit("error", err);
+                    }
+                }
+            } else {
+                res = res.toString();
+                debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
+
+                if (self.auth_callback) {
+                    self.auth_callback(null, res);
+                    self.auth_callback = null;
+                }
+
+                // Now we are really connected
+                self.emit('connect');
+                self.initialize_retry_vars();
+
+                if (self.options.no_ready_check) {
+                    self.on_ready();
+                } else {
+                    self.ready_check();
+                }
+            }
+        });
+    }
+
+    authenticateLoop();
 };
 
 RedisClient.prototype.on_connect = function () {
