@@ -145,6 +145,23 @@ module.exports = {
             });
         });
     },
+    testSet: function (client, value, cb) {
+        var key = 'test_key_' + value,
+            value = 'test_value_' + value;
+        client.set(key, value, function (err, res) {
+            if (err) return cb(err);
+            assert.equal(res, 'OK');
+            client.get(key, function (err, res) {
+                if (err) return cb(err);
+                assert.equal(res, value);
+                client.del(key, function (err, res) {
+                    if (err) return cb(err);
+                    assert.equal(res, 1);
+                    cb();
+                });
+            });
+        });
+    },
     removeMochaListener: function () {
         var mochaListener = process.listeners('uncaughtException').pop();
         process.removeListener('uncaughtException', mochaListener);

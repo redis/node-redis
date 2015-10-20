@@ -18,6 +18,7 @@ describe("client authentication", function () {
 
         describe("using " + parser + " and " + ip, function () {
             var auth = 'porkchopsandwiches';
+            var new_auth = 'fishsandwiches';
             var client = null;
 
             afterEach(function () {
@@ -235,6 +236,43 @@ describe("client authentication", function () {
                     assert(err instanceof Error);
                     assert.equal(err.command, 'AUTH');
                     done();
+                });
+            });
+
+            describe('failover authentication', function() {
+                afterEach(function (done) {
+                    client.config('set', 'requirepass', auth, done);
+                });
+
+                it('should authenticate after re-connect if the password is changed', function (done) {
+                    var args = config.configureClient(parser, ip, {
+                        auth_pass: auth,
+                        failover: {
+                            connections: [ { auth_pass: new_auth } ]
+                        }
+                    });
+                    client = redis.createClient.apply(redis.createClient, args);
+                    var readyCount = 0;
+
+                    client.on('ready', function () {
+                        readyCount++;
+                        if (readyCount === 1) {
+                            helper.testSet(client, 1, function (err) {
+                                if (err) return done(err);
+                                client.config('set', 'requirepass', new_auth, function (err, res) {
+                                    if (err) return done(err);
+                                    // no authentication is needed when password is changed and the client already authenticated
+                                    helper.testSet(client, 2, function (err) {
+                                        if (err) return done(err);
+                                        // only on re-connection it will happen
+                                        client.stream.destroy();
+                                    });
+                                });
+                            });
+                        } else {
+                            helper.testSet(client, 3, done);
+                        }
+                    });
                 });
             });
         });
