@@ -50,7 +50,7 @@ describe("client authentication", function () {
                 client.auth(auth + 'bad');
             });
 
-            it.skip("returns an error when auth is bad (empty string) with a callback", function (done) {
+            it("returns an error when auth is bad (empty string) with a callback", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(redis.createClient, args);

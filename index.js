@@ -226,7 +226,7 @@ function send_auth(client, password, cb) {
 function getPasswords(client) {
     return client._failover ?
             failover.getPasswords(client) :
-            (client.auth_pass ? [client.auth_pass] : undefined);
+            (client.auth_pass === undefined ? undefined : [client.auth_pass]);
 }
 
 function authenticateLoop(client, passwords, passIndex, callback) {

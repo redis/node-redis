@@ -1,6 +1,5 @@
 'use strict';
 
-var assert = require('assert');
 var config = require('./lib/config');
 var helper = require('./helper');
 var redis = config.redis;
@@ -42,7 +41,7 @@ describe('failover authentication enable password', function() {
                     client = redis.createClient.apply(redis.createClient, args);
                     testAuth(done);
                 });
-            })
+            });
 
             describe('should fail re-authenticating if different password is enabled', function () {
                 it('with options.auth_pass', function (done) {

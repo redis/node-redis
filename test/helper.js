@@ -146,8 +146,8 @@ module.exports = {
         });
     },
     testSet: function (client, value, cb) {
-        var key = 'test_key_' + value,
-            value = 'test_value_' + value;
+        var key = 'test_key_' + value;
+        value = 'test_value_' + value;
         client.set(key, value, function (err, res) {
             if (err) return cb(err);
             assert.equal(res, 'OK');
