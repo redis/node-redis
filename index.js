@@ -223,13 +223,23 @@ function send_auth(client, password, cb) {
     client.send_anyway = false;
 }
 
+function getPasswords(client) {
+    return client._failover ?
+            failover.getPasswords(client) :
+            (client.auth_pass ? [client.auth_pass] : undefined);
+}
+
 function authenticateLoop(client, passwords, passIndex, callback) {
     if (typeof passwords === 'function') {
         callback = passwords;
         passwords = undefined;
     }
-    passwords = passwords || (client._failover ? failover.getPasswords(client) : [client.auth_pass]);
+    passwords = passwords || getPasswords(client);
     passIndex = passIndex || 0;
+    if (!passwords) {
+        callback(new Error('no auth_pass specified'));
+        return;
+    }
 
     send_auth(client, passwords[passIndex], function (err, res) {
         if (err) {
@@ -243,13 +253,13 @@ function authenticateLoop(client, passwords, passIndex, callback) {
             debug('Auth succeeded ' + client.address + ' id ' + client.connection_id);
         }
 
-        callback && callback(err, res);
+        callback(err, res);
     });
 }
 
-RedisClient.prototype.do_auth = function () {
+RedisClient.prototype.do_auth = function (passwords) {
     var self = this;
-    authenticateLoop(this, function(err, res) {
+    authenticateLoop(this, passwords, 0, function(err, res) {
         if (err) {
             err.command_used = 'AUTH';
             if (self.auth_callback) {
@@ -292,8 +302,9 @@ RedisClient.prototype.on_connect = function () {
 
     this.init_parser();
 
-    if (typeof this.auth_pass === 'string') {
-        this.do_auth();
+    var passwords = getPasswords(this);
+    if (passwords) {
+        this.do_auth(passwords);
     } else {
         this.emit('connect');
         this.initialize_retry_vars();
@@ -609,14 +620,16 @@ RedisClient.prototype.emit_drain_idle = function (queue_len) {
 
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift();
-    var should_retry_auth = this.auth_no_password &&
+    var passwords = getPasswords(this);
+    var should_retry_auth = passwords &&
+                            this.auth_no_password &&
                             command_obj.command !== 'auth' &&
                             AUTH_ERROR.test(err.message);
 
     if (should_retry_auth) {
         debug('Authentication error, possibly password enabled, try to authenticate');
         var self = this;
-        authenticateLoop(this, function (e, res) {
+        authenticateLoop(this, passwords, 0, function (e, res) {
             if (e) {
                 _return_error(self, err, command_obj);
             } else {

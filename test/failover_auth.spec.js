@@ -21,12 +21,50 @@ describe('failover authentication enable password', function() {
                 client.config('set', 'requirepass', '', done);
             });
 
-            it('should re-authenticate if password is enabled in redis', function (done) {
-                var args = config.configureClient(parser, ip, {
-                    auth_pass: auth
+            describe('should re-authenticate if password is enabled in redis', function() {
+                it('with options.auth_pass', function (done) {
+                    var args = config.configureClient(parser, ip, {
+                        auth_pass: auth
+                    });
+                    client = redis.createClient.apply(redis.createClient, args);
+                    testAuth(done);
                 });
-                client = redis.createClient.apply(redis.createClient, args);
 
+                it('with options.failover', function (done) {
+                    var args = config.configureClient(parser, ip, {
+                        failover: {
+                            connections: [
+                                { auth_pass: 'wrong_auth' },
+                                { auth_pass: auth }
+                            ]
+                        }
+                    });
+                    client = redis.createClient.apply(redis.createClient, args);
+                    testAuth(done);
+                });
+            })
+
+            describe('should fail re-authenticating if different password is enabled', function () {
+                it('with options.auth_pass', function (done) {
+                    var args = config.configureClient(parser, ip, {
+                        auth_pass: auth
+                    });
+                    client = redis.createClient.apply(redis.createClient, args);
+                    testAuthFail(done);
+                });
+
+                it('with options.failover', function (done) {
+                    var args = config.configureClient(parser, ip, {
+                        failover: {
+                            connections: [ { auth_pass: auth } ]
+                        }
+                    });
+                    client = redis.createClient.apply(redis.createClient, args);
+                    testAuthFail(done);
+                });
+            });
+
+            function testAuth(done) {
                 client.on('ready', function() {
                     helper.testSet(client, 1, function (err) {
                         if (err) return done(err);
@@ -36,14 +74,9 @@ describe('failover authentication enable password', function() {
                         });
                     });
                 });
-            });
+            }
 
-            it('should fail re-authenticating if different password is enabled', function (done) {
-                var args = config.configureClient(parser, ip, {
-                    auth_pass: auth
-                });
-                client = redis.createClient.apply(redis.createClient, args);
-
+            function testAuthFail(done) {
                 client.on('ready', function() {
                     helper.testSet(client, 1, function (err) {
                         if (err) return done(err);
@@ -59,7 +92,7 @@ describe('failover authentication enable password', function() {
                         });
                     });
                 });
-            });
+            }
         });
     });
 });

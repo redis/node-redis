@@ -50,7 +50,7 @@ describe("client authentication", function () {
                 client.auth(auth + 'bad');
             });
 
-            it("returns an error when auth is bad (empty string) with a callback", function (done) {
+            it.skip("returns an error when auth is bad (empty string) with a callback", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(redis.createClient, args);
@@ -215,6 +215,29 @@ describe("client authentication", function () {
                 });
             });
 
+            it('should authenticate using any of the supplied passwords without options.auth_pass', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+                var args = config.configureClient(parser, ip, {
+                    failover: {
+                        connections: [
+                            { auth_pass: 'wrong_pass1' },
+                            { auth_pass: 'wrong_pass2' },
+                            { auth_pass: auth },
+                            { auth_pass: 'wrong_pass3' }
+                        ]
+                    }
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+
+                client.on('ready', function() {
+                    done();
+                });
+
+                client.on('error', function (err) {
+                    done(err);
+                });
+            });
+
             it('should NOT authenticate if all supplied passwords are wrong', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
                 var args = config.configureClient(parser, ip, {
@@ -239,12 +262,12 @@ describe("client authentication", function () {
                 });
             });
 
-            describe('failover authentication', function() {
+            describe('failover authentication - should authenticate after re-connect if the password is changed', function() {
                 afterEach(function (done) {
                     client.config('set', 'requirepass', auth, done);
                 });
 
-                it('should authenticate after re-connect if the password is changed', function (done) {
+                it('with options.auth_pass', function (done) {
                     var args = config.configureClient(parser, ip, {
                         auth_pass: auth,
                         failover: {
@@ -252,6 +275,23 @@ describe("client authentication", function () {
                         }
                     });
                     client = redis.createClient.apply(redis.createClient, args);
+                    testAuth(done);
+                });
+
+                it('without options.auth_pass', function (done) {
+                    var args = config.configureClient(parser, ip, {
+                        failover: {
+                            connections: [
+                                { auth_pass: auth },
+                                { auth_pass: new_auth }
+                            ]
+                        }
+                    });
+                    client = redis.createClient.apply(redis.createClient, args);
+                    testAuth(done);
+                });
+
+                function testAuth(done) {
                     var readyCount = 0;
 
                     client.on('ready', function () {
@@ -273,7 +313,7 @@ describe("client authentication", function () {
                             helper.testSet(client, 3, done);
                         }
                     });
-                });
+                }
             });
         });
     });
