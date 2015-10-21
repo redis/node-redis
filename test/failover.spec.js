@@ -2,6 +2,7 @@
 
 var assert = require('assert');
 var path = require('path');
+var fs = require('fs');
 var config = require('./lib/config');
 var RedisProcess = require('./lib/redis-process');
 var helper = require('./helper');
@@ -18,7 +19,14 @@ function startRedis2(conf, done) {
 
 
 describe('connection failover', function() {
+    this.timeout(12000);
+
+    function deleteDumpFile() {
+        try { fs.unlinkSync(path.join(__dirname, '..', 'dump.rdb')); } catch(e) {}
+    }
+
     before(function (done) {
+        deleteDumpFile();
         startRedis2('./conf/redis2.conf', done);
     });
 
@@ -28,7 +36,7 @@ describe('connection failover', function() {
 
     helper.allTests({ allConnections: true }, function(parser, ip, args) {
         describe('using ' + parser + ' and ' + ip, function () {
-            var client1, client2, clientWithFailover;
+            var client1, client2, clientFO;
 
             function onceAll(emitters, event, func) {
                 var count = 0;
@@ -49,12 +57,13 @@ describe('connection failover', function() {
 
                 var argsFO = config.configureClient(parser, ip, {
                     failover: {
-                        connections: [ { port: 6380 } ]
+                        connections: [ { port: 6380 } ],
+                        readonly: true
                     }
                 });
-                clientWithFailover = redis.createClient.apply(redis.createClient, argsFO);
+                clientFO = redis.createClient.apply(redis.createClient, argsFO);
 
-                onceAll([client1, client2, clientWithFailover], 'ready', done);
+                onceAll([client1, client2, clientFO], 'ready', done);
             });
 
             afterEach(function (done) {
@@ -62,19 +71,19 @@ describe('connection failover', function() {
                     client2.flushdb(function() {
                         client1.end();
                         client2.end();
-                        clientWithFailover.end();
+                        clientFO.end();
                         done();
                     });
                 });
             });
 
             it('should switch the connection to the next redis if connection fails', function (done) {
-                clientWithFailover.on('reconnecting', function() {
-                    clientWithFailover.on('ready', function() {
-                        clientWithFailover.get('failover_key', function (err, res) {
+                clientFO.on('reconnecting', function() {
+                    clientFO.on('ready', function() {
+                        clientFO.get('failover_key', function (err, res) {
                             if (err) return done(err);
                             assert.equal(res, undefined);
-                            clientWithFailover.set('failover_key', 'bar', function (err, res) {
+                            clientFO.set('failover_key', 'bar', function (err, res) {
                                 if (err) return done(err);
                                 client2.get('failover_key', function (err, res) {
                                     assert.equal(res, 'bar');
@@ -85,33 +94,33 @@ describe('connection failover', function() {
                     });
                 });
 
-                clientWithFailover.set('failover_key', 'foo', function (err, res) {
+                clientFO.set('failover_key', 'foo', function (err, res) {
                     if (err) return done(err);
                     client1.get('failover_key', function (err, res) {
                         if (err) return done(err);
                         assert.equal(res, 'foo');
-                        clientWithFailover.stream.destroy();
+                        clientFO.stream.destroy();
                     });
                 });
             });
 
             it('should switch back on the second reconnect', function (done) {
                 var reconnectCount = 0;
-                clientWithFailover.on('reconnecting', function() {
-                    clientWithFailover.once('ready', function() {
+                clientFO.on('reconnecting', function() {
+                    clientFO.once('ready', function() {
                         reconnectCount++;
                         var _client = reconnectCount === 1 ? client2 : client1;
 
                         _client.get('failover_key', function (err, res) {
                             if (err) return done(err);
                             assert.equal(res, undefined);
-                            clientWithFailover.set('failover_key', 'test', function (err, res) {
+                            clientFO.set('failover_key', 'test', function (err, res) {
                                 if (err) return done(err);
                                 _client.get('failover_key', function (err, res) {
                                     if (err) return done(err);
                                     assert.equal(res, 'test');
-                                    assert.equal(clientWithFailover._failover.cycle, reconnectCount - 1);
-                                    if (reconnectCount === 1) clientWithFailover.stream.destroy();
+                                    assert.equal(clientFO._failover.cycle, reconnectCount - 1);
+                                    if (reconnectCount === 1) clientFO.stream.destroy();
                                     else done();
                                 });
                             });
@@ -119,7 +128,50 @@ describe('connection failover', function() {
                     });
                 });
 
-                clientWithFailover.stream.destroy();
+                clientFO.stream.destroy();
+            });
+
+            describe('failover with master slave replication', function() {
+                afterEach(function (done) {
+                    deleteDumpFile();
+                    client2.slaveof('NO', 'ONE', function (err, res) {
+                        done(err);
+                    });
+                });
+
+                it('should switch to master if the host becomes slave and write fails', function (done) {
+                    var reconnectCount = 0;
+
+                    clientFO.on('reconnecting', function() {
+                        if (reconnectCount > 0) return;
+                        reconnectCount++;
+                        clientFO.once('ready', function() {
+                            var masterIP = config.HOST[ip] || '127.0.0.1';
+                            client2.slaveof(masterIP, '6379', function (err, res) {
+                                if (err) return done(err);
+                                setTimeout(function() {
+                                    clientFO.set('test_replication', 'bar', function (err, res) {
+                                        if (err) return done(err);
+                                        client2.get('test_replication', function (err, res) {
+                                            if (err) return done(err);
+                                            assert.equal(res, 'bar');
+                                            done();
+                                        });
+                                    });
+                                }, 2000);
+                            });
+                        });
+                    });
+
+                    clientFO.set('test_replication', 'foo', function (err, res) {
+                        if (err) return done(err);
+                        client1.get('test_replication', function (err, res) {
+                            if (err) return done(err);
+                            assert.equal(res, 'foo');
+                            clientFO.stream.destroy();
+                        });
+                    });
+                });
             });
         });
     });

@@ -576,6 +576,7 @@ RedisClient.prototype.connection_gone = function (why) {
 };
 
 var AUTH_ERROR = /NOAUTH|authentication required|operation not permitted/i;
+var READONLY_ERROR = /READONLY/i;
 function _return_error(client, err, command_obj) {
     var queue_len = client.command_queue.length;
     // send_command might have been used wrong => catch those cases too
@@ -598,7 +599,7 @@ function _return_error(client, err, command_obj) {
     } else {
         client.emit('error', err);
     }
-};
+}
 
 RedisClient.prototype.drain = function () {
     this.emit('drain');
@@ -625,9 +626,9 @@ RedisClient.prototype.return_error = function (err) {
                             command_obj.command !== 'auth' &&
                             AUTH_ERROR.test(err.message);
 
+    var self = this;
     if (should_retry_auth) {
         debug('Authentication error, possibly password enabled, try to authenticate');
-        var self = this;
         authenticateLoop(this, passwords, function (e, res) {
             if (e) {
                 _return_error(self, err, command_obj);
@@ -637,7 +638,24 @@ RedisClient.prototype.return_error = function (err) {
             }
         });
     } else {
-        _return_error(this, err, command_obj);
+        var should_reconnect = this._failover &&
+                                this._failover.connections.length > 1 &&
+                                this.options.failover.readonly &&
+                                READONLY_ERROR.test(err.message);
+
+        if (should_reconnect) {
+            debug('Read-only error, possibly became slave, try to switch');
+            this.once('ready', function() {
+                send_command_obj(self, command_obj);
+            });
+
+            this.once('error', function() {
+                _return_error(self, err, command_obj);
+            });
+            this.stream.destroy();
+        } else {
+            _return_error(this, err, command_obj);
+        }
     }
 };
 
