@@ -205,10 +205,37 @@ The value is provided in milliseconds and is counted once the disconnect occurre
 That way the default is to try reconnecting until 24h passed.
 * `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
-* `auth_pass`: *null*; If set, client will run redis auth command on connect.
+* `auth_pass`: *null*; If set, client will run redis auth command on connect. If there is no password in redis the driver will log the warning. If the password is enabled in redis at a later point (using `config set requirepass`) the client will seemlessly authenticate when some command fails and reissue the failed command, so there will be no failed command from the application perspective.
 * `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
 * `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
+* `failover`: *null*; This option allows defining multiple hosts (in `failover.connections`) that the driver will be re-connecting to in order when connection fails. If this option is set, `retry_delay` will only be increasing every time all hosts have been tried. This option also allows defining multiple passwords to the same host. With an additional `failover.readonly` option set as `true` the driver will switch to the next host and re-issue the command when the host becomes readonly slave. Sample options with `failover`:
+
+    ```js
+    {
+        host: 'host1',
+        port: 'port1',
+        auth_pass: 'auth',
+        failover: {
+            connections: [
+                {
+                    auth_path: 'new_auth' // alternative password for the default host1
+                },
+                {
+                    host: 'host2',
+                    port: 'port2',
+                    auth_pass: 'auth'
+                },
+                {
+                    host: 'host2',
+                    port: 'port2',
+                    auth_pass: 'new_auth' // alternative password for host2
+                }
+            ],
+            readonly: true // switch host when it becomes readonly
+        }
+    }
+    ```
 
 ```js
 var redis = require("redis"),
