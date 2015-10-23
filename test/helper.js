@@ -23,7 +23,7 @@ function startStunnel(done) {
 }
 
 function stopStunnel(done) {
-    if(stunnel_process) {
+    if (stunnel_process) {
         StunnelProcess.stop(stunnel_process, done);
     } else {
         done();

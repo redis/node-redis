@@ -193,9 +193,7 @@ describe("TLS connection tests", function () {
                         });
                     });
                 }
-
             });
-
         });
     });
 });

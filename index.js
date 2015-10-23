@@ -96,9 +96,9 @@ RedisClient.prototype.create_stream = function() {
     var tls_options = options.tls;
     var stream;
 
-    if(!connection_options) {
+    if (!connection_options) {
         connection_options = this.connection_options = {};
-        if(options.path) {
+        if (options.path) {
             //unix
             this.address = connection_options.path = options.path;
         } else {
@@ -106,7 +106,7 @@ RedisClient.prototype.create_stream = function() {
             connection_options.port = options.port || default_port;
             connection_options.host = options.host || default_host;
             connection_options.family = (options.family === 'IPv6') ? 6 : 4;
-            if(tls_options) {
+            if (tls_options) {
                 Object.keys(tls_options).forEach(function(opt) {
                     connection_options[opt] = tls_options[opt];
                 });
@@ -115,11 +115,11 @@ RedisClient.prototype.create_stream = function() {
         }
     }
 
-    if(tls_options) {
+    if (tls_options) {
 	    stream = tls.connect(connection_options);
     } else {
 	    stream = net.createConnection(connection_options);
-	}
+    }
 
     var self = this;
     if (!stream.cork) {
@@ -135,7 +135,7 @@ RedisClient.prototype.create_stream = function() {
         this.write = this.writeStream;
     }
 
-	return stream;
+    return stream;
 };
 
 RedisClient.prototype.install_stream_listeners = function() {
@@ -177,7 +177,7 @@ RedisClient.prototype.reconnect_stream = function() {
     // If we constructed the stream, then we reconstruct it
     // since TLS streams can't simply be reconnected.
     // If a caller-provided stream, just reconnect directly.
-    if(this.connection_options) {
+    if (this.connection_options) {
         this.stream.removeAllListeners();
         this.stream.destroy();
         this.stream = this.create_stream();
