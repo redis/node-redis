@@ -10,7 +10,7 @@ var util = require('util');
 function once(cb) {
     var called = false;
     return function() {
-        if(called) return;
+        if (called) return;
         called = true;
         cb.apply(this, arguments);
     };
@@ -39,7 +39,7 @@ function StunnelProcess(conf_dir) {
 
     stunnel.on('exit', function(code) {
         self.clear();
-        if(code === 0) {
+        if (code === 0) {
             self.emit('stopped');
         } else {
             self.emit('error', new Error('Stunnel exited unexpectedly; code = ' + code));
@@ -48,7 +48,7 @@ function StunnelProcess(conf_dir) {
 
     // wait to stunnel to start
     stunnel.stderr.on("data", function(data) {
-        if(data.toString().match(/Service.+redis.+bound/)) {
+        if (data.toString().match(/Service.+redis.+bound/)) {
             clearTimeout(this.timer);
             self.emit('started');
         }
