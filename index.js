@@ -235,11 +235,6 @@ function authenticateLoop(client, passwords, passIndex, callback) {
         passIndex = 0;
     }
 
-    if (!passwords) {
-        callback(new Error('no auth_pass specified'));
-        return;
-    }
-
     send_auth(client, passwords[passIndex], function (err, res) {
         if (err) {
             passIndex++;

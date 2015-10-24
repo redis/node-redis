@@ -19,7 +19,7 @@ function startRedis2(conf, done) {
 
 
 describe('connection failover', function() {
-    this.timeout(12000);
+    this.timeout(16000);
 
     function deleteDumpFile() {
         try { fs.unlinkSync(path.join(__dirname, '..', 'dump.rdb')); } catch(e) {}
@@ -158,7 +158,7 @@ describe('connection failover', function() {
                                             done();
                                         });
                                     });
-                                }, 2000);
+                                }, 4000);
                             });
                         });
                     });
