@@ -1,9 +1,21 @@
 Changelog
 =========
 
+## v.2.3.0 - xx XXX, 2015
+
+Features
+
+-  Improve speed further for: ([@BridgeAR](https://github.com/BridgeAR))
+ -  saving big strings (up to +300%)
+ -  using .multi / .batch (up to +50% / on Node.js 0.10.x +300%)
+ -  saving small buffers
+-  Increased coverage to 99% ([@BridgeAR](https://github.com/BridgeAR))
+
 Bugfixes
 
 -  Fixed a js parser error that could result in a timeout ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed .multi / .batch used with Node.js 0.10.x not working properly after a reconnect ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed fired but not yet returned commands not being rejected after a connection loss ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v.2.2.5 - 18 Oct, 2015
 
