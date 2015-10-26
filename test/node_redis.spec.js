@@ -43,6 +43,22 @@ describe("The node_redis client", function () {
                     });
                 });
 
+                describe('big data', function () {
+
+                    // Check if the fast mode for big strings is working correct
+                    it('safe strings that are bigger than 30000 characters', function(done) {
+                        var str = 'foo ಠ_ಠ bar ';
+                        while (str.length < 111111) {
+                            str += str;
+                        }
+                        client.set('foo', str);
+                        client.get('foo', function (err, res) {
+                            assert.strictEqual(res, str);
+                            done();
+                        });
+                    });
+                });
+
                 describe("send_command", function () {
 
                     it("omitting args should be fine in some cases", function (done) {
@@ -470,20 +486,6 @@ describe("The node_redis client", function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
-                    it("should emit drain after info command and nothing to buffer", function (done) {
-                        client = redis.createClient({
-                            parser: parser
-                        });
-                        client.set('foo', 'bar');
-                        client.get('foo', function () {
-                            assert(!client.should_buffer);
-                            setTimeout(done, 25);
-                        });
-                        client.on('drain', function() {
-                            assert(client.offline_queue.length === 2);
-                        });
-                    });
-
                     it("should emit drain if offline queue is flushed and nothing to buffer", function (done) {
                         client = redis.createClient({
                             parser: parser,
