@@ -20,7 +20,8 @@
     "posttest": "jshint ."
   },
   "dependencies": {
-    "double-ended-queue": "^2.1.0-0"
+    "double-ended-queue": "^2.1.0-0",
+    "bl": "^1.0.0"
   },
   "engines": {
     "node": ">=0.10.0"
