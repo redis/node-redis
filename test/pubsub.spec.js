@@ -317,6 +317,39 @@ describe("publish/subscribe", function () {
                 });
             });
 
+            it("should not publish a message multiple times per command", function (done) {
+                var published = {};
+
+                function subscribe(message) {
+                    sub.removeAllListeners('subscribe');
+                    sub.removeAllListeners('message');
+                    sub.removeAllListeners('unsubscribe');
+                    sub.on('subscribe', function () {
+                        pub.publish('/foo', message);
+                    });
+                    sub.on('message', function (channel, message) {
+                        if (published[message]) {
+                            done(new Error('Message published more than once.'));
+                        }
+                        published[message] = true;
+                    });
+                    sub.on('unsubscribe', function (channel, count) {
+                        assert.strictEqual(count, 0);
+                    });
+                    sub.subscribe('/foo');
+                }
+
+                subscribe('hello');
+
+                setTimeout(function () {
+                    sub.unsubscribe();
+                    setTimeout(function () {
+                        subscribe('world');
+                        setTimeout(done, 50);
+                    }, 40);
+                }, 40);
+            });
+
             // TODO: Fix pub sub
             // And there's more than just those two issues
             describe.skip('FIXME: broken pub sub', function () {
@@ -330,35 +363,6 @@ describe("publish/subscribe", function () {
                         done(new Error('This message should not have been published: ' + msg));
                     });
                     setTimeout(done, 200);
-                });
-
-                it("should not publish a message multiple times per command", function (done) {
-                    var published = {};
-
-                    function subscribe(message) {
-                        sub.on('subscribe', function () {
-                            pub.publish('/foo', message);
-                        });
-                        sub.on('message', function (channel, message) {
-                            if (published[message]) {
-                                done(new Error('Message published more than once.'));
-                            }
-                            published[message] = true;
-                        });
-                        sub.on('unsubscribe', function (channel, count) {
-                            assert.strictEqual(count, 0);
-                        });
-                        sub.subscribe('/foo');
-                    }
-
-                    subscribe('hello');
-
-                    setTimeout(function () {
-                        sub.unsubscribe();
-                        setTimeout(function () {
-                            subscribe('world');
-                        }, 40);
-                    }, 40);
                 });
             });
 
