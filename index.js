@@ -162,23 +162,19 @@ RedisClient.prototype.unref = function () {
     }
 };
 
-// flush offline_queue and command_queue, erroring any items with a callback first
-RedisClient.prototype.flush_and_error = function (error) {
+// flush provided queues, erroring any items with a callback first
+RedisClient.prototype.flush_and_error = function (error, queue_names) {
     var command_obj;
-    while (command_obj = this.offline_queue.shift()) {
-        if (typeof command_obj.callback === 'function') {
-            error.command = command_obj.command.toUpperCase();
-            command_obj.callback(error);
+    queue_names = queue_names || ['offline_queue', 'command_queue'];
+    for (var i = 0; i < queue_names.length; i++) {
+        while (command_obj = this[queue_names[i]].shift()) {
+            if (typeof command_obj.callback === 'function') {
+                error.command = command_obj.command.toUpperCase();
+                command_obj.callback(error);
+            }
         }
+        this[queue_names[i]] = new Queue();
     }
-    while (command_obj = this.command_queue.shift()) {
-        if (typeof command_obj.callback === 'function') {
-            error.command = command_obj.command.toUpperCase();
-            command_obj.callback(error);
-        }
-    }
-    this.offline_queue = new Queue();
-    this.command_queue = new Queue();
 };
 
 RedisClient.prototype.on_error = function (err) {
@@ -477,6 +473,7 @@ var retry_connection = function (self) {
 };
 
 RedisClient.prototype.connection_gone = function (why) {
+    var error;
     // If a retry is already in progress, just let that happen
     if (this.retry_timer) {
         return;
@@ -515,12 +512,24 @@ RedisClient.prototype.connection_gone = function (why) {
         var message = this.retry_totaltime >= this.connect_timeout ?
             'connection timeout exceeded.' :
             'maximum connection attempts exceeded.';
-        var error = new Error('Redis connection in broken state: ' + message);
+        error = new Error('Redis connection in broken state: ' + message);
         error.code = 'CONNECTION_BROKEN';
         this.flush_and_error(error);
         this.emit('error', error);
         this.end();
         return;
+    }
+
+    // Flush all commands that have not yet returned. We can't handle them appropriatly
+    if (this.command_queue.length !== 0) {
+        error = new Error('Redis connection lost and command aborted in uncertain state. It might have been processed.');
+        error.code = 'UNCERTAIN_STATE';
+        // TODO: Evaluate to add this
+        // if (this.options.retry_commands) {
+        //     this.offline_queue.unshift(this.command_queue.toArray());
+        //     error.message = 'Command aborted in uncertain state and queued for next connection.';
+        // }
+        this.flush_and_error(error, ['command_queue']);
     }
 
     if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {

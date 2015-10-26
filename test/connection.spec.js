@@ -236,6 +236,63 @@ describe("connection tests", function () {
                     });
                 }
 
+                it("redis still loading <= 1000ms", function (done) {
+                    client = redis.createClient.apply(redis.createClient, args);
+                    var tmp = client.info.bind(client);
+                    var end = helper.callFuncAfter(done, 3);
+                    var delayed = false;
+                    var time;
+                    // Mock original function and pretent redis is still loading
+                    client.info = function (cb) {
+                        tmp(function(err, res) {
+                            if (!delayed) {
+                                assert(!err);
+                                res = res.toString().replace(/loading:0/, 'loading:1\r\nloading_eta_seconds:0.5');
+                                delayed = true;
+                                time = Date.now();
+                            }
+                            end();
+                            cb(err, res);
+                        });
+                    };
+                    client.on("ready", function () {
+                        var rest = Date.now() - time;
+                        // Be on the safe side and accept 100ms above the original value
+                        assert(rest - 100 < 500 && rest >= 500);
+                        assert(delayed);
+                        end();
+                    });
+                });
+
+                it("redis still loading > 1000ms", function (done) {
+                    client = redis.createClient.apply(redis.createClient, args);
+                    var tmp = client.info.bind(client);
+                    var end = helper.callFuncAfter(done, 3);
+                    var delayed = false;
+                    var time;
+                    // Mock original function and pretent redis is still loading
+                    client.info = function (cb) {
+                        tmp(function(err, res) {
+                            if (!delayed) {
+                                assert(!err);
+                                // Try reconnecting after one second even if redis tells us the time needed is above one second
+                                res = res.toString().replace(/loading:0/, 'loading:1\r\nloading_eta_seconds:2.5');
+                                delayed = true;
+                                time = Date.now();
+                            }
+                            end();
+                            cb(err, res);
+                        });
+                    };
+                    client.on("ready", function () {
+                        var rest = Date.now() - time;
+                        // Be on the safe side and accept 100ms above the original value
+                        assert(rest - 100 < 1000 && rest >= 1000);
+                        assert(delayed);
+                        end();
+                    });
+                });
+
             });
 
         });
