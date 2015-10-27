@@ -78,6 +78,7 @@ describe('connection failover', function() {
             });
 
             it('should switch the connection to the next redis if connection fails', function (done) {
+                if (rp2.spawnFailed()) this.skip();
                 clientFO.on('reconnecting', function() {
                     clientFO.on('ready', function() {
                         clientFO.get('failover_key', function (err, res) {
@@ -105,6 +106,7 @@ describe('connection failover', function() {
             });
 
             it('should switch back on the second reconnect', function (done) {
+                if (rp2.spawnFailed()) this.skip();
                 var reconnectCount = 0;
                 clientFO.on('reconnecting', function() {
                     clientFO.once('ready', function() {
@@ -140,6 +142,7 @@ describe('connection failover', function() {
                 });
 
                 it('should switch to master if the host becomes slave and write fails', function (done) {
+                    if (rp2.spawnFailed()) this.skip();
                     var reconnectCount = 0;
 
                     clientFO.on('reconnecting', function() {
