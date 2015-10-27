@@ -268,6 +268,7 @@ describe("client authentication", function () {
                 });
 
                 it('with options.auth_pass', function (done) {
+                    if (helper.redisProcess().spawnFailed()) this.skip();
                     var args = config.configureClient(parser, ip, {
                         auth_pass: auth,
                         failover: {
@@ -279,6 +280,7 @@ describe("client authentication", function () {
                 });
 
                 it('without options.auth_pass', function (done) {
+                    if (helper.redisProcess().spawnFailed()) this.skip();
                     var args = config.configureClient(parser, ip, {
                         failover: {
                             connections: [
