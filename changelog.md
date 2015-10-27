@@ -1,6 +1,10 @@
 Changelog
 =========
 
+Bugfixes
+
+-  Fixed a js parser error that could result in a timeout ([@BridgeAR](https://github.com/BridgeAR))
+
 ## v.2.2.5 - 18 Oct, 2015
 
 Bugfixes

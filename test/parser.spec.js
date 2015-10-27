@@ -55,7 +55,7 @@ describe('parsers', function () {
                 return done();
             });
 
-            it('line breaks in the beginning', function (done) {
+            it('line breaks in the beginning of the last chunk', function (done) {
                 var parser = new Parser();
                 var reply_count = 0;
                 function check_reply(reply) {
@@ -68,10 +68,7 @@ describe('parsers', function () {
                 parser.execute(new Buffer('*1\r\n*1\r\n$1\r\na'));
 
                 parser.execute(new Buffer('\r\n*1\r\n*1\r'));
-                parser.execute(new Buffer('\n$1\r\na\r\n'));
-
-                parser.execute(new Buffer('*1\r\n*1\r\n'));
-                parser.execute(new Buffer('$1\r\na\r\n'));
+                parser.execute(new Buffer('\n$1\r\na\r\n*1\r\n*1\r\n$1\r\na\r\n'));
 
                 assert.equal(reply_count, 3, "check reply should have been called three times");
                 return done();
