@@ -530,6 +530,8 @@ RedisClient.prototype.connection_gone = function (why) {
         //     error.message = 'Command aborted in uncertain state and queued for next connection.';
         // }
         this.flush_and_error(error, ['command_queue']);
+        error.message = 'Redis connection lost and commands aborted in uncertain state. They might have been processed.';
+        this.emit('error', error);
     }
 
     if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
@@ -1109,11 +1111,12 @@ Multi.prototype.execute_callback = function (err, replies) {
 
     if (err) {
         // The errors would be circular
-        err.errors = err.code !== 'CONNECTION_BROKEN' ? this.errors : [];
+        var connection_error = ['CONNECTION_BROKEN', 'UNCERTAIN_STATE'].indexOf(err.code) !== -1;
+        err.errors = connection_error ? [] : this.errors;
         if (this.callback) {
             this.callback(err);
-        } else if (err.code !== 'CONNECTION_BROKEN') {
-            // Exclude CONNECTION_BROKEN so that error won't be emitted twice
+            // Exclude connection errors so that those errors won't be emitted twice
+        } else if (!connection_error) {
             this._client.emit('error', err);
         }
         return;

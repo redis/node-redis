@@ -107,6 +107,20 @@ describe("connection tests", function () {
                     });
 
                 });
+
+                it("emits error once if reconnecting after command has been executed but not yet returned without callback", function (done) {
+                    client = redis.createClient.apply(redis.createClient, args);
+                    client.on('error', function(err) {
+                        assert.strictEqual(err.code, 'UNCERTAIN_STATE');
+                        done();
+                    });
+
+                    client.on('ready', function() {
+                        client.set("foo", 'bar');
+                        // Abort connection before the value returned
+                        client.stream.destroy();
+                    });
+                });
             });
 
             describe("when not connected", function () {
