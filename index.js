@@ -116,7 +116,7 @@ RedisClient.prototype.install_stream_listeners = function() {
 
     this.stream.on('data', function (buffer_from_socket) {
         // The data.toString() has a significant impact on big chunks and therefor this should only be used if necessary
-        // debug('Net read ' + this.address + ' id ' + this.connection_id + ': ' + data.toString());
+        debug('Net read ' + this.address + ' id ' + this.connection_id); // + ': ' + data.toString());
         self.reply_parser.execute(buffer_from_socket);
     });
 
