@@ -537,6 +537,35 @@ describe("The 'multi' method", function () {
                     });
                 });
 
+                it("works properly after a reconnect. issue #897", function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
+
+                    client.stream.destroy();
+                    client.on('error', function (err) {
+                        assert.strictEqual(err.code, 'ECONNREFUSED');
+                    });
+                    client.on('ready', function () {
+                        client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec(function (err, res) {
+                            assert(!err);
+                            assert.strictEqual(res[1], 'bar');
+                            done();
+                        });
+                    });
+                });
+
+                it("emits error once if reconnecting after multi has been executed but not yet returned without callback", function (done) {
+                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
+
+                    client.on('error', function(err) {
+                        assert.strictEqual(err.code, 'UNCERTAIN_STATE');
+                        done();
+                    });
+
+                    client.multi().set("foo", 'bar').get('foo').exec();
+                    // Abort connection before the value returned
+                    client.stream.destroy();
+                });
+
             });
         });
     });

@@ -162,7 +162,7 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it('handles batchple operations being applied to a set', function (done) {
+                it('handles multiple operations being applied to a set', function (done) {
                     client.sadd("some set", "mem 1");
                     client.sadd(["some set", "mem 2"]);
                     client.sadd("some set", "mem 3");
@@ -189,7 +189,7 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it('allows batchple operations to be performed using constructor with all kinds of syntax', function (done) {
+                it('allows multiple operations to be performed using constructor with all kinds of syntax', function (done) {
                     var now = Date.now();
                     var arr = ["batchhmset", "batchbar", "batchbaz"];
                     var arr2 = ['some manner of key', 'otherTypes'];
@@ -253,7 +253,7 @@ describe("The 'batch' method", function () {
                     assert.strictEqual(buffering, true);
                 });
 
-                it('allows batchple operations to be performed using a chaining API', function (done) {
+                it('allows multiple operations to be performed using a chaining API', function (done) {
                     client.batch()
                         .mset('some', '10', 'keys', '20')
                         .incr('some')
@@ -270,7 +270,7 @@ describe("The 'batch' method", function () {
                         });
                 });
 
-                it('allows batchple commands to work the same as normal to be performed using a chaining API', function (done) {
+                it('allows multiple commands to work the same as normal to be performed using a chaining API', function (done) {
                     client.batch()
                         .mset(['some', '10', 'keys', '20'])
                         .incr(['some', helper.isNumber(11)])
@@ -287,7 +287,7 @@ describe("The 'batch' method", function () {
                         });
                 });
 
-                it('allows batchple commands to work the same as normal to be performed using a chaining API promisified', function () {
+                it('allows multiple commands to work the same as normal to be performed using a chaining API promisified', function () {
                     return client.batch()
                         .mset(['some', '10', 'keys', '20'])
                         .incr(['some', helper.isNumber(11)])
@@ -303,7 +303,7 @@ describe("The 'batch' method", function () {
                         });
                 });
 
-                it('allows an array to be provided indicating batchple operations to perform', function (done) {
+                it('allows an array to be provided indicating multiple operations to perform', function (done) {
                     // test nested batch-bulk replies with nulls.
                     client.batch([
                         ["mget", ["batchfoo", "some", "random value", "keys"]],
