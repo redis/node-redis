@@ -82,8 +82,6 @@ function RedisClient(stream, options) {
         options.detect_buffers = false;
     }
     this.should_buffer = false;
-    this.command_queue_high_water = +options.command_queue_high_water || 1000;
-    this.command_queue_low_water = options.command_queue_low_water | 0;
     this.max_attempts = options.max_attempts | 0;
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent

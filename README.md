@@ -154,11 +154,11 @@ So please attach the error listener to node_redis.
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure.
 
-All commands return a boolean if the stream had to buffer or not. If false is returned the stream had to buffer.
+If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
 That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
 
-You can manually control the low water and high water marks by passing ommand_queue_high_water` and `command_queue_low_water` to the client options.
-Check the [Node.js streams API](https://nodejs.org/api/stream.html) for further info.
+You can also check the return value of each command as it will also return the backpressure indicator.
+If false is returned the stream had to buffer.
 
 ### "idle"
 

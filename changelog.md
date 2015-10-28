@@ -10,6 +10,9 @@ Features
  -  using .multi / .batch (up to +50% / on Node.js 0.10.x +300%)
  -  saving small buffers
 -  Increased coverage to 99% ([@BridgeAR](https://github.com/BridgeAR))
+-  Refactored manual backpressure control ([@BridgeAR](https://github.com/BridgeAR))
+ -  Removed the high water mark and low water mark. Such a mechanism should be implemented by a user instead
+ -  The `drain` event is from now on only emitted if the stream really had to buffer
 
 Bugfixes
 
