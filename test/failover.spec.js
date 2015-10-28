@@ -20,7 +20,7 @@ function startRedis2(conf, done) {
 
 (process.platform === 'win32' ? describe.skip : describe)
 ('connection failover', function() {
-    this.timeout(16000);
+    this.timeout(12000);
 
     function deleteDumpFile() {
         try { fs.unlinkSync(path.join(__dirname, '..', 'dump.rdb')); } catch(e) {}
@@ -154,15 +154,18 @@ function startRedis2(conf, done) {
                             client2.slaveof(masterIP, '6379', function (err, res) {
                                 if (err) return done(err);
                                 setTimeout(function() {
+                                    assert.deepEqual(clientFO.connectionOption, { port: 6380 });
                                     clientFO.set('test_replication', 'bar', function (err, res) {
                                         if (err) return done(err);
-                                        client2.get('test_replication', function (err, res) {
+                                        var co = clientFO.connectionOption;
+                                        assert(co.port === 6379 || co.path === '/tmp/redis.sock');
+                                        client1.get('test_replication', function (err, res) {
                                             if (err) return done(err);
                                             assert.equal(res, 'bar');
                                             done();
                                         });
                                     });
-                                }, 4000);
+                                }, 2000);
                             });
                         });
                     });
