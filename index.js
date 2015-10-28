@@ -1229,8 +1229,8 @@ var createClient_unix = function (path, options){
 
 var createClient_tcp = function (port_arg, host_arg, options) {
     var cnxOptions = {
-        port : port_arg || default_port,
-        host : host_arg || default_host,
+        port : port_arg || options.port || default_port,
+        host : host_arg || options.host || default_host,
         family : options.family === 'IPv6' ? 6 : 4
     };
     var net_client = net.createConnection(cnxOptions);
