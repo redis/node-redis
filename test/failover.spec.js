@@ -18,7 +18,8 @@ function startRedis2(conf, done) {
 }
 
 
-describe('connection failover', function() {
+(process.platform === 'win32' ? describe.skip : describe)
+('connection failover', function() {
     this.timeout(16000);
 
     function deleteDumpFile() {
