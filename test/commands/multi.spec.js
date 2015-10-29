@@ -84,7 +84,7 @@ describe("The 'multi' method", function () {
                             multi1.exec(function (err, res) {
                                 assert(called);
                                 assert(!err);
-                                assert.strictEqual(res, '456');
+                                assert.strictEqual(res[1], '456');
                                 done();
                             });
                         });
