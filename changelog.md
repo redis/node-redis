@@ -15,6 +15,7 @@ Features
  -  The `drain` event is from now on only emitted if the stream really had to buffer
 -  Reduced the default connect_timeout to be one hour instead of 24h ([@BridgeAR](https://github.com/BridgeAR))
 -  Added .path to redis.createClient(options); ([@BridgeAR](https://github.com/BridgeAR))
+-  Ignore info command, if not available on server ([@ivanB1975](https://github.com/ivanB1975))
 
 Bugfixes
 

@@ -266,6 +266,18 @@ describe("connection tests", function () {
                     });
                 });
 
+                it("connects correctly even if the info command is not present on the redis server", function (done) {
+                    client = redis.createClient.apply(redis.createClient, args);
+                    client.info = function (cb) {
+                        // Mock the result
+                        cb(new Error("ERR unknown command 'info'"));
+                    };
+                    client.once("ready", function () {
+                        assert.strictEqual(Object.keys(client.server_info).length, 0);
+                        done();
+                    });
+                });
+
                 it("works with missing options object for new redis instances", function () {
                     // This is needed for libraries that have their own createClient function like fakeredis
                     client = new redis.RedisClient({ on: function () {}});
