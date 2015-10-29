@@ -49,7 +49,7 @@ describe("connection tests", function () {
                 });
 
                 it("emit an error after max retry timeout and do not try to reconnect afterwards", function (done) {
-                    var connect_timeout = 500; // in ms
+                    var connect_timeout = 600; // in ms
                     client = redis.createClient({
                         parser: parser,
                         connect_timeout: connect_timeout
@@ -187,21 +187,23 @@ describe("connection tests", function () {
                     });
                 });
 
-                it("connect with path provided in the options object", function (done) {
-                    client = redis.createClient({
-                        path: '/tmp/redis.sock',
-                        parser: parser,
-                        connect_timeout: 1000
+                if (process.platform !== 'win32') {
+                    it("connect with path provided in the options object", function (done) {
+                        client = redis.createClient({
+                            path: '/tmp/redis.sock',
+                            parser: parser,
+                            connect_timeout: 1000
+                        });
+
+                        var end = helper.callFuncAfter(done, 2);
+
+                        client.once('ready', function() {
+                            end();
+                        });
+
+                        client.set('foo', 'bar', end);
                     });
-
-                    var end = helper.callFuncAfter(done, 2);
-
-                    client.once('ready', function() {
-                        end();
-                    });
-
-                    client.set('foo', 'bar', end);
-                });
+                }
 
                 it("connects correctly with args", function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
