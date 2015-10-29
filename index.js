@@ -380,15 +380,15 @@ RedisClient.prototype.on_ready = function () {
 
 RedisClient.prototype.on_info_cmd = function (err, res) {
     if (err) {
-        /* ignore if the command info is not existing */
-        if (err.message === "ERR unknown command 'info'"){
-          this.server_info = {};
-          this.on_ready();
-          return;
+        /* istanbul ignore if: the command info is not existing on some servers for security reasons */
+        if (err.message === "ERR unknown command 'info'") {
+            this.server_info = {};
+            this.on_ready();
+            return;
         } else {
-        err.message = 'Ready check failed: ' + err.message;
-        this.emit('error', err);
-        return;
+            err.message = 'Ready check failed: ' + err.message;
+            this.emit('error', err);
+            return;
        }
     }
 
