@@ -380,7 +380,6 @@ RedisClient.prototype.on_ready = function () {
 
 RedisClient.prototype.on_info_cmd = function (err, res) {
     if (err) {
-        /* istanbul ignore if: the command info is not existing on some servers for security reasons */
         if (err.message === "ERR unknown command 'info'") {
             this.server_info = {};
             this.on_ready();
