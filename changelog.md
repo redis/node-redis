@@ -14,6 +14,7 @@ Features
  -  Removed the high water mark and low water mark. Such a mechanism should be implemented by a user instead
  -  The `drain` event is from now on only emitted if the stream really had to buffer
 -  Reduced the default connect_timeout to be one hour instead of 24h ([@BridgeAR](https://github.com/BridgeAR))
+-  Added .path to redis.createClient(options); ([@BridgeAR](https://github.com/BridgeAR))
 
 Bugfixes
 

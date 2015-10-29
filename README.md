@@ -3,7 +3,7 @@ redis - a node.js redis client
 
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
-[![Windows Tests](https://ci.appveyor.com/api/projects/status/koc3xraik0xq3b56/branch/master?svg=true)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
+[![Windows Tests](https://ci.appveyor.com/api/projects/status/koc3xraik0xq3b56/branch/master?svg=true&label=Windows%20Tests)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/NodeRedis/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This is a complete and feature rich Redis client for node.js. It supports all Redis commands and focuses on performance.
@@ -179,6 +179,7 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
+* `path`: *null*; The unix socket string to connect to
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
 * `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
 * `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers

@@ -4,7 +4,6 @@ var assert = require("assert");
 var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
-var net = require('net');
 
 describe("connection tests", function () {
     helper.allTests(function(parser, ip, args) {
@@ -68,7 +67,7 @@ describe("connection tests", function () {
                     client.on('error', function(err) {
                         if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
                             setTimeout(function () {
-                                assert(time === connect_timeout);
+                                assert.strictEqual(time, connect_timeout);
                                 done();
                             }, 500);
                         }
@@ -133,7 +132,9 @@ describe("connection tests", function () {
                         host: '192.168.74.167',
                         connect_timeout: connect_timeout
                     });
-                    assert(client.stream._events.timeout);
+                    process.nextTick(function() {
+                        assert(client.stream._events.timeout);
+                    });
                     assert.strictEqual(client.address, '192.168.74.167:6379');
                     var time = Date.now();
 
@@ -153,7 +154,9 @@ describe("connection tests", function () {
                         parser: parser,
                         host: '192.168.74.167'
                     });
-                    assert(client.stream._events.timeout === undefined);
+                    process.nextTick(function() {
+                        assert.strictEqual(client.stream._events.timeout, undefined);
+                    });
                 });
 
                 it("clears the socket timeout after a connection has been established", function (done) {
@@ -161,10 +164,12 @@ describe("connection tests", function () {
                         parser: parser,
                         connect_timeout: 1000
                     });
-                    assert.strictEqual(client.stream._idleTimeout, 1000);
+                    process.nextTick(function() {
+                        assert.strictEqual(client.stream._idleTimeout, 1000);
+                    });
                     client.on('connect', function () {
                         assert.strictEqual(client.stream._idleTimeout, -1);
-                        assert(client.stream._events.timeout === undefined);
+                        assert.strictEqual(client.stream._events.timeout, undefined);
                         done();
                     });
                 });
@@ -180,6 +185,22 @@ describe("connection tests", function () {
                     client.once('ready', function() {
                         done();
                     });
+                });
+
+                it("connect with path provided in the options object", function (done) {
+                    client = redis.createClient({
+                        path: '/tmp/redis.sock',
+                        parser: parser,
+                        connect_timeout: 1000
+                    });
+
+                    var end = helper.callFuncAfter(done, 2);
+
+                    client.once('ready', function() {
+                        end();
+                    });
+
+                    client.set('foo', 'bar', end);
                 });
 
                 it("connects correctly with args", function (done) {
@@ -247,13 +268,7 @@ describe("connection tests", function () {
 
                 it("works with missing options object for new redis instances", function () {
                     // This is needed for libraries that have their own createClient function like fakeredis
-                    var cnxOptions = {
-                        port : 6379,
-                        host : '127.0.0.1',
-                        family : ip === 'IPv6' ? 6 : 4
-                    };
-                    var net_client = net.createConnection(cnxOptions);
-                    client = new redis.RedisClient(net_client);
+                    client = new redis.RedisClient({ on: function () {}});
                 });
 
                 it("throws on strange connection info", function () {

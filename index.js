@@ -21,6 +21,7 @@ var debug = function(msg) {
 };
 
 function noop () {}
+function clone (obj) { return JSON.parse(JSON.stringify(obj || {})); }
 
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
@@ -34,31 +35,22 @@ try {
 
 parsers.push(require('./lib/parsers/javascript'));
 
-function RedisClient(stream, options) {
+function RedisClient(options) {
     // Copy the options so they are not mutated
-    options = JSON.parse(JSON.stringify(options || {}));
+    options = clone(options);
+    events.EventEmitter.call(this);
     var self = this;
-
-    this.pipeline = 0;
-    var cork;
-    if (!stream.cork) {
-        cork = function (len) {
-            self.pipeline = len;
-            self.pipeline_queue = new Queue(len);
-        };
-        this.uncork = noop;
+    var cnx_options = {};
+    if (options.path) {
+        cnx_options.path = options.path;
+        this.address = options.path;
     } else {
-        cork = function (len) {
-            self.pipeline = len;
-            self.pipeline_queue = new Queue(len);
-            self.stream.cork();
-        };
+        cnx_options.port = options.port || default_port;
+        cnx_options.host = options.host || default_host;
+        cnx_options.family = options.family === 'IPv6' ? 6 : 4;
+        this.address = cnx_options.host + ':' + cnx_options.port;
     }
-    this.once('ready', function () {
-        self.cork = cork;
-    });
-
-    this.stream = stream;
+    this.connection_option = cnx_options;
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
@@ -69,10 +61,8 @@ function RedisClient(stream, options) {
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
     }
-    if (options.rename_commands) {
-        for (var command in options.rename_commands) { // jshint ignore: line
-            options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
-        }
+    for (var command in options.rename_commands) { // jshint ignore: line
+        options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
     }
     options.return_buffers = !!options.return_buffers;
     options.detect_buffers = !!options.detect_buffers;
@@ -98,14 +88,15 @@ function RedisClient(stream, options) {
     this.parser_module = null;
     this.selected_db = null; // Save the selected db here, used when reconnecting
     this.old_state = null;
+    this.pipeline = 0;
     this.options = options;
 
-    this.install_stream_listeners();
-    events.EventEmitter.call(this);
+    self.stream = net.createConnection(cnx_options);
+    self.install_stream_listeners();
 }
 util.inherits(RedisClient, events.EventEmitter);
 
-RedisClient.prototype.install_stream_listeners = function() {
+RedisClient.prototype.install_stream_listeners = function () {
     var self = this;
 
     if (this.options.connect_timeout) {
@@ -144,9 +135,7 @@ RedisClient.prototype.install_stream_listeners = function() {
 };
 
 RedisClient.prototype.cork = noop;
-RedisClient.prototype.uncork = function () {
-    this.stream.uncork();
-};
+RedisClient.prototype.uncork = noop;
 
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
@@ -332,6 +321,24 @@ RedisClient.prototype.on_ready = function () {
         this.old_state = null;
     }
 
+    var cork;
+    if (!this.stream.cork) {
+        cork = function (len) {
+            self.pipeline = len;
+            self.pipeline_queue = new Queue(len);
+        };
+    } else {
+        cork = function (len) {
+            self.pipeline = len;
+            self.pipeline_queue = new Queue(len);
+            self.stream.cork();
+        };
+        this.uncork = function () {
+            self.stream.uncork();
+        };
+    }
+    this.cork = cork;
+
     // magically restore any modal commands from a previous connection
     if (this.selected_db !== null) {
         // this trick works if and only if the following send_command
@@ -472,7 +479,7 @@ var retry_connection = function (self) {
     self.attempts += 1;
     self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
 
-    self.stream = net.createConnection(self.connectionOption);
+    self.stream = net.createConnection(self.connection_option);
     self.install_stream_listeners();
 
     self.retry_timer = null;
@@ -488,6 +495,9 @@ RedisClient.prototype.connection_gone = function (why) {
     debug('Redis connection is gone from ' + why + ' event.');
     this.connected = false;
     this.ready = false;
+    // Deactivate cork to work with the offline queue
+    this.cork = noop;
+    this.pipeline = 0;
 
     if (this.old_state === null) {
         var state = {
@@ -1219,56 +1229,30 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     return this._client.should_buffer;
 };
 
-var createClient_unix = function (path, options){
-    var cnxOptions = {
-        path: path
-    };
-    var net_client = net.createConnection(cnxOptions);
-    var redis_client = new RedisClient(net_client, options);
-
-    redis_client.connectionOption = cnxOptions;
-    redis_client.address = path;
-
-    return redis_client;
-};
-
-var createClient_tcp = function (port_arg, host_arg, options) {
-    var cnxOptions = {
-        port : port_arg || default_port,
-        host : host_arg || default_host,
-        family : options.family === 'IPv6' ? 6 : 4
-    };
-    var net_client = net.createConnection(cnxOptions);
-    var redis_client = new RedisClient(net_client, options);
-
-    redis_client.connectionOption = cnxOptions;
-    redis_client.address = cnxOptions.host + ':' + cnxOptions.port;
-
-    return redis_client;
-};
-
 var createClient = function (port_arg, host_arg, options) {
     if (typeof port_arg === 'object' || port_arg === undefined) {
         options = port_arg || options || {};
-        return createClient_tcp(+options.port, options.host, options);
-    }
-    if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
-        return createClient_tcp(port_arg, host_arg, options || {});
-    }
-    if (typeof port_arg === 'string') {
-        options = host_arg || options || {};
-
+    } else if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
+        options = clone(options);
+        options.host = host_arg;
+        options.port = port_arg;
+    } else if (typeof port_arg === 'string') {
+        options = clone(host_arg || options);
         var parsed = URL.parse(port_arg, true, true);
         if (parsed.hostname) {
             if (parsed.auth) {
                 options.auth_pass = parsed.auth.split(':')[1];
             }
-            return createClient_tcp(parsed.port, parsed.hostname, options);
+            options.host = parsed.hostname;
+            options.port = parsed.port;
+        } else {
+            options.path = port_arg;
         }
-
-        return createClient_unix(port_arg, options);
     }
-    throw new Error('Unknown type of connection in createClient()');
+    if (!options) {
+        throw new Error('Unknown type of connection in createClient()');
+    }
+    return new RedisClient(options);
 };
 
 exports.createClient = createClient;

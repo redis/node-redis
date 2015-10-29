@@ -65,6 +65,31 @@ describe("The 'multi' method", function () {
                     multi1.get('m1');
                     multi1.exec(done);
                 });
+
+                it("executes a pipelined multi properly after a reconnect in combination with the offline queue", function (done) {
+                    client.once('ready', function () {
+                        client.stream.destroy();
+                        var called = false;
+                        var multi1 = client.multi();
+                        multi1.set("m1", "123");
+                        multi1.get('m1');
+                        multi1.exec(function (err, res) {
+                            assert(!err);
+                            called = true;
+                        });
+                        client.once('ready', function () {
+                            var multi1 = client.multi();
+                            multi1.set("m2", "456");
+                            multi1.get('m2');
+                            multi1.exec(function (err, res) {
+                                assert(called);
+                                assert(!err);
+                                assert.strictEqual(res, '456');
+                                done();
+                            });
+                        });
+                    });
+                });
             });
 
             describe("when connection is broken", function () {
