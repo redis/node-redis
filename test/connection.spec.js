@@ -13,10 +13,11 @@ describe("connection tests", function () {
 
             var client;
 
+            beforeEach(function () {
+                client = null;
+            });
             afterEach(function () {
-                if (client) {
-                    client.end();
-                }
+                client.end();
             });
 
             describe("on lost connection", function () {
@@ -127,13 +128,13 @@ describe("connection tests", function () {
 
                 it("emit an error after the socket timeout exceeded the connect_timeout time", function (done) {
                     var connect_timeout = 1000; // in ms
-                    var client = redis.createClient({
+                    client = redis.createClient({
                         parser: parser,
-                        host: '1.2.3.4',
+                        host: '192.168.74.167',
                         connect_timeout: connect_timeout
                     });
                     assert(client.stream._events.timeout);
-                    assert.strictEqual(client.address, '1.2.3.4:6379');
+                    assert.strictEqual(client.address, '192.168.74.167:6379');
                     var time = Date.now();
 
                     client.on("reconnecting", function (params) {
@@ -148,21 +149,22 @@ describe("connection tests", function () {
                 });
 
                 it("use the system socket timeout if the connect_timeout has not been provided", function () {
-                    var client = redis.createClient({
+                    client = redis.createClient({
                         parser: parser,
-                        host: '1.2.3.4'
+                        host: '192.168.74.167'
                     });
                     assert(client.stream._events.timeout === undefined);
                 });
 
                 it("clears the socket timeout after a connection has been established", function (done) {
-                    var client = redis.createClient({
+                    client = redis.createClient({
                         parser: parser,
                         connect_timeout: 1000
                     });
                     assert.strictEqual(client.stream._idleTimeout, 1000);
                     client.on('connect', function () {
                         assert.strictEqual(client.stream._idleTimeout, -1);
+                        assert(client.stream._events.timeout === undefined);
                         done();
                     });
                 });
@@ -255,6 +257,9 @@ describe("connection tests", function () {
                 });
 
                 it("throws on strange connection info", function () {
+                    client = {
+                        end: function() {}
+                    };
                     try {
                         redis.createClient(true);
                         throw new Error('failed');

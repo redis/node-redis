@@ -115,7 +115,8 @@ RedisClient.prototype.install_stream_listeners = function() {
         });
     }
 
-    this.stream.on('connect', function () {
+    this.stream.once('connect', function () {
+        this.removeAllListeners("timeout");
         self.on_connect();
     });
 

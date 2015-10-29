@@ -20,6 +20,9 @@ describe("client authentication", function () {
             var auth = 'porkchopsandwiches';
             var client = null;
 
+            beforeEach(function () {
+                client = null;
+            });
             afterEach(function () {
                 client.end();
             });
