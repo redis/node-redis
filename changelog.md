@@ -13,12 +13,14 @@ Features
 -  Refactored manual backpressure control ([@BridgeAR](https://github.com/BridgeAR))
  -  Removed the high water mark and low water mark. Such a mechanism should be implemented by a user instead
  -  The `drain` event is from now on only emitted if the stream really had to buffer
+-  Reduced the default connect_timeout to be one hour instead of 24h ([@BridgeAR](https://github.com/BridgeAR))
 
 Bugfixes
 
 -  Fixed a js parser error that could result in a timeout ([@BridgeAR](https://github.com/BridgeAR))
 -  Fixed .multi / .batch used with Node.js 0.10.x not working properly after a reconnect ([@BridgeAR](https://github.com/BridgeAR))
 -  Fixed fired but not yet returned commands not being rejected after a connection loss ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed connect_timeout not respected if no connection has ever been established ([@gagle](https://github.com/gagle) & [@benjie](https://github.com/benjie))
 
 ## v.2.2.5 - 18 Oct, 2015
 

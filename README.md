@@ -200,9 +200,9 @@ once the connection has been established. Setting `enable_offline_queue` to
 with an error, or an error will be emitted if no callback is specified.
 * `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
 This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
-* `connect_timeout`: *86400000*; Setting `connect_timeout` limits total time for client to reconnect.
-The value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
-That way the default is to try reconnecting until 24h passed.
+* `connect_timeout`: *3600000*; Setting `connect_timeout` limits total time for client to connect and reconnect.
+The value is provided in milliseconds and is counted from the moment on a new client is created / a connection is lost. The last retry is going to happen exactly at the timeout time.
+Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h passed.
 * `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
 * `auth_pass`: *null*; If set, client will run redis auth command on connect.

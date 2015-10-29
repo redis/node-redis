@@ -85,7 +85,7 @@ function RedisClient(stream, options) {
     this.max_attempts = options.max_attempts | 0;
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
-    this.connect_timeout = +options.connect_timeout || 86400000; // 24 * 60 * 60 * 1000 ms
+    this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
     this.retry_max_delay = +options.retry_max_delay || null;
     this.initialize_retry_vars();
@@ -107,6 +107,13 @@ util.inherits(RedisClient, events.EventEmitter);
 
 RedisClient.prototype.install_stream_listeners = function() {
     var self = this;
+
+    if (this.options.connect_timeout) {
+        this.stream.setTimeout(this.connect_timeout, function () {
+            self.retry_totaltime = self.connect_timeout;
+            self.connection_gone('timeout');
+        });
+    }
 
     this.stream.on('connect', function () {
         self.on_connect();
