@@ -8,6 +8,12 @@ environment:
     - nodejs_version: "3"
     - nodejs_version: "4"
 
+pull_requests:
+  do_not_increment_build_number: true
+
+platform: Any CPU
+shallow_clone: true
+
 # Install scripts. (runs after repo cloning)
 install:
   # Install the Redis

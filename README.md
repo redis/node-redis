@@ -3,7 +3,7 @@ redis - a node.js redis client
 
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
-[![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/node-redis)
+[![Windows Tests](https://ci.appveyor.com/api/projects/status/koc3xraik0xq3b56/branch/master?svg=true)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
 
 This is a complete and feature rich Redis client for node.js. It supports all Redis commands and focuses on performance.
 
