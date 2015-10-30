@@ -351,8 +351,9 @@ describe("connection tests", function () {
                     };
                     client.on("ready", function () {
                         var rest = Date.now() - time;
-                        // Be on the safe side and accept 100ms above the original value
-                        assert(rest - 100 < 500 && rest >= 500);
+                        assert(rest >= 500);
+                        // Be on the safe side and accept 200ms above the original value
+                        assert(rest - 200 < 500);
                         assert(delayed);
                         end();
                     });
@@ -380,8 +381,9 @@ describe("connection tests", function () {
                     };
                     client.on("ready", function () {
                         var rest = Date.now() - time;
-                        // Be on the safe side and accept 100ms above the original value
-                        assert(rest - 100 < 1000 && rest >= 1000);
+                        assert(rest >= 1000);
+                        // Be on the safe side and accept 200ms above the original value
+                        assert(rest - 200 < 1000);
                         assert(delayed);
                         end();
                     });
