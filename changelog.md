@@ -23,6 +23,7 @@ Bugfixes
 -  Fixed .multi / .batch used with Node.js 0.10.x not working properly after a reconnect ([@BridgeAR](https://github.com/BridgeAR))
 -  Fixed fired but not yet returned commands not being rejected after a connection loss ([@BridgeAR](https://github.com/BridgeAR))
 -  Fixed connect_timeout not respected if no connection has ever been established ([@gagle](https://github.com/gagle) & [@benjie](https://github.com/benjie))
+-  Fixed return_buffers in pub sub mode ([@komachi](https://github.com/komachi))
 
 ## v.2.2.5 - 18 Oct, 2015
 
