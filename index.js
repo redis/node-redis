@@ -645,7 +645,7 @@ RedisClient.prototype.return_reply = function (reply) {
         }
     } else if (this.pub_sub_mode || command_obj && command_obj.sub_command) {
         if (Array.isArray(reply)) {
-            if (!command_obj || command_obj.buffer_args === false) {
+            if ((!command_obj || command_obj.buffer_args === false) && !this.options.return_buffers) {
                 reply = utils.reply_to_strings(reply);
             }
             type = reply[0].toString();
