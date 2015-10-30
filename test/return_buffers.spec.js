@@ -7,7 +7,7 @@ var redis = config.redis;
 
 describe("return_buffers", function () {
 
-    helper.allTests(function(parser, ip) {
+    helper.allTests(function(parser, ip, basicArgs) {
 
         describe("using " + parser + " and " + ip, function () {
             var client;
@@ -227,6 +227,58 @@ describe("return_buffers", function () {
                             return done(err);
                         });
                     });
+                });
+            });
+
+            describe('publish/subscribe', function (done) {
+                var pub;
+                var sub;
+                var channel = "test channel";
+                var message = new Buffer("test message");
+
+                var args = config.configureClient(parser, ip, {
+                    return_buffers: true
+                });
+
+                beforeEach(function (done) {
+                    var pubConnected;
+                    var subConnected;
+
+                    pub = redis.createClient.apply(redis.createClient, basicArgs);
+                    sub = redis.createClient.apply(redis.createClient, args);
+                    pub.once("connect", function () {
+                        pub.flushdb(function () {
+                            pubConnected = true;
+                            if (subConnected) {
+                                done();
+                            }
+                        });
+                    });
+                    sub.once("connect", function () {
+                        subConnected = true;
+                        if (pubConnected) {
+                            done();
+                        }
+                    });
+                });
+                
+                it('receives buffer messages', function (done) {
+                    sub.on("subscribe", function (chnl, count) {
+                        pub.publish(channel, message);
+                    });
+
+                    sub.on("message", function (chnl, msg) {
+                        assert.strictEqual(true, Buffer.isBuffer(msg));
+                        assert.strictEqual("<Buffer 74 65 73 74 20 6d 65 73 73 61 67 65>", msg.inspect());
+                        return done();
+                    });
+
+                    sub.subscribe(channel);
+                });
+
+                afterEach(function () {
+                    sub.end();
+                    pub.end();
                 });
             });
         });
