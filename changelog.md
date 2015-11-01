@@ -1,9 +1,29 @@
 Changelog
 =========
 
+## v.2.3.0 - 30 Oct, 2015
+
+Features
+
+-  Improve speed further for: ([@BridgeAR](https://github.com/BridgeAR))
+ -  saving big strings (up to +300%)
+ -  using .multi / .batch (up to +50% / on Node.js 0.10.x +300%)
+ -  saving small buffers
+-  Increased coverage to 99% ([@BridgeAR](https://github.com/BridgeAR))
+-  Refactored manual backpressure control ([@BridgeAR](https://github.com/BridgeAR))
+ -  Removed the high water mark and low water mark. Such a mechanism should be implemented by a user instead
+ -  The `drain` event is from now on only emitted if the stream really had to buffer
+-  Reduced the default connect_timeout to be one hour instead of 24h ([@BridgeAR](https://github.com/BridgeAR))
+-  Added .path to redis.createClient(options); ([@BridgeAR](https://github.com/BridgeAR))
+-  Ignore info command, if not available on server ([@ivanB1975](https://github.com/ivanB1975))
+
 Bugfixes
 
 -  Fixed a js parser error that could result in a timeout ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed .multi / .batch used with Node.js 0.10.x not working properly after a reconnect ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed fired but not yet returned commands not being rejected after a connection loss ([@BridgeAR](https://github.com/BridgeAR))
+-  Fixed connect_timeout not respected if no connection has ever been established ([@gagle](https://github.com/gagle) & [@benjie](https://github.com/benjie))
+-  Fixed return_buffers in pub sub mode ([@komachi](https://github.com/komachi))
 
 ## v.2.2.5 - 18 Oct, 2015
 

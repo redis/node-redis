@@ -5,8 +5,14 @@ environment:
   matrix:
     - nodejs_version: "0.10"
     - nodejs_version: "0.12"
-    - nodejs_version: "3.0"
-    - nodejs_version: "4.0"
+    - nodejs_version: "3"
+    - nodejs_version: "4"
+
+pull_requests:
+  do_not_increment_build_number: true
+
+platform: Any CPU
+shallow_clone: true
 
 # Install scripts. (runs after repo cloning)
 install:

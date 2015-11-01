@@ -5,7 +5,7 @@ var assert = require('assert');
 
 function CLIENT_2_CONN_NO_AUTH() {
     return {
-        connectionOption: {
+        connection_option: {
             host: 'host1',
             port: 6379
         },
@@ -26,7 +26,7 @@ function CLIENT_2_CONN_NO_AUTH() {
 
 function CLIENT_2_CONN_WITH_AUTH() {
     return {
-        connectionOption: {
+        connection_option: {
             host: 'host1',
             port: 6379
         },
@@ -59,7 +59,7 @@ describe('failover options', function() {
     describe('prepareOptions', function() {
         it('should convert options to enable redis password', function() {
             var client = {
-                connectionOption: {
+                connection_option: {
                     host: 'localhost',
                     port: 6379
                 },
@@ -76,7 +76,7 @@ describe('failover options', function() {
 
             assert.deepEqual(client._failover.connections, [
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'localhost',
                         port: 6379
                     },
@@ -88,7 +88,7 @@ describe('failover options', function() {
 
         it('should convert options to change redis password', function() {
             var client = {
-                connectionOption: {
+                connection_option: {
                     host: 'localhost',
                     port: 6379
                 },
@@ -106,7 +106,7 @@ describe('failover options', function() {
 
             assert.deepEqual(client._failover.connections, [
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'localhost',
                         port: 6379
                     },
@@ -118,7 +118,7 @@ describe('failover options', function() {
 
         it('should not use the same password twice', function() {
             var client = {
-                connectionOption: {
+                connection_option: {
                     host: 'localhost',
                     port: 6379
                 },
@@ -136,7 +136,7 @@ describe('failover options', function() {
 
             assert.deepEqual(client._failover.connections, [
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'localhost',
                         port: 6379
                     },
@@ -152,14 +152,14 @@ describe('failover options', function() {
 
             assert.deepEqual(client._failover.connections, [
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'host1',
                         port: 6379
                     },
                     auth_pass: [ undefined ]
                 },
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'host2',
                         port: 6380
                     },
@@ -171,7 +171,7 @@ describe('failover options', function() {
 
         it('should group auth_pass by connection options', function() {
             var client = {
-                connectionOption: {
+                connection_option: {
                     host: 'host1',
                     port: 6379
                 },
@@ -204,21 +204,21 @@ describe('failover options', function() {
 
             assert.deepEqual(client._failover.connections, [
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'host1',
                         port: 6379
                     },
                     auth_pass: [ 'current_pass1', 'new_pass1' ]
                 },
                 {
-                    connectionOption: {
+                    connection_option: {
                         host: 'host2',
                         port: 6380
                     },
                     auth_pass: [ 'current_pass2', 'new_pass2' ]
                 },
                 {
-                    connectionOption: {
+                    connection_option: {
                         port: 6381
                     },
                     auth_pass: [ undefined ]
@@ -240,7 +240,7 @@ describe('failover options', function() {
             it('should switch to the next connection', function() {
                 failover.nextConnection(client);
 
-                assert.deepEqual(client.connectionOption, { host: 'host2', port: 6380 });
+                assert.deepEqual(client.connection_option, { host: 'host2', port: 6380 });
                 assert.equal(client._failover.cycle, 0);
                 assert.equal(client.retry_delay, 200);
                 assert.equal(client.auth_pass, undefined);
@@ -250,7 +250,7 @@ describe('failover options', function() {
                 failover.nextConnection(client);
                 failover.nextConnection(client);
 
-                assert.deepEqual(client.connectionOption, { host: 'host1', port: 6379 });
+                assert.deepEqual(client.connection_option, { host: 'host1', port: 6379 });
                 assert.equal(client._failover.cycle, 1);
                 assert.equal(client.retry_delay, 200 * client._failover.retry_backoff);
                 assert.equal(client.auth_pass, undefined);
@@ -270,7 +270,7 @@ describe('failover options', function() {
 
                 failover.nextConnection(client);
 
-                assert.deepEqual(client.connectionOption, { host: 'host2', port: 6380 });
+                assert.deepEqual(client.connection_option, { host: 'host2', port: 6380 });
                 assert.equal(client.auth_pass, 'current_pass2');
                 assert.equal(client._failover.cycle, 0);
                 assert.equal(client._failover.connectionIndex, 1);
@@ -282,7 +282,7 @@ describe('failover options', function() {
                 failover.nextConnection(client);
                 failover.nextConnection(client);
 
-                assert.deepEqual(client.connectionOption, { host: 'host1', port: 6379 });
+                assert.deepEqual(client.connection_option, { host: 'host1', port: 6379 });
                 assert.equal(client.auth_pass, 'current_pass1');
                 assert.equal(client._failover.cycle, 1);
                 assert.equal(client._failover.connectionIndex, 0);

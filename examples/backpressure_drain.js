@@ -1,10 +1,7 @@
 'use strict';
 
 var redis = require('../index'),
-    client = redis.createClient(null, null, {
-        command_queue_high_water: 5,
-        command_queue_low_water: 1
-    }),
+    client = redis.createClient(),
     remaining_ops = 100000, paused = false;
 
 function op() {
@@ -14,11 +11,12 @@ function op() {
     }
 
     remaining_ops--;
-    if (client.hset('test hash', 'val ' + remaining_ops, remaining_ops) === false) {
+    client.hset('test hash', 'val ' + remaining_ops, remaining_ops);
+    if (client.should_buffer === true) {
         console.log('Pausing at ' + remaining_ops);
         paused = true;
     } else {
-        process.nextTick(op);
+        setTimeout(op, 1);
     }
 }
 

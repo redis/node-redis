@@ -3,7 +3,8 @@ redis - a node.js redis client
 
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.png)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
-[![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/node-redis)
+[![Windows Tests](https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/NodeRedis/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This is a complete and feature rich Redis client for node.js. It supports all Redis commands and focuses on performance.
 
@@ -154,11 +155,11 @@ So please attach the error listener to node_redis.
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure.
 
-All commands return a boolean if the stream had to buffer or not. If false is returned the stream had to buffer.
+If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
 That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
 
-You can manually control the low water and high water marks by passing ommand_queue_high_water` and `command_queue_low_water` to the client options.
-Check the [Node.js streams API](https://nodejs.org/api/stream.html) for further info.
+You can also check the return value of each command as it will also return the backpressure indicator.
+If false is returned the stream had to buffer.
 
 ### "idle"
 
@@ -178,9 +179,10 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
+* `path`: *null*; The unix socket string to connect to
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
 * `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
-* `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers
+* `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers. Please be aware that this can't work properly with the pubsub mode. A subscriber has to either always return strings or buffers.
 if any of the input arguments to the original command were Buffers.
 This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
 every command on a client.
@@ -200,9 +202,9 @@ once the connection has been established. Setting `enable_offline_queue` to
 with an error, or an error will be emitted if no callback is specified.
 * `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
 This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
-* `connect_timeout`: *86400000*; Setting `connect_timeout` limits total time for client to reconnect.
-The value is provided in milliseconds and is counted once the disconnect occurred. The last retry is going to happen exactly at the timeout time.
-That way the default is to try reconnecting until 24h passed.
+* `connect_timeout`: *3600000*; Setting `connect_timeout` limits total time for client to connect and reconnect.
+The value is provided in milliseconds and is counted from the moment on a new client is created / a connection is lost. The last retry is going to happen exactly at the timeout time.
+Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h passed.
 * `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
 * `auth_pass`: *null*; If set, client will run redis auth command on connect. If there is no password in redis the driver will log the warning. If the password is enabled in redis at a later point (using `config set requirepass`) the client will seemlessly authenticate when some command fails and reissue the failed command, so there will be no failed command from the application perspective.
@@ -676,57 +678,42 @@ Here are results of `multi_bench.js` which is similar to `redis-benchmark` from 
 hiredis parser (Lenovo T450s i7-5600U):
 
 ```
-Client count: 5, node version: 4.1.2, server version: 3.0.3, parser: hiredis
-         PING,         1/5 min/max/avg/p95:    0/   4/   0.02/   0.00   1223ms total,  40883.07 ops/sec
-         PING,        50/5 min/max/avg/p95:    0/   3/   0.50/   1.00    497ms total, 100603.62 ops/sec
-         PING,  batch 50/5 min/max/avg/p95:    0/   1/   0.15/   1.00    308ms total, 324675.32 ops/sec
-   SET 4B str,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1402ms total,  35663.34 ops/sec
-   SET 4B str,        50/5 min/max/avg/p95:    0/   2/   0.53/   1.00    534ms total,  93632.96 ops/sec
-   SET 4B str,  batch 50/5 min/max/avg/p95:    0/   1/   0.19/   1.00    392ms total, 255102.04 ops/sec
-   SET 4B buf,         1/5 min/max/avg/p95:    0/   2/   0.05/   1.00   2433ms total,  20550.76 ops/sec
-   SET 4B buf,        50/5 min/max/avg/p95:    0/   5/   1.65/   3.00   1652ms total,  30266.34 ops/sec
-   SET 4B buf,  batch 50/5 min/max/avg/p95:    0/   3/   0.36/   1.00    726ms total, 137741.05 ops/sec
-   GET 4B str,         1/5 min/max/avg/p95:    0/   1/   0.03/   0.00   1314ms total,  38051.75 ops/sec
-   GET 4B str,        50/5 min/max/avg/p95:    0/   3/   0.53/   1.00    529ms total,  94517.96 ops/sec
-   GET 4B str,  batch 50/5 min/max/avg/p95:    0/   1/   0.16/   1.00    328ms total, 304878.05 ops/sec
-   GET 4B buf,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1389ms total,  35997.12 ops/sec
-   GET 4B buf,        50/5 min/max/avg/p95:    0/   2/   0.52/   1.00    519ms total,  96339.11 ops/sec
-   GET 4B buf,  batch 50/5 min/max/avg/p95:    0/   1/   0.16/   1.00    168ms total, 297619.05 ops/sec
- SET 4KiB str,         1/5 min/max/avg/p95:    0/   3/   0.03/   0.00   1670ms total,  29940.12 ops/sec
- SET 4KiB str,        50/5 min/max/avg/p95:    0/   5/   0.94/   2.00    941ms total,  53134.96 ops/sec
- SET 4KiB str,  batch 50/5 min/max/avg/p95:    0/   2/   0.49/   1.00    984ms total, 101626.02 ops/sec
- SET 4KiB buf,         1/5 min/max/avg/p95:    0/   1/   0.05/   0.00   2423ms total,  20635.58 ops/sec
- SET 4KiB buf,        50/5 min/max/avg/p95:    0/   5/   1.60/   3.00   1598ms total,  31289.11 ops/sec
- SET 4KiB buf,  batch 50/5 min/max/avg/p95:    0/   1/   0.41/   1.00    825ms total, 121212.12 ops/sec
- GET 4KiB str,         1/5 min/max/avg/p95:    0/   1/   0.03/   0.00   1483ms total,  33715.44 ops/sec
- GET 4KiB str,        50/5 min/max/avg/p95:    0/   3/   0.69/   1.00    691ms total,  72358.90 ops/sec
- GET 4KiB str,  batch 50/5 min/max/avg/p95:    0/   2/   0.38/   1.00    759ms total, 131752.31 ops/sec
- GET 4KiB buf,         1/5 min/max/avg/p95:    0/   3/   0.03/   0.00   1485ms total,  33670.03 ops/sec
- GET 4KiB buf,        50/5 min/max/avg/p95:    0/   3/   0.80/   2.00    797ms total,  62735.26 ops/sec
- GET 4KiB buf,  batch 50/5 min/max/avg/p95:    0/   2/   0.39/   1.00    396ms total, 126262.63 ops/sec
-         INCR,         1/5 min/max/avg/p95:    0/   2/   0.03/   0.00   1376ms total,  36337.21 ops/sec
-         INCR,        50/5 min/max/avg/p95:    0/   3/   0.53/   1.00    529ms total,  94517.96 ops/sec
-         INCR,  batch 50/5 min/max/avg/p95:    0/   1/   0.17/   1.00    339ms total, 294985.25 ops/sec
-        LPUSH,         1/5 min/max/avg/p95:    0/   3/   0.03/   0.00   1394ms total,  35868.01 ops/sec
-        LPUSH,        50/5 min/max/avg/p95:    0/   3/   0.58/   1.00    584ms total,  85616.44 ops/sec
-        LPUSH,  batch 50/5 min/max/avg/p95:    0/   1/   0.19/   1.00    383ms total, 261096.61 ops/sec
-    LRANGE 10,         1/5 min/max/avg/p95:    0/   4/   0.03/   0.00   1706ms total,  29308.32 ops/sec
-    LRANGE 10,        50/5 min/max/avg/p95:    0/   3/   0.71/   1.00    712ms total,  70224.72 ops/sec
-    LRANGE 10,  batch 50/5 min/max/avg/p95:    0/   1/   0.38/   1.00    772ms total, 129533.68 ops/sec
-   LRANGE 100,         1/5 min/max/avg/p95:    0/   1/   0.06/   1.00   3026ms total,  16523.46 ops/sec
-   LRANGE 100,        50/5 min/max/avg/p95:    0/   5/   1.88/   3.00   1882ms total,  26567.48 ops/sec
-   LRANGE 100,  batch 50/5 min/max/avg/p95:    2/   4/   2.09/   3.00   4189ms total,  23872.05 ops/sec
- SET 4MiB buf,         1/5 min/max/avg/p95:    1/   7/   2.08/   3.00   1044ms total,    478.93 ops/sec
- SET 4MiB buf,        20/5 min/max/avg/p95:   17/  50/  40.02/  46.00   1022ms total,    489.24 ops/sec
- SET 4MiB buf,  batch 20/5 min/max/avg/p95:   37/  45/  39.00/  44.40    975ms total,    512.82 ops/sec
- GET 4MiB str,         1/5 min/max/avg/p95:    4/  15/   6.31/  10.00    634ms total,    157.73 ops/sec
- GET 4MiB str,        20/5 min/max/avg/p95:    7/ 124/  88.27/ 110.80    476ms total,    210.08 ops/sec
- GET 4MiB str,  batch 20/5 min/max/avg/p95:   76/  99/  89.00/  99.00    446ms total,    224.22 ops/sec
- GET 4MiB buf,         1/5 min/max/avg/p95:    4/  12/   5.67/  10.00    568ms total,    176.06 ops/sec
- GET 4MiB buf,        20/5 min/max/avg/p95:   14/ 133/  85.34/ 107.95    458ms total,    218.34 ops/sec
- GET 4MiB buf,  batch 20/5 min/max/avg/p95:   78/  96/  88.00/  96.00    440ms total,    227.27 ops/sec
-End of tests. Total time elapsed: 50421 ms
-```
+Client count: 1, node version: 4.2.1, server version: 3.0.3, parser: hiredis
+         PING,         1/1 min/max/avg/p95:    0/   4/   0.02/   0.00  10001ms total,  38850.41 ops/sec
+         PING,  batch 50/1 min/max/avg/p95:    0/   3/   0.10/   1.00  10001ms total, 488376.16 ops/sec
+   SET 4B str,         1/1 min/max/avg/p95:    0/   2/   0.03/   0.00  10001ms total,  35782.02 ops/sec
+   SET 4B str,  batch 50/1 min/max/avg/p95:    0/   2/   0.14/   1.00  10001ms total, 349740.03 ops/sec
+   SET 4B buf,         1/1 min/max/avg/p95:    0/   5/   0.04/   0.00  10001ms total,  23497.75 ops/sec
+   SET 4B buf,  batch 50/1 min/max/avg/p95:    0/   3/   0.28/   1.00  10001ms total, 177087.29 ops/sec
+   GET 4B str,         1/1 min/max/avg/p95:    0/   4/   0.03/   0.00  10001ms total,  37044.10 ops/sec
+   GET 4B str,  batch 50/1 min/max/avg/p95:    0/   4/   0.12/   1.00  10001ms total, 421987.80 ops/sec
+   GET 4B buf,         1/1 min/max/avg/p95:    0/   4/   0.03/   0.00  10001ms total,  35608.24 ops/sec
+   GET 4B buf,  batch 50/1 min/max/avg/p95:    0/   3/   0.12/   1.00  10001ms total, 416593.34 ops/sec
+ SET 4KiB str,         1/1 min/max/avg/p95:    0/   4/   0.03/   0.00  10001ms total,  30014.10 ops/sec
+ SET 4KiB str,  batch 50/1 min/max/avg/p95:    0/   4/   0.34/   1.00  10001ms total, 147705.23 ops/sec
+ SET 4KiB buf,         1/1 min/max/avg/p95:    0/   4/   0.04/   0.00  10001ms total,  23803.52 ops/sec
+ SET 4KiB buf,  batch 50/1 min/max/avg/p95:    0/   4/   0.37/   1.00  10001ms total, 132611.74 ops/sec
+ GET 4KiB str,         1/1 min/max/avg/p95:    0/   5/   0.03/   0.00  10001ms total,  34216.98 ops/sec
+ GET 4KiB str,  batch 50/1 min/max/avg/p95:    0/   4/   0.32/   1.00  10001ms total, 153039.70 ops/sec
+ GET 4KiB buf,         1/1 min/max/avg/p95:    0/   3/   0.03/   0.00  10001ms total,  34169.18 ops/sec
+ GET 4KiB buf,  batch 50/1 min/max/avg/p95:    0/   2/   0.32/   1.00  10001ms total, 153264.67 ops/sec
+         INCR,         1/1 min/max/avg/p95:    0/   3/   0.03/   0.00  10001ms total,  36307.17 ops/sec
+         INCR,  batch 50/1 min/max/avg/p95:    0/   4/   0.12/   1.00  10001ms total, 412438.76 ops/sec
+        LPUSH,         1/1 min/max/avg/p95:    0/   4/   0.03/   0.00  10001ms total,  36073.89 ops/sec
+        LPUSH,  batch 50/1 min/max/avg/p95:    0/   2/   0.14/   1.00  10001ms total, 355954.40 ops/sec
+    LRANGE 10,         1/1 min/max/avg/p95:    0/   2/   0.03/   0.00  10001ms total,  30395.66 ops/sec
+    LRANGE 10,  batch 50/1 min/max/avg/p95:    0/   3/   0.33/   1.00  10001ms total, 149400.06 ops/sec
+   LRANGE 100,         1/1 min/max/avg/p95:    0/   2/   0.06/   1.00  10001ms total,  16814.62 ops/sec
+   LRANGE 100,  batch 50/1 min/max/avg/p95:    1/   4/   2.01/   2.00  10002ms total,  24790.04 ops/sec
+ SET 4MiB str,         1/1 min/max/avg/p95:    1/   7/   2.01/   2.00  10002ms total,    496.90 ops/sec
+ SET 4MiB str,  batch 20/1 min/max/avg/p95:  100/ 135/ 109.58/ 125.00  10085ms total,    182.45 ops/sec
+ SET 4MiB buf,         1/1 min/max/avg/p95:    1/   5/   1.87/   2.00  10001ms total,    531.75 ops/sec
+ SET 4MiB buf,  batch 20/1 min/max/avg/p95:   52/  77/  58.90/  68.45  10016ms total,    339.46 ops/sec
+ GET 4MiB str,         1/1 min/max/avg/p95:    3/  19/   5.79/  11.00  10005ms total,    172.51 ops/sec
+ GET 4MiB str,  batch 20/1 min/max/avg/p95:   73/ 112/  89.89/ 107.00  10072ms total,    222.40 ops/sec
+ GET 4MiB buf,         1/1 min/max/avg/p95:    3/  13/   5.35/   9.00  10002ms total,    186.76 ops/sec
+ GET 4MiB buf,  batch 20/1 min/max/avg/p95:   76/ 106/  85.37/  98.00  10077ms total,    234.20 ops/sec
+ ```
 
 The hiredis and js parser should most of the time be on the same level. The js parser lacks speed for large responses though.
 Therefor the hiredis parser is the default used in node_redis and we recommend using the hiredis parser. To use `hiredis`, do:
@@ -742,34 +729,16 @@ To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
  - Please be aware that we'll only accept fully tested code.
 
 ## Contributors
-Many [people](https://github.com/NodeRedis/node_redis/graphs/contributors) have have added features and fixed bugs in `node_redis`. Thanks to all of them!
 
-## LICENSE - "MIT License"
+The original author of node_redis is [Matthew Ranney](https://github.com/mranney)
 
-Copyright (c) by NodeRedis
+The current lead maintainer is [Ruben Bridgewater](https://github.com/BridgeAR)
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
+Many [others](https://github.com/NodeRedis/node_redis/graphs/contributors) contributed to `node_redis` too. Thanks to all of them!
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+## License
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
-
-Originally developed by Matthew Ranney, http://ranney.com/
+[MIT](LICENSE)
 
 ### Consolidation: It's time for celebration
 

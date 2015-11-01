@@ -154,10 +154,10 @@ function startRedis2(conf, done) {
                             client2.slaveof(masterIP, '6379', function (err, res) {
                                 if (err) return done(err);
                                 setTimeout(function() {
-                                    assert.deepEqual(clientFO.connectionOption, { port: 6380 });
+                                    assert.deepEqual(clientFO.connection_option, { port: 6380 });
                                     clientFO.set('test_replication', 'bar', function (err, res) {
                                         if (err) return done(err);
-                                        var co = clientFO.connectionOption;
+                                        var co = clientFO.connection_option;
                                         assert(co.port === 6379 || co.path === '/tmp/redis.sock');
                                         client1.get('test_replication', function (err, res) {
                                             if (err) return done(err);

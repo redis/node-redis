@@ -43,6 +43,22 @@ describe("The node_redis client", function () {
                     });
                 });
 
+                describe('big data', function () {
+
+                    // Check if the fast mode for big strings is working correct
+                    it('safe strings that are bigger than 30000 characters', function(done) {
+                        var str = 'foo ಠ_ಠ bar ';
+                        while (str.length < 111111) {
+                            str += str;
+                        }
+                        client.set('foo', str);
+                        client.get('foo', function (err, res) {
+                            assert.strictEqual(res, str);
+                            done();
+                        });
+                    });
+                });
+
                 describe("send_command", function () {
 
                     it("omitting args should be fine in some cases", function (done) {
@@ -470,20 +486,6 @@ describe("The node_redis client", function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
-                    it("should emit drain after info command and nothing to buffer", function (done) {
-                        client = redis.createClient({
-                            parser: parser
-                        });
-                        client.set('foo', 'bar');
-                        client.get('foo', function () {
-                            assert(!client.should_buffer);
-                            setTimeout(done, 25);
-                        });
-                        client.on('drain', function() {
-                            assert(client.offline_queue.length === 2);
-                        });
-                    });
-
                     it("should emit drain if offline queue is flushed and nothing to buffer", function (done) {
                         client = redis.createClient({
                             parser: parser,
@@ -554,6 +556,43 @@ describe("The node_redis client", function () {
                             assert.strictEqual(client.offline_queue.length, 0);
                         });
                     });
+
+                    it("flushes the command queue if connection is lost", function (done) {
+                        client = redis.createClient({
+                            parser: parser
+                        });
+
+                        client.once('ready', function() {
+                            var multi = client.multi();
+                            multi.config("bar");
+                            var cb = function(err, reply) {
+                                assert.equal(err.code, 'UNCERTAIN_STATE');
+                            };
+                            for (var i = 0; i < 12; i += 3) {
+                                client.set("foo" + i, "bar" + i);
+                                multi.set("foo" + (i + 1), "bar" + (i + 1), cb);
+                                multi.set("foo" + (i + 2), "bar" + (i + 2));
+                            }
+                            multi.exec();
+                            assert.equal(client.command_queue.length, 15);
+                            helper.killConnection(client);
+                        });
+
+                        client.on("reconnecting", function (params) {
+                            assert.equal(client.command_queue.length, 15);
+                        });
+
+                        client.on('error', function(err) {
+                            if (/uncertain state/.test(err.message)) {
+                                assert.equal(client.command_queue.length, 0);
+                                done();
+                            } else {
+                                assert.equal(err.code, 'ECONNREFUSED');
+                                assert.equal(err.errno, 'ECONNREFUSED');
+                                assert.equal(err.syscall, 'connect');
+                            }
+                        });
+                    });
                 });
 
                 describe('false', function () {
@@ -597,7 +636,7 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it("flushes the command queue connection if in broken connection mode", function (done) {
+                    it("flushes the command queue if connection is lost", function (done) {
                         client = redis.createClient({
                             parser: parser,
                             max_attempts: 2,
@@ -608,7 +647,7 @@ describe("The node_redis client", function () {
                             var multi = client.multi();
                             multi.config("bar");
                             var cb = function(err, reply) {
-                                assert.equal(err.code, 'CONNECTION_BROKEN');
+                                assert.equal(err.code, 'UNCERTAIN_STATE');
                             };
                             for (var i = 0; i < 12; i += 3) {
                                 client.set("foo" + i, "bar" + i);
@@ -625,7 +664,7 @@ describe("The node_redis client", function () {
                         });
 
                         client.on('error', function(err) {
-                            if (/Redis connection in broken state:/.test(err.message)) {
+                            if (err.code === 'UNCERTAIN_STATE') {
                                 assert.equal(client.command_queue.length, 0);
                                 done();
                             } else {

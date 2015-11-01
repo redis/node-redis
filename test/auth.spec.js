@@ -21,6 +21,9 @@ describe("client authentication", function () {
             var new_auth = 'fishsandwiches';
             var client = null;
 
+            beforeEach(function () {
+                client = null;
+            });
             afterEach(function () {
                 client.end();
             });
