@@ -26,7 +26,7 @@
     "node": ">=0.10.0"
   },
   "devDependencies": {
-    "coveralls": "^2.11.2",
+    "coveralls": "^2.11.4",
     "jshint": "^2.8.0",
     "metrics": "^0.1.9",
     "mocha": "^2.3.2",
