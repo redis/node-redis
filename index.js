@@ -732,7 +732,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         if (Buffer.isBuffer(args[i])) {
             buffer_args = true;
         } else if (typeof args[i] !== 'string') {
-            arg = String(arg);
+            args[i] = String(args[i]);
         // 30000 seemed to be a good value to switch to buffers after testing this with and checking the pros and cons
         } else if (args[i].length > 30000) {
             big_data = true;
@@ -786,7 +786,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     if (!buffer_args && !big_data) { // Build up a string and send entire command in one write
         for (i = 0; i < args.length; i += 1) {
-            arg = String(args[i]);
+            arg = args[i];
             command_str += '$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n';
         }
         debug('Send ' + this.address + ' id ' + this.connection_id + ': ' + command_str);
@@ -798,7 +798,6 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
             if (!Buffer.isBuffer(arg)) {
-                arg = String(arg);
                 this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
             } else {
                 this.write('$' + arg.length + '\r\n');
