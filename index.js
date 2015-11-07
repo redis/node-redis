@@ -46,6 +46,7 @@ function RedisClient (options) {
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
+    /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
     for (var tls_option in options.tls) { // jshint ignore: line
         cnx_options[tls_option] = options.tls[tls_option];
     }
@@ -91,7 +92,7 @@ function RedisClient (options) {
     this.options = options;
     // Init parser once per instance
     this.init_parser();
-    self.create_stream();
+    this.create_stream();
 }
 util.inherits(RedisClient, events.EventEmitter);
 
@@ -105,6 +106,7 @@ RedisClient.prototype.create_stream = function () {
         this.stream.destroy();
     }
 
+    /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
     if (this.options.tls) {
 	    this.stream = tls.connect(this.connection_options);
     } else {
@@ -118,8 +120,9 @@ RedisClient.prototype.create_stream = function () {
         });
     }
 
+    /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
     var connect_event = this.options.tls ? "secureConnect" : "connect";
-    this.stream.on(connect_event, function () {
+    this.stream.once(connect_event, function () {
         this.removeAllListeners("timeout");
         self.on_connect();
     });
@@ -134,6 +137,7 @@ RedisClient.prototype.create_stream = function () {
         self.on_error(err);
     });
 
+    /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
     this.stream.on('clientError', function (err) {
         self.on_error(err);
     });

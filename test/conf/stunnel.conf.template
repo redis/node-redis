@@ -5,7 +5,6 @@ cert = __dirname/redis.js.org.cert
 key = __dirname/redis.js.org.key
 client = no
 foreground = yes
-libwrap = no
 debug = 7
 [redis]
 accept = 127.0.0.1:6380

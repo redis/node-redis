@@ -15,14 +15,29 @@ var tls_options = {
 
 var tls_port = 6380;
 
+if (process.platform === 'win32') {
+    return;
+}
+
+// Wait until stunnel4 is in the travis whitelist
+// Check: https://github.com/travis-ci/apt-package-whitelist/issues/403
+// If this is merged, remove the travis env checks
 describe("TLS connection tests", function () {
     before(function (done) {
+        if (process.env.TRAVIS === 'true')  {
+            done();
+            return;
+        }
         helper.stopStunnel(function () {
             helper.startStunnel(done);
         });
     });
 
     after(function (done) {
+        if (process.env.TRAVIS === 'true')  {
+            done();
+            return;
+        }
         helper.stopStunnel(done);
     });
 
@@ -33,13 +48,12 @@ describe("TLS connection tests", function () {
             var client;
 
             afterEach(function () {
-                if (client) {
-                    client.end();
-                }
+                client.end(true);
             });
 
             describe("on lost connection", function () {
                 it("emit an error after max retry attempts and do not try to reconnect afterwards", function (done) {
+                    if (process.env.TRAVIS === 'true') this.skip();
                     var max_attempts = 4;
                     var options = {
                         parser: parser,
@@ -69,6 +83,7 @@ describe("TLS connection tests", function () {
                 });
 
                 it("emit an error after max retry timeout and do not try to reconnect afterwards", function (done) {
+                    if (process.env.TRAVIS === 'true') this.skip();
                     var connect_timeout = 500; // in ms
                     client = redis.createClient({
                         parser: parser,
@@ -97,6 +112,7 @@ describe("TLS connection tests", function () {
                 });
 
                 it("end connection while retry is still ongoing", function (done) {
+                    if (process.env.TRAVIS === 'true') this.skip();
                     var connect_timeout = 1000; // in ms
                     client = redis.createClient({
                         parser: parser,
@@ -116,6 +132,7 @@ describe("TLS connection tests", function () {
                 });
 
                 it("can not connect with wrong host / port in the options object", function (done) {
+                    if (process.env.TRAVIS === 'true') this.skip();
                     var options = {
                         host: 'somewhere',
                         max_attempts: 1,
@@ -136,6 +153,7 @@ describe("TLS connection tests", function () {
             describe("when not connected", function () {
 
                 it("connect with host and port provided in the options object", function (done) {
+                    if (process.env.TRAVIS === 'true') this.skip();
                     client = redis.createClient({
                         host: 'localhost',
                         parser: parser,
@@ -150,6 +168,7 @@ describe("TLS connection tests", function () {
                 });
 
                 it("connects correctly with args", function (done) {
+                    if (process.env.TRAVIS === 'true') this.skip();
                     var args_host = args[1];
                     var args_options = args[2] || {};
                     args_options.tls = tls_options;
@@ -166,6 +185,7 @@ describe("TLS connection tests", function () {
 
                 if (ip === 'IPv4') {
                     it('allows connecting with the redis url and no auth and options as second parameter', function (done) {
+                        if (process.env.TRAVIS === 'true') this.skip();
                         var options = {
                             detect_buffers: false,
                             magic: Math.random(),
@@ -176,6 +196,7 @@ describe("TLS connection tests", function () {
                         // verify connection is using TCP, not UNIX socket
                         assert.strictEqual(client.connection_options.host, config.HOST[ip]);
                         assert.strictEqual(client.connection_options.port, tls_port);
+                        assert(typeof client.stream.getCipher === 'function');
                         // verify passed options are in use
                         assert.strictEqual(client.options.magic, options.magic);
                         client.on("ready", function () {
@@ -184,6 +205,7 @@ describe("TLS connection tests", function () {
                     });
 
                     it('allows connecting with the redis url and no auth and options as third parameter', function (done) {
+                        if (process.env.TRAVIS === 'true') this.skip();
                         client = redis.createClient('redis://' + config.HOST[ip] + ':' + tls_port, null, {
                             detect_buffers: false,
                             tls: tls_options
