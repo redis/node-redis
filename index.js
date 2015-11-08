@@ -733,7 +733,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             buffer_args = true;
         } else if (typeof args[i] !== 'string') {
             args[i] = String(args[i]);
-        // 30000 seemed to be a good value to switch to buffers after testing this with and checking the pros and cons
+        // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
         } else if (args[i].length > 30000) {
             big_data = true;
             args[i] = new Buffer(args[i]);

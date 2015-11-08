@@ -261,7 +261,7 @@ describe("return_buffers", function () {
                         }
                     });
                 });
-                
+
                 it('receives buffer messages', function (done) {
                     sub.on("subscribe", function (chnl, count) {
                         pub.publish(channel, message);
