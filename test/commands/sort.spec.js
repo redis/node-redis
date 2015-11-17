@@ -5,6 +5,33 @@ var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
 
+function setupData(client, done) {
+    client.rpush('y', 'd');
+    client.rpush('y', 'b');
+    client.rpush('y', 'a');
+    client.rpush('y', 'c');
+
+    client.rpush('x', '3');
+    client.rpush('x', '9');
+    client.rpush('x', '2');
+    client.rpush('x', '4');
+
+    client.set('w3', '4');
+    client.set('w9', '5');
+    client.set('w2', '12');
+    client.set('w4', '6');
+
+    client.set('o2', 'buz');
+    client.set('o3', 'foo');
+    client.set('o4', 'baz');
+    client.set('o9', 'bar');
+
+    client.set('p2', 'qux');
+    client.set('p3', 'bux');
+    client.set('p4', 'lux');
+    client.set('p9', 'tux', done);
+}
+
 describe("The 'sort' method", function () {
 
     helper.allTests(function(parser, ip, args) {
@@ -99,32 +126,5 @@ describe("The 'sort' method", function () {
             });
         });
     });
-
-    function setupData(client, done) {
-        client.rpush('y', 'd');
-        client.rpush('y', 'b');
-        client.rpush('y', 'a');
-        client.rpush('y', 'c');
-
-        client.rpush('x', '3');
-        client.rpush('x', '9');
-        client.rpush('x', '2');
-        client.rpush('x', '4');
-
-        client.set('w3', '4');
-        client.set('w9', '5');
-        client.set('w2', '12');
-        client.set('w4', '6');
-
-        client.set('o2', 'buz');
-        client.set('o3', 'foo');
-        client.set('o4', 'baz');
-        client.set('o9', 'bar');
-
-        client.set('p2', 'qux');
-        client.set('p3', 'bux');
-        client.set('p4', 'lux');
-        client.set('p9', 'tux', done);
-    }
 
 });
