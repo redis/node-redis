@@ -16,6 +16,7 @@ describe("The 'multi' method", function () {
 
     describe('regression test', function () {
         it('saved buffers with charsets different than utf-8 (issue #913)', function (done) {
+            this.timeout(12000); // Windows tests on 0.10 are slow
             client = redis.createClient();
 
             var end = helper.callFuncAfter(done, 100);
