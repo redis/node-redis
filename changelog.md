@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.3.1 - xx Nov, 2015
+## v.2.3.1 - 18 Nov, 2015
 
 Bugfixes
 
