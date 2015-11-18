@@ -27,6 +27,10 @@ describe("detect_buffers", function () {
                 });
             });
 
+            afterEach(function () {
+                client.end();
+            });
+
             describe('get', function () {
                 describe('first argument is a string', function () {
                     it('returns a string', function (done) {

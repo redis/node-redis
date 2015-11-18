@@ -1,12 +1,73 @@
 'use strict';
 
 var assert = require('assert');
-var config = require("../lib/config");
-var helper = require('../helper');
+var config = require("./lib/config");
+var helper = require('./helper');
 var redis = config.redis;
+var zlib = require('zlib');
 var uuid = require('uuid');
+var client;
 
 describe("The 'multi' method", function () {
+
+    afterEach(function () {
+        client.end();
+    });
+
+    describe('regression test', function () {
+        it('saved buffers with charsets different than utf-8 (issue #913)', function (done) {
+            client = redis.createClient();
+
+            var end = helper.callFuncAfter(done, 100);
+
+            // Some random object created from http://beta.json-generator.com/
+            var test_obj = {
+                "_id": "5642c4c33d4667c4a1fefd99","index": 0, "guid": "5baf1f1c-7621-41e7-ae7a-f8c6f3199b0f", "isActive": true,
+                "balance": "$1,028.63", "picture": "http://placehold.it/32x32", "age": 31, "eyeColor": "green", "name": {"first": "Shana", "last": "Long"},
+                "company": "MANGLO", "email": "shana.long@manglo.us", "phone": "+1 (926) 405-3105", "address": "747 Dank Court, Norfolk, Ohio, 1112",
+                "about": "Eu pariatur in nisi occaecat enim qui consequat nostrud cupidatat id. " +
+                    "Commodo commodo dolore esse irure minim quis deserunt anim laborum aute deserunt et est. Quis nisi laborum deserunt nisi quis.",
+                "registered": "Friday, April 18, 2014 9:56 AM", "latitude": "74.566613", "longitude": "-11.660432", "tags": [7, "excepteur"],
+                "range": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "friends": [3, {"id": 1, "name": "Schultz Dyer"}],
+                "greeting": "Hello, Shana! You have 5 unread messages.", "favoriteFruit": "strawberry"
+            };
+
+            function run () {
+                if (end() === true) {
+                    return;
+                }
+                // To demonstrate a big payload for hash set field values, let's create a big array
+                var test_arr = [];
+                for (var i = 0; i < 80; i++) {
+                    var new_obj = JSON.parse(JSON.stringify(test_obj));
+                    test_arr.push(new_obj);
+                }
+
+                var json = JSON.stringify(test_arr);
+                zlib.deflate(new Buffer(json), function (err, buffer) {
+                    if (err) {
+                        done(err);
+                        return;
+                    }
+
+                    var multi = client.multi();
+                    multi.del('SOME_KEY');
+
+                    for (i = 0; i < 100; i++) {
+                        multi.hset('SOME_KEY', 'SOME_FIELD' + i, buffer);
+                    }
+                    multi.exec(function (err, res) {
+                        if (err) {
+                            done(err);
+                            return;
+                        }
+                        run();
+                    });
+                });
+            }
+            run();
+        });
+    });
 
     helper.allTests(function(parser, ip, args) {
 
@@ -19,14 +80,13 @@ describe("The 'multi' method", function () {
             });
 
             describe("when not connected", function () {
-                var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("ready", function () {
                         client.quit();
                     });
-                    client.on('end', function () {
+                    client.once('end', function () {
                         return done();
                     });
                 });
@@ -37,7 +97,7 @@ describe("The 'multi' method", function () {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
                     });
-                    assert.strictEqual(notBuffering, false);
+                    assert.strictEqual(notBuffering, true);
                 });
 
                 it("reports an error if promisified", function () {
@@ -48,15 +108,10 @@ describe("The 'multi' method", function () {
             });
 
             describe("when connected", function () {
-                var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
                     client.once("connect", done);
-                });
-
-                afterEach(function () {
-                    client.end();
                 });
 
                 it("executes a pipelined multi properly in combination with the offline queue", function (done) {
@@ -93,11 +148,6 @@ describe("The 'multi' method", function () {
             });
 
             describe("when connection is broken", function () {
-                var client;
-
-                afterEach(function () {
-                    client.end();
-                });
 
                 it("return an error even if connection is in broken mode if callback is present", function (done) {
                     client = redis.createClient({
@@ -137,7 +187,6 @@ describe("The 'multi' method", function () {
             });
 
             describe("when ready", function () {
-                var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
@@ -146,10 +195,6 @@ describe("The 'multi' method", function () {
                             return done(err);
                         });
                     });
-                });
-
-                afterEach(function () {
-                    client.end();
                 });
 
                 it("returns an empty result array", function (done) {

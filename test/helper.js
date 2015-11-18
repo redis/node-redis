@@ -156,7 +156,9 @@ module.exports = {
             i++;
             if (i === max) {
                 func();
+                return true;
             }
+            return false;
         };
     },
     killConnection: function (client) {

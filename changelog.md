@@ -5,6 +5,7 @@ Changelog
 
 Bugfixes
 
+-  Fixed saving buffers with charsets other than utf-8 while using multi ([@BridgeAR](https://github.com/BridgeAR))
 -  Fixed js parser handling big values very slow ([@BridgeAR](https://github.com/BridgeAR))
  -  The speed is up to ~500% faster than before but still up to ~50% slower than the hiredis parser.
 

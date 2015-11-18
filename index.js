@@ -731,12 +731,20 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     for (i = 0; i < args.length; i += 1) {
         if (Buffer.isBuffer(args[i])) {
             buffer_args = true;
+            if (this.pipeline !== 0) {
+                this.pipeline += 2;
+                this.writeDefault = this.writeBuffers;
+            }
         } else if (typeof args[i] !== 'string') {
             args[i] = String(args[i]);
         // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
         } else if (args[i].length > 30000) {
             big_data = true;
             args[i] = new Buffer(args[i]);
+            if (this.pipeline !== 0) {
+                this.pipeline += 2;
+                this.writeDefault = this.writeBuffers;
+            }
         }
     }
     if (this.options.detect_buffers) {
@@ -764,7 +772,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             this.should_buffer = true;
         }
         // Return false to signal buffering
-        return false;
+        return !this.should_buffer;
     }
 
     if (command === 'subscribe' || command === 'psubscribe' || command === 'unsubscribe' || command === 'punsubscribe') {
@@ -797,7 +805,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
-            if (!Buffer.isBuffer(arg)) {
+            if (typeof arg === 'string') {
                 this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
             } else {
                 this.write('$' + arg.length + '\r\n');
@@ -810,6 +818,22 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     return !this.should_buffer;
 };
 
+RedisClient.prototype.writeDefault = RedisClient.prototype.writeStrings = function (data) {
+    var command, str = '';
+    while (command = this.pipeline_queue.shift()) {
+        str += command;
+    }
+    this.should_buffer = !this.stream.write(str + data);
+};
+
+RedisClient.prototype.writeBuffers = function (data) {
+    var command;
+    while (command = this.pipeline_queue.shift()) {
+        this.stream.write(command);
+    }
+    this.should_buffer = !this.stream.write(data);
+};
+
 RedisClient.prototype.write = function (data) {
     if (this.pipeline === 0) {
         this.should_buffer = !this.stream.write(data);
@@ -818,11 +842,7 @@ RedisClient.prototype.write = function (data) {
 
     this.pipeline--;
     if (this.pipeline === 0) {
-        var command, str = '';
-        while (command = this.pipeline_queue.shift()) {
-            str += command;
-        }
-        this.should_buffer = !this.stream.write(str + data);
+        this.writeDefault(data);
         return;
     }
 
@@ -1121,10 +1141,12 @@ Multi.prototype.exec_transaction = function (callback) {
         this.send_command(command, args, index, cb);
     }
 
-    this._client.uncork();
-    return this._client.send_command('exec', [], function(err, replies) {
+    this._client.send_command('exec', [], function(err, replies) {
         self.execute_callback(err, replies);
     });
+    this._client.uncork();
+    this._client.writeDefault = this._client.writeStrings;
+    return !this._client.should_buffer;
 };
 
 Multi.prototype.execute_callback = function (err, replies) {
@@ -1231,7 +1253,8 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
         index++;
     }
     this._client.uncork();
-    return this._client.should_buffer;
+    this._client.writeDefault = this._client.writeStrings;
+    return !this._client.should_buffer;
 };
 
 var createClient = function (port_arg, host_arg, options) {
