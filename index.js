@@ -90,7 +90,8 @@ function RedisClient(options) {
     this.old_state = null;
     this.pipeline = 0;
     this.options = options;
-
+    // Init parser once per instance
+    this.init_parser();
     self.stream = net.createConnection(cnx_options);
     self.install_stream_listeners();
 }
@@ -255,8 +256,6 @@ RedisClient.prototype.on_connect = function () {
     }
     this.stream.setKeepAlive(this.options.socket_keepalive);
     this.stream.setTimeout(0);
-
-    this.init_parser();
 
     if (typeof this.auth_pass === 'string') {
         this.do_auth();
