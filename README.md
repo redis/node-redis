@@ -469,12 +469,6 @@ client.mset("incr thing", 100, "incr other thing", 1, redis.print);
 multi.exec(function (err, replies) {
     console.log(replies); // 101, 2
 });
-
-// you can re-run the same transaction if you like
-multi.exec(function (err, replies) {
-    console.log(replies); // 102, 3
-    client.quit();
-});
 ```
 
 In addition to adding commands to the `MULTI` queue individually, you can also pass an array
