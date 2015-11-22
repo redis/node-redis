@@ -12,5 +12,5 @@ node_js:
   - "0.10"
   - "0.12"
   - "4.0"
-  - "iojs"
+  - "5.0"
 after_success: npm run coveralls
