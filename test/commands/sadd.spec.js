@@ -55,7 +55,7 @@ describe("The 'sadd' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

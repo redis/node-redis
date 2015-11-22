@@ -29,7 +29,7 @@ describe("The 'rpush' command", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

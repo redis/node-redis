@@ -23,7 +23,7 @@ describe("The 'script' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
 
             it("loads script with client.script('load')", function (done) {

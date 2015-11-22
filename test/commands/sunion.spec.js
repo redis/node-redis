@@ -39,7 +39,7 @@ describe("The 'sunion' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

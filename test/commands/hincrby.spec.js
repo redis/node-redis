@@ -33,7 +33,7 @@ describe("The 'hincrby' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

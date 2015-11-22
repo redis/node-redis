@@ -56,7 +56,7 @@ describe("The 'hset' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

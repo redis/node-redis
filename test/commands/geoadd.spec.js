@@ -28,7 +28,7 @@ describe("The 'geoadd' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

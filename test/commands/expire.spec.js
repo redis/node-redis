@@ -35,7 +35,7 @@ describe("The 'expire' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

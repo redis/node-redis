@@ -37,7 +37,7 @@ describe.skip("The 'sync' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

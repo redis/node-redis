@@ -42,7 +42,7 @@ describe("The 'sunionstore' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

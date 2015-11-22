@@ -52,7 +52,7 @@ describe("The 'getset' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 describe("when the key exists in Redis", function () {

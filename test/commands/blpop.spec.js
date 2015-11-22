@@ -61,8 +61,8 @@ describe("The 'blpop' method", function () {
             });
 
             afterEach(function () {
-                client.end();
-                bclient.end();
+                client.end(true);
+                bclient.end(true);
             });
         });
     });

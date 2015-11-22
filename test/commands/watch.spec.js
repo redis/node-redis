@@ -22,7 +22,7 @@ describe("The 'watch' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
 
             it('does not execute transaction if watched key was modified prior to execution', function (done) {

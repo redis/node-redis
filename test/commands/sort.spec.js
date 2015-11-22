@@ -122,7 +122,7 @@ describe("The 'sort' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

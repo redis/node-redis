@@ -16,7 +16,7 @@ describe("connection tests", function () {
                 client = null;
             });
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
 
             describe("on lost connection", function () {
@@ -174,7 +174,7 @@ describe("connection tests", function () {
                     client.on('connect', function () {
                         assert.strictEqual(client.stream._idleTimeout, -1);
                         assert.strictEqual(client.stream._events.timeout, undefined);
-                        done();
+                        client.on('ready', done);
                     });
                 });
 

@@ -41,7 +41,7 @@ describe("The 'select' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 it("changes the database and calls the callback", function (done) {

@@ -34,7 +34,7 @@ describe("The 'slowlog' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

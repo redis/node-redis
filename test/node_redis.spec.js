@@ -32,7 +32,8 @@ describe("The node_redis client", function () {
             var client;
 
             afterEach(function () {
-                client.end();
+                // Explicitly ignore still running commands
+                client.end(true);
             });
 
             describe("when connected", function () {
@@ -97,11 +98,14 @@ describe("The node_redis client", function () {
                 describe(".end", function () {
 
                     it('used without flush', function(done) {
+                        var finished = false;
                         var end = helper.callFuncAfter(function() {
-                            done(new Error('failed'));
+                            if (!finished) {
+                                done(new Error('failed'));
+                            }
                         }, 20);
                         var cb = function(err, res) {
-                            assert.equal(err.message, "SET can't be processed. The connection has already been closed.");
+                            assert(/The connection has already been closed/.test(err.message));
                             end();
                         };
                         for (var i = 0; i < 20; i++) {
@@ -110,7 +114,10 @@ describe("The node_redis client", function () {
                             }
                             client.set('foo', 'bar', cb);
                         }
-                        setTimeout(done, 250);
+                        setTimeout(function () {
+                            finished = true;
+                            done();
+                        }, 250);
                     });
 
                     it('used with flush set to true', function(done) {
@@ -255,14 +262,7 @@ describe("The node_redis client", function () {
 
                     describe('domain', function () {
                         it('allows client to be executed from within domain', function (done) {
-                            var domain;
-
-                            try {
-                                domain = require('domain').create();
-                            } catch (err) {
-                                console.log("Skipping test because this version of node doesn't have domains.");
-                                return done();
-                            }
+                            var domain = require('domain').create();
 
                             domain.run(function () {
                                 client.set('domain', 'value', function (err, res) {
@@ -505,19 +505,24 @@ describe("The node_redis client", function () {
                             max_attempts: 0,
                             parser: parser
                         });
-
+                        var finished = false;
                         client.on('error', function(e) {
                             // ignore, b/c expecting a "can't connect" error
                         });
 
                         return setTimeout(function() {
                             client.set('foo', 'bar', function(err, result) {
-                                // This should never be called
-                                return done(err);
+                                if (!finished) {
+                                    // This should never be called
+                                    return done(err);
+                                } else {
+                                    assert.strictEqual(err.message, "The command can't be processed. The connection has already been closed.");
+                                }
                             });
 
                             return setTimeout(function() {
                                 assert.strictEqual(client.offline_queue.length, 1);
+                                finished = true;
                                 return done();
                             }, 25);
                         }, 50);

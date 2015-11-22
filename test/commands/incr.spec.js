@@ -29,7 +29,7 @@ describe("The 'incr' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 it("reports an error", function (done) {
@@ -64,7 +64,7 @@ describe("The 'incr' method", function () {
                 });
 
                 after(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 it("changes the last digit from 2 to 3", function (done) {

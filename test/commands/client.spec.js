@@ -28,8 +28,8 @@ describe("The 'client' method", function () {
             });
 
             afterEach(function () {
-                client.end();
-                client2.end();
+                client.end(true);
+                client2.end(true);
             });
 
             describe('list', function () {

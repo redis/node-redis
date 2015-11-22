@@ -33,7 +33,7 @@ describe("The 'smove' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

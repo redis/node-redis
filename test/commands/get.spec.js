@@ -56,7 +56,7 @@ describe("The 'get' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 describe("when the key exists in Redis", function () {

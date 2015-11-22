@@ -30,7 +30,7 @@ describe("The 'setnx' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

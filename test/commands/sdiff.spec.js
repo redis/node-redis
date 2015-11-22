@@ -40,7 +40,7 @@ describe("The 'sdiff' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

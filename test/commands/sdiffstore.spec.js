@@ -40,7 +40,7 @@ describe("The 'sdiffstore' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

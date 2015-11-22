@@ -31,7 +31,7 @@ describe("The 'hlen' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

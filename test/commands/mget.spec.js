@@ -63,7 +63,7 @@ describe("The 'mget' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

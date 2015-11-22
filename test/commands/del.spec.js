@@ -50,7 +50,7 @@ describe("The 'del' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

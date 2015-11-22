@@ -64,7 +64,7 @@ describe("The 'hmget' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

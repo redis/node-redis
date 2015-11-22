@@ -53,7 +53,7 @@ describe("The 'dbsize' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 it("returns a zero db size", function (done) {

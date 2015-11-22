@@ -34,7 +34,7 @@ describe("The 'renamenx' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

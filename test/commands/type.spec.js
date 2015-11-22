@@ -48,7 +48,7 @@ describe("The 'type' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

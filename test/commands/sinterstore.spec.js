@@ -41,7 +41,7 @@ describe("The 'sinterstore' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

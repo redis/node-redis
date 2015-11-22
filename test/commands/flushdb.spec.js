@@ -50,7 +50,7 @@ describe("The 'flushdb' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 describe("when there is data in Redis", function () {

@@ -52,7 +52,7 @@ describe("The 'mset' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 describe("and a callback is specified", function () {

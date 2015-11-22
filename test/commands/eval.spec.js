@@ -22,7 +22,7 @@ describe("The 'eval' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
 
             it('converts a float to an integer when evaluated', function (done) {

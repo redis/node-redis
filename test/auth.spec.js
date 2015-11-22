@@ -24,7 +24,9 @@ describe("client authentication", function () {
                 client = null;
             });
             afterEach(function () {
-                client.end();
+                // Explicitly ignore still running commands
+                // The ready command could still be running
+                client.end(false);
             });
 
             it("allows auth to be provided with 'auth' method", function (done) {

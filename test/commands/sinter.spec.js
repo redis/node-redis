@@ -56,7 +56,7 @@ describe("The 'sinter' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });

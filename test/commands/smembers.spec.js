@@ -31,7 +31,7 @@ describe("The 'smembers' method", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
         });
     });
