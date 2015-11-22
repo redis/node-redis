@@ -180,6 +180,7 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
 * `path`: *null*; The unix socket string to connect to
+* `url`: *null*; The redis url to connect to
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
 * `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
 * `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers. Please be aware that this can't work properly with the pubsub mode. A subscriber has to either always return strings or buffers.

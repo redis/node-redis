@@ -263,11 +263,41 @@ describe("connection tests", function () {
                     });
                 });
 
+                it("connects correctly to the provided host with the port set to null", function (done) {
+                    client = redis.createClient(null, 'localhost');
+                    client.on("error", done);
+                    assert.strictEqual(client.address, 'localhost:6379');
+
+                    client.once("ready", function () {
+                        client.set('foo', 'bar');
+                        client.get('foo', function(err, res) {
+                            assert.strictEqual(res, 'bar');
+                            done(err);
+                        });
+                    });
+                });
+
                 it("connects correctly to localhost and no ready check", function (done) {
                     client = redis.createClient(undefined, undefined, {
                         no_ready_check: true
                     });
                     client.on("error", done);
+
+                    client.once("ready", function () {
+                        client.set('foo', 'bar');
+                        client.get('foo', function(err, res) {
+                            assert.strictEqual(res, 'bar');
+                            done(err);
+                        });
+                    });
+                });
+
+                it("connects correctly to the provided host with the port set to undefined", function (done) {
+                    client = redis.createClient(undefined, 'localhost', {
+                        no_ready_check: true
+                    });
+                    client.on("error", done);
+                    assert.strictEqual(client.address, 'localhost:6379');
 
                     client.once("ready", function () {
                         client.set('foo', 'bar');
@@ -322,6 +352,28 @@ describe("connection tests", function () {
                 if (ip === 'IPv4') {
                     it('allows connecting with the redis url and the default port', function (done) {
                         client = redis.createClient('redis://foo:porkchopsandwiches@' + config.HOST[ip]);
+                        client.on("ready", function () {
+                            return done();
+                        });
+                    });
+
+                    it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {
+                        client = redis.createClient('redis://127.0.0.1', {
+                            connect_timeout: 1000
+                        });
+                        assert.strictEqual(client.options.connect_timeout, 1000);
+                        client.on('ready', function () {
+                            done();
+                        });
+                    });
+
+                    it('allows connecting with the redis url in the options object', function (done) {
+                        client = redis.createClient({
+                            url: 'redis://foo:porkchopsandwiches@' + config.HOST[ip]
+                        });
+                        assert.strictEqual(client.options.auth_pass, 'porkchopsandwiches');
+                        assert(!client.options.port);
+                        assert.strictEqual(client.options.host, config.HOST[ip]);
                         client.on("ready", function () {
                             return done();
                         });

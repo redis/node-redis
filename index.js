@@ -14,14 +14,10 @@ var commands = require('./lib/commands');
 var connection_id = 0;
 var default_port = 6379;
 var default_host = '127.0.0.1';
-var debug = function(msg) {
-    if (exports.debug_mode) {
-        console.error(msg);
-    }
-};
 
 function noop () {}
 function clone (obj) { return JSON.parse(JSON.stringify(obj || {})); }
+function debug (msg) { if (exports.debug_mode) { console.error(msg); } }
 
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
@@ -35,7 +31,7 @@ try {
 
 parsers.push(require('./lib/parsers/javascript'));
 
-function RedisClient(options) {
+function RedisClient (options) {
     // Copy the options so they are not mutated
     options = clone(options);
     events.EventEmitter.call(this);
@@ -1223,6 +1219,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     var args;
     if (len === 0) {
         if (callback) {
+            // The execution order won't be obtained in this case
             setImmediate(function () {
                 callback(null, []);
             });
@@ -1257,15 +1254,13 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
 };
 
 var createClient = function (port_arg, host_arg, options) {
-    if (typeof port_arg === 'object' || port_arg === undefined) {
-        options = port_arg || options || {};
-    } else if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
+    if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
         options = clone(options);
         options.host = host_arg;
         options.port = port_arg;
-    } else if (typeof port_arg === 'string') {
-        options = clone(host_arg || options);
-        var parsed = URL.parse(port_arg, true, true);
+    } else if (typeof port_arg === 'string' || port_arg && port_arg.url) {
+        options = clone(port_arg.url ? port_arg : host_arg || options);
+        var parsed = URL.parse(port_arg.url || port_arg, true, true);
         if (parsed.hostname) {
             if (parsed.auth) {
                 options.auth_pass = parsed.auth.split(':')[1];
@@ -1278,6 +1273,9 @@ var createClient = function (port_arg, host_arg, options) {
         } else {
             options.path = port_arg;
         }
+    } else if (typeof port_arg === 'object' || port_arg === undefined) {
+        options = clone(port_arg || options);
+        options.host = options.host || host_arg;
     }
     if (!options) {
         throw new Error('Unknown type of connection in createClient()');
