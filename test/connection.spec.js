@@ -99,10 +99,12 @@ describe("connection tests", function () {
                     var options = {
                         host: 'somewhere',
                         port: 6379,
+                        family: ip,
                         max_attempts: 1
                     };
                     client = redis.createClient(options);
-                    assert.strictEqual(Object.keys(options).length, 3);
+                    assert.strictEqual(client.connection_option.family, ip === 'IPv6' ? 6 : 4);
+                    assert.strictEqual(Object.keys(options).length, 4);
                     var end = helper.callFuncAfter(done, 2);
 
                     client.on('error', function (err) {
@@ -133,13 +135,14 @@ describe("connection tests", function () {
                     var connect_timeout = 1000; // in ms
                     client = redis.createClient({
                         parser: parser,
-                        host: '192.168.74.167',
+                        host: '192.168.74.167', // Should be auto detected as ipv4
                         connect_timeout: connect_timeout
                     });
                     process.nextTick(function() {
                         assert(client.stream._events.timeout);
                     });
                     assert.strictEqual(client.address, '192.168.74.167:6379');
+                    assert.strictEqual(client.connection_option.family, 4);
                     var time = Date.now();
 
                     client.on("reconnecting", function (params) {
@@ -156,8 +159,10 @@ describe("connection tests", function () {
                 it("use the system socket timeout if the connect_timeout has not been provided", function () {
                     client = redis.createClient({
                         parser: parser,
-                        host: '192.168.74.167'
+                        host: '2001:db8::ff00:42:8329' // auto detect ip v6
                     });
+                    assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
+                    assert.strictEqual(client.connection_option.family, 6);
                     process.nextTick(function() {
                         assert.strictEqual(client.stream._events.timeout, undefined);
                     });
@@ -235,6 +240,7 @@ describe("connection tests", function () {
 
                 it("connects with a port only", function (done) {
                     client = redis.createClient(6379);
+                    assert.strictEqual(client.connection_option.family, 4);
                     client.on("error", done);
 
                     client.once("ready", function () {

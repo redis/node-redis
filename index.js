@@ -47,7 +47,7 @@ function RedisClient(options) {
     } else {
         cnx_options.port = options.port || default_port;
         cnx_options.host = options.host || default_host;
-        cnx_options.family = options.family === 'IPv6' ? 6 : 4;
+        cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
     this.connection_option = cnx_options;
