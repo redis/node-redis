@@ -320,9 +320,22 @@ describe("connection tests", function () {
                     });
                 });
 
-                it("works with missing options object for new redis instances", function () {
-                    // This is needed for libraries that have their own createClient function like fakeredis
-                    client = new redis.RedisClient({ on: function () {}});
+                it("fake the stream to mock redis", function () {
+                    // This is needed for libraries that want to mock the stream like fakeredis
+                    var temp = redis.RedisClient.prototype.create_stream;
+                    var create_stream_string = String(temp);
+                    redis.RedisClient.prototype.create_stream = function () {
+                        this.connected = true;
+                        this.ready = true;
+                    };
+                    client = new redis.RedisClient();
+                    assert.strictEqual(client.stream, undefined);
+                    assert.strictEqual(client.ready, true);
+                    assert.strictEqual(client.connected, true);
+                    client.end = function () {};
+                    assert(create_stream_string !== String(redis.RedisClient.prototype.create_stream));
+                    redis.RedisClient.prototype.create_stream = temp;
+                    assert(create_stream_string === String(redis.RedisClient.prototype.create_stream));
                 });
 
                 it("throws on strange connection info", function () {

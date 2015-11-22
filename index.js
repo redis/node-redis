@@ -88,13 +88,14 @@ function RedisClient (options) {
     this.options = options;
     // Init parser once per instance
     this.init_parser();
-    self.stream = net.createConnection(cnx_options);
-    self.install_stream_listeners();
+    self.create_stream();
 }
 util.inherits(RedisClient, events.EventEmitter);
 
-RedisClient.prototype.install_stream_listeners = function () {
+// Attention: the function name "create_stream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
+RedisClient.prototype.create_stream = function () {
     var self = this;
+    this.stream = net.createConnection(this.connection_option);
 
     if (this.options.connect_timeout) {
         this.stream.setTimeout(this.connect_timeout, function () {
@@ -479,10 +480,7 @@ var retry_connection = function (self) {
     self.retry_totaltime += self.retry_delay;
     self.attempts += 1;
     self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);
-
-    self.stream = net.createConnection(self.connection_option);
-    self.install_stream_listeners();
-
+    self.create_stream();
     self.retry_timer = null;
 };
 
