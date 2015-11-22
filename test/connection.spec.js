@@ -307,6 +307,18 @@ describe("connection tests", function () {
                     }
                 });
 
+                it("throws on protocol other than redis in the redis url", function () {
+                    client = {
+                        end: function() {}
+                    };
+                    try {
+                        redis.createClient(config.HOST[ip] + ':' + config.PORT);
+                        throw new Error('failed');
+                    } catch (err) {
+                        assert.equal(err.message, 'Connection string must use the "redis:" protocol');
+                    }
+                });
+
                 if (ip === 'IPv4') {
                     it('allows connecting with the redis url and the default port', function (done) {
                         client = redis.createClient('redis://foo:porkchopsandwiches@' + config.HOST[ip]);

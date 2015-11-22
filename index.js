@@ -1270,6 +1270,9 @@ var createClient = function (port_arg, host_arg, options) {
             if (parsed.auth) {
                 options.auth_pass = parsed.auth.split(':')[1];
             }
+            if (parsed.protocol !== 'redis:') {
+                throw new Error('Connection string must use the "redis:" protocol');
+            }
             options.host = parsed.hostname;
             options.port = parsed.port;
         } else {
