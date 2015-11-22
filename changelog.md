@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v.2.x.x - xx Nov, 2015
+
+Bugfixes
+
+-  Fixed js parser handling big values slow ([@BridgeAR](https://github.com/BridgeAR))
+ -  The speed is now on par with the hiredis parser.
+
 ## v.2.3.1 - 18 Nov, 2015
 
 Bugfixes
