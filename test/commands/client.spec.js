@@ -67,18 +67,22 @@ describe("The 'client' method", function () {
                     client2.end(true);
                 });
 
-                it('sets the name', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 6, 9]);
+
+                    // The querys are auto pipelined and the response is a response to all querys of one client
+                    // per chunk. So the execution order is only garanteed on each client
+                    var end = helper.callFuncAfter(done, 2);
 
                     client.client("setname", "RUTH", helper.isString('OK'));
                     client2.client("setname", "RENEE", helper.isString('OK'));
                     client2.client("setname", "MARTIN", helper.isString('OK'));
                     client2.client("getname", function(err, res) {
                         assert.equal(res, 'MARTIN');
+                        end();
                     });
                     client.client("getname", function(err, res) {
                         assert.equal(res, 'RUTH');
-                        done();
+                        end();
                     });
                 });
 
