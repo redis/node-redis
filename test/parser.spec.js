@@ -236,6 +236,26 @@ describe('parsers', function () {
                 parser.execute(new Buffer('\n'));
                 assert.strictEqual(reply_count, 2);
             });
+
+            it('return data as buffer if requested', function () {
+                var parser = new Parser(true);
+                var reply_count = 0;
+                function check_reply(reply) {
+                    if (Array.isArray(reply)) {
+                        reply = reply[0];
+                    }
+                    assert(Buffer.isBuffer(reply));
+                    assert.strictEqual(reply.inspect(), new Buffer('test').inspect());
+                    reply_count++;
+                }
+                parser.send_reply = check_reply;
+                parser.execute(new Buffer('+test\r\n'));
+                assert.strictEqual(reply_count, 1);
+                parser.execute(new Buffer('$4\r\ntest\r\n'));
+                assert.strictEqual(reply_count, 2);
+                parser.execute(new Buffer('*1\r\n$4\r\ntest\r\n'));
+                assert.strictEqual(reply_count, 3);
+            });
         });
     });
 });
