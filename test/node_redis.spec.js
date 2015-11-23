@@ -30,7 +30,6 @@ describe("The node_redis client", function () {
             var client;
 
             afterEach(function () {
-                // Explicitly ignore still running commands
                 client.end(true);
             });
 

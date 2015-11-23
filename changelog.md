@@ -1,7 +1,14 @@
 Changelog
 =========
 
-## v.2.x.x - xx Nov, 2015
+## v.2.4.0 - xx Nov, 2015
+
+Features
+
+-  Added `tls` option to iniate a connection to a redis server behind a TLS proxy. Thanks ([@paddybyers](https://github.com/paddybyers)
+-  Added a *url* option to pass the connection url with the options object ([@BridgeAR](https://github.com/BridgeAR)
+-  Added `client.duplicate([options])` to duplicate the current client and return a new one with the same options ([@BridgeAR](https://github.com/BridgeAR)
+-  Improve performance by up to 20% on almost all use cases ([@BridgeAR](https://github.com/BridgeAR)
 
 Bugfixes
 
