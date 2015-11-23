@@ -28,7 +28,7 @@ describe("detect_buffers", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
 
             describe('get', function () {

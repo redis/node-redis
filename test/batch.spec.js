@@ -60,7 +60,7 @@ describe("The 'batch' method", function () {
                 });
 
                 afterEach(function () {
-                    client.end();
+                    client.end(true);
                 });
 
                 it("returns an empty array", function (done) {

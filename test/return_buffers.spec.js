@@ -277,8 +277,8 @@ describe("return_buffers", function () {
                 });
 
                 afterEach(function () {
-                    sub.end();
-                    pub.end();
+                    sub.end(true);
+                    pub.end(true);
                 });
             });
         });

@@ -96,6 +96,30 @@ describe("The node_redis client", function () {
                             done();
                         });
                     });
+
+                    it('safe strings that are bigger than 30000 characters with multi', function(done) {
+                        var str = 'foo ಠ_ಠ bar ';
+                        while (str.length < 111111) {
+                            str += str;
+                        }
+                        var called = false;
+                        var temp = client.writeBuffers.bind(client);
+                        assert(String(client.writeBuffers) !== String(client.writeDefault));
+                        client.writeBuffers = function (data) {
+                            called = true;
+                            // To increase write performance for strings the value is converted to a buffer
+                            assert(String(client.writeBuffers) === String(client.writeDefault));
+                            temp(data);
+                        };
+                        client.multi().set('foo', str).get('foo', function (err, res) {
+                            assert.strictEqual(res, str);
+                        }).exec(function (err, res) {
+                            assert(called);
+                            assert.strictEqual(res[1], str);
+                            done();
+                        });
+                        assert(String(client.writeBuffers) !== String(client.writeDefault));
+                    });
                 });
 
                 describe("send_command", function () {
@@ -135,7 +159,7 @@ describe("The node_redis client", function () {
 
                 describe(".end", function () {
 
-                    it('used without flush', function(done) {
+                    it('used without flush / flush set to false', function(done) {
                         var finished = false;
                         var end = helper.callFuncAfter(function() {
                             if (!finished) {
@@ -513,7 +537,7 @@ describe("The node_redis client", function () {
                             client.retry_backoff = 1;
                             client.stream.end();
                         } else {
-                            client.end();
+                            client.end(true);
                             var lasted = new Date().getTime() - time;
                             assert.ok(lasted < 100);
                             return done();

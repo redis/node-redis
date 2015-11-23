@@ -22,7 +22,8 @@ describe("rename commands", function () {
                     rename_commands: {
                         set: '807081f5afa96845a02816a28b7258c3',
                         GETRANGE: '9e3102b15cf231c4e9e940f284744fe0'
-                    }
+                    },
+                    parser: parser
                 });
 
                 client.on('ready', function () {
@@ -31,7 +32,7 @@ describe("rename commands", function () {
             });
 
             afterEach(function () {
-                client.end();
+                client.end(true);
             });
 
             it("allows to use renamed functions", function (done) {

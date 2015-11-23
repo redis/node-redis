@@ -11,7 +11,7 @@ var client;
 describe("The 'multi' method", function () {
 
     afterEach(function () {
-        client.end();
+        client.end(true);
     });
 
     describe('regression test', function () {
