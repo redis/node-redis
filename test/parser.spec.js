@@ -16,7 +16,7 @@ describe('parsers', function () {
 
         describe(Parser.name, function () {
 
-            it('handles multi-bulk reply', function (done) {
+            it('handles multi-bulk reply', function () {
                 var parser = new Parser();
                 var reply_count = 0;
                 function check_reply(reply) {
@@ -27,33 +27,53 @@ describe('parsers', function () {
                 parser.send_reply = check_reply;
 
                 parser.execute(new Buffer('*1\r\n*1\r\n$1\r\na\r\n'));
+                assert.strictEqual(reply_count, 1);
 
                 parser.execute(new Buffer('*1\r\n*1\r'));
                 parser.execute(new Buffer('\n$1\r\na\r\n'));
+                assert.strictEqual(reply_count, 2);
 
                 parser.execute(new Buffer('*1\r\n*1\r\n'));
                 parser.execute(new Buffer('$1\r\na\r\n'));
 
                 assert.equal(reply_count, 3, "check reply should have been called three times");
-                return done();
             });
 
-            it('parser error', function (done) {
+            it('parser error', function () {
                 var parser = new Parser();
                 var reply_count = 0;
-                function check_reply(reply) {
+                function check_reply (reply) {
                     assert.strictEqual(reply.message, 'Protocol error, got "a" as reply type byte');
                     reply_count++;
                 }
                 parser.send_error = check_reply;
 
                 parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
-
-                assert.equal(reply_count, 1, "check reply should have been called one time");
-                return done();
+                assert.equal(reply_count, 1);
             });
 
-            it('line breaks in the beginning of the last chunk', function (done) {
+            it('parser error v2', function () {
+                var parser = new Parser();
+                var reply_count = 0;
+                var err_count = 0;
+                function check_reply (reply) {
+                    reply = utils.reply_to_strings(reply);
+                    assert.strictEqual(reply[0], 'OK');
+                    reply_count++;
+                }
+                function check_error (err) {
+                    assert.strictEqual(err.message, 'Protocol error, got "b" as reply type byte');
+                    err_count++;
+                }
+                parser.send_error = check_error;
+                parser.send_reply = check_reply;
+
+                parser.execute(new Buffer('*1\r\n+OK\r\nb$1`zasd\r\na'));
+                assert.strictEqual(reply_count, 1);
+                assert.strictEqual(err_count, 1);
+            });
+
+            it('line breaks in the beginning of the last chunk', function () {
                 var parser = new Parser();
                 var reply_count = 0;
                 function check_reply(reply) {
@@ -64,15 +84,16 @@ describe('parsers', function () {
                 parser.send_reply = check_reply;
 
                 parser.execute(new Buffer('*1\r\n*1\r\n$1\r\na'));
+                assert.equal(reply_count, 0);
 
                 parser.execute(new Buffer('\r\n*1\r\n*1\r'));
+                assert.equal(reply_count, 1);
                 parser.execute(new Buffer('\n$1\r\na\r\n*1\r\n*1\r\n$1\r\na\r\n'));
 
                 assert.equal(reply_count, 3, "check reply should have been called three times");
-                return done();
             });
 
-            it('multiple chunks in a bulk string', function (done) {
+            it('multiple chunks in a bulk string', function () {
                 var parser = new Parser();
                 var reply_count = 0;
                 function check_reply(reply) {
@@ -107,21 +128,27 @@ describe('parsers', function () {
                 parser.execute(new Buffer('\n'));
 
                 assert.equal(reply_count, 4, "check reply should have been called three times");
-                return done();
             });
 
-            it('multiple chunks with arrays different types', function (done) {
+            it('multiple chunks with arrays different types', function () {
                 var parser = new Parser();
                 var reply_count = 0;
+                var predefined_data = [
+                    'abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij',
+                    'test',
+                    100,
+                    new Error('Error message'),
+                    ['The force awakens']
+                ];
                 function check_reply(reply) {
                     reply = utils.reply_to_strings(reply);
-                    assert.deepStrictEqual(reply, [
-                        'abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij',
-                        'test',
-                        100,
-                        new Error('Error message'),
-                        ['The force awakens']
-                    ]);
+                    for (var i = 0; i < reply.length; i++) {
+                        if (i < 3) {
+                            assert.strictEqual(reply[i], predefined_data[i]);
+                        } else {
+                            assert.deepEqual(reply[i], predefined_data[i]);
+                        }
+                    }
                     reply_count++;
                 }
                 parser.send_reply = check_reply;
@@ -137,10 +164,9 @@ describe('parsers', function () {
                 assert.strictEqual(reply_count, 0);
                 parser.execute(new Buffer(' awakens\r\n$5'));
                 assert.strictEqual(reply_count, 1);
-                return done();
             });
 
-            it('return normal errors', function (done) {
+            it('return normal errors', function () {
                 var parser = new Parser();
                 var reply_count = 0;
                 function check_reply(reply) {
@@ -154,10 +180,9 @@ describe('parsers', function () {
                 assert.strictEqual(reply_count, 1);
                 parser.execute(new Buffer(' awakens\r\n$5'));
                 assert.strictEqual(reply_count, 1);
-                return done();
             });
 
-            it('return null for empty arrays and empty bulk strings', function (done) {
+            it('return null for empty arrays and empty bulk strings', function () {
                 var parser = new Parser();
                 var reply_count = 0;
                 function check_reply(reply) {
@@ -172,7 +197,44 @@ describe('parsers', function () {
                 assert.strictEqual(reply_count, 1);
                 parser.execute(new Buffer('\r\n$-'));
                 assert.strictEqual(reply_count, 2);
-                return done();
+            });
+
+            it('return value even if all chunks are only 1 character long', function () {
+                var parser = new Parser();
+                var reply_count = 0;
+                function check_reply(reply) {
+                    assert.equal(reply, 1);
+                    reply_count++;
+                }
+                parser.send_reply = check_reply;
+
+                parser.execute(new Buffer(':'));
+                assert.strictEqual(reply_count, 0);
+                parser.execute(new Buffer('1'));
+                assert.strictEqual(reply_count, 0);
+                parser.execute(new Buffer('\r'));
+                assert.strictEqual(reply_count, 0);
+                parser.execute(new Buffer('\n'));
+                assert.strictEqual(reply_count, 1);
+            });
+
+            it('do not return before \\r\\n', function () {
+                var parser = new Parser();
+                var reply_count = 0;
+                function check_reply(reply) {
+                    assert.equal(reply, 1);
+                    reply_count++;
+                }
+                parser.send_reply = check_reply;
+
+                parser.execute(new Buffer(':1\r\n:'));
+                assert.strictEqual(reply_count, 1);
+                parser.execute(new Buffer('1'));
+                assert.strictEqual(reply_count, 1);
+                parser.execute(new Buffer('\r'));
+                assert.strictEqual(reply_count, 1);
+                parser.execute(new Buffer('\n'));
+                assert.strictEqual(reply_count, 2);
             });
         });
     });

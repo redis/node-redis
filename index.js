@@ -294,14 +294,10 @@ RedisClient.prototype.init_parser = function () {
     // Important: Only send results / errors async.
     // That way the result / error won't stay in a try catch block and catch user things
     this.reply_parser.send_error = function (data) {
-        process.nextTick(function() {
-            self.return_error(data);
-        });
+        self.return_error(data);
     };
     this.reply_parser.send_reply = function (data) {
-        process.nextTick(function() {
-            self.return_reply(data);
-        });
+        self.return_reply(data);
     };
 };
 
