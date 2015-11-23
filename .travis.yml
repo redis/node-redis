@@ -2,14 +2,13 @@ language: node_js
 sudo: false
 env:
   - CXX=g++-4.8
+  - TRAVIS=true
 addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
     packages:
     - g++-4.8
-env:
-  - TRAVIS=true
 node_js:
   - "0.10"
   - "0.12"
