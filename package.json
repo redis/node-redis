@@ -20,7 +20,8 @@
     "posttest": "jshint ."
   },
   "dependencies": {
-    "double-ended-queue": "^2.1.0-0"
+    "double-ended-queue": "^2.1.0-0",
+    "redis-commands": "^1.0.1"
   },
   "engines": {
     "node": ">=0.10.0"

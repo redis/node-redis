@@ -214,6 +214,7 @@ limits total amount of connection tries. Setting this to 1 will prevent any reco
 * `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
 * `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
 to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
+* `prefix`: *null*; pass a string to prefix all used keys with that string as prefix e.g. 'namespace:test'
 
 ```js
 var redis = require("redis"),

@@ -9,9 +9,7 @@ var Queue = require('double-ended-queue');
 var Command = require('./lib/command');
 var events = require('events');
 var parsers = [];
-// This static list of commands is updated from time to time.
-// ./lib/commands.js can be updated with generate_commands.js
-var commands = require('./lib/commands');
+var commands = require('redis-commands');
 var connection_id = 0;
 var default_port = 6379;
 var default_host = '127.0.0.1';
@@ -22,7 +20,7 @@ function debug (msg) { if (exports.debug_mode) { console.error(msg); } }
 
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
-// hiredis might not be installed
+// Hiredis might not be installed
 try {
     parsers.push(require('./lib/parsers/hiredis'));
 } catch (err) {
@@ -189,7 +187,7 @@ RedisClient.prototype.unref = function () {
     }
 };
 
-// flush provided queues, erroring any items with a callback first
+// Flush provided queues, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (error, queue_names) {
     var command_obj;
     queue_names = queue_names || ['offline_queue', 'command_queue'];
@@ -457,7 +455,7 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
         key = 'db' + i;
     }
 
-    // expose info key/vals to users
+    // Expose info key/vals to users
     this.server_info = obj;
 
     if (!obj.loading || obj.loading === '0') {
@@ -684,7 +682,7 @@ RedisClient.prototype.return_reply = function (reply) {
                 } else {
                     this.pub_sub_mode = true;
                 }
-                // subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
+                // Subscribe commands take an optional callback and also emit an event, but only the first response is included in the callback
                 // TODO - document this or fix it so it works in a more obvious way
                 if (command_obj && typeof command_obj.callback === 'function') {
                     command_obj.callback(null, reply[1]);
@@ -723,6 +721,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         command_str = '',
         buffer_args = false,
         big_data = false,
+        prefix_keys,
         buffer = this.options.return_buffers;
 
     if (args === undefined) {
@@ -810,7 +809,14 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     if (typeof this.options.rename_commands !== 'undefined' && this.options.rename_commands[command]) {
         command = this.options.rename_commands[command];
     }
-
+    if (this.options.prefix) {
+        prefix_keys = commands.getKeyIndexes(command, args);
+        i = prefix_keys.pop();
+        while (i !== undefined) {
+            args[i] = this.options.prefix + args[i];
+            i = prefix_keys.pop();
+        }
+    }
     // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
     command_str = '*' + (args.length + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n';
@@ -943,23 +949,7 @@ function Multi(client, args) {
     }
 }
 
-RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
-    var multi = new Multi(this, args);
-    multi.exec = multi.EXEC = multi.exec_transaction;
-    return multi;
-};
-
-RedisClient.prototype.batch = RedisClient.prototype.BATCH = function (args) {
-    return new Multi(this, args);
-};
-
-commands.forEach(function (fullCommand) {
-    var command = fullCommand.split(' ')[0];
-
-    // Skip all full commands that have already been added instead of overwriting them over and over again
-    if (RedisClient.prototype[command]) {
-        return;
-    }
+commands.list.forEach(function (command) {
 
     RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
@@ -1006,7 +996,17 @@ commands.forEach(function (fullCommand) {
     };
 });
 
-// store db in this.select_db to restore it on reconnect
+RedisClient.prototype.multi = RedisClient.prototype.MULTI = function (args) {
+    var multi = new Multi(this, args);
+    multi.exec = multi.EXEC = multi.exec_transaction;
+    return multi;
+};
+
+RedisClient.prototype.batch = RedisClient.prototype.BATCH = function (args) {
+    return new Multi(this, args);
+};
+
+// Store db in this.select_db to restore it on reconnect
 RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, callback) {
     var self = this;
     return this.send_command('select', [db], function (err, res) {
@@ -1138,7 +1138,7 @@ Multi.prototype.exec_transaction = function (callback) {
     this._client.cork(len + 2);
     this.wants_buffers = new Array(len);
     this.send_command('multi', []);
-    // drain queue, callback will catch 'QUEUED' or error
+    // Drain queue, callback will catch 'QUEUED' or error
     for (var index = 0; index < len; index++) {
         var args = this.queue.get(index).slice(0);
         var command = args.shift();
