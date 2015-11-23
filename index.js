@@ -141,7 +141,9 @@ RedisClient.prototype.duplicate = function (options) {
     for (var elem in options) { // jshint ignore: line
         existing_options[elem] = options[elem];
     }
-    return new RedisClient(existing_options);
+    var client = new RedisClient(existing_options);
+    client.selected_db = this.selected_db;
+    return client;
 };
 
 RedisClient.prototype.initialize_retry_vars = function () {

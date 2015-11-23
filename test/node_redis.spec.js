@@ -44,7 +44,9 @@ describe("The node_redis client", function () {
 
                 describe('duplicate', function () {
                     it('check if all options got copied properly', function(done) {
+                        client.selected_db = 2;
                         var client2 = client.duplicate();
+                        assert.strictEqual(client2.selected_db, 2);
                         assert(client.connected);
                         assert(!client2.connected);
                         for (var elem in client.options) {
