@@ -11,7 +11,7 @@ describe("The 'client' method", function () {
         var pattern = /addr=/;
 
         describe("using " + parser + " and " + ip, function () {
-            var client, client2;
+            var client;
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
@@ -20,16 +20,8 @@ describe("The 'client' method", function () {
                 });
             });
 
-            beforeEach(function (done) {
-                client2 = redis.createClient.apply(redis.createClient, args);
-                client2.once("ready", function () {
-                    done();
-                });
-            });
-
             afterEach(function () {
                 client.end(true);
-                client2.end(true);
             });
 
             describe('list', function () {
@@ -62,6 +54,18 @@ describe("The 'client' method", function () {
             });
 
             describe('setname / getname', function () {
+                var client2;
+
+                beforeEach(function (done) {
+                    client2 = redis.createClient.apply(redis.createClient, args);
+                    client2.once("ready", function () {
+                        done();
+                    });
+                });
+
+                afterEach(function () {
+                    client2.end(true);
+                });
 
                 it('sets the name', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 6, 9]);
