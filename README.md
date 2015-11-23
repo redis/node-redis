@@ -572,6 +572,10 @@ the second word as first parameter:
     client.multi().script('load', 'return 1').exec(...);
     client.multi([['script', 'load', 'return 1']]).exec(...);
 
+## client.duplicate([options])
+
+Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
+
 ## client.send_command(command_name[, [args][, callback]])
 
 Used internally to send commands to Redis. Nearly all Redis commands have been added to the `client` object.

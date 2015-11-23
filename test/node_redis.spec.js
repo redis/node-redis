@@ -42,6 +42,45 @@ describe("The node_redis client", function () {
                     });
                 });
 
+                describe('duplicate', function () {
+                    it('check if all options got copied properly', function(done) {
+                        var client2 = client.duplicate();
+                        assert(client.connected);
+                        assert(!client2.connected);
+                        for (var elem in client.options) {
+                            if (client.options.hasOwnProperty(elem)) {
+                                assert.strictEqual(client2.options[elem], client.options[elem]);
+                            }
+                        }
+                        client2.on('ready', function () {
+                            client2.end(true);
+                            done();
+                        });
+                    });
+
+                    it('check if all new options replaced the old ones', function(done) {
+                        var client2 = client.duplicate({
+                            no_ready_check: true
+                        });
+                        assert(client.connected);
+                        assert(!client2.connected);
+                        assert.strictEqual(client.options.no_ready_check, undefined);
+                        assert.strictEqual(client2.options.no_ready_check, true);
+                        assert.notDeepEqual(client.options, client2.options);
+                        for (var elem in client.options) {
+                            if (client.options.hasOwnProperty(elem)) {
+                                if (elem !== 'no_ready_check') {
+                                    assert.strictEqual(client2.options[elem], client.options[elem]);
+                                }
+                            }
+                        }
+                        client2.on('ready', function () {
+                            client2.end(true);
+                            done();
+                        });
+                    });
+                });
+
                 describe('big data', function () {
 
                     // Check if the fast mode for big strings is working correct

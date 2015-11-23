@@ -135,6 +135,15 @@ RedisClient.prototype.create_stream = function () {
 RedisClient.prototype.cork = noop;
 RedisClient.prototype.uncork = noop;
 
+RedisClient.prototype.duplicate = function (options) {
+    var existing_options = clone(this.options);
+    options = clone(options);
+    for (var elem in options) { // jshint ignore: line
+        existing_options[elem] = options[elem];
+    }
+    return new RedisClient(existing_options);
+};
+
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
     this.retry_totaltime = 0;
