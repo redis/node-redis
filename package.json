@@ -6,7 +6,9 @@
     "database",
     "redis",
     "transaction",
-    "pipelining"
+    "pipelining",
+    "performance",
+    "queue"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
   "license": "MIT",
