@@ -67,6 +67,7 @@ describe("The 'client' method", function () {
                     client2.end(true);
                 });
 
+                it('sets the name', function (done) {
                     helper.serverVersionAtLeast.call(this, client, [2, 6, 9]);
 
                     // The querys are auto pipelined and the response is a response to all querys of one client
