@@ -104,14 +104,18 @@ describe("publish/subscribe", function () {
                 });
 
                 it('receives messages on subscribed channel', function (done) {
+                    var end = helper.callFuncAfter(done, 2);
                     sub.on("subscribe", function (chnl, count) {
-                        pub.publish(channel, message, helper.isNumber(1));
+                        pub.publish(channel, message, function (err, res) {
+                            helper.isNumber(1)(err, res);
+                            end();
+                        });
                     });
 
                     sub.on("message", function (chnl, msg) {
                         assert.equal(chnl, channel);
                         assert.equal(msg, message);
-                        return done();
+                        end();
                     });
 
                     sub.subscribe(channel);
