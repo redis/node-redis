@@ -124,14 +124,18 @@ describe("publish/subscribe", function () {
                 it('receives messages if subscribe is called after unsubscribe', function (done) {
                     helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
 
+                    var end = helper.callFuncAfter(done, 2);
                     sub.once("subscribe", function (chnl, count) {
-                        pub.publish(channel, message, helper.isNumber(1));
+                        pub.publish(channel, message, function (err, res) {
+                            helper.isNumber(1)(err, res);
+                            end();
+                        });
                     });
 
                     sub.on("message", function (chnl, msg) {
                         assert.equal(chnl, channel);
                         assert.equal(msg, message);
-                        return done();
+                        end();
                     });
 
                     sub.subscribe(channel);
@@ -371,8 +375,9 @@ describe("publish/subscribe", function () {
             });
 
             afterEach(function () {
-                sub.end(true);
-                pub.end(true);
+                // Explicitly ignore still running commands
+                pub.end(false);
+                sub.end(false);
             });
         });
     });
