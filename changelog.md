@@ -6,7 +6,7 @@ Changelog
 Features
 
 -  Added `tls` option to iniate a connection to a redis server behind a TLS proxy. Thanks ([@paddybyers](https://github.com/paddybyers))
--  Added `prefix` option to auto key prefix any command with the provided prefix (([@luin](https://github.com/luin) & [@BridgeAR](https://github.com/BridgeAR)))
+-  Added `prefix` option to auto key prefix any command with the provided prefix ([@luin](https://github.com/luin) & [@BridgeAR](https://github.com/BridgeAR))
 -  Added `url` option to pass the connection url with the options object ([@BridgeAR](https://github.com/BridgeAR))
 -  Added `client.duplicate([options])` to duplicate the current client and return a new one with the same options ([@BridgeAR](https://github.com/BridgeAR))
 -  Improve performance by up to 20% on almost all use cases ([@BridgeAR](https://github.com/BridgeAR))
