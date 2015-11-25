@@ -256,6 +256,23 @@ describe('parsers', function () {
                 parser.execute(new Buffer('*1\r\n$4\r\ntest\r\n'));
                 assert.strictEqual(reply_count, 3);
             });
+
+            it('regression test v.2.4.1', function () {
+                var parser = new Parser(true);
+                var reply_count = 0;
+                var entries = ['test test ', 'test test test test ', '1234'];
+                function check_reply(reply) {
+                    assert.strictEqual(reply.toString(), entries[reply_count]);
+                    reply_count++;
+                }
+                parser.send_reply = check_reply;
+                parser.execute(new Buffer('$10\r\ntest '));
+                assert.strictEqual(reply_count, 0);
+                parser.execute(new Buffer('test \r\n$20\r\ntest test test test \r\n:1234\r'));
+                assert.strictEqual(reply_count, 2);
+                parser.execute(new Buffer('\n'));
+                assert.strictEqual(reply_count, 3);
+            });
         });
     });
 });

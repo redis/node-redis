@@ -1,11 +1,17 @@
 Changelog
 =========
 
+## v.2.4.1 - 25 Nov, 2015
+
+Bugfixes
+
+-  Fixed a js parser regression introduced in 2.4.0 ([@BridgeAR](https://github.com/BridgeAR))
+
 ## v.2.4.0 - 25 Nov, 2015
 
 Features
 
--  Added `tls` option to iniate a connection to a redis server behind a TLS proxy. Thanks ([@paddybyers](https://github.com/paddybyers))
+-  Added `tls` option to initiate a connection to a redis server behind a TLS proxy. Thanks ([@paddybyers](https://github.com/paddybyers))
 -  Added `prefix` option to auto key prefix any command with the provided prefix ([@luin](https://github.com/luin) & [@BridgeAR](https://github.com/BridgeAR))
 -  Added `url` option to pass the connection url with the options object ([@BridgeAR](https://github.com/BridgeAR))
 -  Added `client.duplicate([options])` to duplicate the current client and return a new one with the same options ([@BridgeAR](https://github.com/BridgeAR))
