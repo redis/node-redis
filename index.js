@@ -382,6 +382,7 @@ RedisClient.prototype.on_ready = function () {
             }
         };
         if (this.options.disable_resubscribing) {
+            this.emit('ready');
             return;
         }
         Object.keys(this.subscription_set).forEach(function (key) {
