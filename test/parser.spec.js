@@ -73,6 +73,45 @@ describe('parsers', function () {
                 assert.strictEqual(err_count, 1);
             });
 
+            it('parser error v3', function () {
+                var parser = new Parser();
+                var reply_count = 0;
+                var err_count = 0;
+                function check_reply (reply) {
+                    reply = utils.reply_to_strings(reply);
+                    assert.strictEqual(reply[0], 'OK');
+                    reply_count++;
+                }
+                function check_error (err) {
+                    assert.strictEqual(err.message, 'Protocol error, got "\\n" as reply type byte');
+                    err_count++;
+                }
+                parser.send_error = check_error;
+                parser.send_reply = check_reply;
+
+                parser.execute(new Buffer('*1\r\n+OK\r\n\n+zasd\r\n'));
+                assert.strictEqual(reply_count, 1);
+                assert.strictEqual(err_count, 1);
+            });
+
+            it('should handle \\r and \\n characters properly', function () {
+                // If a string contains \r or \n characters it will always be send as a bulk string
+                var parser = new Parser();
+                var reply_count = 0;
+                var entries = ['foo\r', 'foo\r\nbar', '\r\nfoo', 'foo\r\n'];
+                function check_reply (reply) {
+                    reply = utils.reply_to_strings(reply);
+                    assert.strictEqual(reply, entries[reply_count]);
+                    reply_count++;
+                }
+                parser.send_reply = check_reply;
+
+                parser.execute(new Buffer('$4\r\nfoo\r\r\n$8\r\nfoo\r\nbar\r\n$5\r\n\r\n'));
+                assert.strictEqual(reply_count, 2);
+                parser.execute(new Buffer('foo\r\n$5\r\nfoo\r\n\r\n'));
+                assert.strictEqual(reply_count, 4);
+            });
+
             it('line breaks in the beginning of the last chunk', function () {
                 var parser = new Parser();
                 var reply_count = 0;
