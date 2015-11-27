@@ -17,51 +17,32 @@ describe("publish/subscribe", function () {
             var message = "test message";
 
             beforeEach(function (done) {
-                var pubConnected;
-                var subConnected;
+                var end = helper.callFuncAfter(done, 2);
 
                 pub = redis.createClient.apply(redis.createClient, args);
                 sub = redis.createClient.apply(redis.createClient, args);
                 pub.once("connect", function () {
                     pub.flushdb(function () {
-                        pubConnected = true;
-                        if (subConnected) {
-                            done();
-                        }
+                        end();
                     });
                 });
                 sub.once("connect", function () {
-                    subConnected = true;
-                    if (pubConnected) {
-                        done();
-                    }
+                    end();
                 });
             });
 
             describe('disable resubscribe', function () {
                 beforeEach(function (done) {
-                    var pubConnected;
-                    var subConnected;
-
-                    pub = redis.createClient();
+                    sub.end(false);
                     sub = redis.createClient({
                         disable_resubscribing: true
                     });
-                    pub.once("connect", function () {
-                        pubConnected = true;
-                        if (subConnected) {
-                            done();
-                        }
-                    });
                     sub.once("connect", function () {
-                        subConnected = true;
-                        if (pubConnected) {
-                            done();
-                        }
+                        done();
                     });
                 });
 
-                it('does not fire subscribe events after reconnecting', function (done) {
+                it.only('does not fire subscribe events after reconnecting', function (done) {
                     var a = false;
                     sub.on("subscribe", function (chnl, count) {
                         if (chnl === channel2) {
@@ -75,11 +56,12 @@ describe("publish/subscribe", function () {
 
                     sub.on('reconnecting', function() {
                         a = true;
+                        sub.on('ready', function () {
+                            setTimeout(done, 250);
+                        });
                     });
 
                     sub.subscribe(channel, channel2);
-
-                    setTimeout(done, 250);
                 });
             });
 

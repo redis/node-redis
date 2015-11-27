@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.4.2 - 27 Nov, 2015
+
+Bugfixes
+
+-  Fixed not emitting ready after reconnect with disable_resubscribing ([@maxgalbu](https://github.com/maxgalbu))
+
 ## v.2.4.1 - 25 Nov, 2015
 
 Bugfixes
