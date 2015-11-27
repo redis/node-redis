@@ -42,7 +42,7 @@ describe("publish/subscribe", function () {
                     });
                 });
 
-                it.only('does not fire subscribe events after reconnecting', function (done) {
+                it('does not fire subscribe events after reconnecting', function (done) {
                     var a = false;
                     sub.on("subscribe", function (chnl, count) {
                         if (chnl === channel2) {
