@@ -251,25 +251,18 @@ describe("The 'multi' method", function () {
 
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
                     var multi1, multi2;
-                    var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
-
                     // Provoke an error at queue time
                     multi1 = client.MULTI();
                     multi1.mset("multifoo", "10", "multibar", "20", helper.isString("OK"));
 
-                    multi1.set("foo2", expected);
+                    multi1.set("foo2", helper.isError());
                     multi1.incr("multifoo");
                     multi1.incr("multibar");
                     multi1.exec(function () {
                         // Redis 2.6.5+ will abort transactions with errors
                         // see: http://redis.io/topics/transactions
-                        var multibar_expected = 22;
-                        var multifoo_expected = 12;
-                        if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
-                            multibar_expected = 1;
-                            multifoo_expected = 1;
-                        }
-
+                        var multibar_expected = 1;
+                        var multifoo_expected = 1;
                         // Confirm that the previous command, while containing an error, still worked.
                         multi2 = client.multi();
                         multi2.incr("multibar", helper.isNumber(multibar_expected));
@@ -283,8 +276,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it('roles back a transaction when one command in an array of commands fails', function (done) {
-                    var expected = helper.serverVersionAtLeast(client, [2, 6, 5]) ? helper.isError() : function () {};
-
                     // test nested multi-bulk replies
                     client.multi([
                         ["mget", "multifoo", "multibar", function (err, res) {
@@ -292,22 +283,12 @@ describe("The 'multi' method", function () {
                             assert.strictEqual(0, +res[0]);
                             assert.strictEqual(0, +res[1]);
                         }],
-                        ["set", "foo2", expected],
+                        ["set", "foo2", helper.isError()],
                         ["incr", "multifoo"],
                         ["incr", "multibar"]
                     ]).exec(function (err, replies) {
-                        if (helper.serverVersionAtLeast(client, [2, 6, 5])) {
-                            assert.notEqual(err, null);
-                            assert.equal(replies, undefined);
-                        } else {
-                            assert.strictEqual(2, replies[0].length);
-                            assert.strictEqual(null, replies[0][0]);
-                            assert.strictEqual(null, replies[0][1]);
-
-                            assert.strictEqual("1", replies[1].toString());
-                            assert.strictEqual("1", replies[2].toString());
-                        }
-
+                        assert.notEqual(err, null);
+                        assert.equal(replies, undefined);
                         return done();
                     });
                 });
@@ -537,8 +518,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it("emits an error if no callback has been provided and execabort error occured", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     var multi = client.multi();
                     multi.config("bar");
                     multi.set("foo");
@@ -551,8 +530,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it("should work without any callback", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     var multi = client.multi();
                     multi.set("baz", "binary");
                     multi.set("foo", "bar");
@@ -583,8 +560,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it("should use transaction with exec_atomic and more than one command used", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     var multi = client.multi();
                     var test = false;
                     multi.exec_batch = function () {
@@ -597,8 +572,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it("do not mutate arguments in the multi constructor", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     var input = [['set', 'foo', 'bar'], ['get', 'foo']];
                     client.multi(input).exec(function (err, res) {
                         assert.strictEqual(input.length, 2);
@@ -609,8 +582,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it("works properly after a reconnect. issue #897", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     client.stream.destroy();
                     client.on('error', function (err) {
                         assert.strictEqual(err.code, 'ECONNREFUSED');
@@ -625,8 +596,6 @@ describe("The 'multi' method", function () {
                 });
 
                 it("emits error once if reconnecting after multi has been executed but not yet returned without callback", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     client.on('error', function(err) {
                         assert.strictEqual(err.code, 'UNCERTAIN_STATE');
                         done();

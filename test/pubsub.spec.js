@@ -104,8 +104,6 @@ describe("publish/subscribe", function () {
                 });
 
                 it('receives messages if subscribe is called after unsubscribe', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
-
                     var end = helper.callFuncAfter(done, 2);
                     sub.once("subscribe", function (chnl, count) {
                         pub.publish(channel, message, function (err, res) {
@@ -126,8 +124,6 @@ describe("publish/subscribe", function () {
                 });
 
                 it('handles SUB_UNSUB_MSG_SUB', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
-
                     sub.subscribe('chan8');
                     sub.subscribe('chan9');
                     sub.unsubscribe('chan9');
@@ -138,8 +134,6 @@ describe("publish/subscribe", function () {
                 });
 
                 it('handles SUB_UNSUB_MSG_SUB 2', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
-
                     sub.psubscribe('abc*');
                     sub.subscribe('xyz');
                     sub.unsubscribe('xyz');
@@ -241,8 +235,6 @@ describe("publish/subscribe", function () {
                 });
 
                 it('executes callback when unsubscribe is called and there are no subscriptions', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
-
                     pub.unsubscribe(function (err, results) {
                         assert.strictEqual(null, results);
                         return done(err);
@@ -270,8 +262,6 @@ describe("publish/subscribe", function () {
                 });
 
                 it('executes callback when punsubscribe is called and there are no subscriptions', function (done) {
-                    helper.serverVersionAtLeast.bind(this)(sub, [2, 6, 11]);
-
                     pub.punsubscribe(function (err, results) {
                         assert.strictEqual(null, results);
                         return done(err);

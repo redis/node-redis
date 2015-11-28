@@ -68,8 +68,6 @@ describe("The 'client' method", function () {
                 });
 
                 it('sets the name', function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 9]);
-
                     // The querys are auto pipelined and the response is a response to all querys of one client
                     // per chunk. So the execution order is only garanteed on each client
                     var end = helper.callFuncAfter(done, 2);

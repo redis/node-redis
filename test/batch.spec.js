@@ -328,8 +328,6 @@ describe("The 'batch' method", function () {
                 });
 
                 it("should work without any callback", function (done) {
-                    helper.serverVersionAtLeast.call(this, client, [2, 6, 5]);
-
                     var batch = client.batch();
                     batch.set("baz", "binary");
                     batch.set("foo", "bar");
