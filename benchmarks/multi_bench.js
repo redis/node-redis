@@ -42,7 +42,7 @@ function lpad(input, len, chr) {
 
 metrics.Histogram.prototype.print_line = function () {
     var obj = this.printObj();
-    return lpad(obj.min, 4) + '/' + lpad(obj.max, 4) + '/' + lpad(obj.mean.toFixed(2), 7) + '/' + lpad(obj.p95.toFixed(2), 7);
+    return lpad(obj.min, 4) + '/' + lpad(obj.max, 4) + '/' + lpad(obj.mean.toFixed(2), 7);
 };
 
 function Test(args) {
@@ -205,7 +205,7 @@ Test.prototype.print_stats = function () {
     var duration = Date.now() - this.test_start;
     totalTime += duration;
 
-    console.log('min/max/avg/p95: ' + this.command_latency.print_line() + ' ' + lpad(duration, 6) + 'ms total, ' +
+    console.log('min/max/avg: ' + this.command_latency.print_line() + ' ' + lpad(duration, 6) + 'ms total, ' +
         lpad((this.commands_completed / (duration / 1000)).toFixed(2), 9) + ' ops/sec');
 };
 

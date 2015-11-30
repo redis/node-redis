@@ -8,20 +8,6 @@ var redis = config.redis;
 
 describe("The node_redis client", function () {
 
-    describe("testing parser existence", function () {
-        it('throws on non-existence', function (done) {
-            try {
-                redis.createClient({
-                    parser: 'nonExistingParser'
-                });
-                done(new Error('test failed'));
-            } catch (err) {
-                assert.equal(err.message, 'Couldn\'t find named parser nonExistingParser on this system');
-                done();
-            }
-        });
-    });
-
     helper.allTests({
         allConnections: true
     }, function(parser, ip, args) {

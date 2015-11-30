@@ -8,7 +8,7 @@ var utils = require('./lib/utils');
 var Queue = require('double-ended-queue');
 var Command = require('./lib/command');
 var events = require('events');
-var parsers = [];
+var Parser = require('redis-parser');
 var commands = require('redis-commands');
 var connection_id = 0;
 var default_port = 6379;
@@ -18,17 +18,20 @@ function noop () {}
 function clone (obj) { return JSON.parse(JSON.stringify(obj || {})); }
 function debug (msg) { if (exports.debug_mode) { console.error(msg); } }
 
-exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
+function handle_detect_buffers_reply (reply, command, buffer_args) {
+    if (buffer_args === false) {
+        // If detect_buffers option was specified, then the reply from the parser will be a buffer.
+        // If this command did not use Buffer arguments, then convert the reply to Strings here.
+        reply = utils.reply_to_strings(reply);
+    }
 
-// Hiredis might not be installed
-try {
-    parsers.push(require('./lib/parsers/hiredis'));
-} catch (err) {
-    /* istanbul ignore next: won't be reached with tests */
-    debug('Hiredis parser not installed.');
+    if (command === 'hgetall') {
+        reply = utils.reply_to_object(reply);
+    }
+    return reply;
 }
 
-parsers.push(require('./lib/parsers/javascript'));
+exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 function RedisClient (options) {
     // Copy the options so they are not mutated
@@ -69,6 +72,10 @@ function RedisClient (options) {
         console.warn('>> WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
         options.detect_buffers = false;
     }
+    if (options.detect_buffers) {
+        // We only need to look at the arguments if we do not know what we have to return
+        this.handle_reply = handle_detect_buffers_reply;
+    }
     this.should_buffer = false;
     this.max_attempts = options.max_attempts | 0;
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
@@ -83,13 +90,22 @@ function RedisClient (options) {
     this.closing = false;
     this.server_info = {};
     this.auth_pass = options.auth_pass;
-    this.parser_module = null;
     this.selected_db = null; // Save the selected db here, used when reconnecting
     this.old_state = null;
     this.pipeline = 0;
     this.options = options;
-    // Init parser once per instance
-    this.init_parser();
+    // Init parser
+    var self = this;
+    this.reply_parser = new Parser({
+        returnReply: function (data) {
+            self.return_reply(data);
+        },
+        returnError: function (data) {
+            self.return_error(data);
+        },
+        returnBuffers: options.return_buffers || options.detect_buffers,
+        name: options.parser
+    });
     this.create_stream();
 }
 util.inherits(RedisClient, events.EventEmitter);
@@ -151,6 +167,13 @@ RedisClient.prototype.create_stream = function () {
     this.stream.on('drain', function () {
         self.drain();
     });
+};
+
+RedisClient.prototype.handle_reply = function (reply, command) {
+    if (command === 'hgetall') {
+        reply = utils.reply_to_object(reply);
+    }
+    return reply;
 };
 
 RedisClient.prototype.cork = noop;
@@ -298,39 +321,6 @@ RedisClient.prototype.on_connect = function () {
             this.ready_check();
         }
     }
-};
-
-RedisClient.prototype.init_parser = function () {
-    var self = this;
-
-    if (this.options.parser) {
-        if (!parsers.some(function (parser) {
-            if (parser.name === self.options.parser) {
-                self.parser_module = parser;
-                debug('Using parser module: ' + self.parser_module.name);
-                return true;
-            }
-        })) {
-            // Do not emit this error
-            // This should take down the app if anyone made such a huge mistake or should somehow be handled in user code
-            throw new Error("Couldn't find named parser " + self.options.parser + " on this system");
-        }
-    } else {
-        debug('Using default parser module: ' + parsers[0].name);
-        this.parser_module = parsers[0];
-    }
-
-    // return_buffers sends back Buffers from parser to callback. detect_buffers sends back Buffers from parser, but
-    // converts to Strings if the input arguments are not Buffers.
-    this.reply_parser = new this.parser_module.Parser(self.options.return_buffers || self.options.detect_buffers);
-    // Important: Only send results / errors async.
-    // That way the result / error won't stay in a try catch block and catch user things
-    this.reply_parser.send_error = function (data) {
-        self.return_error(data);
-    };
-    this.reply_parser.send_reply = function (data) {
-        self.return_reply(data);
-    };
 };
 
 RedisClient.prototype.on_ready = function () {
@@ -599,7 +589,7 @@ RedisClient.prototype.return_error = function (err) {
         err.command = command_obj.command;
     }
 
-    var match = err.message.match(utils.errCode);
+    var match = err.message.match(utils.err_code);
     // LUA script could return user errors that don't behave like all other errors!
     if (match) {
         err.code = match[1];
@@ -650,16 +640,7 @@ RedisClient.prototype.return_reply = function (reply) {
     if (command_obj && !command_obj.sub_command) {
         if (typeof command_obj.callback === 'function') {
             if ('exec' !== command_obj.command) {
-                if (command_obj.buffer_args === false) {
-                    // If detect_buffers option was specified, then the reply from the parser will be Buffers.
-                    // If this command did not use Buffer arguments, then convert the reply to Strings here.
-                    reply = utils.reply_to_strings(reply);
-                }
-
-                // TODO - confusing and error-prone that hgetall is special cased in two places
-                if ('hgetall' === command_obj.command) {
-                    reply = utils.reply_to_object(reply);
-                }
+                reply = this.handle_reply(reply, command_obj.command, command_obj.buffer_args);
             }
             command_obj.callback(null, reply);
         } else {
@@ -722,8 +703,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         command_str = '',
         buffer_args = false,
         big_data = false,
-        prefix_keys,
-        buffer = this.options.return_buffers;
+        prefix_keys;
 
     if (args === undefined) {
         args = [];
@@ -770,11 +750,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
             }
         }
     }
-    if (this.options.detect_buffers) {
-        buffer = buffer_args;
-    }
 
-    command_obj = new Command(command, args, false, buffer, callback);
+    command_obj = new Command(command, args, false, buffer_args, callback);
 
     if (!this.ready && !this.send_anyway || !stream.writable) {
         if (this.closing || !this.enable_offline_queue) {
@@ -1149,11 +1126,7 @@ Multi.prototype.exec_transaction = function (callback) {
             cb = undefined;
         }
         // Keep track of who wants buffer responses:
-        if (this._client.options.return_buffers) {
-            this.wants_buffers[index] = true;
-        } else if (!this._client.options.detect_buffers) {
-            this.wants_buffers[index] = false;
-        } else {
+        if (this._client.options.detect_buffers) {
             this.wants_buffers[index] = false;
             for (var i = 0; i < args.length; i += 1) {
                 if (Buffer.isBuffer(args[i])) {
@@ -1193,20 +1166,14 @@ Multi.prototype.execute_callback = function (err, replies) {
         while (args = this.queue.shift()) {
             // If we asked for strings, even in detect_buffers mode, then return strings:
             if (replies[i] instanceof Error) {
-                var match = replies[i].message.match(utils.errCode);
+                var match = replies[i].message.match(utils.err_code);
                 // LUA script could return user errors that don't behave like all other errors!
                 if (match) {
                     replies[i].code = match[1];
                 }
                 replies[i].command = args[0].toUpperCase();
             } else if (replies[i]) {
-                if (this.wants_buffers[i] === false) {
-                    replies[i] = utils.reply_to_strings(replies[i]);
-                }
-                if (args[0] === 'hgetall') {
-                    // TODO - confusing and error-prone that hgetall is special cased in two places
-                    replies[i] = utils.reply_to_object(replies[i]);
-                }
+                replies[i] = this._client.handle_reply(replies[i], args[0], this.wants_buffers[i]);
             }
 
             if (typeof args[args.length - 1] === 'function') {

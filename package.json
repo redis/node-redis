@@ -8,7 +8,8 @@
     "transaction",
     "pipelining",
     "performance",
-    "queue"
+    "queue",
+    "nodejs"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
   "license": "MIT",
@@ -23,7 +24,8 @@
   },
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
-    "redis-commands": "^1.0.1"
+    "redis-commands": "^1.0.1",
+    "redis-parser": "^1.0.0"
   },
   "engines": {
     "node": ">=0.10.0"

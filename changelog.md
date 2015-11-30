@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v.2.5.0 - xx Dez, 2015
+
+Features
+
+-  The parsers moved into the [redis-parser](https://github.com/NodeRedis/node-redis-parser) module and will be maintained in there from now on ([@BridgeAR](https://github.com/BridgeAR))
+ -  Improve js parser speed significantly for big SUNION/SINTER/LRANGE/ZRANGE ([@BridgeAR](https://github.com/BridgeAR))
+
 ## v.2.4.2 - 27 Nov, 2015
 
 Bugfixes
