@@ -719,39 +719,49 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         callback = process.domain.bind(callback);
     }
 
-    if (command === 'set' || command === 'setex') {
-        // if the value is undefined or null and command is set or setx, need not to send message to redis
-        if (args[args.length - 1] === undefined || args[args.length - 1] === null) {
-            command = command.toUpperCase();
-            err = new Error('send_command: ' + command + ' value must not be undefined or null');
-            err.command = command;
-            this.callback_emit_error(callback, err);
-            // Singal no buffering
-            return true;
-        }
-    }
-
     for (i = 0; i < args.length; i += 1) {
-        if (Buffer.isBuffer(args[i])) {
+        if (typeof args[i] === 'string') {
+            // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
+            if (args[i].length > 30000) {
+                big_data = true;
+                args[i] = new Buffer(args[i], 'utf8');
+                if (this.pipeline !== 0) {
+                    this.pipeline += 2;
+                    this.writeDefault = this.writeBuffers;
+                }
+            }
+        } else if (args[i] === null) {
+            if (!this.options.to_empty_string) { // > 2  // ( 2 + 3 where 3 stands for both, null and undefined and 3 for null)
+                console.warn(
+                    'node_redis: Deprecated: The %s command contains a "null" argument.\n' +
+                    'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
+                    'If you wish to convert null to an empty string instead, please use the "to_empty_string" option.', command.toUpperCase()
+                );
+                args[i] = 'null'; // Backwards compatible :/
+            } else {
+                args[i] = '';
+            }
+        } else if (typeof args[i] === 'object') { // Buffer.isBuffer(args[i])) {
             buffer_args = true;
             if (this.pipeline !== 0) {
                 this.pipeline += 2;
                 this.writeDefault = this.writeBuffers;
             }
-        } else if (typeof args[i] !== 'string') {
-            args[i] = String(args[i]);
-        // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
-        } else if (args[i].length > 30000) {
-            big_data = true;
-            args[i] = new Buffer(args[i]);
-            if (this.pipeline !== 0) {
-                this.pipeline += 2;
-                this.writeDefault = this.writeBuffers;
+        } else if (args[i] === undefined) {
+            if (!this.options.to_empty_string) {
+                console.warn(
+                    'node_redis: Deprecated: The %s command contains a "undefined" argument.\n' +
+                    'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
+                    'If you wish to convert undefined to an empty string instead, please use the "to_empty_string" option.', command.toUpperCase()
+                );
+                args[i] = 'undefined'; // Backwards compatible :/
+            } else {
+                args[i] = '';
             }
         }
     }
 
-    command_obj = new Command(command, args, false, buffer_args, callback);
+    command_obj = new Command(command, args, buffer_args, callback);
 
     if (!this.ready && !this.send_anyway || !stream.writable) {
         if (this.closing || !this.enable_offline_queue) {
@@ -812,9 +822,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
-            if (typeof arg === 'string') {
+            if (typeof arg !== 'object') { // string; number; boolean
                 this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
-            } else {
+            } else { // buffer
                 this.write('$' + arg.length + '\r\n');
                 this.write(arg);
                 this.write('\r\n');

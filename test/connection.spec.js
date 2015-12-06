@@ -90,7 +90,7 @@ describe("connection tests", function () {
                     });
 
                     client.on("reconnecting", function (params) {
-                        client.end();
+                        client.end(true);
                         setTimeout(done, 100);
                     });
                 });
