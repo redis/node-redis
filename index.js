@@ -658,7 +658,7 @@ RedisClient.prototype.return_reply = function (reply) {
             } else if (type === 'pmessage') {
                 this.emit('pmessage', reply[1].toString(), reply[2], reply[3]); // pattern, channel, message
             } else if (type === 'subscribe' || type === 'unsubscribe' || type === 'psubscribe' || type === 'punsubscribe') {
-                if (reply[2] === 0) {
+                if (reply[2].toString() === '0') {
                     this.pub_sub_mode = false;
                     debug('All subscriptions removed, exiting pub/sub mode');
                 } else {
@@ -1127,6 +1127,7 @@ Multi.prototype.exec_transaction = function (callback) {
     var self = this;
     var len = this.queue.length;
     var cb;
+    var args_len = 1;
     this.errors = [];
     this.callback = callback;
     this._client.cork(len + 2);
@@ -1136,9 +1137,11 @@ Multi.prototype.exec_transaction = function (callback) {
     for (var index = 0; index < len; index++) {
         var args = this.queue.get(index).slice(0);
         var command = args.shift();
-        if (typeof args[args.length - 1] === 'function') {
+        args_len = args.length - 1;
+        if (typeof args[args_len] === 'function' || typeof args[args_len] === 'undefined') {
             cb = args.pop();
         } else {
+            // Explicitly set the callback to undefined. Otherwise we might have the callback from the command earlier
             cb = undefined;
         }
         // Keep track of who wants buffer responses:
@@ -1213,14 +1216,12 @@ Multi.prototype.callback = function (cb, i) {
     return function (err, res) {
         if (err) {
             self.results[i] = err;
+            // Add the position to the error
+            self.results[i].position = i;
         } else {
             self.results[i] = res;
         }
-        if (cb) {
-            cb(err, res);
-        }
-        // Do not emit an error here. Otherwise each error would result in one emit.
-        // The errors will be returned in the result anyway
+        cb(err, res);
     };
 };
 
@@ -1229,6 +1230,25 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     var self = this;
     var index = 0;
     var args;
+    var args_len = 1;
+    var callbackWithoutCB = function (err, res) {
+        if (err) {
+            self.results.push(err);
+            // Add the position to the error
+            var i = self.results.length - 1;
+            self.results[i].position = i;
+        } else {
+            self.results.push(res);
+        }
+        // Do not emit an error here. Otherwise each error would result in one emit.
+        // The errors will be returned in the result anyway
+    };
+    var lastCallback = function (cb) {
+        return function (err, res) {
+            cb(err, res);
+            callback(null, self.results);
+        };
+    };
     if (len === 0) {
         if (callback) {
             // The execution order won't be obtained in this case
@@ -1238,21 +1258,21 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
         }
         return true;
     }
-    this.results = new Array(len);
+    this.results = [];
     this._client.cork(len);
-    var lastCallback = function (cb) {
-        return function (err, res) {
-            cb(err, res);
-            callback(null, self.results);
-        };
-    };
     while (args = this.queue.shift()) {
         var command = args.shift();
         var cb;
-        if (typeof args[args.length - 1] === 'function') {
+        // Improve the callback function generation by using new Function
+        // check https://github.com/petkaantonov/bluebird/blob/master/src/promisify.js
+        args_len = args.length - 1;
+        if (typeof args[args_len] === 'function') {
             cb = this.callback(args.pop(), index);
         } else {
-            cb = this.callback(undefined, index);
+            cb = callbackWithoutCB;
+            if (typeof args[args_len] === 'undefined') {
+                args.pop();
+            }
         }
         if (callback && index === len - 1) {
             cb = lastCallback(cb);

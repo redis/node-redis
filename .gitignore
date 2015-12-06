@@ -6,3 +6,4 @@ coverage
 *.rdb
 stunnel.conf
 stunnel.pid
+*.out
