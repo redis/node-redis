@@ -50,9 +50,7 @@ This will display:
         1: hashtest 2
     mjr:~/work/node_redis (master)$
 
-Note that the API is entire asynchronous. To get data back from the server,
-you'll need to use a callback. The return value from most of the API is a
-backpressure indicator.
+Note that the API is entire asynchronous. To get data back from the server, you'll need to use a callback.
 
 ### Promises
 
@@ -115,9 +113,8 @@ For a list of Redis commands, see [Redis Command Reference](http://redis.io/comm
 
 The commands can be specified in uppercase or lowercase for convenience. `client.get()` is the same as `client.GET()`.
 
-Minimal parsing is done on the replies. Commands that return a single line reply return JavaScript Strings,
-integer replies return JavaScript Numbers, "bulk" replies return node Buffers, and "multi bulk" replies return a
-JavaScript Array of node Buffers. `HGETALL` returns an Object with Buffers keyed by the hash keys.
+Minimal parsing is done on the replies. Commands that return a integer return JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object keyed by the hash keys. All strings will either be returned as string or as buffer depending on your setting.
+Please be aware that sending null, undefined and Boolean values will result in the value coerced to a string!
 
 # API
 
@@ -173,23 +170,20 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `redis.createClient()`
 * `redis.createClient(options)`
 * `redis.createClient(unix_socket, options)`
-* `redis.createClient('redis://user:pass@host:port', options)`
+* `redis.createClient(redis_url, options)`
 * `redis.createClient(port, host, options)`
 
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
 * `path`: *null*; The unix socket string to connect to
-* `url`: *null*; The redis url to connect to
+* `url`: *null*; The redis url to connect to (`[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` For more info check [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis))
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
 * `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
 * `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers. Please be aware that this can't work properly with the pubsub mode. A subscriber has to either always return strings or buffers.
 if any of the input arguments to the original command were Buffers.
 This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
 every command on a client.
-* `socket_nodelay`: *true*; Disables the [Nagle algorithm](https://en.wikipedia.org/wiki/Nagle%27s_algorithm).
-Setting this option to `false` can result in additional throughput at the cost of more latency.
-Most applications will want this set to `true`.
 * `socket_keepalive` *true*; Whether the keep-alive functionality is enabled on the underlying socket.
 * `no_ready_check`: *false*; When a connection is established to the Redis server, the server might still
 be loading the database from disk. While loading the server will not respond to any commands. To work around this,
@@ -208,10 +202,11 @@ The value is provided in milliseconds and is counted from the moment on a new cl
 Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h passed.
 * `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
-* `auth_pass`: *null*; If set, client will run redis auth command on connect.
+* `retry_unfulfilled_commands`: *false*; If set to true, all commands that were unfulfulled while the connection is lost will be retried after the connection has reestablished again. Use this with caution, if you use state altering commands (e.g. *incr*). This is especially useful if you use blocking commands.
+* `password`: *null*; If set, client will run redis auth command on connect. Alias `auth_pass`
+* `db`: *null*; If set, client will run redis select command on connect. This is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg).
 * `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
-* `to_empty_string`: *null*; convert any undefined or null command argument to an empty string. Be careful using this
 * `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
 * `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
 to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
