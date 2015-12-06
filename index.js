@@ -550,7 +550,7 @@ RedisClient.prototype.connection_gone = function (why) {
         error.code = 'CONNECTION_BROKEN';
         this.flush_and_error(error);
         this.emit('error', error);
-        this.end();
+        this.end(false);
         return;
     }
 
@@ -900,6 +900,17 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 };
 
 RedisClient.prototype.end = function (flush) {
+    // Flush queue if wanted
+    if (flush) {
+        this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
+    } else if (flush === undefined) {
+        console.warn(
+            'node_redis: Using .end() without the flush parameter is deprecated. ' +
+            'Please check the doku (https://github.com/NodeRedis/node_redis) and explictly use flush.\n' +
+            'This will throw from v.3.0.0 on.'
+        );
+    }
+
     this.stream._events = {};
 
     // Clear retry_timer
@@ -908,11 +919,6 @@ RedisClient.prototype.end = function (flush) {
         this.retry_timer = null;
     }
     this.stream.on('error', noop);
-
-    // Flush queue if wanted
-    if (flush) {
-        this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
-    }
 
     this.connected = false;
     this.ready = false;
