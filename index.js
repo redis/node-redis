@@ -948,20 +948,17 @@ commands.list.forEach(function (command) {
     RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             return this.send_command(command, key, arg);
-        }
-        if (Array.isArray(arg)) {
+        } else if (Array.isArray(arg)) {
             arg = [key].concat(arg);
             return this.send_command(command, arg, callback);
         }
-        // Speed up the common case
+        // This has to be inlined, otherwise the arguments leak
         var len = arguments.length;
-        if (len === 2) {
-            return this.send_command(command, [key, arg]);
+        var arr = new Array(len);
+        for (var i = 0; i < len; i += 1) {
+            arr[i] = arguments[i];
         }
-        if (len === 3) {
-            return this.send_command(command, [key, arg, callback]);
-        }
-        return this.send_command(command, utils.to_array(arguments));
+        return this.send_command(command, arr);
     };
 
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command] = function (key, arg, callback) {
@@ -976,15 +973,12 @@ commands.list.forEach(function (command) {
             }
             this.queue.push([command, key].concat(arg));
         } else {
-            // Speed up the common case
             var len = arguments.length;
-            if (len === 2) {
-                this.queue.push([command, key, arg]);
-            } else if (len === 3) {
-                this.queue.push([command, key, arg, callback]);
-            } else {
-                this.queue.push([command].concat(utils.to_array(arguments)));
+            var arr = new Array(len);
+            for (var i = 0; i < len; i += 1) {
+                arr[i] = arguments[i];
             }
+            this.queue.push([command].concat(arr));
         }
         return this;
     };
@@ -1051,15 +1045,9 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args,
     if (Array.isArray(args)) {
         return this.send_command('hmset', [key].concat(args), callback);
     }
-    if (typeof args === 'object') {
+    if (typeof args === 'object' && (typeof callback === 'function' || typeof callback === 'undefined')) {
         // User does: client.hmset(key, {key1: val1, key2: val2})
         // assuming key is a string, i.e. email address
-
-        // if key is a number, i.e. timestamp, convert to string
-        // TODO: This seems random and no other command get's the key converted => either all or none should behave like this
-        if (typeof key !== 'string') {
-            key = key.toString();
-        }
         tmp_args = [key];
         var fields = Object.keys(args);
         while (field = fields.shift()) {
@@ -1067,7 +1055,12 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args,
         }
         return this.send_command('hmset', tmp_args, callback);
     }
-    return this.send_command('hmset', utils.to_array(arguments));
+    var len = arguments.length;
+    var tmp_args = new Array(len);
+    for (var i = 0; i < len; i += 1) {
+        tmp_args[i] = arguments[i];
+    }
+    return this.send_command('hmset', tmp_args);
 };
 
 Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
@@ -1096,8 +1089,12 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
             tmp_args.push(callback);
         }
     } else {
-        tmp_args = utils.to_array(arguments);
-        tmp_args.unshift('hmset');
+        var len = arguments.length;
+        var tmp_args = new Array(len);
+        tmp_args[0] = 'hmset';
+        for (var i = 0; i < len; i += 1) {
+            tmp_args[i + 1] = arguments[i];
+        }
     }
     this.queue.push(tmp_args);
     return this;
@@ -1231,7 +1228,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     var index = 0;
     var args;
     var args_len = 1;
-    var callbackWithoutCB = function (err, res) {
+    var callback_without_own_cb = function (err, res) {
         if (err) {
             self.results.push(err);
             // Add the position to the error
@@ -1243,7 +1240,7 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
         // Do not emit an error here. Otherwise each error would result in one emit.
         // The errors will be returned in the result anyway
     };
-    var lastCallback = function (cb) {
+    var last_callback = function (cb) {
         return function (err, res) {
             cb(err, res);
             callback(null, self.results);
@@ -1263,19 +1260,17 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     while (args = this.queue.shift()) {
         var command = args.shift();
         var cb;
-        // Improve the callback function generation by using new Function
-        // check https://github.com/petkaantonov/bluebird/blob/master/src/promisify.js
         args_len = args.length - 1;
         if (typeof args[args_len] === 'function') {
             cb = this.callback(args.pop(), index);
         } else {
-            cb = callbackWithoutCB;
+            cb = callback_without_own_cb;
             if (typeof args[args_len] === 'undefined') {
                 args.pop();
             }
         }
         if (callback && index === len - 1) {
-            cb = lastCallback(cb);
+            cb = last_callback(cb);
         }
         this._client.send_command(command, args, cb);
         index++;
