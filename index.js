@@ -55,9 +55,14 @@ function RedisClient (options) {
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
-    this.connections = 0;
     if (options.socket_nodelay === undefined) {
         options.socket_nodelay = true;
+    } else if (!options.socket_nodelay) { // Only warn users with this set to false
+        console.warn(
+            'node_redis: socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
+            'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch to buffer commands and use pipelining.\n' +
+            'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
+        );
     }
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
@@ -730,34 +735,31 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                     this.writeDefault = this.writeBuffers;
                 }
             }
-        } else if (args[i] === null) {
-            if (!this.options.to_empty_string) { // > 2  // ( 2 + 3 where 3 stands for both, null and undefined and 3 for null)
+        } else if (typeof args[i] === 'object') { // Checking for object instead of Buffer.isBuffer helps us finding data types that we can't handle properly
+            if (args[i] instanceof Date) { // Accept dates as valid input
+                args[i] = args[i].toString();
+                // Add this to parse_arguments.
+            } else if (args[i] === null) {
                 console.warn(
                     'node_redis: Deprecated: The %s command contains a "null" argument.\n' +
                     'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
-                    'If you wish to convert null to an empty string instead, please use the "to_empty_string" option.', command.toUpperCase()
+                    'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
                 );
                 args[i] = 'null'; // Backwards compatible :/
             } else {
-                args[i] = '';
+                buffer_args = true;
+                if (this.pipeline !== 0) {
+                    this.pipeline += 2;
+                    this.writeDefault = this.writeBuffers;
+                }
             }
-        } else if (typeof args[i] === 'object') { // Buffer.isBuffer(args[i])) {
-            buffer_args = true;
-            if (this.pipeline !== 0) {
-                this.pipeline += 2;
-                this.writeDefault = this.writeBuffers;
-            }
-        } else if (args[i] === undefined) {
-            if (!this.options.to_empty_string) {
-                console.warn(
-                    'node_redis: Deprecated: The %s command contains a "undefined" argument.\n' +
-                    'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
-                    'If you wish to convert undefined to an empty string instead, please use the "to_empty_string" option.', command.toUpperCase()
-                );
-                args[i] = 'undefined'; // Backwards compatible :/
-            } else {
-                args[i] = '';
-            }
+        } else if (typeof args[i] === 'undefined') {
+            console.warn(
+                'node_redis: Deprecated: The %s command contains a "undefined" argument.\n' +
+                'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
+                'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
+            );
+            args[i] = 'undefined'; // Backwards compatible :/
         }
     }
 
@@ -903,11 +905,10 @@ RedisClient.prototype.end = function (flush) {
     // Flush queue if wanted
     if (flush) {
         this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
-    } else if (flush === undefined) {
+    } else if (arguments.length === 0) {
         console.warn(
-            'node_redis: Using .end() without the flush parameter is deprecated. ' +
-            'Please check the doku (https://github.com/NodeRedis/node_redis) and explictly use flush.\n' +
-            'This will throw from v.3.0.0 on.'
+            'node_redis: Using .end() without the flush parameter is deprecated and throws from v.3.0.0 on.\n' +
+            'Please check the doku (https://github.com/NodeRedis/node_redis) and explictly use flush.'
         );
     }
 
