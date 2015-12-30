@@ -97,6 +97,7 @@ function RedisClient (options) {
     this.auth_pass = options.auth_pass;
     this.selected_db = null; // Save the selected db here, used when reconnecting
     this.old_state = null;
+    this.send_anyway = false;
     this.pipeline = 0;
     this.options = options;
     // Init parser
@@ -172,6 +173,15 @@ RedisClient.prototype.create_stream = function () {
     this.stream.on('drain', function () {
         self.drain();
     });
+
+    if (this.options.socket_nodelay) {
+        this.stream.setNoDelay();
+    }
+
+    // Fire the command before redis is connected to be sure it's the first fired command
+    if (typeof this.auth_pass === 'string') {
+        this.do_auth();
+    }
 };
 
 RedisClient.prototype.handle_reply = function (reply, command) {
@@ -248,57 +258,26 @@ RedisClient.prototype.on_error = function (err) {
 };
 
 var noPasswordIsSet = /no password is set/;
-var loading = /LOADING/;
 
 RedisClient.prototype.do_auth = function () {
     var self = this;
-
     debug('Sending auth to ' + self.address + ' id ' + self.connection_id);
 
-    self.send_anyway = true;
-    self.send_command('auth', [this.auth_pass], function (err, res) {
+    this.send_anyway = true;
+    this.send_command('auth', [this.auth_pass], function (err, res) {
         if (err) {
-            /* istanbul ignore if: this is almost impossible to test */
-            if (loading.test(err.message)) {
-                // If redis is still loading the db, it will not authenticate and everything else will fail
-                debug('Redis still loading, trying to authenticate later');
-                setTimeout(function () {
-                    self.do_auth();
-                }, 333);
-                return;
-            } else if (noPasswordIsSet.test(err.message)) {
+            if (noPasswordIsSet.test(err.message)) {
                 debug('Warning: Redis server does not require a password, but a password was supplied.');
                 err = null;
                 res = 'OK';
-            } else if (self.auth_callback) {
-                self.auth_callback(err);
-                self.auth_callback = null;
-                return;
             } else {
                 self.emit('error', err);
-                return;
             }
-        }
-
-        res = res.toString();
-        debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
-
-        if (self.auth_callback) {
-            self.auth_callback(null, res);
-            self.auth_callback = null;
-        }
-
-        // Now we are really connected
-        self.emit('connect');
-        self.initialize_retry_vars();
-
-        if (self.options.no_ready_check) {
-            self.on_ready();
         } else {
-            self.ready_check();
+            debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
         }
     });
-    self.send_anyway = false;
+    this.send_anyway = false;
 };
 
 RedisClient.prototype.on_connect = function () {
@@ -306,31 +285,24 @@ RedisClient.prototype.on_connect = function () {
 
     this.connected = true;
     this.ready = false;
-    this.connections += 1;
     this.emitted_end = false;
-    if (this.options.socket_nodelay) {
-        this.stream.setNoDelay();
-    }
     this.stream.setKeepAlive(this.options.socket_keepalive);
     this.stream.setTimeout(0);
 
-    if (typeof this.auth_pass === 'string') {
-        this.do_auth();
-    } else {
-        this.emit('connect');
-        this.initialize_retry_vars();
+    this.emit('connect');
+    this.initialize_retry_vars();
 
-        if (this.options.no_ready_check) {
-            this.on_ready();
-        } else {
-            this.ready_check();
-        }
+    if (this.options.no_ready_check) {
+        this.on_ready();
+    } else {
+        this.ready_check();
     }
 };
 
 RedisClient.prototype.on_ready = function () {
     var self = this;
 
+    debug('on_ready called ' + this.address + ' id ' + this.connection_id);
     this.ready = true;
 
     if (this.old_state !== null) {
@@ -358,8 +330,8 @@ RedisClient.prototype.on_ready = function () {
     }
     this.cork = cork;
 
-    // magically restore any modal commands from a previous connection
-    if (this.selected_db !== null) {
+    // restore modal commands from previous connection
+    if (this.selected_db !== undefined) {
         // this trick works if and only if the following send_command
         // never goes into the offline queue
         var pub_sub_mode = this.pub_sub_mode;
@@ -401,84 +373,43 @@ RedisClient.prototype.on_ready = function () {
 RedisClient.prototype.on_info_cmd = function (err, res) {
     if (err) {
         if (err.message === "ERR unknown command 'info'") {
-            this.server_info = {};
             this.on_ready();
             return;
-        } else {
-            err.message = 'Ready check failed: ' + err.message;
-            this.emit('error', err);
-            return;
-       }
+        }
+        err.message = 'Ready check failed: ' + err.message;
+        this.emit('error', err);
+        return;
     }
 
     /* istanbul ignore if: some servers might not respond with any info data. This is just a safety check that is difficult to test */
     if (!res) {
         debug('The info command returned without any data.');
-        this.server_info = {};
         this.on_ready();
         return;
     }
 
-    var obj = {};
-    var lines = res.toString().split('\r\n');
-    var i = 0;
-    var key = 'db' + i;
-    var line, retry_time, parts, sub_parts;
-
-    for (i = 0; i < lines.length; i++) {
-        parts = lines[i].split(':');
-        if (parts[1]) {
-            obj[parts[0]] = parts[1];
-        }
-    }
-
-    obj.versions = [];
-    /* istanbul ignore else: some redis servers do not send the version */
-    if (obj.redis_version) {
-        obj.redis_version.split('.').forEach(function (num) {
-            obj.versions.push(+num);
-        });
-    }
-
-    while (obj[key]) {
-        parts = obj[key].split(',');
-        obj[key] = {};
-        while (line = parts.pop()) {
-            sub_parts = line.split('=');
-            obj[key][sub_parts[0]] = +sub_parts[1];
-        }
-        i++;
-        key = 'db' + i;
-    }
-
-    // Expose info key/vals to users
-    this.server_info = obj;
-
-    if (!obj.loading || obj.loading === '0') {
+    if (!this.server_info.loading || this.server_info.loading === '0') {
         debug('Redis server ready.');
         this.on_ready();
-    } else {
-        retry_time = obj.loading_eta_seconds * 1000;
-        if (retry_time > 1000) {
-            retry_time = 1000;
-        }
-        debug('Redis server still loading, trying again in ' + retry_time);
-        setTimeout(function (self) {
-            self.ready_check();
-        }, retry_time, this);
+        return;
     }
+
+    var retry_time = +this.server_info.loading_eta_seconds * 1000;
+    if (retry_time > 1000) {
+        retry_time = 1000;
+    }
+    debug('Redis server still loading, trying again in ' + retry_time);
+    setTimeout(function (self) {
+        self.ready_check();
+    }, retry_time, this);
 };
 
 RedisClient.prototype.ready_check = function () {
     var self = this;
-
     debug('Checking server ready state...');
-
-    this.send_anyway = true;  // secret flag to send_command to send something even if not 'ready'
     this.info(function (err, res) {
         self.on_info_cmd(err, res);
     });
-    this.send_anyway = false;
 };
 
 RedisClient.prototype.send_offline_queue = function () {
@@ -531,7 +462,7 @@ RedisClient.prototype.connection_gone = function (why) {
         this.old_state = state;
         this.monitoring = false;
         this.pub_sub_mode = false;
-        this.selected_db = null;
+        this.selected_db = undefined;
     }
 
     // since we are collapsing end and close, users don't expect to be called twice
@@ -1010,6 +941,53 @@ RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, call
     });
 };
 
+// Store db in this.select_db to restore it on reconnect
+RedisClient.prototype.info = RedisClient.prototype.INFO = function (callback) {
+    var self = this;
+    this.send_anyway = true;
+    var tmp = this.send_command('info', [], function (err, res) {
+        if (res) {
+            var obj = {};
+            var lines = res.toString().split('\r\n');
+            var line, parts, sub_parts;
+
+            for (var i = 0; i < lines.length; i++) {
+                parts = lines[i].split(':');
+                if (parts[1]) {
+                    if (parts[0].indexOf('db') === 0) {
+                        sub_parts = parts[1].split(',');
+                        obj[parts[0]] = {};
+                        while (line = sub_parts.pop()) {
+                            line = line.split('=');
+                            obj[parts[0]][line[0]] = +line[1];
+                        }
+                    } else {
+                        obj[parts[0]] = parts[1];
+                    }
+                }
+            }
+            obj.versions = [];
+            /* istanbul ignore else: some redis servers do not send the version */
+            if (obj.redis_version) {
+                obj.redis_version.split('.').forEach(function (num) {
+                    obj.versions.push(+num);
+                });
+            }
+            // Expose info key/vals to users
+            self.server_info = obj;
+        } else {
+            self.server_info = {};
+        }
+        if (typeof callback === 'function') {
+            callback(err, res);
+        } else if (err) {
+            self.emit('error', err);
+        }
+    });
+    this.send_anyway = false;
+    return tmp;
+};
+
 RedisClient.prototype.callback_emit_error = function (callback, err) {
     if (callback) {
         setImmediate(function () {
@@ -1030,12 +1008,10 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
     }
     this.auth_pass = pass;
     debug('Saving auth as ' + this.auth_pass);
-    // Only run the callback once. So do not safe it if already connected
-    if (this.connected) {
-        return this.send_command('auth', [this.auth_pass], callback);
-    }
-    this.auth_callback = callback;
-    return true;
+    this.send_anyway = true;
+    var tmp =  this.send_command('auth', [pass], callback);
+    this.send_anyway = false;
+    return tmp;
 };
 
 RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args, callback) {
