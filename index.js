@@ -515,12 +515,11 @@ RedisClient.prototype.connection_gone = function (why) {
 };
 
 RedisClient.prototype.return_error = function (err) {
-    var command_obj = this.command_queue.shift(), queue_len = this.command_queue.length;
-    // send_command might have been used wrong => catch those cases too
-    if (command_obj.command && command_obj.command.toUpperCase) {
+    var command_obj = this.command_queue.shift(),
+        queue_len = this.command_queue.length;
+
+    if (command_obj && command_obj.command && command_obj.command.toUpperCase) {
         err.command = command_obj.command.toUpperCase();
-    } else {
-        err.command = command_obj.command;
     }
 
     var match = err.message.match(utils.err_code);
@@ -531,7 +530,7 @@ RedisClient.prototype.return_error = function (err) {
 
     this.emit_idle(queue_len);
 
-    if (command_obj.callback) {
+    if (command_obj && command_obj.callback) {
         command_obj.callback(err);
     } else {
         this.emit('error', err);
@@ -639,9 +638,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         big_data = false,
         prefix_keys;
 
-    if (args === undefined) {
+    if (typeof args === 'undefined') {
         args = [];
-    } else if (!callback) {
+    } else if (typeof callback === 'undefined') {
         if (typeof args[args.length - 1] === 'function') {
             callback = args.pop();
         } else if (typeof args[args.length - 1] === 'undefined') {
@@ -689,12 +688,15 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                 'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
             );
             args[i] = 'undefined'; // Backwards compatible :/
+        } else {
+            args[i] = String(args[i]);
         }
     }
 
     command_obj = new Command(command, args, buffer_args, callback);
 
-    if (!this.ready && !this.send_anyway || !stream.writable) {
+    // TODO: Replace send_anyway with `commands.hasFlag(command, 'loading') === false` as soon as pub_sub is handled in the result handler
+    if (this.ready === false && this.send_anyway === false || !stream.writable) {
         if (this.closing || !this.enable_offline_queue) {
             command = command.toUpperCase();
             if (!this.closing) {
@@ -717,7 +719,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     }
 
     if (command === 'subscribe' || command === 'psubscribe' || command === 'unsubscribe' || command === 'punsubscribe') {
-        this.pub_sub_command(command_obj);
+        this.pub_sub_command(command_obj); // TODO: This has to be moved to the result handler
     } else if (command === 'monitor') {
         this.monitoring = true;
     } else if (command === 'quit') {
@@ -740,7 +742,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
     command_str = '*' + (args.length + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n';
 
-    if (!buffer_args && !big_data) { // Build up a string and send entire command in one write
+    if (buffer_args === false && big_data === false) { // Build up a string and send entire command in one write
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
             command_str += '$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n';
@@ -890,7 +892,6 @@ commands.list.forEach(function (command) {
         }
         return this.send_command(command, arr);
     };
-
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             if (arg) {
@@ -1031,7 +1032,7 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args,
         return this.send_command('hmset', tmp_args, callback);
     }
     var len = arguments.length;
-    var tmp_args = new Array(len);
+    tmp_args = new Array(len);
     for (var i = 0; i < len; i += 1) {
         tmp_args[i] = arguments[i];
     }
@@ -1050,10 +1051,7 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
             args = args.concat([callback]);
         }
         tmp_args = ['hmset', key].concat(args);
-    } else if (typeof args === 'object') {
-        if (typeof key !== 'string') {
-            key = key.toString();
-        }
+    } else if (typeof args === 'object' && (typeof callback === 'function' || typeof callback === 'undefined')) {
         tmp_args = ['hmset', key];
         var fields = Object.keys(args);
         while (field = fields.shift()) {
@@ -1065,7 +1063,7 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
         }
     } else {
         var len = arguments.length;
-        var tmp_args = new Array(len);
+        tmp_args = new Array(len);
         tmp_args[0] = 'hmset';
         for (var i = 0; i < len; i += 1) {
             tmp_args[i + 1] = arguments[i];
