@@ -490,15 +490,13 @@ RedisClient.prototype.connection_gone = function (why) {
         return;
     }
 
-    // Flush all commands that have not yet returned. We can't handle them appropriatly
-    if (this.command_queue.length !== 0) {
+    // Retry commands after a reconnect instead of throwing an error. Use this with caution
+    if (this.options.retry_unfulfilled_commands) {
+        this.offline_queue.unshift.apply(this.offline_queue, this.command_queue.toArray());
+        this.command_queue.clear();
+    } else if (this.command_queue.length !== 0) {
         error = new Error('Redis connection lost and command aborted in uncertain state. It might have been processed.');
         error.code = 'UNCERTAIN_STATE';
-        // TODO: Evaluate to add this
-        // if (this.options.retry_commands) {
-        //     this.offline_queue.unshift(this.command_queue.toArray());
-        //     error.message = 'Command aborted in uncertain state and queued for next connection.';
-        // }
         this.flush_and_error(error, ['command_queue']);
         error.message = 'Redis connection lost and commands aborted in uncertain state. They might have been processed.';
         this.emit('error', error);
