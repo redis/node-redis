@@ -67,12 +67,38 @@ describe("client authentication", function () {
             });
 
             if (ip === 'IPv4') {
-                it('allows auth to be provided as part of redis url', function (done) {
+                it('allows auth to be provided as part of redis url and do not fire commands before auth is done', function (done) {
                     if (helper.redisProcess().spawnFailed()) this.skip();
 
-                    client = redis.createClient('redis://foo:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
+                    var end = helper.callFuncAfter(done, 2);
+                    client = redis.createClient('redis://:' + auth + '@' + config.HOST[ip] + ':' + config.PORT);
                     client.on("ready", function () {
-                        return done();
+                        end();
+                    });
+                    // The info command may be used while loading but not if not yet authenticated
+                    client.info(function (err, res) {
+                        assert(!err);
+                        end();
+                    });
+                });
+
+                it('allows auth and database to be provided as part of redis url query parameter', function (done) {
+                    if (helper.redisProcess().spawnFailed()) this.skip();
+
+                    client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT + '?db=2&password=' + auth);
+                    assert.strictEqual(client.options.db, '2');
+                    assert.strictEqual(client.options.password, auth);
+                    assert.strictEqual(client.auth_pass, auth);
+                    client.on("ready", function () {
+                        // Set a key so the used database is returned in the info command
+                        client.set('foo', 'bar');
+                        client.get('foo');
+                        assert.strictEqual(client.server_info.db2, undefined);
+                        // Using the info command should update the server_info
+                        client.info(function (err, res) {
+                            assert(typeof client.server_info.db2 === 'object');
+                        });
+                        client.flushdb(done);
                     });
                 });
             }
@@ -93,7 +119,7 @@ describe("client authentication", function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 var args = config.configureClient(parser, ip, {
-                    auth_pass: auth,
+                    password: auth,
                     no_ready_check: true
                 });
                 client = redis.createClient.apply(redis.createClient, args);
@@ -192,6 +218,18 @@ describe("client authentication", function () {
                     assert.equal(err.code, 'NOAUTH');
                     assert.equal(err.message, 'Ready check failed: NOAUTH Authentication required.');
                     assert.equal(err.command, 'INFO');
+                    done();
+                });
+            });
+
+            it('should emit an error if the provided password is faulty', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+                client = redis.createClient({
+                    password: 'wrong_password',
+                    parser: parser
+                });
+                client.once("error", function (err) {
+                    assert.strictEqual(err.message, 'ERR invalid password');
                     done();
                 });
             });

@@ -45,12 +45,40 @@ describe("The 'hset' method", function () {
                 });
             });
 
-            it('does not error when a buffer and array are set as fields on the same hash', function (done) {
+            it('throws a error if someone passed a array either as field or as value', function (done) {
+                var hash = "test hash";
+                var field = "array";
+                // This would be converted to "array contents" but if you use more than one entry,
+                // it'll result in e.g. "array contents,second content" and this is not supported and considered harmful
+                var value = ["array contents"];
+                try {
+                    client.HMSET(hash, field, value);
+                    throw new Error('test failed');
+                } catch (err) {
+                    if (/invalid data/.test(err.message)) {
+                        done();
+                    } else {
+                        done(err);
+                    }
+                }
+            });
+
+            it('does not error when a buffer and date are set as values on the same hash', function (done) {
                 var hash = "test hash";
                 var field1 = "buffer";
                 var value1 = new Buffer("abcdefghij");
-                var field2 = "array";
-                var value2 = ["array contents"];
+                var field2 = "date";
+                var value2 = new Date();
+
+                client.HMSET(hash, field1, value1, field2, value2, helper.isString("OK", done));
+            });
+
+            it('does not error when a buffer and date are set as fields on the same hash', function (done) {
+                var hash = "test hash";
+                var value1 = "buffer";
+                var field1 = new Buffer("abcdefghij");
+                var value2 = "date";
+                var field2 = new Date();
 
                 client.HMSET(hash, field1, value1, field2, value2, helper.isString("OK", done));
             });

@@ -179,7 +179,7 @@ describe("The 'batch' method", function () {
                     client.BATCH([
                         ["smembers", ["some set"]],
                         ["del", "some set"],
-                        ["smembers", "some set"]
+                        ["smembers", "some set", undefined] // The explicit undefined is handled as a callback that is undefined
                     ])
                     .scard("some set")
                     .exec(function (err, replies) {

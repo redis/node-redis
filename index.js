@@ -308,7 +308,6 @@ RedisClient.prototype.on_ready = function () {
     if (this.old_state !== null) {
         this.monitoring = this.old_state.monitoring;
         this.pub_sub_mode = this.old_state.pub_sub_mode;
-        this.selected_db = this.old_state.selected_db;
         this.old_state = null;
     }
 
@@ -456,13 +455,11 @@ RedisClient.prototype.connection_gone = function (why) {
     if (this.old_state === null) {
         var state = {
             monitoring: this.monitoring,
-            pub_sub_mode: this.pub_sub_mode,
-            selected_db: this.selected_db
+            pub_sub_mode: this.pub_sub_mode
         };
         this.old_state = state;
         this.monitoring = false;
         this.pub_sub_mode = false;
-        this.selected_db = undefined;
     }
 
     // since we are collapsing end and close, users don't expect to be called twice
@@ -940,7 +937,7 @@ RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, call
     });
 };
 
-// Store db in this.select_db to restore it on reconnect
+// Store info in this.server_info after each call
 RedisClient.prototype.info = RedisClient.prototype.INFO = function (callback) {
     var self = this;
     this.send_anyway = true;

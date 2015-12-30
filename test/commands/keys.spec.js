@@ -14,10 +14,9 @@ describe("The 'keys' method", function () {
             var client;
 
             beforeEach(function (done) {
-                args = args || {};
                 client = redis.createClient.apply(redis.createClient, args);
                 client.once("ready", function () {
-                    client.flushdb(done);
+                    client.flushall(done);
                 });
             });
 

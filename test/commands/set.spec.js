@@ -81,32 +81,17 @@ describe("The 'set' method", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
                             client.set(key, value);
-                            setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    helper.isString(value)(err, res);
-                                    done();
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value, done));
                         });
 
                         it("sets the value correctly even if the callback is explicitly set to undefined", function (done) {
                             client.set(key, value, undefined);
-                            setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    helper.isString(value)(err, res);
-                                    done();
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value, done));
                         });
 
                         it("sets the value correctly with the array syntax", function (done) {
                             client.set([key, value]);
-                            setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    helper.isString(value)(err, res);
-                                    done();
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value, done));
                         });
                     });
 
@@ -119,6 +104,12 @@ describe("The 'set' method", function () {
                             });
                             client.set(undefined);
                         });
+                    });
+
+                    // TODO: This test has to be refactored from v.3.0 on to expect an error instead
+                    it("converts null to 'null'", function (done) {
+                        client.set('foo', null);
+                        client.get('foo', helper.isString('null', done));
                     });
 
                     it("emit an error with only the key set", function (done) {
