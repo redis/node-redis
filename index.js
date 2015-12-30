@@ -94,8 +94,8 @@ function RedisClient (options) {
     this.monitoring = false;
     this.closing = false;
     this.server_info = {};
-    this.auth_pass = options.auth_pass;
-    this.selected_db = null; // Save the selected db here, used when reconnecting
+    this.auth_pass = options.auth_pass || options.password;
+    this.selected_db = options.db; // Save the selected db here, used when reconnecting
     this.old_state = null;
     this.send_anyway = false;
     this.pipeline = 0;
@@ -1265,12 +1265,23 @@ var createClient = function (port_arg, host_arg, options) {
     } else if (typeof port_arg === 'string' || port_arg && port_arg.url) {
         options = clone(port_arg.url ? port_arg : host_arg || options);
         var parsed = URL.parse(port_arg.url || port_arg, true, true);
+        // [redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]
         if (parsed.hostname) {
             if (parsed.auth) {
-                options.auth_pass = parsed.auth.split(':')[1];
+                options.password = parsed.auth.split(':')[1];
             }
-            if (parsed.protocol !== 'redis:') {
-                throw new Error('Connection string must use the "redis:" protocol');
+            if (!/^([a-z]+:)?\/\//i.test(parsed.href)) {
+                throw new Error('Connection string must use the "redis:" protocol or begin with slashes //');
+            }
+            if (parsed.pathname && parsed.pathname !== '/') {
+                options.db = parsed.pathname.substr(1);
+            }
+            if (parsed.search !== '') {
+                var elem;
+                for (elem in parsed.query) { // jshint ignore: line
+                    // If options are passed twice, only the parsed options will be used
+                    options[elem] = parsed.query[elem];
+                }
             }
             options.host = parsed.hostname;
             options.port = parsed.port;
