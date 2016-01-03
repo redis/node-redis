@@ -55,9 +55,14 @@ function RedisClient (options) {
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
-    this.connections = 0;
     if (options.socket_nodelay === undefined) {
         options.socket_nodelay = true;
+    } else if (!options.socket_nodelay) { // Only warn users with this set to false
+        console.warn(
+            'node_redis: socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
+            'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch to buffer commands and use pipelining.\n' +
+            'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
+        );
     }
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
@@ -89,9 +94,10 @@ function RedisClient (options) {
     this.monitoring = false;
     this.closing = false;
     this.server_info = {};
-    this.auth_pass = options.auth_pass;
-    this.selected_db = null; // Save the selected db here, used when reconnecting
+    this.auth_pass = options.auth_pass || options.password;
+    this.selected_db = options.db; // Save the selected db here, used when reconnecting
     this.old_state = null;
+    this.send_anyway = false;
     this.pipeline = 0;
     this.options = options;
     // Init parser
@@ -167,6 +173,15 @@ RedisClient.prototype.create_stream = function () {
     this.stream.on('drain', function () {
         self.drain();
     });
+
+    if (this.options.socket_nodelay) {
+        this.stream.setNoDelay();
+    }
+
+    // Fire the command before redis is connected to be sure it's the first fired command
+    if (typeof this.auth_pass === 'string') {
+        this.do_auth();
+    }
 };
 
 RedisClient.prototype.handle_reply = function (reply, command) {
@@ -243,57 +258,26 @@ RedisClient.prototype.on_error = function (err) {
 };
 
 var noPasswordIsSet = /no password is set/;
-var loading = /LOADING/;
 
 RedisClient.prototype.do_auth = function () {
     var self = this;
-
     debug('Sending auth to ' + self.address + ' id ' + self.connection_id);
 
-    self.send_anyway = true;
-    self.send_command('auth', [this.auth_pass], function (err, res) {
+    this.send_anyway = true;
+    this.send_command('auth', [this.auth_pass], function (err, res) {
         if (err) {
-            /* istanbul ignore if: this is almost impossible to test */
-            if (loading.test(err.message)) {
-                // If redis is still loading the db, it will not authenticate and everything else will fail
-                debug('Redis still loading, trying to authenticate later');
-                setTimeout(function () {
-                    self.do_auth();
-                }, 333);
-                return;
-            } else if (noPasswordIsSet.test(err.message)) {
+            if (noPasswordIsSet.test(err.message)) {
                 debug('Warning: Redis server does not require a password, but a password was supplied.');
                 err = null;
                 res = 'OK';
-            } else if (self.auth_callback) {
-                self.auth_callback(err);
-                self.auth_callback = null;
-                return;
             } else {
                 self.emit('error', err);
-                return;
             }
-        }
-
-        res = res.toString();
-        debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
-
-        if (self.auth_callback) {
-            self.auth_callback(null, res);
-            self.auth_callback = null;
-        }
-
-        // Now we are really connected
-        self.emit('connect');
-        self.initialize_retry_vars();
-
-        if (self.options.no_ready_check) {
-            self.on_ready();
         } else {
-            self.ready_check();
+            debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
         }
     });
-    self.send_anyway = false;
+    this.send_anyway = false;
 };
 
 RedisClient.prototype.on_connect = function () {
@@ -301,37 +285,29 @@ RedisClient.prototype.on_connect = function () {
 
     this.connected = true;
     this.ready = false;
-    this.connections += 1;
     this.emitted_end = false;
-    if (this.options.socket_nodelay) {
-        this.stream.setNoDelay();
-    }
     this.stream.setKeepAlive(this.options.socket_keepalive);
     this.stream.setTimeout(0);
 
-    if (typeof this.auth_pass === 'string') {
-        this.do_auth();
-    } else {
-        this.emit('connect');
-        this.initialize_retry_vars();
+    this.emit('connect');
+    this.initialize_retry_vars();
 
-        if (this.options.no_ready_check) {
-            this.on_ready();
-        } else {
-            this.ready_check();
-        }
+    if (this.options.no_ready_check) {
+        this.on_ready();
+    } else {
+        this.ready_check();
     }
 };
 
 RedisClient.prototype.on_ready = function () {
     var self = this;
 
+    debug('on_ready called ' + this.address + ' id ' + this.connection_id);
     this.ready = true;
 
     if (this.old_state !== null) {
         this.monitoring = this.old_state.monitoring;
         this.pub_sub_mode = this.old_state.pub_sub_mode;
-        this.selected_db = this.old_state.selected_db;
         this.old_state = null;
     }
 
@@ -353,8 +329,8 @@ RedisClient.prototype.on_ready = function () {
     }
     this.cork = cork;
 
-    // magically restore any modal commands from a previous connection
-    if (this.selected_db !== null) {
+    // restore modal commands from previous connection
+    if (this.selected_db !== undefined) {
         // this trick works if and only if the following send_command
         // never goes into the offline queue
         var pub_sub_mode = this.pub_sub_mode;
@@ -396,84 +372,43 @@ RedisClient.prototype.on_ready = function () {
 RedisClient.prototype.on_info_cmd = function (err, res) {
     if (err) {
         if (err.message === "ERR unknown command 'info'") {
-            this.server_info = {};
             this.on_ready();
             return;
-        } else {
-            err.message = 'Ready check failed: ' + err.message;
-            this.emit('error', err);
-            return;
-       }
+        }
+        err.message = 'Ready check failed: ' + err.message;
+        this.emit('error', err);
+        return;
     }
 
     /* istanbul ignore if: some servers might not respond with any info data. This is just a safety check that is difficult to test */
     if (!res) {
         debug('The info command returned without any data.');
-        this.server_info = {};
         this.on_ready();
         return;
     }
 
-    var obj = {};
-    var lines = res.toString().split('\r\n');
-    var i = 0;
-    var key = 'db' + i;
-    var line, retry_time, parts, sub_parts;
-
-    for (i = 0; i < lines.length; i++) {
-        parts = lines[i].split(':');
-        if (parts[1]) {
-            obj[parts[0]] = parts[1];
-        }
-    }
-
-    obj.versions = [];
-    /* istanbul ignore else: some redis servers do not send the version */
-    if (obj.redis_version) {
-        obj.redis_version.split('.').forEach(function (num) {
-            obj.versions.push(+num);
-        });
-    }
-
-    while (obj[key]) {
-        parts = obj[key].split(',');
-        obj[key] = {};
-        while (line = parts.pop()) {
-            sub_parts = line.split('=');
-            obj[key][sub_parts[0]] = +sub_parts[1];
-        }
-        i++;
-        key = 'db' + i;
-    }
-
-    // Expose info key/vals to users
-    this.server_info = obj;
-
-    if (!obj.loading || obj.loading === '0') {
+    if (!this.server_info.loading || this.server_info.loading === '0') {
         debug('Redis server ready.');
         this.on_ready();
-    } else {
-        retry_time = obj.loading_eta_seconds * 1000;
-        if (retry_time > 1000) {
-            retry_time = 1000;
-        }
-        debug('Redis server still loading, trying again in ' + retry_time);
-        setTimeout(function (self) {
-            self.ready_check();
-        }, retry_time, this);
+        return;
     }
+
+    var retry_time = +this.server_info.loading_eta_seconds * 1000;
+    if (retry_time > 1000) {
+        retry_time = 1000;
+    }
+    debug('Redis server still loading, trying again in ' + retry_time);
+    setTimeout(function (self) {
+        self.ready_check();
+    }, retry_time, this);
 };
 
 RedisClient.prototype.ready_check = function () {
     var self = this;
-
     debug('Checking server ready state...');
-
-    this.send_anyway = true;  // secret flag to send_command to send something even if not 'ready'
     this.info(function (err, res) {
         self.on_info_cmd(err, res);
     });
-    this.send_anyway = false;
 };
 
 RedisClient.prototype.send_offline_queue = function () {
@@ -520,13 +455,11 @@ RedisClient.prototype.connection_gone = function (why) {
     if (this.old_state === null) {
         var state = {
             monitoring: this.monitoring,
-            pub_sub_mode: this.pub_sub_mode,
-            selected_db: this.selected_db
+            pub_sub_mode: this.pub_sub_mode
         };
         this.old_state = state;
         this.monitoring = false;
         this.pub_sub_mode = false;
-        this.selected_db = null;
     }
 
     // since we are collapsing end and close, users don't expect to be called twice
@@ -550,19 +483,17 @@ RedisClient.prototype.connection_gone = function (why) {
         error.code = 'CONNECTION_BROKEN';
         this.flush_and_error(error);
         this.emit('error', error);
-        this.end();
+        this.end(false);
         return;
     }
 
-    // Flush all commands that have not yet returned. We can't handle them appropriatly
-    if (this.command_queue.length !== 0) {
+    // Retry commands after a reconnect instead of throwing an error. Use this with caution
+    if (this.options.retry_unfulfilled_commands) {
+        this.offline_queue.unshift.apply(this.offline_queue, this.command_queue.toArray());
+        this.command_queue.clear();
+    } else if (this.command_queue.length !== 0) {
         error = new Error('Redis connection lost and command aborted in uncertain state. It might have been processed.');
         error.code = 'UNCERTAIN_STATE';
-        // TODO: Evaluate to add this
-        // if (this.options.retry_commands) {
-        //     this.offline_queue.unshift(this.command_queue.toArray());
-        //     error.message = 'Command aborted in uncertain state and queued for next connection.';
-        // }
         this.flush_and_error(error, ['command_queue']);
         error.message = 'Redis connection lost and commands aborted in uncertain state. They might have been processed.';
         this.emit('error', error);
@@ -581,12 +512,11 @@ RedisClient.prototype.connection_gone = function (why) {
 };
 
 RedisClient.prototype.return_error = function (err) {
-    var command_obj = this.command_queue.shift(), queue_len = this.command_queue.length;
-    // send_command might have been used wrong => catch those cases too
-    if (command_obj.command && command_obj.command.toUpperCase) {
+    var command_obj = this.command_queue.shift(),
+        queue_len = this.command_queue.length;
+
+    if (command_obj && command_obj.command && command_obj.command.toUpperCase) {
         err.command = command_obj.command.toUpperCase();
-    } else {
-        err.command = command_obj.command;
     }
 
     var match = err.message.match(utils.err_code);
@@ -597,7 +527,7 @@ RedisClient.prototype.return_error = function (err) {
 
     this.emit_idle(queue_len);
 
-    if (command_obj.callback) {
+    if (command_obj && command_obj.callback) {
         command_obj.callback(err);
     } else {
         this.emit('error', err);
@@ -658,7 +588,7 @@ RedisClient.prototype.return_reply = function (reply) {
             } else if (type === 'pmessage') {
                 this.emit('pmessage', reply[1].toString(), reply[2], reply[3]); // pattern, channel, message
             } else if (type === 'subscribe' || type === 'unsubscribe' || type === 'psubscribe' || type === 'punsubscribe') {
-                if (reply[2] === 0) {
+                if (reply[2].toString() === '0') {
                     this.pub_sub_mode = false;
                     debug('All subscriptions removed, exiting pub/sub mode');
                 } else {
@@ -705,9 +635,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         big_data = false,
         prefix_keys;
 
-    if (args === undefined) {
+    if (typeof args === 'undefined') {
         args = [];
-    } else if (!callback) {
+    } else if (typeof callback === 'undefined') {
         if (typeof args[args.length - 1] === 'function') {
             callback = args.pop();
         } else if (typeof args[args.length - 1] === 'undefined') {
@@ -719,41 +649,51 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         callback = process.domain.bind(callback);
     }
 
-    if (command === 'set' || command === 'setex') {
-        // if the value is undefined or null and command is set or setx, need not to send message to redis
-        if (args[args.length - 1] === undefined || args[args.length - 1] === null) {
-            command = command.toUpperCase();
-            err = new Error('send_command: ' + command + ' value must not be undefined or null');
-            err.command = command;
-            this.callback_emit_error(callback, err);
-            // Singal no buffering
-            return true;
-        }
-    }
-
     for (i = 0; i < args.length; i += 1) {
-        if (Buffer.isBuffer(args[i])) {
-            buffer_args = true;
-            if (this.pipeline !== 0) {
-                this.pipeline += 2;
-                this.writeDefault = this.writeBuffers;
+        if (typeof args[i] === 'string') {
+            // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
+            if (args[i].length > 30000) {
+                big_data = true;
+                args[i] = new Buffer(args[i], 'utf8');
+                if (this.pipeline !== 0) {
+                    this.pipeline += 2;
+                    this.writeDefault = this.writeBuffers;
+                }
             }
-        } else if (typeof args[i] !== 'string') {
+        } else if (typeof args[i] === 'object') { // Checking for object instead of Buffer.isBuffer helps us finding data types that we can't handle properly
+            if (args[i] instanceof Date) { // Accept dates as valid input
+                args[i] = args[i].toString();
+                // Add this to parse_arguments.
+            } else if (args[i] === null) {
+                console.warn(
+                    'node_redis: Deprecated: The %s command contains a "null" argument.\n' +
+                    'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
+                    'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
+                );
+                args[i] = 'null'; // Backwards compatible :/
+            } else {
+                buffer_args = true;
+                if (this.pipeline !== 0) {
+                    this.pipeline += 2;
+                    this.writeDefault = this.writeBuffers;
+                }
+            }
+        } else if (typeof args[i] === 'undefined') {
+            console.warn(
+                'node_redis: Deprecated: The %s command contains a "undefined" argument.\n' +
+                'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
+                'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
+            );
+            args[i] = 'undefined'; // Backwards compatible :/
+        } else {
             args[i] = String(args[i]);
-        // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
-        } else if (args[i].length > 30000) {
-            big_data = true;
-            args[i] = new Buffer(args[i]);
-            if (this.pipeline !== 0) {
-                this.pipeline += 2;
-                this.writeDefault = this.writeBuffers;
-            }
         }
     }
 
-    command_obj = new Command(command, args, false, buffer_args, callback);
+    command_obj = new Command(command, args, buffer_args, callback);
 
-    if (!this.ready && !this.send_anyway || !stream.writable) {
+    // TODO: Replace send_anyway with `commands.hasFlag(command, 'loading') === false` as soon as pub_sub is handled in the result handler
+    if (this.ready === false && this.send_anyway === false || !stream.writable) {
         if (this.closing || !this.enable_offline_queue) {
             command = command.toUpperCase();
             if (!this.closing) {
@@ -776,7 +716,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     }
 
     if (command === 'subscribe' || command === 'psubscribe' || command === 'unsubscribe' || command === 'punsubscribe') {
-        this.pub_sub_command(command_obj);
+        this.pub_sub_command(command_obj); // TODO: This has to be moved to the result handler
     } else if (command === 'monitor') {
         this.monitoring = true;
     } else if (command === 'quit') {
@@ -799,7 +739,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
     command_str = '*' + (args.length + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n';
 
-    if (!buffer_args && !big_data) { // Build up a string and send entire command in one write
+    if (buffer_args === false && big_data === false) { // Build up a string and send entire command in one write
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
             command_str += '$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n';
@@ -812,9 +752,9 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
         for (i = 0; i < args.length; i += 1) {
             arg = args[i];
-            if (typeof arg === 'string') {
+            if (typeof arg !== 'object') { // string; number; boolean
                 this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
-            } else {
+            } else { // buffer
                 this.write('$' + arg.length + '\r\n');
                 this.write(arg);
                 this.write('\r\n');
@@ -890,6 +830,16 @@ RedisClient.prototype.pub_sub_command = function (command_obj) {
 };
 
 RedisClient.prototype.end = function (flush) {
+    // Flush queue if wanted
+    if (flush) {
+        this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
+    } else if (arguments.length === 0) {
+        console.warn(
+            'node_redis: Using .end() without the flush parameter is deprecated and throws from v.3.0.0 on.\n' +
+            'Please check the doku (https://github.com/NodeRedis/node_redis) and explictly use flush.'
+        );
+    }
+
     this.stream._events = {};
 
     // Clear retry_timer
@@ -898,11 +848,6 @@ RedisClient.prototype.end = function (flush) {
         this.retry_timer = null;
     }
     this.stream.on('error', noop);
-
-    // Flush queue if wanted
-    if (flush) {
-        this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
-    }
 
     this.connected = false;
     this.ready = false;
@@ -932,22 +877,18 @@ commands.list.forEach(function (command) {
     RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             return this.send_command(command, key, arg);
-        }
-        if (Array.isArray(arg)) {
+        } else if (Array.isArray(arg)) {
             arg = [key].concat(arg);
             return this.send_command(command, arg, callback);
         }
-        // Speed up the common case
+        // This has to be inlined, otherwise the arguments leak
         var len = arguments.length;
-        if (len === 2) {
-            return this.send_command(command, [key, arg]);
+        var arr = new Array(len);
+        for (var i = 0; i < len; i += 1) {
+            arr[i] = arguments[i];
         }
-        if (len === 3) {
-            return this.send_command(command, [key, arg, callback]);
-        }
-        return this.send_command(command, utils.to_array(arguments));
+        return this.send_command(command, arr);
     };
-
     Multi.prototype[command.toUpperCase()] = Multi.prototype[command] = function (key, arg, callback) {
         if (Array.isArray(key)) {
             if (arg) {
@@ -960,15 +901,12 @@ commands.list.forEach(function (command) {
             }
             this.queue.push([command, key].concat(arg));
         } else {
-            // Speed up the common case
             var len = arguments.length;
-            if (len === 2) {
-                this.queue.push([command, key, arg]);
-            } else if (len === 3) {
-                this.queue.push([command, key, arg, callback]);
-            } else {
-                this.queue.push([command].concat(utils.to_array(arguments)));
+            var arr = new Array(len);
+            for (var i = 0; i < len; i += 1) {
+                arr[i] = arguments[i];
             }
+            this.queue.push([command].concat(arr));
         }
         return this;
     };
@@ -999,6 +937,53 @@ RedisClient.prototype.select = RedisClient.prototype.SELECT = function (db, call
     });
 };
 
+// Store info in this.server_info after each call
+RedisClient.prototype.info = RedisClient.prototype.INFO = function (callback) {
+    var self = this;
+    this.send_anyway = true;
+    var tmp = this.send_command('info', [], function (err, res) {
+        if (res) {
+            var obj = {};
+            var lines = res.toString().split('\r\n');
+            var line, parts, sub_parts;
+
+            for (var i = 0; i < lines.length; i++) {
+                parts = lines[i].split(':');
+                if (parts[1]) {
+                    if (parts[0].indexOf('db') === 0) {
+                        sub_parts = parts[1].split(',');
+                        obj[parts[0]] = {};
+                        while (line = sub_parts.pop()) {
+                            line = line.split('=');
+                            obj[parts[0]][line[0]] = +line[1];
+                        }
+                    } else {
+                        obj[parts[0]] = parts[1];
+                    }
+                }
+            }
+            obj.versions = [];
+            /* istanbul ignore else: some redis servers do not send the version */
+            if (obj.redis_version) {
+                obj.redis_version.split('.').forEach(function (num) {
+                    obj.versions.push(+num);
+                });
+            }
+            // Expose info key/vals to users
+            self.server_info = obj;
+        } else {
+            self.server_info = {};
+        }
+        if (typeof callback === 'function') {
+            callback(err, res);
+        } else if (err) {
+            self.emit('error', err);
+        }
+    });
+    this.send_anyway = false;
+    return tmp;
+};
+
 RedisClient.prototype.callback_emit_error = function (callback, err) {
     if (callback) {
         setImmediate(function () {
@@ -1019,12 +1004,10 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
     }
     this.auth_pass = pass;
     debug('Saving auth as ' + this.auth_pass);
-    // Only run the callback once. So do not safe it if already connected
-    if (this.connected) {
-        return this.send_command('auth', [this.auth_pass], callback);
-    }
-    this.auth_callback = callback;
-    return true;
+    this.send_anyway = true;
+    var tmp =  this.send_command('auth', [pass], callback);
+    this.send_anyway = false;
+    return tmp;
 };
 
 RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args, callback) {
@@ -1035,15 +1018,9 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args,
     if (Array.isArray(args)) {
         return this.send_command('hmset', [key].concat(args), callback);
     }
-    if (typeof args === 'object') {
+    if (typeof args === 'object' && (typeof callback === 'function' || typeof callback === 'undefined')) {
         // User does: client.hmset(key, {key1: val1, key2: val2})
         // assuming key is a string, i.e. email address
-
-        // if key is a number, i.e. timestamp, convert to string
-        // TODO: This seems random and no other command get's the key converted => either all or none should behave like this
-        if (typeof key !== 'string') {
-            key = key.toString();
-        }
         tmp_args = [key];
         var fields = Object.keys(args);
         while (field = fields.shift()) {
@@ -1051,7 +1028,12 @@ RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args,
         }
         return this.send_command('hmset', tmp_args, callback);
     }
-    return this.send_command('hmset', utils.to_array(arguments));
+    var len = arguments.length;
+    tmp_args = new Array(len);
+    for (var i = 0; i < len; i += 1) {
+        tmp_args[i] = arguments[i];
+    }
+    return this.send_command('hmset', tmp_args);
 };
 
 Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
@@ -1066,10 +1048,7 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
             args = args.concat([callback]);
         }
         tmp_args = ['hmset', key].concat(args);
-    } else if (typeof args === 'object') {
-        if (typeof key !== 'string') {
-            key = key.toString();
-        }
+    } else if (typeof args === 'object' && (typeof callback === 'function' || typeof callback === 'undefined')) {
         tmp_args = ['hmset', key];
         var fields = Object.keys(args);
         while (field = fields.shift()) {
@@ -1080,8 +1059,12 @@ Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
             tmp_args.push(callback);
         }
     } else {
-        tmp_args = utils.to_array(arguments);
-        tmp_args.unshift('hmset');
+        var len = arguments.length;
+        tmp_args = new Array(len);
+        tmp_args[0] = 'hmset';
+        for (var i = 0; i < len; i += 1) {
+            tmp_args[i + 1] = arguments[i];
+        }
     }
     this.queue.push(tmp_args);
     return this;
@@ -1111,6 +1094,7 @@ Multi.prototype.exec_transaction = function (callback) {
     var self = this;
     var len = this.queue.length;
     var cb;
+    var args_len = 1;
     this.errors = [];
     this.callback = callback;
     this._client.cork(len + 2);
@@ -1120,9 +1104,11 @@ Multi.prototype.exec_transaction = function (callback) {
     for (var index = 0; index < len; index++) {
         var args = this.queue.get(index).slice(0);
         var command = args.shift();
-        if (typeof args[args.length - 1] === 'function') {
+        args_len = args.length - 1;
+        if (typeof args[args_len] === 'function' || typeof args[args_len] === 'undefined') {
             cb = args.pop();
         } else {
+            // Explicitly set the callback to undefined. Otherwise we might have the callback from the command earlier
             cb = undefined;
         }
         // Keep track of who wants buffer responses:
@@ -1197,14 +1183,12 @@ Multi.prototype.callback = function (cb, i) {
     return function (err, res) {
         if (err) {
             self.results[i] = err;
+            // Add the position to the error
+            self.results[i].position = i;
         } else {
             self.results[i] = res;
         }
-        if (cb) {
-            cb(err, res);
-        }
-        // Do not emit an error here. Otherwise each error would result in one emit.
-        // The errors will be returned in the result anyway
+        cb(err, res);
     };
 };
 
@@ -1213,6 +1197,25 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     var self = this;
     var index = 0;
     var args;
+    var args_len = 1;
+    var callback_without_own_cb = function (err, res) {
+        if (err) {
+            self.results.push(err);
+            // Add the position to the error
+            var i = self.results.length - 1;
+            self.results[i].position = i;
+        } else {
+            self.results.push(res);
+        }
+        // Do not emit an error here. Otherwise each error would result in one emit.
+        // The errors will be returned in the result anyway
+    };
+    var last_callback = function (cb) {
+        return function (err, res) {
+            cb(err, res);
+            callback(null, self.results);
+        };
+    };
     if (len === 0) {
         if (callback) {
             // The execution order won't be obtained in this case
@@ -1222,24 +1225,22 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
         }
         return true;
     }
-    this.results = new Array(len);
+    this.results = [];
     this._client.cork(len);
-    var lastCallback = function (cb) {
-        return function (err, res) {
-            cb(err, res);
-            callback(null, self.results);
-        };
-    };
     while (args = this.queue.shift()) {
         var command = args.shift();
         var cb;
-        if (typeof args[args.length - 1] === 'function') {
+        args_len = args.length - 1;
+        if (typeof args[args_len] === 'function') {
             cb = this.callback(args.pop(), index);
         } else {
-            cb = this.callback(undefined, index);
+            cb = callback_without_own_cb;
+            if (typeof args[args_len] === 'undefined') {
+                args.pop();
+            }
         }
         if (callback && index === len - 1) {
-            cb = lastCallback(cb);
+            cb = last_callback(cb);
         }
         this._client.send_command(command, args, cb);
         index++;
@@ -1257,12 +1258,23 @@ var createClient = function (port_arg, host_arg, options) {
     } else if (typeof port_arg === 'string' || port_arg && port_arg.url) {
         options = clone(port_arg.url ? port_arg : host_arg || options);
         var parsed = URL.parse(port_arg.url || port_arg, true, true);
+        // [redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]
         if (parsed.hostname) {
             if (parsed.auth) {
-                options.auth_pass = parsed.auth.split(':')[1];
+                options.password = parsed.auth.split(':')[1];
             }
-            if (parsed.protocol !== 'redis:') {
-                throw new Error('Connection string must use the "redis:" protocol');
+            if (!/^([a-z]+:)?\/\//i.test(parsed.href)) {
+                throw new Error('Connection string must use the "redis:" protocol or begin with slashes //');
+            }
+            if (parsed.pathname && parsed.pathname !== '/') {
+                options.db = parsed.pathname.substr(1);
+            }
+            if (parsed.search !== '') {
+                var elem;
+                for (elem in parsed.query) { // jshint ignore: line
+                    // If options are passed twice, only the parsed options will be used
+                    options[elem] = parsed.query[elem];
+                }
             }
             options.host = parsed.hostname;
             options.port = parsed.port;

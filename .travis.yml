@@ -11,6 +11,6 @@ addons:
 node_js:
   - "0.10"
   - "0.12"
-  - "4.0"
-  - "5.0"
+  - "4"
+  - "5"
 after_success: npm run coveralls

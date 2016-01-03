@@ -335,7 +335,7 @@ describe("The 'multi' method", function () {
                         ["hmset", arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
                         ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
-                        ["HMSET", "multihmset", ["multibar", "multibaz"]],
+                        ["HMSET", "multihmset", ["multibar", "multibaz"], undefined], // undefined is used as a explicit not set callback variable
                         ["hmset", "multihmset", ["multibar", "multibaz"], helper.isString('OK')],
                     ])
                     .hmget(now, 123456789, 'otherTypes')

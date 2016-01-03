@@ -81,44 +81,35 @@ describe("The 'set' method", function () {
                     describe("with valid parameters", function () {
                         it("sets the value correctly", function (done) {
                             client.set(key, value);
-                            setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    helper.isString(value)(err, res);
-                                    done();
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value, done));
                         });
 
                         it("sets the value correctly even if the callback is explicitly set to undefined", function (done) {
                             client.set(key, value, undefined);
-                            setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    helper.isString(value)(err, res);
-                                    done();
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value, done));
                         });
 
                         it("sets the value correctly with the array syntax", function (done) {
                             client.set([key, value]);
-                            setTimeout(function () {
-                                client.get(key, function (err, res) {
-                                    helper.isString(value)(err, res);
-                                    done();
-                                });
-                            }, 100);
+                            client.get(key, helper.isString(value, done));
                         });
                     });
 
                     describe("with undefined 'key' and missing 'value' parameter", function () {
                         it("emits an error without callback", function (done) {
                             client.on('error', function (err) {
-                                assert.equal(err.message, 'send_command: SET value must not be undefined or null');
+                                assert.equal(err.message, "ERR wrong number of arguments for 'set' command");
                                 assert.equal(err.command, 'SET');
                                 done();
                             });
                             client.set(undefined);
                         });
+                    });
+
+                    // TODO: This test has to be refactored from v.3.0 on to expect an error instead
+                    it("converts null to 'null'", function (done) {
+                        client.set('foo', null);
+                        client.get('foo', helper.isString('null', done));
                     });
 
                     it("emit an error with only the key set", function (done) {
@@ -132,13 +123,10 @@ describe("The 'set' method", function () {
 
                     it("emit an error without any parameters", function (done) {
                         client.once("error", function (err) {
-                            assert.equal(err.message, 'send_command: SET value must not be undefined or null');
+                            assert.equal(err.message, "ERR wrong number of arguments for 'set' command");
                             assert.equal(err.command, 'SET');
                             done();
                         });
-
-                        // This was not supported not to throw earlier and was added by the test refactoring
-                        // https://github.com/NodeRedis/node_redis/commit/eaca486ab1aecd1329f7452ad2f2255b1263606f
                         client.set();
                     });
                 });

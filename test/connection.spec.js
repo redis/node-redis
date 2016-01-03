@@ -90,7 +90,7 @@ describe("connection tests", function () {
                     });
 
                     client.on("reconnecting", function (params) {
-                        client.end();
+                        client.end(true);
                         setTimeout(done, 100);
                     });
                 });
@@ -152,6 +152,7 @@ describe("connection tests", function () {
                     client.on('error', function(err) {
                         assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
                         assert(Date.now() - time < connect_timeout + 50);
+                        assert(Date.now() - time >= connect_timeout);
                         done();
                     });
                 });
@@ -358,20 +359,20 @@ describe("connection tests", function () {
                         redis.createClient(config.HOST[ip] + ':' + config.PORT);
                         throw new Error('failed');
                     } catch (err) {
-                        assert.equal(err.message, 'Connection string must use the "redis:" protocol');
+                        assert.equal(err.message, 'Connection string must use the "redis:" protocol or begin with slashes //');
                     }
                 });
 
                 if (ip === 'IPv4') {
                     it('allows connecting with the redis url and the default port', function (done) {
-                        client = redis.createClient('redis://foo:porkchopsandwiches@' + config.HOST[ip]);
+                        client = redis.createClient('redis://:porkchopsandwiches@' + config.HOST[ip] + '/');
                         client.on("ready", function () {
                             return done();
                         });
                     });
 
                     it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {
-                        client = redis.createClient('redis://127.0.0.1', {
+                        client = redis.createClient('//127.0.0.1', {
                             connect_timeout: 1000
                         });
                         assert.strictEqual(client.options.connect_timeout, 1000);
@@ -380,11 +381,12 @@ describe("connection tests", function () {
                         });
                     });
 
-                    it('allows connecting with the redis url in the options object', function (done) {
+                    it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', function (done) {
                         client = redis.createClient({
-                            url: 'redis://foo:porkchopsandwiches@' + config.HOST[ip]
+                            url: 'http://foo:porkchopsandwiches@' + config.HOST[ip] + '/3'
                         });
-                        assert.strictEqual(client.options.auth_pass, 'porkchopsandwiches');
+                        assert.strictEqual(client.auth_pass, 'porkchopsandwiches');
+                        assert.strictEqual(+client.selected_db, 3);
                         assert(!client.options.port);
                         assert.strictEqual(client.options.host, config.HOST[ip]);
                         client.on("ready", function () {
@@ -424,7 +426,8 @@ describe("connection tests", function () {
                         tmp(function(err, res) {
                             if (!delayed) {
                                 assert(!err);
-                                res = res.toString().replace(/loading:0/, 'loading:1\r\nloading_eta_seconds:0.5');
+                                client.server_info.loading = 1;
+                                client.server_info.loading_eta_seconds = 0.5;
                                 delayed = true;
                                 time = Date.now();
                             }
@@ -454,7 +457,8 @@ describe("connection tests", function () {
                             if (!delayed) {
                                 assert(!err);
                                 // Try reconnecting after one second even if redis tells us the time needed is above one second
-                                res = res.toString().replace(/loading:0/, 'loading:1\r\nloading_eta_seconds:2.5');
+                                client.server_info.loading = 1;
+                                client.server_info.loading_eta_seconds = 2.5;
                                 delayed = true;
                                 time = Date.now();
                             }

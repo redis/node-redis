@@ -8,9 +8,7 @@ var redis = config.redis;
 
 describe("The node_redis client", function () {
 
-    helper.allTests({
-        allConnections: true
-    }, function(parser, ip, args) {
+    helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
             var client;
@@ -128,7 +126,7 @@ describe("The node_redis client", function () {
                     it("misusing the function should eventually throw (no command)", function (done) {
                         client.send_command(true, 'info', function (err, res) {
                             assert(/ERR Protocol error/.test(err.message));
-                            assert.equal(err.command, true);
+                            assert.equal(err.command, undefined);
                             assert.equal(err.code, 'ERR');
                             done();
                         });
@@ -138,6 +136,28 @@ describe("The node_redis client", function () {
                         client.send_command('info', false, function(err, res) {
                             assert.equal(err.message, 'ERR Protocol error: invalid multibulk length');
                             done();
+                        });
+                    });
+
+                });
+
+                describe("retry_unfulfilled_commands", function () {
+
+                    it("should retry all commands instead of returning an error if a command did not yet return after a connection loss", function (done) {
+                        var bclient = redis.createClient({
+                            parser: parser,
+                            retry_unfulfilled_commands: true
+                        });
+                        bclient.blpop("blocking list 2", 5, function (err, value) {
+                            assert.strictEqual(value[0], "blocking list 2");
+                            assert.strictEqual(value[1], "initial value");
+                            return done(err);
+                        });
+                        bclient.once('ready', function () {
+                            setTimeout(function () {
+                                bclient.stream.destroy();
+                                client.rpush("blocking list 2", "initial value", helper.isNumber(1));
+                            }, 100);
                         });
                     });
 
@@ -191,8 +211,8 @@ describe("The node_redis client", function () {
                     it("return an error in the callback", function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
-                        // TODO: Investigate why this test is failing hard and killing mocha if the client is created with .apply
-                        // Seems like something is wrong while passing a socket connection to create client! args[1]
+                        // TODO: Investigate why this test is failing hard and killing mocha.
+                        // Seems like something is wrong with nyc while passing a socket connection to create client!
                         client = redis.createClient();
                         client.quit(function() {
                             client.get("foo", function(err, res) {

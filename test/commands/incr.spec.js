@@ -43,7 +43,6 @@ describe("The 'incr' method", function () {
             describe("when connected and a value in Redis", function () {
                 var client;
 
-                // Also, why tf were these disabled for hiredis? They work just fine.
                 before(function (done) {
                     /*
                         9007199254740992 -> 9007199254740992
