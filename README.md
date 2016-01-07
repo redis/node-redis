@@ -246,7 +246,7 @@ something like this `Error: Ready check failed: ERR operation not permitted`.
 Forcibly close the connection to the Redis server. Note that this does not wait until all replies have been parsed.
 If you want to exit cleanly, call `client.quit()` to send the `QUIT` command after you have handled all replies.
 
-You should set flush to true, if you are not absolutly sure you do not care about any other commands.
+You should set flush to true, if you are not absolutely sure you do not care about any other commands.
 If you set flush to false all still running commands will silently fail.
 
 This example closes the connection to the Redis server before the replies have been read. You probably don't
