@@ -33,74 +33,74 @@ function handle_detect_buffers_reply (reply, command, buffer_args) {
 
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
-function RedisClient (options) {
+function RedisClient (globalOptions) {
     // Copy the options so they are not mutated
-    this.options = clone(options);
-    this.options.socket = options.socket;
-
+    var options = clone(globalOptions);
+    options.socket = typeof globalOptions === 'object' ? globalOptions.socket : null;
     events.EventEmitter.call(this);
     var cnx_options = {};
-    if (this.options.path) {
-        cnx_options.path = this.options.path;
-        this.address = this.options.path;
+    if (options.path) {
+        cnx_options.path = options.path;
+        this.address = options.path;
     } else {
-        cnx_options.port = +this.options.port || default_port;
-        cnx_options.host = this.options.host || default_host;
-        cnx_options.family = (!this.options.family && net.isIP(cnx_options.host)) || (this.options.family === 'IPv6' ? 6 : 4);
+        cnx_options.port = +options.port || default_port;
+        cnx_options.host = options.host || default_host;
+        cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
     /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
-    for (var tls_option in this.options.tls) { // jshint ignore: line
-        cnx_options[tls_option] = this.options.tls[tls_option];
+    for (var tls_option in options.tls) { // jshint ignore: line
+        cnx_options[tls_option] = options.tls[tls_option];
     }
     this.connection_options = cnx_options;
     this.connection_id = ++connection_id;
     this.connected = false;
     this.ready = false;
-    if (this.options.socket_nodelay === undefined) {
-        this.options.socket_nodelay = true;
-    } else if (!this.options.socket_nodelay) { // Only warn users with this set to false
+    if (options.socket_nodelay === undefined) {
+        options.socket_nodelay = true;
+    } else if (!options.socket_nodelay) { // Only warn users with this set to false
         console.warn(
             'node_redis: socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
             'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch to buffer commands and use pipelining.\n' +
             'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
         );
     }
-    if (this.options.socket_keepalive === undefined) {
-        this.options.socket_keepalive = true;
+    if (options.socket_keepalive === undefined) {
+        options.socket_keepalive = true;
     }
-    for (var command in this.options.rename_commands) { // jshint ignore: line
-        this.options.rename_commands[command.toLowerCase()] = this.options.rename_commands[command];
+    for (var command in options.rename_commands) { // jshint ignore: line
+        options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
     }
-    this.options.return_buffers = !!this.options.return_buffers;
-    this.options.detect_buffers = !!this.options.detect_buffers;
+    options.return_buffers = !!options.return_buffers;
+    options.detect_buffers = !!options.detect_buffers;
     // Override the detect_buffers setting if return_buffers is active and print a warning
-    if (this.options.return_buffers && this.options.detect_buffers) {
+    if (options.return_buffers && options.detect_buffers) {
         console.warn('>> WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
-        this.options.detect_buffers = false;
+        options.detect_buffers = false;
     }
-    if (this.options.detect_buffers) {
+    if (options.detect_buffers) {
         // We only need to look at the arguments if we do not know what we have to return
         this.handle_reply = handle_detect_buffers_reply;
     }
     this.should_buffer = false;
-    this.max_attempts = this.options.max_attempts | 0;
+    this.max_attempts = options.max_attempts | 0;
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
-    this.connect_timeout = +this.options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
-    this.enable_offline_queue = this.options.enable_offline_queue === false ? false : true;
-    this.retry_max_delay = +this.options.retry_max_delay || null;
+    this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
+    this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
+    this.retry_max_delay = +options.retry_max_delay || null;
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
     this.monitoring = false;
     this.closing = false;
     this.server_info = {};
-    this.auth_pass = this.options.auth_pass || this.options.password;
-    this.selected_db = this.options.db; // Save the selected db here, used when reconnecting
+    this.auth_pass = options.auth_pass || options.password;
+    this.selected_db = options.db; // Save the selected db here, used when reconnecting
     this.old_state = null;
     this.send_anyway = false;
     this.pipeline = 0;
+    this.options = options;
     // Init parser
     var self = this;
     this.reply_parser = new Parser({
@@ -1287,7 +1287,7 @@ var createClient = function (port_arg, host_arg, options) {
         } else {
             options.path = port_arg;
         }
-    } else if (typeof port_arg === 'object' || typeof host_arg === 'object') {
+    } else if (port_arg instanceof net.Socket && typeof host_arg === 'object') {
         options = clone(host_arg);
         options.socket = port_arg;
     } else if (typeof port_arg === 'object' || port_arg === undefined) {
