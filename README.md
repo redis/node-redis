@@ -173,6 +173,8 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `redis.createClient(redis_url, options)`
 * `redis.createClient(port, host, options)`
 
+Note: when `options.socket` is specified the reconnect feature won't work.
+
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
 * `port`: *6370*; The port to connect to
