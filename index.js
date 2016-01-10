@@ -34,9 +34,20 @@ function handle_detect_buffers_reply (reply, command, buffer_args) {
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 function RedisClient (globalOptions) {
+    globalOptions = globalOptions || {};
+
+    // extract socket if present
+    var socket = globalOptions.socket;
+
+    // ensure clone won't try to clone a socket
+    globalOptions.socket = null;
+
     // Copy the options so they are not mutated
     var options = clone(globalOptions);
-    options.socket = typeof globalOptions === 'object' ? globalOptions.socket : null;
+
+    // add socket if present
+    options.socket = socket;
+    
     events.EventEmitter.call(this);
     var cnx_options = {};
     if (options.path) {
