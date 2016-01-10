@@ -1,6 +1,7 @@
 'use strict';
 
 var assert = require("assert");
+var net = require("net");
 var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
@@ -337,6 +338,12 @@ describe("connection tests", function () {
                     assert(create_stream_string !== String(redis.RedisClient.prototype.create_stream));
                     redis.RedisClient.prototype.create_stream = temp;
                     assert(create_stream_string === String(redis.RedisClient.prototype.create_stream));
+                });
+
+                it('supports a socket parameter in options object', function () {
+                  var socket = new net.Socket();
+                  client = new redis.RedisClient({socket: socket});
+                  assert.strictEqual(client.stream, socket);
                 });
 
                 it("throws on strange connection info", function () {
