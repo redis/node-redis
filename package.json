@@ -33,7 +33,7 @@
   "devDependencies": {
     "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
-    "jshint": "^2.8.0",
+    "jshint": "^2.9.1",
     "metrics": "^0.1.9",
     "mocha": "^2.3.2",
     "nyc": "^5.2.0",
