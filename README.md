@@ -175,7 +175,7 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
-* `port`: *6370*; The port to connect to
+* `port`: *6379*; The port to connect to
 * `path`: *null*; The unix socket string to connect to
 * `url`: *null*; The redis url to connect to (`[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` For more info check [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis))
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
