@@ -195,6 +195,13 @@ connection to the redis server, commands are added to a queue and are executed
 once the connection has been established. Setting `enable_offline_queue` to
 `false` will disable this feature and the callback will be executed immediately
 with an error, or an error will be emitted if no callback is specified.
+* `enable_offline_queue_until_first_ready`: *false*; To be used in conjunction with `enable_offline_queue`,
+if you would like to turn off offline queue (by setting `enable_offline_queue` to false) however you still want
+to queue commands that occur before the connection becomes ready then you can set this variable to `true`. Commands
+executed while the connection becomes ready will be queued but once the connection first becomes ready, if you have
+`enable_offline_queue` set to `false`, you will no longer have offline queuing. This helps handle redis timeouts or
+connection drops that occur post initial connection by not queuing commands and failing immediately (helpful when you
+are using redis as a cache so you can immediately go to the primary source of the data).
 * `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
 This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
 * `connect_timeout`: *3600000*; Setting `connect_timeout` limits total time for client to connect and reconnect.
