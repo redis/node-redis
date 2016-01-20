@@ -550,6 +550,40 @@ describe("The node_redis client", function () {
                 });
             });
 
+            describe.only('offline_queue_enabled', function () {
+                describe('true', function () {
+                    // @TODO: Add more tests
+
+                    it("does not return an error and enqueues operation", function (done) {
+                        client = redis.createClient({
+                            max_attempts: 0,
+                            enable_offline_queue: false,
+                            enable_offline_queue_until_first_ready: true,
+                        });
+                        client.set('foo', 'bar', function(err, result) {
+                          assert.equal(result, 'OK');
+                          return done();
+                        });
+                    });
+                });
+
+                describe('false', function () {
+                    // @TODO: Add more tests
+
+                    it("return an error because offline queues disabled", function (done) {
+                        client = redis.createClient({
+                            max_attempts: 0,
+                            enable_offline_queue: false,
+                            enable_offline_queue_until_first_ready: false,
+                        });
+                        client.set('foo', 'bar', function(err, result) {
+                          assert.equal(err.message, 'SET can\'t be processed. The connection is not yet established and the offline queue is deactivated.');
+                          return done();
+                        });
+                    });
+                });
+            });
+
             describe('enable_offline_queue', function () {
                 describe('true', function () {
                     it("should emit drain if offline queue is flushed and nothing to buffer", function (done) {

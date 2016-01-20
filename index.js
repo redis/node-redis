@@ -86,7 +86,9 @@ function RedisClient (options) {
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
     this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
+    this.enable_offline_queue_until_first_ready = options.enable_offline_queue_until_first_ready === false ? false : true;
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
+    this.offline_queue_enabled = this.enable_offline_queue_until_first_ready || this.enable_offline_queue;
     this.retry_max_delay = +options.retry_max_delay || null;
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
@@ -365,6 +367,7 @@ RedisClient.prototype.on_ready = function () {
         this.send_command('monitor', []);
     } else {
         this.send_offline_queue();
+        this.offline_queue_enabled = this.enable_offline_queue;
     }
     this.emit('ready');
 };
@@ -694,7 +697,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     // TODO: Replace send_anyway with `commands.hasFlag(command, 'loading') === false` as soon as pub_sub is handled in the result handler
     if (this.ready === false && this.send_anyway === false || !stream.writable) {
-        if (this.closing || !this.enable_offline_queue) {
+        if (this.closing || !this.offline_queue_enabled) {
             command = command.toUpperCase();
             if (!this.closing) {
                 var msg = !stream.writable ?
