@@ -25,10 +25,8 @@ var num_clients = returnArg('clients', 1);
 var run_time = returnArg('time', 2500); // ms
 var versions_logged = false;
 var client_options = {
-        return_buffers: false,
-        max_attempts: 4,
-        parser: returnArg('parser', 'hiredis')
-    };
+    parser: returnArg('parser', 'hiredis')
+};
 var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
 
 function lpad(input, len, chr) {
@@ -42,7 +40,7 @@ function lpad(input, len, chr) {
 
 metrics.Histogram.prototype.print_line = function () {
     var obj = this.printObj();
-    return lpad(obj.min, 4) + '/' + lpad(obj.max, 4) + '/' + lpad(obj.mean.toFixed(2), 7);
+    return lpad((obj.min / 1000000).toFixed(2), 6) + '/' + lpad((obj.max / 1000000).toFixed(2), 6) + '/' + lpad((obj.mean / 1000000).toFixed(2), 6);
 };
 
 function Test(args) {
@@ -54,7 +52,8 @@ function Test(args) {
     this.commands_completed = 0;
     this.max_pipeline = this.args.pipeline || 50;
     this.batch_pipeline = this.args.batch || 0;
-    this.client_options = args.client_options || client_options;
+    this.client_options = args.client_options || {};
+    this.client_options.parser = client_options.parser;
     this.connect_latency = new metrics.Histogram();
     this.ready_latency = new metrics.Histogram();
     this.command_latency = new metrics.Histogram();
@@ -131,14 +130,6 @@ Test.prototype.fill_pipeline = function () {
         return;
     }
 
-    if (this.clients[0].should_buffer) {
-        var self = this;
-        setTimeout(function() {
-            self.fill_pipeline();
-        }, 1);
-        return;
-    }
-
     if (this.batch_pipeline) {
         this.batch();
     } else {
@@ -153,7 +144,7 @@ Test.prototype.fill_pipeline = function () {
 Test.prototype.batch = function () {
     var self = this,
         cur_client = client_nr++ % this.clients.length,
-        start = Date.now(),
+        start = process.hrtime(),
         i = 0,
         batch = this.clients[cur_client].batch();
 
@@ -167,7 +158,7 @@ Test.prototype.batch = function () {
             throw err;
         }
         self.commands_completed += res.length;
-        self.command_latency.update(Date.now() - start);
+        self.command_latency.update(process.hrtime(start)[1]);
         self.fill_pipeline();
     });
 };
@@ -189,14 +180,14 @@ Test.prototype.stop_clients = function () {
 Test.prototype.send_next = function () {
     var self = this,
         cur_client = this.commands_sent % this.clients.length,
-        start = Date.now();
+        start = process.hrtime();
 
     this.clients[cur_client][this.args.command](this.args.args, function (err, res) {
         if (err) {
             throw err;
         }
         self.commands_completed++;
-        self.command_latency.update(Date.now() - start);
+        self.command_latency.update(process.hrtime(start)[1]);
         self.fill_pipeline();
     });
 };
