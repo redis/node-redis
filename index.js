@@ -15,7 +15,6 @@ var default_port = 6379;
 var default_host = '127.0.0.1';
 
 function noop () {}
-function clone (obj) { return JSON.parse(JSON.stringify(obj || {})); }
 function debug (msg) { if (exports.debug_mode) { console.error(msg); } }
 
 function handle_detect_buffers_reply (reply, command, buffer_args) {
@@ -35,7 +34,7 @@ exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 function RedisClient (options) {
     // Copy the options so they are not mutated
-    options = clone(options);
+    options = utils.clone(options);
     events.EventEmitter.call(this);
     var cnx_options = {};
     var self = this;
@@ -205,8 +204,8 @@ RedisClient.prototype.cork = noop;
 RedisClient.prototype.uncork = noop;
 
 RedisClient.prototype.duplicate = function (options) {
-    var existing_options = clone(this.options);
-    options = clone(options);
+    var existing_options = utils.clone(this.options);
+    options = utils.clone(options);
     for (var elem in options) { // jshint ignore: line
         existing_options[elem] = options[elem];
     }
@@ -1293,11 +1292,11 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
 
 var createClient = function (port_arg, host_arg, options) {
     if (typeof port_arg === 'number' || typeof port_arg === 'string' && /^\d+$/.test(port_arg)) {
-        options = clone(options);
+        options = utils.clone(options);
         options.host = host_arg;
         options.port = port_arg;
     } else if (typeof port_arg === 'string' || port_arg && port_arg.url) {
-        options = clone(port_arg.url ? port_arg : host_arg || options);
+        options = utils.clone(port_arg.url ? port_arg : host_arg || options);
         var parsed = URL.parse(port_arg.url || port_arg, true, true);
         // [redis:]//[[user][:password]@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]
         if (parsed.hostname || parsed.slashes) { // The host might be an empty string
@@ -1326,7 +1325,7 @@ var createClient = function (port_arg, host_arg, options) {
             options.path = port_arg;
         }
     } else if (typeof port_arg === 'object' || port_arg === undefined) {
-        options = clone(port_arg || options);
+        options = utils.clone(port_arg || options);
         options.host = options.host || host_arg;
     }
     if (!options) {
