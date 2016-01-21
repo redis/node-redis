@@ -1,18 +1,20 @@
 Changelog
 =========
 
-## v.2.5.0-0 - xx Dez, 2015
+## v.2.5.0-0 - xx Jan, 2015
 
 Features
 
 -  The parsers moved into the [redis-parser](https://github.com/NodeRedis/node-redis-parser) module and will be maintained in there from now on
  -  Improve js parser speed significantly for big SUNION/SINTER/LRANGE/ZRANGE
--  Improve redis-url parsing to also accept the database-number and options as query parameters as suggested in the [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)
+-  Improve redis-url parsing to also accept the database-number and options as query parameters as suggested in [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)
 -  Added a `retry_unfulfilled_commands` option
  -  Setting this to 'true' results in retrying all commands that were not fulfilled on a connection loss after the reconnect. Use with caution
 -  Added a `db` option to select the database while connecting (this is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg))
 -  Added a `password` option as alias for auth_pass
 -  The client.server_info is from now on updated while using the info command
+-  Gracefuly handle redis protocol errors from now on
+-  Added a `warning` emitter that receives deprecation messages and other node_redis warnings
 
 Bugfixes
 
@@ -31,7 +33,7 @@ Deprecations
  -  From v.3.0.0 on using a command with such an argument will return an error instead
  -  If you want to keep the old behavior please use a precheck in your code that converts the arguments to a string.
  -  Using SET or SETEX with a undefined or null value will from now on also result in converting the value to "null" / "undefined" to have a consistent behavior. This is not considered as breaking change, as it returned an error earlier.
--  Using .end(flush) without the flush parameter deprecated and the flush parameter should explicitly be used
+-  Using .end(flush) without the flush parameter is deprecated and the flush parameter should explicitly be used
  -  From v.3.0.0 on using .end without flush will result in an error
  -  Using .end without flush means that any command that did not yet return is going to silently fail. Therefor this is considered harmfull and you should explicitly silence such errors if you are sure you want this
 -  Depending on the return value of a command to detect the backpressure is deprecated

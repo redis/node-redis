@@ -38,6 +38,7 @@ function RedisClient (options) {
     options = clone(options);
     events.EventEmitter.call(this);
     var cnx_options = {};
+    var self = this;
     if (options.path) {
         cnx_options.path = options.path;
         this.address = options.path;
@@ -58,11 +59,13 @@ function RedisClient (options) {
     if (options.socket_nodelay === undefined) {
         options.socket_nodelay = true;
     } else if (!options.socket_nodelay) { // Only warn users with this set to false
-        console.warn(
-            'node_redis: socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
-            'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch to buffer commands and use pipelining.\n' +
-            'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
-        );
+        process.nextTick(function () {
+            self.warn(
+                'socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
+                'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch to buffer commands and use pipelining.\n' +
+                'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
+            );
+        });
     }
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
@@ -74,7 +77,9 @@ function RedisClient (options) {
     options.detect_buffers = !!options.detect_buffers;
     // Override the detect_buffers setting if return_buffers is active and print a warning
     if (options.return_buffers && options.detect_buffers) {
-        console.warn('>> WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
+        process.nextTick(function () {
+            self.warn('WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
+        });
         options.detect_buffers = false;
     }
     if (options.detect_buffers) {
@@ -101,13 +106,18 @@ function RedisClient (options) {
     this.pipeline = 0;
     this.options = options;
     // Init parser
-    var self = this;
     this.reply_parser = new Parser({
         returnReply: function (data) {
             self.return_reply(data);
         },
         returnError: function (data) {
             self.return_error(data);
+        },
+        returnFatalError: function (err) {
+            // Error out all fired commands. Otherwise they might rely on faulty data. We have to reconnect to get in a working state again
+            self.flush_and_error(err, ['command_queue']);
+            self.stream.destroy();
+            self.return_error(err);
         },
         returnBuffers: options.return_buffers || options.detect_buffers,
         name: options.parser
@@ -128,10 +138,10 @@ RedisClient.prototype.create_stream = function () {
 
     /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
     if (this.options.tls) {
-	    this.stream = tls.connect(this.connection_options);
+        this.stream = tls.connect(this.connection_options);
     } else {
-	    this.stream = net.createConnection(this.connection_options);
-	}
+        this.stream = net.createConnection(this.connection_options);
+    }
 
     if (this.options.connect_timeout) {
         this.stream.setTimeout(this.connect_timeout, function () {
@@ -222,6 +232,14 @@ RedisClient.prototype.unref = function () {
         this.once('connect', function () {
             this.unref();
         });
+    }
+};
+
+RedisClient.prototype.warn = function (msg) {
+    if (this.listeners('warning').length !== 0) {
+        this.emit('warning', msg);
+    } else {
+        console.warn('node_redis:', msg);
     }
 };
 
@@ -665,10 +683,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                 args[i] = args[i].toString();
                 // Add this to parse_arguments.
             } else if (args[i] === null) {
-                console.warn(
-                    'node_redis: Deprecated: The %s command contains a "null" argument.\n' +
+                this.warn(
+                    'Deprecated: The ' + command.toUpperCase() + ' command contains a "null" argument.\n' +
                     'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
-                    'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
+                    'Please handle this in your code to make sure everything works as you intended it to.'
                 );
                 args[i] = 'null'; // Backwards compatible :/
             } else {
@@ -679,10 +697,10 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                 }
             }
         } else if (typeof args[i] === 'undefined') {
-            console.warn(
-                'node_redis: Deprecated: The %s command contains a "undefined" argument.\n' +
+            this.warn(
+                'Deprecated: The ' + command.toUpperCase() + ' command contains a "undefined" argument.\n' +
                 'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
-                'Please handle this in your code to make sure everything works as you intended it to behave.', command.toUpperCase()
+                'Please handle this in your code to make sure everything works as you intended it to.'
             );
             args[i] = 'undefined'; // Backwards compatible :/
         } else {
@@ -834,8 +852,8 @@ RedisClient.prototype.end = function (flush) {
     if (flush) {
         this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
     } else if (arguments.length === 0) {
-        console.warn(
-            'node_redis: Using .end() without the flush parameter is deprecated and throws from v.3.0.0 on.\n' +
+        this.warn(
+            'Using .end() without the flush parameter is deprecated and throws from v.3.0.0 on.\n' +
             'Please check the doku (https://github.com/NodeRedis/node_redis) and explictly use flush.'
         );
     }
@@ -859,7 +877,7 @@ function Multi(client, args) {
     this._client = client;
     this.queue = new Queue();
     var command, tmp_args;
-    if (Array.isArray(args)) {
+    if (args) { // Either undefined or an array. Fail hard if it's not an array
         for (var i = 0; i < args.length; i++) {
             command = args[i][0];
             tmp_args = args[i].slice(1);
@@ -1258,8 +1276,8 @@ var createClient = function (port_arg, host_arg, options) {
     } else if (typeof port_arg === 'string' || port_arg && port_arg.url) {
         options = clone(port_arg.url ? port_arg : host_arg || options);
         var parsed = URL.parse(port_arg.url || port_arg, true, true);
-        // [redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]
-        if (parsed.hostname) {
+        // [redis:]//[[user][:password]@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]
+        if (parsed.hostname || parsed.slashes) { // The host might be an empty string
             if (parsed.auth) {
                 options.password = parsed.auth.split(':')[1];
             }
@@ -1269,15 +1287,18 @@ var createClient = function (port_arg, host_arg, options) {
             if (parsed.pathname && parsed.pathname !== '/') {
                 options.db = parsed.pathname.substr(1);
             }
+            options.host = parsed.hostname;
+            options.port = parsed.port;
             if (parsed.search !== '') {
                 var elem;
                 for (elem in parsed.query) { // jshint ignore: line
                     // If options are passed twice, only the parsed options will be used
+                    if (options.hasOwnPropery(elem)) {
+                        RedisClient.warn('WARNING: You passed the ' + elem + ' option twice!');
+                    }
                     options[elem] = parsed.query[elem];
                 }
             }
-            options.host = parsed.hostname;
-            options.port = parsed.port;
         } else {
             options.path = port_arg;
         }

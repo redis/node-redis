@@ -364,11 +364,20 @@ describe("connection tests", function () {
                 });
 
                 if (ip === 'IPv4') {
-                    it('allows connecting with the redis url and the default port', function (done) {
+                    it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', function (done) {
+                        client = redis.createClient('redis:///3?db=3');
+                        assert.strictEqual(client.selected_db, '3');
+                        client.on("ready", done);
+                    });
+
+                    it('allows connecting with the redis url and the default port and auth provided even though it is not required', function (done) {
                         client = redis.createClient('redis://:porkchopsandwiches@' + config.HOST[ip] + '/');
-                        client.on("ready", function () {
-                            return done();
+                        var end = helper.callFuncAfter(done, 2);
+                        client.on('warning', function (msg) {
+                            assert.strictEqual(msg, 'Warning: Redis server does not require a password, but a password was supplied.');
+                            end();
                         });
+                        client.on("ready", end);
                     });
 
                     it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {

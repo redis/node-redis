@@ -171,7 +171,10 @@ module.exports = {
     },
     callFuncAfter: function (func, max) {
         var i = 0;
-        return function () {
+        return function (err) {
+            if (err) {
+                throw err;
+            }
             i++;
             if (i === max) {
                 func();

@@ -118,7 +118,7 @@ Please be aware that sending null, undefined and Boolean values will result in t
 
 # API
 
-## Connection Events
+## Connection and other Events
 
 `client` will emit some events about the state of the connection to the Redis server.
 
@@ -155,8 +155,12 @@ writable. This event can be used to stream commands in to Redis and adapt to bac
 If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
 That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
 
-You can also check the return value of each command as it will also return the backpressure indicator.
+You can also check the return value of each command as it will also return the backpressure indicator (deprecated).
 If false is returned the stream had to buffer.
+
+### "warning"
+
+`client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
 
 ### "idle"
 

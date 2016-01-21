@@ -550,6 +550,28 @@ describe("The node_redis client", function () {
                 });
             });
 
+            describe('protocol error', function () {
+
+                it("should gracefully recover and only fail on the already send commands", function (done) {
+                    client = redis.createClient.apply(redis.createClient, args);
+                    client.on('error', function(err) {
+                        assert.strictEqual(err.message, 'Protocol error, got "a" as reply type byte');
+                        // After the hard failure work properly again. The set should have been processed properly too
+                        client.get('foo', function (err, res) {
+                            assert.strictEqual(res, 'bar');
+                            done();
+                        });
+                    });
+                    client.once('ready', function () {
+                        client.set('foo', 'bar', function (err, res) {
+                            assert.strictEqual(err.message, 'Protocol error, got "a" as reply type byte');
+                        });
+                        // Fail the set answer. Has no corresponding command obj and will therefor land in the error handler and set
+                        client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                    });
+                });
+            });
+
             describe('enable_offline_queue', function () {
                 describe('true', function () {
                     it("should emit drain if offline queue is flushed and nothing to buffer", function (done) {
