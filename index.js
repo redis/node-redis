@@ -535,8 +535,6 @@ RedisClient.prototype.drain = function () {
 
 RedisClient.prototype.emit_idle = function (queue_len) {
     if (this.pub_sub_mode === false && queue_len === 0) {
-        // Free the queue capacity memory by using a new queue
-        this.command_queue = new Queue();
         this.emit('idle');
     }
 };
@@ -547,7 +545,7 @@ RedisClient.prototype.return_reply = function (reply) {
     // If the 'reply' here is actually a message received asynchronously due to a
     // pubsub subscription, don't pop the command queue as we'll only be consuming
     // the head command prematurely.
-    if (this.pub_sub_mode && Array.isArray(reply) && reply[0]) {
+    if (this.pub_sub_mode && reply instanceof Array && reply[0]) {
         type = reply[0].toString();
     }
 
@@ -571,12 +569,13 @@ RedisClient.prototype.return_reply = function (reply) {
             debug('No callback for reply');
         }
     } else if (this.pub_sub_mode || command_obj && command_obj.sub_command) {
-        if (Array.isArray(reply)) {
+        if (reply instanceof Array) {
             if ((!command_obj || command_obj.buffer_args === false) && !this.options.return_buffers) {
                 reply = utils.reply_to_strings(reply);
             }
             type = reply[0].toString();
 
+            // TODO: Add buffer emiters (we have to get all pubsub messages as buffers back in that case)
             if (type === 'message') {
                 this.emit('message', reply[1], reply[2]); // channel, message
             } else if (type === 'pmessage') {
