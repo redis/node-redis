@@ -161,7 +161,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 var async = true;
                 client.auth(undefined, function(err, res) {
-                    assert.strictEqual(err.message, 'The password has to be of type "string"');
+                    assert.strictEqual(err.message, 'ERR invalid password');
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
                     async = false;
@@ -175,7 +175,7 @@ describe("client authentication", function () {
 
                 client = redis.createClient.apply(redis.createClient, args);
                 client.on('error', function (err) {
-                    assert.strictEqual(err.message, 'The password has to be of type "string"');
+                    assert.strictEqual(err.message, 'ERR invalid password');
                     assert.strictEqual(err.command, 'AUTH');
                     done();
                 });

@@ -188,8 +188,8 @@ RedisClient.prototype.create_stream = function () {
     }
 
     // Fire the command before redis is connected to be sure it's the first fired command
-    if (typeof this.auth_pass === 'string') {
-        this.do_auth();
+    if (this.auth_pass !== undefined) {
+        this.auth(this.auth_pass);
     }
 };
 
@@ -272,29 +272,6 @@ RedisClient.prototype.on_error = function (err) {
     // 'error' events get turned into exceptions if they aren't listened for. If the user handled this error
     // then we should try to reconnect.
     this.connection_gone('error');
-};
-
-var noPasswordIsSet = /no password is set/;
-
-RedisClient.prototype.do_auth = function () {
-    var self = this;
-    debug('Sending auth to ' + self.address + ' id ' + self.connection_id);
-
-    this.send_anyway = true;
-    this.send_command('auth', [this.auth_pass], function (err, res) {
-        if (err) {
-            if (noPasswordIsSet.test(err.message)) {
-                debug('Warning: Redis server does not require a password, but a password was supplied.');
-                err = null;
-                res = 'OK';
-            } else {
-                self.emit('error', err);
-            }
-        } else {
-            debug('Auth succeeded ' + self.address + ' id ' + self.connection_id);
-        }
-    });
-    this.send_anyway = false;
 };
 
 RedisClient.prototype.on_connect = function () {
@@ -1034,18 +1011,29 @@ RedisClient.prototype.callback_emit_error = function (callback, err) {
     }
 };
 
-// Stash auth for connect and reconnect. Send immediately if already connected.
-RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callback) {
-    if (typeof pass !== 'string') {
-        var err = new Error('The password has to be of type "string"');
-        err.command = 'AUTH';
-        this.callback_emit_error(callback, err);
-        return true;
-    }
+var noPasswordIsSet = /no password is set/;
+
+RedisClient.prototype.auth = function (pass, callback) {
+    var self = this;
+    debug('Sending auth to ' + self.address + ' id ' + self.connection_id);
+
+    // Stash auth for connect and reconnect.
     this.auth_pass = pass;
-    debug('Saving auth as ' + this.auth_pass);
     this.send_anyway = true;
-    var tmp =  this.send_command('auth', [pass], callback);
+    var tmp = this.send_command('auth', [pass], function (err, res) {
+        if (err) {
+            if (noPasswordIsSet.test(err.message)) {
+                self.warn('Warning: Redis server does not require a password, but a password was supplied.');
+                err = null;
+                res = 'OK';
+            } else if (!callback) {
+                self.emit('error', err);
+            }
+        }
+        if (callback) {
+            callback(err, res);
+        }
+    });
     this.send_anyway = false;
     return tmp;
 };
