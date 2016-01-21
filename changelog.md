@@ -42,6 +42,7 @@ Deprecations
  -  If you want to buffer commands you should use [.batch or .multi](./README.md) instead. This is necessary to reduce the amount of different options and this is very likely reducing your throughput if set to false.
  -  If you are sure you want to activate the NAGLE algorithm you can still activate it by using client.stream.setNoDelay(false)
 -  Redis < v. 2.6.11 is not supported anymore and will not work in all cases. Please update to a newer redis version
+-  Removed non documented command syntax (adding the callback to an arguments array instead of passing it as individual argument)
 
 ## v.2.4.2 - 27 Nov, 2015
 

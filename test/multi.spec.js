@@ -330,8 +330,8 @@ describe("The 'multi' method", function () {
                         arr4,
                         [["mset", "multifoo2", "multibar2", "multifoo3", "multibar3"], helper.isString('OK')],
                         ["hmset", arr],
-                        [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test", helper.isString('OK')]],
-                        ["hmset", ["multihmset", "multibar", "multifoo", helper.isString('OK')]],
+                        [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test"], helper.isString('OK')],
+                        ["hmset", ["multihmset", "multibar", "multifoo"], helper.isString('OK')],
                         ["hmset", arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
                         ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
@@ -399,7 +399,7 @@ describe("The 'multi' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API', function (done) {
                     client.multi()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr(['some', helper.isNumber(11)])
+                        .incr('some', helper.isNumber(11))
                         .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .exec(function (err, replies) {
@@ -416,7 +416,7 @@ describe("The 'multi' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API promisified', function () {
                     return client.multi()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr(['some', helper.isNumber(11)])
+                        .incr('some', helper.isNumber(11))
                         .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .execAsync()

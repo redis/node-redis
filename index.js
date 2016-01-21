@@ -651,45 +651,44 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         command_str = '',
         buffer_args = false,
         big_data = false,
-        prefix_keys;
+        prefix_keys,
+        len, args_copy;
 
     if (typeof args === 'undefined') {
         args = [];
-    } else if (typeof callback === 'undefined') {
-        if (typeof args[args.length - 1] === 'function') {
-            callback = args.pop();
-        } else if (typeof args[args.length - 1] === 'undefined') {
-            args.pop();
-        }
     }
-
     if (callback && process.domain) {
         callback = process.domain.bind(callback);
     }
 
-    for (i = 0; i < args.length; i += 1) {
+    len = args.length;
+    args_copy = new Array(len);
+
+    for (i = 0; i < len; i += 1) {
         if (typeof args[i] === 'string') {
             // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
             if (args[i].length > 30000) {
                 big_data = true;
-                args[i] = new Buffer(args[i], 'utf8');
+                args_copy[i] = new Buffer(args[i], 'utf8');
                 if (this.pipeline !== 0) {
                     this.pipeline += 2;
                     this.writeDefault = this.writeBuffers;
                 }
+            } else {
+                args_copy[i] = args[i];
             }
         } else if (typeof args[i] === 'object') { // Checking for object instead of Buffer.isBuffer helps us finding data types that we can't handle properly
             if (args[i] instanceof Date) { // Accept dates as valid input
-                args[i] = args[i].toString();
-                // Add this to parse_arguments.
+                args_copy[i] = args[i].toString();
             } else if (args[i] === null) {
                 this.warn(
                     'Deprecated: The ' + command.toUpperCase() + ' command contains a "null" argument.\n' +
                     'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
                     'Please handle this in your code to make sure everything works as you intended it to.'
                 );
-                args[i] = 'null'; // Backwards compatible :/
+                args_copy[i] = 'null'; // Backwards compatible :/
             } else {
+                args_copy[i] = args[i];
                 buffer_args = true;
                 if (this.pipeline !== 0) {
                     this.pipeline += 2;
@@ -702,13 +701,13 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                 'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
                 'Please handle this in your code to make sure everything works as you intended it to.'
             );
-            args[i] = 'undefined'; // Backwards compatible :/
+            args_copy[i] = 'undefined'; // Backwards compatible :/
         } else {
-            args[i] = String(args[i]);
+            args_copy[i] = String(args[i]);
         }
     }
 
-    command_obj = new Command(command, args, buffer_args, callback);
+    command_obj = new Command(command, args_copy, buffer_args, callback);
 
     // TODO: Replace send_anyway with `commands.hasFlag(command, 'loading') === false` as soon as pub_sub is handled in the result handler
     if (this.ready === false && this.send_anyway === false || !stream.writable) {
@@ -746,20 +745,20 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         command = this.options.rename_commands[command];
     }
     if (this.options.prefix) {
-        prefix_keys = commands.getKeyIndexes(command, args);
+        prefix_keys = commands.getKeyIndexes(command, args_copy);
         i = prefix_keys.pop();
         while (i !== undefined) {
-            args[i] = this.options.prefix + args[i];
+            args_copy[i] = this.options.prefix + args_copy[i];
             i = prefix_keys.pop();
         }
     }
     // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
-    command_str = '*' + (args.length + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n';
+    command_str = '*' + (len + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n';
 
     if (buffer_args === false && big_data === false) { // Build up a string and send entire command in one write
-        for (i = 0; i < args.length; i += 1) {
-            arg = args[i];
+        for (i = 0; i < len; i += 1) {
+            arg = args_copy[i];
             command_str += '$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n';
         }
         debug('Send ' + this.address + ' id ' + this.connection_id + ': ' + command_str);
@@ -768,8 +767,8 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         debug('Send command (' + command_str + ') has Buffer arguments');
         this.write(command_str);
 
-        for (i = 0; i < args.length; i += 1) {
-            arg = args[i];
+        for (i = 0; i < len; i += 1) {
+            arg = args_copy[i];
             if (typeof arg !== 'object') { // string; number; boolean
                 this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n');
             } else { // buffer
@@ -892,40 +891,64 @@ function Multi(client, args) {
 
 commands.list.forEach(function (command) {
 
-    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command] = function (key, arg, callback) {
-        if (Array.isArray(key)) {
-            return this.send_command(command, key, arg);
-        } else if (Array.isArray(arg)) {
-            arg = [key].concat(arg);
-            return this.send_command(command, arg, callback);
-        }
-        // This has to be inlined, otherwise the arguments leak
-        var len = arguments.length;
-        var arr = new Array(len);
-        for (var i = 0; i < len; i += 1) {
-            arr[i] = arguments[i];
-        }
-        return this.send_command(command, arr);
-    };
-    Multi.prototype[command.toUpperCase()] = Multi.prototype[command] = function (key, arg, callback) {
-        if (Array.isArray(key)) {
-            if (arg) {
-                key = key.concat([arg]);
+    RedisClient.prototype[command.toUpperCase()] = RedisClient.prototype[command] = function () {
+        var arr,
+            len = 0,
+            callback,
+            i = 0;
+        if (arguments[0] instanceof Array) {
+            arr = arguments[0];
+            callback = arguments[1]; // It does not matter if it exists or not
+        } else if (arguments[1] instanceof Array) {
+            len = arguments[1].length;
+            arr = new Array(len + 1);
+            arr[0] = arguments[0];
+            for (; i < len; i += 1) {
+                arr[i + 1] = arguments[1][i];
             }
-            this.queue.push([command].concat(key));
-        } else if (Array.isArray(arg)) {
-            if (callback) {
-                arg = arg.concat([callback]);
-            }
-            this.queue.push([command, key].concat(arg));
+            callback = arguments[2];
         } else {
-            var len = arguments.length;
-            var arr = new Array(len);
-            for (var i = 0; i < len; i += 1) {
+            len = arguments.length;
+            arr = new Array(len);
+            for (; i < len; i += 1) {
                 arr[i] = arguments[i];
             }
-            this.queue.push([command].concat(arr));
+            // The later should not be the average use case
+            if (typeof arr[i - 1] === 'function' || typeof arr[i - 1] === 'undefined') {
+                callback = arr.pop();
+            }
         }
+        return this.send_command(command, arr, callback);
+    };
+
+    Multi.prototype[command.toUpperCase()] = Multi.prototype[command] = function () {
+        var arr,
+            len = 0,
+            callback,
+            i = 0;
+        if (arguments[0] instanceof Array) {
+            arr = arguments[0];
+            callback = arguments[1];
+        } else if (arguments[1] instanceof Array) {
+            len = arguments[1].length;
+            arr = new Array(len + 1);
+            arr[0] = arguments[0];
+            for (; i < len; i += 1) {
+                arr[i + 1] = arguments[1][i];
+            }
+            callback = arguments[2];
+        } else {
+            len = arguments.length;
+            arr = new Array(len);
+            for (; i < len; i += 1) {
+                arr[i] = arguments[i];
+            }
+            // The later should not be the average use case
+            if (typeof arr[i - 1] === 'function' || typeof arr[i - 1] === 'undefined') {
+                callback = arr.pop();
+            }
+        }
+        this.queue.push([command, arr, callback]);
         return this;
     };
 });
@@ -1028,63 +1051,76 @@ RedisClient.prototype.auth = RedisClient.prototype.AUTH = function (pass, callba
     return tmp;
 };
 
-RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function (key, args, callback) {
-    var field, tmp_args;
-    if (Array.isArray(key)) {
-        return this.send_command('hmset', key, args);
-    }
-    if (Array.isArray(args)) {
-        return this.send_command('hmset', [key].concat(args), callback);
-    }
-    if (typeof args === 'object' && (typeof callback === 'function' || typeof callback === 'undefined')) {
-        // User does: client.hmset(key, {key1: val1, key2: val2})
-        // assuming key is a string, i.e. email address
-        tmp_args = [key];
-        var fields = Object.keys(args);
-        while (field = fields.shift()) {
-            tmp_args.push(field, args[field]);
+RedisClient.prototype.hmset = RedisClient.prototype.HMSET = function () {
+    var arr,
+        len = 0,
+        callback,
+        i = 0;
+    if (arguments[0] instanceof Array) {
+        arr = arguments[0];
+        callback = arguments[1];
+    } else if (arguments[1] instanceof Array) {
+        len = arguments[1].length;
+        arr = new Array(len + 1);
+        arr[0] = arguments[0];
+        for (; i < len; i += 1) {
+            arr[i + 1] = arguments[1][i];
         }
-        return this.send_command('hmset', tmp_args, callback);
+        callback = arguments[2];
+    } else if (typeof arguments[1] === 'object' && (typeof arguments[2] === 'function' || typeof arguments[2] === 'undefined')) {
+        arr = [arguments[0]];
+        for (var field in arguments[1]) { // jshint ignore: line
+            arr.push(field, arguments[1][field]);
+        }
+        callback = arguments[2];
+    } else {
+        len = arguments.length;
+        arr = new Array(len);
+        for (; i < len; i += 1) {
+            arr[i] = arguments[i];
+        }
+        // The later should not be the average use case
+        if (typeof arr[i - 1] === 'function' || typeof arr[i - 1] === 'undefined') {
+            callback = arr.pop();
+        }
     }
-    var len = arguments.length;
-    tmp_args = new Array(len);
-    for (var i = 0; i < len; i += 1) {
-        tmp_args[i] = arguments[i];
-    }
-    return this.send_command('hmset', tmp_args);
+    return this.send_command('hmset', arr, callback);
 };
 
-Multi.prototype.hmset = Multi.prototype.HMSET = function (key, args, callback) {
-    var tmp_args, field;
-    if (Array.isArray(key)) {
-        if (args) {
-            key = key.concat([args]);
+Multi.prototype.hmset = Multi.prototype.HMSET = function () {
+    var arr,
+        len = 0,
+        callback,
+        i = 0;
+    if (arguments[0] instanceof Array) {
+        arr = arguments[0];
+        callback = arguments[1];
+    } else if (arguments[1] instanceof Array) {
+        len = arguments[1].length;
+        arr = new Array(len + 1);
+        arr[0] = arguments[0];
+        for (; i < len; i += 1) {
+            arr[i + 1] = arguments[1][i];
         }
-        tmp_args = ['hmset'].concat(key);
-    } else if (Array.isArray(args)) {
-        if (callback) {
-            args = args.concat([callback]);
+        callback = arguments[2];
+    } else if (typeof arguments[1] === 'object' && (typeof arguments[2] === 'function' || typeof arguments[2] === 'undefined')) {
+        arr = [arguments[0]];
+        for (var field in arguments[1]) { // jshint ignore: line
+            arr.push(field, arguments[1][field]);
         }
-        tmp_args = ['hmset', key].concat(args);
-    } else if (typeof args === 'object' && (typeof callback === 'function' || typeof callback === 'undefined')) {
-        tmp_args = ['hmset', key];
-        var fields = Object.keys(args);
-        while (field = fields.shift()) {
-            tmp_args.push(field);
-            tmp_args.push(args[field]);
-        }
-        if (callback) {
-            tmp_args.push(callback);
-        }
+        callback = arguments[2];
     } else {
-        var len = arguments.length;
-        tmp_args = new Array(len);
-        tmp_args[0] = 'hmset';
-        for (var i = 0; i < len; i += 1) {
-            tmp_args[i + 1] = arguments[i];
+        len = arguments.length;
+        arr = new Array(len);
+        for (; i < len; i += 1) {
+            arr[i] = arguments[i];
+        }
+        // The later should not be the average use case
+        if (typeof arr[i - 1] === 'function' || typeof arr[i - 1] === 'undefined') {
+            callback = arr.pop();
         }
     }
-    this.queue.push(tmp_args);
+    this.queue.push(['hmset', arr, callback]);
     return this;
 };
 
@@ -1111,8 +1147,6 @@ Multi.prototype.exec_atomic = function (callback) {
 Multi.prototype.exec_transaction = function (callback) {
     var self = this;
     var len = this.queue.length;
-    var cb;
-    var args_len = 1;
     this.errors = [];
     this.callback = callback;
     this._client.cork(len + 2);
@@ -1120,26 +1154,20 @@ Multi.prototype.exec_transaction = function (callback) {
     this.send_command('multi', []);
     // Drain queue, callback will catch 'QUEUED' or error
     for (var index = 0; index < len; index++) {
-        var args = this.queue.get(index).slice(0);
-        var command = args.shift();
-        args_len = args.length - 1;
-        if (typeof args[args_len] === 'function' || typeof args[args_len] === 'undefined') {
-            cb = args.pop();
-        } else {
-            // Explicitly set the callback to undefined. Otherwise we might have the callback from the command earlier
-            cb = undefined;
-        }
+        var args = this.queue.get(index);
+        var command = args[0];
+        var cb = args[2];
         // Keep track of who wants buffer responses:
         if (this._client.options.detect_buffers) {
             this.wants_buffers[index] = false;
-            for (var i = 0; i < args.length; i += 1) {
-                if (Buffer.isBuffer(args[i])) {
+            for (var i = 0; i < args[1].length; i += 1) {
+                if (Buffer.isBuffer(args[1][i])) {
                     this.wants_buffers[index] = true;
                     break;
                 }
             }
         }
-        this.send_command(command, args, index, cb);
+        this.send_command(command, args[1], index, cb);
     }
 
     this._client.send_command('exec', [], function(err, replies) {
@@ -1168,7 +1196,6 @@ Multi.prototype.execute_callback = function (err, replies) {
 
     if (replies) {
         while (args = this.queue.shift()) {
-            // If we asked for strings, even in detect_buffers mode, then return strings:
             if (replies[i] instanceof Error) {
                 var match = replies[i].message.match(utils.err_code);
                 // LUA script could return user errors that don't behave like all other errors!
@@ -1176,14 +1203,13 @@ Multi.prototype.execute_callback = function (err, replies) {
                     replies[i].code = match[1];
                 }
                 replies[i].command = args[0].toUpperCase();
-            } else if (replies[i]) {
-                replies[i] = this._client.handle_reply(replies[i], args[0], this.wants_buffers[i]);
-            }
-
-            if (typeof args[args.length - 1] === 'function') {
-                if (replies[i] instanceof Error) {
+                if (typeof args[args.length - 1] === 'function') {
                     args[args.length - 1](replies[i]);
-                } else {
+                }
+            } else {
+                // If we asked for strings, even in detect_buffers mode, then return strings:
+                replies[i] = this._client.handle_reply(replies[i], args[0], this.wants_buffers[i]);
+                if (typeof args[args.length - 1] === 'function') {
                     args[args.length - 1](null, replies[i]);
                 }
             }
@@ -1246,21 +1272,18 @@ Multi.prototype.exec = Multi.prototype.EXEC = Multi.prototype.exec_batch = funct
     this.results = [];
     this._client.cork(len);
     while (args = this.queue.shift()) {
-        var command = args.shift();
+        var command = args[0];
         var cb;
-        args_len = args.length - 1;
-        if (typeof args[args_len] === 'function') {
-            cb = this.callback(args.pop(), index);
+        args_len = args[1].length - 1;
+        if (typeof args[2] === 'function') {
+            cb = this.callback(args[2], index);
         } else {
             cb = callback_without_own_cb;
-            if (typeof args[args_len] === 'undefined') {
-                args.pop();
-            }
         }
         if (callback && index === len - 1) {
             cb = last_callback(cb);
         }
-        this._client.send_command(command, args, cb);
+        this._client.send_command(command, args[1], cb);
         index++;
     }
     this._client.uncork();

@@ -199,8 +199,8 @@ describe("The 'batch' method", function () {
                         arr4,
                         [["mset", "batchfoo2", "batchbar2", "batchfoo3", "batchbar3"], helper.isString('OK')],
                         ["hmset", arr],
-                        [["hmset", "batchhmset2", "batchbar2", "batchfoo3", "batchbar3", "test", helper.isString('OK')]],
-                        ["hmset", ["batchhmset", "batchbar", "batchfoo", helper.isString('OK')]],
+                        [["hmset", "batchhmset2", "batchbar2", "batchfoo3", "batchbar3", "test"], helper.isString('OK')],
+                        ["hmset", ["batchhmset", "batchbar", "batchfoo"], helper.isString('OK')],
                         ["hmset", arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
                         ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
@@ -211,8 +211,9 @@ describe("The 'batch' method", function () {
                     .hmget('key2', arr2, function noop() {})
                     .hmget(['batchhmset2', 'some manner of key', 'batchbar3'])
                     .mget('batchfoo2', ['batchfoo3', 'batchfoo'], function(err, res) {
-                        assert(res[0], 'batchfoo3');
-                        assert(res[1], 'batchfoo');
+                        assert.strictEqual(res[0], 'batchbar2');
+                        assert.strictEqual(res[1], 'batchbar3');
+                        assert.strictEqual(res[2], null);
                     })
                     .exec(function (err, replies) {
                         assert.equal(arr.length, 3);
@@ -273,7 +274,7 @@ describe("The 'batch' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API', function (done) {
                     client.batch()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr(['some', helper.isNumber(11)])
+                        .incr('some', helper.isNumber(11))
                         .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .exec(function (err, replies) {
@@ -290,7 +291,7 @@ describe("The 'batch' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API promisified', function () {
                     return client.batch()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr(['some', helper.isNumber(11)])
+                        .incr('some', helper.isNumber(11))
                         .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .execAsync()
