@@ -1,9 +1,10 @@
 examples/
-benches/
+benchmarks/
 test/
-diff_multi_bench_output.js
-generate_commands.js
-multi_bench.js
-test-unref.js
-changelog.md
+.nyc_output/
+coverage/
+.tern-port
 *.log
+*.rdb
+*.out
+*.yml
