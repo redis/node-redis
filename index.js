@@ -33,9 +33,21 @@ function handle_detect_buffers_reply (reply, command, buffer_args) {
 
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
-function RedisClient (options) {
+function RedisClient (globalOptions) {
+    globalOptions = globalOptions || {};
+
+    // extract socket if present
+    var socket = globalOptions.socket;
+
+    // ensure clone won't try to clone a socket
+    globalOptions.socket = null;
+
     // Copy the options so they are not mutated
-    options = clone(options);
+    var options = clone(globalOptions);
+
+    // add socket if present
+    options.socket = socket;
+    
     events.EventEmitter.call(this);
     var cnx_options = {};
     if (options.path) {
@@ -109,8 +121,8 @@ function RedisClient (options) {
         returnError: function (data) {
             self.return_error(data);
         },
-        returnBuffers: options.return_buffers || options.detect_buffers,
-        name: options.parser
+        returnBuffers: this.options.return_buffers || this.options.detect_buffers,
+        name: this.options.parser
     });
     this.create_stream();
 }
@@ -120,24 +132,29 @@ util.inherits(RedisClient, events.EventEmitter);
 RedisClient.prototype.create_stream = function () {
     var self = this;
 
-    // On a reconnect destroy the former stream and retry
-    if (this.stream) {
+    if(!this.options.socket){
+      // On a reconnect destroy the former stream and retry
+      if (this.stream) {
         this.stream.removeAllListeners();
         this.stream.destroy();
+      }
+
+      /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
+      if (this.options.tls) {
+        this.stream = tls.connect(this.connection_options);
+      } else {
+        this.stream = net.createConnection(this.connection_options);
+      }
+
+    } else {
+      this.stream = this.options.socket;
     }
 
-    /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
-    if (this.options.tls) {
-	    this.stream = tls.connect(this.connection_options);
-    } else {
-	    this.stream = net.createConnection(this.connection_options);
-	}
-
     if (this.options.connect_timeout) {
-        this.stream.setTimeout(this.connect_timeout, function () {
-            self.retry_totaltime = self.connect_timeout;
-            self.connection_gone('timeout');
-        });
+      this.stream.setTimeout(this.connect_timeout, function () {
+        self.retry_totaltime = self.connect_timeout;
+        self.connection_gone('timeout');
+      });
     }
 
     /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
@@ -1281,6 +1298,9 @@ var createClient = function (port_arg, host_arg, options) {
         } else {
             options.path = port_arg;
         }
+    } else if (port_arg instanceof net.Socket && typeof host_arg === 'object') {
+        options = clone(host_arg);
+        options.socket = port_arg;
     } else if (typeof port_arg === 'object' || port_arg === undefined) {
         options = clone(port_arg || options);
         options.host = options.host || host_arg;
