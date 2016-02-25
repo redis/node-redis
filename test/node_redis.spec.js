@@ -423,6 +423,41 @@ describe("The node_redis client", function () {
                 });
             });
 
+            describe('execution order / fire query while loading', function () {
+                it('keep execution order for commands that may fire while redis is still loading', function (done) {
+                    client = redis.createClient.apply(null, args);
+                    var fired = false;
+                    client.set('foo', 'bar', function (err, res) {
+                        assert(fired === false);
+                        done();
+                    });
+                    client.info(function (err, res) {
+                        fired = true;
+                    });
+                });
+
+                it('should fire early', function (done) {
+                    client = redis.createClient.apply(null, args);
+                    var fired = false;
+                    client.info(function (err, res) {
+                        fired = true;
+                    });
+                    client.set('foo', 'bar', function (err, res) {
+                        assert(fired);
+                        done();
+                    });
+                    assert.strictEqual(client.offline_queue.length, 1);
+                    assert.strictEqual(client.command_queue.length, 1);
+                    client.on('connect', function () {
+                        assert.strictEqual(client.offline_queue.length, 1);
+                        assert.strictEqual(client.command_queue.length, 1);
+                    });
+                    client.on('ready', function () {
+                        assert.strictEqual(client.offline_queue.length, 0);
+                    });
+                });
+            });
+
             describe('socket_nodelay', function () {
                 describe('true', function () {
                     var args = config.configureClient(parser, ip, {

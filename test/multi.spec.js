@@ -241,6 +241,7 @@ describe("The 'multi' method", function () {
                     multi1.set("m1", "123");
                     multi1.get('m1');
                     multi2.get('m2');
+                    multi2.ping();
 
                     multi1.exec(end);
                     multi2.exec(function(err, res) {
@@ -538,7 +539,7 @@ describe("The 'multi' method", function () {
                     client.get('foo', helper.isString('bar', done));
                 });
 
-                it("should not use a transaction with exec_atomic if only no command is used", function () {
+                it("should not use a transaction with exec_atomic if no command is used", function () {
                     var multi = client.multi();
                     var test = false;
                     multi.exec_batch = function () {

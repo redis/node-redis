@@ -63,11 +63,16 @@ describe("The 'batch' method", function () {
                     client.end(true);
                 });
 
-                it("returns an empty array", function (done) {
+                it("returns an empty array and keep the execution order in takt", function (done) {
+                    var called = false;
+                    client.set('foo', 'bar', function (err, res) {
+                        called = true;
+                    });
                     var batch = client.batch();
                     batch.exec(function (err, res) {
                         assert.strictEqual(err, null);
                         assert.strictEqual(res.length, 0);
+                        assert(called);
                         done();
                     });
                 });
@@ -328,10 +333,11 @@ describe("The 'batch' method", function () {
                         .exec(done);
                 });
 
-                it("should work without any callback", function (done) {
+                it("should work without any callback or arguments", function (done) {
                     var batch = client.batch();
                     batch.set("baz", "binary");
                     batch.set("foo", "bar");
+                    batch.ping();
                     batch.exec();
 
                     client.get('foo', helper.isString('bar', done));

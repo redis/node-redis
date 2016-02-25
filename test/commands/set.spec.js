@@ -66,11 +66,18 @@ describe("The 'set' method", function () {
                         });
                     });
 
-                    describe("with undefined 'key' and missing 'value' parameter", function () {
-                        it("reports an error", function (done) {
+                    describe("reports an error with invalid parameters", function () {
+                        it("undefined 'key' and missing 'value' parameter", function (done) {
                             client.set(undefined, function (err, res) {
                                 helper.isError()(err, null);
                                 assert.equal(err.command, 'SET');
+                                done();
+                            });
+                        });
+
+                        it("empty array as second parameter", function (done) {
+                            client.set('foo', [], function (err, res) {
+                                assert.strictEqual(err.message, "ERR wrong number of arguments for 'set' command");
                                 done();
                             });
                         });

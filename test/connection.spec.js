@@ -136,13 +136,14 @@ describe("connection tests", function () {
                     var time = Date.now();
                     client = redis.createClient({
                         parser: parser,
-                        host: '192.168.74.167', // Should be auto detected as ipv4
+                        // Auto detect ipv4 and use non routable ip to trigger the timeout
+                        host: '10.255.255.1',
                         connect_timeout: connect_timeout
                     });
                     process.nextTick(function() {
-                        assert(client.stream._events.timeout);
+                        assert.strictEqual(client.stream.listeners('timeout').length, 1);
                     });
-                    assert.strictEqual(client.address, '192.168.74.167:6379');
+                    assert.strictEqual(client.address, '10.255.255.1:6379');
                     assert.strictEqual(client.connection_options.family, 4);
 
                     client.on("reconnecting", function (params) {
@@ -151,8 +152,8 @@ describe("connection tests", function () {
 
                     client.on('error', function(err) {
                         assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
-                        assert(Date.now() - time < connect_timeout + 50);
-                        assert(Date.now() - time >= connect_timeout - 50); // Somehow this is triggered to early at times
+                        assert(Date.now() - time < connect_timeout + 25);
+                        assert(Date.now() - time >= connect_timeout - 3); // Timers sometimes trigger early (e.g. 1ms to early)
                         done();
                     });
                 });
@@ -165,7 +166,7 @@ describe("connection tests", function () {
                     assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
                     assert.strictEqual(client.connection_options.family, 6);
                     process.nextTick(function() {
-                        assert.strictEqual(client.stream._events.timeout, undefined);
+                        assert.strictEqual(client.stream.listeners('timeout').length, 0);
                     });
                 });
 
@@ -179,7 +180,7 @@ describe("connection tests", function () {
                     });
                     client.on('connect', function () {
                         assert.strictEqual(client.stream._idleTimeout, -1);
-                        assert.strictEqual(client.stream._events.timeout, undefined);
+                        assert.strictEqual(client.stream.listeners('timeout').length, 0);
                         client.on('ready', done);
                     });
                 });

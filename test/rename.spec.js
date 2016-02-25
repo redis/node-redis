@@ -109,6 +109,25 @@ describe("rename commands", function () {
                 });
             });
 
+            it("should also work prefixed commands", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                client.end(true);
+                client = redis.createClient({
+                    rename_commands: {
+                        set: '807081f5afa96845a02816a28b7258c3'
+                    },
+                    parser: parser,
+                    prefix: 'baz'
+                });
+                client.set('foo', 'bar');
+                client.keys('*', function(err, reply) {
+                    assert.strictEqual(reply[0], 'bazfoo');
+                    assert.strictEqual(err, null);
+                    done();
+                });
+            });
+
         });
     });
 
