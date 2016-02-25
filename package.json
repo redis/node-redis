@@ -31,7 +31,7 @@
     "node": ">=0.10.0"
   },
   "devDependencies": {
-    "bluebird": "^3.0.2",
+    "bluebird": "^3.3.3",
     "coveralls": "^2.11.2",
     "jshint": "^2.8.0",
     "metrics": "^0.1.9",
