@@ -106,7 +106,7 @@ function RedisClient (options) {
     this.times_connected = 0;
     this.options = options;
     // Init parser
-    this.reply_parser = new Parser({
+    this.reply_parser = Parser({
         returnReply: function (data) {
             self.return_reply(data);
         },
@@ -786,8 +786,13 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 };
 
 RedisClient.prototype.writeDefault = RedisClient.prototype.writeStrings = function (data) {
-    var command, str = '';
-    while (command = this.pipeline_queue.shift()) {
+    var str = '';
+    for (var command = this.pipeline_queue.shift(); command; command = this.pipeline_queue.shift()) {
+        // Write to stream if the string is bigger than 4mb. The biggest string may be Math.pow(2, 28) - 15 chars long
+        if (str.length + command.length > 4 * 1024 * 1024) {
+            this.stream.write(str);
+            str = '';
+        }
         str += command;
     }
     this.should_buffer = !this.stream.write(str + data);

@@ -70,6 +70,28 @@ describe("The 'multi' method", function () {
         });
     });
 
+    describe('pipeline limit', function () {
+
+        it('do not exceed maximum string size', function (done) {
+            this.timeout(12000); // Windows tests on 0.10 are slow
+            // Triggers a RangeError: Invalid string length if not handled properly
+            client = redis.createClient();
+            var multi = client.multi();
+            var i = Math.pow(2, 28);
+            while (i > 0) {
+                i -= 10230;
+                multi.set('foo' + i, 'bar' + new Array(1024).join('1234567890'));
+            }
+            client.on('ready', function () {
+                multi.exec(function (err, res) {
+                    assert.strictEqual(res.length, 26241);
+                });
+                client.flushdb(done);
+            });
+        });
+
+    });
+
     helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
