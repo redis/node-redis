@@ -747,7 +747,7 @@ describe("The node_redis client", function () {
                             enable_offline_queue: false
                         });
                         client.on('ready', function () {
-                            client.stream.writable = false;
+                            client.stream.destroy();
                             client.set('foo', 'bar', function (err, res) {
                                 assert.strictEqual(err.message, "SET can't be processed. Stream not writeable.");
                                 done();

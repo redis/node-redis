@@ -120,7 +120,7 @@ describe("The 'multi' method", function () {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
                     });
-                    assert.strictEqual(notBuffering, true);
+                    assert.strictEqual(notBuffering, false);
                 });
 
                 it("reports an error if promisified", function () {

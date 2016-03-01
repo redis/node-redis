@@ -25,7 +25,7 @@
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
     "redis-commands": "^1.0.1",
-    "redis-parser": "^1.0.0"
+    "redis-parser": "^1.1.0"
   },
   "engines": {
     "node": ">=0.10.0"
@@ -33,6 +33,7 @@
   "devDependencies": {
     "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
+    "intercept-stdout": "~0.1.2",
     "jshint": "^2.8.0",
     "metrics": "^0.1.9",
     "mocha": "^2.3.2",
