@@ -6,25 +6,33 @@ var fs = require('fs');
 var helper = require('./helper');
 var path = require('path');
 var redis = config.redis;
+var utils = require('../lib/utils');
 
 var tls_options = {
     servername: "redis.js.org",
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
     ca: [ String(fs.readFileSync(path.resolve(__dirname, "./conf/redis.js.org.cert"))) ]
 };
 
 var tls_port = 6380;
-
-if (process.platform === 'win32') {
-    return;
-}
+// Use skip instead of returning to indicate what tests really got skipped
+var skip = false;
 
 // Wait until stunnel4 is in the travis whitelist
 // Check: https://github.com/travis-ci/apt-package-whitelist/issues/403
 // If this is merged, remove the travis env checks
 describe("TLS connection tests", function () {
+
     before(function (done) {
-        if (process.env.TRAVIS === 'true')  {
+        // Print the warning when the tests run instead of while starting mocha
+        if (process.platform === 'win32') {
+            skip = true;
+            console.warn('\nStunnel tests do not work on windows atm. If you think you can fix that, it would be warmly welcome.\n');
+        } else if (process.env.TRAVIS === 'true')  {
+            skip = true;
+            console.warn('\nTravis does not support stunnel right now. Skipping tests.\nCheck: https://github.com/travis-ci/apt-package-whitelist/issues/403\n');
+        }
+        if (skip)  {
             done();
             return;
         }
@@ -34,188 +42,87 @@ describe("TLS connection tests", function () {
     });
 
     after(function (done) {
-        if (process.env.TRAVIS === 'true')  {
+        if (skip)  {
             done();
             return;
         }
         helper.stopStunnel(done);
     });
 
-    helper.allTests(function(parser, ip, args) {
+    var client;
 
-        describe("using " + parser + " and " + ip, function () {
+    afterEach(function () {
+        client.end(true);
+    });
 
-            var client;
+    describe("on lost connection", function () {
+        it("emit an error after max retry timeout and do not try to reconnect afterwards", function (done) {
+            if (skip) this.skip();
+            var connect_timeout = 500; // in ms
+            client = redis.createClient({
+                connect_timeout: connect_timeout,
+                port: tls_port,
+                tls: tls_options
+            });
+            var time = 0;
 
-            afterEach(function () {
-                client.end(true);
+            client.once('ready', function() {
+                helper.killConnection(client);
             });
 
-            describe("on lost connection", function () {
-                it("emit an error after max retry attempts and do not try to reconnect afterwards", function (done) {
-                    if (process.env.TRAVIS === 'true') this.skip();
-                    var max_attempts = 4;
-                    var options = {
-                        parser: parser,
-                        max_attempts: max_attempts,
-                        port: tls_port,
-                        tls: tls_options
-                    };
-                    client = redis.createClient(options);
-                    var calls = 0;
-
-                    client.once('ready', function() {
-                        helper.killConnection(client);
-                    });
-
-                    client.on("reconnecting", function (params) {
-                        calls++;
-                    });
-
-                    client.on('error', function(err) {
-                        if (/Redis connection in broken state: maximum connection attempts.*?exceeded./.test(err.message)) {
-                            setTimeout(function () {
-                                assert.strictEqual(calls, max_attempts - 1);
-                                done();
-                            }, 500);
-                        }
-                    });
-                });
-
-                it("emit an error after max retry timeout and do not try to reconnect afterwards", function (done) {
-                    if (process.env.TRAVIS === 'true') this.skip();
-                    var connect_timeout = 500; // in ms
-                    client = redis.createClient({
-                        parser: parser,
-                        connect_timeout: connect_timeout,
-                        port: tls_port,
-                        tls: tls_options
-                    });
-                    var time = 0;
-
-                    client.once('ready', function() {
-                        helper.killConnection(client);
-                    });
-
-                    client.on("reconnecting", function (params) {
-                        time += params.delay;
-                    });
-
-                    client.on('error', function(err) {
-                        if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
-                            setTimeout(function () {
-                                assert(time === connect_timeout);
-                                done();
-                            }, 500);
-                        }
-                    });
-                });
-
-                it("end connection while retry is still ongoing", function (done) {
-                    if (process.env.TRAVIS === 'true') this.skip();
-                    var connect_timeout = 1000; // in ms
-                    client = redis.createClient({
-                        parser: parser,
-                        connect_timeout: connect_timeout,
-                        port: tls_port,
-                        tls: tls_options
-                    });
-
-                    client.once('ready', function() {
-                        helper.killConnection(client);
-                    });
-
-                    client.on("reconnecting", function (params) {
-                        client.end(true);
-                        setTimeout(done, 100);
-                    });
-                });
-
-                it("can not connect with wrong host / port in the options object", function (done) {
-                    if (process.env.TRAVIS === 'true') this.skip();
-                    var options = {
-                        host: 'somewhere',
-                        max_attempts: 1,
-                        port: tls_port,
-                        tls: tls_options
-                    };
-                    client = redis.createClient(options);
-                    var end = helper.callFuncAfter(done, 2);
-
-                    client.on('error', function (err) {
-                        assert(/CONNECTION_BROKEN|ENOTFOUND|EAI_AGAIN/.test(err.code));
-                        end();
-                    });
-
-                });
+            client.on("reconnecting", function (params) {
+                time += params.delay;
             });
 
-            describe("when not connected", function () {
-
-                it("connect with host and port provided in the options object", function (done) {
-                    if (process.env.TRAVIS === 'true') this.skip();
-                    client = redis.createClient({
-                        host: 'localhost',
-                        parser: parser,
-                        connect_timeout: 1000,
-                        port: tls_port,
-                        tls: tls_options
-                    });
-
-                    client.once('ready', function() {
+            client.on('error', function(err) {
+                if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
+                    setTimeout(function () {
+                        assert(time === connect_timeout);
                         done();
-                    });
-                });
-
-                it("connects correctly with args", function (done) {
-                    if (process.env.TRAVIS === 'true') this.skip();
-                    var args_host = args[1];
-                    var args_options = args[2] || {};
-                    args_options.tls = tls_options;
-                    client = redis.createClient(tls_port, args_host, args_options);
-                    client.on("error", done);
-
-                    client.once("ready", function () {
-                        client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
-                    });
-                });
-
-                if (ip === 'IPv4') {
-                    it('allows connecting with the redis url and no auth and options as second parameter', function (done) {
-                        if (process.env.TRAVIS === 'true') this.skip();
-                        var options = {
-                            detect_buffers: false,
-                            magic: Math.random(),
-                            port: tls_port,
-                            tls: tls_options
-                        };
-                        client = redis.createClient('redis://' + config.HOST[ip] + ':' + tls_port, options);
-                        // verify connection is using TCP, not UNIX socket
-                        assert.strictEqual(client.connection_options.host, config.HOST[ip]);
-                        assert.strictEqual(client.connection_options.port, tls_port);
-                        assert(typeof client.stream.getCipher === 'function');
-                        // verify passed options are in use
-                        assert.strictEqual(client.options.magic, options.magic);
-                        client.on("ready", function () {
-                            return done();
-                        });
-                    });
-
-                    it('allows connecting with the redis url and no auth and options as third parameter', function (done) {
-                        if (process.env.TRAVIS === 'true') this.skip();
-                        client = redis.createClient('redis://' + config.HOST[ip] + ':' + tls_port, null, {
-                            detect_buffers: false,
-                            tls: tls_options
-                        });
-                        client.on("ready", function () {
-                            return done();
-                        });
-                    });
+                    }, 100);
                 }
             });
         });
+    });
+
+    describe("when not connected", function () {
+
+        it("connect with host and port provided in the options object", function (done) {
+            if (skip) this.skip();
+            client = redis.createClient({
+                host: 'localhost',
+                connect_timeout: 1000,
+                port: tls_port,
+                tls: tls_options
+            });
+
+            // verify connection is using TCP, not UNIX socket
+            assert.strictEqual(client.connection_options.host, 'localhost');
+            assert.strictEqual(client.connection_options.port, tls_port);
+            assert(client.stream.encrypted);
+
+            client.set('foo', 'bar');
+            client.get('foo', helper.isString('bar', done));
+        });
+
+        it('fails to connect because the cert is not correct', function (done) {
+            if (skip) this.skip();
+            var faulty_cert = utils.clone(tls_options);
+            faulty_cert.ca = [ String(fs.readFileSync(path.resolve(__dirname, "./conf/faulty.cert"))) ];
+            client = redis.createClient({
+                host: 'localhost',
+                connect_timeout: 1000,
+                port: tls_port,
+                tls: faulty_cert
+            });
+            client.on('error', function (err) {
+                assert.strictEqual(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT');
+                client.end(true);
+            });
+            client.set('foo', 'bar', function (err, res) {
+                done(res);
+            });
+        });
+
     });
 });
