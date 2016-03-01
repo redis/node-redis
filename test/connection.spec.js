@@ -327,30 +327,6 @@ describe("connection tests", function () {
                     assert(create_stream_string === String(redis.RedisClient.prototype.create_stream));
                 });
 
-                it("throws on strange connection info", function () {
-                    client = {
-                        end: function() {}
-                    };
-                    try {
-                        redis.createClient(true);
-                        throw new Error('failed');
-                    } catch (err) {
-                        assert.equal(err.message, 'Unknown type of connection in createClient()');
-                    }
-                });
-
-                it("throws on protocol other than redis in the redis url", function () {
-                    client = {
-                        end: function() {}
-                    };
-                    try {
-                        redis.createClient(config.HOST[ip] + ':' + config.PORT);
-                        throw new Error('failed');
-                    } catch (err) {
-                        assert.equal(err.message, 'Connection string must use the "redis:" protocol or begin with slashes //');
-                    }
-                });
-
                 if (ip === 'IPv4') {
                     it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', function (done) {
                         client = redis.createClient('redis:///3?db=3');
