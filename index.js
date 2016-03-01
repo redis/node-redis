@@ -389,9 +389,15 @@ RedisClient.prototype.on_info_cmd = function (err, res) {
     }
 
     if (!this.server_info.loading || this.server_info.loading === '0') {
-        debug('Redis server ready.');
-        this.on_ready();
-        return;
+        // If the master_link_status exists but the link is not up, try again after 50 ms
+        if (this.server_info.master_link_status && this.server_info.master_link_status !== 'up') {
+            this.server_info.loading_eta_seconds = 0.05;
+        } else {
+            // Eta loading should change
+            debug('Redis server ready.');
+            this.on_ready();
+            return;
+        }
     }
 
     var retry_time = +this.server_info.loading_eta_seconds * 1000;
