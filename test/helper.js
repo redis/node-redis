@@ -8,11 +8,11 @@ var StunnelProcess = require("./lib/stunnel-process");
 var rp;
 var stunnel_process;
 
-function startRedis (conf, done) {
+function startRedis (conf, done, port) {
     RedisProcess.start(function (err, _rp) {
         rp = _rp;
         return done(err);
-    }, path.resolve(__dirname, conf));
+    }, path.resolve(__dirname, conf), port);
 }
 
 function startStunnel(done) {
@@ -176,7 +176,7 @@ module.exports = {
                 throw err;
             }
             i++;
-            if (i === max) {
+            if (i >= max) {
                 func();
                 return true;
             }
