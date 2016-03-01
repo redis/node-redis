@@ -257,20 +257,21 @@ describe("connection tests", function () {
                     client.once('ready', done);
                 });
 
-                if (process.platform !== 'win32') {
-                    it("connect with path provided in the options object", function (done) {
-                        client = redis.createClient({
-                            path: '/tmp/redis.sock',
-                            parser: parser,
-                            connect_timeout: 1000
-                        });
-
-                        var end = helper.callFuncAfter(done, 2);
-
-                        client.once('ready', end);
-                        client.set('foo', 'bar', end);
+                it("connect with path provided in the options object", function (done) {
+                    if (process.platform === 'win32') {
+                        this.skip();
+                    }
+                    client = redis.createClient({
+                        path: '/tmp/redis.sock',
+                        parser: parser,
+                        connect_timeout: 1000
                     });
-                }
+
+                    var end = helper.callFuncAfter(done, 2);
+
+                    client.once('ready', end);
+                    client.set('foo', 'bar', end);
+                });
 
                 it("connects correctly with args", function (done) {
                     client = redis.createClient.apply(redis.createClient, args);

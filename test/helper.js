@@ -15,21 +15,6 @@ function startRedis (conf, done, port) {
     }, path.resolve(__dirname, conf), port);
 }
 
-function startStunnel(done) {
-    StunnelProcess.start(function (err, _stunnel_process) {
-        stunnel_process = _stunnel_process;
-        return done(err);
-    }, path.resolve(__dirname, './conf'));
-}
-
-function stopStunnel(done) {
-    if (stunnel_process) {
-        StunnelProcess.stop(stunnel_process, done);
-    } else {
-        done();
-    }
-}
-
 // don't start redis every time we
 // include this helper file!
 if (!process.env.REDIS_TESTS_STARTED) {
@@ -52,8 +37,19 @@ module.exports = {
         rp.stop(done);
     },
     startRedis: startRedis,
-    stopStunnel: stopStunnel,
-    startStunnel: startStunnel,
+    stopStunnel: function (done) {
+        if (stunnel_process) {
+            StunnelProcess.stop(stunnel_process, done);
+        } else {
+            done();
+        }
+    },
+    startStunnel: function (done) {
+        StunnelProcess.start(function (err, _stunnel_process) {
+            stunnel_process = _stunnel_process;
+            return done(err);
+        }, path.resolve(__dirname, './conf'));
+    },
     isNumber: function (expected, done) {
         return function (err, results) {
             assert.strictEqual(null, err, "expected " + expected + ", got error: " + err);

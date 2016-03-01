@@ -32,26 +32,21 @@ describe("TLS connection tests", function () {
             skip = true;
             console.warn('\nTravis does not support stunnel right now. Skipping tests.\nCheck: https://github.com/travis-ci/apt-package-whitelist/issues/403\n');
         }
-        if (skip)  {
-            done();
-            return;
-        }
+        if (skip) return done();
         helper.stopStunnel(function () {
             helper.startStunnel(done);
         });
     });
 
     after(function (done) {
-        if (skip)  {
-            done();
-            return;
-        }
+        if (skip) return done();
         helper.stopStunnel(done);
     });
 
     var client;
 
     afterEach(function () {
+        if (skip) return;
         client.end(true);
     });
 

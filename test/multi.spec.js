@@ -73,7 +73,7 @@ describe("The 'multi' method", function () {
     describe('pipeline limit', function () {
 
         it('do not exceed maximum string size', function (done) {
-            this.timeout(12000); // Windows tests on 0.10 are slow
+            this.timeout(25000); // Windows tests are horribly slow
             // Triggers a RangeError: Invalid string length if not handled properly
             client = redis.createClient();
             var multi = client.multi();

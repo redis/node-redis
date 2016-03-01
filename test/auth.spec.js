@@ -5,6 +5,11 @@ var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
 
+if (process.platform === 'win32') {
+    // TODO: Fix redis process spawn on windows
+    return;
+}
+
 describe("client authentication", function () {
     before(function (done) {
         helper.stopRedis(function () {
@@ -237,6 +242,7 @@ describe("client authentication", function () {
     });
 
     after(function (done) {
+        if (helper.redisProcess().spawnFailed()) return done();
         helper.stopRedis(function () {
             helper.startRedis('./conf/redis.conf', done);
         });

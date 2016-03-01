@@ -8,6 +8,11 @@ var rp;
 var path = require('path');
 var redis = config.redis;
 
+if (process.platform === 'win32') {
+    // TODO: Fix redis process spawn on windows
+    return;
+}
+
 describe('master slave sync', function () {
     var master = null;
     var slave = null;
@@ -19,6 +24,7 @@ describe('master slave sync', function () {
     });
 
     before(function (done) {
+        if (helper.redisProcess().spawnFailed()) return done();
         master = redis.createClient({
             password: 'porkchopsandwiches'
         });
@@ -78,6 +84,7 @@ describe('master slave sync', function () {
     });
 
     after(function (done) {
+        if (helper.redisProcess().spawnFailed()) return done();
         var end = helper.callFuncAfter(done, 3);
         rp.stop(end);
         slave.end(true);
