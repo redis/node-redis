@@ -127,6 +127,65 @@ describe("connection tests", function () {
                         client.stream.destroy();
                     });
                 });
+
+                it("retry_strategy used to reconnect with individual error", function (done) {
+                    var text = '';
+                    var unhookIntercept = intercept(function (data) {
+                        text += data;
+                        return '';
+                    });
+                    var end = helper.callFuncAfter(done, 2);
+                    client = redis.createClient({
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time > 150) {
+                                client.set('foo', 'bar', function (err, res) {
+                                    assert.strictEqual(err.message, 'Connection timeout');
+                                    end();
+                                });
+                                // Pass a individual error message to the error handler
+                                return new Error('Connection timeout');
+                            }
+                            return Math.min(options.attempt * 25, 200);
+                        },
+                        max_attempts: 5,
+                        retry_max_delay: 123,
+                        port: 9999
+                    });
+
+                    client.on('error', function(err) {
+                        unhookIntercept();
+                        assert.strictEqual(
+                            text,
+                            'node_redis: WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
+                            'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
+                        );
+                        assert.strictEqual(err.message, 'Connection timeout');
+                        assert(!err.code);
+                        end();
+                    });
+                });
+
+                it("retry_strategy used to reconnect", function (done) {
+                    var end = helper.callFuncAfter(done, 2);
+                    client = redis.createClient({
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time > 150) {
+                                client.set('foo', 'bar', function (err, res) {
+                                    assert.strictEqual(err.code, 'ECONNREFUSED');
+                                    end();
+                                });
+                                return false;
+                            }
+                            return Math.min(options.attempt * 25, 200);
+                        },
+                        port: 9999
+                    });
+
+                    client.on('error', function(err) {
+                        assert.strictEqual(err.code, 'ECONNREFUSED');
+                        end();
+                    });
+                });
             });
 
             describe("when not connected", function () {
