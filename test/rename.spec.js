@@ -27,7 +27,7 @@ describe("rename commands", function () {
                 });
 
                 client.on('ready', function () {
-                    done();
+                    client.flushdb(done);
                 });
             });
 

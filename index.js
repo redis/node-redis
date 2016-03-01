@@ -794,16 +794,14 @@ RedisClient.prototype.send_command = function (command, args, callback) {
     }
     this.command_queue.push(command_obj);
 
-    if (typeof this.options.rename_commands !== 'undefined' && this.options.rename_commands[command]) {
-        command = this.options.rename_commands[command];
-    }
     if (this.options.prefix) {
         prefix_keys = commands.getKeyIndexes(command, args_copy);
-        i = prefix_keys.pop();
-        while (i !== undefined) {
+        for (i = prefix_keys.pop(); i !== undefined; i = prefix_keys.pop()) {
             args_copy[i] = this.options.prefix + args_copy[i];
-            i = prefix_keys.pop();
         }
+    }
+    if (typeof this.options.rename_commands !== 'undefined' && this.options.rename_commands[command]) {
+        command = this.options.rename_commands[command];
     }
     // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
     // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
