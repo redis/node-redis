@@ -1,7 +1,13 @@
 Changelog
 =========
 
-## v.2.5.0-0 - xx Jan, 2015
+## v.2.5.0-1 - 01 Mar, 2015
+
+This is a big release with some substaintual underlining changes. Therefor this is released as a pre-release and I encourage anyone who's able to, to test this out.
+
+It took way to long to release this one and the next release cycles will be shorter again.
+
+This release is also going to deprecate a couple things to prepare for a future v.3 (it'll still take a while to v.3).
 
 Features
 
@@ -14,7 +20,16 @@ Features
 -  Added a `password` option as alias for auth_pass
 -  The client.server_info is from now on updated while using the info command
 -  Gracefuly handle redis protocol errors from now on
--  Added a `warning` emitter that receives deprecation messages and other node_redis warnings
+-  Added a `warning` emitter that receives node_redis warnings like auth not required and deprecation messages
+-  Added a `retry_strategy` option that replaces all reconnect options
+-  The reconnecting event from now on also receives:
+ -  The error message why the reconnect happend (params.error)
+ -  The amount of times the client was connected (params.times_connected)
+ -  The total reconnecting time since the last time connected (params.total_retry_time)
+-  Always respect the command execution order no matter if the reply could be returned sync or not (former exceptions: [#937](https://github.com/NodeRedis/node_redis/issues/937#issuecomment-167525939))
+-  redis.createClient is now checking input values stricter and detects more faulty input
+-  Started refactoring internals into individual modules
+-  Pipelining speed improvements
 
 Bugfixes
 
@@ -26,6 +41,9 @@ Bugfixes
 -  Fixed redis url not accepting the protocol being omitted or protocols other than the redis protocol for convienence
 -  Fixed parsing the db keyspace even if the first database does not begin with a zero
 -  Fixed handling of errors occuring while receiving pub sub messages
+-  Fixed huge string pipelines crashing NodeJS (Pipeline size above 256mb)
+-  Fixed rename_commands and prefix option not working together
+-  Fixed ready being emitted to early in case a slave is still syncing / master down
 
 Deprecations
 
@@ -38,9 +56,13 @@ Deprecations
  -  Using .end without flush means that any command that did not yet return is going to silently fail. Therefor this is considered harmfull and you should explicitly silence such errors if you are sure you want this
 -  Depending on the return value of a command to detect the backpressure is deprecated
  -  From version 3.0.0 on node_redis might not return true / false as a return value anymore. Please rely on client.should_buffer instead
--  The socket_nodelay option is deprecated and will be removed in v.3.0.0
+-  The `socket_nodelay` option is deprecated and will be removed in v.3.0.0
  -  If you want to buffer commands you should use [.batch or .multi](./README.md) instead. This is necessary to reduce the amount of different options and this is very likely reducing your throughput if set to false.
  -  If you are sure you want to activate the NAGLE algorithm you can still activate it by using client.stream.setNoDelay(false)
+-  The `max_attempts` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
+-  The `retry_max_delay` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
+-  The drain event is deprecated and will be removed in v.3.0.0. Please listen to the stream drain event instead
+-  The idle event is deprecated and will likely be removed in v.3.0.0. If you rely on this feature please open a new ticket in node_redis with your use case
 -  Redis < v. 2.6.11 is not supported anymore and will not work in all cases. Please update to a newer redis version
 -  Removed non documented command syntax (adding the callback to an arguments array instead of passing it as individual argument)
 
