@@ -147,7 +147,7 @@ So please attach the error listener to node_redis.
 
 `client` will emit `end` when an established Redis server connection has closed.
 
-### "drain"
+### "drain" (deprecated)
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure.
@@ -162,7 +162,7 @@ If false is returned the stream had to buffer.
 
 `client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
 
-### "idle"
+### "idle" (deprecated)
 
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
@@ -170,12 +170,13 @@ If false is returned the stream had to buffer.
 If you have `redis-server` running on the same computer as node, then the defaults for
 port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
+If the redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
+
 ### overloading
-* `redis.createClient()`
-* `redis.createClient(options)`
-* `redis.createClient(unix_socket, options)`
-* `redis.createClient(redis_url, options)`
-* `redis.createClient(port, host, options)`
+* `redis.createClient([options])`
+* `redis.createClient(unix_socket[, options])`
+* `redis.createClient(redis_url[, options])`
+* `redis.createClient(port[, host][, options])`
 
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
@@ -204,10 +205,10 @@ This delay normally grows infinitely, but setting `retry_max_delay` limits it to
 * `connect_timeout`: *3600000*; Setting `connect_timeout` limits total time for client to connect and reconnect.
 The value is provided in milliseconds and is counted from the moment on a new client is created / a connection is lost. The last retry is going to happen exactly at the timeout time.
 Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h passed.
-* `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
+* `max_attempts`: *0*; (Deprecated, please use `retry_strategy` instead) By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
 * `retry_unfulfilled_commands`: *false*; If set to true, all commands that were unfulfulled while the connection is lost will be retried after the connection has reestablished again. Use this with caution, if you use state altering commands (e.g. *incr*). This is especially useful if you use blocking commands.
-* `password`: *null*; If set, client will run redis auth command on connect. Alias `auth_pass`
+* `password`: *null*; If set, client will run redis auth command on connect. Alias `auth_pass` (node_redis < 2.5 have to use auth_pass)
 * `db`: *null*; If set, client will run redis select command on connect. This is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg).
 * `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting

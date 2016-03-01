@@ -51,20 +51,32 @@ function RedisClient (options) {
     for (var tls_option in options.tls) { // jshint ignore: line
         cnx_options[tls_option] = options.tls[tls_option];
     }
+    // Warn on misusing deprecated functions
+    if (typeof options.retry_strategy === 'function') {
+        if ('max_attempts' in options) {
+            self.warn('WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.');
+            // Do not print deprecation warnings twice
+            delete options.max_attempts;
+        }
+        if ('retry_max_delay' in options) {
+            self.warn('WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.');
+            // Do not print deprecation warnings twice
+            delete options.retry_max_delay;
+        }
+    }
+
     this.connection_options = cnx_options;
-    this.connection_id = ++connection_id;
+    this.connection_id = RedisClient.connection_id++;
     this.connected = false;
     this.ready = false;
     if (options.socket_nodelay === undefined) {
         options.socket_nodelay = true;
     } else if (!options.socket_nodelay) { // Only warn users with this set to false
-        process.nextTick(function () {
-            self.warn(
-                'socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
-                'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch to buffer commands and use pipelining.\n' +
-                'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
-            );
-        });
+        self.warn(
+            'socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
+            'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch for pipelining instead.\n' +
+            'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
+        );
     }
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
@@ -76,9 +88,7 @@ function RedisClient (options) {
     options.detect_buffers = !!options.detect_buffers;
     // Override the detect_buffers setting if return_buffers is active and print a warning
     if (options.return_buffers && options.detect_buffers) {
-        process.nextTick(function () {
-            self.warn('WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
-        });
+        self.warn('WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
         options.detect_buffers = false;
     }
     if (options.detect_buffers) {
@@ -87,11 +97,27 @@ function RedisClient (options) {
     }
     this.should_buffer = false;
     this.max_attempts = options.max_attempts | 0;
+    if ('max_attempts' in options) {
+        self.warn(
+            'max_attempts is deprecated and will be removed in v.3.0.0.\n' +
+            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
+            'This replaces the max_attempts and retry_max_delay option.'
+        );
+    }
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
+    // ATTENTION: connect_timeout should change in v.3.0 so it does not count towards ending reconnection attempts after x seconds
+    // This should be done by the retry_strategy. Instead it should only be the timeout for connecting to redis
     this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
     this.retry_max_delay = +options.retry_max_delay || null;
+    if ('retry_max_delay' in options) {
+        self.warn(
+            'retry_max_delay is deprecated and will be removed in v.3.0.0.\n' +
+            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
+            'This replaces the max_attempts and retry_max_delay option.'
+        );
+    }
     this.initialize_retry_vars();
     this.pub_sub_mode = false;
     this.subscription_set = {};
@@ -123,8 +149,24 @@ function RedisClient (options) {
         name: options.parser
     });
     this.create_stream();
+    // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached
+    this.on('newListener', function (event) {
+        if (event === 'idle') {
+            this.warn(
+                'The idle event listener is deprecated and will likely be removed in v.3.0.0.\n' +
+                'If you rely on this feature please open a new ticket in node_redis with your use case'
+            );
+        } else if (event === 'drain') {
+            this.warn(
+                'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
+                'If you want to keep on listening to this event please listen to the stream drain event directly.'
+            );
+        }
+    });
 }
-util.inherits(RedisClient, events.EventEmitter);
+util.inherits(RedisClient, EventEmitter);
+
+RedisClient.connection_id = 0;
 
 // Attention: the function name "create_stream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.create_stream = function () {
@@ -238,19 +280,23 @@ RedisClient.prototype.unref = function () {
 };
 
 RedisClient.prototype.warn = function (msg) {
-    if (this.listeners('warning').length !== 0) {
-        this.emit('warning', msg);
-    } else {
-        console.warn('node_redis:', msg);
-    }
+    var self = this;
+    // Warn on the next tick. Otherwise no event listener can be added
+    // for warnings that are emitted in the redis client constructor
+    process.nextTick(function () {
+        if (self.listeners('warning').length !== 0) {
+            self.emit('warning', msg);
+        } else {
+            console.warn('node_redis:', msg);
+        }
+    });
 };
 
 // Flush provided queues, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (error, queue_names) {
-    var command_obj;
     queue_names = queue_names || ['offline_queue', 'command_queue'];
     for (var i = 0; i < queue_names.length; i++) {
-        while (command_obj = this[queue_names[i]].shift()) {
+        for (var command_obj = this[queue_names[i]].shift(); command_obj; command_obj = this[queue_names[i]].shift()) {
             if (typeof command_obj.callback === 'function') {
                 error.command = command_obj.command.toUpperCase();
                 command_obj.callback(error);
@@ -419,9 +465,7 @@ RedisClient.prototype.ready_check = function () {
 };
 
 RedisClient.prototype.send_offline_queue = function () {
-    var command_obj;
-
-    while (command_obj = this.offline_queue.shift()) {
+    for (var command_obj = this.offline_queue.shift(); command_obj; command_obj = this.offline_queue.shift()) {
         debug('Sending offline command: ' + command_obj.command);
         this.send_command(command_obj.command, command_obj.args, command_obj.callback);
     }
@@ -805,8 +849,7 @@ RedisClient.prototype.writeDefault = RedisClient.prototype.writeStrings = functi
 };
 
 RedisClient.prototype.writeBuffers = function (data) {
-    var command;
-    while (command = this.pipeline_queue.shift()) {
+    for (var command = this.pipeline_queue.shift(); command; command = this.pipeline_queue.shift()) {
         this.stream.write(command);
     }
     this.should_buffer = !this.stream.write(data);

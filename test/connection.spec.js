@@ -4,6 +4,7 @@ var assert = require("assert");
 var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
+var intercept = require('intercept-stdout');
 
 describe("connection tests", function () {
     helper.allTests(function(parser, ip, args) {
@@ -91,6 +92,7 @@ describe("connection tests", function () {
 
                     client.on("reconnecting", function (params) {
                         client.end(true);
+                        assert.strictEqual(params.times_connected, 1);
                         setTimeout(done, 100);
                     });
                 });

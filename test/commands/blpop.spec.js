@@ -4,6 +4,7 @@ var assert = require("assert");
 var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
+var intercept = require('intercept-stdout');
 
 describe("The 'blpop' method", function () {
 
@@ -23,7 +24,14 @@ describe("The 'blpop' method", function () {
             it('pops value immediately if list contains values', function (done) {
                 bclient = redis.createClient.apply(redis.createClient, args);
                 redis.debug_mode = true;
+                var text = '';
+                var unhookIntercept = intercept(function(data) {
+                    text += data;
+                    return '';
+                });
                 client.rpush("blocking list", "initial value", helper.isNumber(1));
+                unhookIntercept();
+                assert(/^Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n$/.test(text));
                 redis.debug_mode = false;
                 bclient.blpop("blocking list", 0, function (err, value) {
                     assert.strictEqual(value[0], "blocking list");

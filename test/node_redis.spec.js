@@ -384,9 +384,18 @@ describe("The node_redis client", function () {
 
                 describe('idle', function () {
                     it('emits idle as soon as there are no outstanding commands', function (done) {
+                        var end = helper.callFuncAfter(done, 2);
+                        client.on('warning', function (msg) {
+                            assert.strictEqual(
+                                msg,
+                                'The idle event listener is deprecated and will likely be removed in v.3.0.0.\n' +
+                                'If you rely on this feature please open a new ticket in node_redis with your use case'
+                            );
+                            end();
+                        });
                         client.on('idle', function onIdle () {
                             client.removeListener("idle", onIdle);
-                            client.get('foo', helper.isString('bar', done));
+                            client.get('foo', helper.isString('bar', end));
                         });
                         client.set('foo', 'bar');
                     });
@@ -614,9 +623,17 @@ describe("The node_redis client", function () {
                             parser: parser,
                             no_ready_check: true
                         });
-                        var end = helper.callFuncAfter(done, 2);
+                        var end = helper.callFuncAfter(done, 3);
                         client.set('foo', 'bar');
                         client.get('foo', end);
+                        client.on('warning', function (msg) {
+                            assert.strictEqual(
+                                msg,
+                                'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
+                                'If you want to keep on listening to this event please listen to the stream drain event directly.'
+                            );
+                            end();
+                        });
                         client.on('drain', function() {
                             assert(client.offline_queue.length === 0);
                             end();
@@ -673,6 +690,9 @@ describe("The node_redis client", function () {
                         client.on('reconnecting', function(params) {
                             i++;
                             assert.equal(params.attempt, i);
+                            assert.strictEqual(params.times_connected, 0);
+                            assert(params.error instanceof Error);
+                            assert(typeof params.total_retry_time === 'number');
                             assert.strictEqual(client.offline_queue.length, 2);
                         });
 
@@ -704,10 +724,6 @@ describe("The node_redis client", function () {
                             multi.exec();
                             assert.equal(client.command_queue.length, 15);
                             helper.killConnection(client);
-                        });
-
-                        client.on("reconnecting", function (params) {
-                            assert.equal(client.command_queue.length, 15);
                         });
 
                         client.on('error', function(err) {
@@ -785,10 +801,6 @@ describe("The node_redis client", function () {
                             multi.exec();
                             assert.equal(client.command_queue.length, 15);
                             helper.killConnection(client);
-                        });
-
-                        client.on("reconnecting", function (params) {
-                            assert.equal(client.command_queue.length, 15);
                         });
 
                         client.on('error', function(err) {
