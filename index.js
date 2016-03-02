@@ -10,6 +10,7 @@ var Command = require('./lib/command');
 var events = require('events');
 var Parser = require('redis-parser');
 var commands = require('redis-commands');
+var jsonSupportWrapper = require('./lib/json-support.js');
 var connection_id = 0;
 var default_port = 6379;
 var default_host = '127.0.0.1';
@@ -1278,6 +1279,8 @@ var createClient = function (port_arg, host_arg, options) {
     }
     return new RedisClient(options);
 };
+
+jsonSupportWrapper(RedisClient);
 
 exports.createClient = createClient;
 exports.RedisClient = RedisClient;

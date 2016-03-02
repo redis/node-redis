@@ -612,6 +612,50 @@ Current delay in milliseconds before a connection retry will be attempted. This 
 Multiplier for future retry timeouts. This should be larger than 1 to add more time between retries.
 Defaults to 1.7. The default initial connection retry is 200, so the second retry will be 340, followed by 578, etc.
 
+---
+
+## JSON support for redis
+
+## client.jset
+
+```
+client.jset('jset key', {
+    val: 'jset value'
+}, function (err, res) {
+        // handle
+});
+
+```
+
+## client.jget
+
+```
+client.jset('jset key', { val: 'jset value'});
+client.jget('jset key', function (err, res) {
+    // res is {val: 'jset value'} object    
+});
+```
+
+## client.jsetnx
+```
+client.jsetnx('jsetnx key', {
+    val: 'jsetnx value'
+}, function (err, res) {
+        // handle
+});
+
+```
+
+## client.jsetex
+```
+client.jsetex('jsetex key', {
+    val: 'jsetex value'
+}, function (err, res) {
+        // handle
+});
+
+```
+
 ### Commands with Optional and Keyword arguments
 
 This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset count]` in the [redis.io/commands](http://redis.io/commands) documentation.
