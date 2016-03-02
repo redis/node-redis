@@ -5,7 +5,7 @@ var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
 
-describe("The 'setnx' method", function () {
+describe("The 'jsetnx' method", function () {
 
     helper.allTests(function(parser, ip, args) {
 

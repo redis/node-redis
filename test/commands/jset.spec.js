@@ -17,7 +17,7 @@ function objEquals(src, dist) {
     return true;
 }
 
-describe("The 'set' method", function () {
+describe("The 'jset' method", function () {
 
     helper.allTests(function(parser, ip, args) {
 
