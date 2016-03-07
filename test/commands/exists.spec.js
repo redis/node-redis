@@ -4,7 +4,7 @@ var config = require("../lib/config");
 var helper = require("../helper");
 var redis = config.redis;
 
-describe("The 'exits' method", function () {
+describe("The 'exists' method", function () {
 
     helper.allTests(function(parser, ip, args) {
 
