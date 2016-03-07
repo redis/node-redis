@@ -50,7 +50,7 @@ This will display:
         1: hashtest 2
     mjr:~/work/node_redis (master)$
 
-Note that the API is entire asynchronous. To get data back from the server, you'll need to use a callback.
+Note that the API is entirely asynchronous. To get data back from the server, you'll need to use a callback.
 
 ### Promises
 
