@@ -18,17 +18,24 @@ describe("return_buffers", function () {
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(redis.createClient, args);
+                var i = 1;
                 if (args[2].detect_buffers) {
                     // Test if detect_buffer option was deactivated
                     assert.strictEqual(client.options.detect_buffers, false);
                     args[2].detect_buffers = false;
+                    i++;
                 }
+                var end = helper.callFuncAfter(done, i);
+                client.on('warning', function (msg) {
+                    assert.strictEqual(msg, 'WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
+                    end();
+                });
                 client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb(function (err) {
                         client.hmset("hash key 2", "key 1", "val 1", "key 2", "val 2");
                         client.set("string key 1", "string value");
-                        return done(err);
+                        end(err);
                     });
                 });
             });

@@ -70,6 +70,28 @@ describe("The 'multi' method", function () {
         });
     });
 
+    describe('pipeline limit', function () {
+
+        it('do not exceed maximum string size', function (done) {
+            this.timeout(25000); // Windows tests are horribly slow
+            // Triggers a RangeError: Invalid string length if not handled properly
+            client = redis.createClient();
+            var multi = client.multi();
+            var i = Math.pow(2, 28);
+            while (i > 0) {
+                i -= 10230;
+                multi.set('foo' + i, 'bar' + new Array(1024).join('1234567890'));
+            }
+            client.on('ready', function () {
+                multi.exec(function (err, res) {
+                    assert.strictEqual(res.length, 26241);
+                });
+                client.flushdb(done);
+            });
+        });
+
+    });
+
     helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
@@ -98,7 +120,7 @@ describe("The 'multi' method", function () {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
                     });
-                    assert.strictEqual(notBuffering, true);
+                    assert.strictEqual(notBuffering, false);
                 });
 
                 it("reports an error if promisified", function () {
@@ -241,6 +263,7 @@ describe("The 'multi' method", function () {
                     multi1.set("m1", "123");
                     multi1.get('m1');
                     multi2.get('m2');
+                    multi2.ping();
 
                     multi1.exec(end);
                     multi2.exec(function(err, res) {
@@ -330,8 +353,8 @@ describe("The 'multi' method", function () {
                         arr4,
                         [["mset", "multifoo2", "multibar2", "multifoo3", "multibar3"], helper.isString('OK')],
                         ["hmset", arr],
-                        [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test", helper.isString('OK')]],
-                        ["hmset", ["multihmset", "multibar", "multifoo", helper.isString('OK')]],
+                        [["hmset", "multihmset2", "multibar2", "multifoo3", "multibar3", "test"], helper.isString('OK')],
+                        ["hmset", ["multihmset", "multibar", "multifoo"], helper.isString('OK')],
                         ["hmset", arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
                         ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
@@ -399,7 +422,7 @@ describe("The 'multi' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API', function (done) {
                     client.multi()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr(['some', helper.isNumber(11)])
+                        .incr('some', helper.isNumber(11))
                         .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .exec(function (err, replies) {
@@ -416,7 +439,7 @@ describe("The 'multi' method", function () {
                 it('allows multiple commands to work the same as normal to be performed using a chaining API promisified', function () {
                     return client.multi()
                         .mset(['some', '10', 'keys', '20'])
-                        .incr(['some', helper.isNumber(11)])
+                        .incr('some', helper.isNumber(11))
                         .incr(['keys'], helper.isNumber(21))
                         .mget('some', 'keys')
                         .execAsync()
@@ -538,7 +561,7 @@ describe("The 'multi' method", function () {
                     client.get('foo', helper.isString('bar', done));
                 });
 
-                it("should not use a transaction with exec_atomic if only no command is used", function () {
+                it("should not use a transaction with exec_atomic if no command is used", function () {
                     var multi = client.multi();
                     var test = false;
                     multi.exec_batch = function () {

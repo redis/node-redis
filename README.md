@@ -118,7 +118,7 @@ Please be aware that sending null, undefined and Boolean values will result in t
 
 # API
 
-## Connection Events
+## Connection and other Events
 
 `client` will emit some events about the state of the connection to the Redis server.
 
@@ -147,7 +147,7 @@ So please attach the error listener to node_redis.
 
 `client` will emit `end` when an established Redis server connection has closed.
 
-### "drain"
+### "drain" (deprecated)
 
 `client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure.
@@ -155,10 +155,14 @@ writable. This event can be used to stream commands in to Redis and adapt to bac
 If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
 That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
 
-You can also check the return value of each command as it will also return the backpressure indicator.
+You can also check the return value of each command as it will also return the backpressure indicator (deprecated).
 If false is returned the stream had to buffer.
 
-### "idle"
+### "warning"
+
+`client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
+
+### "idle" (deprecated)
 
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
@@ -166,12 +170,13 @@ If false is returned the stream had to buffer.
 If you have `redis-server` running on the same computer as node, then the defaults for
 port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
 
+If the redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
+
 ### overloading
-* `redis.createClient()`
-* `redis.createClient(options)`
-* `redis.createClient(unix_socket, options)`
-* `redis.createClient(redis_url, options)`
-* `redis.createClient(port, host, options)`
+* `redis.createClient([options])`
+* `redis.createClient(unix_socket[, options])`
+* `redis.createClient(redis_url[, options])`
+* `redis.createClient(port[, host][, options])`
 
 #### `options` is an object with the following possible properties:
 * `host`: *127.0.0.1*; The host to connect to
@@ -200,10 +205,10 @@ This delay normally grows infinitely, but setting `retry_max_delay` limits it to
 * `connect_timeout`: *3600000*; Setting `connect_timeout` limits total time for client to connect and reconnect.
 The value is provided in milliseconds and is counted from the moment on a new client is created / a connection is lost. The last retry is going to happen exactly at the timeout time.
 Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h passed.
-* `max_attempts`: *0*; By default client will try reconnecting until connected. Setting `max_attempts`
+* `max_attempts`: *0*; (Deprecated, please use `retry_strategy` instead) By default client will try reconnecting until connected. Setting `max_attempts`
 limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
 * `retry_unfulfilled_commands`: *false*; If set to true, all commands that were unfulfulled while the connection is lost will be retried after the connection has reestablished again. Use this with caution, if you use state altering commands (e.g. *incr*). This is especially useful if you use blocking commands.
-* `password`: *null*; If set, client will run redis auth command on connect. Alias `auth_pass`
+* `password`: *null*; If set, client will run redis auth command on connect. Alias `auth_pass` (node_redis < 2.5 have to use auth_pass)
 * `db`: *null*; If set, client will run redis select command on connect. This is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg).
 * `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
 * `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
@@ -211,10 +216,11 @@ limits total amount of connection tries. Setting this to 1 will prevent any reco
 * `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
 to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
 * `prefix`: *null*; pass a string to prefix all used keys with that string as prefix e.g. 'namespace:test'
+* `retry_strategy`: *function*; pass a function that receives a options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number no further retry is going to happen and all offline commands are flushed with errors. Return a error to return that specific error to all offline commands. Check out the example too.
 
 ```js
-var redis = require("redis"),
-    client = redis.createClient({detect_buffers: true});
+var redis = require("redis");
+var client = redis.createClient({detect_buffers: true});
 
 client.set("foo_rand000000000000", "OK");
 
@@ -230,6 +236,28 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.end();
 ```
 
+retry_strategy example
+```js
+var client = redis.createClient({
+    retry_strategy: function (options) {
+        if (options.error.code === 'ECONNREFUSED') {
+            // End reconnecting on a specific error and flush all commands with a individual error
+            return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+            // End reconnecting after a specific timeout and flush all commands with a individual error
+            return new Error('Retry time exhausted');
+        }
+        if (options.times_connected > 10) {
+            // End reconnecting with built in error
+            return undefined;
+        }
+        // reconnect after
+        return Math.max(options.attempt * 100, 3000);
+    }
+});
+```
+
 ## client.auth(password[, callback])
 
 When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
@@ -240,6 +268,13 @@ including reconnections. `callback` is invoked only once, after the response to 
 NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
+
+## backpressure
+
+### stream
+
+The client exposed the used [stream](https://nodejs.org/api/stream.html) in `client.stream` and if the stream or client had to [buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback) the command in `client.should_buffer`.
+In combination this can be used to implement backpressure by checking the buffer state before sending a command and listening to the stream [drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
 
 ## client.end(flush)
 
@@ -267,7 +302,7 @@ client.get("foo_rand000000000000", function (err, reply) {
 });
 ```
 
-`client.end()` without the flush parameter should not be used in production!
+`client.end()` without the flush parameter should NOT be used in production!
 
 ## client.unref()
 

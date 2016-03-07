@@ -5,6 +5,11 @@ var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
 
+if (process.platform === 'win32') {
+    // TODO: Fix redis process spawn on windows
+    return;
+}
+
 describe("client authentication", function () {
     before(function (done) {
         helper.stopRedis(function () {
@@ -161,7 +166,7 @@ describe("client authentication", function () {
                 client = redis.createClient.apply(redis.createClient, args);
                 var async = true;
                 client.auth(undefined, function(err, res) {
-                    assert.strictEqual(err.message, 'The password has to be of type "string"');
+                    assert.strictEqual(err.message, 'ERR invalid password');
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
                     async = false;
@@ -175,7 +180,7 @@ describe("client authentication", function () {
 
                 client = redis.createClient.apply(redis.createClient, args);
                 client.on('error', function (err) {
-                    assert.strictEqual(err.message, 'The password has to be of type "string"');
+                    assert.strictEqual(err.message, 'ERR invalid password');
                     assert.strictEqual(err.command, 'AUTH');
                     done();
                 });
@@ -237,6 +242,7 @@ describe("client authentication", function () {
     });
 
     after(function (done) {
+        if (helper.redisProcess().spawnFailed()) return done();
         helper.stopRedis(function () {
             helper.startRedis('./conf/redis.conf', done);
         });

@@ -4,6 +4,7 @@ var assert = require("assert");
 var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
+var intercept = require('intercept-stdout');
 
 describe("connection tests", function () {
     helper.allTests(function(parser, ip, args) {
@@ -91,6 +92,7 @@ describe("connection tests", function () {
 
                     client.on("reconnecting", function (params) {
                         client.end(true);
+                        assert.strictEqual(params.times_connected, 1);
                         setTimeout(done, 100);
                     });
                 });
@@ -127,23 +129,83 @@ describe("connection tests", function () {
                         client.stream.destroy();
                     });
                 });
+
+                it("retry_strategy used to reconnect with individual error", function (done) {
+                    var text = '';
+                    var unhookIntercept = intercept(function (data) {
+                        text += data;
+                        return '';
+                    });
+                    var end = helper.callFuncAfter(done, 2);
+                    client = redis.createClient({
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time > 150) {
+                                client.set('foo', 'bar', function (err, res) {
+                                    assert.strictEqual(err.message, 'Connection timeout');
+                                    end();
+                                });
+                                // Pass a individual error message to the error handler
+                                return new Error('Connection timeout');
+                            }
+                            return Math.min(options.attempt * 25, 200);
+                        },
+                        max_attempts: 5,
+                        retry_max_delay: 123,
+                        port: 9999
+                    });
+
+                    client.on('error', function(err) {
+                        unhookIntercept();
+                        assert.strictEqual(
+                            text,
+                            'node_redis: WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
+                            'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
+                        );
+                        assert.strictEqual(err.message, 'Connection timeout');
+                        assert(!err.code);
+                        end();
+                    });
+                });
+
+                it("retry_strategy used to reconnect", function (done) {
+                    var end = helper.callFuncAfter(done, 2);
+                    client = redis.createClient({
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time > 150) {
+                                client.set('foo', 'bar', function (err, res) {
+                                    assert.strictEqual(err.code, 'ECONNREFUSED');
+                                    end();
+                                });
+                                return false;
+                            }
+                            return Math.min(options.attempt * 25, 200);
+                        },
+                        port: 9999
+                    });
+
+                    client.on('error', function(err) {
+                        assert.strictEqual(err.code, 'ECONNREFUSED');
+                        end();
+                    });
+                });
             });
 
             describe("when not connected", function () {
 
                 it("emit an error after the socket timeout exceeded the connect_timeout time", function (done) {
                     var connect_timeout = 1000; // in ms
+                    var time = Date.now();
                     client = redis.createClient({
                         parser: parser,
-                        host: '192.168.74.167', // Should be auto detected as ipv4
+                        // Auto detect ipv4 and use non routable ip to trigger the timeout
+                        host: '10.255.255.1',
                         connect_timeout: connect_timeout
                     });
                     process.nextTick(function() {
-                        assert(client.stream._events.timeout);
+                        assert.strictEqual(client.stream.listeners('timeout').length, 1);
                     });
-                    assert.strictEqual(client.address, '192.168.74.167:6379');
+                    assert.strictEqual(client.address, '10.255.255.1:6379');
                     assert.strictEqual(client.connection_options.family, 4);
-                    var time = Date.now();
 
                     client.on("reconnecting", function (params) {
                         throw new Error('No reconnect, since no connection was ever established');
@@ -151,8 +213,8 @@ describe("connection tests", function () {
 
                     client.on('error', function(err) {
                         assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
-                        assert(Date.now() - time < connect_timeout + 50);
-                        assert(Date.now() - time >= connect_timeout);
+                        assert(Date.now() - time < connect_timeout + 25);
+                        assert(Date.now() - time >= connect_timeout - 3); // Timers sometimes trigger early (e.g. 1ms to early)
                         done();
                     });
                 });
@@ -165,7 +227,7 @@ describe("connection tests", function () {
                     assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
                     assert.strictEqual(client.connection_options.family, 6);
                     process.nextTick(function() {
-                        assert.strictEqual(client.stream._events.timeout, undefined);
+                        assert.strictEqual(client.stream.listeners('timeout').length, 0);
                     });
                 });
 
@@ -179,7 +241,7 @@ describe("connection tests", function () {
                     });
                     client.on('connect', function () {
                         assert.strictEqual(client.stream._idleTimeout, -1);
-                        assert.strictEqual(client.stream._events.timeout, undefined);
+                        assert.strictEqual(client.stream.listeners('timeout').length, 0);
                         client.on('ready', done);
                     });
                 });
@@ -192,28 +254,24 @@ describe("connection tests", function () {
                         connect_timeout: 1000
                     });
 
-                    client.once('ready', function() {
-                        done();
-                    });
+                    client.once('ready', done);
                 });
 
-                if (process.platform !== 'win32') {
-                    it("connect with path provided in the options object", function (done) {
-                        client = redis.createClient({
-                            path: '/tmp/redis.sock',
-                            parser: parser,
-                            connect_timeout: 1000
-                        });
-
-                        var end = helper.callFuncAfter(done, 2);
-
-                        client.once('ready', function() {
-                            end();
-                        });
-
-                        client.set('foo', 'bar', end);
+                it("connect with path provided in the options object", function (done) {
+                    if (process.platform === 'win32') {
+                        this.skip();
+                    }
+                    client = redis.createClient({
+                        path: '/tmp/redis.sock',
+                        parser: parser,
+                        connect_timeout: 1000
                     });
-                }
+
+                    var end = helper.callFuncAfter(done, 2);
+
+                    client.once('ready', end);
+                    client.set('foo', 'bar', end);
+                });
 
                 it("connects correctly with args", function (done) {
                     client = redis.createClient.apply(redis.createClient, args);
@@ -221,9 +279,7 @@ describe("connection tests", function () {
 
                     client.once("ready", function () {
                         client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
+                        client.get("recon 1", done);
                     });
                 });
 
@@ -233,9 +289,7 @@ describe("connection tests", function () {
 
                     client.once("ready", function () {
                         client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
+                        client.get("recon 1", done);
                     });
                 });
 
@@ -246,9 +300,7 @@ describe("connection tests", function () {
 
                     client.once("ready", function () {
                         client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
+                        client.get("recon 1", done);
                     });
                 });
 
@@ -258,9 +310,7 @@ describe("connection tests", function () {
 
                     client.once("ready", function () {
                         client.removeListener("error", done);
-                        client.get("recon 1", function (err, res) {
-                            done(err);
-                        });
+                        client.get("recon 1", done);
                     });
                 });
 
@@ -339,36 +389,21 @@ describe("connection tests", function () {
                     assert(create_stream_string === String(redis.RedisClient.prototype.create_stream));
                 });
 
-                it("throws on strange connection info", function () {
-                    client = {
-                        end: function() {}
-                    };
-                    try {
-                        redis.createClient(true);
-                        throw new Error('failed');
-                    } catch (err) {
-                        assert.equal(err.message, 'Unknown type of connection in createClient()');
-                    }
-                });
-
-                it("throws on protocol other than redis in the redis url", function () {
-                    client = {
-                        end: function() {}
-                    };
-                    try {
-                        redis.createClient(config.HOST[ip] + ':' + config.PORT);
-                        throw new Error('failed');
-                    } catch (err) {
-                        assert.equal(err.message, 'Connection string must use the "redis:" protocol or begin with slashes //');
-                    }
-                });
-
                 if (ip === 'IPv4') {
-                    it('allows connecting with the redis url and the default port', function (done) {
+                    it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', function (done) {
+                        client = redis.createClient('redis:///3?db=3');
+                        assert.strictEqual(client.selected_db, '3');
+                        client.on("ready", done);
+                    });
+
+                    it('allows connecting with the redis url and the default port and auth provided even though it is not required', function (done) {
                         client = redis.createClient('redis://:porkchopsandwiches@' + config.HOST[ip] + '/');
-                        client.on("ready", function () {
-                            return done();
+                        var end = helper.callFuncAfter(done, 2);
+                        client.on('warning', function (msg) {
+                            assert.strictEqual(msg, 'Warning: Redis server does not require a password, but a password was supplied.');
+                            end();
                         });
+                        client.on("ready", end);
                     });
 
                     it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {
@@ -376,9 +411,7 @@ describe("connection tests", function () {
                             connect_timeout: 1000
                         });
                         assert.strictEqual(client.options.connect_timeout, 1000);
-                        client.on('ready', function () {
-                            done();
-                        });
+                        client.on('ready', done);
                     });
 
                     it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', function (done) {
@@ -389,9 +422,7 @@ describe("connection tests", function () {
                         assert.strictEqual(+client.selected_db, 3);
                         assert(!client.options.port);
                         assert.strictEqual(client.options.host, config.HOST[ip]);
-                        client.on("ready", function () {
-                            return done();
-                        });
+                        client.on("ready", done);
                     });
 
                     it('allows connecting with the redis url and no auth and options as second parameter', function (done) {
@@ -400,18 +431,14 @@ describe("connection tests", function () {
                         };
                         client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, options);
                         assert.strictEqual(Object.keys(options).length, 1);
-                        client.on("ready", function () {
-                            return done();
-                        });
+                        client.on("ready", done);
                     });
 
                     it('allows connecting with the redis url and no auth and options as third parameter', function (done) {
                         client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, null, {
                             detect_buffers: false
                         });
-                        client.on("ready", function () {
-                            return done();
-                        });
+                        client.on("ready", done);
                     });
                 }
 

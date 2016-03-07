@@ -5,30 +5,51 @@ var config = require('./config');
 var fs = require('fs');
 var path = require('path');
 var spawn = require('win-spawn');
-var spawnFailed = false;
 var tcpPortUsed = require('tcp-port-used');
+var bluebird = require('bluebird');
 
 // wait for redis to be listening in
 // all three modes (ipv4, ipv6, socket).
-function waitForRedis (available, cb) {
+function waitForRedis (available, cb, port) {
     if (process.platform === 'win32') return cb();
 
-    var ipV4 = false;
+    var time = Date.now();
+    var running = false;
+    var socket = '/tmp/redis.sock';
+    if (port) {
+        // We have to distinguishe the redis sockets if we have more than a single redis instance running
+        socket = '/tmp/redis' + port + '.sock';
+    }
+    port = port || config.PORT;
     var id = setInterval(function () {
-        tcpPortUsed.check(config.PORT, '127.0.0.1').then(function (_ipV4) {
-            ipV4 = _ipV4;
-            return tcpPortUsed.check(config.PORT, '::1');
-        }).then(function (ipV6) {
-            if (ipV6 === available && ipV4 === available && fs.existsSync('/tmp/redis.sock') === available) {
-                clearInterval(id);
-                return cb();
+        if (running) return;
+        running = true;
+        bluebird.join(
+            tcpPortUsed.check(port, '127.0.0.1'),
+            tcpPortUsed.check(port, '::1'),
+        function (ipV4, ipV6) {
+            if (ipV6 === available && ipV4 === available) {
+                if (fs.existsSync(socket) === available) {
+                    clearInterval(id);
+                    return cb();
+                }
+                // The same message applies for can't stop but we ignore that case
+                throw new Error('Port ' + port + ' is already in use. Tests can\'t start.\n');
             }
+            if (Date.now() - time > 6000) {
+                throw new Error('Redis could not start on port ' + (port || config.PORT) + '\n');
+            }
+            running = false;
+        }).catch(function (err) {
+            console.error('\x1b[31m' + err.stack + '\x1b[0m\n');
+            process.exit(1);
         });
     }, 100);
 }
 
 module.exports = {
-    start: function (done, conf) {
+    start: function (done, conf, port) {
+        var spawnFailed = false;
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
         var rp = spawn("redis-server", [confFile], {});
@@ -53,15 +74,15 @@ module.exports = {
                     rp.once("exit", function (code) {
                         var error = null;
                         if (code !== null && code !== 0) {
-                            error = Error('Redis shutdown failed with code ' + code);
+                            error = new Error('Redis shutdown failed with code ' + code);
                         }
                         waitForRedis(false, function () {
                             return done(error);
-                        });
+                        }, port);
                     });
                     rp.kill("SIGTERM");
                 }
             });
-        });
+        }, port);
     }
 };

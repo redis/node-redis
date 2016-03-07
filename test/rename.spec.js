@@ -5,6 +5,11 @@ var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
 
+if (process.platform === 'win32') {
+    // TODO: Fix redis process spawn on windows
+    return;
+}
+
 describe("rename commands", function () {
     before(function (done) {
         helper.stopRedis(function () {
@@ -18,6 +23,7 @@ describe("rename commands", function () {
             var client = null;
 
             beforeEach(function(done)  {
+                if (helper.redisProcess().spawnFailed()) return done();
                 client = redis.createClient({
                     rename_commands: {
                         set: '807081f5afa96845a02816a28b7258c3',
@@ -27,11 +33,12 @@ describe("rename commands", function () {
                 });
 
                 client.on('ready', function () {
-                    done();
+                    client.flushdb(done);
                 });
             });
 
             afterEach(function () {
+                if (helper.redisProcess().spawnFailed()) return;
                 client.end(true);
             });
 
@@ -109,10 +116,30 @@ describe("rename commands", function () {
                 });
             });
 
+            it("should also work prefixed commands", function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                client.end(true);
+                client = redis.createClient({
+                    rename_commands: {
+                        set: '807081f5afa96845a02816a28b7258c3'
+                    },
+                    parser: parser,
+                    prefix: 'baz'
+                });
+                client.set('foo', 'bar');
+                client.keys('*', function(err, reply) {
+                    assert.strictEqual(reply[0], 'bazfoo');
+                    assert.strictEqual(err, null);
+                    done();
+                });
+            });
+
         });
     });
 
     after(function (done) {
+        if (helper.redisProcess().spawnFailed()) return done();
         helper.stopRedis(function () {
             helper.startRedis('./conf/redis.conf', done);
         });

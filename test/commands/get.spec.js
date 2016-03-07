@@ -68,18 +68,10 @@ describe("The 'get' method", function () {
                     });
 
                     it("gets the value correctly", function (done) {
-                        client.GET(key, redis.print); // Use the utility function to print the result
                         client.GET(key, function (err, res) {
                             helper.isString(value)(err, res);
                             done(err);
                         });
-                    });
-
-                    it("gets the value correctly with array syntax and the callback being in the array", function (done) {
-                        client.GET([key, function (err, res) {
-                            helper.isString(value)(err, res);
-                            done(err);
-                        }]);
                     });
 
                     it("should not throw on a get without callback (even if it's not useful)", function (done) {
