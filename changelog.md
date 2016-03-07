@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.5.0-1 - 01 Mar, 2015
+## v.2.5.0-1 - 07 Mar, 2015
 
 This is a big release with some substaintual underlining changes. Therefor this is released as a pre-release and I encourage anyone who's able to, to test this out.
 
