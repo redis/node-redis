@@ -216,10 +216,11 @@ limits total amount of connection tries. Setting this to 1 will prevent any reco
 * `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
 to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
 * `prefix`: *null*; pass a string to prefix all used keys with that string as prefix e.g. 'namespace:test'
+* `retry_strategy`: *function*; pass a function that receives a options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number no further retry is going to happen and all offline commands are flushed with errors. Return a error to return that specific error to all offline commands. Check out the example too.
 
 ```js
-var redis = require("redis"),
-    client = redis.createClient({detect_buffers: true});
+var redis = require("redis");
+var client = redis.createClient({detect_buffers: true});
 
 client.set("foo_rand000000000000", "OK");
 
@@ -235,6 +236,28 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.end();
 ```
 
+retry_strategy example
+```js
+var client = redis.createClient({
+    retry_strategy: function (options) {
+        if (options.error.code === 'ECONNREFUSED') {
+            // End reconnecting on a specific error and flush all commands with a individual error
+            return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+            // End reconnecting after a specific timeout and flush all commands with a individual error
+            return new Error('Retry time exhausted');
+        }
+        if (options.times_connected > 10) {
+            // End reconnecting with built in error
+            return undefined;
+        }
+        // reconnect after
+        return Math.max(options.attempt * 100, 3000);
+    }
+});
+```
+
 ## client.auth(password[, callback])
 
 When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
@@ -245,6 +268,13 @@ including reconnections. `callback` is invoked only once, after the response to 
 NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
+
+## backpressure
+
+### stream
+
+The client exposed the used [stream](https://nodejs.org/api/stream.html) in `client.stream` and if the stream or client had to [buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback) the command in `client.should_buffer`.
+In combination this can be used to implement backpressure by checking the buffer state before sending a command and listening to the stream [drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
 
 ## client.end(flush)
 
@@ -272,7 +302,7 @@ client.get("foo_rand000000000000", function (err, reply) {
 });
 ```
 
-`client.end()` without the flush parameter should not be used in production!
+`client.end()` without the flush parameter should NOT be used in production!
 
 ## client.unref()
 
