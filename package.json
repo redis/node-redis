@@ -9,7 +9,9 @@
     "pipelining",
     "performance",
     "queue",
-    "nodejs"
+    "nodejs",
+    "pubsub",
+    "backpressure"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
   "license": "MIT",
