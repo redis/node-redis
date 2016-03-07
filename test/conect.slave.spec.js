@@ -8,16 +8,12 @@ var rp;
 var path = require('path');
 var redis = config.redis;
 
-if (process.platform === 'win32') {
-    // TODO: Fix redis process spawn on windows
-    return;
-}
-
 describe('master slave sync', function () {
     var master = null;
     var slave = null;
 
     before(function (done) {
+        this.timeout(25000);
         helper.stopRedis(function () {
             helper.startRedis('./conf/password.conf', done);
         });
@@ -40,6 +36,7 @@ describe('master slave sync', function () {
 
     it('sync process and no master should delay ready being emitted for slaves', function (done) {
         if (helper.redisProcess().spawnFailed()) this.skip();
+        if (process.platform === 'win32') this.timeout(25000);
 
         var port = 6381;
         var firstInfo;
@@ -85,6 +82,7 @@ describe('master slave sync', function () {
 
     after(function (done) {
         if (helper.redisProcess().spawnFailed()) return done();
+        this.timeout(25000);
         var end = helper.callFuncAfter(done, 3);
         rp.stop(end);
         slave.end(true);
