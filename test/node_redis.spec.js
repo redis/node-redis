@@ -591,6 +591,11 @@ describe("The node_redis client", function () {
                             return done();
                         }
                     });
+                    client.on('error', function (err) {
+                        // This is rare but it might be triggered.
+                        // So let's have a robust test
+                        assert.strictEqual(err.code, 'ECONNRESET');
+                    });
                 });
             });
 

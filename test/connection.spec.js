@@ -213,8 +213,11 @@ describe("connection tests", function () {
 
                     client.on('error', function(err) {
                         assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
-                        assert(Date.now() - time < connect_timeout + 25);
-                        assert(Date.now() - time >= connect_timeout - 3); // Timers sometimes trigger early (e.g. 1ms to early)
+                        // The code execution on windows is very slow at times
+                        var now = Date.now();
+                        assert(now - time < connect_timeout + 50, 'The real timeout time should be below ' + (connect_timeout + 50) + 'ms but is: ' + (now - time));
+                         // Timers sometimes trigger early (e.g. 1ms to early)
+                        assert(now - time >= connect_timeout - 3, 'The real timeout time should be above ' + connect_timeout + 'ms, but it is: ' + (now - time));
                         done();
                     });
                 });
@@ -464,9 +467,9 @@ describe("connection tests", function () {
                     };
                     client.on("ready", function () {
                         var rest = Date.now() - time;
-                        assert(rest >= 500);
+                        assert(rest >= 498, 'Rest should be equal or above 500 ms but is: ' + rest); // setTimeout might trigger early
                         // Be on the safe side and accept 200ms above the original value
-                        assert(rest - 200 < 500);
+                        assert(rest - 200 < 500, 'Rest - 200 should be below 500 ms but is: ' + (rest - 200));
                         assert(delayed);
                         end();
                     });
@@ -495,9 +498,9 @@ describe("connection tests", function () {
                     };
                     client.on("ready", function () {
                         var rest = Date.now() - time;
-                        assert(rest >= 1000);
+                        assert(rest >= 998, '`rest` should be equal or above 1000 ms but is: ' + rest); // setTimeout might trigger early
                         // Be on the safe side and accept 200ms above the original value
-                        assert(rest - 200 < 1000);
+                        assert(rest - 200 < 1000, '`rest` - 200 should be below 1000 ms but is: ' + (rest - 200));
                         assert(delayed);
                         end();
                     });
