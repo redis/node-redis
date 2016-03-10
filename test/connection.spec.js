@@ -5,20 +5,38 @@ var config = require("./lib/config");
 var helper = require('./helper');
 var redis = config.redis;
 var intercept = require('intercept-stdout');
+var net = require('net');
+var client;
 
 describe("connection tests", function () {
+
+    beforeEach(function () {
+        client = null;
+    });
+    afterEach(function () {
+        client.end(true);
+    });
+
+    it('unofficially support for a private stream', function () {
+        // While using a private stream, reconnection and other features are not going to work properly.
+        // Besides that some functions also have to be monkey patched to be safe from errors in this case.
+        // Therefor this is not officially supported!
+        var socket = new net.Socket();
+        client = new redis.RedisClient({
+            prefix: 'test'
+        }, socket);
+        assert.strictEqual(client.stream, socket);
+        assert.strictEqual(client.stream.listeners('error').length, 1);
+        assert.strictEqual(client.address, '"Private stream"');
+        // Pretent a reconnect event
+        client.create_stream();
+        assert.strictEqual(client.stream, socket);
+        assert.strictEqual(client.stream.listeners('error').length, 1);
+    });
+
     helper.allTests(function(parser, ip, args) {
 
         describe("using " + parser + " and " + ip, function () {
-
-            var client;
-
-            beforeEach(function () {
-                client = null;
-            });
-            afterEach(function () {
-                client.end(true);
-            });
 
             describe("on lost connection", function () {
                 it("emit an error after max retry attempts and do not try to reconnect afterwards", function (done) {

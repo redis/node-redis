@@ -34,13 +34,20 @@ function handle_detect_buffers_reply (reply, command, buffer_args) {
 
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
-function RedisClient (options) {
+// Attention: The second parameter might be removed at will and is not officially supported.
+// Do not rely on this
+function RedisClient (options, stream) {
     // Copy the options so they are not mutated
     options = utils.clone(options);
     EventEmitter.call(this);
     var cnx_options = {};
     var self = this;
-    if (options.path) {
+    if (stream) {
+        // The stream from the outside is used so no connection from this side is triggered but from the server this client should talk to
+        // Reconnect etc won't work with this. This requires monkey patching to work, so it is not officially supported
+        options.stream = stream;
+        this.address = '"Private stream"';
+    } else if (options.path) {
         cnx_options.path = options.path;
         this.address = options.path;
     } else {
@@ -174,17 +181,25 @@ RedisClient.connection_id = 0;
 RedisClient.prototype.create_stream = function () {
     var self = this;
 
-    // On a reconnect destroy the former stream and retry
-    if (this.stream) {
-        this.stream.removeAllListeners();
-        this.stream.destroy();
-    }
-
-    /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
-    if (this.options.tls) {
-        this.stream = tls.connect(this.connection_options);
+    if (this.options.stream) {
+        // Only add the listeners once in case of a reconnect try (that won't work)
+        if (this.stream) {
+            return;
+        }
+        this.stream = this.options.stream;
     } else {
-        this.stream = net.createConnection(this.connection_options);
+        // On a reconnect destroy the former stream and retry
+        if (this.stream) {
+            this.stream.removeAllListeners();
+            this.stream.destroy();
+        }
+
+        /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
+        if (this.options.tls) {
+            this.stream = tls.connect(this.connection_options);
+        } else {
+            this.stream = net.createConnection(this.connection_options);
+        }
     }
 
     if (this.options.connect_timeout) {
