@@ -211,7 +211,7 @@ describe("connection tests", function () {
             describe("when not connected", function () {
 
                 it("emit an error after the socket timeout exceeded the connect_timeout time", function (done) {
-                    var connect_timeout = 1000; // in ms
+                    var connect_timeout = 500; // in ms
                     var time = Date.now();
                     client = redis.createClient({
                         parser: parser,
@@ -232,8 +232,9 @@ describe("connection tests", function () {
                     client.on('error', function(err) {
                         assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
                         // The code execution on windows is very slow at times
+                        var add = process.platform !== 'win32' ? 25 : 125;
                         var now = Date.now();
-                        assert(now - time < connect_timeout + 50, 'The real timeout time should be below ' + (connect_timeout + 50) + 'ms but is: ' + (now - time));
+                        assert(now - time < connect_timeout + add, 'The real timeout time should be below ' + (connect_timeout + add) + 'ms but is: ' + (now - time));
                          // Timers sometimes trigger early (e.g. 1ms to early)
                         assert(now - time >= connect_timeout - 3, 'The real timeout time should be above ' + connect_timeout + 'ms, but it is: ' + (now - time));
                         done();

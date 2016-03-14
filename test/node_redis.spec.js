@@ -569,27 +569,24 @@ describe("The node_redis client", function () {
             });
 
             describe('retry_max_delay', function () {
-                var args = config.configureClient(parser, ip, {
-                    retry_max_delay: 1 // ms
-                });
-
                 it("sets upper bound on how long client waits before reconnecting", function (done) {
-                    var time = new Date().getTime();
-                    var reconnecting = false;
+                    var time;
+                    var timeout = process.platform !== 'win32' ? 20 : 100;
 
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, config.configureClient(parser, ip, {
+                        retry_max_delay: 1 // ms
+                    }));
                     client.on('ready', function() {
-                        if (!reconnecting) {
-                            reconnecting = true;
-                            client.retry_delay = 1000;
-                            client.retry_backoff = 1;
-                            client.stream.end();
+                        if (this.times_connected === 1) {
+                            this.stream.end();
+                            time = Date.now();
                         } else {
-                            client.end(true);
-                            var lasted = new Date().getTime() - time;
-                            assert.ok(lasted < 100);
-                            return done();
+                            done();
                         }
+                    });
+                    client.on('reconnecting', function () {
+                        time = Date.now() - time;
+                        assert(time < timeout, 'The reconnect should not have taken longer than ' + timeout + ' but it took ' + time);
                     });
                     client.on('error', function (err) {
                         // This is rare but it might be triggered.
