@@ -22,13 +22,11 @@ describe("The 'dbsize' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.quit();
                     });
-                    client.on('end', function () {
-                        return done();
-                    });
+                    client.on('end', done);
                 });
 
                 it("reports an error", function (done) {
@@ -43,7 +41,7 @@ describe("The 'dbsize' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.flushdb(function (err, res) {
                             helper.isString("OK")(err, res);

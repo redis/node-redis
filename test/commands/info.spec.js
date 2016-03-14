@@ -13,7 +13,7 @@ describe("The 'info' method", function () {
             var client;
 
             before(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.once("ready", function () {
                     client.flushall(done);
                 });

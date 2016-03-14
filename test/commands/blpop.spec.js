@@ -15,14 +15,14 @@ describe("The 'blpop' method", function () {
             var bclient;
 
             beforeEach(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.once("ready", function () {
                     client.flushdb(done);
                 });
             });
 
             it('pops value immediately if list contains values', function (done) {
-                bclient = redis.createClient.apply(redis.createClient, args);
+                bclient = redis.createClient.apply(null, args);
                 redis.debug_mode = true;
                 var text = '';
                 var unhookIntercept = intercept(function(data) {
@@ -41,7 +41,7 @@ describe("The 'blpop' method", function () {
             });
 
             it('pops value immediately if list contains values using array notation', function (done) {
-                bclient = redis.createClient.apply(redis.createClient, args);
+                bclient = redis.createClient.apply(null, args);
                 client.rpush(["blocking list", "initial value"], helper.isNumber(1));
                 bclient.blpop(["blocking list", 0], function (err, value) {
                     assert.strictEqual(value[0], "blocking list");
@@ -51,7 +51,7 @@ describe("The 'blpop' method", function () {
             });
 
             it('waits for value if list is not yet populated', function (done) {
-                bclient = redis.createClient.apply(redis.createClient, args);
+                bclient = redis.createClient.apply(null, args);
                 bclient.blpop("blocking list 2", 5, function (err, value) {
                     assert.strictEqual(value[0], "blocking list 2");
                     assert.strictEqual(value[1], "initial value");
@@ -61,7 +61,7 @@ describe("The 'blpop' method", function () {
             });
 
             it('times out after specified time', function (done) {
-                bclient = redis.createClient.apply(redis.createClient, args);
+                bclient = redis.createClient.apply(null, args);
                 bclient.BLPOP("blocking list", 1, function (err, res) {
                     assert.strictEqual(res, null);
                     return done(err);

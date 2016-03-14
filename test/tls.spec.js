@@ -111,7 +111,7 @@ describe("TLS connection tests", function () {
                 tls: faulty_cert
             });
             client.on('error', function (err) {
-                assert.strictEqual(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT');
+                assert(/DEPTH_ZERO_SELF_SIGNED_CERT/.test(err.code || err.message), err);
                 client.end(true);
             });
             client.set('foo', 'bar', function (err, res) {

@@ -14,13 +14,11 @@ describe("The 'select' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.quit();
                     });
-                    client.on('end', function () {
-                        return done();
-                    });
+                    client.on('end', done);
                 });
 
                 it("returns an error if redis is not connected", function (done) {
@@ -36,7 +34,7 @@ describe("The 'select' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.flushdb(done);
                     });

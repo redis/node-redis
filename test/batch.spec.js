@@ -22,13 +22,11 @@ describe("The 'batch' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("connect", function () {
                         client.quit();
                     });
-                    client.on('end', function () {
-                        return done();
-                    });
+                    client.on('end', done);
                 });
 
                 it("returns an empty array", function (done) {
@@ -51,7 +49,7 @@ describe("The 'batch' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.flushdb(function (err) {
                             return done(err);

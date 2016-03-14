@@ -16,7 +16,7 @@ describe("detect_buffers", function () {
             });
 
             beforeEach(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.once("error", done);
                 client.once("connect", function () {
                     client.flushdb(function (err) {

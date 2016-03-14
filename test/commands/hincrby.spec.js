@@ -13,7 +13,7 @@ describe("The 'hincrby' method", function () {
             var hash = "test hash";
 
             beforeEach(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.once("ready", function () {
                     client.flushdb(done);
                 });

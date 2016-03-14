@@ -13,7 +13,7 @@ describe("The 'mget' method", function () {
             var client;
 
             beforeEach(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.once("error", done);
                 client.once("ready", function () {
                     client.flushdb();

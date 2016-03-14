@@ -135,7 +135,7 @@ describe("connection tests", function () {
                 });
 
                 it("emits error once if reconnecting after command has been executed but not yet returned without callback", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.on('error', function(err) {
                         assert.strictEqual(err.code, 'UNCERTAIN_STATE');
                         done();
@@ -296,7 +296,7 @@ describe("connection tests", function () {
                 });
 
                 it("connects correctly with args", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.on("error", done);
 
                     client.once("ready", function () {
@@ -382,7 +382,7 @@ describe("connection tests", function () {
                 });
 
                 it("connects correctly even if the info command is not present on the redis server", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.info = function (cb) {
                         // Mock the result
                         cb(new Error("ERR unknown command 'info'"));
@@ -465,7 +465,7 @@ describe("connection tests", function () {
                 }
 
                 it("redis still loading <= 1000ms", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     var tmp = client.info.bind(client);
                     var end = helper.callFuncAfter(done, 3);
                     var delayed = false;
@@ -495,7 +495,7 @@ describe("connection tests", function () {
                 });
 
                 it("redis still loading > 1000ms", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     var tmp = client.info.bind(client);
                     var end = helper.callFuncAfter(done, 3);
                     var delayed = false;

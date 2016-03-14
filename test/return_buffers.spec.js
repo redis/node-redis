@@ -17,7 +17,7 @@ describe("return_buffers", function () {
             });
 
             beforeEach(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 var i = 1;
                 if (args[2].detect_buffers) {
                     // Test if detect_buffer option was deactivated

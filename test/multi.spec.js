@@ -105,13 +105,11 @@ describe("The 'multi' method", function () {
             describe("when not connected", function () {
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.quit();
                     });
-                    client.once('end', function () {
-                        return done();
-                    });
+                    client.once('end', done);
                 });
 
                 it("reports an error", function (done) {
@@ -133,7 +131,7 @@ describe("The 'multi' method", function () {
             describe("when connected", function () {
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("connect", done);
                 });
 
@@ -212,7 +210,7 @@ describe("The 'multi' method", function () {
             describe("when ready", function () {
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.flushdb(function (err) {
                             return done(err);

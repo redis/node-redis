@@ -15,7 +15,7 @@ describe("The 'eval' method", function () {
             var source = "return redis.call('set', 'sha', 'test')";
 
             beforeEach(function (done) {
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.once("ready", function () {
                     client.flushdb(done);
                 });

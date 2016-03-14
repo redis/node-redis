@@ -19,7 +19,7 @@ describe("The node_redis client", function () {
 
             describe("when connected", function () {
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("connect", function () {
                         client.flushdb(done);
                     });
@@ -343,7 +343,23 @@ describe("The node_redis client", function () {
                             domain.on('error', function (err) {
                                 assert.strictEqual(err.message, 'ohhhh noooo');
                                 domain.exit();
-                                return done();
+                                done();
+                            });
+                        });
+
+                        it('catches all errors from within the domain', function (done) {
+                            var domain = require('domain').create();
+
+                            domain.run(function () {
+                                // Trigger an error within the domain
+                                client.end(true);
+                                client.set('domain', 'value');
+                            });
+
+                            domain.on('error', function (err) {
+                                assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');
+                                domain.exit();
+                                done();
                             });
                         });
                     });
@@ -351,7 +367,7 @@ describe("The node_redis client", function () {
 
                 describe('monitor', function () {
                     it('monitors commands on all other redis clients', function (done) {
-                        var monitorClient = redis.createClient.apply(redis.createClient, args);
+                        var monitorClient = redis.createClient.apply(null, args);
                         var responses = [];
 
                         monitorClient.monitor(function (err, res) {
@@ -474,7 +490,7 @@ describe("The node_redis client", function () {
                     });
 
                     it("fires client.on('ready')", function (done) {
-                        client = redis.createClient.apply(redis.createClient, args);
+                        client = redis.createClient.apply(null, args);
                         client.on("ready", function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
                             client.quit();
@@ -486,7 +502,7 @@ describe("The node_redis client", function () {
                     });
 
                     it('client is functional', function (done) {
-                        client = redis.createClient.apply(redis.createClient, args);
+                        client = redis.createClient.apply(null, args);
                         client.on("ready", function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
                             client.set(["set key 1", "set val"], helper.isString("OK"));
@@ -508,7 +524,7 @@ describe("The node_redis client", function () {
                     });
 
                     it("fires client.on('ready')", function (done) {
-                        client = redis.createClient.apply(redis.createClient, args);
+                        client = redis.createClient.apply(null, args);
                         client.on("ready", function () {
                             assert.strictEqual(false, client.options.socket_nodelay);
                             client.quit();
@@ -520,7 +536,7 @@ describe("The node_redis client", function () {
                     });
 
                     it('client is functional', function (done) {
-                        client = redis.createClient.apply(redis.createClient, args);
+                        client = redis.createClient.apply(null, args);
                         client.on("ready", function () {
                             assert.strictEqual(false, client.options.socket_nodelay);
                             client.set(["set key 1", "set val"], helper.isString("OK"));
@@ -539,7 +555,7 @@ describe("The node_redis client", function () {
                 describe('defaults to true', function () {
 
                     it("fires client.on('ready')", function (done) {
-                        client = redis.createClient.apply(redis.createClient, args);
+                        client = redis.createClient.apply(null, args);
                         client.on("ready", function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
                             client.quit();
@@ -551,7 +567,7 @@ describe("The node_redis client", function () {
                     });
 
                     it('client is functional', function (done) {
-                        client = redis.createClient.apply(redis.createClient, args);
+                        client = redis.createClient.apply(null, args);
                         client.on("ready", function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
                             client.set(["set key 1", "set val"], helper.isString("OK"));
@@ -599,7 +615,7 @@ describe("The node_redis client", function () {
             describe('protocol error', function () {
 
                 it("should gracefully recover and only fail on the already send commands", function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.on('error', function(err) {
                         assert.strictEqual(err.message, 'Protocol error, got "a" as reply type byte');
                         // After the hard failure work properly again. The set should have been processed properly too

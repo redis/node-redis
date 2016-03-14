@@ -16,16 +16,14 @@ describe("The 'incr' method", function () {
                 var client;
 
                 beforeEach(function (done) {
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("ready", function () {
                         client.set(key, "9007199254740992", function (err, res) {
                             helper.isNotError()(err, res);
                             client.quit();
                         });
                     });
-                    client.on('end', function () {
-                        return done();
-                    });
+                    client.on('end', done);
                 });
 
                 afterEach(function () {
@@ -52,7 +50,7 @@ describe("The 'incr' method", function () {
                         9007199254740996 -> 9007199254740996
                         9007199254740997 -> 9007199254740996
                     */
-                    client = redis.createClient.apply(redis.createClient, args);
+                    client = redis.createClient.apply(null, args);
                     client.once("error", done);
                     client.once("ready", function () {
                         client.set(key, "9007199254740992", function (err, res) {
