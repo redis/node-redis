@@ -233,8 +233,8 @@ RedisClient.prototype.create_stream = function () {
         self.on_error(err);
     });
 
-    this.stream.once('close', function () {
-        self.connection_gone('close', new Error('Stream connection closed'));
+    this.stream.once('close', function (hadError) {
+        self.connection_gone('close', new Error('Stream connection closed' + (hadError ? ' because of a transmission error' : '')));
     });
 
     this.stream.once('end', function () {

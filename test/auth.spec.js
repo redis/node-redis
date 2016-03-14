@@ -115,9 +115,7 @@ describe("client authentication", function () {
                     auth_pass: auth
                 });
                 client = redis.createClient.apply(null, args);
-                client.on("ready", function () {
-                    return done();
-                });
+                client.on("ready", done);
             });
 
             it('allows auth and no_ready_check to be provided as config option for client', function (done) {
@@ -128,9 +126,7 @@ describe("client authentication", function () {
                     no_ready_check: true
                 });
                 client = redis.createClient.apply(null, args);
-                client.on("ready", function () {
-                    done();
-                });
+                client.on("ready", done);
             });
 
             it('allows auth to be provided post-hoc with auth method', function (done) {
@@ -139,24 +135,23 @@ describe("client authentication", function () {
                 var args = config.configureClient(parser, ip);
                 client = redis.createClient.apply(null, args);
                 client.auth(auth);
-                client.on("ready", function () {
-                    return done();
-                });
+                client.on("ready", done);
             });
 
             it('reconnects with appropriate authentication', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var readyCount = 0;
                 client = redis.createClient.apply(null, args);
                 client.auth(auth);
                 client.on("ready", function () {
-                    readyCount++;
-                    if (readyCount === 1) {
+                    if (this.times_connected === 1) {
                         client.stream.destroy();
                     } else {
-                        return done();
+                        done();
                     }
+                });
+                client.on('reconnecting', function (params) {
+                    assert.strictEqual(params.error.message, 'Stream connection closed');
                 });
             });
 
