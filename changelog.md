@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.5.1 - 15 Mar, 2015
+
+Bugfixes
+
+-  Fixed info command not working anymore with optional section argument
+
 ## v.2.5.0 - 15 Mar, 2015
 
 Same changelog as the pre-release
