@@ -45,6 +45,26 @@ describe("client authentication", function () {
                 });
             });
 
+            it('support redis 2.4 with retrying auth commands if still loading', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                client = redis.createClient.apply(null, args);
+                var time = Date.now();
+                client.auth(auth, function (err, res) {
+                    assert.strictEqual('retry worked', res);
+                    assert(Date.now() - time >= 200, 'Time should be above 200 ms (the reconnect time)');
+                    assert(Date.now() - time < 300, 'Time should be below 300 ms (the reconnect should only take a bit above 200 ms)');
+                    done();
+                });
+                var tmp = client.command_queue.get(0).callback;
+                client.command_queue.get(0).callback = function (err, res) {
+                    client.auth = function (pass, callback) {
+                        callback(null, 'retry worked');
+                    };
+                    tmp(new Error('ERR redis is still LOADING'));
+                };
+            });
+
             it("emits error when auth is bad without callback", function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
