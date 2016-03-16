@@ -8,7 +8,7 @@ the problem is provided. It is of course not always possible to reduce your code
 to a small test case, but it's highly appreciated to have as much data as possible.
 Thank you!_
 
-* **Version**: What node_redis version is the issue happening on?
+* **Version**: What node_redis and what redis version is the issue happening on?
 * **Platform**: What platform / version? (For example Node.js 0.10 or Node.js 5.7.0)
 * **Description**: Description of your issue, stack traces from errors and code that reproduces the issue
 
