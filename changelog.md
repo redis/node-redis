@@ -1,17 +1,23 @@
 Changelog
 =========
 
-## v.2.5.1 - 15 Mar, 2015
+## v.2.5.2 - 16 Mar, 2016
+
+Bugfixes
+
+-  Fixed breaking changes against Redis 2.4 introduced in 2.5.0 / 2.5.1
+
+## v.2.5.1 - 15 Mar, 2016
 
 Bugfixes
 
 -  Fixed info command not working anymore with optional section argument
 
-## v.2.5.0 - 15 Mar, 2015
+## v.2.5.0 - 15 Mar, 2016
 
 Same changelog as the pre-release
 
-## v.2.5.0-1 - 07 Mar, 2015
+## v.2.5.0-1 - 07 Mar, 2016
 
 This is a big release with some substaintual underlining changes. Therefor this is released as a pre-release and I encourage anyone who's able to, to test this out.
 
@@ -73,7 +79,7 @@ Deprecations
 -  The `retry_max_delay` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
 -  The drain event is deprecated and will be removed in v.3.0.0. Please listen to the stream drain event instead
 -  The idle event is deprecated and will likely be removed in v.3.0.0. If you rely on this feature please open a new ticket in node_redis with your use case
--  Redis < v. 2.6.11 is not supported anymore and will not work in all cases. Please update to a newer redis version
+-  Redis < v. 2.6 is not officially supported anymore and might not work in all cases. Please update to a newer redis version as it is not possible to test for these old versions
 -  Removed non documented command syntax (adding the callback to an arguments array instead of passing it as individual argument)
 
 ## v.2.4.2 - 27 Nov, 2015
