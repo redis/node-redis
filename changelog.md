@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.5.3 - 21 Mar, 2016
+
+Bugfixes
+
+-  Revert throwing on invalid data types and print a warning instead
+
 ## v.2.5.2 - 16 Mar, 2016
 
 Bugfixes
