@@ -805,7 +805,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                     'Please handle this in your code to make sure everything works as you intended it to.'
                 );
                 args_copy[i] = 'null'; // Backwards compatible :/
-            } else {
+            } else if (Buffer.isBuffer(args[i])) {
                 args_copy[i] = args[i];
                 command_obj.buffer_args = true;
                 big_data = true;
@@ -813,6 +813,13 @@ RedisClient.prototype.send_command = function (command, args, callback) {
                     this.pipeline += 2;
                     this.writeDefault = this.writeBuffers;
                 }
+            } else {
+                this.warn(
+                    'Deprecated: The ' + command.toUpperCase() + ' command contains a argument of type ' + args[i].constructor.name + '.\n' +
+                    'This is converted to "' + args[i].toString() + '" by using .toString() now and will return an error from v.3.0 on.\n' +
+                    'Please handle this in your code to make sure everything works as you intended it to.'
+                );
+                args_copy[i] = args[i].toString(); // Backwards compatible :/
             }
         } else if (typeof args[i] === 'undefined') {
             this.warn(

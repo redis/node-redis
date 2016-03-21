@@ -45,22 +45,22 @@ describe("The 'hset' method", function () {
                 });
             });
 
-            it('throws a error if someone passed a array either as field or as value', function (done) {
+            it('warns if someone passed a array either as field or as value', function (done) {
                 var hash = "test hash";
                 var field = "array";
                 // This would be converted to "array contents" but if you use more than one entry,
                 // it'll result in e.g. "array contents,second content" and this is not supported and considered harmful
                 var value = ["array contents"];
-                try {
-                    client.HMSET(hash, field, value);
-                    throw new Error('test failed');
-                } catch (err) {
-                    if (/invalid data/.test(err.message)) {
-                        done();
-                    } else {
-                        done(err);
-                    }
-                }
+                client.on('warning', function (msg) {
+                    assert.strictEqual(
+                        msg,
+                        'Deprecated: The HMSET command contains a argument of type Array.\n' +
+                        'This is converted to "array contents" by using .toString() now and will return an error from v.3.0 on.\n' +
+                        'Please handle this in your code to make sure everything works as you intended it to.'
+                    );
+                    done();
+                });
+                client.HMSET(hash, field, value);
             });
 
             it('does not error when a buffer and date are set as values on the same hash', function (done) {
