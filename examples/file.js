@@ -3,12 +3,15 @@
 // Read a file from disk, store it in Redis, then read it back from Redis.
 
 var redis = require('redis'),
-    client = redis.createClient(),
+    client = redis.createClient({
+        return_buffers: true
+    }),
     fs = require('fs'),
-    filename = 'kids_in_cart.jpg';
+    assert = require('assert'),
+    filename = 'grumpyCat.jpg';
 
 // Get the file I use for testing like this:
-//    curl http://ranney.com/kids_in_cart.jpg -o kids_in_cart.jpg
+//    curl http://media4.popsugar-assets.com/files/2014/08/08/878/n/1922507/caef16ec354ca23b_thumb_temp_cover_file32304521407524949.xxxlarge/i/Funny-Cat-GIFs.jpg -o grumpyCat.jpg
 // or just use your own file.
 
 // Read a file from fs, store it in Redis, get it back from Redis, write it back to fs.
@@ -21,6 +24,7 @@ fs.readFile(filename, function (err, data) {
         if (err) {
             console.log('Get error: ' + err);
         } else {
+            assert.strictEqual(data.inspect(), reply.inspect());
             fs.writeFile('duplicate_' + filename, reply, function (err) {
                 if (err) {
                     console.log('Error on write: ' + err);
