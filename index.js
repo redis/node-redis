@@ -751,6 +751,7 @@ function handle_offline_command (self, command_obj) {
         }
         err = new Error(command + " can't be processed. " + msg);
         err.command = command;
+        err.code = 'NR_OFFLINE';
         utils.reply_in_order(self, callback, err);
     } else {
         debug('Queueing ' + command + ' for next server connection.');
@@ -845,8 +846,6 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         if (!this.pub_sub_mode) {
             this.pub_sub_mode = this.command_queue.length + 1;
         }
-    } else if (command === 'quit') {
-        this.closing = true;
     }
     this.command_queue.push(command_obj);
 
