@@ -5,15 +5,21 @@ Changelog
 
 Features
 
--  Monitor now works together with the offline queue
+-  Monitor and pub sub mode now work together with the offline queue
  -  All commands that were send after a connection loss are now going to be send after reconnecting
 -  Activating monitor mode does now work together with arbitrary commands including pub sub mode
+-  Pub sub mode is completly rewritten and all known issues fixed
 
 Bugfixes
 
 -  Fixed calling monitor command while other commands are still running
 -  Fixed monitor and pub sub mode not working together
 -  Fixed monitor mode not working in combination with the offline queue
+-  Fixed pub sub mode not working in combination with the offline queue
+-  Fixed pub sub mode resubscribing not working with non utf8 buffer channels
+-  Fixed pub sub mode crashing if calling unsubscribe / subscribe in various combinations
+-  Fixed pub sub mode emitting unsubscribe even if no channels were unsubscribed
+-  Fixed pub sub mode emitting a message without a message published
 
 ## v.2.5.3 - 21 Mar, 2016
 

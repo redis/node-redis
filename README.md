@@ -233,7 +233,7 @@ client.get("foo_rand000000000000", function (err, reply) {
 client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
     console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
 });
-client.end();
+client.quit();
 ```
 
 retry_strategy example
@@ -302,7 +302,7 @@ client.get("foo_rand000000000000", function (err, reply) {
 });
 ```
 
-`client.end()` without the flush parameter should NOT be used in production!
+`client.end()` without the flush parameter set to true should NOT be used in production!
 
 ## client.unref()
 
@@ -377,34 +377,34 @@ client connections, subscribes to a channel on one of them, and publishes to tha
 channel on the other:
 
 ```js
-var redis = require("redis"),
-    client1 = redis.createClient(), client2 = redis.createClient(),
-    msg_count = 0;
+var redis = require("redis");
+var sub = redis.createClient(), pub = redis.createClient();
+var msg_count = 0;
 
-client1.on("subscribe", function (channel, count) {
-    client2.publish("a nice channel", "I am sending a message.");
-    client2.publish("a nice channel", "I am sending a second message.");
-    client2.publish("a nice channel", "I am sending my last message.");
+sub.on("subscribe", function (channel, count) {
+    pub.publish("a nice channel", "I am sending a message.");
+    pub.publish("a nice channel", "I am sending a second message.");
+    pub.publish("a nice channel", "I am sending my last message.");
 });
 
-client1.on("message", function (channel, message) {
-    console.log("client1 channel " + channel + ": " + message);
+sub.on("message", function (channel, message) {
+    console.log("sub channel " + channel + ": " + message);
     msg_count += 1;
     if (msg_count === 3) {
-        client1.unsubscribe();
-        client1.end();
-        client2.end();
+        sub.unsubscribe();
+        sub.quit();
+        pub.quit();
     }
 });
 
-client1.subscribe("a nice channel");
+sub.subscribe("a nice channel");
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into a "subscriber" mode.
-At that point, only commands that modify the subscription set are valid. When the subscription
+At that point, only commands that modify the subscription set are valid and quit (and depending on the redis version ping as well). When the subscription
 set is empty, the connection is put back into regular mode.
 
-If you need to send regular commands to Redis while in subscriber mode, just open another connection.
+If you need to send regular commands to Redis while in subscriber mode, just open another connection with a new client (hint: use `client.duplicate()`).
 
 ## Subscriber Events
 
@@ -413,13 +413,13 @@ If a client has subscriptions active, it may emit these events:
 ### "message" (channel, message)
 
 Client will emit `message` for every message received that matches an active subscription.
-Listeners are passed the channel name as `channel` and the message Buffer as `message`.
+Listeners are passed the channel name as `channel` and the message as `message`.
 
 ### "pmessage" (pattern, channel, message)
 
 Client will emit `pmessage` for every message received that matches an active subscription pattern.
 Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
-name as `channel`, and the message Buffer as `message`.
+name as `channel`, and the message as `message`.
 
 ### "subscribe" (channel, count)
 
