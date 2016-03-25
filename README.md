@@ -215,7 +215,7 @@ limits total amount of connection tries. Setting this to 1 will prevent any reco
 * `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
 * `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
 to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
-* `prefix`: *null*; pass a string to prefix all used keys with that string as prefix e.g. 'namespace:test'
+* `prefix`: *null*; pass a string to prefix all used keys with that string as prefix e.g. 'namespace:test'. Please be aware, that the "keys" command is not going to be prefixed. The command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed.
 * `retry_strategy`: *function*; pass a function that receives a options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number no further retry is going to happen and all offline commands are flushed with errors. Return a error to return that specific error to all offline commands. Check out the example too.
 
 ```js
