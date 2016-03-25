@@ -545,22 +545,20 @@ If you fire many commands at once this is going to **boost the execution speed b
 Redis supports the `MONITOR` command, which lets you see all commands received by the Redis server
 across all client connections, including from other client libraries and other computers.
 
-After you send the `MONITOR` command, no other commands are valid on that connection. `node_redis`
-will emit a `monitor` event for every new monitor message that comes across. The callback for the
-`monitor` event takes a timestamp from the Redis server and an array of command arguments.
+A `monitor` event is going to be emitted for every command fired from any client connected to the server including the monitoring client itself.
+The callback for the `monitor` event takes a timestamp from the Redis server, an array of command arguments and the raw monitoring string.
 
 Here is a simple example:
 
 ```js
-var client  = require("redis").createClient(),
-    util = require("util");
-
+var client  = require("redis").createClient();
 client.monitor(function (err, res) {
     console.log("Entering monitoring mode.");
 });
+client.set('foo', 'bar');
 
-client.on("monitor", function (time, args) {
-    console.log(time + ": " + util.inspect(args));
+client.on("monitor", function (time, args, raw_reply) {
+    console.log(time + ": " + args); // 1458910076.446514:['set', 'foo', 'bar']
 });
 ```
 
