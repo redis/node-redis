@@ -3,6 +3,7 @@
 var assert = require("assert");
 var config = require("./lib/config");
 var helper = require('./helper');
+var utils = require('../lib/utils');
 var fork = require("child_process").fork;
 var redis = config.redis;
 
@@ -211,7 +212,7 @@ describe("The node_redis client", function () {
                     it("return an error in the callback", function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
-                        // TODO: Investigate why this test is failing hard and killing mocha.
+                        // TODO: Investigate why this test is failing hard and killing mocha if using '/tmp/redis.sock'.
                         // Seems like something is wrong with nyc while passing a socket connection to create client!
                         client = redis.createClient();
                         client.quit(function() {
@@ -366,34 +367,89 @@ describe("The node_redis client", function () {
                 });
 
                 describe('monitor', function () {
-                    it('monitors commands on all other redis clients', function (done) {
+                    it('monitors commands on all redis clients and works in the correct order', function (done) {
                         var monitorClient = redis.createClient.apply(null, args);
                         var responses = [];
+                        var end = helper.callFuncAfter(done, 5);
 
+                        monitorClient.set('foo', 'bar');
+                        monitorClient.flushdb();
                         monitorClient.monitor(function (err, res) {
+                            assert.strictEqual(res, 'OK');
                             client.mget("some", "keys", "foo", "bar");
                             client.set("json", JSON.stringify({
                                 foo: "123",
                                 bar: "sdflkdfsjk",
                                 another: false
                             }));
+                            monitorClient.get('baz', function (err, res) {
+                                assert.strictEqual(res, null);
+                                end(err);
+                            });
+                            monitorClient.set('foo', 'bar" "s are " " good!"', function (err, res) {
+                                assert.strictEqual(res, 'OK');
+                                end(err);
+                            });
+                            monitorClient.mget('foo', 'baz', function (err, res) {
+                                assert.strictEqual(res[0], 'bar" "s are " " good!"');
+                                assert.strictEqual(res[1], null);
+                                end(err);
+                            });
+                            monitorClient.subscribe('foo', 'baz', function (err, res) {
+                                // The return value might change in v.3
+                                // assert.strictEqual(res, 'baz');
+                                // TODO: Fix the return value of subscribe calls
+                                end(err);
+                            });
                         });
 
-                        monitorClient.on("monitor", function (time, args) {
+                        monitorClient.on("monitor", function (time, args, rawOutput) {
                             responses.push(args);
-                            if (responses.length === 2) {
-                                assert.strictEqual(5, responses[0].length);
-                                assert.strictEqual("mget", responses[0][0]);
-                                assert.strictEqual("some", responses[0][1]);
-                                assert.strictEqual("keys", responses[0][2]);
-                                assert.strictEqual("foo", responses[0][3]);
-                                assert.strictEqual("bar", responses[0][4]);
-                                assert.strictEqual(3, responses[1].length);
-                                assert.strictEqual("set", responses[1][0]);
-                                assert.strictEqual("json", responses[1][1]);
-                                assert.strictEqual('{"foo":"123","bar":"sdflkdfsjk","another":false}', responses[1][2]);
-                                monitorClient.quit(done);
+                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            if (responses.length === 6) {
+                                assert.deepEqual(responses[0], ['mget', 'some', 'keys', 'foo', 'bar']);
+                                assert.deepEqual(responses[1], ['set', 'json', '{"foo":"123","bar":"sdflkdfsjk","another":false}']);
+                                assert.deepEqual(responses[2], ['get', 'baz']);
+                                assert.deepEqual(responses[3], ['set', 'foo', 'bar" "s are " " good!"']);
+                                assert.deepEqual(responses[4], ['mget', 'foo', 'baz']);
+                                assert.deepEqual(responses[5], ['subscribe', 'foo', 'baz']);
+                                monitorClient.quit(end);
                             }
+                        });
+                    });
+
+                    it('monitors returns strings in the rawOutput even with return_buffers activated', function (done) {
+                        var monitorClient = redis.createClient({
+                            return_buffers: true
+                        });
+
+                        monitorClient.MONITOR(function (err, res) {
+                            assert.strictEqual(res.inspect(), new Buffer('OK').inspect());
+                            client.mget("hello", new Buffer('world'));
+                        });
+
+                        monitorClient.on("monitor", function (time, args, rawOutput) {
+                            assert.strictEqual(typeof rawOutput, 'string');
+                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert.deepEqual(args, ['mget', 'hello', 'world']);
+                            // Quit immediatly ends monitoring mode and therefor does not stream back the quit command
+                            monitorClient.quit(done);
+                        });
+                    });
+
+                    it('monitors reconnects properly and works with the offline queue', function (done) {
+                        var i = 0;
+                        client.MONITOR(helper.isString('OK'));
+                        client.mget("hello", 'world');
+                        client.on("monitor", function (time, args, rawOutput) {
+                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert.deepEqual(args, ['mget', 'hello', 'world']);
+                            if (i++ === 2) {
+                                // End after two reconnects
+                                return done();
+                            }
+                            client.stream.destroy();
+                            client.mget("hello", 'world');
                         });
                     });
                 });

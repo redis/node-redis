@@ -1,6 +1,20 @@
 Changelog
 =========
 
+## v.2.6.0 - XX Mar, 2016
+
+Features
+
+-  Monitor now works together with the offline queue
+ -  All commands that were send after a connection loss are now going to be send after reconnecting
+-  Activating monitor mode does now work together with arbitrary commands including pub sub mode
+
+Bugfixes
+
+-  Fixed calling monitor command while other commands are still running
+-  Fixed monitor and pub sub mode not working together
+-  Fixed monitor mode not working in combination with the offline queue
+
 ## v.2.5.3 - 21 Mar, 2016
 
 Bugfixes

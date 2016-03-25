@@ -140,6 +140,7 @@ function RedisClient (options, stream) {
     this.pipeline = 0;
     this.times_connected = 0;
     this.options = options;
+    this.buffers = options.return_buffers || options.detect_buffers;
     // Init parser
     this.reply_parser = Parser({
         returnReply: function (data) {
@@ -154,7 +155,7 @@ function RedisClient (options, stream) {
             self.stream.destroy();
             self.return_error(err);
         },
-        returnBuffers: options.return_buffers || options.detect_buffers,
+        returnBuffers: this.buffers,
         name: options.parser
     });
     this.create_stream();
@@ -329,9 +330,7 @@ RedisClient.prototype.on_error = function (err) {
     }
 
     err.message = 'Redis connection to ' + this.address + ' failed - ' + err.message;
-
     debug(err.message);
-
     this.connected = false;
     this.ready = false;
 
@@ -369,12 +368,6 @@ RedisClient.prototype.on_ready = function () {
     debug('on_ready called ' + this.address + ' id ' + this.connection_id);
     this.ready = true;
 
-    if (this.old_state !== null) {
-        this.monitoring = this.old_state.monitoring;
-        this.pub_sub_mode = this.old_state.pub_sub_mode;
-        this.old_state = null;
-    }
-
     var cork;
     if (!this.stream.cork) {
         cork = function (len) {
@@ -393,16 +386,15 @@ RedisClient.prototype.on_ready = function () {
     }
     this.cork = cork;
 
-    // restore modal commands from previous connection
+    // restore modal commands from previous connection. The order of the commands is important
     if (this.selected_db !== undefined) {
-        // this trick works if and only if the following send_command
-        // never goes into the offline queue
-        var pub_sub_mode = this.pub_sub_mode;
-        this.pub_sub_mode = false;
         this.send_command('select', [this.selected_db]);
-        this.pub_sub_mode = pub_sub_mode;
     }
-    if (this.pub_sub_mode === true) {
+    if (this.old_state !== null) {
+        this.monitoring = this.old_state.monitoring;
+        this.pub_sub_mode = this.old_state.pub_sub_mode;
+    }
+    if (this.pub_sub_mode) {
         // only emit 'ready' when all subscriptions were made again
         var callback_count = 0;
         var callback = function () {
@@ -424,12 +416,10 @@ RedisClient.prototype.on_ready = function () {
         });
         return;
     }
-
     if (this.monitoring) {
         this.send_command('monitor', []);
-    } else {
-        this.send_offline_queue();
     }
+    this.send_offline_queue();
     this.emit('ready');
 };
 
@@ -525,15 +515,13 @@ RedisClient.prototype.connection_gone = function (why, error) {
     this.cork = noop;
     this.pipeline = 0;
 
-    if (this.old_state === null) {
-        var state = {
-            monitoring: this.monitoring,
-            pub_sub_mode: this.pub_sub_mode
-        };
-        this.old_state = state;
-        this.monitoring = false;
-        this.pub_sub_mode = false;
-    }
+    var state = {
+        monitoring: this.monitoring,
+        pub_sub_mode: this.pub_sub_mode
+    };
+    this.old_state = state;
+    this.monitoring = false;
+    this.pub_sub_mode = false;
 
     // since we are collapsing end and close, users don't expect to be called twice
     if (!this.emitted_end) {
@@ -604,9 +592,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
 };
 
 RedisClient.prototype.return_error = function (err) {
-    var command_obj = this.command_queue.shift(),
-        queue_len = this.command_queue.length;
-
+    var command_obj = this.command_queue.shift();
     if (command_obj && command_obj.command && command_obj.command.toUpperCase) {
         err.command = command_obj.command.toUpperCase();
     }
@@ -617,8 +603,7 @@ RedisClient.prototype.return_error = function (err) {
         err.code = match[1];
     }
 
-    this.emit_idle(queue_len);
-
+    this.emit_idle();
     utils.callback_or_emit(this, command_obj && command_obj.callback, err);
 };
 
@@ -627,8 +612,8 @@ RedisClient.prototype.drain = function () {
     this.should_buffer = false;
 };
 
-RedisClient.prototype.emit_idle = function (queue_len) {
-    if (queue_len === 0 && this.pub_sub_mode === false) {
+RedisClient.prototype.emit_idle = function () {
+    if (this.command_queue.length === 0 && this.pub_sub_mode === false) {
         this.emit('idle');
     }
 };
@@ -638,20 +623,6 @@ function queue_state_error (self, command_obj) {
     var err = new Error('node_redis command queue state error. If you can reproduce this, please report it.');
     err.command_obj = command_obj;
     self.emit('error', err);
-}
-
-function monitor (self, reply) {
-    if (typeof reply !== 'string') {
-        reply = reply.toString();
-    }
-    // If in monitoring mode only two commands are valid ones: AUTH and MONITOR wich reply with OK
-    var len = reply.indexOf(' ');
-    var timestamp = reply.slice(0, len);
-    var argindex = reply.indexOf('"');
-    var args = reply.slice(argindex + 1, -1).split('" "').map(function (elem) {
-        return elem.replace(/\\"/g, '"');
-    });
-    self.emit('monitor', timestamp, args);
 }
 
 function normal_reply (self, reply, command_obj) {
@@ -716,7 +687,7 @@ RedisClient.prototype.return_reply = function (reply) {
 
     queue_len = this.command_queue.length;
 
-    this.emit_idle(queue_len);
+    this.emit_idle();
 
     if (command_obj && !command_obj.sub_command) {
         normal_reply(this, reply, command_obj);
@@ -724,9 +695,7 @@ RedisClient.prototype.return_reply = function (reply) {
         return_pub_sub(this, reply, command_obj);
     }
     /* istanbul ignore else: this is a safety check that we should not be able to trigger */
-    else if (this.monitoring) {
-        monitor(this, reply);
-    } else {
+    else if (!this.monitoring) {
         queue_state_error(this, command_obj);
     }
 };
@@ -837,8 +806,6 @@ RedisClient.prototype.send_command = function (command, args, callback) {
 
     if (command === 'subscribe' || command === 'psubscribe' || command === 'unsubscribe' || command === 'punsubscribe') {
         this.pub_sub_command(command_obj); // TODO: This has to be moved to the result handler
-    } else if (command === 'monitor') {
-        this.monitoring = true;
     } else if (command === 'quit') {
         this.closing = true;
     }
