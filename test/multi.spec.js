@@ -101,9 +101,8 @@ describe("The 'multi' method", function () {
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
                     client.once('ready', function () {
-                        client.quit();
+                        client.quit(done);
                     });
-                    client.once('end', done);
                 });
 
                 it('reports an error', function (done) {
