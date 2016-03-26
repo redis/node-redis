@@ -99,10 +99,12 @@ describe("The 'multi' method", function () {
             describe('when not connected', function () {
 
                 beforeEach(function (done) {
+                    var end = helper.callFuncAfter(done, 2);
                     client = redis.createClient.apply(null, args);
                     client.once('ready', function () {
-                        client.quit(done);
+                        client.quit(end);
                     });
+                    client.once('end', end);
                 });
 
                 it('reports an error', function (done) {
