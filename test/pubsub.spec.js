@@ -477,19 +477,23 @@ describe("publish/subscribe", function () {
 
             describe('psubscribe', function () {
                 it('allows all channels to be subscribed to using a * pattern', function (done) {
-                    sub.end(false);
-                    sub = redis.createClient({
+                    sub.subscribe('/foo');
+                    var sub2 = redis.createClient({
                         return_buffers: true
                     });
-                    sub.on('ready', function () {
-                        sub.psubscribe('*');
-                        sub.on("pmessage", function(pattern, channel, message) {
+                    sub2.on('ready', function () {
+                        sub2.psubscribe('*');
+                        sub2.subscribe('/foo');
+                        sub2.on("pmessage", function(pattern, channel, message) {
                             assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
                             assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
                             assert.strictEqual(message.inspect(), new Buffer('hello world').inspect());
-                            done();
+                            sub2.quit(done);
                         });
-                        pub.publish('/foo', 'hello world');
+                        pub.pubsub('numsub', '/foo', function (err, res) {
+                            assert.deepEqual(res, ['/foo', 2]);
+                        });
+                        pub.publish('/foo', 'hello world', helper.isNumber(3));
                     });
                 });
             });
