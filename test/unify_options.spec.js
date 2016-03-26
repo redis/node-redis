@@ -113,7 +113,7 @@ describe('createClient options', function () {
 
         it('duplicated, identical query options including options obj', function () {
             var text = '';
-            var unhookIntercept = intercept(function(data) {
+            var unhookIntercept = intercept(function (data) {
                 text += data;
                 return '';
             });
@@ -152,7 +152,7 @@ describe('createClient options', function () {
             }
         });
 
-        it("warns on protocol other than redis in the redis url", function () {
+        it('warns on protocol other than redis in the redis url', function () {
             var text = '';
             var unhookIntercept = intercept(function (data) {
                 text += data;
@@ -229,7 +229,7 @@ describe('createClient options', function () {
     });
 
     describe('faulty data', function () {
-        it("throws on strange connection info", function () {
+        it('throws on strange connection info', function () {
             try {
                 unifyOptions(true);
                 throw new Error('failed');

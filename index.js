@@ -620,7 +620,7 @@ RedisClient.prototype.emit_idle = function () {
 function normal_reply (self, reply) {
     var command_obj = self.command_queue.shift();
     if (typeof command_obj.callback === 'function') {
-        if ('exec' !== command_obj.command) {
+        if (command_obj.command !== 'exec') {
             reply = self.handle_reply(reply, command_obj.command, command_obj.buffer_args);
         }
         command_obj.callback(null, reply);
@@ -935,7 +935,7 @@ RedisClient.prototype.end = function (flush) {
         );
     }
     // Clear retry_timer
-    if (this.retry_timer){
+    if (this.retry_timer) {
         clearTimeout(this.retry_timer);
         this.retry_timer = null;
     }

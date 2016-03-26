@@ -22,7 +22,7 @@
     "benchmark": "node benchmarks/multi_bench.js",
     "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000",
     "pretest": "optional-dev-dependency hiredis",
-    "posttest": "jshint ."
+    "posttest": "eslint . --fix"
   },
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
@@ -36,7 +36,7 @@
     "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
     "intercept-stdout": "~0.1.2",
-    "jshint": "^2.8.0",
+    "eslint": "^2.5.0",
     "metrics": "^0.1.9",
     "mocha": "^2.3.2",
     "nyc": "^6.0.0",

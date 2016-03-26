@@ -1,20 +1,20 @@
 'use strict';
 
 var assert = require('assert');
-var config = require("../lib/config");
+var config = require('../lib/config');
 var helper = require('../helper');
 var redis = config.redis;
 
 describe("The 'info' method", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
+        describe('using ' + parser + ' and ' + ip, function () {
             var client;
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(null, args);
-                client.once("ready", function () {
+                client.once('ready', function () {
                     client.flushall(done);
                 });
             });
@@ -23,7 +23,7 @@ describe("The 'info' method", function () {
                 client.end(true);
             });
 
-            it("update server_info after a info command", function (done) {
+            it('update server_info after a info command', function (done) {
                 client.set('foo', 'bar');
                 client.info();
                 client.select(2, function () {
@@ -37,7 +37,7 @@ describe("The 'info' method", function () {
                 }, 150);
             });
 
-            it("works with optional section provided with and without callback", function (done) {
+            it('works with optional section provided with and without callback', function (done) {
                 client.set('foo', 'bar');
                 client.info('keyspace');
                 client.select(2, function () {
@@ -65,7 +65,7 @@ describe("The 'info' method", function () {
                 client.info(function () {});
             });
 
-            it("emit error after a failure", function (done) {
+            it('emit error after a failure', function (done) {
                 client.info();
                 client.once('error', function (err) {
                     assert.strictEqual(err.code, 'UNCERTAIN_STATE');

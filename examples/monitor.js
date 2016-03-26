@@ -1,7 +1,7 @@
 'use strict';
 
-var client  = require('../index').createClient(),
-    util = require('util');
+var client = require('../index').createClient();
+var util = require('util');
 
 client.monitor(function (err, res) {
     console.log('Entering monitoring mode.');

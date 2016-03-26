@@ -52,11 +52,11 @@ module.exports = {
         var spawnFailed = false;
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
-        var rp = spawn("redis-server", [confFile], {});
+        var rp = spawn('redis-server', [confFile], {});
 
         // capture a failure booting redis, and give
         // the user running the test some directions.
-        rp.once("exit", function (code) {
+        rp.once('exit', function (code) {
             if (code !== 0) spawnFailed = true;
         });
 
@@ -71,7 +71,7 @@ module.exports = {
                 },
                 stop: function (done) {
                     if (spawnFailed) return done();
-                    rp.once("exit", function (code) {
+                    rp.once('exit', function (code) {
                         var error = null;
                         if (code !== null && code !== 0) {
                             error = new Error('Redis shutdown failed with code ' + code);
@@ -80,7 +80,7 @@ module.exports = {
                             return done(error);
                         }, port);
                     });
-                    rp.kill("SIGTERM");
+                    rp.kill('SIGTERM');
                 }
             });
         }, port);

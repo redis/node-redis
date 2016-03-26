@@ -1,18 +1,18 @@
 'use strict';
 
-var assert = require("assert");
-var config = require("./lib/config");
+var assert = require('assert');
+var config = require('./lib/config');
 var helper = require('./helper');
 var redis = config.redis;
 
-describe("prefix key names", function () {
+describe('prefix key names', function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
+        describe('using ' + parser + ' and ' + ip, function () {
             var client = null;
 
-            beforeEach(function(done)  {
+            beforeEach(function (done) {
                 client = redis.createClient({
                     parser: parser,
                     prefix: 'test:prefix:'
@@ -28,14 +28,14 @@ describe("prefix key names", function () {
                 client.end(true);
             });
 
-            it("auto prefix set / get", function (done) {
-                client.set('key', 'value', function(err, reply) {
+            it('auto prefix set / get', function (done) {
+                client.set('key', 'value', function (err, reply) {
                     assert.strictEqual(reply, 'OK');
                 });
-                client.get('key', function(err, reply) {
+                client.get('key', function (err, reply) {
                     assert.strictEqual(reply, 'value');
                 });
-                client.getrange('key', 1, -1, function(err, reply) {
+                client.getrange('key', 1, -1, function (err, reply) {
                     assert.strictEqual(reply, 'alue');
                     assert.strictEqual(err, null);
                 });
@@ -56,15 +56,15 @@ describe("prefix key names", function () {
                 });
             });
 
-            it("auto prefix set / get with .batch", function (done) {
+            it('auto prefix set / get with .batch', function (done) {
                 var batch = client.batch();
-                batch.set('key', 'value', function(err, reply) {
+                batch.set('key', 'value', function (err, reply) {
                     assert.strictEqual(reply, 'OK');
                 });
-                batch.get('key', function(err, reply) {
+                batch.get('key', function (err, reply) {
                     assert.strictEqual(reply, 'value');
                 });
-                batch.getrange('key', 1, -1, function(err, reply) {
+                batch.getrange('key', 1, -1, function (err, reply) {
                     assert.strictEqual(reply, 'alue');
                     assert.strictEqual(err, null);
                 });
@@ -85,15 +85,15 @@ describe("prefix key names", function () {
                 batch.exec(done);
             });
 
-            it("auto prefix set / get with .multi", function (done) {
+            it('auto prefix set / get with .multi', function (done) {
                 var multi = client.multi();
-                multi.set('key', 'value', function(err, reply) {
+                multi.set('key', 'value', function (err, reply) {
                     assert.strictEqual(reply, 'OK');
                 });
-                multi.get('key', function(err, reply) {
+                multi.get('key', function (err, reply) {
                     assert.strictEqual(reply, 'value');
                 });
-                multi.getrange('key', 1, -1, function(err, reply) {
+                multi.getrange('key', 1, -1, function (err, reply) {
                     assert.strictEqual(reply, 'alue');
                     assert.strictEqual(err, null);
                 });

@@ -1,8 +1,9 @@
 'use strict';
 
-var redis = require('redis'),
-    client1 = redis.createClient(), msg_count = 0,
-    client2 = redis.createClient();
+var redis = require('redis');
+var client1 = redis.createClient();
+var msg_count = 0;
+var client2 = redis.createClient();
 
 // Most clients probably don't do much on 'subscribe'. This example uses it to coordinate things within one program.
 client1.on('subscribe', function (channel, count) {

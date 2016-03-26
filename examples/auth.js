@@ -1,7 +1,7 @@
 'use strict';
 
-var redis  = require('redis'),
-    client = redis.createClient();
-
+var redis = require('redis');
 // The client stashes the password and will reauthenticate on every connect.
-client.auth('somepass');
+redis.createClient({
+    password: 'somepass'
+});

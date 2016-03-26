@@ -1,7 +1,7 @@
 'use strict';
 
-var redis = require('../index'),
-    client = redis.createClient();
+var redis = require('../index');
+var client = redis.createClient();
 
 client.eval('return 100.5', 0, function (err, res) {
     console.dir(err);

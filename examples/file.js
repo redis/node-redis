@@ -2,13 +2,13 @@
 
 // Read a file from disk, store it in Redis, then read it back from Redis.
 
-var redis = require('redis'),
-    client = redis.createClient({
-        return_buffers: true
-    }),
-    fs = require('fs'),
-    assert = require('assert'),
-    filename = 'grumpyCat.jpg';
+var redis = require('redis');
+var client = redis.createClient({
+    return_buffers: true
+});
+var fs = require('fs');
+var assert = require('assert');
+var filename = 'grumpyCat.jpg';
 
 // Get the file I use for testing like this:
 //    curl http://media4.popsugar-assets.com/files/2014/08/08/878/n/1922507/caef16ec354ca23b_thumb_temp_cover_file32304521407524949.xxxlarge/i/Funny-Cat-GIFs.jpg -o grumpyCat.jpg

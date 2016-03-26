@@ -1,24 +1,24 @@
 'use strict';
 
 var assert = require('assert');
-var config = require("../lib/config");
+var config = require('../lib/config');
 var helper = require('../helper');
 var redis = config.redis;
 
 describe("The 'incr' method", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
-            var key = "sequence";
+        describe('using ' + parser + ' and ' + ip, function () {
+            var key = 'sequence';
 
-            describe("when not connected", function () {
+            describe('when not connected', function () {
                 var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once("ready", function () {
-                        client.set(key, "9007199254740992", function (err, res) {
+                    client.once('ready', function () {
+                        client.set(key, '9007199254740992', function (err, res) {
                             helper.isNotError()(err, res);
                             client.quit();
                         });
@@ -30,7 +30,7 @@ describe("The 'incr' method", function () {
                     client.end(true);
                 });
 
-                it("reports an error", function (done) {
+                it('reports an error', function (done) {
                     client.incr(function (err, res) {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
@@ -38,7 +38,7 @@ describe("The 'incr' method", function () {
                 });
             });
 
-            describe("when connected and a value in Redis", function () {
+            describe('when connected and a value in Redis', function () {
                 var client;
 
                 before(function (done) {
@@ -51,9 +51,9 @@ describe("The 'incr' method", function () {
                         9007199254740997 -> 9007199254740996
                     */
                     client = redis.createClient.apply(null, args);
-                    client.once("error", done);
-                    client.once("ready", function () {
-                        client.set(key, "9007199254740992", function (err, res) {
+                    client.once('error', done);
+                    client.once('ready', function () {
+                        client.set(key, '9007199254740992', function (err, res) {
                             helper.isNotError()(err, res);
                             done();
                         });
@@ -64,41 +64,41 @@ describe("The 'incr' method", function () {
                     client.end(true);
                 });
 
-                it("changes the last digit from 2 to 3", function (done) {
+                it('changes the last digit from 2 to 3', function (done) {
                     client.INCR(key, function (err, res) {
-                        helper.isString("9007199254740993")(err, res);
+                        helper.isString('9007199254740993')(err, res);
                         done(err);
                     });
                 });
 
-                describe("and we call it again", function () {
-                    it("changes the last digit from 3 to 4", function (done) {
+                describe('and we call it again', function () {
+                    it('changes the last digit from 3 to 4', function (done) {
                         client.incr(key, function (err, res) {
-                            helper.isString("9007199254740994")(err, res);
+                            helper.isString('9007199254740994')(err, res);
                             done(err);
                         });
                     });
 
-                    describe("and again", function () {
-                        it("changes the last digit from 4 to 5", function (done) {
+                    describe('and again', function () {
+                        it('changes the last digit from 4 to 5', function (done) {
                             client.incr(key, function (err, res) {
-                                helper.isString("9007199254740995")(err, res);
+                                helper.isString('9007199254740995')(err, res);
                                 done(err);
                             });
                         });
 
-                        describe("and again", function () {
-                            it("changes the last digit from 5 to 6", function (done) {
+                        describe('and again', function () {
+                            it('changes the last digit from 5 to 6', function (done) {
                                 client.incr(key, function (err, res) {
-                                    helper.isString("9007199254740996")(err, res);
+                                    helper.isString('9007199254740996')(err, res);
                                     done(err);
                                 });
                             });
 
-                            describe("and again", function () {
-                                it("changes the last digit from 6 to 7", function (done) {
+                            describe('and again', function () {
+                                it('changes the last digit from 6 to 7', function (done) {
                                     client.incr(key, function (err, res) {
-                                        helper.isString("9007199254740997")(err, res);
+                                        helper.isString('9007199254740997')(err, res);
                                         done(err);
                                     });
                                 });

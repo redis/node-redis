@@ -1,8 +1,8 @@
 'use strict';
 
-var redis = require('redis'),
-    client = redis.createClient('/tmp/redis.sock'),
-    profiler = require('v8-profiler');
+var redis = require('redis');
+var client = redis.createClient('/tmp/redis.sock');
+var profiler = require('v8-profiler');
 
 client.on('connect', function () {
     console.log('Got Unix socket connection.');
@@ -18,7 +18,7 @@ setInterval(function () {
     client.get('space chars');
 }, 100);
 
-function done() {
+function done () {
     client.info(function (err, reply) {
         console.log(reply.toString());
         client.quit();
@@ -28,4 +28,5 @@ function done() {
 setTimeout(function () {
     console.log('Taking snapshot.');
     profiler.takeSnapshot();
+    done();
 }, 5000);

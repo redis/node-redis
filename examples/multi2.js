@@ -1,10 +1,10 @@
 'use strict';
 
-var redis  = require('redis'),
-    client = redis.createClient(), multi;
+var redis = require('redis');
+var client = redis.createClient();
 
 // start a separate command queue for multi
-multi = client.multi();
+var multi = client.multi();
 multi.incr('incr thing', redis.print);
 multi.incr('incr other thing', redis.print);
 
