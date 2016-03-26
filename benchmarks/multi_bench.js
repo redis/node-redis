@@ -13,7 +13,7 @@ var tests = [];
 // bluebird.promisifyAll(redis.Multi.prototype);
 
 function returnArg (name, def) {
-    var matches = process.argv.filter(function(entry) {
+    var matches = process.argv.filter(function (entry) {
         return entry.indexOf(name + '=') === 0;
     });
     if (matches.length) {
@@ -30,7 +30,7 @@ var client_options = {
 };
 var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
 
-function lpad(input, len, chr) {
+function lpad (input, len, chr) {
     var str = input.toString();
     chr = chr || ' ';
     while (str.length < len) {
@@ -44,7 +44,7 @@ metrics.Histogram.prototype.print_line = function () {
     return lpad((obj.min / 1e6).toFixed(2), 6) + '/' + lpad((obj.max / 1e6).toFixed(2), 6) + '/' + lpad((obj.mean / 1e6).toFixed(2), 6);
 };
 
-function Test(args) {
+function Test (args) {
     this.args = args;
     this.callback = null;
     this.clients = [];
@@ -101,7 +101,7 @@ Test.prototype.new_client = function (id) {
     });
 
     // If no redis server is running, start one
-    new_client.on('error', function(err) {
+    new_client.on('error', function (err) {
         if (err.code === 'CONNECTION_BROKEN') {
             throw err;
         }
@@ -268,7 +268,7 @@ tests.push(new Test({descr: 'GET 4MiB str', command: 'get', args: ['foo_rand0000
 tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['foo_rand000000000002'], pipeline: 1, client_opts: { return_buffers: true} }));
 tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['foo_rand000000000002'], batch: 20, client_opts: { return_buffers: true} }));
 
-function next() {
+function next () {
     var test = tests.shift();
     if (test) {
         test.run(function () {
@@ -276,7 +276,7 @@ function next() {
         });
     } else if (rp) {
         // Stop the redis process if started by the benchmark
-        rp.stop(function() {
+        rp.stop(function () {
             rp = undefined;
             next();
         });

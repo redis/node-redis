@@ -1,16 +1,16 @@
 'use strict';
 
 var assert = require('assert');
-var config = require("../lib/config");
+var config = require('../lib/config');
 var helper = require('../helper');
 var redis = config.redis;
 var uuid = require('uuid');
 
 describe("The 'getset' method", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
+        describe('using ' + parser + ' and ' + ip, function () {
             var key, value, value2;
 
             beforeEach(function () {
@@ -19,18 +19,18 @@ describe("The 'getset' method", function () {
                 value2 = uuid.v4();
             });
 
-            describe("when not connected", function () {
+            describe('when not connected', function () {
                 var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once("ready", function () {
+                    client.once('ready', function () {
                         client.quit();
                     });
                     client.on('end', done);
                 });
 
-                it("reports an error", function (done) {
+                it('reports an error', function (done) {
                     client.get(key, function (err, res) {
                         assert(err.message.match(/The connection has already been closed/));
                         done();
@@ -38,12 +38,12 @@ describe("The 'getset' method", function () {
                 });
             });
 
-            describe("when connected", function () {
+            describe('when connected', function () {
                 var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once("ready", function () {
+                    client.once('ready', function () {
                         done();
                     });
                 });
@@ -52,7 +52,7 @@ describe("The 'getset' method", function () {
                     client.end(true);
                 });
 
-                describe("when the key exists in Redis", function () {
+                describe('when the key exists in Redis', function () {
                     beforeEach(function (done) {
                         client.set(key, value, function (err, res) {
                             helper.isNotError()(err, res);
@@ -60,7 +60,7 @@ describe("The 'getset' method", function () {
                         });
                     });
 
-                    it("gets the value correctly", function (done) {
+                    it('gets the value correctly', function (done) {
                         client.GETSET(key, value2, function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
@@ -70,7 +70,7 @@ describe("The 'getset' method", function () {
                         });
                     });
 
-                    it("gets the value correctly with array syntax", function (done) {
+                    it('gets the value correctly with array syntax', function (done) {
                         client.GETSET([key, value2], function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
@@ -80,7 +80,7 @@ describe("The 'getset' method", function () {
                         });
                     });
 
-                    it("gets the value correctly with array syntax style 2", function (done) {
+                    it('gets the value correctly with array syntax style 2', function (done) {
                         client.GETSET(key, [value2], function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
@@ -91,8 +91,8 @@ describe("The 'getset' method", function () {
                     });
                 });
 
-                describe("when the key does not exist in Redis", function () {
-                    it("gets a null value", function (done) {
+                describe('when the key does not exist in Redis', function () {
+                    it('gets a null value', function (done) {
                         client.getset(key, value, function (err, res) {
                             helper.isNull()(err, res);
                             done(err);

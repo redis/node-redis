@@ -2,10 +2,10 @@
 
 // A simple web server that generates dyanmic content based on responses from Redis
 
-var http = require('http'), server,
-    redis_client = require('redis').createClient();
+var http = require('http');
+var redis_client = require('redis').createClient();
 
-server = http.createServer(function (request, response) {
+http.createServer(function (request, response) { // The server
     response.writeHead(200, {
         'Content-Type': 'text/plain'
     });

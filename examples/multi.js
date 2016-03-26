@@ -1,7 +1,8 @@
 'use strict';
 
-var redis  = require('redis'),
-    client = redis.createClient(), set_size = 20;
+var redis = require('redis');
+var client = redis.createClient();
+var set_size = 20;
 
 client.sadd('bigset', 'a member');
 client.sadd('bigset', 'another member');

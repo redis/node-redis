@@ -1,9 +1,9 @@
 'use strict';
 
-var assert = require("assert");
-var config = require("./lib/config");
+var assert = require('assert');
+var config = require('./lib/config');
 var helper = require('./helper');
-var RedisProcess = require("./lib/redis-process");
+var RedisProcess = require('./lib/redis-process');
 var rp;
 var path = require('path');
 var redis = config.redis;
@@ -38,7 +38,7 @@ describe('master slave sync', function () {
         multi.exec(done);
     });
 
-    it("sync process and no master should delay ready being emitted for slaves", function (done) {
+    it('sync process and no master should delay ready being emitted for slaves', function (done) {
         if (helper.redisProcess().spawnFailed()) this.skip();
 
         var port = 6381;

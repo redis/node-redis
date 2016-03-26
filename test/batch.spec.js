@@ -1,35 +1,28 @@
 'use strict';
 
 var assert = require('assert');
-var config = require("./lib/config");
+var config = require('./lib/config');
 var helper = require('./helper');
 var redis = config.redis;
-var uuid = require('uuid');
 
 describe("The 'batch' method", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
-            var key, value;
+        describe('using ' + parser + ' and ' + ip, function () {
 
-            beforeEach(function () {
-                key = uuid.v4();
-                value = uuid.v4();
-            });
-
-            describe("when not connected", function () {
+            describe('when not connected', function () {
                 var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once("connect", function () {
+                    client.once('connect', function () {
                         client.quit();
                     });
                     client.on('end', done);
                 });
 
-                it("returns an empty array", function (done) {
+                it('returns an empty array', function (done) {
                     var batch = client.batch();
                     batch.exec(function (err, res) {
                         assert.strictEqual(err, null);
@@ -38,19 +31,19 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it("returns an empty array if promisified", function () {
-                    return client.batch().execAsync().then(function(res) {
+                it('returns an empty array if promisified', function () {
+                    return client.batch().execAsync().then(function (res) {
                         assert.strictEqual(res.length, 0);
                     });
                 });
             });
 
-            describe("when connected", function () {
+            describe('when connected', function () {
                 var client;
 
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once("ready", function () {
+                    client.once('ready', function () {
                         client.flushdb(function (err) {
                             return done(err);
                         });
@@ -61,7 +54,7 @@ describe("The 'batch' method", function () {
                     client.end(true);
                 });
 
-                it("returns an empty array and keep the execution order in takt", function (done) {
+                it('returns an empty array and keep the execution order in takt', function (done) {
                     var called = false;
                     client.set('foo', 'bar', function (err, res) {
                         called = true;
@@ -75,19 +68,19 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it("runs normal calls inbetween batch", function (done) {
+                it('runs normal calls inbetween batch', function (done) {
                     var batch = client.batch();
-                    batch.set("m1", "123");
+                    batch.set('m1', '123');
                     client.set('m2', '456', done);
                 });
 
-                it("returns an empty array if promisified", function () {
-                    return client.batch().execAsync().then(function(res) {
+                it('returns an empty array if promisified', function () {
+                    return client.batch().execAsync().then(function (res) {
                         assert.strictEqual(res.length, 0);
                     });
                 });
 
-                it("returns an empty result array", function (done) {
+                it('returns an empty result array', function (done) {
                     var batch = client.batch();
                     var async = true;
                     var notBuffering = batch.exec(function (err, res) {
@@ -103,18 +96,18 @@ describe("The 'batch' method", function () {
                 it('fail individually when one command fails using chaining notation', function (done) {
                     var batch1, batch2;
                     batch1 = client.batch();
-                    batch1.mset("batchfoo", "10", "batchbar", "20", helper.isString("OK"));
+                    batch1.mset('batchfoo', '10', 'batchbar', '20', helper.isString('OK'));
 
                     // Provoke an error at queue time
-                    batch1.set("foo2", helper.isError());
-                    batch1.incr("batchfoo");
-                    batch1.incr("batchbar");
+                    batch1.set('foo2', helper.isError());
+                    batch1.incr('batchfoo');
+                    batch1.incr('batchbar');
                     batch1.exec(function () {
                         // Confirm that the previous command, while containing an error, still worked.
                         batch2 = client.batch();
                         batch2.get('foo2', helper.isNull());
-                        batch2.incr("batchbar", helper.isNumber(22));
-                        batch2.incr("batchfoo", helper.isNumber(12));
+                        batch2.incr('batchbar', helper.isNumber(22));
+                        batch2.incr('batchfoo', helper.isNumber(12));
                         batch2.exec(function (err, replies) {
                             assert.strictEqual(null, replies[0]);
                             assert.strictEqual(22, replies[1]);
@@ -130,12 +123,12 @@ describe("The 'batch' method", function () {
                         done(err);
                     });
                     batch1 = client.batch();
-                    batch1.mset("batchfoo", "10", "batchbar", "20", helper.isString("OK"));
+                    batch1.mset('batchfoo', '10', 'batchbar', '20', helper.isString('OK'));
 
                     // Provoke an error at queue time
-                    batch1.set("foo2");
-                    batch1.incr("batchfoo");
-                    batch1.incr("batchbar");
+                    batch1.set('foo2');
+                    batch1.incr('batchfoo');
+                    batch1.incr('batchbar');
                     batch1.exec(function (err, res) {
                         assert.strictEqual(res[1].command, 'SET');
                         assert.strictEqual(res[1].code, 'ERR');
@@ -146,45 +139,45 @@ describe("The 'batch' method", function () {
                 it('fail individually when one command in an array of commands fails', function (done) {
                     // test nested batch-bulk replies
                     client.batch([
-                        ["mget", "batchfoo", "batchbar", function (err, res) {
+                        ['mget', 'batchfoo', 'batchbar', function (err, res) {
                             assert.strictEqual(2, res.length);
                             assert.strictEqual(0, +res[0]);
                             assert.strictEqual(0, +res[1]);
                         }],
-                        ["set", "foo2", helper.isError()],
-                        ["incr", "batchfoo"],
-                        ["incr", "batchbar"]
+                        ['set', 'foo2', helper.isError()],
+                        ['incr', 'batchfoo'],
+                        ['incr', 'batchbar']
                     ]).exec(function (err, replies) {
                         assert.strictEqual(2, replies[0].length);
                         assert.strictEqual(null, replies[0][0]);
                         assert.strictEqual(null, replies[0][1]);
                         assert.strictEqual('SET', replies[1].command);
-                        assert.strictEqual("1", replies[2].toString());
-                        assert.strictEqual("1", replies[3].toString());
+                        assert.strictEqual('1', replies[2].toString());
+                        assert.strictEqual('1', replies[3].toString());
                         return done();
                     });
                 });
 
                 it('handles multiple operations being applied to a set', function (done) {
-                    client.sadd("some set", "mem 1");
-                    client.sadd(["some set", "mem 2"]);
-                    client.sadd("some set", "mem 3");
-                    client.sadd("some set", "mem 4");
+                    client.sadd('some set', 'mem 1');
+                    client.sadd(['some set', 'mem 2']);
+                    client.sadd('some set', 'mem 3');
+                    client.sadd('some set', 'mem 4');
 
                     // make sure empty mb reply works
-                    client.del("some missing set");
-                    client.smembers("some missing set", function (err, reply) {
+                    client.del('some missing set');
+                    client.smembers('some missing set', function (err, reply) {
                         // make sure empty mb reply works
                         assert.strictEqual(0, reply.length);
                     });
 
                     // test nested batch-bulk replies with empty mb elements.
                     client.BATCH([
-                        ["smembers", ["some set"]],
-                        ["del", "some set"],
-                        ["smembers", "some set", undefined] // The explicit undefined is handled as a callback that is undefined
+                        ['smembers', ['some set']],
+                        ['del', 'some set'],
+                        ['smembers', 'some set', undefined] // The explicit undefined is handled as a callback that is undefined
                     ])
-                    .scard("some set")
+                    .scard('some set')
                     .exec(function (err, replies) {
                         assert.strictEqual(4, replies[0].length);
                         assert.strictEqual(0, replies[2].length);
@@ -194,26 +187,26 @@ describe("The 'batch' method", function () {
 
                 it('allows multiple operations to be performed using constructor with all kinds of syntax', function (done) {
                     var now = Date.now();
-                    var arr = ["batchhmset", "batchbar", "batchbaz"];
+                    var arr = ['batchhmset', 'batchbar', 'batchbaz'];
                     var arr2 = ['some manner of key', 'otherTypes'];
-                    var arr3 = [5768, "batchbarx", "batchfoox"];
-                    var arr4 = ["mset", [578, "batchbar"], helper.isString('OK')];
+                    var arr3 = [5768, 'batchbarx', 'batchfoox'];
+                    var arr4 = ['mset', [578, 'batchbar'], helper.isString('OK')];
                     client.batch([
                         arr4,
-                        [["mset", "batchfoo2", "batchbar2", "batchfoo3", "batchbar3"], helper.isString('OK')],
-                        ["hmset", arr],
-                        [["hmset", "batchhmset2", "batchbar2", "batchfoo3", "batchbar3", "test"], helper.isString('OK')],
-                        ["hmset", ["batchhmset", "batchbar", "batchfoo"], helper.isString('OK')],
-                        ["hmset", arr3, helper.isString('OK')],
-                        ['hmset', now, {123456789: "abcdefghij", "some manner of key": "a type of value", "otherTypes": 555}],
-                        ['hmset', 'key2', {"0123456789": "abcdefghij", "some manner of key": "a type of value", "otherTypes": 999}, helper.isString('OK')],
-                        ["HMSET", "batchhmset", ["batchbar", "batchbaz"]],
-                        ["hmset", "batchhmset", ["batchbar", "batchbaz"], helper.isString('OK')],
+                        [['mset', 'batchfoo2', 'batchbar2', 'batchfoo3', 'batchbar3'], helper.isString('OK')],
+                        ['hmset', arr],
+                        [['hmset', 'batchhmset2', 'batchbar2', 'batchfoo3', 'batchbar3', 'test'], helper.isString('OK')],
+                        ['hmset', ['batchhmset', 'batchbar', 'batchfoo'], helper.isString('OK')],
+                        ['hmset', arr3, helper.isString('OK')],
+                        ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
+                        ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}, helper.isString('OK')],
+                        ['HMSET', 'batchhmset', ['batchbar', 'batchbaz']],
+                        ['hmset', 'batchhmset', ['batchbar', 'batchbaz'], helper.isString('OK')],
                     ])
                     .hmget(now, 123456789, 'otherTypes')
-                    .hmget('key2', arr2, function noop() {})
+                    .hmget('key2', arr2, function noop () {})
                     .hmget(['batchhmset2', 'some manner of key', 'batchbar3'])
-                    .mget('batchfoo2', ['batchfoo3', 'batchfoo'], function(err, res) {
+                    .mget('batchfoo2', ['batchfoo3', 'batchfoo'], function (err, res) {
                         assert.strictEqual(res[0], 'batchbar2');
                         assert.strictEqual(res[1], 'batchbar3');
                         assert.strictEqual(res[2], null);
@@ -235,7 +228,7 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it('converts a non string key to a string', function(done) {
+                it('converts a non string key to a string', function (done) {
                     // TODO: Converting the key might change soon again.
                     client.batch().hmset(true, {
                         test: 123,
@@ -243,8 +236,8 @@ describe("The 'batch' method", function () {
                     }).exec(done);
                 });
 
-                it('runs a batch without any further commands', function(done) {
-                    var buffering = client.batch().exec(function(err, res) {
+                it('runs a batch without any further commands', function (done) {
+                    var buffering = client.batch().exec(function (err, res) {
                         assert.strictEqual(err, null);
                         assert.strictEqual(res.length, 0);
                         done();
@@ -252,7 +245,7 @@ describe("The 'batch' method", function () {
                     assert(typeof buffering === 'boolean');
                 });
 
-                it('runs a batch without any further commands and without callback', function() {
+                it('runs a batch without any further commands and without callback', function () {
                     var buffering = client.batch().exec();
                     assert.strictEqual(buffering, true);
                 });
@@ -310,8 +303,8 @@ describe("The 'batch' method", function () {
                 it('allows an array to be provided indicating multiple operations to perform', function (done) {
                     // test nested batch-bulk replies with nulls.
                     client.batch([
-                        ["mget", ["batchfoo", "some", "random value", "keys"]],
-                        ["incr", "batchfoo"]
+                        ['mget', ['batchfoo', 'some', 'random value', 'keys']],
+                        ['incr', 'batchfoo']
                     ])
                     .exec(function (err, replies) {
                         assert.strictEqual(replies.length, 2);
@@ -322,19 +315,19 @@ describe("The 'batch' method", function () {
 
                 it('allows multiple operations to be performed on a hash', function (done) {
                     client.batch()
-                        .hmset("batchhash", "a", "foo", "b", 1)
-                        .hmset("batchhash", {
-                            extra: "fancy",
-                            things: "here"
+                        .hmset('batchhash', 'a', 'foo', 'b', 1)
+                        .hmset('batchhash', {
+                            extra: 'fancy',
+                            things: 'here'
                         })
-                        .hgetall("batchhash")
+                        .hgetall('batchhash')
                         .exec(done);
                 });
 
-                it("should work without any callback or arguments", function (done) {
+                it('should work without any callback or arguments', function (done) {
                     var batch = client.batch();
-                    batch.set("baz", "binary");
-                    batch.set("foo", "bar");
+                    batch.set('baz', 'binary');
+                    batch.set('foo', 'bar');
                     batch.ping();
                     batch.exec();
 

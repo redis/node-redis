@@ -1,7 +1,7 @@
 'use strict';
 
-var redis = require('redis'),
-    client = redis.createClient();
+var redis = require('redis');
+var client = redis.createClient();
 
 // Extend the RedisClient prototype to add a custom method
 // This one converts the results from 'INFO' into a JavaScript Object

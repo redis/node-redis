@@ -1,33 +1,33 @@
 'use strict';
 
-var assert = require("assert");
-var config = require("./lib/config");
+var assert = require('assert');
+var config = require('./lib/config');
 var helper = require('./helper');
 var utils = require('../lib/utils');
-var fork = require("child_process").fork;
+var fork = require('child_process').fork;
 var redis = config.redis;
 
-describe("The node_redis client", function () {
+describe('The node_redis client', function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
+        describe('using ' + parser + ' and ' + ip, function () {
             var client;
 
             afterEach(function () {
                 client.end(true);
             });
 
-            describe("when connected", function () {
+            describe('when connected', function () {
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once("connect", function () {
+                    client.once('connect', function () {
                         client.flushdb(done);
                     });
                 });
 
                 describe('duplicate', function () {
-                    it('check if all options got copied properly', function(done) {
+                    it('check if all options got copied properly', function (done) {
                         client.selected_db = 2;
                         var client2 = client.duplicate();
                         assert.strictEqual(client2.selected_db, 2);
@@ -44,7 +44,7 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it('check if all new options replaced the old ones', function(done) {
+                    it('check if all new options replaced the old ones', function (done) {
                         var client2 = client.duplicate({
                             no_ready_check: true
                         });
@@ -70,7 +70,7 @@ describe("The node_redis client", function () {
                 describe('big data', function () {
 
                     // Check if the fast mode for big strings is working correct
-                    it('safe strings that are bigger than 30000 characters', function(done) {
+                    it('safe strings that are bigger than 30000 characters', function (done) {
                         var str = 'foo ಠ_ಠ bar ';
                         while (str.length < 111111) {
                             str += str;
@@ -82,7 +82,7 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it('safe strings that are bigger than 30000 characters with multi', function(done) {
+                    it('safe strings that are bigger than 30000 characters with multi', function (done) {
                         var str = 'foo ಠ_ಠ bar ';
                         while (str.length < 111111) {
                             str += str;
@@ -107,24 +107,24 @@ describe("The node_redis client", function () {
                     });
                 });
 
-                describe("send_command", function () {
+                describe('send_command', function () {
 
-                    it("omitting args should be fine in some cases", function (done) {
-                        client.send_command("info", undefined, function(err, res) {
+                    it('omitting args should be fine in some cases', function (done) {
+                        client.send_command('info', undefined, function (err, res) {
                             assert(/redis_version/.test(res));
                             done();
                         });
                     });
 
-                    it("using another type as cb should just work as if there were no callback parameter", function (done) {
+                    it('using another type as cb should just work as if there were no callback parameter', function (done) {
                         client.send_command('set', ['test', 'bla'], [true]);
-                        client.get('test', function(err, res) {
+                        client.get('test', function (err, res) {
                             assert.equal(res, 'bla');
                             done();
                         });
                     });
 
-                    it("misusing the function should eventually throw (no command)", function (done) {
+                    it('misusing the function should eventually throw (no command)', function (done) {
                         client.send_command(true, 'info', function (err, res) {
                             assert(/ERR Protocol error/.test(err.message));
                             assert.equal(err.command, undefined);
@@ -133,8 +133,8 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it("misusing the function should eventually throw (wrong args)", function (done) {
-                        client.send_command('info', false, function(err, res) {
+                    it('misusing the function should eventually throw (wrong args)', function (done) {
+                        client.send_command('info', false, function (err, res) {
                             assert.equal(err.message, 'ERR Protocol error: invalid multibulk length');
                             done();
                         });
@@ -142,38 +142,38 @@ describe("The node_redis client", function () {
 
                 });
 
-                describe("retry_unfulfilled_commands", function () {
+                describe('retry_unfulfilled_commands', function () {
 
-                    it("should retry all commands instead of returning an error if a command did not yet return after a connection loss", function (done) {
+                    it('should retry all commands instead of returning an error if a command did not yet return after a connection loss', function (done) {
                         var bclient = redis.createClient({
                             parser: parser,
                             retry_unfulfilled_commands: true
                         });
-                        bclient.blpop("blocking list 2", 5, function (err, value) {
-                            assert.strictEqual(value[0], "blocking list 2");
-                            assert.strictEqual(value[1], "initial value");
+                        bclient.blpop('blocking list 2', 5, function (err, value) {
+                            assert.strictEqual(value[0], 'blocking list 2');
+                            assert.strictEqual(value[1], 'initial value');
                             return done(err);
                         });
                         bclient.once('ready', function () {
                             setTimeout(function () {
                                 bclient.stream.destroy();
-                                client.rpush("blocking list 2", "initial value", helper.isNumber(1));
+                                client.rpush('blocking list 2', 'initial value', helper.isNumber(1));
                             }, 100);
                         });
                     });
 
                 });
 
-                describe(".end", function () {
+                describe('.end', function () {
 
-                    it('used without flush / flush set to false', function(done) {
+                    it('used without flush / flush set to false', function (done) {
                         var finished = false;
-                        var end = helper.callFuncAfter(function() {
+                        var end = helper.callFuncAfter(function () {
                             if (!finished) {
                                 done(new Error('failed'));
                             }
                         }, 20);
-                        var cb = function(err, res) {
+                        var cb = function (err, res) {
                             assert(/The connection has already been closed/.test(err.message));
                             end();
                         };
@@ -189,11 +189,11 @@ describe("The node_redis client", function () {
                         }, 250);
                     });
 
-                    it('used with flush set to true', function(done) {
-                        var end = helper.callFuncAfter(function() {
+                    it('used with flush set to true', function (done) {
+                        var end = helper.callFuncAfter(function () {
                             done();
                         }, 20);
-                        var cb = function(err, res) {
+                        var cb = function (err, res) {
                             assert(/The connection has already been closed./.test(err.message));
                             end();
                         };
@@ -207,16 +207,16 @@ describe("The node_redis client", function () {
 
                 });
 
-                describe("commands after using .quit should fail", function () {
+                describe('commands after using .quit should fail', function () {
 
-                    it("return an error in the callback", function (done) {
+                    it('return an error in the callback', function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
                         // TODO: Investigate why this test is failing hard and killing mocha if using '/tmp/redis.sock'.
                         // Seems like something is wrong with nyc while passing a socket connection to create client!
                         client = redis.createClient();
-                        client.quit(function() {
-                            client.get("foo", function(err, res) {
+                        client.quit(function () {
+                            client.get('foo', function (err, res) {
                                 assert(err.message.indexOf('Redis connection gone') !== -1);
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
@@ -224,12 +224,12 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it("return an error in the callback version two", function (done) {
+                    it('return an error in the callback version two', function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
                         client.quit();
-                        setTimeout(function() {
-                            client.get("foo", function(err, res) {
+                        setTimeout(function () {
+                            client.get('foo', function (err, res) {
                                 assert.strictEqual(err.message, 'GET can\'t be processed. The connection has already been closed.');
                                 assert.strictEqual(err.command, 'GET');
                                 assert.strictEqual(client.offline_queue.length, 0);
@@ -238,64 +238,64 @@ describe("The node_redis client", function () {
                         }, 100);
                     });
 
-                    it("emit an error", function (done) {
+                    it('emit an error', function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
 
                         client.quit();
-                        client.on('error', function(err) {
+                        client.on('error', function (err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');
                             assert.strictEqual(err.command, 'SET');
                             assert.strictEqual(client.offline_queue.length, 0);
                             done();
                         });
-                        setTimeout(function() {
+                        setTimeout(function () {
                             client.set('foo', 'bar');
                         }, 50);
                     });
 
                 });
 
-                describe("when redis closes unexpectedly", function () {
-                    it("reconnects and can retrieve the pre-existing data", function (done) {
-                        client.on("reconnecting", function on_recon(params) {
-                            client.on("connect", function on_connect() {
+                describe('when redis closes unexpectedly', function () {
+                    it('reconnects and can retrieve the pre-existing data', function (done) {
+                        client.on('reconnecting', function on_recon (params) {
+                            client.on('connect', function on_connect () {
                                 var end = helper.callFuncAfter(function () {
-                                    client.removeListener("connect", on_connect);
-                                    client.removeListener("reconnecting", on_recon);
+                                    client.removeListener('connect', on_connect);
+                                    client.removeListener('reconnecting', on_recon);
                                     assert.strictEqual(client.server_info.db0.keys, 2);
                                     assert.strictEqual(Object.keys(client.server_info.db0).length, 3);
                                     done();
                                 }, 4);
-                                client.get("recon 1", helper.isString("one", end));
-                                client.get("recon 1", helper.isString("one", end));
-                                client.get("recon 2", helper.isString("two", end));
-                                client.get("recon 2", helper.isString("two", end));
+                                client.get('recon 1', helper.isString('one', end));
+                                client.get('recon 1', helper.isString('one', end));
+                                client.get('recon 2', helper.isString('two', end));
+                                client.get('recon 2', helper.isString('two', end));
                             });
                         });
 
-                        client.set("recon 1", "one");
-                        client.set("recon 2", "two", function (err, res) {
+                        client.set('recon 1', 'one');
+                        client.set('recon 2', 'two', function (err, res) {
                             // Do not do this in normal programs. This is to simulate the server closing on us.
                             // For orderly shutdown in normal programs, do client.quit()
                             client.stream.destroy();
                         });
                     });
 
-                    it("reconnects properly when monitoring", function (done) {
-                        client.on("reconnecting", function on_recon(params) {
-                            client.on("ready", function on_ready() {
-                                assert.strictEqual(client.monitoring, true, "monitoring after reconnect");
-                                client.removeListener("ready", on_ready);
-                                client.removeListener("reconnecting", on_recon);
+                    it('reconnects properly when monitoring', function (done) {
+                        client.on('reconnecting', function on_recon (params) {
+                            client.on('ready', function on_ready () {
+                                assert.strictEqual(client.monitoring, true, 'monitoring after reconnect');
+                                client.removeListener('ready', on_ready);
+                                client.removeListener('reconnecting', on_recon);
                                 done();
                             });
                         });
 
-                        assert.strictEqual(client.monitoring, false, "monitoring off at start");
-                        client.set("recon 1", "one");
+                        assert.strictEqual(client.monitoring, false, 'monitoring off at start');
+                        client.set('recon 1', 'one');
                         client.monitor(function (err, res) {
-                            assert.strictEqual(client.monitoring, true, "monitoring on after monitor()");
-                            client.set("recon 2", "two", function (err, res) {
+                            assert.strictEqual(client.monitoring, true, 'monitoring on after monitor()');
+                            client.set('recon 2', 'two', function (err, res) {
                                 // Do not do this in normal programs. This is to simulate the server closing on us.
                                 // For orderly shutdown in normal programs, do client.quit()
                                 client.stream.destroy();
@@ -305,40 +305,40 @@ describe("The node_redis client", function () {
 
                     describe("and it's subscribed to a channel", function () {
                         // "Connection in subscriber mode, only subscriber commands may be used"
-                        it("reconnects, unsubscribes, and can retrieve the pre-existing data", function (done) {
-                            client.on("ready", function on_connect() {
+                        it('reconnects, unsubscribes, and can retrieve the pre-existing data', function (done) {
+                            client.on('ready', function on_connect () {
                                 client.unsubscribe(helper.isNotError());
 
                                 client.on('unsubscribe', function (channel, count) {
                                     // we should now be out of subscriber mode.
-                                    assert.strictEqual(channel, "recon channel");
+                                    assert.strictEqual(channel, 'recon channel');
                                     assert.strictEqual(count, 0);
                                     client.set('foo', 'bar', helper.isString('OK', done));
                                 });
                             });
 
-                            client.set("recon 1", "one");
-                            client.subscribe("recon channel", function (err, res) {
+                            client.set('recon 1', 'one');
+                            client.subscribe('recon channel', function (err, res) {
                                 // Do not do this in normal programs. This is to simulate the server closing on us.
                                 // For orderly shutdown in normal programs, do client.quit()
                                 client.stream.destroy();
                             });
                         });
 
-                        it("reconnects, unsubscribes, and can retrieve the pre-existing data of a explicit channel", function (done) {
-                            client.on("ready", function on_connect() {
+                        it('reconnects, unsubscribes, and can retrieve the pre-existing data of a explicit channel', function (done) {
+                            client.on('ready', function on_connect () {
                                 client.unsubscribe('recon channel', helper.isNotError());
 
                                 client.on('unsubscribe', function (channel, count) {
                                     // we should now be out of subscriber mode.
-                                    assert.strictEqual(channel, "recon channel");
+                                    assert.strictEqual(channel, 'recon channel');
                                     assert.strictEqual(count, 0);
                                     client.set('foo', 'bar', helper.isString('OK', done));
                                 });
                             });
 
-                            client.set("recon 1", "one");
-                            client.subscribe("recon channel", function (err, res) {
+                            client.set('recon 1', 'one');
+                            client.subscribe('recon channel', function (err, res) {
                                 // Do not do this in normal programs. This is to simulate the server closing on us.
                                 // For orderly shutdown in normal programs, do client.quit()
                                 client.stream.destroy();
@@ -393,10 +393,10 @@ describe("The node_redis client", function () {
                         monitorClient.flushdb();
                         monitorClient.monitor(function (err, res) {
                             assert.strictEqual(res, 'OK');
-                            client.mget("some", "keys", "foo", "bar");
-                            client.set("json", JSON.stringify({
-                                foo: "123",
-                                bar: "sdflkdfsjk",
+                            client.mget('some', 'keys', 'foo', 'bar');
+                            client.set('json', JSON.stringify({
+                                foo: '123',
+                                bar: 'sdflkdfsjk',
                                 another: false
                             }));
                             monitorClient.get('baz', function (err, res) {
@@ -420,7 +420,7 @@ describe("The node_redis client", function () {
                             });
                         });
 
-                        monitorClient.on("monitor", function (time, args, rawOutput) {
+                        monitorClient.on('monitor', function (time, args, rawOutput) {
                             responses.push(args);
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             if (responses.length === 6) {
@@ -442,10 +442,10 @@ describe("The node_redis client", function () {
 
                         monitorClient.MONITOR(function (err, res) {
                             assert.strictEqual(res.inspect(), new Buffer('OK').inspect());
-                            client.mget("hello", new Buffer('world'));
+                            client.mget('hello', new Buffer('world'));
                         });
 
-                        monitorClient.on("monitor", function (time, args, rawOutput) {
+                        monitorClient.on('monitor', function (time, args, rawOutput) {
                             assert.strictEqual(typeof rawOutput, 'string');
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
@@ -457,8 +457,8 @@ describe("The node_redis client", function () {
                     it('monitors reconnects properly and works with the offline queue', function (done) {
                         var i = 0;
                         client.MONITOR(helper.isString('OK'));
-                        client.mget("hello", 'world');
-                        client.on("monitor", function (time, args, rawOutput) {
+                        client.mget('hello', 'world');
+                        client.on('monitor', function (time, args, rawOutput) {
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
                             if (i++ === 2) {
@@ -466,7 +466,7 @@ describe("The node_redis client", function () {
                                 return done();
                             }
                             client.stream.destroy();
-                            client.mget("hello", 'world');
+                            client.mget('hello', 'world');
                         });
                     });
 
@@ -490,7 +490,7 @@ describe("The node_redis client", function () {
                                 client.unsubscribe('baz');
                             }, 150);
                             var called = false;
-                            client.on("monitor", function (time, args, rawOutput) {
+                            client.on('monitor', function (time, args, rawOutput) {
                                 responses.push(args);
                                 assert(utils.monitor_regex.test(rawOutput), rawOutput);
                                 if (responses.length === 7) {
@@ -531,7 +531,7 @@ describe("The node_redis client", function () {
                             end();
                         });
                         client.on('idle', function onIdle () {
-                            client.removeListener("idle", onIdle);
+                            client.removeListener('idle', onIdle);
                             client.get('foo', helper.isString('bar', end));
                         });
                         client.set('foo', 'bar');
@@ -540,12 +540,12 @@ describe("The node_redis client", function () {
 
                 describe('utf8', function () {
                     it('handles utf-8 keys', function (done) {
-                      var utf8_sample = "ಠ_ಠ";
-                      client.set(["utf8test", utf8_sample], helper.isString("OK"));
-                      client.get(["utf8test"], function (err, obj) {
-                          assert.strictEqual(utf8_sample, obj);
-                          return done(err);
-                      });
+                        var utf8_sample = 'ಠ_ಠ';
+                        client.set(['utf8test', utf8_sample], helper.isString('OK'));
+                        client.get(['utf8test'], function (err, obj) {
+                            assert.strictEqual(utf8_sample, obj);
+                            return done(err);
+                        });
                     });
                 });
             });
@@ -554,14 +554,14 @@ describe("The node_redis client", function () {
                 it('exits subprocess as soon as final command is processed', function (done) {
                     this.timeout(12000);
                     var args = config.HOST[ip] ? [config.HOST[ip], config.PORT] : [ip];
-                    var external = fork("./test/lib/unref.js", args);
+                    var external = fork('./test/lib/unref.js', args);
 
                     var id = setTimeout(function () {
                         external.kill();
                         return done(Error('unref subprocess timed out'));
                     }, 8000);
 
-                    external.on("close", function (code) {
+                    external.on('close', function (code) {
                         clearTimeout(id);
                         assert.strictEqual(code, 0);
                         return done();
@@ -612,7 +612,7 @@ describe("The node_redis client", function () {
 
                     it("fires client.on('ready')", function (done) {
                         client = redis.createClient.apply(null, args);
-                        client.on("ready", function () {
+                        client.on('ready', function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
                             client.quit();
 
@@ -624,12 +624,12 @@ describe("The node_redis client", function () {
 
                     it('client is functional', function (done) {
                         client = redis.createClient.apply(null, args);
-                        client.on("ready", function () {
+                        client.on('ready', function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
-                            client.set(["set key 1", "set val"], helper.isString("OK"));
-                            client.set(["set key 2", "set val"], helper.isString("OK"));
-                            client.get(["set key 1"], helper.isString("set val"));
-                            client.get(["set key 2"], helper.isString("set val"));
+                            client.set(['set key 1', 'set val'], helper.isString('OK'));
+                            client.set(['set key 2', 'set val'], helper.isString('OK'));
+                            client.get(['set key 1'], helper.isString('set val'));
+                            client.get(['set key 2'], helper.isString('set val'));
                             client.quit();
 
                             client.once('end', function () {
@@ -646,7 +646,7 @@ describe("The node_redis client", function () {
 
                     it("fires client.on('ready')", function (done) {
                         client = redis.createClient.apply(null, args);
-                        client.on("ready", function () {
+                        client.on('ready', function () {
                             assert.strictEqual(false, client.options.socket_nodelay);
                             client.quit();
 
@@ -658,12 +658,12 @@ describe("The node_redis client", function () {
 
                     it('client is functional', function (done) {
                         client = redis.createClient.apply(null, args);
-                        client.on("ready", function () {
+                        client.on('ready', function () {
                             assert.strictEqual(false, client.options.socket_nodelay);
-                            client.set(["set key 1", "set val"], helper.isString("OK"));
-                            client.set(["set key 2", "set val"], helper.isString("OK"));
-                            client.get(["set key 1"], helper.isString("set val"));
-                            client.get(["set key 2"], helper.isString("set val"));
+                            client.set(['set key 1', 'set val'], helper.isString('OK'));
+                            client.set(['set key 2', 'set val'], helper.isString('OK'));
+                            client.get(['set key 1'], helper.isString('set val'));
+                            client.get(['set key 2'], helper.isString('set val'));
                             client.quit();
 
                             client.once('end', function () {
@@ -677,7 +677,7 @@ describe("The node_redis client", function () {
 
                     it("fires client.on('ready')", function (done) {
                         client = redis.createClient.apply(null, args);
-                        client.on("ready", function () {
+                        client.on('ready', function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
                             client.quit();
 
@@ -689,12 +689,12 @@ describe("The node_redis client", function () {
 
                     it('client is functional', function (done) {
                         client = redis.createClient.apply(null, args);
-                        client.on("ready", function () {
+                        client.on('ready', function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
-                            client.set(["set key 1", "set val"], helper.isString("OK"));
-                            client.set(["set key 2", "set val"], helper.isString("OK"));
-                            client.get(["set key 1"], helper.isString("set val"));
-                            client.get(["set key 2"], helper.isString("set val"));
+                            client.set(['set key 1', 'set val'], helper.isString('OK'));
+                            client.set(['set key 2', 'set val'], helper.isString('OK'));
+                            client.get(['set key 1'], helper.isString('set val'));
+                            client.get(['set key 2'], helper.isString('set val'));
                             client.quit();
 
                             client.once('end', function () {
@@ -706,14 +706,14 @@ describe("The node_redis client", function () {
             });
 
             describe('retry_max_delay', function () {
-                it("sets upper bound on how long client waits before reconnecting", function (done) {
+                it('sets upper bound on how long client waits before reconnecting', function (done) {
                     var time;
                     var timeout = process.platform !== 'win32' ? 20 : 100;
 
                     client = redis.createClient.apply(null, config.configureClient(parser, ip, {
                         retry_max_delay: 1 // ms
                     }));
-                    client.on('ready', function() {
+                    client.on('ready', function () {
                         if (this.times_connected === 1) {
                             this.stream.end();
                             time = Date.now();
@@ -735,9 +735,9 @@ describe("The node_redis client", function () {
 
             describe('protocol error', function () {
 
-                it("should gracefully recover and only fail on the already send commands", function (done) {
+                it('should gracefully recover and only fail on the already send commands', function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.on('error', function(err) {
+                    client.on('error', function (err) {
                         assert.strictEqual(err.message, 'Protocol error, got "a" as reply type byte');
                         // After the hard failure work properly again. The set should have been processed properly too
                         client.get('foo', function (err, res) {
@@ -757,7 +757,7 @@ describe("The node_redis client", function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
-                    it("should emit drain if offline queue is flushed and nothing to buffer", function (done) {
+                    it('should emit drain if offline queue is flushed and nothing to buffer', function (done) {
                         client = redis.createClient({
                             parser: parser,
                             no_ready_check: true
@@ -773,33 +773,32 @@ describe("The node_redis client", function () {
                             );
                             end();
                         });
-                        client.on('drain', function() {
+                        client.on('drain', function () {
                             assert(client.offline_queue.length === 0);
                             end();
                         });
                     });
 
-                    it("does not return an error and enqueues operation", function (done) {
+                    it('does not return an error and enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
                             max_attempts: 0,
                             parser: parser
                         });
                         var finished = false;
-                        client.on('error', function(e) {
+                        client.on('error', function (e) {
                             // ignore, b/c expecting a "can't connect" error
                         });
 
-                        return setTimeout(function() {
-                            client.set('foo', 'bar', function(err, result) {
+                        return setTimeout(function () {
+                            client.set('foo', 'bar', function (err, result) {
                                 if (!finished) {
                                     // This should never be called
                                     return done(err);
-                                } else {
-                                    assert.strictEqual(err.message, "The command can't be processed. The connection has already been closed.");
                                 }
+                                assert.strictEqual(err.message, "The command can't be processed. The connection has already been closed.");
                             });
 
-                            return setTimeout(function() {
+                            return setTimeout(function () {
                                 assert.strictEqual(client.offline_queue.length, 1);
                                 finished = true;
                                 return done();
@@ -807,14 +806,14 @@ describe("The node_redis client", function () {
                         }, 50);
                     });
 
-                    it("enqueues operation and keep the queue while trying to reconnect", function (done) {
+                    it('enqueues operation and keep the queue while trying to reconnect', function (done) {
                         client = redis.createClient(9999, null, {
                             max_attempts: 4,
                             parser: parser
                         });
                         var i = 0;
 
-                        client.on('error', function(err) {
+                        client.on('error', function (err) {
                             if (err.message === 'Redis connection in broken state: maximum connection attempts exceeded.') {
                                 assert(i, 3);
                                 assert.strictEqual(client.offline_queue.length, 0);
@@ -826,7 +825,7 @@ describe("The node_redis client", function () {
                             }
                         });
 
-                        client.on('reconnecting', function(params) {
+                        client.on('reconnecting', function (params) {
                             i++;
                             assert.equal(params.attempt, i);
                             assert.strictEqual(params.times_connected, 0);
@@ -837,35 +836,35 @@ describe("The node_redis client", function () {
 
                         // Should work with either a callback or without
                         client.set('baz', 13);
-                        client.set('foo', 'bar', function(err, result) {
+                        client.set('foo', 'bar', function (err, result) {
                             assert(i, 3);
                             assert(err);
                             assert.strictEqual(client.offline_queue.length, 0);
                         });
                     });
 
-                    it("flushes the command queue if connection is lost", function (done) {
+                    it('flushes the command queue if connection is lost', function (done) {
                         client = redis.createClient({
                             parser: parser
                         });
 
-                        client.once('ready', function() {
+                        client.once('ready', function () {
                             var multi = client.multi();
-                            multi.config("bar");
-                            var cb = function(err, reply) {
+                            multi.config('bar');
+                            var cb = function (err, reply) {
                                 assert.equal(err.code, 'UNCERTAIN_STATE');
                             };
                             for (var i = 0; i < 12; i += 3) {
-                                client.set("foo" + i, "bar" + i);
-                                multi.set("foo" + (i + 1), "bar" + (i + 1), cb);
-                                multi.set("foo" + (i + 2), "bar" + (i + 2));
+                                client.set('foo' + i, 'bar' + i);
+                                multi.set('foo' + (i + 1), 'bar' + (i + 1), cb);
+                                multi.set('foo' + (i + 2), 'bar' + (i + 2));
                             }
                             multi.exec();
                             assert.equal(client.command_queue.length, 15);
                             helper.killConnection(client);
                         });
 
-                        client.on('error', function(err) {
+                        client.on('error', function (err) {
                             if (/uncertain state/.test(err.message)) {
                                 assert.equal(client.command_queue.length, 0);
                                 done();
@@ -880,7 +879,7 @@ describe("The node_redis client", function () {
 
                 describe('false', function () {
 
-                    it('stream not writable', function(done) {
+                    it('stream not writable', function (done) {
                         client = redis.createClient({
                             parser: parser,
                             enable_offline_queue: false
@@ -894,7 +893,7 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it("emit an error and does not enqueues operation", function (done) {
+                    it('emit an error and does not enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
                             parser: parser,
                             max_attempts: 0,
@@ -902,7 +901,7 @@ describe("The node_redis client", function () {
                         });
                         var end = helper.callFuncAfter(done, 3);
 
-                        client.on('error', function(err) {
+                        client.on('error', function (err) {
                             assert(/offline queue is deactivated|ECONNREFUSED/.test(err.message));
                             assert.equal(client.command_queue.length, 0);
                             end();
@@ -919,30 +918,30 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    it("flushes the command queue if connection is lost", function (done) {
+                    it('flushes the command queue if connection is lost', function (done) {
                         client = redis.createClient({
                             parser: parser,
                             max_attempts: 2,
                             enable_offline_queue: false
                         });
 
-                        client.once('ready', function() {
+                        client.once('ready', function () {
                             var multi = client.multi();
-                            multi.config("bar");
-                            var cb = function(err, reply) {
+                            multi.config('bar');
+                            var cb = function (err, reply) {
                                 assert.equal(err.code, 'UNCERTAIN_STATE');
                             };
                             for (var i = 0; i < 12; i += 3) {
-                                client.set("foo" + i, "bar" + i);
-                                multi.set("foo" + (i + 1), "bar" + (i + 1), cb);
-                                multi.set("foo" + (i + 2), "bar" + (i + 2));
+                                client.set('foo' + i, 'bar' + i);
+                                multi.set('foo' + (i + 1), 'bar' + (i + 1), cb);
+                                multi.set('foo' + (i + 2), 'bar' + (i + 2));
                             }
                             multi.exec();
                             assert.equal(client.command_queue.length, 15);
                             helper.killConnection(client);
                         });
 
-                        client.on('error', function(err) {
+                        client.on('error', function (err) {
                             if (err.code === 'UNCERTAIN_STATE') {
                                 assert.equal(client.command_queue.length, 0);
                                 done();

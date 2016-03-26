@@ -23,11 +23,11 @@ var total_ops = new metrics.Histogram.createUniformHistogram();
 
 console.log('Comparing before,', file1, '(', before_lines.length, 'lines)', 'to after,', file2, '(', after_lines.length, 'lines)');
 
-function is_whitespace(s) {
+function is_whitespace (s) {
     return !!s.trim();
 }
 
-function pad(input, len, chr, right) {
+function pad (input, len, chr, right) {
     var str = input.toString();
     chr = chr || ' ';
 
@@ -44,7 +44,7 @@ function pad(input, len, chr, right) {
 }
 
 // green if greater than 0, red otherwise
-function humanize_diff(num, unit, toFixed) {
+function humanize_diff (num, unit, toFixed) {
     unit = unit || '';
     if (num > 0) {
         return ' +' + pad(num.toFixed(toFixed || 0) + unit, 7);
@@ -52,12 +52,12 @@ function humanize_diff(num, unit, toFixed) {
     return ' -' + pad(Math.abs(num).toFixed(toFixed || 0) + unit, 7);
 }
 
-function command_name(words) {
+function command_name (words) {
     var line = words.join(' ');
     return line.substr(0, line.indexOf(','));
 }
 
-before_lines.forEach(function(b, i) {
+before_lines.forEach(function (b, i) {
     var a = after_lines[i];
     if (!a || !b || !b.trim() || !a.trim()) {
         // console.log('#ignored#', '>'+a+'<', '>'+b+'<');
@@ -66,10 +66,10 @@ before_lines.forEach(function(b, i) {
     var b_words = b.split(' ').filter(is_whitespace);
     var a_words = a.split(' ').filter(is_whitespace);
 
-    var ops = [b_words, a_words].map(function(words) {
+    var ops = [b_words, a_words].map(function (words) {
         // console.log(words);
         return words.slice(-2, -1) | 0;
-    }).filter(function(num) {
+    }).filter(function (num) {
         var isNaN = !num && num !== 0;
         return !isNaN;
     });

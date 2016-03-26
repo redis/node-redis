@@ -1,10 +1,10 @@
 'use strict';
 
-var assert = require("assert");
+var assert = require('assert');
 var path = require('path');
-var config = require("./lib/config");
-var RedisProcess = require("./lib/redis-process");
-var StunnelProcess = require("./lib/stunnel-process");
+var config = require('./lib/config');
+var RedisProcess = require('./lib/redis-process');
+var StunnelProcess = require('./lib/stunnel-process');
 var rp;
 var stunnel_process;
 
@@ -33,7 +33,7 @@ module.exports = {
     redisProcess: function () {
         return rp;
     },
-    stopRedis: function(done) {
+    stopRedis: function (done) {
         rp.stop(done);
     },
     startRedis: startRedis,
@@ -52,59 +52,59 @@ module.exports = {
     },
     isNumber: function (expected, done) {
         return function (err, results) {
-            assert.strictEqual(null, err, "expected " + expected + ", got error: " + err);
-            assert.strictEqual(expected, results, expected + " !== " + results);
-            assert.strictEqual(typeof results, "number", "expected a number, got " + typeof results);
-            if (done) return done();
+            assert.strictEqual(null, err, 'expected ' + expected + ', got error: ' + err);
+            assert.strictEqual(expected, results, expected + ' !== ' + results);
+            assert.strictEqual(typeof results, 'number', 'expected a number, got ' + typeof results);
+            if (done) done();
         };
     },
     isString: function (str, done) {
         return function (err, results) {
             assert.strictEqual(null, err, "expected string '" + str + "', got error: " + err);
-            assert.equal(str, results, str + " does not match " + results);
-            if (done) return done();
+            assert.equal(str, results, str + ' does not match ' + results);
+            if (done) done();
         };
     },
     isNull: function (done) {
         return function (err, results) {
-            assert.strictEqual(null, err, "expected null, got error: " + err);
-            assert.strictEqual(null, results, results + " is not null");
-            if (done) return done();
+            assert.strictEqual(null, err, 'expected null, got error: ' + err);
+            assert.strictEqual(null, results, results + ' is not null');
+            if (done) done();
         };
     },
     isError: function (done) {
         return function (err, results) {
             assert(err instanceof Error, "err is not instance of 'Error', but an error is expected here.");
-            if (done) return done();
+            if (done) done();
         };
     },
     isNotError: function (done) {
         return function (err, results) {
-            assert.strictEqual(err, null, "expected success, got an error: " + err);
-            if (done) return done();
+            assert.strictEqual(err, null, 'expected success, got an error: ' + err);
+            if (done) done();
         };
     },
     isType: {
         number: function (done) {
             return function (err, results) {
-                assert.strictEqual(null, err, "expected any number, got error: " + err);
-                assert.strictEqual(typeof results, "number", results + " is not a number");
-                if (done) return done();
+                assert.strictEqual(null, err, 'expected any number, got error: ' + err);
+                assert.strictEqual(typeof results, 'number', results + ' is not a number');
+                if (done) done();
             };
         },
         positiveNumber: function (done) {
             return function (err, results) {
-                assert.strictEqual(null, err, "expected positive number, got error: " + err);
-                assert.strictEqual(true, (results > 0), results + " is not a positive number");
-                if (done) return done();
+                assert.strictEqual(null, err, 'expected positive number, got error: ' + err);
+                assert.strictEqual(true, (results > 0), results + ' is not a positive number');
+                if (done) done();
             };
         }
     },
     match: function (pattern, done) {
         return function (err, results) {
-            assert.strictEqual(null, err, "expected " + pattern.toString() + ", got error: " + err);
+            assert.strictEqual(null, err, 'expected ' + pattern.toString() + ', got error: ' + err);
             assert(pattern.test(results), "expected string '" + results + "' to match " + pattern.toString());
-            if (done) return done();
+            if (done) done();
         };
     },
     serverVersionAtLeast: function (connection, desired_version) {
@@ -131,7 +131,7 @@ module.exports = {
         try {
             require('hiredis');
             parsers.push('hiredis');
-        } catch (e) {}
+        } catch (e) {/* ignore eslint */}
         if (process.platform !== 'win32') {
             protocols.push('IPv6', '/tmp/redis.sock');
         }
@@ -148,7 +148,7 @@ module.exports = {
                     strOptions += key + ': ' + options[key] + '; ';
                 }
             }
-            describe('using options: ' + strOptions, function() {
+            describe('using options: ' + strOptions, function () {
                 parsers.forEach(function (parser) {
                     protocols.forEach(function (ip, i) {
                         if (i !== 0 && !opts.allConnections) {

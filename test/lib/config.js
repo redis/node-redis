@@ -13,8 +13,8 @@ var config = {
     redis: redis,
     PORT: 6379,
     HOST: {
-        IPv4: "127.0.0.1",
-        IPv6: "::1"
+        IPv4: '127.0.0.1',
+        IPv6: '::1'
     },
     configureClient: function (parser, ip, opts) {
         var args = [];

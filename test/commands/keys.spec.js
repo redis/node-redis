@@ -1,31 +1,31 @@
 'use strict';
 
-var assert = require("assert");
-var config = require("../lib/config");
-var crypto = require("crypto");
-var helper = require("../helper");
+var assert = require('assert');
+var config = require('../lib/config');
+var crypto = require('crypto');
+var helper = require('../helper');
 var redis = config.redis;
 
 describe("The 'keys' method", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
+        describe('using ' + parser + ' and ' + ip, function () {
             var client;
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(null, args);
-                client.once("ready", function () {
+                client.once('ready', function () {
                     client.flushall(done);
                 });
             });
 
             it('returns matching keys', function (done) {
-                client.mset(["test keys 1", "test val 1", "test keys 2", "test val 2"], helper.isString("OK"));
-                client.KEYS("test keys*", function (err, results) {
+                client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'));
+                client.KEYS('test keys*', function (err, results) {
                     assert.strictEqual(2, results.length);
-                    assert.ok(~results.indexOf("test keys 1"));
-                    assert.ok(~results.indexOf("test keys 2"));
+                    assert.ok(~results.indexOf('test keys 1'));
+                    assert.ok(~results.indexOf('test keys 2'));
                     return done(err);
                 });
             });
@@ -35,18 +35,18 @@ describe("The 'keys' method", function () {
 
                 for (var i = 0; i < 200; i++) {
                     var key_value = [
-                        "multibulk:" + crypto.randomBytes(256).toString("hex"), // use long strings as keys to ensure generation of large packet
-                        "test val " + i
+                        'multibulk:' + crypto.randomBytes(256).toString('hex'), // use long strings as keys to ensure generation of large packet
+                        'test val ' + i
                     ];
                     keys_values.push(key_value);
                 }
 
-                client.mset(keys_values.reduce(function(a, b) {
+                client.mset(keys_values.reduce(function (a, b) {
                     return a.concat(b);
-                }), helper.isString("OK"));
+                }), helper.isString('OK'));
 
-                client.keys("multibulk:*", function(err, results) {
-                    assert.deepEqual(keys_values.map(function(val) {
+                client.keys('multibulk:*', function (err, results) {
+                    assert.deepEqual(keys_values.map(function (val) {
                         return val[0];
                     }).sort(), results.sort());
                     return done(err);

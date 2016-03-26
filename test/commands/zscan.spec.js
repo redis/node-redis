@@ -7,14 +7,14 @@ var redis = config.redis;
 
 describe("The 'zscan' method", function () {
 
-    helper.allTests(function(parser, ip, args) {
+    helper.allTests(function (parser, ip, args) {
 
-        describe("using " + parser + " and " + ip, function () {
+        describe('using ' + parser + ' and ' + ip, function () {
             var client;
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(null, args);
-                client.once("ready", function () {
+                client.once('ready', function () {
                     client.flushdb(done);
                 });
             });
@@ -24,14 +24,14 @@ describe("The 'zscan' method", function () {
                 helper.serverVersionAtLeast.call(this, client, [2, 8, 0]);
                 var hash = {};
                 var set = [];
-                var zset = ["zset:1"];
+                var zset = ['zset:1'];
                 for (var i = 0; i < 500; i++) {
-                    hash["key_" + i] = "value_" + i;
-                    set.push("member_" + i);
-                    zset.push(i, "z_member_" + i);
+                    hash['key_' + i] = 'value_' + i;
+                    set.push('member_' + i);
+                    zset.push(i, 'z_member_' + i);
                 }
-                client.hmset("hash:1", hash);
-                client.sadd("set:1", set);
+                client.hmset('hash:1', hash);
+                client.sadd('set:1', set);
                 client.zadd(zset);
                 client.zscan('zset:1', 0, 'MATCH', '*', 'COUNT', 500, function (err, res) {
                     assert(!err);

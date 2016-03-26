@@ -1,10 +1,11 @@
 'use strict';
 
-var redis = require('../index'),
-    client = redis.createClient(),
-    remaining_ops = 100000, paused = false;
+var redis = require('../index');
+var client = redis.createClient();
+var remaining_ops = 100000;
+var paused = false;
 
-function op() {
+function op () {
     if (remaining_ops <= 0) {
         console.error('Finished.');
         process.exit(0);

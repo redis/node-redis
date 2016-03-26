@@ -44,7 +44,7 @@ describe('utils.js', function () {
     describe('print helper', function () {
         it('callback with reply', function () {
             var text = '';
-            var unhookIntercept = intercept(function(data) {
+            var unhookIntercept = intercept(function (data) {
                 text += data;
                 return '';
             });
@@ -55,7 +55,7 @@ describe('utils.js', function () {
 
         it('callback with error', function () {
             var text = '';
-            var unhookIntercept = intercept(function(data) {
+            var unhookIntercept = intercept(function (data) {
                 text += data;
                 return '';
             });

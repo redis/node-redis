@@ -1,7 +1,7 @@
 'use strict';
 
-var redis = require('redis'),
-    client = redis.createClient();
+var redis = require('redis');
+var client = redis.createClient();
 
 client.on('error', function (err) {
     console.log('error event - ' + client.host + ':' + client.port + ' - ' + err);

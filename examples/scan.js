@@ -1,16 +1,16 @@
 'use strict';
 
-var redis  = require('redis'),
-    client = redis.createClient();
+var redis = require('redis');
+var client = redis.createClient();
 
 var cursor = '0';
 
-function scan() {
+function scan () {
     client.scan(
         cursor,
         'MATCH', 'q:job:*',
         'COUNT', '10',
-        function(err, res) {
+        function (err, res) {
             if (err) throw err;
 
             // Update the cursor position for the next scan
@@ -48,3 +48,4 @@ function scan() {
         }
     );
 }
+scan();
