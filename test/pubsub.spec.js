@@ -85,6 +85,29 @@ describe("publish/subscribe", function () {
                     sub.subscribe(channel, channel2);
                 });
 
+                it('fires a subscribe event for each channel as buffer subscribed to even after reconnecting', function (done) {
+                    var a = false;
+                    sub.end(true);
+                    sub = redis.createClient({
+                        detect_buffers: true
+                    });
+                    sub.on("subscribe", function (chnl, count) {
+                        if (chnl.inspect() === new Buffer([0xAA, 0xBB, 0x00, 0xF0]).inspect()) {
+                            assert.equal(1, count);
+                            if (a) {
+                                return done();
+                            }
+                            sub.stream.destroy();
+                        }
+                    });
+
+                    sub.on('reconnecting', function() {
+                        a = true;
+                    });
+
+                    sub.subscribe(new Buffer([0xAA, 0xBB, 0x00, 0xF0]), channel2);
+                });
+
                 it('receives messages on subscribed channel', function (done) {
                     var end = helper.callFuncAfter(done, 2);
                     sub.on("subscribe", function (chnl, count) {
@@ -199,6 +222,216 @@ describe("publish/subscribe", function () {
                 });
             });
 
+            describe("multiple subscribe / unsubscribe commands", function () {
+
+                it("reconnects properly with pub sub and select command", function (done) {
+                    var end = helper.callFuncAfter(done, 2);
+                    sub.select(3);
+                    sub.set('foo', 'bar');
+                    sub.subscribe('somechannel', 'another channel', function (err, res) {
+                        end();
+                        sub.stream.destroy();
+                    });
+                    assert(sub.ready);
+                    sub.on('ready', function () {
+                        sub.unsubscribe();
+                        sub.del('foo');
+                        sub.info(end);
+                    });
+                });
+
+                it("should not go into pubsub mode with unsubscribe commands", function (done) {
+                    sub.on('unsubscribe', function (msg) {
+                        // The unsubscribe should not be triggered, as there was no corresponding channel
+                        throw new Error('Test failed');
+                    });
+                    sub.set('foo', 'bar');
+                    sub.unsubscribe(function (err, res) {
+                        assert.strictEqual(res, null);
+                    });
+                    sub.del('foo', done);
+                });
+
+                it("handles multiple channels with the same channel name properly, even with buffers", function (done) {
+                    var channels = ['a', 'b', 'a', new Buffer('a'), 'c', 'b'];
+                    var subscribed_channels = [1, 2, 2, 2, 3, 3];
+                    var i = 0;
+                    sub.subscribe(channels);
+                    sub.on('subscribe', function (channel, count) {
+                        if (Buffer.isBuffer(channel)) {
+                            assert.strictEqual(channel.inspect(), new Buffer(channels[i]).inspect());
+                        } else {
+                            assert.strictEqual(channel, channels[i].toString());
+                        }
+                        assert.strictEqual(count, subscribed_channels[i]);
+                        i++;
+                    });
+                    sub.unsubscribe('a', 'c', 'b');
+                    sub.get('foo', done);
+                });
+
+                it('should only resubscribe to channels not unsubscribed earlier on a reconnect', function (done) {
+                    sub.subscribe('/foo', '/bar');
+                    sub.unsubscribe('/bar', function () {
+                        pub.pubsub('channels', function (err, res) {
+                            assert.deepEqual(res, ['/foo']);
+                            sub.stream.destroy();
+                            sub.once('ready', function () {
+                                pub.pubsub('channels', function (err, res) {
+                                    assert.deepEqual(res, ['/foo']);
+                                    sub.unsubscribe('/foo', done);
+                                });
+                            });
+                        });
+                    });
+                });
+
+                it("unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Withouth callbacks", function (done) {
+                    function subscribe(channels) {
+                        sub.unsubscribe(helper.isNull);
+                        sub.subscribe(channels, helper.isNull);
+                    }
+                    var all = false;
+                    var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                    sub.on('subscribe', function(msg, count) {
+                        subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                        if (subscribeMsg.length === 0 && all) {
+                            assert.strictEqual(count, 3);
+                            done();
+                        }
+                    });
+                    var unsubscribeMsg = ['1', '3', '2'];
+                    sub.on('unsubscribe', function(msg, count) {
+                        unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                        if (unsubscribeMsg.length === 0) {
+                            assert.strictEqual(count, 0);
+                            all = true;
+                        }
+                    });
+
+                    subscribe(['1', '3']);
+                    subscribe(['2']);
+                    subscribe(['5', 'test', 'bla']);
+                });
+
+                it("unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callbacks", function (done) {
+                    function subscribe(channels) {
+                        sub.unsubscribe();
+                        sub.subscribe(channels);
+                    }
+                    var all = false;
+                    var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                    sub.on('subscribe', function(msg, count) {
+                        subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                        if (subscribeMsg.length === 0 && all) {
+                            assert.strictEqual(count, 3);
+                            done();
+                        }
+                    });
+                    var unsubscribeMsg = ['1', '3', '2'];
+                    sub.on('unsubscribe', function(msg, count) {
+                        unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                        if (unsubscribeMsg.length === 0) {
+                            assert.strictEqual(count, 0);
+                            all = true;
+                        }
+                    });
+
+                    subscribe(['1', '3']);
+                    subscribe(['2']);
+                    subscribe(['5', 'test', 'bla']);
+                });
+
+                it("unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callback and concret channels", function (done) {
+                    function subscribe(channels) {
+                        sub.unsubscribe(channels);
+                        sub.unsubscribe(channels);
+                        sub.subscribe(channels);
+                    }
+                    var all = false;
+                    var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                    sub.on('subscribe', function(msg, count) {
+                        subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                        if (subscribeMsg.length === 0 && all) {
+                            assert.strictEqual(count, 6);
+                            done();
+                        }
+                    });
+                    var unsubscribeMsg = ['1', '3', '2', '5', 'test', 'bla'];
+                    sub.on('unsubscribe', function(msg, count) {
+                        var pos = unsubscribeMsg.indexOf(msg);
+                        if (pos !== -1)
+                            unsubscribeMsg.splice(pos, 1);
+                        if (unsubscribeMsg.length === 0) {
+                            all = true;
+                        }
+                    });
+
+                    subscribe(['1', '3']);
+                    subscribe(['2']);
+                    subscribe(['5', 'test', 'bla']);
+                });
+
+                it("unsubscribes, subscribes, unsubscribes... with pattern matching", function (done) {
+                    function subscribe(channels, callback) {
+                        sub.punsubscribe('prefix:*', helper.isNull);
+                        sub.psubscribe(channels, function (err, res) {
+                            helper.isNull(err);
+                            if (callback) callback(err, res);
+                        });
+                    }
+                    var all = false;
+                    var end = helper.callFuncAfter(done, 8);
+                    var subscribeMsg = ['prefix:*', 'prefix:3', 'prefix:2', '5', 'test:a', 'bla'];
+                    sub.on('psubscribe', function(msg, count) {
+                        subscribeMsg.splice(subscribeMsg.indexOf(msg), 1);
+                        if (subscribeMsg.length === 0) {
+                            assert.strictEqual(count, 5);
+                            all = true;
+                        }
+                    });
+                    var rest = 1;
+                    var unsubscribeMsg = ['prefix:*', 'prefix:*', 'prefix:*', '*'];
+                    sub.on('punsubscribe', function(msg, count) {
+                        unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1);
+                        if (all) {
+                            assert.strictEqual(unsubscribeMsg.length, 0);
+                            assert.strictEqual(count, rest--); // Print the remaining channels
+                            end();
+                        } else {
+                            assert.strictEqual(msg, 'prefix:*');
+                            assert.strictEqual(count, rest++ - 1);
+                        }
+                    });
+                    sub.on('pmessage', function (pattern, channel, msg) {
+                        assert.strictEqual(msg, 'test');
+                        assert.strictEqual(pattern, 'prefix:*');
+                        assert.strictEqual(channel, 'prefix:1');
+                        end();
+                    });
+
+                    subscribe(['prefix:*', 'prefix:3'], function () {
+                        pub.publish('prefix:1', new Buffer('test'), function () {
+                            subscribe(['prefix:2']);
+                            subscribe(['5', 'test:a', 'bla'], function () {
+                                assert(all);
+                            });
+                            sub.punsubscribe(function (err, res) {
+                                assert(!err);
+                                assert.strictEqual(res, 'bla');
+                                assert(all);
+                                all = false; // Make sure the callback is actually after the emit
+                                end();
+                            });
+                            sub.pubsub('channels', function (err, res) {
+                                assert.strictEqual(res.length, 0);
+                                end();
+                            });
+                        });
+                    });
+                });
+            });
+
             describe('unsubscribe', function () {
                 it('fires an unsubscribe event', function (done) {
                     sub.on("subscribe", function (chnl, count) {
@@ -237,22 +470,27 @@ describe("publish/subscribe", function () {
                 it('executes callback when unsubscribe is called and there are no subscriptions', function (done) {
                     pub.unsubscribe(function (err, results) {
                         assert.strictEqual(null, results);
-                        return done(err);
+                        done(err);
                     });
                 });
             });
 
             describe('psubscribe', function () {
-                // test motivated by issue #753
                 it('allows all channels to be subscribed to using a * pattern', function (done) {
-                    sub.psubscribe('*');
-                    sub.on("pmessage", function(pattern, channel, message) {
-                        assert.strictEqual(pattern, '*');
-                        assert.strictEqual(channel, '/foo');
-                        assert.strictEqual(message, 'hello world');
-                        return done();
+                    sub.end(false);
+                    sub = redis.createClient({
+                        return_buffers: true
                     });
-                    pub.publish('/foo', 'hello world');
+                    sub.on('ready', function () {
+                        sub.psubscribe('*');
+                        sub.on("pmessage", function(pattern, channel, message) {
+                            assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
+                            assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
+                            assert.strictEqual(message.inspect(), new Buffer('hello world').inspect());
+                            done();
+                        });
+                        pub.publish('/foo', 'hello world');
+                    });
                 });
             });
 
@@ -264,7 +502,7 @@ describe("publish/subscribe", function () {
                 it('executes callback when punsubscribe is called and there are no subscriptions', function (done) {
                     pub.punsubscribe(function (err, results) {
                         assert.strictEqual(null, results);
-                        return done(err);
+                        done(err);
                     });
                 });
             });
@@ -330,19 +568,15 @@ describe("publish/subscribe", function () {
                 }, 40);
             });
 
-            // TODO: Fix pub sub
-            // And there's more than just those two issues
-            describe.skip('FIXME: broken pub sub', function () {
-
-                it("should not publish a message without any publish command", function (done) {
-                    pub.set('foo', 'message');
-                    pub.set('bar', 'hello');
-                    pub.mget('foo', 'bar');
-                    pub.subscribe('channel');
-                    pub.on('message', function (msg) {
-                        done(new Error('This message should not have been published: ' + msg));
-                    });
-                    setTimeout(done, 200);
+            it("should not publish a message without any publish command", function (done) {
+                pub.set('foo', 'message');
+                pub.set('bar', 'hello');
+                pub.mget('foo', 'bar');
+                pub.subscribe('channel', function () {
+                    setTimeout(done, 50);
+                });
+                pub.on('message', function (msg) {
+                    done(new Error('This message should not have been published: ' + msg));
                 });
             });
 

@@ -303,12 +303,7 @@ describe("The node_redis client", function () {
                         });
                     });
 
-                    // TODO: we should only have a single subscription in this this
-                    // test but unsubscribing from the single channel indicates
-                    // that one subscriber still exists, let's dig into this.
                     describe("and it's subscribed to a channel", function () {
-                        // reconnect_select_db_after_pubsub
-                        // Does not pass.
                         // "Connection in subscriber mode, only subscriber commands may be used"
                         it("reconnects, unsubscribes, and can retrieve the pre-existing data", function (done) {
                             client.on("ready", function on_connect() {
@@ -316,6 +311,28 @@ describe("The node_redis client", function () {
 
                                 client.on('unsubscribe', function (channel, count) {
                                     // we should now be out of subscriber mode.
+                                    assert.strictEqual(channel, "recon channel");
+                                    assert.strictEqual(count, 0);
+                                    client.set('foo', 'bar', helper.isString('OK', done));
+                                });
+                            });
+
+                            client.set("recon 1", "one");
+                            client.subscribe("recon channel", function (err, res) {
+                                // Do not do this in normal programs. This is to simulate the server closing on us.
+                                // For orderly shutdown in normal programs, do client.quit()
+                                client.stream.destroy();
+                            });
+                        });
+
+                        it("reconnects, unsubscribes, and can retrieve the pre-existing data of a explicit channel", function (done) {
+                            client.on("ready", function on_connect() {
+                                client.unsubscribe('recon channel', helper.isNotError());
+
+                                client.on('unsubscribe', function (channel, count) {
+                                    // we should now be out of subscriber mode.
+                                    assert.strictEqual(channel, "recon channel");
+                                    assert.strictEqual(count, 0);
                                     client.set('foo', 'bar', helper.isString('OK', done));
                                 });
                             });
@@ -450,6 +467,54 @@ describe("The node_redis client", function () {
                             }
                             client.stream.destroy();
                             client.mget("hello", 'world');
+                        });
+                    });
+
+                    it('monitors works in combination with the pub sub mode and the offline queue', function (done) {
+                        var responses = [];
+                        var pub = redis.createClient();
+                        pub.on('ready', function () {
+                            client.MONITOR(function (err, res) {
+                                assert.strictEqual(res, 'OK');
+                                pub.get('foo', helper.isNull());
+                            });
+                            client.subscribe('/foo', '/bar');
+                            client.unsubscribe('/bar');
+                            setTimeout(function () {
+                                client.stream.destroy();
+                                client.once('ready', function () {
+                                    pub.publish('/foo', 'hello world');
+                                });
+                                client.set('foo', 'bar', helper.isError());
+                                client.subscribe('baz');
+                                client.unsubscribe('baz');
+                            }, 150);
+                            var called = false;
+                            client.on("monitor", function (time, args, rawOutput) {
+                                responses.push(args);
+                                assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                                if (responses.length === 7) {
+                                    assert.deepEqual(responses[0], ['subscribe', '/foo', '/bar']);
+                                    assert.deepEqual(responses[1], ['unsubscribe', '/bar']);
+                                    assert.deepEqual(responses[2], ['get', 'foo']);
+                                    assert.deepEqual(responses[3], ['subscribe', '/foo']);
+                                    assert.deepEqual(responses[4], ['subscribe', 'baz']);
+                                    assert.deepEqual(responses[5], ['unsubscribe', 'baz']);
+                                    assert.deepEqual(responses[6], ['publish', '/foo', 'hello world']);
+                                    // The publish is called right after the reconnect and the monitor is called before the message is emitted.
+                                    // Therefor we have to wait till the next tick
+                                    process.nextTick(function () {
+                                        assert(called);
+                                        client.quit(done);
+                                        pub.end(false);
+                                    });
+                                }
+                            });
+                            client.on('message', function (channel, msg) {
+                                assert.strictEqual(channel, '/foo');
+                                assert.strictEqual(msg, 'hello world');
+                                called = true;
+                            });
                         });
                     });
                 });

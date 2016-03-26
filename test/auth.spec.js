@@ -255,6 +255,32 @@ describe("client authentication", function () {
                     done();
                 });
             });
+
+            it('pubsub working with auth', function (done) {
+                if (helper.redisProcess().spawnFailed()) this.skip();
+
+                var args = config.configureClient(parser, ip, {
+                    password: auth
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+                client.set('foo', 'bar');
+                client.subscribe('somechannel', 'another channel', function (err, res) {
+                    client.once('ready', function () {
+                        assert.strictEqual(client.pub_sub_mode, 1);
+                        client.get('foo', function (err, res) {
+                            assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                            done();
+                        });
+                    });
+                });
+                client.once('ready', function () {
+                    // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
+                    assert.strictEqual(client.pub_sub_mode, 2);
+                    client.ping(function () { // Make sure all commands were properly processed already
+                        client.stream.destroy();
+                    });
+                });
+            });
         });
     });
 
