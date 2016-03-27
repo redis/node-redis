@@ -38,7 +38,9 @@ describe('detect_buffers', function () {
                     });
 
                     it('returns a string when executed as part of transaction', function (done) {
-                        client.multi().get('string key 1').exec(helper.isString('string value', done));
+                        client.multi().get('string key 1').exec(function (err, res) {
+                            helper.isString('string value', done)(err, res[0]);
+                        });
                     });
                 });
 

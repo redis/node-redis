@@ -184,6 +184,7 @@ If the redis server runs on the same machine as the client consider using unix s
 * `path`: *null*; The unix socket string to connect to
 * `url`: *null*; The redis url to connect to (`[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` For more info check [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis))
 * `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
+* `string_numbers`: *boolean*; pass true to get numbers back as strings instead of js numbers. This is necessary if you want to handle big numbers (above `Number.MAX_SAFE_INTEGER` === 2^53). If passed, the js parser is automatically choosen as parser no matter if the parser is set to hiredis or not, as hiredis is not capable of doing this.
 * `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
 * `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers. Please be aware that this can't work properly with the pubsub mode. A subscriber has to either always return strings or buffers.
 if any of the input arguments to the original command were Buffers.
