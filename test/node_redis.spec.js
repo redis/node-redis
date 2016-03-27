@@ -210,8 +210,6 @@ describe('The node_redis client', function () {
                 describe('commands after using .quit should fail', function () {
 
                     it('return an error in the callback', function (done) {
-                        if (helper.redisProcess().spawnFailed()) this.skip();
-
                         // TODO: Investigate why this test is failing hard and killing mocha if using '/tmp/redis.sock'.
                         // Seems like something is wrong with nyc while passing a socket connection to create client!
                         client = redis.createClient();
@@ -225,8 +223,6 @@ describe('The node_redis client', function () {
                     });
 
                     it('return an error in the callback version two', function (done) {
-                        if (helper.redisProcess().spawnFailed()) this.skip();
-
                         client.quit();
                         setTimeout(function () {
                             client.get('foo', function (err, res) {
@@ -239,8 +235,6 @@ describe('The node_redis client', function () {
                     });
 
                     it('emit an error', function (done) {
-                        if (helper.redisProcess().spawnFailed()) this.skip();
-
                         client.quit();
                         client.on('error', function (err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');

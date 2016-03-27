@@ -20,7 +20,6 @@ describe("The 'zscan' method", function () {
             });
 
             it('return values', function (done) {
-                if (helper.redisProcess().spawnFailed()) this.skip();
                 helper.serverVersionAtLeast.call(this, client, [2, 8, 0]);
                 var hash = {};
                 var set = [];

@@ -20,12 +20,10 @@ describe("The 'zadd' method", function () {
             });
 
             it('reports an error', function (done) {
-                if (helper.redisProcess().spawnFailed()) this.skip();
                 client.zadd('infinity', [+'5t', 'should not be possible'], helper.isError(done));
             });
 
             it('return inf / -inf', function (done) {
-                if (helper.redisProcess().spawnFailed()) this.skip();
                 helper.serverVersionAtLeast.call(this, client, [3, 0, 2]);
                 client.zadd('infinity', [+Infinity, 'should be inf'], helper.isNumber(1));
                 client.zadd('infinity', ['inf', 'should be also be inf'], helper.isNumber(1));
