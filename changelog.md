@@ -1,7 +1,11 @@
 Changelog
 =========
 
-## v.2.6.0 - XX Mar, 2016
+## v.2.6.0-0 - 27 Mar, 2016
+
+This is mainly a very important bug fix release with some smaller features.
+The quit command did not end connections earlier if the connection was down at that time and this could have
+lead to strange situations, therefor this was fixed to end the connection right away in those cases.
 
 Features
 
