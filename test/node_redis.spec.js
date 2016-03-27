@@ -235,12 +235,11 @@ describe('The node_redis client', function () {
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
                             });
-                        }, 100);
+                        }, 50);
                     });
 
                     it('emit an error', function (done) {
                         if (helper.redisProcess().spawnFailed()) this.skip();
-
                         client.quit();
                         client.on('error', function (err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');

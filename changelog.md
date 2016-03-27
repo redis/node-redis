@@ -10,6 +10,7 @@ Features
 -  Activating monitor mode does now work together with arbitrary commands including pub sub mode
 -  Pub sub mode is completly rewritten and all known issues fixed
 -  Added `string_numbers` option to get back strings instead of numbers
+-  Quit command is from now on always going to end the connection properly
 
 Bugfixes
 
@@ -21,6 +22,7 @@ Bugfixes
 -  Fixed pub sub mode crashing if calling unsubscribe / subscribe in various combinations
 -  Fixed pub sub mode emitting unsubscribe even if no channels were unsubscribed
 -  Fixed pub sub mode emitting a message without a message published
+-  Fixed quit command not ending the connection and resulting in further reconnection if called while reconnecting
 
 ## v.2.5.3 - 21 Mar, 2016
 

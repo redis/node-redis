@@ -34,6 +34,85 @@ describe('connection tests', function () {
         assert.strictEqual(client.stream.listeners('error').length, 1);
     });
 
+    describe('quit on lost connections', function () {
+
+        it('calling quit while the connection is down should not end in reconnecting version a', function (done) {
+            var called = 0;
+            client = redis.createClient({
+                port: 9999,
+                retry_strategy: function (options) {
+                    var bool = client.quit(function (err, res) {
+                        assert.strictEqual(res, 'OK');
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(called++, -1);
+                        setTimeout(done, 25);
+                    });
+                    assert.strictEqual(bool, false);
+                    assert.strictEqual(called++, 0);
+                    return 5;
+                }
+            });
+            client.set('foo', 'bar', function (err, res) {
+                assert.strictEqual(err.message, 'Redis connection gone from close event.');
+                called = -1;
+            });
+        });
+
+        it('calling quit while the connection is down should not end in reconnecting version b', function (done) {
+            var called = false;
+            client = redis.createClient(9999);
+            client.set('foo', 'bar', function (err, res) {
+                assert.strictEqual(err.message, 'Redis connection gone from close event.');
+                called = true;
+            });
+            var bool = client.quit(function (err, res) {
+                assert.strictEqual(res, 'OK');
+                assert.strictEqual(err, null);
+                assert(called);
+                done();
+            });
+            assert.strictEqual(bool, false);
+        });
+
+        it('calling quit while the connection is down without offline queue should end the connection right away', function (done) {
+            var called = false;
+            client = redis.createClient(9999, {
+                enable_offline_queue: false
+            });
+            client.set('foo', 'bar', function (err, res) {
+                assert.strictEqual(err.message, 'SET can\'t be processed. The connection is not yet established and the offline queue is deactivated.');
+                called = true;
+            });
+            var bool = client.quit(function (err, res) {
+                assert.strictEqual(res, 'OK');
+                assert.strictEqual(err, null);
+                assert(called);
+                done();
+            });
+            assert.strictEqual(bool, false);
+        });
+
+        it('do not quit before connected or a connection issue is detected', function (done) {
+            client = redis.createClient();
+            client.set('foo', 'bar', helper.isString('OK'));
+            var bool = client.quit(done);
+            assert.strictEqual(bool, false);
+        });
+
+        it('quit right away if connection drops while quit command is on the fly', function (done) {
+            client = redis.createClient();
+            client.once('ready', function () {
+                client.set('foo', 'bar', helper.isError());
+                var bool = client.quit(done);
+                assert.strictEqual(bool, true);
+                process.nextTick(function () {
+                    client.stream.destroy();
+                });
+            });
+        });
+
+    });
+
     helper.allTests(function (parser, ip, args) {
 
         describe('using ' + parser + ' and ' + ip, function () {

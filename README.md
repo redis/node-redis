@@ -277,10 +277,16 @@ something like this `Error: Ready check failed: ERR operation not permitted`.
 The client exposed the used [stream](https://nodejs.org/api/stream.html) in `client.stream` and if the stream or client had to [buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback) the command in `client.should_buffer`.
 In combination this can be used to implement backpressure by checking the buffer state before sending a command and listening to the stream [drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
 
+## client.quit()
+
+This sends the quit command to the redis server and ends cleanly right after all running commands were properly handled.
+If this is called while reconnecting (and therefor no connection to the redis server exists) it is going to end the connection right away instead of
+resulting in further reconnections! All offline commands are going to be flushed with an error in that case.
+
 ## client.end(flush)
 
 Forcibly close the connection to the Redis server. Note that this does not wait until all replies have been parsed.
-If you want to exit cleanly, call `client.quit()` to send the `QUIT` command after you have handled all replies.
+If you want to exit cleanly, call `client.quit()` as mentioned above.
 
 You should set flush to true, if you are not absolutely sure you do not care about any other commands.
 If you set flush to false all still running commands will silently fail.
