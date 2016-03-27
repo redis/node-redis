@@ -147,8 +147,8 @@ function RedisClient (options, stream) {
         returnReply: function (data) {
             self.return_reply(data);
         },
-        returnError: function (data) {
-            self.return_error(data);
+        returnError: function (err) {
+            self.return_error(err);
         },
         returnFatalError: function (err) {
             // Error out all fired commands. Otherwise they might rely on faulty data. We have to reconnect to get in a working state again
@@ -157,7 +157,8 @@ function RedisClient (options, stream) {
             self.return_error(err);
         },
         returnBuffers: this.buffers,
-        name: options.parser
+        name: options.parser,
+        stringNumbers: options.string_numbers
     });
     this.create_stream();
     // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached

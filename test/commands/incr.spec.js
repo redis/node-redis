@@ -10,101 +10,65 @@ describe("The 'incr' method", function () {
     helper.allTests(function (parser, ip, args) {
 
         describe('using ' + parser + ' and ' + ip, function () {
-            var key = 'sequence';
 
-            describe('when not connected', function () {
+            describe('when connected and a value in Redis', function () {
+
                 var client;
-
-                beforeEach(function (done) {
-                    client = redis.createClient.apply(null, args);
-                    client.once('ready', function () {
-                        client.set(key, '9007199254740992', function (err, res) {
-                            helper.isNotError()(err, res);
-                            client.quit();
-                        });
-                    });
-                    client.on('end', done);
-                });
+                var key = 'ABOVE_SAFE_JAVASCRIPT_INTEGER';
+                var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || 9007199254740991; // Backwards compatible
 
                 afterEach(function () {
                     client.end(true);
                 });
 
-                it('reports an error', function (done) {
-                    client.incr(function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
-                        done();
-                    });
-                });
-            });
+                /*
+                    Number.MAX_SAFE_INTEGER === Math.pow(2, 53) - 1 === 9007199254740991
 
-            describe('when connected and a value in Redis', function () {
-                var client;
-
-                before(function (done) {
-                    /*
-                        9007199254740992 -> 9007199254740992
-                        9007199254740993 -> 9007199254740992
-                        9007199254740994 -> 9007199254740994
-                        9007199254740995 -> 9007199254740996
-                        9007199254740996 -> 9007199254740996
-                        9007199254740997 -> 9007199254740996
-                    */
+                    9007199254740992 -> 9007199254740992
+                    9007199254740993 -> 9007199254740992
+                    9007199254740994 -> 9007199254740994
+                    9007199254740995 -> 9007199254740996
+                    9007199254740996 -> 9007199254740996
+                    9007199254740997 -> 9007199254740996
+                    ...
+                */
+                it('count above the safe integers as numbers', function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.once('error', done);
-                    client.once('ready', function () {
-                        client.set(key, '9007199254740992', function (err, res) {
-                            helper.isNotError()(err, res);
-                            done();
-                        });
-                    });
-                });
-
-                after(function () {
-                    client.end(true);
-                });
-
-                it('changes the last digit from 2 to 3', function (done) {
+                    // Set a value to the maximum safe allowed javascript number (2^53) - 1
+                    client.set(key, MAX_SAFE_INTEGER, helper.isNotError());
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 1));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 2));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 3));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 4));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 5));
                     client.INCR(key, function (err, res) {
-                        helper.isString('9007199254740993')(err, res);
-                        done(err);
+                        helper.isNumber(MAX_SAFE_INTEGER + 6)(err, res);
+                        assert.strictEqual(typeof res, 'number');
                     });
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 7));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 8));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 9));
+                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 10, done));
                 });
 
-                describe('and we call it again', function () {
-                    it('changes the last digit from 3 to 4', function (done) {
-                        client.incr(key, function (err, res) {
-                            helper.isString('9007199254740994')(err, res);
-                            done(err);
-                        });
+                it('count above the safe integers as strings', function (done) {
+                    args[2].string_numbers = true;
+                    client = redis.createClient.apply(null, args);
+                    // Set a value to the maximum safe allowed javascript number (2^53)
+                    client.set(key, MAX_SAFE_INTEGER, helper.isNotError());
+                    client.incr(key, helper.isString('9007199254740992'));
+                    client.incr(key, helper.isString('9007199254740993'));
+                    client.incr(key, helper.isString('9007199254740994'));
+                    client.incr(key, helper.isString('9007199254740995'));
+                    client.incr(key, helper.isString('9007199254740996'));
+                    client.incr(key, function (err, res) {
+                        helper.isString('9007199254740997')(err, res);
+                        assert.strictEqual(typeof res, 'string');
                     });
-
-                    describe('and again', function () {
-                        it('changes the last digit from 4 to 5', function (done) {
-                            client.incr(key, function (err, res) {
-                                helper.isString('9007199254740995')(err, res);
-                                done(err);
-                            });
-                        });
-
-                        describe('and again', function () {
-                            it('changes the last digit from 5 to 6', function (done) {
-                                client.incr(key, function (err, res) {
-                                    helper.isString('9007199254740996')(err, res);
-                                    done(err);
-                                });
-                            });
-
-                            describe('and again', function () {
-                                it('changes the last digit from 6 to 7', function (done) {
-                                    client.incr(key, function (err, res) {
-                                        helper.isString('9007199254740997')(err, res);
-                                        done(err);
-                                    });
-                                });
-                            });
-                        });
-                    });
+                    client.incr(key, helper.isString('9007199254740998'));
+                    client.incr(key, helper.isString('9007199254740999'));
+                    client.incr(key, helper.isString('9007199254741000'));
+                    client.incr(key, helper.isString('9007199254741001', done));
                 });
             });
         });

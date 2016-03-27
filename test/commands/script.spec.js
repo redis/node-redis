@@ -34,7 +34,7 @@ describe("The 'script' method", function () {
             });
 
             it('allows a loaded script to be evaluated', function (done) {
-                client.evalsha(commandSha, 0, helper.isString('99', done));
+                client.evalsha(commandSha, 0, helper.isNumber(99, done));
             });
 
             it('allows a script to be loaded as part of a chained transaction', function (done) {

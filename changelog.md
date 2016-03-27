@@ -9,6 +9,7 @@ Features
  -  All commands that were send after a connection loss are now going to be send after reconnecting
 -  Activating monitor mode does now work together with arbitrary commands including pub sub mode
 -  Pub sub mode is completly rewritten and all known issues fixed
+-  Added `string_numbers` option to get back strings instead of numbers
 
 Bugfixes
 

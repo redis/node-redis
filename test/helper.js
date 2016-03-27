@@ -59,9 +59,13 @@ module.exports = {
         };
     },
     isString: function (str, done) {
+        str = '' + str; // Make sure it's a string
         return function (err, results) {
             assert.strictEqual(null, err, "expected string '" + str + "', got error: " + err);
-            assert.equal(str, results, str + ' does not match ' + results);
+            if (Buffer.isBuffer(results)) { // If options are passed to return either strings or buffers...
+                results = results.toString();
+            }
+            assert.strictEqual(str, results, str + ' does not match ' + results);
             if (done) done();
         };
     },
