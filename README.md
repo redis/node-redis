@@ -129,8 +129,7 @@ then replayed just before this event is emitted.
 
 ### "connect"
 
-`client` will emit `connect` at the same time as it emits `ready` unless `client.options.no_ready_check`
-is set. If this options is set, `connect` will be emitted when the stream is connected.
+`client` will emit `connect` as soon as the stream is connected to the server.
 
 ### "reconnecting"
 
@@ -621,9 +620,9 @@ Duplicate all current options and return a new redisClient instance. All options
 
 ## client.send_command(command_name[, [args][, callback]])
 
-Used internally to send commands to Redis. Nearly all Redis commands have been added to the `client` object.
-However, if new commands are introduced before this library is updated, you can use `send_command()` to send arbitrary commands to Redis.
-The command has to be lower case.
+All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
+you can use `send_command()` to send arbitrary commands to Redis.
+The command_name has to be lower case.
 
 All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
 
