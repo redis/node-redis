@@ -1,11 +1,24 @@
 Changelog
 =========
 
+## v.2.6.0-1 - 01 Apr, 2016
+
+A second pre-release with further fixes. This is likely going to be released as 2.6.0 stable without further changes.
+
+Features
+
+-  Added type validations for client.send_command arguments
+
+Bugfixes
+
+-  Fixed client.send_command not working properly with every command and every option
+-  Fixed pub sub mode unsubscribing from all channels in combination with the new `string_numbers` option crashing
+-  Fixed pub sub mode unsubscribing from all channels not respected while reconnecting
+-  Fixed pub sub mode events in combination with the `string_numbers` option emitting the number of channels not as number
+
 ## v.2.6.0-0 - 27 Mar, 2016
 
 This is mainly a very important bug fix release with some smaller features.
-The quit command did not end connections earlier if the connection was down at that time and this could have
-lead to strange situations, therefor this was fixed to end the connection right away in those cases.
 
 Features
 
@@ -27,6 +40,9 @@ Bugfixes
 -  Fixed pub sub mode emitting unsubscribe even if no channels were unsubscribed
 -  Fixed pub sub mode emitting a message without a message published
 -  Fixed quit command not ending the connection and resulting in further reconnection if called while reconnecting
+
+The quit command did not end connections earlier if the connection was down at that time and this could have
+lead to strange situations, therefor this was fixed to end the connection right away in those cases.
 
 ## v.2.5.3 - 21 Mar, 2016
 
