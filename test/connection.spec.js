@@ -89,6 +89,7 @@ describe('connection tests', function () {
                 assert(called);
                 done();
             });
+            // TODO: In v.3 the quit command would be fired right away, so bool should be true
             assert.strictEqual(bool, false);
         });
 
@@ -97,6 +98,18 @@ describe('connection tests', function () {
             client.set('foo', 'bar', helper.isString('OK'));
             var bool = client.quit(done);
             assert.strictEqual(bool, false);
+        });
+
+        it('quit "succeeds" even if the client connection is closed while doing so', function (done) {
+            client = redis.createClient();
+            client.set('foo', 'bar', function (err, res) {
+                assert.strictEqual(res, 'OK');
+                client.quit(function (err, res) {
+                    assert.strictEqual(res, 'OK');
+                    done(err);
+                });
+                client.end(true); // Flushing the quit command should result in a success
+            });
         });
 
         it('quit right away if connection drops while quit command is on the fly', function (done) {
@@ -119,7 +132,7 @@ describe('connection tests', function () {
 
             describe('on lost connection', function () {
                 it('emit an error after max retry attempts and do not try to reconnect afterwards', function (done) {
-                    var max_attempts = 4;
+                    var max_attempts = 3;
                     var options = {
                         parser: parser,
                         max_attempts: max_attempts
@@ -138,10 +151,14 @@ describe('connection tests', function () {
 
                     client.on('error', function (err) {
                         if (/Redis connection in broken state: maximum connection attempts.*?exceeded./.test(err.message)) {
-                            setTimeout(function () {
+                            process.nextTick(function () { // End is called after the error got emitted
                                 assert.strictEqual(calls, max_attempts - 1);
+                                assert.strictEqual(client.emitted_end, true);
+                                assert.strictEqual(client.connected, false);
+                                assert.strictEqual(client.ready, false);
+                                assert.strictEqual(client.closing, true);
                                 done();
-                            }, 500);
+                            });
                         }
                     });
                 });
@@ -167,11 +184,15 @@ describe('connection tests', function () {
 
                     client.on('error', function (err) {
                         if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
-                            setTimeout(function () {
+                            process.nextTick(function () { // End is called after the error got emitted
+                                assert.strictEqual(client.emitted_end, true);
+                                assert.strictEqual(client.connected, false);
+                                assert.strictEqual(client.ready, false);
+                                assert.strictEqual(client.closing, true);
                                 assert.strictEqual(client.retry_totaltime, connect_timeout);
                                 assert.strictEqual(time, connect_timeout);
                                 done();
-                            }, 500);
+                            });
                         }
                     });
                 });
@@ -190,7 +211,7 @@ describe('connection tests', function () {
                     client.on('reconnecting', function (params) {
                         client.end(true);
                         assert.strictEqual(params.times_connected, 1);
-                        setTimeout(done, 100);
+                        setTimeout(done, 5);
                     });
                 });
 
@@ -291,7 +312,6 @@ describe('connection tests', function () {
 
                 it('emit an error after the socket timeout exceeded the connect_timeout time', function (done) {
                     var connect_timeout = 500; // in ms
-                    var time = Date.now();
                     client = redis.createClient({
                         parser: parser,
                         // Auto detect ipv4 and use non routable ip to trigger the timeout
@@ -308,17 +328,18 @@ describe('connection tests', function () {
                         throw new Error('No reconnect, since no connection was ever established');
                     });
 
+                    var time = Date.now();
                     client.on('error', function (err) {
                         if (err.code === 'ENETUNREACH') { // The test is run without a internet connection. Pretent it works
                             return done();
                         }
                         assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
                         // The code execution on windows is very slow at times
-                        var add = process.platform !== 'win32' ? 25 : 125;
+                        var add = process.platform !== 'win32' ? 15 : 200;
                         var now = Date.now();
                         assert(now - time < connect_timeout + add, 'The real timeout time should be below ' + (connect_timeout + add) + 'ms but is: ' + (now - time));
                          // Timers sometimes trigger early (e.g. 1ms to early)
-                        assert(now - time >= connect_timeout - 3, 'The real timeout time should be above ' + connect_timeout + 'ms, but it is: ' + (now - time));
+                        assert(now - time >= connect_timeout - 5, 'The real timeout time should be above ' + connect_timeout + 'ms, but it is: ' + (now - time));
                         done();
                     });
                 });
@@ -546,7 +567,7 @@ describe('connection tests', function () {
                     });
                 }
 
-                it('redis still loading <= 1000ms', function (done) {
+                it('redis still loading <= 500', function (done) {
                     client = redis.createClient.apply(null, args);
                     var tmp = client.info.bind(client);
                     var end = helper.callFuncAfter(done, 3);
@@ -568,9 +589,9 @@ describe('connection tests', function () {
                     };
                     client.on('ready', function () {
                         var rest = Date.now() - time;
-                        assert(rest >= 498, 'Rest should be equal or above 500 ms but is: ' + rest); // setTimeout might trigger early
+                        assert(rest >= 495, 'Rest should be equal or above 500 ms but is: ' + rest); // setTimeout might trigger early
                         // Be on the safe side and accept 200ms above the original value
-                        assert(rest - 200 < 500, 'Rest - 200 should be below 500 ms but is: ' + (rest - 200));
+                        assert(rest - 250 < 500, 'Rest - 250 should be below 500 ms but is: ' + (rest - 250));
                         assert(delayed);
                         end();
                     });
@@ -601,7 +622,7 @@ describe('connection tests', function () {
                         var rest = Date.now() - time;
                         assert(rest >= 998, '`rest` should be equal or above 1000 ms but is: ' + rest); // setTimeout might trigger early
                         // Be on the safe side and accept 200ms above the original value
-                        assert(rest - 200 < 1000, '`rest` - 200 should be below 1000 ms but is: ' + (rest - 200));
+                        assert(rest - 250 < 1000, '`rest` - 250 should be below 1000 ms but is: ' + (rest - 250));
                         assert(delayed);
                         end();
                     });

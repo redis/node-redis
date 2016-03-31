@@ -568,6 +568,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
         error.code = 'UNCERTAIN_STATE';
         this.flush_and_error(error, ['command_queue']);
         error.message = 'Redis connection lost and commands aborted in uncertain state. They might have been processed.';
+        // TODO: Reconsider emitting this always, as each running command is handled anyway
+        // This should likely be removed in v.3. This is different to the broken connection as we'll reconnect here
         this.emit('error', error);
     }
 

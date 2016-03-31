@@ -34,7 +34,7 @@ describe("The 'info' method", function () {
                 setTimeout(function () {
                     assert.strictEqual(typeof client.server_info.db2, 'object');
                     done();
-                }, 150);
+                }, 30);
             });
 
             it('works with optional section provided with and without callback', function (done) {

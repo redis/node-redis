@@ -12,6 +12,8 @@ describe("The 'batch' method", function () {
         describe('using ' + parser + ' and ' + ip, function () {
 
             describe('when not connected', function () {
+                // TODO: This is somewhat broken and should be fixed in v.3
+                // The commands should return an error instead of returning an empty result
                 var client;
 
                 beforeEach(function (done) {

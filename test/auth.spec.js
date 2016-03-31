@@ -54,8 +54,8 @@ describe('client authentication', function () {
                     assert.strictEqual('retry worked', res);
                     var now = Date.now();
                     // Hint: setTimeout sometimes triggers early and therefor the value can be like one or two ms to early
-                    assert(now - time >= 198, 'Time should be above 200 ms (the reconnect time) and is ' + (now - time));
-                    assert(now - time < 300, 'Time should be below 300 ms (the reconnect should only take a bit above 200 ms) and is ' + (now - time));
+                    assert(now - time >= 98, 'Time should be above 100 ms (the reconnect time) and is ' + (now - time));
+                    assert(now - time < 225, 'Time should be below 255 ms (the reconnect should only take a bit above 100 ms) and is ' + (now - time));
                     done();
                 });
                 var tmp = client.command_queue.get(0).callback;

@@ -57,7 +57,8 @@ describe('publish/subscribe', function () {
                     sub.on('reconnecting', function () {
                         a = true;
                         sub.on('ready', function () {
-                            setTimeout(done, 250);
+                            assert.strictEqual(sub.command_queue.length, 0);
+                            done();
                         });
                     });
 

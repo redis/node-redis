@@ -1,5 +1,5 @@
 pid = __dirname/stunnel.pid
-output = __dirname/stunnel.log
+; output = __dirname/stunnel.log
 CAfile = __dirname/redis.js.org.cert
 cert = __dirname/redis.js.org.cert
 key = __dirname/redis.js.org.key

@@ -71,10 +71,15 @@ describe('TLS connection tests', function () {
 
             client.on('error', function (err) {
                 if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
-                    setTimeout(function () {
-                        assert(time === connect_timeout);
+                    process.nextTick(function () {
+                        assert.strictEqual(time, connect_timeout);
+                        assert.strictEqual(client.emitted_end, true);
+                        assert.strictEqual(client.connected, false);
+                        assert.strictEqual(client.ready, false);
+                        assert.strictEqual(client.closing, true);
+                        assert.strictEqual(time, connect_timeout);
                         done();
-                    }, 100);
+                    });
                 }
             });
         });

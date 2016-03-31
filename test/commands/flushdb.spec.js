@@ -90,7 +90,7 @@ describe("The 'flushdb' method", function () {
                     it('results in a db size of zero without a callback', function (done) {
                         client.flushdb();
                         setTimeout(function (err, res) {
-                            client.dbsize([], function (err, res) {
+                            client.dbsize(function (err, res) {
                                 helper.isNotError()(err, res);
                                 helper.isType.number()(err, res);
                                 assert.strictEqual(0, res, 'Flushing db should result in db size 0');

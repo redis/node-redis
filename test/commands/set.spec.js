@@ -43,7 +43,7 @@ describe("The 'set' method", function () {
                 beforeEach(function (done) {
                     client = redis.createClient.apply(null, args);
                     client.once('ready', function () {
-                        done();
+                        client.flushdb(done);
                     });
                 });
 
@@ -60,6 +60,35 @@ describe("The 'set' method", function () {
                                     helper.isString(value)(err, res);
                                     done();
                                 });
+                            });
+                        });
+
+                        it('set expire date in seconds', function (done) {
+                            client.set('foo', 'bar', 'ex', 10, helper.isString('OK'));
+                            client.pttl('foo', function (err, res) {
+                                assert(res >= 10000 - 50); // Max 50 ms should have passed
+                                assert(res <= 10000); // Max possible should be 10.000
+                                done(err);
+                            });
+                        });
+
+                        it('set expire date in milliseconds', function (done) {
+                            client.set('foo', 'bar', 'px', 100, helper.isString('OK'));
+                            client.pttl('foo', function (err, res) {
+                                assert(res >= 50); // Max 50 ms should have passed
+                                assert(res <= 100); // Max possible should be 100
+                                done(err);
+                            });
+                        });
+
+                        it('only set the key if (not) already set', function (done) {
+                            client.set('foo', 'bar', 'NX', helper.isString('OK'));
+                            client.set('foo', 'bar', 'nx', helper.isNull());
+                            client.set('foo', 'bar', 'EX', '10', 'XX', helper.isString('OK'));
+                            client.ttl('foo', function (err, res) {
+                                assert(res >= 9); // Min 9s should be left
+                                assert(res <= 10); // Max 10s should be left
+                                done(err);
                             });
                         });
                     });

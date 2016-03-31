@@ -62,7 +62,7 @@ describe("The 'select' method", function () {
                             client.select(1, function (err) {
                                 assert.equal(err, null);
                                 assert.equal(client.selected_db, 1, 'we should have selected the new valid DB');
-                                return done();
+                                done();
                             });
                         });
                     });
@@ -73,7 +73,7 @@ describe("The 'select' method", function () {
                             client.select(9999, function (err) {
                                 assert.equal(err.code, 'ERR');
                                 assert.equal(err.message, 'ERR invalid DB index');
-                                return done();
+                                done();
                             });
                         });
                     });
@@ -86,8 +86,8 @@ describe("The 'select' method", function () {
                             client.select(1);
                             setTimeout(function () {
                                 assert.equal(client.selected_db, 1, 'we should have selected the new valid DB');
-                                return done();
-                            }, 100);
+                                done();
+                            }, 25);
                         });
                     });
 

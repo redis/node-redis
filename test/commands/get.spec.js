@@ -77,7 +77,7 @@ describe("The 'get' method", function () {
                         client.on('error', function (err) {
                             throw err;
                         });
-                        setTimeout(done, 50);
+                        setTimeout(done, 25);
                     });
                 });
 

@@ -266,7 +266,7 @@ describe('The node_redis client', function () {
                         bclient.blpop('blocking list 2', 5, function (err, value) {
                             assert.strictEqual(value[0], 'blocking list 2');
                             assert.strictEqual(value[1], 'initial value');
-                            return done(err);
+                            done(err);
                         });
                         bclient.once('ready', function () {
                             setTimeout(function () {
@@ -297,10 +297,11 @@ describe('The node_redis client', function () {
                             }
                             client.set('foo', 'bar', cb);
                         }
+                        client.on('warning', function () {}); // Ignore deprecation message
                         setTimeout(function () {
                             finished = true;
                             done();
-                        }, 250);
+                        }, 25);
                     });
 
                     it('used with flush set to true', function (done) {
@@ -314,6 +315,7 @@ describe('The node_redis client', function () {
                         for (var i = 0; i < 20; i++) {
                             if (i === 10) {
                                 client.end(true);
+                                client.stream.write('foo'); // Trigger an error on the closed stream that we ignore
                             }
                             client.set('foo', 'bar', cb);
                         }
@@ -583,6 +585,24 @@ describe('The node_redis client', function () {
                         });
                     });
 
+                    it('monitor does not activate if the command could not be processed properly', function (done) {
+                        client.MONITOR(function (err, res) {
+                            assert.strictEqual(err.code, 'UNCERTAIN_STATE');
+                        });
+                        client.on('error', function (err) {}); // Ignore error here
+                        client.stream.destroy();
+                        client.on('monitor', function (time, args, rawOutput) {
+                            done(new Error('failed')); // Should not be activated
+                        });
+                        client.on('reconnecting', function () {
+                            client.get('foo', function (err, res) {
+                                assert(!err);
+                                assert.strictEqual(client.monitoring, false);
+                                setTimeout(done, 10); // The monitor command might be returned a tiny bit later
+                            });
+                        });
+                    });
+
                     it('monitors works in combination with the pub sub mode and the offline queue', function (done) {
                         var responses = [];
                         var pub = redis.createClient();
@@ -657,7 +677,7 @@ describe('The node_redis client', function () {
                         client.set(['utf8test', utf8_sample], helper.isString('OK'));
                         client.get(['utf8test'], function (err, obj) {
                             assert.strictEqual(utf8_sample, obj);
-                            return done(err);
+                            done(err);
                         });
                     });
                 });
@@ -671,13 +691,13 @@ describe('The node_redis client', function () {
 
                     var id = setTimeout(function () {
                         external.kill();
-                        return done(Error('unref subprocess timed out'));
+                        done(Error('unref subprocess timed out'));
                     }, 8000);
 
                     external.on('close', function (code) {
                         clearTimeout(id);
                         assert.strictEqual(code, 0);
-                        return done();
+                        done();
                     });
                 });
             });
@@ -727,11 +747,7 @@ describe('The node_redis client', function () {
                         client = redis.createClient.apply(null, args);
                         client.on('ready', function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
-                            client.quit();
-
-                            client.once('end', function () {
-                                return done();
-                            });
+                            client.quit(done);
                         });
                     });
 
@@ -743,11 +759,7 @@ describe('The node_redis client', function () {
                             client.set(['set key 2', 'set val'], helper.isString('OK'));
                             client.get(['set key 1'], helper.isString('set val'));
                             client.get(['set key 2'], helper.isString('set val'));
-                            client.quit();
-
-                            client.once('end', function () {
-                                return done();
-                            });
+                            client.quit(done);
                         });
                     });
                 });
@@ -761,11 +773,7 @@ describe('The node_redis client', function () {
                         client = redis.createClient.apply(null, args);
                         client.on('ready', function () {
                             assert.strictEqual(false, client.options.socket_nodelay);
-                            client.quit();
-
-                            client.once('end', function () {
-                                return done();
-                            });
+                            client.quit(done);
                         });
                     });
 
@@ -777,11 +785,7 @@ describe('The node_redis client', function () {
                             client.set(['set key 2', 'set val'], helper.isString('OK'));
                             client.get(['set key 1'], helper.isString('set val'));
                             client.get(['set key 2'], helper.isString('set val'));
-                            client.quit();
-
-                            client.once('end', function () {
-                                return done();
-                            });
+                            client.quit(done);
                         });
                     });
                 });
@@ -792,11 +796,7 @@ describe('The node_redis client', function () {
                         client = redis.createClient.apply(null, args);
                         client.on('ready', function () {
                             assert.strictEqual(true, client.options.socket_nodelay);
-                            client.quit();
-
-                            client.once('end', function () {
-                                return done();
-                            });
+                            client.quit(done);
                         });
                     });
 
@@ -808,11 +808,7 @@ describe('The node_redis client', function () {
                             client.set(['set key 2', 'set val'], helper.isString('OK'));
                             client.get(['set key 1'], helper.isString('set val'));
                             client.get(['set key 2'], helper.isString('set val'));
-                            client.quit();
-
-                            client.once('end', function () {
-                                return done();
-                            });
+                            client.quit(done);
                         });
                     });
                 });
@@ -902,19 +898,16 @@ describe('The node_redis client', function () {
                             // ignore, b/c expecting a "can't connect" error
                         });
 
-                        return setTimeout(function () {
+                        setTimeout(function () {
                             client.set('foo', 'bar', function (err, result) {
-                                if (!finished) {
-                                    // This should never be called
-                                    return done(err);
-                                }
+                                if (!finished) done(err);
                                 assert.strictEqual(err.message, "The command can't be processed. The connection has already been closed.");
                             });
 
-                            return setTimeout(function () {
+                            setTimeout(function () {
                                 assert.strictEqual(client.offline_queue.length, 1);
                                 finished = true;
-                                return done();
+                                done();
                             }, 25);
                         }, 50);
                     });
