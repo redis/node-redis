@@ -56,7 +56,7 @@ describe("The 'info' method", function () {
 
             it('check redis v.2.4 support', function (done) {
                 var end = helper.callFuncAfter(done, 2);
-                client.send_command = function (command, args, callback) {
+                client.internal_send_command = function (command, args, callback) {
                     assert.strictEqual(args.length, 0);
                     assert.strictEqual(command, 'info');
                     end();
