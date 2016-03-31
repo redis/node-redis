@@ -65,15 +65,44 @@ describe('publish/subscribe', function () {
                 });
             });
 
+            describe('string_numbers and pub sub', function () {
+                beforeEach(function (done) {
+                    sub.end(false);
+                    sub = redis.createClient({
+                        string_numbers: true
+                    });
+                    sub.once('connect', function () {
+                        done();
+                    });
+                });
+
+                it('does not fire subscribe events after reconnecting', function (done) {
+                    var i = 0;
+                    sub.on('subscribe', function (chnl, count) {
+                        assert.strictEqual(typeof count, 'number');
+                        assert.strictEqual(++i, count);
+                    });
+                    sub.on('unsubscribe', function (chnl, count) {
+                        assert.strictEqual(typeof count, 'number');
+                        assert.strictEqual(--i, count);
+                    });
+                    sub.subscribe(channel, channel2);
+                    sub.unsubscribe(function (err, res) { // Do not pass a channel here!
+                        assert.strictEqual(sub.pub_sub_mode, 2);
+                        assert.deepEqual(sub.subscription_set, {});
+                    });
+                    sub.set('foo', 'bar', helper.isString('OK'));
+                    sub.subscribe(channel2, done);
+                });
+            });
+
             describe('subscribe', function () {
                 it('fires a subscribe event for each channel subscribed to even after reconnecting', function (done) {
                     var a = false;
                     sub.on('subscribe', function (chnl, count) {
                         if (chnl === channel2) {
                             assert.equal(2, count);
-                            if (a) {
-                                return done();
-                            }
+                            if (a) return done();
                             sub.stream.destroy();
                         }
                     });
