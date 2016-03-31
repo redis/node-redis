@@ -180,6 +180,14 @@ util.inherits(RedisClient, EventEmitter);
 
 RedisClient.connection_id = 0;
 
+/******************************************************************************
+
+    All functions in here are internal besides the RedisClient constructor
+    and the exported functions. Don't rely on them as they will be private
+    functions in node_redis v.3
+
+******************************************************************************/
+
 // Attention: the function name "create_stream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.create_stream = function () {
     var self = this;
@@ -269,35 +277,12 @@ RedisClient.prototype.handle_reply = function (reply, command) {
 RedisClient.prototype.cork = noop;
 RedisClient.prototype.uncork = noop;
 
-RedisClient.prototype.duplicate = function (options) {
-    var existing_options = utils.clone(this.options);
-    options = utils.clone(options);
-    for (var elem in options) { // jshint ignore: line
-        existing_options[elem] = options[elem];
-    }
-    var client = new RedisClient(existing_options);
-    client.selected_db = this.selected_db;
-    return client;
-};
-
 RedisClient.prototype.initialize_retry_vars = function () {
     this.retry_timer = null;
     this.retry_totaltime = 0;
     this.retry_delay = 200;
     this.retry_backoff = 1.7;
     this.attempts = 1;
-};
-
-RedisClient.prototype.unref = function () {
-    if (this.connected) {
-        debug("Unref'ing the socket connection");
-        this.stream.unref();
-    } else {
-        debug('Not connected yet, will unref later');
-        this.once('connect', function () {
-            this.unref();
-        });
-    }
 };
 
 RedisClient.prototype.warn = function (msg) {
@@ -918,29 +903,6 @@ RedisClient.prototype.write = function (data) {
     return;
 };
 
-RedisClient.prototype.end = function (flush) {
-    // Flush queue if wanted
-    if (flush) {
-        this.flush_and_error(new Error("The command can't be processed. The connection has already been closed."));
-    } else if (arguments.length === 0) {
-        this.warn(
-            'Using .end() without the flush parameter is deprecated and throws from v.3.0.0 on.\n' +
-            'Please check the doku (https://github.com/NodeRedis/node_redis) and explictly use flush.'
-        );
-    }
-    // Clear retry_timer
-    if (this.retry_timer) {
-        clearTimeout(this.retry_timer);
-        this.retry_timer = null;
-    }
-    this.stream.removeAllListeners();
-    this.stream.on('error', noop);
-    this.connected = false;
-    this.ready = false;
-    this.closing = true;
-    return this.stream.destroySoon();
-};
-
 exports.createClient = function () {
     return new RedisClient(unifyOptions.apply(null, arguments));
 };
@@ -948,6 +910,7 @@ exports.RedisClient = RedisClient;
 exports.print = utils.print;
 exports.Multi = require('./lib/multi');
 
-// Add all redis commands to the client
+// Add all redis commands / node_redis api to the client
 require('./lib/individualCommands');
+require('./lib/extendedApi');
 require('./lib/commands');

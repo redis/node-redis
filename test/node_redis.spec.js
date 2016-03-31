@@ -109,33 +109,147 @@ describe('The node_redis client', function () {
 
                 describe('send_command', function () {
 
-                    it('omitting args should be fine in some cases', function (done) {
+                    it('omitting args should be fine', function (done) {
+                        client.server_info = {};
+                        client.send_command('info');
+                        client.send_command('ping', function (err, res) {
+                            assert.strictEqual(res, 'PONG');
+                            // Check if the previous info command used the internal individual info command
+                            assert.notDeepEqual(client.server_info, {});
+                            client.server_info = {};
+                        });
+                        client.send_command('info', null, undefined);
+                        client.send_command('ping', null, function (err, res) {
+                            assert.strictEqual(res, 'PONG');
+                            // Check if the previous info command used the internal individual info command
+                            assert.notDeepEqual(client.server_info, {});
+                            client.server_info = {};
+                        });
+                        client.send_command('info', undefined, undefined);
+                        client.send_command('ping', function (err, res) {
+                            assert.strictEqual(res, 'PONG');
+                            // Check if the previous info command used the internal individual info command
+                            assert.notDeepEqual(client.server_info, {});
+                            client.server_info = {};
+                        });
                         client.send_command('info', undefined, function (err, res) {
                             assert(/redis_version/.test(res));
+                            // The individual info command should also be called by using send_command
+                            // console.log(info, client.server_info);
+                            assert.notDeepEqual(client.server_info, {});
                             done();
                         });
                     });
 
-                    it('using another type as cb should just work as if there were no callback parameter', function (done) {
-                        client.send_command('set', ['test', 'bla'], [true]);
-                        client.get('test', function (err, res) {
-                            assert.equal(res, 'bla');
+                    it('using multi with send_command should work as individual command instead of using the internal multi', function (done) {
+                        // This is necessary to keep backwards compatibility and it is the only way to handle multis as you want in node_redis
+                        client.send_command('multi');
+                        client.send_command('set', ['foo', 'bar'], helper.isString('QUEUED'));
+                        client.get('foo');
+                        client.exec(function (err, res) { // exec is not manipulated if not fired by the individual multi command
+                            // As the multi command is handled individually by the user he also has to handle the return value
+                            assert.strictEqual(res[0].toString(), 'OK');
+                            assert.strictEqual(res[1].toString(), 'bar');
                             done();
                         });
                     });
 
-                    it('misusing the function should eventually throw (no command)', function (done) {
-                        client.send_command(true, 'info', function (err, res) {
-                            assert(/ERR Protocol error/.test(err.message));
-                            assert.equal(err.command, undefined);
-                            assert.equal(err.code, 'ERR');
+                    it('multi should be handled special', function (done) {
+                        client.send_command('multi', undefined, helper.isString('OK'));
+                        var args = ['test', 'bla'];
+                        client.send_command('set', args, helper.isString('QUEUED'));
+                        assert.deepEqual(args, ['test', 'bla']); // Check args manipulation
+                        client.get('test', helper.isString('QUEUED'));
+                        client.exec(function (err, res) {
+                            // As the multi command is handled individually by the user he also has to handle the return value
+                            assert.strictEqual(res[0].toString(), 'OK');
+                            assert.strictEqual(res[1].toString(), 'bla');
                             done();
                         });
                     });
 
-                    it('misusing the function should eventually throw (wrong args)', function (done) {
-                        client.send_command('info', false, function (err, res) {
-                            assert.equal(err.message, 'ERR Protocol error: invalid multibulk length');
+                    it('using another type as cb should throw', function () {
+                        try {
+                            client.send_command('set', ['test', 'bla'], [true]);
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "Array" for callback function');
+                        }
+                        try {
+                            client.send_command('set', ['test', 'bla'], null);
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "null" for callback function');
+                        }
+                    });
+
+                    it('command argument has to be of type string', function () {
+                        try {
+                            client.send_command(true, ['test', 'bla'], function () {});
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "Boolean" for command name');
+                        }
+                        try {
+                            client.send_command(undefined, ['test', 'bla'], function () {});
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "undefined" for command name');
+                        }
+                        try {
+                            client.send_command(null, ['test', 'bla'], function () {});
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "null" for command name');
+                        }
+                    });
+
+                    it('args may only be of type Array or undefined', function () {
+                        try {
+                            client.send_command('info', 123);
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "Number" for args');
+                        }
+                    });
+
+                    it('passing a callback as args and as callback should throw', function () {
+                        try {
+                            client.send_command('info', function a () {}, function b () {});
+                            throw new Error('failed');
+                        } catch (err) {
+                            assert.strictEqual(err.message, 'Wrong input type "Function" for args');
+                        }
+                    });
+
+                    it('multi should be handled special', function (done) {
+                        client.send_command('multi', undefined, helper.isString('OK'));
+                        var args = ['test', 'bla'];
+                        client.send_command('set', args, helper.isString('QUEUED'));
+                        assert.deepEqual(args, ['test', 'bla']); // Check args manipulation
+                        client.get('test', helper.isString('QUEUED'));
+                        client.exec(function (err, res) {
+                            // As the multi command is handled individually by the user he also has to handle the return value
+                            assert.strictEqual(res[0].toString(), 'OK');
+                            assert.strictEqual(res[1].toString(), 'bla');
+                            done();
+                        });
+                    });
+
+                    it('the args array may contain a arbitrary number of arguments', function (done) {
+                        client.send_command('mset', ['foo', 1, 'bar', 2, 'baz', 3], helper.isString('OK'));
+                        client.mget(['foo', 'bar', 'baz'], function (err, res) {
+                            // As the multi command is handled individually by the user he also has to handle the return value
+                            assert.strictEqual(res[0].toString(), '1');
+                            assert.strictEqual(res[1].toString(), '2');
+                            assert.strictEqual(res[2].toString(), '3');
+                            done();
+                        });
+                    });
+
+                    it('send_command with callback as args', function (done) {
+                        client.send_command('abcdef', function (err, res) {
+                            assert.strictEqual(err.message, "ERR unknown command 'abcdef'");
                             done();
                         });
                     });
