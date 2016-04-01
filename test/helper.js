@@ -16,10 +16,12 @@ function startRedis (conf, done, port) {
 }
 
 before(function (done) {
+    this.timeout(25000);
     startRedis('./conf/redis.conf', done);
 });
 
 after(function (done) {
+    this.timeout(25000);
     if (rp) rp.stop(done);
 });
 

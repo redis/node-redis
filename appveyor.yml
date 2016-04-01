@@ -18,9 +18,9 @@ shallow_clone: true
 install:
   # Install the Redis
   - nuget install redis-64 -excludeversion
-  - redis-64\tools\redis-server.exe --service-install
-  - redis-64\tools\redis-server.exe --service-start
-  - '@ECHO Redis Started'
+  # - redis-64\tools\redis-server.exe --service-install
+  # - redis-64\tools\redis-server.exe --service-start
+  - '@ECHO Redis installed'
   # Get the latest stable version of Node 0.STABLE.latest
   - ps: Install-Product node $env:nodejs_version
   # Typical npm stuff. Use msvs 2013 for the hiredis parser

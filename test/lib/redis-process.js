@@ -47,16 +47,10 @@ function waitForRedis (available, cb, port) {
 
 module.exports = {
     start: function (done, conf, port) {
-        var spawnFailed = false;
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
-        var rp = spawn('redis-server', [confFile], {});
-
-        // capture a failure booting redis, and give
-        // the user running the test some directions.
-        rp.once('exit', function (code) {
-            if (code !== 0) spawnFailed = true;
-        });
+        var redis = process.platform === 'win32' ? 'redis-64\\tools\\redis-server.exe' : 'redis-server';
+        var rp = spawn.sync(redis, [confFile], { stdio: 'inherit' });
 
         // wait for redis to become available, by
         // checking the port we bind on.
@@ -65,10 +59,9 @@ module.exports = {
             // an after() block to shutdown redis.
             return done(null, {
                 spawnFailed: function () {
-                    return spawnFailed;
+                    return false;
                 },
                 stop: function (done) {
-                    if (spawnFailed) return done();
                     rp.once('exit', function (code) {
                         var error = null;
                         if (code !== null && code !== 0) {
