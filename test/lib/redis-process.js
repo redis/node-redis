@@ -49,31 +49,29 @@ module.exports = {
     start: function (done, conf, port) {
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
-        var redis = process.platform === 'win32' ? 'redis-64\\tools\\redis-server.exe' : 'redis-server';
+        var redis = 'redis-server';
+        if (process.platform === 'win32') {
+            confFile = confFile.replace('.conf', '.win32.conf');
+            redis = 'redis-64\\tools\\redis-server.exe';
+        }
         var rp = spawn.sync(redis, [confFile], { stdio: 'inherit' });
 
-        // wait for redis to become available, by
-        // checking the port we bind on.
-        waitForRedis(true, function () {
-            // return an object that can be used in
-            // an after() block to shutdown redis.
-            return done(null, {
-                spawnFailed: function () {
-                    return false;
-                },
-                stop: function (done) {
-                    rp.once('exit', function (code) {
-                        var error = null;
-                        if (code !== null && code !== 0) {
-                            error = new Error('Redis shutdown failed with code ' + code);
-                        }
-                        waitForRedis(false, function () {
-                            return done(error);
-                        }, port);
-                    });
-                    rp.kill('SIGTERM');
-                }
-            });
-        }, port);
+        done(null, {
+            spawnFailed: function () {
+                return false; // Remove if as soon as it's not necessary anymore
+            },
+            stop: function (done) {
+                rp.once('exit', function (code) {
+                    var error = null;
+                    if (code !== null && code !== 0) {
+                        error = new Error('Redis shutdown failed with code ' + code);
+                    }
+                    waitForRedis(false, function () {
+                        return done(error);
+                    }, port);
+                });
+                rp.kill('SIGTERM');
+            }
+        });
     }
 };
