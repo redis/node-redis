@@ -54,24 +54,26 @@ module.exports = {
             confFile = confFile.replace('.conf', '.win32.conf');
             redis = 'redis-64\\tools\\redis-server.exe';
         }
-        var rp = spawn.sync(redis, [confFile], { stdio: 'inherit' });
+        var rp = spawn(redis, [confFile], { stdio: 'inherit' });
 
-        done(null, {
-            spawnFailed: function () {
-                return false; // Remove if as soon as it's not necessary anymore
-            },
-            stop: function (done) {
-                rp.once('exit', function (code) {
-                    var error = null;
-                    if (code !== null && code !== 0) {
-                        error = new Error('Redis shutdown failed with code ' + code);
-                    }
-                    waitForRedis(false, function () {
-                        return done(error);
-                    }, port);
-                });
-                rp.kill('SIGTERM');
-            }
-        });
+        waitForRedis(true, function () {
+            done(null, {
+                spawnFailed: function () {
+                    return false; // Remove if as soon as it's not necessary anymore
+                },
+                stop: function (done) {
+                    rp.once('exit', function (code) {
+                        var error = null;
+                        if (code !== null && code !== 0) {
+                            error = new Error('Redis shutdown failed with code ' + code);
+                        }
+                        waitForRedis(false, function () {
+                            return done(error);
+                        }, port);
+                    });
+                    rp.kill('SIGTERM');
+                }
+            });
+        }, port);
     }
 };
