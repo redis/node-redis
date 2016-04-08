@@ -618,6 +618,38 @@ the second word as first parameter:
 
 Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
 
+An example of when to use duplicate() would be to accomodate the connection- 
+blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
+are used on the same redisClient instance as non-blocking commands, the 
+non-blocking ones may be queued up until after the blocking ones finish.
+
+    var Redis=require('redis');
+    var client = Redis.createClient();
+    var get = function() {
+        console.log("get called");
+        client.get("any_key",function() { console.log("get returned"); });
+        setTimeout( get, 1000 );
+    };
+    var brpop = function() {
+        console.log("brpop called");
+        client.brpop("nonexistent", 5, function() {
+            console.log("brpop return");
+            setTimeout( brpop, 1000 );
+        });
+    };
+    get();
+    brpop();
+    
+These two repeating functions will interfere with each other -- the `get`s will 
+not return until after the `brpop` returns.  This can be fixed by keeping the 
+blocking calls separate using `client.duplicate()`, eg:
+
+    ...
+    var clientBlocking = client.duplicate();
+    var brpop = function() {
+        console.log("brpop called");
+        clientBlocking.brpop( ...
+
 ## client.send_command(command_name[, [args][, callback]])
 
 All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
