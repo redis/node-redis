@@ -12,8 +12,6 @@ describe("The 'batch' method", function () {
         describe('using ' + parser + ' and ' + ip, function () {
 
             describe('when not connected', function () {
-                // TODO: This is somewhat broken and should be fixed in v.3
-                // The commands should return an error instead of returning an empty result
                 var client;
 
                 beforeEach(function (done) {
@@ -24,7 +22,7 @@ describe("The 'batch' method", function () {
                     client.on('end', done);
                 });
 
-                it('returns an empty array', function (done) {
+                it('returns an empty array for missing commands', function (done) {
                     var batch = client.batch();
                     batch.exec(function (err, res) {
                         assert.strictEqual(err, null);
@@ -33,7 +31,17 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it('returns an empty array if promisified', function () {
+                it('returns an error for batch with commands', function (done) {
+                    var batch = client.batch();
+                    batch.set('foo', 'bar');
+                    batch.exec(function (err, res) {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(res[0].code, 'NR_OFFLINE');
+                        done();
+                    });
+                });
+
+                it('returns an empty array for missing commands if promisified', function () {
                     return client.batch().execAsync().then(function (res) {
                         assert.strictEqual(res.length, 0);
                     });

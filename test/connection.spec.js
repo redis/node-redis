@@ -93,6 +93,27 @@ describe('connection tests', function () {
             assert.strictEqual(bool, false);
         });
 
+        it('calling quit while connected without offline queue should end the connection when all commands have finished', function (done) {
+            var called = false;
+            client = redis.createClient({
+                enable_offline_queue: false
+            });
+            client.on('ready', function () {
+                client.set('foo', 'bar', function (err, res) {
+                    assert.strictEqual(res, 'OK');
+                    called = true;
+                });
+                var bool = client.quit(function (err, res) {
+                    assert.strictEqual(res, 'OK');
+                    assert.strictEqual(err, null);
+                    assert(called);
+                    done();
+                });
+                // TODO: In v.3 the quit command would be fired right away, so bool should be true
+                assert.strictEqual(bool, true);
+            });
+        });
+
         it('do not quit before connected or a connection issue is detected', function (done) {
             client = redis.createClient();
             client.set('foo', 'bar', helper.isString('OK'));

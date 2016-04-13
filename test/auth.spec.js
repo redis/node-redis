@@ -291,6 +291,48 @@ describe('client authentication', function () {
                     });
                 });
             });
+
+            it('indivdual commands work properly with batch', function (done) {
+                // quit => might return an error instead of "OK" in the exec callback... (if not connected)
+                // auth => might return an error instead of "OK" in the exec callback... (if no password is required / still loading on Redis <= 2.4)
+                // This could be fixed by checking the return value of the callback in the exec callback and
+                // returning the manipulated [error, result] from the callback.
+                // There should be a better solution though
+
+                var args = config.configureClient(parser, 'localhost', {
+                    noReadyCheck: true
+                });
+                client = redis.createClient.apply(redis.createClient, args);
+                assert.strictEqual(client.selected_db, undefined);
+                var end = helper.callFuncAfter(done, 8);
+                client.on('monitor', function () {
+                    end(); // Should be called for each command after monitor
+                });
+                client.batch()
+                    .auth(auth)
+                    .SELECT(5, function (err, res) {
+                        assert.strictEqual(client.selected_db, 5);
+                        assert.strictEqual(res, 'OK');
+                        assert.notDeepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    })
+                    .monitor()
+                    .set('foo', 'bar', helper.isString('OK'))
+                    .INFO(function (err, res) {
+                        assert.strictEqual(res.indexOf('# Server\r\nredis_version:'), 0);
+                        assert.deepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    })
+                    .get('foo', helper.isString('bar'))
+                    .subscribe(['foo', 'bar'])
+                    .unsubscribe('foo')
+                    .SUBSCRIBE('/foo', helper.isString('/foo'))
+                    .psubscribe('*')
+                    .quit(helper.isString('OK')) // this might be interesting
+                    .exec(function (err, res) {
+                        res[4] = res[4].substr(0, 10);
+                        assert.deepEqual(res, ['OK', 'OK', 'OK', 'OK', '# Server\r\n', 'bar', 'bar', 'foo', '/foo', '*', 'OK']);
+                        end();
+                    });
+            });
         });
     });
 

@@ -618,6 +618,26 @@ describe('The node_redis client', function () {
                         });
                     });
 
+                    it('monitors reconnects properly and works with the offline queue in a batch statement', function (done) {
+                        var i = 0;
+                        var multi = client.batch();
+                        multi.MONITOR(helper.isString('OK'));
+                        multi.mget('hello', 'world');
+                        multi.exec(function (err, res) {
+                            assert.deepEqual(res, ['OK', [null, null]]);
+                        });
+                        client.on('monitor', function (time, args, rawOutput) {
+                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert.deepEqual(args, ['mget', 'hello', 'world']);
+                            if (i++ === 2) {
+                                // End after two reconnects
+                                return done();
+                            }
+                            client.stream.destroy();
+                            client.mget('hello', 'world');
+                        });
+                    });
+
                     it('monitor does not activate if the command could not be processed properly', function (done) {
                         client.MONITOR(function (err, res) {
                             assert.strictEqual(err.code, 'UNCERTAIN_STATE');
@@ -748,26 +768,27 @@ describe('The node_redis client', function () {
                     });
                 });
 
-                it('should fire early', function (done) {
-                    client = redis.createClient.apply(null, args);
-                    var fired = false;
-                    client.info(function (err, res) {
-                        fired = true;
-                    });
-                    client.set('foo', 'bar', function (err, res) {
-                        assert(fired);
-                        done();
-                    });
-                    assert.strictEqual(client.offline_queue.length, 1);
-                    assert.strictEqual(client.command_queue.length, 1);
-                    client.on('connect', function () {
-                        assert.strictEqual(client.offline_queue.length, 1);
-                        assert.strictEqual(client.command_queue.length, 1);
-                    });
-                    client.on('ready', function () {
-                        assert.strictEqual(client.offline_queue.length, 0);
-                    });
-                });
+                // TODO: consider allowing loading commands in v.3
+                // it('should fire early', function (done) {
+                //     client = redis.createClient.apply(null, args);
+                //     var fired = false;
+                //     client.info(function (err, res) {
+                //         fired = true;
+                //     });
+                //     client.set('foo', 'bar', function (err, res) {
+                //         assert(fired);
+                //         done();
+                //     });
+                //     assert.strictEqual(client.offline_queue.length, 1);
+                //     assert.strictEqual(client.command_queue.length, 1);
+                //     client.on('connect', function () {
+                //         assert.strictEqual(client.offline_queue.length, 1);
+                //         assert.strictEqual(client.command_queue.length, 1);
+                //     });
+                //     client.on('ready', function () {
+                //         assert.strictEqual(client.offline_queue.length, 0);
+                //     });
+                // });
             });
 
             describe('socket_nodelay', function () {

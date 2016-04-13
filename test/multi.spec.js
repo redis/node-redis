@@ -628,6 +628,40 @@ describe("The 'multi' method", function () {
                     client.stream.destroy();
                 });
 
+                it('indivdual commands work properly with multi', function (done) {
+                    // Neither of the following work properly in a transactions:
+                    // (This is due to Redis not returning the reply as expected / resulting in undefined behavior)
+                    // (Likely there are more commands that do not work with a transaction)
+                    //
+                    // auth => can't be called after a multi command
+                    // monitor => results in faulty return values e.g. multi().monitor().set('foo', 'bar').get('foo')
+                    //            returns ['OK, 'OK', 'monitor reply'] instead of ['OK', 'OK', 'bar']
+                    // quit => ends the connection before the exec
+                    // client reply skip|off => results in weird return values. Not sure what exactly happens
+                    // subscribe => enters subscribe mode and this does not work in combination with exec (the same for psubscribe, unsubscribe...)
+                    //
+
+                    assert.strictEqual(client.selected_db, undefined);
+                    var multi = client.multi();
+                    multi.select(5, function (err, res) {
+                        assert.strictEqual(client.selected_db, 5);
+                        assert.strictEqual(res, 'OK');
+                        assert.notDeepEqual(client.server_info.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    });
+                    // multi.client('reply', 'on', helper.isString('OK')); // Redis v.3.2
+                    multi.set('foo', 'bar', helper.isString('OK'));
+                    multi.info(function (err, res) {
+                        assert.strictEqual(res.indexOf('# Server\r\nredis_version:'), 0);
+                        assert.deepEqual(client.server_info.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    });
+                    multi.get('foo', helper.isString('bar'));
+                    multi.exec(function (err, res) {
+                        res[3] = res[3].substr(0, 10);
+                        assert.deepEqual(res, ['OK', 'OK', '# Server\r\n', 'bar']);
+                        done();
+                    });
+                });
+
             });
         });
     });
