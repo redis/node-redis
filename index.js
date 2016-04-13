@@ -122,6 +122,7 @@ function RedisClient (options, stream) {
     }
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
+    this.pipeline_queue = new Queue(); // Holds all pipelined commands
     // ATTENTION: connect_timeout should change in v.3.0 so it does not count towards ending reconnection attempts after x seconds
     // This should be done by the retry_strategy. Instead it should only be the timeout for connecting to redis
     this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
@@ -144,8 +145,8 @@ function RedisClient (options, stream) {
     this.auth_pass = options.auth_pass || options.password;
     this.selected_db = options.db; // Save the selected db here, used when reconnecting
     this.old_state = null;
-    this.send_anyway = false;
-    this.pipeline = 0;
+    this.fire_strings = true; // Determine if strings or buffers should be written to the stream
+    this.pipeline = false;
     this.times_connected = 0;
     this.options = options;
     this.buffers = options.return_buffers || options.detect_buffers;
@@ -374,23 +375,25 @@ RedisClient.prototype.on_ready = function () {
     debug('on_ready called ' + this.address + ' id ' + this.connection_id);
     this.ready = true;
 
-    var cork;
-    if (!this.stream.cork) {
-        cork = function (len) {
-            self.pipeline = len;
-            self.pipeline_queue = new Queue(len);
-        };
-    } else {
-        cork = function (len) {
-            self.pipeline = len;
-            self.pipeline_queue = new Queue(len);
+    this.cork = function () {
+        self.pipeline = true;
+        if (self.stream.cork) {
             self.stream.cork();
-        };
-        this.uncork = function () {
+        }
+    };
+    this.uncork = function () {
+        if (self.fire_strings) {
+            self.write_strings();
+        } else {
+            self.write_buffers();
+        }
+        self.pipeline = false;
+        self.fire_strings = true;
+        if (self.stream.uncork) {
+            // TODO: Consider using next tick here. See https://github.com/NodeRedis/node_redis/issues/1033
             self.stream.uncork();
-        };
-    }
-    this.cork = cork;
+        }
+    };
 
     // Restore modal commands from previous connection. The order of the commands is important
     if (this.selected_db !== undefined) {
@@ -523,7 +526,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
     this.ready = false;
     // Deactivate cork to work with the offline queue
     this.cork = noop;
-    this.pipeline = 0;
+    this.uncork = noop;
+    this.pipeline = false;
 
     var state = {
         monitoring: this.monitoring,
@@ -792,10 +796,6 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
             if (args[i].length > 30000) {
                 big_data = true;
                 args_copy[i] = new Buffer(args[i], 'utf8');
-                if (this.pipeline !== 0) {
-                    this.pipeline += 2;
-                    this.writeDefault = this.writeBuffers;
-                }
             } else {
                 args_copy[i] = args[i];
             }
@@ -813,10 +813,6 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
                 args_copy[i] = args[i];
                 buffer_args = true;
                 big_data = true;
-                if (this.pipeline !== 0) {
-                    this.pipeline += 2;
-                    this.writeDefault = this.writeBuffers;
-                }
             } else {
                 this.warn(
                     'Deprecated: The ' + command.toUpperCase() + ' command contains a argument of type ' + args[i].constructor.name + '.\n' +
@@ -870,6 +866,7 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
         this.write(command_str);
     } else {
         debug('Send command (' + command_str + ') has Buffer arguments');
+        this.fire_strings = false;
         this.write(command_str);
 
         for (i = 0; i < len; i += 1) {
@@ -887,40 +884,33 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
     return !this.should_buffer;
 };
 
-RedisClient.prototype.writeDefault = RedisClient.prototype.writeStrings = function (data) {
+RedisClient.prototype.write_strings = function () {
     var str = '';
     for (var command = this.pipeline_queue.shift(); command; command = this.pipeline_queue.shift()) {
         // Write to stream if the string is bigger than 4mb. The biggest string may be Math.pow(2, 28) - 15 chars long
         if (str.length + command.length > 4 * 1024 * 1024) {
-            this.stream.write(str);
+            this.should_buffer = !this.stream.write(str);
             str = '';
         }
         str += command;
     }
-    this.should_buffer = !this.stream.write(str + data);
+    if (str !== '') {
+        this.should_buffer = !this.stream.write(str);
+    }
 };
 
-RedisClient.prototype.writeBuffers = function (data) {
+RedisClient.prototype.write_buffers = function () {
     for (var command = this.pipeline_queue.shift(); command; command = this.pipeline_queue.shift()) {
-        this.stream.write(command);
+        this.should_buffer = !this.stream.write(command);
     }
-    this.should_buffer = !this.stream.write(data);
 };
 
 RedisClient.prototype.write = function (data) {
-    if (this.pipeline === 0) {
+    if (this.pipeline === false) {
         this.should_buffer = !this.stream.write(data);
         return;
     }
-
-    this.pipeline--;
-    if (this.pipeline === 0) {
-        this.writeDefault(data);
-        return;
-    }
-
     this.pipeline_queue.push(data);
-    return;
 };
 
 Object.defineProperty(exports, 'debugMode', {

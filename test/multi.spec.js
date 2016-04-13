@@ -125,9 +125,8 @@ describe("The 'multi' method", function () {
 
             describe('when connected', function () {
 
-                beforeEach(function (done) {
+                beforeEach(function () {
                     client = redis.createClient.apply(null, args);
-                    client.once('connect', done);
                 });
 
                 it('executes a pipelined multi properly in combination with the offline queue', function (done) {
@@ -135,6 +134,7 @@ describe("The 'multi' method", function () {
                     multi1.set('m1', '123');
                     multi1.get('m1');
                     multi1.exec(done);
+                    assert.strictEqual(client.offline_queue.length, 4);
                 });
 
                 it('executes a pipelined multi properly after a reconnect in combination with the offline queue', function (done) {
@@ -612,11 +612,17 @@ describe("The 'multi' method", function () {
                 });
 
                 it('emits error once if reconnecting after multi has been executed but not yet returned without callback', function (done) {
+                    // NOTE: If uncork is called async by postponing it to the next tick, this behavior is going to change.
+                    // The command won't be processed anymore two errors are returned instead of one
                     client.on('error', function (err) {
                         assert.strictEqual(err.code, 'UNCERTAIN_STATE');
-                        done();
+                        client.get('foo', function (err, res) {
+                            assert.strictEqual(res, 'bar');
+                            done();
+                        });
                     });
 
+                    // The commands should still be fired, no matter that the socket is destroyed on the same tick
                     client.multi().set('foo', 'bar').get('foo').exec();
                     // Abort connection before the value returned
                     client.stream.destroy();

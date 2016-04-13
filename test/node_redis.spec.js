@@ -121,12 +121,12 @@ describe('The node_redis client', function () {
                             str += str;
                         }
                         var called = false;
-                        var temp = client.writeBuffers.bind(client);
-                        assert(String(client.writeBuffers) !== String(client.writeDefault));
-                        client.writeBuffers = function (data) {
+                        var temp = client.write_buffers.bind(client);
+                        assert(client.fire_strings);
+                        client.write_buffers = function (data) {
                             called = true;
                             // To increase write performance for strings the value is converted to a buffer
-                            assert(String(client.writeBuffers) === String(client.writeDefault));
+                            assert(!client.fire_strings);
                             temp(data);
                         };
                         client.multi().set('foo', str).get('foo', function (err, res) {
@@ -136,7 +136,7 @@ describe('The node_redis client', function () {
                             assert.strictEqual(res[1], str);
                             done();
                         });
-                        assert(String(client.writeBuffers) !== String(client.writeDefault));
+                        assert(client.fire_strings);
                     });
                 });
 
