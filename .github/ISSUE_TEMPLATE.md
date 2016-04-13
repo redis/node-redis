@@ -9,7 +9,7 @@ to a small test case, but it's highly appreciated to have as much data as possib
 Thank you!_
 
 * **Version**: What node_redis and what redis version is the issue happening on?
-* **Platform**: What platform / version? (For example Node.js 0.10 or Node.js 5.7.0)
+* **Platform**: What platform / version? (For example Node.js 0.10 or Node.js 5.7.0 on Windows 7 / Ubuntu 15.10 / Azure)
 * **Description**: Description of your issue, stack traces from errors and code that reproduces the issue
 
 [gitter]: https://gitter.im/NodeRedis/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
