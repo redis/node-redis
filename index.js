@@ -484,7 +484,7 @@ RedisClient.prototype.ready_check = function () {
 RedisClient.prototype.send_offline_queue = function () {
     for (var command_obj = this.offline_queue.shift(); command_obj; command_obj = this.offline_queue.shift()) {
         debug('Sending offline command: ' + command_obj.command);
-        this.internal_send_command(command_obj.command, command_obj.args, command_obj.callback);
+        this.internal_send_command(command_obj.command, command_obj.args, command_obj.callback, command_obj.call_on_write);
     }
     this.drain();
     // Even though items were shifted off, Queue backing store still uses memory until next add, so just get a new Queue
@@ -771,8 +771,10 @@ function handle_offline_command (self, command_obj) {
     self.should_buffer = true;
 }
 
-RedisClient.prototype.internal_send_command = function (command, args, callback) {
-    var arg, prefix_keys;
+// Do not call internal_send_command directly, if you are not absolutly certain it handles everything properly
+// e.g. monitor / info does not work with internal_send_command only
+RedisClient.prototype.internal_send_command = function (command, args, callback, call_on_write) {
+    var arg, prefix_keys, command_obj;
     var i = 0;
     var command_str = '';
     var len = args.length;
@@ -786,7 +788,7 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
 
     if (this.ready === false || this.stream.writable === false) {
         // Handle offline commands right away
-        handle_offline_command(this, new OfflineCommand(command, args, callback));
+        handle_offline_command(this, new OfflineCommand(command, args, callback, call_on_write));
         return false; // Indicate buffering
     }
 
@@ -834,15 +836,7 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
         }
     }
     args = null;
-    var command_obj = new Command(command, args_copy, callback);
-    command_obj.buffer_args = buffer_args;
-
-    if (SUBSCRIBE_COMMANDS[command] && this.pub_sub_mode === 0) {
-        // If pub sub is already activated, keep it that way, otherwise set the number of commands to resolve until pub sub mode activates
-        // Deactivation of the pub sub mode happens in the result handler
-        this.pub_sub_mode = this.command_queue.length + 1;
-    }
-    this.command_queue.push(command_obj);
+    command_obj = new Command(command, args_copy, buffer_args, callback);
 
     if (this.options.prefix) {
         prefix_keys = commands.getKeyIndexes(command, args_copy);
@@ -880,6 +874,9 @@ RedisClient.prototype.internal_send_command = function (command, args, callback)
             }
             debug('send_command: buffer send ' + arg.length + ' bytes');
         }
+    }
+    if (call_on_write) {
+        call_on_write();
     }
     return !this.should_buffer;
 };

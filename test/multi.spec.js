@@ -255,12 +255,12 @@ describe("The 'multi' method", function () {
                     multi2.set('m2', '456');
                     multi1.set('m1', '123');
                     multi1.get('m1');
-                    multi2.get('m2');
+                    multi2.get('m1');
                     multi2.ping();
 
                     multi1.exec(end);
                     multi2.exec(function (err, res) {
-                        assert.strictEqual(res[1], '456');
+                        assert.strictEqual(res[1], '123');
                         end();
                     });
                 });
