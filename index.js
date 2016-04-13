@@ -150,6 +150,7 @@ function RedisClient (options, stream) {
     this.times_connected = 0;
     this.options = options;
     this.buffers = options.return_buffers || options.detect_buffers;
+    this.reply = 'ON'; // Returning replies is the default
     // Init parser
     this.reply_parser = create_parser(this, options);
     this.create_stream();
@@ -900,6 +901,22 @@ RedisClient.prototype.internal_send_command = function (command, args, callback,
     }
     if (call_on_write) {
         call_on_write();
+    }
+    // Handle `CLIENT REPLY ON|OFF|SKIP`
+    // This has to be checked after call_on_write
+    if (this.reply === 'ON') {
+        this.command_queue.push(command_obj);
+    } else {
+        // Do not expect a reply
+        // Does this work in combination with the pub sub mode?
+        if (callback) {
+            utils.reply_in_order(this, callback, null, undefined, this.command_queue);
+        }
+        if (this.reply === 'SKIP') {
+            this.reply = 'SKIP_ONE_MORE';
+        } else if (this.reply === 'SKIP_ONE_MORE') {
+            this.reply = 'ON';
+        }
     }
     return !this.should_buffer;
 };
