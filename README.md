@@ -410,6 +410,16 @@ Client will emit `pmessage` for every message received that matches an active su
 Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
 name as `channel`, and the message as `message`.
 
+### "message_buffer" (channel, message)
+
+This is the same as the `message` event with the exception, that it is always going to emit a buffer.
+If you listen to the `message` event at the same time as the `message_buffer`, it is always going to emit a string.
+
+### "pmessage_buffer" (pattern, channel, message)
+
+This is the same as the `pmessage` event with the exception, that it is always going to emit a buffer.
+If you listen to the `pmessage` event at the same time as the `pmessage_buffer`, it is always going to emit a string.
+
 ### "subscribe" (channel, count)
 
 Client will emit `subscribe` in response to a `SUBSCRIBE` command. Listeners are passed the

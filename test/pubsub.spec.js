@@ -504,6 +504,30 @@ describe('publish/subscribe', function () {
                         pub.publish('/foo', 'hello world', helper.isNumber(3));
                     });
                 });
+
+                it('allows to listen to pmessageBuffer and pmessage', function (done) {
+                    var batch = sub.batch();
+                    batch.psubscribe('*');
+                    batch.subscribe('/foo');
+                    batch.unsubscribe('/foo');
+                    batch.unsubscribe();
+                    batch.subscribe(['/foo']);
+                    batch.exec();
+                    assert.strictEqual(sub.shouldBuffer, false);
+                    sub.on('pmessageBuffer', function (pattern, channel, message) {
+                        assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
+                        assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
+                        sub.quit(done);
+                    });
+                    sub.on('pmessage', function (pattern, channel, message) {
+                        assert.strictEqual(pattern, '*');
+                        assert.strictEqual(channel, '/foo');
+                    });
+                    pub.pubsub('numsub', '/foo', function (err, res) {
+                        assert.deepEqual(res, ['/foo', 1]);
+                    });
+                    pub.publish('/foo', 'hello world', helper.isNumber(2));
+                });
             });
 
             describe('punsubscribe', function () {
