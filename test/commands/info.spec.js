@@ -23,16 +23,16 @@ describe("The 'info' method", function () {
                 client.end(true);
             });
 
-            it('update server_info after a info command', function (done) {
+            it('update serverInfo after a info command', function (done) {
                 client.set('foo', 'bar');
                 client.info();
                 client.select(2, function () {
-                    assert.strictEqual(client.server_info.db2, undefined);
+                    assert.strictEqual(client.serverInfo.db2, undefined);
                 });
                 client.set('foo', 'bar');
                 client.info();
                 setTimeout(function () {
-                    assert.strictEqual(typeof client.server_info.db2, 'object');
+                    assert.strictEqual(typeof client.serverInfo.db2, 'object');
                     done();
                 }, 30);
             });

@@ -571,7 +571,7 @@ describe("The 'multi' method", function () {
                         test = true;
                     };
                     multi.set('baz', 'binary');
-                    multi.exec_atomic();
+                    multi.EXEC_ATOMIC();
                     assert(test);
                 });
 

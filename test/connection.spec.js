@@ -132,12 +132,14 @@ describe('connection tests', function () {
 
             describe('on lost connection', function () {
                 it('emit an error after max retry attempts and do not try to reconnect afterwards', function (done) {
-                    var max_attempts = 3;
+                    var maxAttempts = 3;
                     var options = {
                         parser: parser,
-                        max_attempts: max_attempts
+                        maxAttempts: maxAttempts
                     };
                     client = redis.createClient(options);
+                    assert.strictEqual(client.retryBackoff, 1.7);
+                    assert.strictEqual(client.retryDelay, 200);
                     assert.strictEqual(Object.keys(options).length, 2);
                     var calls = 0;
 
@@ -152,7 +154,7 @@ describe('connection tests', function () {
                     client.on('error', function (err) {
                         if (/Redis connection in broken state: maximum connection attempts.*?exceeded./.test(err.message)) {
                             process.nextTick(function () { // End is called after the error got emitted
-                                assert.strictEqual(calls, max_attempts - 1);
+                                assert.strictEqual(calls, maxAttempts - 1);
                                 assert.strictEqual(client.emitted_end, true);
                                 assert.strictEqual(client.connected, false);
                                 assert.strictEqual(client.ready, false);
@@ -248,7 +250,7 @@ describe('connection tests', function () {
                     });
                 });
 
-                it('retry_strategy used to reconnect with individual error', function (done) {
+                it('retryStrategy used to reconnect with individual error', function (done) {
                     var text = '';
                     var unhookIntercept = intercept(function (data) {
                         text += data;
@@ -256,8 +258,8 @@ describe('connection tests', function () {
                     });
                     var end = helper.callFuncAfter(done, 2);
                     client = redis.createClient({
-                        retry_strategy: function (options) {
-                            if (options.total_retry_time > 150) {
+                        retryStrategy: function (options) {
+                            if (options.totalRetryTime > 150) {
                                 client.set('foo', 'bar', function (err, res) {
                                     assert.strictEqual(err.message, 'Connection timeout');
                                     end();
@@ -267,8 +269,8 @@ describe('connection tests', function () {
                             }
                             return Math.min(options.attempt * 25, 200);
                         },
-                        max_attempts: 5,
-                        retry_max_delay: 123,
+                        maxAttempts: 5,
+                        retryMaxDelay: 123,
                         port: 9999
                     });
 

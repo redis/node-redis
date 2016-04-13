@@ -479,13 +479,19 @@ RedisClient.prototype.send_offline_queue = function () {
 var retry_connection = function (self, error) {
     debug('Retrying connection...');
 
-    self.emit('reconnecting', {
+    var reconnect_params = {
         delay: self.retry_delay,
         attempt: self.attempts,
-        error: error,
-        times_connected: self.times_connected,
-        total_retry_time: self.retry_totaltime
-    });
+        error: error
+    };
+    if (self.options.camel_case) {
+        reconnect_params.totalRetryTime = self.retry_totaltime;
+        reconnect_params.timesConnected = self.times_connected;
+    } else {
+        reconnect_params.total_retry_time = self.retry_totaltime;
+        reconnect_params.times_connected = self.times_connected;
+    }
+    self.emit('reconnecting', reconnect_params);
 
     self.retry_totaltime += self.retry_delay;
     self.attempts += 1;
@@ -529,12 +535,18 @@ RedisClient.prototype.connection_gone = function (why, error) {
     }
 
     if (typeof this.options.retry_strategy === 'function') {
-        this.retry_delay = this.options.retry_strategy({
+        var retry_params = {
             attempt: this.attempts,
-            error: error,
-            total_retry_time: this.retry_totaltime,
-            times_connected: this.times_connected
-        });
+            error: error
+        };
+        if (this.options.camel_case) {
+            retry_params.totalRetryTime = this.retry_totaltime;
+            retry_params.timesConnected = this.times_connected;
+        } else {
+            retry_params.total_retry_time = this.retry_totaltime;
+            retry_params.times_connected = this.times_connected;
+        }
+        this.retry_delay = this.options.retry_strategy(retry_params);
         if (typeof this.retry_delay !== 'number') {
             // Pass individual error through
             if (this.retry_delay instanceof Error) {
@@ -901,6 +913,72 @@ RedisClient.prototype.write = function (data) {
     this.pipeline_queue.push(data);
     return;
 };
+
+Object.defineProperty(exports, 'debugMode', {
+    get: function () {
+        return this.debug_mode;
+    },
+    set: function (val) {
+        this.debug_mode = val;
+    }
+});
+
+// Don't officially expose the command_queue directly but only the length as read only variable
+Object.defineProperty(RedisClient.prototype, 'command_queue_length', {
+    get: function () {
+        return this.command_queue.length;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'offline_queue_length', {
+    get: function () {
+        return this.offline_queue.length;
+    }
+});
+
+// Add support for camelCase by adding read only properties to the client
+// All known exposed snack_case variables are added here
+Object.defineProperty(RedisClient.prototype, 'retryDelay', {
+    get: function () {
+        return this.retry_delay;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'retryBackoff', {
+    get: function () {
+        return this.retry_backoff;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'commandQueueLength', {
+    get: function () {
+        return this.command_queue.length;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'offlineQueueLength', {
+    get: function () {
+        return this.offline_queue.length;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'shouldBuffer', {
+    get: function () {
+        return this.should_buffer;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'connectionId', {
+    get: function () {
+        return this.connection_id;
+    }
+});
+
+Object.defineProperty(RedisClient.prototype, 'serverInfo', {
+    get: function () {
+        return this.server_info;
+    }
+});
 
 exports.createClient = function () {
     return new RedisClient(unifyOptions.apply(null, arguments));

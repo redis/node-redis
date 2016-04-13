@@ -30,6 +30,7 @@ describe('The node_redis client', function () {
                     it('check if all options got copied properly', function (done) {
                         client.selected_db = 2;
                         var client2 = client.duplicate();
+                        assert.strictEqual(client.connectionId + 1, client2.connection_id);
                         assert.strictEqual(client2.selected_db, 2);
                         assert(client.connected);
                         assert(!client2.connected);
@@ -360,7 +361,7 @@ describe('The node_redis client', function () {
                         client.on('error', function (err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection has already been closed.');
                             assert.strictEqual(err.command, 'SET');
-                            assert.strictEqual(client.offline_queue.length, 0);
+                            assert.strictEqual(client.offline_queue_length, 0);
                             done();
                         });
                         setTimeout(function () {
@@ -966,7 +967,7 @@ describe('The node_redis client', function () {
                                 multi.set('foo' + (i + 2), 'bar' + (i + 2));
                             }
                             multi.exec();
-                            assert.equal(client.command_queue.length, 15);
+                            assert.equal(client.command_queue_length, 15);
                             helper.killConnection(client);
                         });
 

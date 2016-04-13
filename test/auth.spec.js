@@ -166,8 +166,18 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 client.auth(auth);
                 client.on('ready', function () {
-                    if (this.times_connected === 1) {
-                        client.stream.destroy();
+                    if (this.times_connected < 3) {
+                        var interval = setInterval(function () {
+                            if (client.commandQueueLength !== 0) {
+                                return;
+                            }
+                            clearInterval(interval);
+                            interval = null;
+                            client.stream.destroy();
+                            client.set('foo', 'bar');
+                            client.get('foo'); // Errors would bubble
+                            assert.strictEqual(client.offlineQueueLength, 2);
+                        }, 1);
                     } else {
                         done();
                     }
