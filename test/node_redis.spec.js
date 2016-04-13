@@ -597,7 +597,7 @@ describe('The node_redis client', function () {
                             assert.strictEqual(typeof rawOutput, 'string');
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
-                            // Quit immediatly ends monitoring mode and therefor does not stream back the quit command
+                            // Quit immediatly ends monitoring mode and therefore does not stream back the quit command
                             monitorClient.quit(done);
                         });
                     });
@@ -668,7 +668,7 @@ describe('The node_redis client', function () {
                                     assert.deepEqual(responses[5], ['unsubscribe', 'baz']);
                                     assert.deepEqual(responses[6], ['publish', '/foo', 'hello world']);
                                     // The publish is called right after the reconnect and the monitor is called before the message is emitted.
-                                    // Therefor we have to wait till the next tick
+                                    // Therefore we have to wait till the next tick
                                     process.nextTick(function () {
                                         assert(called);
                                         client.quit(done);
@@ -891,7 +891,7 @@ describe('The node_redis client', function () {
                         client.set('foo', 'bar', function (err, res) {
                             assert.strictEqual(err.message, 'Protocol error, got "a" as reply type byte');
                         });
-                        // Fail the set answer. Has no corresponding command obj and will therefor land in the error handler and set
+                        // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
                         client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
                     });
                 });

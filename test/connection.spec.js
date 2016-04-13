@@ -20,7 +20,7 @@ describe('connection tests', function () {
     it('unofficially support for a private stream', function () {
         // While using a private stream, reconnection and other features are not going to work properly.
         // Besides that some functions also have to be monkey patched to be safe from errors in this case.
-        // Therefor this is not officially supported!
+        // Therefore this is not officially supported!
         var socket = new net.Socket();
         client = new redis.RedisClient({
             prefix: 'test'

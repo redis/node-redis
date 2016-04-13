@@ -63,7 +63,7 @@ function RedisClient (options, stream) {
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
-    /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
+    /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
     for (var tls_option in options.tls) { // jshint ignore: line
         cnx_options[tls_option] = options.tls[tls_option];
     }
@@ -220,7 +220,7 @@ RedisClient.prototype.create_stream = function () {
             this.stream.destroy();
         }
 
-        /* istanbul ignore if: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
+        /* istanbul ignore if: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
         if (this.options.tls) {
             this.stream = tls.connect(this.connection_options);
         } else {
@@ -230,12 +230,13 @@ RedisClient.prototype.create_stream = function () {
 
     if (this.options.connect_timeout) {
         this.stream.setTimeout(this.connect_timeout, function () {
+            // Note: This is only tested if a internet connection is established
             self.retry_totaltime = self.connect_timeout;
             self.connection_gone('timeout', new Error('Redis connection gone from timeout event'));
         });
     }
 
-    /* istanbul ignore next: travis does not work with stunnel atm. Therefor the tls tests are skipped on travis */
+    /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
     var connect_event = this.options.tls ? 'secureConnect' : 'connect';
     this.stream.once(connect_event, function () {
         this.removeAllListeners('timeout');
@@ -244,7 +245,7 @@ RedisClient.prototype.create_stream = function () {
     });
 
     this.stream.on('data', function (buffer_from_socket) {
-        // The buffer_from_socket.toString() has a significant impact on big chunks and therefor this should only be used if necessary
+        // The buffer_from_socket.toString() has a significant impact on big chunks and therefore this should only be used if necessary
         debug('Net read ' + self.address + ' id ' + self.connection_id); // + ': ' + buffer_from_socket.toString());
         self.reply_parser.execute(buffer_from_socket);
         self.emit_idle();
@@ -400,12 +401,12 @@ RedisClient.prototype.on_ready = function () {
         this.pub_sub_mode = this.old_state.pub_sub_mode;
     }
     if (this.monitoring) { // Monitor has to be fired before pub sub commands
-        this.internal_send_command('monitor', []);
+        this.internal_send_command('monitor', []); // The state is still set
     }
     var callback_count = Object.keys(this.subscription_set).length;
     if (!this.options.disable_resubscribing && callback_count) {
         // only emit 'ready' when all subscriptions were made again
-        // TODO: Remove the countdown for ready here. This is not coherent with all other modes and should therefor not be handled special
+        // TODO: Remove the countdown for ready here. This is not coherent with all other modes and should therefore not be handled special
         // We know we are ready as soon as all commands were fired
         var callback = function () {
             callback_count--;
@@ -680,7 +681,7 @@ function subscribe_unsubscribe (self, reply, type, subscribe) {
         } else {
             var running_command;
             var i = 1;
-            // This should be a rare case and therefor handling it this way should be good performance wise for the general case
+            // This should be a rare case and therefore handling it this way should be good performance wise for the general case
             while (running_command = self.command_queue.get(i)) {
                 if (SUBSCRIBE_COMMANDS[running_command.command]) {
                     self.command_queue.shift();
