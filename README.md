@@ -613,26 +613,15 @@ All commands are sent as multi-bulk commands. `args` can either be an Array of a
 
 Boolean tracking the state of the connection to the Redis server.
 
-## client.command_queue.length
+## client.command_queue_length
 
 The number of commands that have been sent to the Redis server but not yet replied to. You can use this to
 enforce some kind of maximum queue depth for commands while connected.
 
-Don't mess with `client.command_queue` though unless you really know what you are doing.
-
-## client.offline_queue.length
+## client.offline_queue_length
 
 The number of commands that have been queued up for a future connection. You can use this to enforce
 some kind of maximum queue depth for pre-connection commands.
-
-## client.retry_delay
-
-Current delay in milliseconds before a connection retry will be attempted. This starts at `200`.
-
-## client.retry_backoff
-
-Multiplier for future retry timeouts. This should be larger than 1 to add more time between retries.
-Defaults to 1.7. The default initial connection retry is 200, so the second retry will be 340, followed by 578, etc.
 
 ### Commands with Optional and Keyword arguments
 
