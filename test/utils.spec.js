@@ -107,7 +107,7 @@ describe('utils.js', function () {
             emitted = false;
         });
 
-        it('no elements in either queue. Reply in the next tick', function (done) {
+        it('no elements in either queue. Reply in the next tick with callback', function (done) {
             var called = false;
             utils.reply_in_order(clientMock, function () {
                 called = true;
@@ -116,7 +116,7 @@ describe('utils.js', function () {
             assert(!called);
         });
 
-        it('no elements in either queue. Reply in the next tick', function (done) {
+        it('no elements in either queue. Reply in the next tick without callback', function (done) {
             assert(!emitted);
             utils.reply_in_order(clientMock, null, new Error('tada'));
             assert(!emitted);
@@ -153,16 +153,21 @@ describe('utils.js', function () {
             }
         });
 
-        it('elements in the offline queue. Reply after the offline queue is empty and respect the command_obj', function (done) {
-            clientMock.command_queue.push(create_command_obj(), {});
-            utils.reply_in_order(clientMock, function () {
+        it('elements in the offline queue and the command_queue. Reply all other commands got handled respect the command_obj', function (done) {
+            clientMock.command_queue.push(create_command_obj(), create_command_obj());
+            clientMock.offline_queue.push(create_command_obj(), {});
+            utils.reply_in_order(clientMock, function (err, res) {
                 assert.strictEqual(clientMock.command_queue.length, 0);
+                assert.strictEqual(clientMock.offline_queue.length, 0);
                 assert(!emitted);
-                assert.strictEqual(res_count, 1);
+                assert.strictEqual(res_count, 3);
                 done();
             }, null, null);
+            while (clientMock.offline_queue.length) {
+                clientMock.command_queue.push(clientMock.offline_queue.shift());
+            }
             while (clientMock.command_queue.length) {
-                clientMock.command_queue.shift().callback(null, 'bar');
+                clientMock.command_queue.shift().callback(null, 'hello world');
             }
         });
     });
