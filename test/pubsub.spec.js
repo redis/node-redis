@@ -206,49 +206,27 @@ describe('publish/subscribe', function () {
                     sub.subscribe(channel);
                 });
 
-                it('handles SUBSCRIBE_CLOSE_RESUBSCRIBE', function (done) {
+                it('subscribe; close; resubscribe with prototype inherited property names', function (done) {
                     var count = 0;
-                    /* Create two clients. c1 subscribes to two channels, c2 will publish to them.
-                       c2 publishes the first message.
-                       c1 gets the message and drops its connection. It must resubscribe itself.
-                       When it resubscribes, c2 publishes the second message, on the same channel
-                       c1 gets the message and drops its connection. It must resubscribe itself, again.
-                       When it resubscribes, c2 publishes the third message, on the second channel
-                       c1 gets the message and drops its connection. When it reconnects, the test ends.
-                    */
+                    var channels = ['__proto__', 'channel 2'];
+                    var msg = ['hi from channel __proto__', 'hi from channel 2'];
+
                     sub.on('message', function (channel, message) {
-                        if (channel === 'chan1') {
-                            assert.strictEqual(message, 'hi on channel 1');
-                            sub.stream.end();
-                        } else if (channel === 'chan2') {
-                            assert.strictEqual(message, 'hi on channel 2');
-                            sub.stream.end();
-                        } else {
-                            sub.quit();
-                            pub.quit();
-                            assert.fail('test failed');
-                        }
+                        var n = Math.max(count - 1, 0);
+                        assert.strictEqual(channel, channels[n]);
+                        assert.strictEqual(message, msg[n]);
+                        if (count === 2) return done();
+                        sub.stream.end();
                     });
 
-                    sub.subscribe('chan1', 'chan2');
+                    sub.subscribe(channels);
 
                     sub.on('ready', function (err, results) {
+                        pub.publish(channels[count], msg[count]);
                         count++;
-                        if (count === 1) {
-                            pub.publish('chan1', 'hi on channel 1');
-                            return;
-                        } else if (count === 2) {
-                            pub.publish('chan2', 'hi on channel 2');
-                        } else {
-                            sub.quit(function () {
-                                pub.quit(function () {
-                                    return done();
-                                });
-                            });
-                        }
                     });
 
-                    pub.publish('chan1', 'hi on channel 1');
+                    pub.publish(channels[count], msg[count]);
                 });
             });
 
