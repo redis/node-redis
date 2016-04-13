@@ -12,9 +12,7 @@ Install with:
 
     npm install redis
 
-## Usage
-
-Simple example, included as `examples/simple.js`:
+## Usage Example
 
 ```js
 var redis = require("redis"),
@@ -83,7 +81,7 @@ return client.multi().get('foo').execAsync().then(function(res) {
 Each Redis command is exposed as a function on the `client` object.
 All functions take either an `args` Array plus optional `callback` Function or
 a variable number of individual arguments followed by an optional callback.
-Here are examples how to use the api:
+Examples:
 
 ```js
 client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
@@ -182,7 +180,7 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | host      | 127.0.0.1 | IP address of the Redis server |
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
-| url       | null      | The URL of the Redis server. Format: `[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
+| url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
 | parser    | hiredis   |  If hiredis is not installed, automatic fallback to the built-in javascript parser |
 | string_numbers | null   | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
 | return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
@@ -363,7 +361,7 @@ client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of 
 
 ## Publish / Subscribe
 
-Here is a simple example of the API for publish / subscribe. This program opens two
+Example of the publish / subscribe API. This program opens two
 client connections, subscribes to a channel on one of them, and publishes to that
 channel on the other:
 
@@ -539,7 +537,7 @@ across all client connections, including from other client libraries and other c
 A `monitor` event is going to be emitted for every command fired from any client connected to the server including the monitoring client itself.
 The callback for the `monitor` event takes a timestamp from the Redis server, an array of command arguments and the raw monitoring string.
 
-Here is a simple example:
+Example:
 
 ```js
 var client  = require("redis").createClient();
