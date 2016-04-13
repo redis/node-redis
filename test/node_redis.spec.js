@@ -66,6 +66,38 @@ describe('The node_redis client', function () {
                             done();
                         });
                     });
+
+                    it('works with a callback', function (done) {
+                        client.duplicate(function (err, client) {
+                            assert(!err);
+                            assert.strictEqual(client.ready, true);
+                            client.quit(done);
+                        });
+                    });
+
+                    it('works with a callback and errors out', function (done) {
+                        client.duplicate({
+                            port: '9999'
+                        }, function (err, client) {
+                            assert.strictEqual(err.code, 'ECONNREFUSED');
+                            done(client);
+                        });
+                    });
+
+                    it('works with a promises', function () {
+                        return client.duplicateAsync().then(function (client) {
+                            assert.strictEqual(client.ready, true);
+                            return client.quitAsync();
+                        });
+                    });
+
+                    it('works with a promises and errors', function () {
+                        return client.duplicateAsync({
+                            port: 9999
+                        }).catch(function (err) {
+                            assert.strictEqual(err.code, 'ECONNREFUSED');
+                        });
+                    });
                 });
 
                 describe('big data', function () {

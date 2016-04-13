@@ -597,9 +597,10 @@ the second word as first parameter:
     client.multi().script('load', 'return 1').exec(...);
     client.multi([['script', 'load', 'return 1']]).exec(...);
 
-## client.duplicate([options])
+## client.duplicate([options][, callback])
 
 Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
+If you pass a callback, duplicate is going to wait until the client is ready and returns it in the callback. If an error occurs in the meanwhile, that is going to return an error instead in the callback.
 
 ## client.send_command(command_name[, [args][, callback]])
 
