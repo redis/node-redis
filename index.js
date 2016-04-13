@@ -269,7 +269,9 @@ RedisClient.prototype.create_stream = function () {
 
     // Fire the command before redis is connected to be sure it's the first fired command
     if (this.auth_pass !== undefined) {
+        this.ready = true;
         this.auth(this.auth_pass);
+        this.ready = false;
     }
 };
 

@@ -160,7 +160,7 @@ describe('client authentication', function () {
                 client.on('ready', done);
             });
 
-            it('reconnects with appropriate authentication', function (done) {
+            it('reconnects with appropriate authentication while offline commands are present', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(null, args);
@@ -187,7 +187,7 @@ describe('client authentication', function () {
                 });
             });
 
-            it('should return an error if the password is not of type string and a callback has been provided', function (done) {
+            it('should return an error if the password is not correct and a callback has been provided', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(null, args);
@@ -202,7 +202,7 @@ describe('client authentication', function () {
                 assert(async);
             });
 
-            it('should emit an error if the password is not of type string and no callback has been provided', function (done) {
+            it('should emit an error if the password is not correct and no callback has been provided', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(null, args);
