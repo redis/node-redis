@@ -356,7 +356,7 @@ describe('connection tests', function () {
                     });
                 });
 
-                it('use the system socket timeout if the connect_timeout has not been provided', function () {
+                it('use the system socket timeout if the connect_timeout has not been provided', function (done) {
                     client = redis.createClient({
                         parser: parser,
                         host: '2001:db8::ff00:42:8329' // auto detect ip v6
@@ -365,6 +365,7 @@ describe('connection tests', function () {
                     assert.strictEqual(client.connection_options.family, 6);
                     process.nextTick(function () {
                         assert.strictEqual(client.stream.listeners('timeout').length, 0);
+                        done();
                     });
                 });
 
