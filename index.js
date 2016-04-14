@@ -502,8 +502,6 @@ RedisClient.prototype.send_offline_queue = function () {
         this.internal_send_command(command_obj.command, command_obj.args, command_obj.callback, command_obj.call_on_write);
     }
     this.drain();
-    // Even though items were shifted off, Queue backing store still uses memory until next add, so just get a new Queue
-    this.offline_queue = new Queue();
 };
 
 var retry_connection = function (self, error) {
