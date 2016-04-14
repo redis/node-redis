@@ -5,6 +5,7 @@ var tls = require('tls');
 var util = require('util');
 var utils = require('./lib/utils');
 var Queue = require('double-ended-queue');
+var CommandError = require('./lib/customError');
 var Command = require('./lib/command').Command;
 var OfflineCommand = require('./lib/command').OfflineCommand;
 var EventEmitter = require('events');
@@ -264,11 +265,11 @@ RedisClient.prototype.create_stream = function () {
     });
 
     this.stream.once('close', function (hadError) {
-        self.connection_gone('close', new Error('Stream connection closed' + (hadError ? ' because of a transmission error' : '')));
+        self.connection_gone('close', hadError ? new Error('Stream connection closed with a transmission error') : null);
     });
 
     this.stream.once('end', function () {
-        self.connection_gone('end', new Error('Stream connection ended'));
+        self.connection_gone('end', null);
     });
 
     this.stream.on('drain', function () {
@@ -320,16 +321,29 @@ RedisClient.prototype.warn = function (msg) {
 
 // Flush provided queues, erroring any items with a callback first
 RedisClient.prototype.flush_and_error = function (error, queue_names) {
+    var callbacks_not_called = [];
     queue_names = queue_names || ['offline_queue', 'command_queue'];
     for (var i = 0; i < queue_names.length; i++) {
         for (var command_obj = this[queue_names[i]].shift(); command_obj; command_obj = this[queue_names[i]].shift()) {
+            var err = new CommandError(error);
+            err.command = command_obj.command.toUpperCase();
+            if (command_obj.args.length) {
+                err.args = command_obj.args;
+            }
             if (typeof command_obj.callback === 'function') {
-                error.command = command_obj.command.toUpperCase();
-                command_obj.callback(error);
+                command_obj.callback(err);
+            } else {
+                callbacks_not_called.push(err);
             }
         }
         this[queue_names[i]] = new Queue();
     }
+    // Mutate the original error that will be emitted
+    // This is fine, as we don't manipulate any user errors
+    if (callbacks_not_called.length !== 0) {
+        error.errors = callbacks_not_called;
+    }
+    return callbacks_not_called.length === 0;
 };
 
 RedisClient.prototype.on_error = function (err) {
@@ -546,8 +560,10 @@ RedisClient.prototype.connection_gone = function (why, error) {
 
     // If this is a requested shutdown, then don't retry
     if (this.closing) {
-        debug('Connection ended from quit command, not retrying.');
-        this.flush_and_error(new Error('Redis connection gone from ' + why + ' event.'));
+        debug('Connection ended by quit / end command, not retrying.');
+        error = new Error('Stream connection ended and running command aborted. It might have been processed.');
+        error.code = 'NR_OFFLINE';
+        this.flush_and_error(error);
         return;
     }
 
@@ -567,10 +583,18 @@ RedisClient.prototype.connection_gone = function (why, error) {
         if (typeof this.retry_delay !== 'number') {
             // Pass individual error through
             if (this.retry_delay instanceof Error) {
-                error = this.retry_delay;
+                error = new CommandError(this.retry_delay);
             }
-            this.flush_and_error(error);
-            this.emit('error', error);
+            // Attention: there might be the case where there's no error!
+            if (!error) {
+                error = new Error('Stream connection ended and running command aborted. It might have been processed.');
+                error.code = 'NR_OFFLINE';
+            }
+            // Only emit an error in case that a running command had no callback
+            if (!this.flush_and_error(error)) {
+                error.message = 'Stream connection ended and all running commands aborted. They might have been processed.';
+                this.emit('error', error);
+            }
             this.end(false);
             return;
         }
@@ -595,11 +619,11 @@ RedisClient.prototype.connection_gone = function (why, error) {
     } else if (this.command_queue.length !== 0) {
         error = new Error('Redis connection lost and command aborted in uncertain state. It might have been processed.');
         error.code = 'UNCERTAIN_STATE';
-        this.flush_and_error(error, ['command_queue']);
-        error.message = 'Redis connection lost and commands aborted in uncertain state. They might have been processed.';
-        // TODO: Reconsider emitting this always, as each running command is handled anyway
-        // This should likely be removed in v.3. This is different to the broken connection as we'll reconnect here
-        this.emit('error', error);
+        if (!this.flush_and_error(error, ['command_queue'])) {
+            // Only emit if not all commands had a callback that already handled the error
+            error.message = 'Redis connection lost and commands aborted in uncertain state. They might have been processed.';
+            this.emit('error', error);
+        }
     }
 
     if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
@@ -618,6 +642,9 @@ RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift();
     if (command_obj && command_obj.command && command_obj.command.toUpperCase) {
         err.command = command_obj.command.toUpperCase();
+        if (command_obj.args.length) {
+            err.args = command_obj.args;
+        }
     }
 
     var match = err.message.match(utils.err_code);
@@ -786,6 +813,9 @@ function handle_offline_command (self, command_obj) {
         }
         err = new Error(command + " can't be processed. " + msg);
         err.command = command;
+        if (command_obj.args.length) {
+            err.args = command_obj.args;
+        }
         err.code = 'NR_OFFLINE';
         utils.reply_in_order(self, callback, err);
     } else {

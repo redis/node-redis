@@ -53,7 +53,7 @@ describe('connection tests', function () {
                 }
             });
             client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'Redis connection gone from close event.');
+                assert.strictEqual(err.message, 'Stream connection ended and running command aborted. It might have been processed.');
                 called = -1;
             });
         });
@@ -62,7 +62,7 @@ describe('connection tests', function () {
             var called = false;
             client = redis.createClient(9999);
             client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'Redis connection gone from close event.');
+                assert.strictEqual(err.message, 'Stream connection ended and running command aborted. It might have been processed.');
                 called = true;
             });
             var bool = client.quit(function (err, res) {
@@ -277,13 +277,12 @@ describe('connection tests', function () {
                         text += data;
                         return '';
                     });
-                    var end = helper.callFuncAfter(done, 2);
                     client = redis.createClient({
                         retryStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
                                 client.set('foo', 'bar', function (err, res) {
                                     assert.strictEqual(err.message, 'Connection timeout');
-                                    end();
+                                    done();
                                 });
                                 // Pass a individual error message to the error handler
                                 return new Error('Connection timeout');
@@ -294,39 +293,29 @@ describe('connection tests', function () {
                         retryMaxDelay: 123,
                         port: 9999
                     });
-
-                    client.on('error', function (err) {
-                        unhookIntercept();
+                    process.nextTick(function () {
                         assert.strictEqual(
                             text,
                             'node_redis: WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
                             'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
                         );
-                        assert.strictEqual(err.message, 'Connection timeout');
-                        assert(!err.code);
-                        end();
+                        unhookIntercept();
                     });
                 });
 
                 it('retry_strategy used to reconnect', function (done) {
-                    var end = helper.callFuncAfter(done, 2);
                     client = redis.createClient({
                         retry_strategy: function (options) {
                             if (options.total_retry_time > 150) {
                                 client.set('foo', 'bar', function (err, res) {
                                     assert.strictEqual(err.code, 'ECONNREFUSED');
-                                    end();
+                                    done();
                                 });
                                 return false;
                             }
                             return Math.min(options.attempt * 25, 200);
                         },
                         port: 9999
-                    });
-
-                    client.on('error', function (err) {
-                        assert.strictEqual(err.code, 'ECONNREFUSED');
-                        end();
                     });
                 });
             });

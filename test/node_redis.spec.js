@@ -366,7 +366,7 @@ describe('The node_redis client', function () {
                         client = redis.createClient();
                         client.quit(function () {
                             client.get('foo', function (err, res) {
-                                assert(err.message.indexOf('Redis connection gone') !== -1);
+                                assert.strictEqual(err.message, 'Stream connection ended and running command aborted. It might have been processed.');
                                 assert.strictEqual(client.offline_queue.length, 0);
                                 done();
                             });
@@ -1024,14 +1024,25 @@ describe('The node_redis client', function () {
                             helper.killConnection(client);
                         });
 
+                        var end = helper.callFuncAfter(done, 3);
                         client.on('error', function (err) {
-                            if (/uncertain state/.test(err.message)) {
-                                assert.equal(client.command_queue.length, 0);
-                                done();
+                            if (err.command === 'EXEC') {
+                                assert.strictEqual(client.command_queue.length, 0);
+                                assert.strictEqual(err.errors.length, 9);
+                                assert.strictEqual(err.errors[1].command, 'SET');
+                                assert.deepEqual(err.errors[1].args, ['foo1', 'bar1']);
+                                end();
+                            } else if (err.code === 'UNCERTAIN_STATE') {
+                                assert.strictEqual(client.command_queue.length, 0);
+                                assert.strictEqual(err.errors.length, 4);
+                                assert.strictEqual(err.errors[0].command, 'SET');
+                                assert.deepEqual(err.errors[0].args, ['foo0', 'bar0']);
+                                end();
                             } else {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 assert.equal(err.errno, 'ECONNREFUSED');
                                 assert.equal(err.syscall, 'connect');
+                                end();
                             }
                         });
                     });
@@ -1101,14 +1112,21 @@ describe('The node_redis client', function () {
                             helper.killConnection(client);
                         });
 
+                        var end = helper.callFuncAfter(done, 3);
                         client.on('error', function (err) {
-                            if (err.code === 'UNCERTAIN_STATE') {
+                            if (err.command === 'EXEC') {
                                 assert.equal(client.command_queue.length, 0);
-                                done();
+                                assert.equal(err.errors.length, 9);
+                                end();
+                            } else if (err.code === 'UNCERTAIN_STATE') {
+                                assert.equal(client.command_queue.length, 0);
+                                assert.equal(err.errors.length, 4);
+                                end();
                             } else {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 assert.equal(err.errno, 'ECONNREFUSED');
                                 assert.equal(err.syscall, 'connect');
+                                end();
                             }
                         });
                     });

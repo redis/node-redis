@@ -183,7 +183,7 @@ describe('client authentication', function () {
                     }
                 });
                 client.on('reconnecting', function (params) {
-                    assert.strictEqual(params.error.message, 'Stream connection closed');
+                    assert.strictEqual(params.error, null);
                 });
             });
 
