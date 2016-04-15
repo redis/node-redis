@@ -166,57 +166,42 @@ If false is returned the stream had to buffer.
 `client` will emit `idle` when there are no outstanding commands that are awaiting a response.
 
 ## redis.createClient()
-If you have `redis-server` running on the same computer as node, then the defaults for
-port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object.
+If you have `redis-server` running on the same machine as node, then the defaults for
+port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object. Otherwise, `createClient()` accepts these arguments:
 
-If the redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
-
-### overloading
 * `redis.createClient([options])`
-* `redis.createClient(unix_socket[, options])`
+* `redis.createClient(unix_socket[, options])` 
 * `redis.createClient(redis_url[, options])`
 * `redis.createClient(port[, host][, options])`
 
-#### `options` is an object with the following possible properties:
-* `host`: *127.0.0.1*; The host to connect to
-* `port`: *6379*; The port to connect to
-* `path`: *null*; The unix socket string to connect to
-* `url`: *null*; The redis url to connect to (`[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` For more info check [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis))
-* `parser`: *hiredis*; Which Redis protocol reply parser to use. If `hiredis` is not installed it will fallback to `javascript`.
-* `string_numbers`: *boolean*; pass true to get numbers back as strings instead of js numbers. This is necessary if you want to handle big numbers (above `Number.MAX_SAFE_INTEGER` === 2^53). If passed, the js parser is automatically choosen as parser no matter if the parser is set to hiredis or not, as hiredis is not capable of doing this.
-* `return_buffers`: *false*; If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.
-* `detect_buffers`: *false*; If set to `true`, then replies will be sent to callbacks as Buffers. Please be aware that this can't work properly with the pubsub mode. A subscriber has to either always return strings or buffers.
-if any of the input arguments to the original command were Buffers.
-This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to
-every command on a client.
-* `socket_keepalive` *true*; Whether the keep-alive functionality is enabled on the underlying socket.
-* `no_ready_check`: *false*; When a connection is established to the Redis server, the server might still
-be loading the database from disk. While loading the server will not respond to any commands. To work around this,
-`node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command
-indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event.
-Setting `no_ready_check` to `true` will inhibit this check.
-* `enable_offline_queue`: *true*; By default, if there is no active
-connection to the redis server, commands are added to a queue and are executed
-once the connection has been established. Setting `enable_offline_queue` to
-`false` will disable this feature and the callback will be executed immediately
-with an error, or an error will be emitted if no callback is specified.
-* `retry_max_delay`: *null*; By default every time the client tries to connect and fails the reconnection delay almost doubles.
-This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds.
-* `connect_timeout`: *3600000*; Setting `connect_timeout` limits total time for client to connect and reconnect.
-The value is provided in milliseconds and is counted from the moment on a new client is created / a connection is lost. The last retry is going to happen exactly at the timeout time.
-Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h passed.
-* `max_attempts`: *0*; (Deprecated, please use `retry_strategy` instead) By default client will try reconnecting until connected. Setting `max_attempts`
-limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries.
-* `retry_unfulfilled_commands`: *false*; If set to true, all commands that were unfulfulled while the connection is lost will be retried after the connection has reestablished again. Use this with caution, if you use state altering commands (e.g. *incr*). This is especially useful if you use blocking commands.
-* `password`: *null*; If set, client will run redis auth command on connect. Alias `auth_pass` (node_redis < 2.5 have to use auth_pass)
-* `db`: *null*; If set, client will run redis select command on connect. This is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg).
-* `family`: *IPv4*; You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type.
-* `disable_resubscribing`: *false*; If set to `true`, a client won't resubscribe after disconnecting
-* `rename_commands`: *null*; pass a object with renamed commands to use those instead of the original functions. See the [redis security topics](http://redis.io/topics/security) for more info.
-* `tls`: an object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback),
-to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).
-* `prefix`: *null*; pass a string to prefix all used keys with that string as prefix e.g. 'namespace:test'. Please be aware, that the "keys" command is not going to be prefixed. The command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed.
-* `retry_strategy`: *function*; pass a function that receives a options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number no further retry is going to happen and all offline commands are flushed with errors. Return a error to return that specific error to all offline commands. Check out the example too.
+__Tip:__ If the Redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
+
+#### `options` object properties
+| Property  | Default   | Description |
+|-----------|-----------|-------------|
+| host      | 127.0.0.1 | IP address of the Redis server |
+| port      | 6379      | Port of the Redis server |
+| path      | null      | The UNIX socket string of the Redis server |
+| url       | null      | The URL of the Redis server. Uses the format `[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis) |
+| parser    | hiredis   |  If hiredis is not installed, automatic fallback to the built-in javascript parser |
+| string_numbers | null   | Set to `true`, `node_redis will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
+| return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
+| detect_buffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return strings or buffers. |
+| socket_keepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket |
+| no_ready_check | false |  When a connection is established to the Redis server, the server might still be loading the database from disk. While loading the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check. |
+| enable_offline_queue |  true | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enable_offline_queue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified. |
+| retry_max_delay | null | By default, every time the client tries to connect and fails the reconnection delay almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value, provided in milliseconds. |
+| connect_timeout | 3600000 | Setting `connect_timeout` limits the total time for the client to connect and reconnect. The value is provided in milliseconds and is counted from the moment a new client is created or when a connection is lost. The last retry is going to happen exactly at the timeout time. Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h has elapsed. |
+| max_attempts | 0 | __Deprecated__ _Please use `retry_strategy` instead._ By default client will try reconnecting until connected. Setting `max_attempts` limits total amount of connection tries. Setting this to 1 will prevent any reconnect tries. |
+| retry_unfulfilled_commands | false | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution, if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands. |
+| password | null | If set, client will run Redis auth command on connect. Alias `auth_pass` __Note__ `node_redis` < 2.5 must use `auth_pass` |
+| db | null | If set, client will run Redis `select` command on connect. |
+| family | IPv4 | You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules how to use the family type. |
+| disable_resubscribing | false | If set to `true`, a client won't resubscribe after disconnecting |
+| rename_commands | null | Passing a object with renamed commands to use instead of the original functions. See the [Redis security topics](http://redis.io/topics/security) for more info. |
+| tls | null | An object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback) to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel). |
+| prefix | null | String to prefix all used keys with that string as prefix (e.g. `namespace:test`). Please be aware, that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed. |
+| retry_strategy | function | Function that receives a options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number no further retry will happen and all offline commands are flushed with errors. Return a error to return that specific error to all offline commands. Example below. |
 
 ```js
 var redis = require("redis");
