@@ -174,7 +174,7 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 * `redis.createClient(redis_url[, options])`
 * `redis.createClient(port[, host][, options])`
 
-__Tip:__ If the Redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput._
+__Tip:__ If the Redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
 
 #### `options` object properties
 | Property  | Default   | Description |
