@@ -148,6 +148,7 @@ function RedisClient (options, stream) {
     this.old_state = null;
     this.fire_strings = true; // Determine if strings or buffers should be written to the stream
     this.pipeline = false;
+    this.sub_commands_left = 0;
     this.times_connected = 0;
     this.options = options;
     this.buffers = options.return_buffers || options.detect_buffers;
@@ -645,6 +646,11 @@ RedisClient.prototype.return_error = function (err) {
         }
     }
 
+    // Count down pub sub mode if in entering modus
+    if (this.pub_sub_mode > 1) {
+        this.pub_sub_mode--;
+    }
+
     var match = err.message.match(utils.err_code);
     // LUA script could return user errors that don't behave like all other errors!
     if (match) {
@@ -677,50 +683,39 @@ function normal_reply (self, reply) {
     }
 }
 
-function set_subscribe (self, type, subscribe, channel) {
-    // Every channel has to be saved / removed one after the other and the type has to be the same too,
-    // to make sure partly subscribe / unsubscribe works well together
-    if (subscribe) {
-        self.subscription_set[type + '_' + channel] = channel;
-    } else {
-        type = type === 'unsubscribe' ? 'subscribe' : 'psubscribe'; // Make types consistent
-        delete self.subscription_set[type + '_' + channel];
-    }
-}
-
-function subscribe_unsubscribe (self, reply, type, subscribe) {
+function subscribe_unsubscribe (self, reply, type) {
     // Subscribe commands take an optional callback and also emit an event, but only the _last_ response is included in the callback
     // The pub sub commands return each argument in a separate return value and have to be handled that way
     var command_obj = self.command_queue.get(0);
     var buffer = self.options.return_buffers || self.options.detect_buffers && command_obj.buffer_args;
     var channel = (buffer || reply[1] === null) ? reply[1] : reply[1].toString();
     var count = +reply[2]; // Return the channel counter as number no matter if `string_numbers` is activated or not
-    debug('Subscribe / unsubscribe command');
+    debug(type, channel);
 
     // Emit first, then return the callback
     if (channel !== null) { // Do not emit or "unsubscribe" something if there was no channel to unsubscribe from
         self.emit(type, channel, count);
-        set_subscribe(self, type, subscribe, channel);
-    }
-    if (command_obj.sub_commands_left <= 1) {
-        if (count !== 0) {
-            if (!subscribe && command_obj.args.length === 0) { // Unsubscribe from all channels
-                command_obj.sub_commands_left = count;
-                return;
-            }
+        if (type === 'subscribe' || type === 'psubscribe') {
+            self.subscription_set[type + '_' + channel] = channel;
         } else {
+            type = type === 'unsubscribe' ? 'subscribe' : 'psubscribe'; // Make types consistent
+            delete self.subscription_set[type + '_' + channel];
+        }
+    }
+
+    if (command_obj.args.length === 1 || self.sub_commands_left === 1 || command_obj.args.length === 0 && (count === 0 || channel === null)) {
+        if (count === 0) { // unsubscribed from all channels
             var running_command;
             var i = 1;
+            self.pub_sub_mode = 0; // Deactivating pub sub mode
             // This should be a rare case and therefore handling it this way should be good performance wise for the general case
             while (running_command = self.command_queue.get(i)) {
                 if (SUBSCRIBE_COMMANDS[running_command.command]) {
-                    self.command_queue.shift();
-                    self.pub_sub_mode = i;
-                    return;
+                    self.pub_sub_mode = i; // Entering pub sub mode again
+                    break;
                 }
                 i++;
             }
-            self.pub_sub_mode = 0;
         }
         self.command_queue.shift();
         if (typeof command_obj.callback === 'function') {
@@ -728,8 +723,13 @@ function subscribe_unsubscribe (self, reply, type, subscribe) {
             // Evaluate to change this in v.3 to return all subscribed / unsubscribed channels in an array including the number of channels subscribed too
             command_obj.callback(null, channel);
         }
+        self.sub_commands_left = 0;
     } else {
-        command_obj.sub_commands_left--;
+        if (self.sub_commands_left !== 0) {
+            self.sub_commands_left--;
+        } else {
+            self.sub_commands_left = command_obj.args.length ? command_obj.args.length - 1 : count;
+        }
     }
 }
 
@@ -751,12 +751,8 @@ function return_pub_sub (self, reply) {
         } else {
             self.emit('pmessage', reply[1], reply[2], reply[3]);
         }
-    } else if (type === 'subscribe' || type === 'psubscribe') {
-        subscribe_unsubscribe(self, reply, type, true);
-    } else if (type === 'unsubscribe' || type === 'punsubscribe') {
-        subscribe_unsubscribe(self, reply, type, false);
     } else {
-        normal_reply(self, reply);
+        subscribe_unsubscribe(self, reply, type);
     }
 }
 
@@ -787,10 +783,12 @@ RedisClient.prototype.return_reply = function (reply) {
     } else if (this.pub_sub_mode !== 1) {
         this.pub_sub_mode--;
         normal_reply(this, reply);
-    } else if (reply instanceof Array && reply.length > 2 && reply[0]) {
-        return_pub_sub(this, reply);
-    } else {
+    } else if (!(reply instanceof Array) || reply.length <= 2) {
+        // Only PING and QUIT are allowed in this context besides the pub sub commands
+        // Ping replies with ['pong', null|value] and quit with 'OK'
         normal_reply(this, reply);
+    } else {
+        return_pub_sub(this, reply);
     }
 };
 
