@@ -60,6 +60,7 @@ describe('TLS connection tests', function () {
                 tls: tls_options
             });
             var time = 0;
+            assert.strictEqual(client.address, '127.0.0.1:' + tls_port);
 
             client.once('ready', function () {
                 helper.killConnection(client);
@@ -87,18 +88,20 @@ describe('TLS connection tests', function () {
 
     describe('when not connected', function () {
 
-        it('connect with host and port provided in the options object', function (done) {
+        it('connect with host and port provided in the tls object', function (done) {
             if (skip) this.skip();
+            var tls = utils.clone(tls_options);
+            tls.port = tls_port;
+            tls.host = 'localhost';
             client = redis.createClient({
-                host: 'localhost',
                 connect_timeout: 1000,
-                port: tls_port,
-                tls: tls_options
+                tls: tls
             });
 
             // verify connection is using TCP, not UNIX socket
             assert.strictEqual(client.connection_options.host, 'localhost');
             assert.strictEqual(client.connection_options.port, tls_port);
+            assert.strictEqual(client.address, 'localhost:' + tls_port);
             assert(client.stream.encrypted);
 
             client.set('foo', 'bar');
@@ -115,6 +118,7 @@ describe('TLS connection tests', function () {
                 port: tls_port,
                 tls: faulty_cert
             });
+            assert.strictEqual(client.address, 'localhost:' + tls_port);
             client.on('error', function (err) {
                 assert(/DEPTH_ZERO_SELF_SIGNED_CERT/.test(err.code || err.message), err);
                 client.end(true);

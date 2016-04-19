@@ -50,6 +50,14 @@ function RedisClient (options, stream) {
     EventEmitter.call(this);
     var cnx_options = {};
     var self = this;
+    /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
+    for (var tls_option in options.tls) { // jshint ignore: line
+        cnx_options[tls_option] = options.tls[tls_option];
+        // Copy the tls options into the general options to make sure the address is set right
+        if (tls_option === 'port' || tls_option === 'host' || tls_option === 'path' || tls_option === 'family') {
+            options[tls_option] = options.tls[tls_option];
+        }
+    }
     if (stream) {
         // The stream from the outside is used so no connection from this side is triggered but from the server this client should talk to
         // Reconnect etc won't work with this. This requires monkey patching to work, so it is not officially supported
@@ -63,10 +71,6 @@ function RedisClient (options, stream) {
         cnx_options.host = options.host || '127.0.0.1';
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
-    }
-    /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
-    for (var tls_option in options.tls) { // jshint ignore: line
-        cnx_options[tls_option] = options.tls[tls_option];
     }
     // Warn on misusing deprecated functions
     if (typeof options.retry_strategy === 'function') {
