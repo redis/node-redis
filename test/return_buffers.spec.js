@@ -252,7 +252,7 @@ describe('return_buffers', function () {
                     var subConnected;
 
                     pub = redis.createClient.apply(redis.createClient, basicArgs);
-                    sub = redis.createClient.apply(redis.createClient, args);
+                    sub = redis.createClient.apply(null, args);
                     pub.once('connect', function () {
                         pub.flushdb(function () {
                             pubConnected = true;

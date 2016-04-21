@@ -121,7 +121,7 @@ describe("The 'client' method", function () {
                 var client2;
 
                 beforeEach(function (done) {
-                    client2 = redis.createClient.apply(redis.createClient, args);
+                    client2 = redis.createClient.apply(null, args);
                     client2.once('ready', function () {
                         done();
                     });
@@ -136,9 +136,9 @@ describe("The 'client' method", function () {
                     // per chunk. So the execution order is only garanteed on each client
                     var end = helper.callFuncAfter(done, 2);
 
-                    client.client('setname', 'RUTH', helper.isString('OK'));
-                    client2.client('setname', 'RENEE', helper.isString('OK'));
-                    client2.client('setname', 'MARTIN', helper.isString('OK'));
+                    client.client('setname', 'RUTH');
+                    client2.client('setname', ['RENEE'], helper.isString('OK'));
+                    client2.client(['setname', 'MARTIN'], helper.isString('OK'));
                     client2.client('getname', function (err, res) {
                         assert.equal(res, 'MARTIN');
                         end();

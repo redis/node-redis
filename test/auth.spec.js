@@ -272,13 +272,13 @@ describe('client authentication', function () {
                 var args = config.configureClient(parser, ip, {
                     password: auth
                 });
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.set('foo', 'bar');
                 client.subscribe('somechannel', 'another channel', function (err, res) {
                     client.once('ready', function () {
                         assert.strictEqual(client.pub_sub_mode, 1);
                         client.get('foo', function (err, res) {
-                            assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                            assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
                             done();
                         });
                     });
@@ -292,7 +292,7 @@ describe('client authentication', function () {
                 });
             });
 
-            it('indivdual commands work properly with batch', function (done) {
+            it('individual commands work properly with batch', function (done) {
                 // quit => might return an error instead of "OK" in the exec callback... (if not connected)
                 // auth => might return an error instead of "OK" in the exec callback... (if no password is required / still loading on Redis <= 2.4)
                 // This could be fixed by checking the return value of the callback in the exec callback and
@@ -302,7 +302,7 @@ describe('client authentication', function () {
                 var args = config.configureClient(parser, 'localhost', {
                     noReadyCheck: true
                 });
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 assert.strictEqual(client.selected_db, undefined);
                 var end = helper.callFuncAfter(done, 8);
                 client.on('monitor', function () {
@@ -317,9 +317,9 @@ describe('client authentication', function () {
                     })
                     .monitor()
                     .set('foo', 'bar', helper.isString('OK'))
-                    .INFO(function (err, res) {
-                        assert.strictEqual(res.indexOf('# Server\r\nredis_version:'), 0);
-                        assert.deepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    .INFO('stats', function (err, res) {
+                        assert.strictEqual(res.indexOf('# Stats\r\n'), 0);
+                        assert.strictEqual(client.serverInfo.sync_full, '0');
                     })
                     .get('foo', helper.isString('bar'))
                     .subscribe(['foo', 'bar'])
@@ -328,8 +328,8 @@ describe('client authentication', function () {
                     .psubscribe('*')
                     .quit(helper.isString('OK')) // this might be interesting
                     .exec(function (err, res) {
-                        res[4] = res[4].substr(0, 10);
-                        assert.deepEqual(res, ['OK', 'OK', 'OK', 'OK', '# Server\r\n', 'bar', 'bar', 'foo', '/foo', '*', 'OK']);
+                        res[4] = res[4].substr(0, 9);
+                        assert.deepEqual(res, ['OK', 'OK', 'OK', 'OK', '# Stats\r\n', 'bar', 'bar', 'foo', '/foo', '*', 'OK']);
                         end();
                     });
             });

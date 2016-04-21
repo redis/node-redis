@@ -705,7 +705,7 @@ describe("The 'multi' method", function () {
                     });
                     multi.get('foo', helper.isString('bar'));
                     multi.exec(function (err, res) {
-                        res[3] = res[3].substr(0, 10);
+                        res[2] = res[2].substr(0, 10);
                         assert.deepEqual(res, ['OK', 'OK', '# Server\r\n', 'bar']);
                         done();
                     });

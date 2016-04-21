@@ -28,23 +28,23 @@ describe("The 'hgetall' method", function () {
                         assert.strictEqual('1', obj.__proto__.toString()); // eslint-disable-line no-proto
                         assert.strictEqual('23', obj.another.toString());
                         assert.strictEqual('1234', obj.home.toString());
-                        return done(err);
+                        done(err);
                     });
                 });
 
                 it('handles fetching keys set using an object', function (done) {
-                    client.HMSET('msg_test', { message: 'hello' }, helper.isString('OK'));
+                    client.batch().HMSET('msg_test', { message: 'hello' }, undefined).exec();
                     client.hgetall('msg_test', function (err, obj) {
                         assert.strictEqual(1, Object.keys(obj).length);
                         assert.strictEqual(obj.message, 'hello');
-                        return done(err);
+                        done(err);
                     });
                 });
 
                 it('handles fetching a messing key', function (done) {
                     client.hgetall('missing', function (err, obj) {
                         assert.strictEqual(null, obj);
-                        return done(err);
+                        done(err);
                     });
                 });
             });

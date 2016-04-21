@@ -318,6 +318,24 @@ describe('connection tests', function () {
                         port: 9999
                     });
                 });
+
+                it('retry_strategy used to reconnect with defaults', function (done) {
+                    client = redis.createClient({
+                        retry_strategy: function (options) {
+                            client.set('foo', 'bar');
+                            return null;
+                        }
+                    });
+                    setTimeout(function () {
+                        client.stream.destroy();
+                    }, 50);
+                    client.on('error', function (err) {
+                        assert.strictEqual(err.code, 'NR_OFFLINE');
+                        assert.strictEqual(err.errors.length, 1);
+                        assert.notStrictEqual(err.message, err.errors[0].message);
+                        done();
+                    });
+                });
             });
 
             describe('when not connected', function () {

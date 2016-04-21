@@ -19,8 +19,8 @@ describe('publish/subscribe', function () {
             beforeEach(function (done) {
                 var end = helper.callFuncAfter(done, 2);
 
-                pub = redis.createClient.apply(redis.createClient, args);
-                sub = redis.createClient.apply(redis.createClient, args);
+                pub = redis.createClient.apply(null, args);
+                sub = redis.createClient.apply(null, args);
                 pub.once('connect', function () {
                     pub.flushdb(function () {
                         end();
@@ -576,7 +576,7 @@ describe('publish/subscribe', function () {
                     });
                     // Get is forbidden
                     sub.get('foo', function (err, res) {
-                        assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                        assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
                         assert.strictEqual(err.command, 'GET');
                     });
                     // Quit is allowed
@@ -586,7 +586,7 @@ describe('publish/subscribe', function () {
                 it('emit error if only pub sub commands are allowed without callback', function (done) {
                     sub.subscribe('channel');
                     sub.on('error', function (err) {
-                        assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                        assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
                         assert.strictEqual(err.command, 'GET');
                         done();
                     });
@@ -637,6 +637,24 @@ describe('publish/subscribe', function () {
                 pub.on('message', function (msg) {
                     done(new Error('This message should not have been published: ' + msg));
                 });
+            });
+
+            it('arguments variants', function (done) {
+                sub.batch()
+                    .info(['stats'])
+                    .info()
+                    .client('KILL', ['type', 'pubsub'])
+                    .client('KILL', ['type', 'pubsub'], function () {})
+                    .unsubscribe()
+                    .psubscribe(['pattern:*'])
+                    .punsubscribe('unkown*')
+                    .punsubscribe(['pattern:*'])
+                    .exec(function (err, res) {
+                        sub.client('kill', ['type', 'pubsub']);
+                        sub.psubscribe('*');
+                        sub.punsubscribe('pa*');
+                        sub.punsubscribe(['a', '*'], done);
+                    });
             });
 
             afterEach(function () {

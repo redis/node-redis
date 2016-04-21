@@ -1,6 +1,8 @@
 'use strict';
 
 var assert = require('assert');
+var fs = require('fs');
+var path = require('path');
 var config = require('./lib/config');
 var helper = require('./helper');
 var utils = require('../lib/utils');
@@ -8,6 +10,23 @@ var fork = require('child_process').fork;
 var redis = config.redis;
 
 describe('The node_redis client', function () {
+
+    it('individual commands sanity check', function (done) {
+        // All commands should work the same in multi context or without
+        // Therefor individual commands always have to be handled in both cases
+        fs.readFile(path.resolve(__dirname, '../lib/individualCommands.js'), 'utf8', function (err, data) {
+            var client_prototype = data.match(/(\n| = )RedisClient\.prototype.[a-zA-Z_]+/g);
+            var multi_prototype = data.match(/(\n| = )Multi\.prototype\.[a-zA-Z_]+/g);
+            // Check that every entry RedisClient entry has a correspondend Multi entry
+            assert.strictEqual(client_prototype.filter(function (entry) {
+                return multi_prototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1;
+            }).length, 4); // multi and batch are included too
+            assert.strictEqual(client_prototype.length, multi_prototype.length + 4);
+            // Check that all entries exist in uppercase and in lowercase variants
+            assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-z_]+/g).length * 2, client_prototype.length);
+            done();
+        });
+    });
 
     helper.allTests(function (parser, ip, args) {
 
