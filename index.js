@@ -51,7 +51,7 @@ function RedisClient (options, stream) {
     var cnx_options = {};
     var self = this;
     /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
-    for (var tls_option in options.tls) { // jshint ignore: line
+    for (var tls_option in options.tls) {
         cnx_options[tls_option] = options.tls[tls_option];
         // Copy the tls options into the general options to make sure the address is set right
         if (tls_option === 'port' || tls_option === 'host' || tls_option === 'path' || tls_option === 'family') {
@@ -102,7 +102,7 @@ function RedisClient (options, stream) {
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
     }
-    for (var command in options.rename_commands) { // jshint ignore: line
+    for (var command in options.rename_commands) {
         options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
     }
     options.return_buffers = !!options.return_buffers;
@@ -438,7 +438,7 @@ RedisClient.prototype.on_ready = function () {
             }
         };
         debug('Sending pub/sub on_ready commands');
-        for (var key in this.subscription_set) { // jshint ignore: line
+        for (var key in this.subscription_set) {
             var command = key.slice(0, key.indexOf('_'));
             var args = self.subscription_set[key];
             self.internal_send_command(command, [args], callback);
@@ -934,6 +934,7 @@ RedisClient.prototype.internal_send_command = function (command, args, callback,
     }
     // Handle `CLIENT REPLY ON|OFF|SKIP`
     // This has to be checked after call_on_write
+    /* istanbul ignore else: TODO: Remove this as soon as we test Redis 3.2 on travis */
     if (this.reply === 'ON') {
         this.command_queue.push(command_obj);
     } else {
