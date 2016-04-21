@@ -3,6 +3,7 @@
 var assert = require('assert');
 var config = require('./lib/config');
 var helper = require('./helper');
+var utils = require('../lib/utils');
 var redis = config.redis;
 var zlib = require('zlib');
 var client;
@@ -127,6 +128,53 @@ describe("The 'multi' method", function () {
 
                 beforeEach(function () {
                     client = redis.createClient.apply(null, args);
+                });
+
+                describe('monitor and transactions do not work together', function () {
+
+                    it('results in a execabort', function (done) {
+                        // Check that transactions in combination with monitor result in an error
+                        client.monitor(function (e) {
+                            client.on('error', function (err) {
+                                assert.strictEqual(err.code, 'EXECABORT');
+                                done();
+                            });
+                            var multi = client.multi();
+                            multi.set('hello', 'world');
+                            multi.exec();
+                        });
+                    });
+
+                    it('results in a execabort #2', function (done) {
+                        // Check that using monitor with a transactions results in an error
+                        client.multi().set('foo', 'bar').monitor().exec(function (err, res) {
+                            assert.strictEqual(err.code, 'EXECABORT');
+                            done();
+                        });
+                    });
+
+                    it('sanity check', function (done) {
+                        // Remove the listener and add it back again after the error
+                        var mochaListener = helper.removeMochaListener();
+                        process.on('uncaughtException', function (err) {
+                            helper.removeMochaListener();
+                            process.on('uncaughtException', mochaListener);
+                            done();
+                        });
+                        // Check if Redis still has the error
+                        client.monitor();
+                        client.send_command('multi');
+                        client.send_command('set', ['foo', 'bar']);
+                        client.send_command('get', ['foo']);
+                        client.send_command('exec', function (err, res) {
+                            // res[0] is going to be the monitor result of set
+                            // res[1] is going to be the result of the set command
+                            assert(utils.monitor_regex.test(res[0]));
+                            assert.strictEqual(res[1], 'OK');
+                            assert.strictEqual(res.length, 2);
+                            client.end(false);
+                        });
+                    });
                 });
 
                 it('executes a pipelined multi properly in combination with the offline queue', function (done) {
