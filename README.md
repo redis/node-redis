@@ -122,48 +122,48 @@ Please be aware that sending null, undefined and Boolean values will result in t
 
 `client` will emit some events about the state of the connection to the Redis server.
 
-### "ready"
+### `"ready"`
 
-`client` will emit `ready` once a connection is established. Commands issued before the `ready` event are queued,
+`client` will emit `"ready"` once a connection is established. Commands issued before the `"ready"` event are queued,
 then replayed just before this event is emitted.
 
-### "connect"
+### `"connect"`
 
-`client` will emit `connect` as soon as the stream is connected to the server.
+`client` will emit `"connect"` as soon as the stream is connected to the server.
 
-### "reconnecting"
+### `"reconnecting"`
 
-`client` will emit `reconnecting` when trying to reconnect to the Redis server after losing the connection. Listeners
+`client` will emit `"reconnecting"` when trying to reconnect to the Redis server after losing the connection. Listeners
 are passed an object containing `delay` (in ms) and `attempt` (the attempt #) attributes.
 
-### "error"
+### `"error"`
 
-`client` will emit `error` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
+`client` will emit `"error"` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
 
 So please attach the error listener to node_redis.
 
-### "end"
+### `"end"`
 
-`client` will emit `end` when an established Redis server connection has closed.
+`client` will emit `"end"` when an established Redis server connection has closed.
 
-### "drain" (deprecated)
+### `"drain"` (deprecated)
 
-`client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
+`client` will emit `"drain"` when the TCP connection to the Redis server has been buffering, but is now
 writable. This event can be used to stream commands in to Redis and adapt to backpressure.
 
 If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
-That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
+That way you can decide when to reduce your send rate and resume sending commands when you get `"drain"`.
 
 You can also check the return value of each command as it will also return the backpressure indicator (deprecated).
 If false is returned the stream had to buffer.
 
-### "warning"
+### `"warning"`
 
-`client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
+`client` will emit `"warning"` when password was set but none is needed and if a deprecated option / function / similar is used.
 
-### "idle" (deprecated)
+### `"idle"` (deprecated)
 
-`client` will emit `idle` when there are no outstanding commands that are awaiting a response.
+`client` will emit `"idle"` when there are no outstanding commands that are awaiting a response.
 
 ## redis.createClient()
 If you have `redis-server` running on the same machine as node, then the defaults for
@@ -401,36 +401,36 @@ If you need to send regular commands to Redis while in subscriber mode, just ope
 
 If a client has subscriptions active, it may emit these events:
 
-### "message" (channel, message)
+### `"message"` (channel, message)
 
-Client will emit `message` for every message received that matches an active subscription.
+Client will emit `"message"` for every message received that matches an active subscription.
 Listeners are passed the channel name as `channel` and the message as `message`.
 
-### "pmessage" (pattern, channel, message)
+### `"pmessage"` (pattern, channel, message)
 
-Client will emit `pmessage` for every message received that matches an active subscription pattern.
+Client will emit `"pmessage"` for every message received that matches an active subscription pattern.
 Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
 name as `channel`, and the message as `message`.
 
-### "subscribe" (channel, count)
+### `"subscribe"` (channel, count)
 
-Client will emit `subscribe` in response to a `SUBSCRIBE` command. Listeners are passed the
+Client will emit `"subscribe"` in response to a `SUBSCRIBE` command. Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`.
 
-### "psubscribe" (pattern, count)
+### `"psubscribe"` (pattern, count)
 
-Client will emit `psubscribe` in response to a `PSUBSCRIBE` command. Listeners are passed the
+Client will emit `"psubscribe"` in response to a `PSUBSCRIBE` command. Listeners are passed the
 original pattern as `pattern`, and the new count of subscriptions for this client as `count`.
 
-### "unsubscribe" (channel, count)
+### `"unsubscribe"` (channel, count)
 
-Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command. Listeners are passed the
+Client will emit `"unsubscribe"` in response to a `UNSUBSCRIBE` command. Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`. When
 `count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
-### "punsubscribe" (pattern, count)
+### `"punsubscribe"` (pattern, count)
 
-Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command. Listeners are passed the
+Client will emit `"punsubscribe"` in response to a `PUNSUBSCRIBE` command. Listeners are passed the
 channel name as `channel` and the new count of subscriptions for this client as `count`. When
 `count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
 
