@@ -137,6 +137,7 @@ are passed an object containing `delay` (in ms) and `attempt` (the attempt #) at
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
+If you use a command without callback and encounter a ReplyError it is going to be emitted to the error listener.
 
 So please attach the error listener to node_redis.
 
@@ -292,6 +293,51 @@ client.get("foo_rand000000000000", function (err, reply) {
 ```
 
 `client.end()` without the flush parameter set to true should NOT be used in production!
+
+## Error handling (>= v.2.6)
+
+All redis errors are returned as `ReplyError`.
+All unresolved commands that get rejected due to what ever reason return a `AbortError`.
+As subclass of the `AbortError` a `AggregateError` exists. This is emitted in case multiple unresolved commands without callback got rejected in debug_mode.
+They are all aggregated and a single error is emitted in that case.
+
+Example:
+```js
+var redis = require('./');
+var assert = require('assert');
+var client = redis.createClient();
+
+client.on('error', function (err) {
+    assert(err instanceof Error);
+    assert(err instanceof redis.AbortError);
+    assert(err instanceof redis.AggregateError);
+    assert.strictEqual(err.errors.length, 2); // The set and get got aggregated in here
+    assert.strictEqual(err.code, 'NR_CLOSED');
+});
+client.set('foo', 123, 'bar', function (err, res) { // To many arguments
+    assert(err instanceof redis.ReplyError); // => true
+    assert.strictEqual(err.command, 'SET');
+    assert.deepStrictEqual(err.args, ['foo', 123, 'bar']);
+
+    redis.debug_mode = true;
+    client.set('foo', 'bar');
+    client.get('foo');
+    process.nextTick(function () {
+        client.end(true); // Force closing the connection while the command did not yet return
+        redis.debug_mode = false;
+    });
+});
+
+```
+
+Every `ReplyError` contains the `command` name in all-caps and the arguments (`args`).
+
+If node_redis emits a library error because of another error, the triggering error is added to the returned error as `origin` attribute.
+
+___Error codes___
+
+node_redis returns a `NR_CLOSED` error code if the clients connection dropped. If a command unresolved command got rejected a `UNERCTAIN_STATE` code is returned.
+A `CONNECTION_BROKEN` error code is used in case node_redis gives up to reconnect.
 
 ## client.unref()
 
@@ -537,7 +583,7 @@ Redis. The interface in `node_redis` is to return an individual `Batch` object b
 The only difference between .batch and .multi is that no transaction is going to be used.
 Be aware that the errors are - just like in multi statements - in the result. Otherwise both, errors and results could be returned at the same time.
 
-If you fire many commands at once this is going to **boost the execution speed by up to 400%** [sic!] compared to fireing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
+If you fire many commands at once this is going to boost the execution speed significantly compared to fireing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
 
 ## Monitor mode
 

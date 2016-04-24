@@ -24,8 +24,10 @@ describe("The 'hgetall' method", function () {
                 it('handles simple keys and values', function (done) {
                     client.hmset(['hosts', '__proto__', '1', 'another', '23', 'home', '1234'], helper.isString('OK'));
                     client.HGETALL(['hosts'], function (err, obj) {
-                        assert.strictEqual(3, Object.keys(obj).length);
-                        assert.strictEqual('1', obj.__proto__.toString()); // eslint-disable-line no-proto
+                        if (!/^v0\.10/.test(process.version)) {
+                            assert.strictEqual(3, Object.keys(obj).length);
+                            assert.strictEqual('1', obj.__proto__.toString()); // eslint-disable-line no-proto
+                        }
                         assert.strictEqual('23', obj.another.toString());
                         assert.strictEqual('1234', obj.home.toString());
                         done(err);

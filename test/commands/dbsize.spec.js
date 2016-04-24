@@ -31,7 +31,7 @@ describe("The 'dbsize' method", function () {
 
                 it('reports an error', function (done) {
                     client.dbsize([], function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                 });

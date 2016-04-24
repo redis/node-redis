@@ -36,7 +36,7 @@ describe("The 'batch' method", function () {
                     batch.set('foo', 'bar');
                     batch.exec(function (err, res) {
                         assert.strictEqual(err, null);
-                        assert.strictEqual(res[0].code, 'NR_OFFLINE');
+                        assert.strictEqual(res[0].code, 'NR_CLOSED');
                         done();
                     });
                 });

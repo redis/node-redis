@@ -111,7 +111,7 @@ describe("The 'multi' method", function () {
                 it('reports an error', function (done) {
                     var multi = client.multi();
                     var notBuffering = multi.exec(function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                     assert.strictEqual(notBuffering, false);
@@ -119,7 +119,7 @@ describe("The 'multi' method", function () {
 
                 it('reports an error if promisified', function () {
                     return client.multi().execAsync().catch(function (err) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                     });
                 });
             });

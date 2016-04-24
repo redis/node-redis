@@ -53,7 +53,7 @@ describe('connection tests', function () {
                 }
             });
             client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'Stream connection ended and running command aborted. It might have been processed.');
+                assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
                 called = -1;
             });
         });
@@ -62,7 +62,7 @@ describe('connection tests', function () {
             var called = false;
             client = redis.createClient(9999);
             client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'Stream connection ended and running command aborted. It might have been processed.');
+                assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
                 called = true;
             });
             var bool = client.quit(function (err, res) {
@@ -259,13 +259,12 @@ describe('connection tests', function () {
 
                 it('emits error once if reconnecting after command has been executed but not yet returned without callback', function (done) {
                     client = redis.createClient.apply(null, args);
-                    client.on('error', function (err) {
-                        assert.strictEqual(err.code, 'UNCERTAIN_STATE');
-                        done();
-                    });
 
                     client.on('ready', function () {
-                        client.set('foo', 'bar');
+                        client.set('foo', 'bar', function (err) {
+                            assert.strictEqual(err.code, 'UNCERTAIN_STATE');
+                            done();
+                        });
                         // Abort connection before the value returned
                         client.stream.destroy();
                     });
@@ -281,7 +280,8 @@ describe('connection tests', function () {
                         retryStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
                                 client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Connection timeout');
+                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
+                                    assert.strictEqual(err.origin.message, 'Connection timeout');
                                     done();
                                 });
                                 // Pass a individual error message to the error handler
@@ -308,7 +308,9 @@ describe('connection tests', function () {
                         retry_strategy: function (options) {
                             if (options.total_retry_time > 150) {
                                 client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.code, 'ECONNREFUSED');
+                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
+                                    assert.strictEqual(err.code, 'NR_CLOSED');
+                                    assert.strictEqual(err.origin.code, 'ECONNREFUSED');
                                     done();
                                 });
                                 return false;
@@ -319,10 +321,15 @@ describe('connection tests', function () {
                     });
                 });
 
-                it('retry_strategy used to reconnect with defaults', function (done) {
+                it('retryStrategy used to reconnect with defaults', function (done) {
+                    var unhookIntercept = intercept(function () {
+                        return '';
+                    });
+                    redis.debugMode = true;
                     client = redis.createClient({
-                        retry_strategy: function (options) {
+                        retryStrategy: function (options) {
                             client.set('foo', 'bar');
+                            assert(redis.debugMode);
                             return null;
                         }
                     });
@@ -330,9 +337,10 @@ describe('connection tests', function () {
                         client.stream.destroy();
                     }, 50);
                     client.on('error', function (err) {
-                        assert.strictEqual(err.code, 'NR_OFFLINE');
-                        assert.strictEqual(err.errors.length, 1);
-                        assert.notStrictEqual(err.message, err.errors[0].message);
+                        assert.strictEqual(err.code, 'NR_CLOSED');
+                        assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
+                        unhookIntercept();
+                        redis.debugMode = false;
                         done();
                     });
                 });
