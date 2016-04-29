@@ -12,9 +12,7 @@ Install with:
 
     npm install redis
 
-## Usage
-
-Simple example, included as `examples/simple.js`:
+## Usage Example
 
 ```js
 var redis = require("redis"),
@@ -51,6 +49,8 @@ This will display:
     mjr:~/work/node_redis (master)$
 
 Note that the API is entirely asynchronous. To get data back from the server, you'll need to use a callback.
+From v.2.6 on the API supports camelCase and snack_case and all options / variables / events etc. can be used either way.
+It is recommended to use camelCase as this is the default for the Node.js landscape.
 
 ### Promises
 
@@ -83,7 +83,7 @@ return client.multi().get('foo').execAsync().then(function(res) {
 Each Redis command is exposed as a function on the `client` object.
 All functions take either an `args` Array plus optional `callback` Function or
 a variable number of individual arguments followed by an optional callback.
-Here are examples how to use the api:
+Examples:
 
 ```js
 client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
@@ -111,8 +111,6 @@ client.get("missingkey", function(err, reply) {
 
 For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
 
-The commands can be specified in uppercase or lowercase for convenience. `client.get()` is the same as `client.GET()`.
-
 Minimal parsing is done on the replies. Commands that return a integer return JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object keyed by the hash keys. All strings will either be returned as string or as buffer depending on your setting.
 Please be aware that sending null, undefined and Boolean values will result in the value coerced to a string!
 
@@ -139,6 +137,7 @@ are passed an object containing `delay` (in ms) and `attempt` (the attempt #) at
 ### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
+If you use a command without callback and encounter a ReplyError it is going to be emitted to the error listener.
 
 So please attach the error listener to node_redis.
 
@@ -182,7 +181,7 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | host      | 127.0.0.1 | IP address of the Redis server |
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
-| url       | null      | The URL of the Redis server. Format: `[redis:]//[user][:password@][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
+| url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
 | parser    | hiredis   |  If hiredis is not installed, automatic fallback to the built-in javascript parser |
 | string_numbers | null   | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
 | return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
@@ -295,6 +294,51 @@ client.get("foo_rand000000000000", function (err, reply) {
 
 `client.end()` without the flush parameter set to true should NOT be used in production!
 
+## Error handling (>= v.2.6)
+
+All redis errors are returned as `ReplyError`.
+All unresolved commands that get rejected due to what ever reason return a `AbortError`.
+As subclass of the `AbortError` a `AggregateError` exists. This is emitted in case multiple unresolved commands without callback got rejected in debug_mode.
+They are all aggregated and a single error is emitted in that case.
+
+Example:
+```js
+var redis = require('./');
+var assert = require('assert');
+var client = redis.createClient();
+
+client.on('error', function (err) {
+    assert(err instanceof Error);
+    assert(err instanceof redis.AbortError);
+    assert(err instanceof redis.AggregateError);
+    assert.strictEqual(err.errors.length, 2); // The set and get got aggregated in here
+    assert.strictEqual(err.code, 'NR_CLOSED');
+});
+client.set('foo', 123, 'bar', function (err, res) { // To many arguments
+    assert(err instanceof redis.ReplyError); // => true
+    assert.strictEqual(err.command, 'SET');
+    assert.deepStrictEqual(err.args, ['foo', 123, 'bar']);
+
+    redis.debug_mode = true;
+    client.set('foo', 'bar');
+    client.get('foo');
+    process.nextTick(function () {
+        client.end(true); // Force closing the connection while the command did not yet return
+        redis.debug_mode = false;
+    });
+});
+
+```
+
+Every `ReplyError` contains the `command` name in all-caps and the arguments (`args`).
+
+If node_redis emits a library error because of another error, the triggering error is added to the returned error as `origin` attribute.
+
+___Error codes___
+
+node_redis returns a `NR_CLOSED` error code if the clients connection dropped. If a command unresolved command got rejected a `UNERCTAIN_STATE` code is returned.
+A `CONNECTION_BROKEN` error code is used in case node_redis gives up to reconnect.
+
 ## client.unref()
 
 Call `unref()` on the underlying socket connection to the Redis server, allowing the program to exit once no more commands are pending.
@@ -363,7 +407,7 @@ client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of 
 
 ## Publish / Subscribe
 
-Here is a simple example of the API for publish / subscribe. This program opens two
+Example of the publish / subscribe API. This program opens two
 client connections, subscribes to a channel on one of them, and publishes to that
 channel on the other:
 
@@ -411,6 +455,16 @@ Listeners are passed the channel name as `channel` and the message as `message`.
 Client will emit `pmessage` for every message received that matches an active subscription pattern.
 Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
 name as `channel`, and the message as `message`.
+
+### "message_buffer" (channel, message)
+
+This is the same as the `message` event with the exception, that it is always going to emit a buffer.
+If you listen to the `message` event at the same time as the `message_buffer`, it is always going to emit a string.
+
+### "pmessage_buffer" (pattern, channel, message)
+
+This is the same as the `pmessage` event with the exception, that it is always going to emit a buffer.
+If you listen to the `pmessage` event at the same time as the `pmessage_buffer`, it is always going to emit a string.
 
 ### "subscribe" (channel, count)
 
@@ -529,7 +583,7 @@ Redis. The interface in `node_redis` is to return an individual `Batch` object b
 The only difference between .batch and .multi is that no transaction is going to be used.
 Be aware that the errors are - just like in multi statements - in the result. Otherwise both, errors and results could be returned at the same time.
 
-If you fire many commands at once this is going to **boost the execution speed by up to 400%** [sic!] compared to fireing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
+If you fire many commands at once this is going to boost the execution speed significantly compared to fireing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
 
 ## Monitor mode
 
@@ -539,7 +593,7 @@ across all client connections, including from other client libraries and other c
 A `monitor` event is going to be emitted for every command fired from any client connected to the server including the monitoring client itself.
 The callback for the `monitor` event takes a timestamp from the Redis server, an array of command arguments and the raw monitoring string.
 
-Here is a simple example:
+Example:
 
 ```js
 var client  = require("redis").createClient();
@@ -599,9 +653,10 @@ the second word as first parameter:
     client.multi().script('load', 'return 1').exec(...);
     client.multi([['script', 'load', 'return 1']]).exec(...);
 
-## client.duplicate([options])
+## client.duplicate([options][, callback])
 
 Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
+If you pass a callback, duplicate is going to wait until the client is ready and returns it in the callback. If an error occurs in the meanwhile, that is going to return an error instead in the callback.
 
 ## client.send_command(command_name[, [args][, callback]])
 
@@ -615,26 +670,15 @@ All commands are sent as multi-bulk commands. `args` can either be an Array of a
 
 Boolean tracking the state of the connection to the Redis server.
 
-## client.command_queue.length
+## client.command_queue_length
 
 The number of commands that have been sent to the Redis server but not yet replied to. You can use this to
 enforce some kind of maximum queue depth for commands while connected.
 
-Don't mess with `client.command_queue` though unless you really know what you are doing.
-
-## client.offline_queue.length
+## client.offline_queue_length
 
 The number of commands that have been queued up for a future connection. You can use this to enforce
 some kind of maximum queue depth for pre-connection commands.
-
-## client.retry_delay
-
-Current delay in milliseconds before a connection retry will be attempted. This starts at `200`.
-
-## client.retry_backoff
-
-Multiplier for future retry timeouts. This should be larger than 1 to add more time between retries.
-Defaults to 1.7. The default initial connection retry is 200, so the second retry will be 340, followed by 578, etc.
 
 ### Commands with Optional and Keyword arguments
 

@@ -23,7 +23,7 @@ describe("The 'select' method", function () {
 
                 it('returns an error if redis is not connected', function (done) {
                     var buffering = client.select(1, function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                     assert(typeof buffering === 'boolean');

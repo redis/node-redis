@@ -21,13 +21,12 @@
     "coverage": "nyc report --reporter=html",
     "benchmark": "node benchmarks/multi_bench.js",
     "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000",
-    "pretest": "optional-dev-dependency hiredis",
     "posttest": "eslint . --fix"
   },
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
-    "redis-commands": "^1.1.0",
-    "redis-parser": "^1.2.0"
+    "redis-commands": "^1.2.0",
+    "redis-parser": "^1.3.0"
   },
   "engines": {
     "node": ">=0.10.0"
@@ -40,7 +39,6 @@
     "metrics": "^0.1.9",
     "mocha": "^2.3.2",
     "nyc": "^6.0.0",
-    "optional-dev-dependency": "^1.1.0",
     "tcp-port-used": "^0.1.2",
     "uuid": "^2.0.1",
     "win-spawn": "^2.0.0"

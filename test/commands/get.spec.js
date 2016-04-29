@@ -31,14 +31,14 @@ describe("The 'get' method", function () {
 
                 it('reports an error', function (done) {
                     client.get(key, function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                 });
 
                 it('reports an error promisified', function () {
                     return client.getAsync(key).then(assert, function (err) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                     });
                 });
             });

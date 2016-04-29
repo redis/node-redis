@@ -11,7 +11,7 @@ describe('utils.js', function () {
         it('ignore the object prototype and clone a nested array / object', function () {
             var obj = {
                 a: [null, 'foo', ['bar'], {
-                    "I'm special": true
+                    "i'm special": true
                 }],
                 number: 5,
                 fn: function noop () {}
@@ -22,11 +22,26 @@ describe('utils.js', function () {
             assert(typeof clone.fn === 'function');
         });
 
-        it('replace faulty values with an empty object as return value', function () {
+        it('replace falsy values with an empty object as return value', function () {
             var a = utils.clone();
             var b = utils.clone(null);
             assert.strictEqual(Object.keys(a).length, 0);
             assert.strictEqual(Object.keys(b).length, 0);
+        });
+
+        it('transform camelCase options to snack_case and add the camel_case option', function () {
+            var a = utils.clone({
+                optionOneTwo: true,
+                retryStrategy: false,
+                nested: {
+                    onlyContainCamelCaseOnce: true
+                }
+            });
+            assert.strictEqual(Object.keys(a).length, 4);
+            assert.strictEqual(a.option_one_two, true);
+            assert.strictEqual(a.retry_strategy, false);
+            assert.strictEqual(a.camel_case, true);
+            assert.strictEqual(Object.keys(a.nested).length, 1);
         });
 
         it('throws on circular data', function () {
@@ -92,7 +107,7 @@ describe('utils.js', function () {
             emitted = false;
         });
 
-        it('no elements in either queue. Reply in the next tick', function (done) {
+        it('no elements in either queue. Reply in the next tick with callback', function (done) {
             var called = false;
             utils.reply_in_order(clientMock, function () {
                 called = true;
@@ -101,7 +116,7 @@ describe('utils.js', function () {
             assert(!called);
         });
 
-        it('no elements in either queue. Reply in the next tick', function (done) {
+        it('no elements in either queue. Reply in the next tick without callback', function (done) {
             assert(!emitted);
             utils.reply_in_order(clientMock, null, new Error('tada'));
             assert(!emitted);
@@ -138,16 +153,21 @@ describe('utils.js', function () {
             }
         });
 
-        it('elements in the offline queue. Reply after the offline queue is empty and respect the command_obj', function (done) {
-            clientMock.command_queue.push(create_command_obj(), {});
-            utils.reply_in_order(clientMock, function () {
+        it('elements in the offline queue and the command_queue. Reply all other commands got handled respect the command_obj', function (done) {
+            clientMock.command_queue.push(create_command_obj(), create_command_obj());
+            clientMock.offline_queue.push(create_command_obj(), {});
+            utils.reply_in_order(clientMock, function (err, res) {
                 assert.strictEqual(clientMock.command_queue.length, 0);
+                assert.strictEqual(clientMock.offline_queue.length, 0);
                 assert(!emitted);
-                assert.strictEqual(res_count, 1);
+                assert.strictEqual(res_count, 3);
                 done();
             }, null, null);
+            while (clientMock.offline_queue.length) {
+                clientMock.command_queue.push(clientMock.offline_queue.shift());
+            }
             while (clientMock.command_queue.length) {
-                clientMock.command_queue.shift().callback(null, 'bar');
+                clientMock.command_queue.shift().callback(null, 'hello world');
             }
         });
     });

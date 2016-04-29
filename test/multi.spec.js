@@ -3,6 +3,7 @@
 var assert = require('assert');
 var config = require('./lib/config');
 var helper = require('./helper');
+var utils = require('../lib/utils');
 var redis = config.redis;
 var zlib = require('zlib');
 var client;
@@ -110,7 +111,7 @@ describe("The 'multi' method", function () {
                 it('reports an error', function (done) {
                     var multi = client.multi();
                     var notBuffering = multi.exec(function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                     assert.strictEqual(notBuffering, false);
@@ -118,16 +119,62 @@ describe("The 'multi' method", function () {
 
                 it('reports an error if promisified', function () {
                     return client.multi().execAsync().catch(function (err) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                     });
                 });
             });
 
             describe('when connected', function () {
 
-                beforeEach(function (done) {
+                beforeEach(function () {
                     client = redis.createClient.apply(null, args);
-                    client.once('connect', done);
+                });
+
+                describe('monitor and transactions do not work together', function () {
+
+                    it('results in a execabort', function (done) {
+                        // Check that transactions in combination with monitor result in an error
+                        client.monitor(function (e) {
+                            client.on('error', function (err) {
+                                assert.strictEqual(err.code, 'EXECABORT');
+                                done();
+                            });
+                            var multi = client.multi();
+                            multi.set('hello', 'world');
+                            multi.exec();
+                        });
+                    });
+
+                    it('results in a execabort #2', function (done) {
+                        // Check that using monitor with a transactions results in an error
+                        client.multi().set('foo', 'bar').monitor().exec(function (err, res) {
+                            assert.strictEqual(err.code, 'EXECABORT');
+                            done();
+                        });
+                    });
+
+                    it('sanity check', function (done) {
+                        // Remove the listener and add it back again after the error
+                        var mochaListener = helper.removeMochaListener();
+                        process.on('uncaughtException', function (err) {
+                            helper.removeMochaListener();
+                            process.on('uncaughtException', mochaListener);
+                            done();
+                        });
+                        // Check if Redis still has the error
+                        client.monitor();
+                        client.send_command('multi');
+                        client.send_command('set', ['foo', 'bar']);
+                        client.send_command('get', ['foo']);
+                        client.send_command('exec', function (err, res) {
+                            // res[0] is going to be the monitor result of set
+                            // res[1] is going to be the result of the set command
+                            assert(utils.monitor_regex.test(res[0]));
+                            assert.strictEqual(res[1], 'OK');
+                            assert.strictEqual(res.length, 2);
+                            client.end(false);
+                        });
+                    });
                 });
 
                 it('executes a pipelined multi properly in combination with the offline queue', function (done) {
@@ -135,6 +182,7 @@ describe("The 'multi' method", function () {
                     multi1.set('m1', '123');
                     multi1.get('m1');
                     multi1.exec(done);
+                    assert.strictEqual(client.offline_queue.length, 4);
                 });
 
                 it('executes a pipelined multi properly after a reconnect in combination with the offline queue', function (done) {
@@ -180,7 +228,8 @@ describe("The 'multi' method", function () {
 
                     client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec(function (err, res) {
                         assert(/Redis connection in broken state/.test(err.message));
-                        assert.strictEqual(err.errors.length, 0);
+                        assert.strictEqual(err.errors.length, 2);
+                        assert.strictEqual(err.errors[0].args.length, 2);
                     });
                 });
 
@@ -255,12 +304,12 @@ describe("The 'multi' method", function () {
                     multi2.set('m2', '456');
                     multi1.set('m1', '123');
                     multi1.get('m1');
-                    multi2.get('m2');
+                    multi2.get('m1');
                     multi2.ping();
 
                     multi1.exec(end);
                     multi2.exec(function (err, res) {
-                        assert.strictEqual(res[1], '456');
+                        assert.strictEqual(res[1], '123');
                         end();
                     });
                 });
@@ -571,7 +620,7 @@ describe("The 'multi' method", function () {
                         test = true;
                     };
                     multi.set('baz', 'binary');
-                    multi.exec_atomic();
+                    multi.EXEC_ATOMIC();
                     assert(test);
                 });
 
@@ -612,14 +661,54 @@ describe("The 'multi' method", function () {
                 });
 
                 it('emits error once if reconnecting after multi has been executed but not yet returned without callback', function (done) {
+                    // NOTE: If uncork is called async by postponing it to the next tick, this behavior is going to change.
+                    // The command won't be processed anymore two errors are returned instead of one
                     client.on('error', function (err) {
                         assert.strictEqual(err.code, 'UNCERTAIN_STATE');
-                        done();
+                        client.get('foo', function (err, res) {
+                            assert.strictEqual(res, 'bar');
+                            done();
+                        });
                     });
 
+                    // The commands should still be fired, no matter that the socket is destroyed on the same tick
                     client.multi().set('foo', 'bar').get('foo').exec();
                     // Abort connection before the value returned
                     client.stream.destroy();
+                });
+
+                it('indivdual commands work properly with multi', function (done) {
+                    // Neither of the following work properly in a transactions:
+                    // (This is due to Redis not returning the reply as expected / resulting in undefined behavior)
+                    // (Likely there are more commands that do not work with a transaction)
+                    //
+                    // auth => can't be called after a multi command
+                    // monitor => results in faulty return values e.g. multi().monitor().set('foo', 'bar').get('foo')
+                    //            returns ['OK, 'OK', 'monitor reply'] instead of ['OK', 'OK', 'bar']
+                    // quit => ends the connection before the exec
+                    // client reply skip|off => results in weird return values. Not sure what exactly happens
+                    // subscribe => enters subscribe mode and this does not work in combination with exec (the same for psubscribe, unsubscribe...)
+                    //
+
+                    assert.strictEqual(client.selected_db, undefined);
+                    var multi = client.multi();
+                    multi.select(5, function (err, res) {
+                        assert.strictEqual(client.selected_db, 5);
+                        assert.strictEqual(res, 'OK');
+                        assert.notDeepEqual(client.server_info.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    });
+                    // multi.client('reply', 'on', helper.isString('OK')); // Redis v.3.2
+                    multi.set('foo', 'bar', helper.isString('OK'));
+                    multi.info(function (err, res) {
+                        assert.strictEqual(res.indexOf('# Server\r\nredis_version:'), 0);
+                        assert.deepEqual(client.server_info.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    });
+                    multi.get('foo', helper.isString('bar'));
+                    multi.exec(function (err, res) {
+                        res[2] = res[2].substr(0, 10);
+                        assert.deepEqual(res, ['OK', 'OK', '# Server\r\n', 'bar']);
+                        done();
+                    });
                 });
 
             });

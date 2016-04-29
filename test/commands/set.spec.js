@@ -31,7 +31,7 @@ describe("The 'set' method", function () {
 
                 it('reports an error', function (done) {
                     client.set(key, value, function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                 });

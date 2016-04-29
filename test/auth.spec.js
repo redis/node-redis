@@ -53,7 +53,7 @@ describe('client authentication', function () {
                 client.auth(auth, function (err, res) {
                     assert.strictEqual('retry worked', res);
                     var now = Date.now();
-                    // Hint: setTimeout sometimes triggers early and therefor the value can be like one or two ms to early
+                    // Hint: setTimeout sometimes triggers early and therefore the value can be like one or two ms to early
                     assert(now - time >= 98, 'Time should be above 100 ms (the reconnect time) and is ' + (now - time));
                     assert(now - time < 225, 'Time should be below 255 ms (the reconnect should only take a bit above 100 ms) and is ' + (now - time));
                     done();
@@ -160,24 +160,34 @@ describe('client authentication', function () {
                 client.on('ready', done);
             });
 
-            it('reconnects with appropriate authentication', function (done) {
+            it('reconnects with appropriate authentication while offline commands are present', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(null, args);
                 client.auth(auth);
                 client.on('ready', function () {
-                    if (this.times_connected === 1) {
-                        client.stream.destroy();
+                    if (this.times_connected < 3) {
+                        var interval = setInterval(function () {
+                            if (client.commandQueueLength !== 0) {
+                                return;
+                            }
+                            clearInterval(interval);
+                            interval = null;
+                            client.stream.destroy();
+                            client.set('foo', 'bar');
+                            client.get('foo'); // Errors would bubble
+                            assert.strictEqual(client.offlineQueueLength, 2);
+                        }, 1);
                     } else {
                         done();
                     }
                 });
                 client.on('reconnecting', function (params) {
-                    assert.strictEqual(params.error.message, 'Stream connection closed');
+                    assert.strictEqual(params.error, null);
                 });
             });
 
-            it('should return an error if the password is not of type string and a callback has been provided', function (done) {
+            it('should return an error if the password is not correct and a callback has been provided', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(null, args);
@@ -192,7 +202,7 @@ describe('client authentication', function () {
                 assert(async);
             });
 
-            it('should emit an error if the password is not of type string and no callback has been provided', function (done) {
+            it('should emit an error if the password is not correct and no callback has been provided', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 client = redis.createClient.apply(null, args);
@@ -262,13 +272,13 @@ describe('client authentication', function () {
                 var args = config.configureClient(parser, ip, {
                     password: auth
                 });
-                client = redis.createClient.apply(redis.createClient, args);
+                client = redis.createClient.apply(null, args);
                 client.set('foo', 'bar');
                 client.subscribe('somechannel', 'another channel', function (err, res) {
                     client.once('ready', function () {
                         assert.strictEqual(client.pub_sub_mode, 1);
                         client.get('foo', function (err, res) {
-                            assert.strictEqual(err.message, 'ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context');
+                            assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
                             done();
                         });
                     });
@@ -280,6 +290,48 @@ describe('client authentication', function () {
                         client.stream.destroy();
                     });
                 });
+            });
+
+            it('individual commands work properly with batch', function (done) {
+                // quit => might return an error instead of "OK" in the exec callback... (if not connected)
+                // auth => might return an error instead of "OK" in the exec callback... (if no password is required / still loading on Redis <= 2.4)
+                // This could be fixed by checking the return value of the callback in the exec callback and
+                // returning the manipulated [error, result] from the callback.
+                // There should be a better solution though
+
+                var args = config.configureClient(parser, 'localhost', {
+                    noReadyCheck: true
+                });
+                client = redis.createClient.apply(null, args);
+                assert.strictEqual(client.selected_db, undefined);
+                var end = helper.callFuncAfter(done, 8);
+                client.on('monitor', function () {
+                    end(); // Should be called for each command after monitor
+                });
+                client.batch()
+                    .auth(auth)
+                    .SELECT(5, function (err, res) {
+                        assert.strictEqual(client.selected_db, 5);
+                        assert.strictEqual(res, 'OK');
+                        assert.notDeepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                    })
+                    .monitor()
+                    .set('foo', 'bar', helper.isString('OK'))
+                    .INFO('stats', function (err, res) {
+                        assert.strictEqual(res.indexOf('# Stats\r\n'), 0);
+                        assert.strictEqual(client.serverInfo.sync_full, '0');
+                    })
+                    .get('foo', helper.isString('bar'))
+                    .subscribe(['foo', 'bar'])
+                    .unsubscribe('foo')
+                    .SUBSCRIBE('/foo', helper.isString('/foo'))
+                    .psubscribe('*')
+                    .quit(helper.isString('OK')) // this might be interesting
+                    .exec(function (err, res) {
+                        res[4] = res[4].substr(0, 9);
+                        assert.deepEqual(res, ['OK', 'OK', 'OK', 'OK', '# Stats\r\n', 'bar', 'bar', 'foo', '/foo', '*', 'OK']);
+                        end();
+                    });
             });
         });
     });

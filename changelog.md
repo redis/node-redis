@@ -1,6 +1,43 @@
 Changelog
 =========
 
+## v.2.6.0-2 - xx Apr, 2016
+
+Features
+
+-  Added support for the new `CLIENT REPLY ON|OFF|SKIP` command (Redis v.3.2)
+-  Added support for camelCase
+ -  The Node.js landscape default is to use camelCase. node_redis is a bit out of the box here
+    but from now on it is possible to use both, just as you prefer!
+ -  If there's any documented variable missing as camelCased, please open a issue for it
+-  Improve error handling significantly
+ -  Only emit an error if the error has not already been handled in a callback
+ -  Emit an error if a command would otherwise silently fail (no callback present)
+ -  Improved unspecific error messages e.g. "Connection gone from end / close event"
+ -  Added `args` to command errors to improve identification of the error
+ -  Added origin to errors if there's e.g. a connection error
+ -  Added ReplyError class. All Redis errors are from now on going to be of that class
+ -  Added AbortError class. A subclass of AbortError. All unresolved and by node_redis rejected commands are from now on of that class
+ -  Added AggregateError class. If a unresolved and by node_redis rejected command has no callback and
+    this applies to more than a single command, the errors for the commands without callback are aggregated
+    to a single error that is emitted in debug_mode in that case.
+-  Added `message_buffer` / `pmessage_buffer` events. That event is always going to emit a buffer
+ -  Listening to the `message` event at the same time is always going to return the same message as string
+-  Added callback option to the duplicate function
+-  Added support for `__proto__` and other reserved keywords as hgetall field
+-  Updated [redis-commands](https://github.com/NodeRedis/redis-commands) dependency ([changelog](https://github.com/NodeRedis/redis-commands/releases/tag/v.1.2.0))
+
+Bugfixes
+
+-  Fixed v.2.5.0 auth command regression (under special circumstances a reconnect would not authenticate properly)
+-  Fixed v.2.6.0-0 pub sub mode and quit command regressions:
+ -  Entering pub sub mode not working if a earlier called and still running command returned an error
+ -  Unsubscribe callback not called if unsubscribing from all channels and resubscribing right away
+ -  Quit command resulting in an error in some cases
+-  Fixed special handled functions in batch and multi context not working the same as without (e.g. select and info)
+ -  Be aware that not all commands work in combination with transactions but they all work with batch
+-  Fixed address always set to 127.0.0.1:6379 in case host / port is set in the `tls` options instead of the general options
+
 ## v.2.6.0-1 - 01 Apr, 2016
 
 A second pre-release with further fixes. This is likely going to be released as 2.6.0 stable without further changes.

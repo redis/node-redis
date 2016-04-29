@@ -33,7 +33,7 @@ describe("The 'mset' method", function () {
 
                 it('reports an error', function (done) {
                     client.mset(key, value, key2, value2, function (err, res) {
-                        assert(err.message.match(/The connection has already been closed/));
+                        assert(err.message.match(/The connection is already closed/));
                         done();
                     });
                 });
@@ -96,7 +96,8 @@ describe("The 'mset' method", function () {
                         // this behavior is different from the 'set' behavior.
                         it('emits an error', function (done) {
                             client.on('error', function (err) {
-                                assert.equal(err.message, "ERR wrong number of arguments for 'mset' command");
+                                assert.strictEqual(err.message, "ERR wrong number of arguments for 'mset' command");
+                                assert.strictEqual(err.name, 'ReplyError');
                                 done();
                             });
 

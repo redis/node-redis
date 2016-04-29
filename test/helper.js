@@ -29,6 +29,14 @@ if (!process.env.REDIS_TESTS_STARTED) {
     });
 }
 
+function arrayHelper (results) {
+    if (results instanceof Array) {
+        assert.strictEqual(results.length, 1, 'The array length may only be one element');
+        return results[0];
+    }
+    return results;
+}
+
 module.exports = {
     redisProcess: function () {
         return rp;
@@ -52,8 +60,9 @@ module.exports = {
     },
     isNumber: function (expected, done) {
         return function (err, results) {
-            assert.strictEqual(null, err, 'expected ' + expected + ', got error: ' + err);
-            assert.strictEqual(expected, results, expected + ' !== ' + results);
+            assert.strictEqual(err, null, 'expected ' + expected + ', got error: ' + err);
+            results = arrayHelper(results);
+            assert.strictEqual(results, expected, expected + ' !== ' + results);
             assert.strictEqual(typeof results, 'number', 'expected a number, got ' + typeof results);
             if (done) done();
         };
@@ -61,18 +70,28 @@ module.exports = {
     isString: function (str, done) {
         str = '' + str; // Make sure it's a string
         return function (err, results) {
-            assert.strictEqual(null, err, "expected string '" + str + "', got error: " + err);
+            assert.strictEqual(err, null, "expected string '" + str + "', got error: " + err);
+            results = arrayHelper(results);
             if (Buffer.isBuffer(results)) { // If options are passed to return either strings or buffers...
                 results = results.toString();
             }
-            assert.strictEqual(str, results, str + ' does not match ' + results);
+            assert.strictEqual(results, str, str + ' does not match ' + results);
             if (done) done();
         };
     },
     isNull: function (done) {
         return function (err, results) {
-            assert.strictEqual(null, err, 'expected null, got error: ' + err);
-            assert.strictEqual(null, results, results + ' is not null');
+            assert.strictEqual(err, null, 'expected null, got error: ' + err);
+            results = arrayHelper(results);
+            assert.strictEqual(results, null, results + ' is not null');
+            if (done) done();
+        };
+    },
+    isUndefined: function (done) {
+        return function (err, results) {
+            assert.strictEqual(err, null, 'expected null, got error: ' + err);
+            results = arrayHelper(results);
+            assert.strictEqual(results, undefined, results + ' is not undefined');
             if (done) done();
         };
     },
@@ -91,27 +110,39 @@ module.exports = {
     isType: {
         number: function (done) {
             return function (err, results) {
-                assert.strictEqual(null, err, 'expected any number, got error: ' + err);
+                assert.strictEqual(err, null, 'expected any number, got error: ' + err);
                 assert.strictEqual(typeof results, 'number', results + ' is not a number');
+                if (done) done();
+            };
+        },
+        string: function (done) {
+            return function (err, results) {
+                assert.strictEqual(err, null, 'expected any string, got error: ' + err);
+                assert.strictEqual(typeof results, 'string', results + ' is not a string');
                 if (done) done();
             };
         },
         positiveNumber: function (done) {
             return function (err, results) {
-                assert.strictEqual(null, err, 'expected positive number, got error: ' + err);
-                assert.strictEqual(true, (results > 0), results + ' is not a positive number');
+                assert.strictEqual(err, null, 'expected positive number, got error: ' + err);
+                assert(results > 0, results + ' is not a positive number');
                 if (done) done();
             };
         }
     },
     match: function (pattern, done) {
         return function (err, results) {
-            assert.strictEqual(null, err, 'expected ' + pattern.toString() + ', got error: ' + err);
+            assert.strictEqual(err, null, 'expected ' + pattern.toString() + ', got error: ' + err);
+            results = arrayHelper(results);
             assert(pattern.test(results), "expected string '" + results + "' to match " + pattern.toString());
             if (done) done();
         };
     },
     serverVersionAtLeast: function (connection, desired_version) {
+        // Wait until a connection has established (otherwise a timeout is going to be triggered at some point)
+        if (Object.keys(connection.server_info).length === 0) {
+            throw new Error('Version check not possible as the client is not yet ready or did not expose the version');
+        }
         // Return true if the server version >= desired_version
         var version = connection.server_info.versions;
         for (var i = 0; i < 3; i++) {
@@ -132,10 +163,11 @@ module.exports = {
         }
         var parsers = ['javascript'];
         var protocols = ['IPv4'];
-        try {
-            require('hiredis');
-            parsers.push('hiredis');
-        } catch (e) {/* ignore eslint */}
+        // The js parser works the same as the hiredis parser, just activate this if you want to be on the safe side
+        // try {
+        //     require('hiredis');
+        //     parsers.push('hiredis');
+        // } catch (e) {/* ignore eslint */}
         if (process.platform !== 'win32') {
             protocols.push('IPv6', '/tmp/redis.sock');
         }
