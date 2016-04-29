@@ -1,6 +1,6 @@
 {
   "name": "redis",
-  "version": "2.6.0-1",
+  "version": "2.6.0-2",
   "description": "Redis client library",
   "keywords": [
     "database",
