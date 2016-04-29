@@ -137,6 +137,7 @@ describe("The 'multi' method", function () {
                         client.monitor(function (e) {
                             client.on('error', function (err) {
                                 assert.strictEqual(err.code, 'EXECABORT');
+                                client.end(false);
                                 done();
                             });
                             var multi = client.multi();
@@ -149,6 +150,7 @@ describe("The 'multi' method", function () {
                         // Check that using monitor with a transactions results in an error
                         client.multi().set('foo', 'bar').monitor().exec(function (err, res) {
                             assert.strictEqual(err.code, 'EXECABORT');
+                            client.end(false);
                             done();
                         });
                     });
