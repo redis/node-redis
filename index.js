@@ -437,8 +437,9 @@ RedisClient.prototype.on_ready = function () {
         self.pipeline = false;
         self.fire_strings = true;
         if (self.stream.uncork) {
-            // TODO: Consider using next tick here. See https://github.com/NodeRedis/node_redis/issues/1033
-            self.stream.uncork();
+            process.nextTick(function () {
+                self.stream.uncork();
+            });
         }
     };
 

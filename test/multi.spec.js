@@ -674,7 +674,9 @@ describe("The 'multi' method", function () {
                     // The commands should still be fired, no matter that the socket is destroyed on the same tick
                     client.multi().set('foo', 'bar').get('foo').exec();
                     // Abort connection before the value returned
-                    client.stream.destroy();
+                    process.nextTick(function () {
+                        client.stream.destroy();
+                    });
                 });
 
                 it('indivdual commands work properly with multi', function (done) {
