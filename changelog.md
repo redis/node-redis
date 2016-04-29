@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.6.0-2 - xx Apr, 2016
+## v.2.6.0-2 - 29 Apr, 2016
 
 Features
 
