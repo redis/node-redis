@@ -49,7 +49,7 @@ This will display:
     mjr:~/work/node_redis (master)$
 
 Note that the API is entirely asynchronous. To get data back from the server, you'll need to use a callback.
-From v.2.6 on the API supports camelCase and snack_case and all options / variables / events etc. can be used either way.
+From v.2.6 on the API supports camelCase and snake_case and all options / variables / events etc. can be used either way.
 It is recommended to use camelCase as this is the default for the Node.js landscape.
 
 ### Promises
