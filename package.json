@@ -21,12 +21,13 @@
     "coverage": "nyc report --reporter=html",
     "benchmark": "node benchmarks/multi_bench.js",
     "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000",
-    "posttest": "eslint . --fix"
+    "posttest": "eslint . --fix && npm run coverage",
+    "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
     "redis-commands": "^1.2.0",
-    "redis-parser": "^1.3.0"
+    "redis-parser": "^2.0.0"
   },
   "engines": {
     "node": ">=0.10.0"

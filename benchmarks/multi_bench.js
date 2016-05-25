@@ -26,7 +26,7 @@ var run_time = returnArg('time', 2500); // ms
 var pipeline = returnArg('pipeline', 1); // number of concurrent commands
 var versions_logged = false;
 var client_options = {
-    parser: returnArg('parser', 'hiredis'),
+    parser: returnArg('parser', 'javascript'),
     path: returnArg('socket') // '/tmp/redis.sock'
 };
 var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;

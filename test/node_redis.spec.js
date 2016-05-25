@@ -998,8 +998,12 @@ describe('The node_redis client', function () {
                             assert(err instanceof redis.AbortError);
                             error = err.origin;
                         });
-                        // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
-                        client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                        // Make sure we call execute out of the reply
+                        // ready is called in a reply
+                        process.nextTick(function () {
+                            // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
+                            client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                        });
                     });
                 });
             });

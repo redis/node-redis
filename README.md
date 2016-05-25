@@ -182,8 +182,8 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
 | url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
-| parser    | hiredis   |  If hiredis is not installed, automatic fallback to the built-in javascript parser |
-| string_numbers | null   | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
+| parser    | javascript | __Deprecated__ Use either the built-in JS parser [`javascript`]() or the native [`hiredis`]() parser. __Note__ `node_redis` < 2.6 uses hiredis as default if installed. This changed in v.2.6.0. |
+| string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
 | return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
 | detect_buffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
 | socket_keepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket. |
@@ -712,55 +712,46 @@ client.zadd(args, function (err, response) {
 ## Performance
 
 Much effort has been spent to make `node_redis` as fast as possible for common
-operations. As pipelining happens naturally from shared connections, overall
-efficiency goes up.
-
-Here are results of `multi_bench.js` which is similar to `redis-benchmark` from the Redis distribution.
-
-hiredis parser (Lenovo T450s i7-5600U):
+operations.
 
 ```
-Client count: 1, node version: 4.2.2, server version: 3.0.3, parser: hiredis
-         PING,         1/1 min/max/avg:    0/   2/   0.02/   2501ms total,  47503.80 ops/sec
-         PING,  batch 50/1 min/max/avg:    0/   2/   0.09/   2501ms total, 529668.13 ops/sec
-   SET 4B str,         1/1 min/max/avg:    0/   2/   0.02/   2501ms total,  41900.04 ops/sec
-   SET 4B str,  batch 50/1 min/max/avg:    0/   2/   0.14/   2501ms total, 354658.14 ops/sec
-   SET 4B buf,         1/1 min/max/avg:    0/   4/   0.04/   2501ms total,  23499.00 ops/sec
-   SET 4B buf,  batch 50/1 min/max/avg:    0/   2/   0.31/   2501ms total, 159836.07 ops/sec
-   GET 4B str,         1/1 min/max/avg:    0/   4/   0.02/   2501ms total,  43489.80 ops/sec
-   GET 4B str,  batch 50/1 min/max/avg:    0/   2/   0.11/   2501ms total, 444202.32 ops/sec
-   GET 4B buf,         1/1 min/max/avg:    0/   3/   0.02/   2501ms total,  38561.38 ops/sec
-   GET 4B buf,  batch 50/1 min/max/avg:    0/   2/   0.11/   2501ms total, 452139.14 ops/sec
- SET 4KiB str,         1/1 min/max/avg:    0/   2/   0.03/   2501ms total,  32990.80 ops/sec
- SET 4KiB str,  batch 50/1 min/max/avg:    0/   2/   0.34/   2501ms total, 146161.54 ops/sec
- SET 4KiB buf,         1/1 min/max/avg:    0/   1/   0.04/   2501ms total,  23294.28 ops/sec
- SET 4KiB buf,  batch 50/1 min/max/avg:    0/   2/   0.36/   2501ms total, 137584.97 ops/sec
- GET 4KiB str,         1/1 min/max/avg:    0/   2/   0.03/   2501ms total,  36350.66 ops/sec
- GET 4KiB str,  batch 50/1 min/max/avg:    0/   2/   0.32/   2501ms total, 155157.94 ops/sec
- GET 4KiB buf,         1/1 min/max/avg:    0/   4/   0.02/   2501ms total,  39776.49 ops/sec
- GET 4KiB buf,  batch 50/1 min/max/avg:    0/   2/   0.32/   2501ms total, 155457.82 ops/sec
-         INCR,         1/1 min/max/avg:    0/   3/   0.02/   2501ms total,  43972.41 ops/sec
-         INCR,  batch 50/1 min/max/avg:    0/   1/   0.12/   2501ms total, 425809.68 ops/sec
-        LPUSH,         1/1 min/max/avg:    0/   2/   0.02/   2501ms total,  38998.40 ops/sec
-        LPUSH,  batch 50/1 min/max/avg:    0/   4/   0.14/   2501ms total, 365013.99 ops/sec
-    LRANGE 10,         1/1 min/max/avg:    0/   2/   0.03/   2501ms total,  31879.25 ops/sec
-    LRANGE 10,  batch 50/1 min/max/avg:    0/   1/   0.32/   2501ms total, 153698.52 ops/sec
-   LRANGE 100,         1/1 min/max/avg:    0/   4/   0.06/   2501ms total,  16676.13 ops/sec
-   LRANGE 100,  batch 50/1 min/max/avg:    1/   6/   2.03/   2502ms total,  24520.38 ops/sec
- SET 4MiB str,         1/1 min/max/avg:    1/   6/   2.11/   2502ms total,    472.82 ops/sec
- SET 4MiB str,  batch 20/1 min/max/avg:   85/ 112/  94.93/   2563ms total,    210.69 ops/sec
- SET 4MiB buf,         1/1 min/max/avg:    1/   8/   2.02/   2502ms total,    490.01 ops/sec
- SET 4MiB buf,  batch 20/1 min/max/avg:   37/  52/  39.48/   2528ms total,    506.33 ops/sec
- GET 4MiB str,         1/1 min/max/avg:    3/  13/   5.26/   2504ms total,    190.10 ops/sec
- GET 4MiB str,  batch 20/1 min/max/avg:   70/ 106/  89.36/   2503ms total,    223.73 ops/sec
- GET 4MiB buf,         1/1 min/max/avg:    3/  11/   5.04/   2502ms total,    198.24 ops/sec
- GET 4MiB buf,  batch 20/1 min/max/avg:   70/ 105/  88.07/   2554ms total,    227.09 ops/sec
+Lenovo T450s, i7-5600U and 12gb memory
+clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, parser: javascript, connected by: tcp
+         PING,         1/1 avg/max:   0.02/  5.26 2501ms total,   46916 ops/sec
+         PING,  batch 50/1 avg/max:   0.06/  4.35 2501ms total,  755178 ops/sec
+   SET 4B str,         1/1 avg/max:   0.02/  4.75 2501ms total,   40856 ops/sec
+   SET 4B str,  batch 50/1 avg/max:   0.11/  1.51 2501ms total,  432727 ops/sec
+   SET 4B buf,         1/1 avg/max:   0.05/  2.76 2501ms total,   20659 ops/sec
+   SET 4B buf,  batch 50/1 avg/max:   0.25/  1.76 2501ms total,  194962 ops/sec
+   GET 4B str,         1/1 avg/max:   0.02/  1.55 2501ms total,   45156 ops/sec
+   GET 4B str,  batch 50/1 avg/max:   0.09/  3.15 2501ms total,  524110 ops/sec
+   GET 4B buf,         1/1 avg/max:   0.02/  3.07 2501ms total,   44563 ops/sec
+   GET 4B buf,  batch 50/1 avg/max:   0.10/  3.18 2501ms total,  473171 ops/sec
+ SET 4KiB str,         1/1 avg/max:   0.03/  1.54 2501ms total,   32627 ops/sec
+ SET 4KiB str,  batch 50/1 avg/max:   0.34/  1.89 2501ms total,  146861 ops/sec
+ SET 4KiB buf,         1/1 avg/max:   0.05/  2.85 2501ms total,   20688 ops/sec
+ SET 4KiB buf,  batch 50/1 avg/max:   0.36/  1.83 2501ms total,  138165 ops/sec
+ GET 4KiB str,         1/1 avg/max:   0.02/  1.37 2501ms total,   39389 ops/sec
+ GET 4KiB str,  batch 50/1 avg/max:   0.24/  1.81 2501ms total,  208157 ops/sec
+ GET 4KiB buf,         1/1 avg/max:   0.02/  2.63 2501ms total,   39918 ops/sec
+ GET 4KiB buf,  batch 50/1 avg/max:   0.31/  8.56 2501ms total,  161575 ops/sec
+         INCR,         1/1 avg/max:   0.02/  4.69 2501ms total,   45685 ops/sec
+         INCR,  batch 50/1 avg/max:   0.09/  3.06 2501ms total,  539964 ops/sec
+        LPUSH,         1/1 avg/max:   0.02/  3.04 2501ms total,   41253 ops/sec
+        LPUSH,  batch 50/1 avg/max:   0.12/  1.94 2501ms total,  425090 ops/sec
+    LRANGE 10,         1/1 avg/max:   0.02/  2.28 2501ms total,   39850 ops/sec
+    LRANGE 10,  batch 50/1 avg/max:   0.25/  1.85 2501ms total,  194302 ops/sec
+   LRANGE 100,         1/1 avg/max:   0.05/  2.93 2501ms total,   21026 ops/sec
+   LRANGE 100,  batch 50/1 avg/max:   1.52/  2.89 2501ms total,   32767 ops/sec
+ SET 4MiB str,         1/1 avg/max:   5.16/ 15.55 2502ms total,     193 ops/sec
+ SET 4MiB str,  batch 20/1 avg/max:  89.73/ 99.96 2513ms total,     223 ops/sec
+ SET 4MiB buf,         1/1 avg/max:   2.23/  8.35 2501ms total,     446 ops/sec
+ SET 4MiB buf,  batch 20/1 avg/max:  41.47/ 50.91 2530ms total,     482 ops/sec
+ GET 4MiB str,         1/1 avg/max:   2.79/ 10.91 2502ms total,     358 ops/sec
+ GET 4MiB str,  batch 20/1 avg/max: 101.61/118.11 2541ms total,     197 ops/sec
+ GET 4MiB buf,         1/1 avg/max:   2.32/ 14.93 2502ms total,     430 ops/sec
+ GET 4MiB buf,  batch 20/1 avg/max:  65.01/ 84.72 2536ms total,     308 ops/sec
  ```
-
-The hiredis and js parser should most of the time be on the same level. But if you use Redis for big SUNION/SINTER/LRANGE/ZRANGE hiredis is faster.
-Therefor the hiredis parser is the default used in node_redis. To use `hiredis`, do:
-
-    npm install hiredis redis
 
 ## Debugging
 

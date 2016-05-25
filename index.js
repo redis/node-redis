@@ -154,11 +154,11 @@ function RedisClient (options, stream) {
     this.pipeline = false;
     this.sub_commands_left = 0;
     this.times_connected = 0;
-    this.options = options;
     this.buffers = options.return_buffers || options.detect_buffers;
+    this.options = options;
     this.reply = 'ON'; // Returning replies is the default
     // Init parser
-    this.reply_parser = create_parser(this, options);
+    this.reply_parser = create_parser(this);
     this.create_stream();
     // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached
     this.on('newListener', function (event) {
@@ -184,18 +184,17 @@ util.inherits(RedisClient, EventEmitter);
 RedisClient.connection_id = 0;
 
 function create_parser (self) {
-    return Parser({
+    return new Parser({
         returnReply: function (data) {
             self.return_reply(data);
         },
         returnError: function (err) {
             // Return a ReplyError to indicate Redis returned an error
-            self.return_error(new errorClasses.ReplyError(err));
+            self.return_error(err);
         },
         returnFatalError: function (err) {
             // Error out all fired commands. Otherwise they might rely on faulty data. We have to reconnect to get in a working state again
             // Note: the execution order is important. First flush and emit, then create the stream
-            err = new errorClasses.ReplyError(err);
             err.message += '. Please report this.';
             self.ready = false;
             self.flush_and_error({
@@ -209,8 +208,8 @@ function create_parser (self) {
             self.create_stream();
         },
         returnBuffers: self.buffers || self.message_buffers,
-        name: self.options.parser,
-        stringNumbers: self.options.string_numbers
+        name: self.options.parser || 'javascript',
+        stringNumbers: self.options.string_numbers || false
     });
 }
 
@@ -1093,7 +1092,7 @@ exports.RedisClient = RedisClient;
 exports.print = utils.print;
 exports.Multi = require('./lib/multi');
 exports.AbortError = errorClasses.AbortError;
-exports.ReplyError = errorClasses.ReplyError;
+exports.ReplyError = Parser.ReplyError;
 exports.AggregateError = errorClasses.AggregateError;
 
 // Add all redis commands / node_redis api to the client

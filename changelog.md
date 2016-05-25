@@ -1,6 +1,20 @@
 Changelog
 =========
 
+## v.2.6.0 - 25 Mai, 2016
+
+In addition to the pre-releases the following changes exist in v.2.6.0:
+
+Features
+
+-  Updated [redis-parser](https://github.com/NodeRedis/redis-parser) dependency ([changelog](https://github.com/NodeRedis/redis-parser/releases/tag/v.2.0.0))
+ -  The JS parser is from now on the new default as it is a lot faster than the hiredis parser
+ -  This is no BC as there is no changed behavior for the user at all but just a performance improvement. Explicitly requireing the Hiredis parser is still possible.
+
+Deprecations
+
+-  The `parser` option is deprecated and should be removed. The built-in Javascript parser is a lot faster than the hiredis parser and has more features
+
 ## v.2.6.0-2 - 29 Apr, 2016
 
 Features
