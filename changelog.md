@@ -11,6 +11,10 @@ Features
  -  The JS parser is from now on the new default as it is a lot faster than the hiredis parser
  -  This is no BC as there is no changed behavior for the user at all but just a performance improvement. Explicitly requireing the Hiredis parser is still possible.
 
+Bugfixes
+
+-  Reverted support for `__proto__` (v.2.6.0-2) to prevent and breaking change
+
 Deprecations
 
 -  The `parser` option is deprecated and should be removed. The built-in Javascript parser is a lot faster than the hiredis parser and has more features
