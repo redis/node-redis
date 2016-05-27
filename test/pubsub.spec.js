@@ -215,6 +215,7 @@ describe('publish/subscribe', function () {
                         sub.stream.end();
                     });
 
+                    sub.select(3);
                     sub.subscribe(channels);
 
                     sub.on('ready', function (err, results) {

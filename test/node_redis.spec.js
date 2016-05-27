@@ -325,6 +325,7 @@ describe('The node_redis client', function () {
                         bclient.blpop('blocking list 2', 5, function (err, value) {
                             assert.strictEqual(value[0], 'blocking list 2');
                             assert.strictEqual(value[1], 'initial value');
+                            bclient.end(true);
                             done(err);
                         });
                         bclient.once('ready', function () {

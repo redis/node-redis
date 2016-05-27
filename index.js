@@ -6,8 +6,6 @@ var util = require('util');
 var utils = require('./lib/utils');
 var Queue = require('double-ended-queue');
 var errorClasses = require('./lib/customErrors');
-var Command = require('./lib/command').Command;
-var OfflineCommand = require('./lib/command').OfflineCommand;
 var EventEmitter = require('events');
 var Parser = require('redis-parser');
 var commands = require('redis-commands');
@@ -156,6 +154,7 @@ function RedisClient (options, stream) {
     this.times_connected = 0;
     this.buffers = options.return_buffers || options.detect_buffers;
     this.options = options;
+    this.old_state = {};
     this.reply = 'ON'; // Returning replies is the default
     // Init parser
     this.reply_parser = create_parser(this);
@@ -443,14 +442,10 @@ RedisClient.prototype.on_ready = function () {
 
     // Restore modal commands from previous connection. The order of the commands is important
     if (this.selected_db !== undefined) {
-        this.internal_send_command('select', [this.selected_db]);
+        this.select(this.selected_db);
     }
-    if (this.old_state !== null) {
-        this.monitoring = this.old_state.monitoring;
-        this.pub_sub_mode = this.old_state.pub_sub_mode;
-    }
-    if (this.monitoring) { // Monitor has to be fired before pub sub commands
-        this.internal_send_command('monitor', []); // The state is still set
+    if (this.old_state.monitoring) { // Monitor has to be fired before pub sub commands
+        this.monitor();
     }
     var callback_count = Object.keys(this.subscription_set).length;
     if (!this.options.disable_resubscribing && callback_count) {
@@ -466,8 +461,8 @@ RedisClient.prototype.on_ready = function () {
         debug('Sending pub/sub on_ready commands');
         for (var key in this.subscription_set) {
             var command = key.slice(0, key.indexOf('_'));
-            var args = self.subscription_set[key];
-            self.internal_send_command(command, [args], callback);
+            var args = this.subscription_set[key];
+            this[command]([args], callback);
         }
         this.send_offline_queue();
         return;
@@ -530,7 +525,7 @@ RedisClient.prototype.ready_check = function () {
 RedisClient.prototype.send_offline_queue = function () {
     for (var command_obj = this.offline_queue.shift(); command_obj; command_obj = this.offline_queue.shift()) {
         debug('Sending offline command: ' + command_obj.command);
-        this.internal_send_command(command_obj.command, command_obj.args, command_obj.callback, command_obj.call_on_write);
+        this.internal_send_command(command_obj);
     }
     this.drain();
 };
@@ -575,8 +570,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
     this.pipeline = false;
 
     var state = {
-        monitoring: this.monitoring,
-        pub_sub_mode: this.pub_sub_mode
+        monitoring: this.monitoring
     };
     this.old_state = state;
     this.monitoring = false;
@@ -834,7 +828,6 @@ RedisClient.prototype.return_reply = function (reply) {
 
 function handle_offline_command (self, command_obj) {
     var command = command_obj.command;
-    var callback = command_obj.callback;
     var err, msg;
     if (self.closing || !self.enable_offline_queue) {
         command = command.toUpperCase();
@@ -852,10 +845,10 @@ function handle_offline_command (self, command_obj) {
             code: 'NR_CLOSED',
             command: command
         });
-        if (command_obj.args && command_obj.args.length) {
+        if (command_obj.args.length) {
             err.args = command_obj.args;
         }
-        utils.reply_in_order(self, callback, err);
+        utils.reply_in_order(self, command_obj.callback, err);
     } else {
         debug('Queueing ' + command + ' for next server connection.');
         self.offline_queue.push(command_obj);
@@ -865,22 +858,23 @@ function handle_offline_command (self, command_obj) {
 
 // Do not call internal_send_command directly, if you are not absolutly certain it handles everything properly
 // e.g. monitor / info does not work with internal_send_command only
-RedisClient.prototype.internal_send_command = function (command, args, callback, call_on_write) {
-    var arg, prefix_keys, command_obj;
+RedisClient.prototype.internal_send_command = function (command_obj) {
+    var arg, prefix_keys;
     var i = 0;
     var command_str = '';
+    var args = command_obj.args;
+    var command = command_obj.command;
     var len = args.length;
     var big_data = false;
-    var buffer_args = false;
     var args_copy = new Array(len);
 
-    if (process.domain && callback) {
-        callback = process.domain.bind(callback);
+    if (process.domain && command_obj.callback) {
+        command_obj.callback = process.domain.bind(command_obj.callback);
     }
 
     if (this.ready === false || this.stream.writable === false) {
         // Handle offline commands right away
-        handle_offline_command(this, new OfflineCommand(command, args, callback, call_on_write));
+        handle_offline_command(this, command_obj);
         return false; // Indicate buffering
     }
 
@@ -905,7 +899,7 @@ RedisClient.prototype.internal_send_command = function (command, args, callback,
                 args_copy[i] = 'null'; // Backwards compatible :/
             } else if (Buffer.isBuffer(args[i])) {
                 args_copy[i] = args[i];
-                buffer_args = true;
+                command_obj.buffer_args = true;
                 big_data = true;
             } else {
                 this.warn(
@@ -927,8 +921,6 @@ RedisClient.prototype.internal_send_command = function (command, args, callback,
             args_copy[i] = '' + args[i];
         }
     }
-    // Pass the original args to make sure in error cases the original arguments are returned
-    command_obj = new Command(command, args, buffer_args, callback);
 
     if (this.options.prefix) {
         prefix_keys = commands.getKeyIndexes(command, args_copy);
@@ -967,8 +959,8 @@ RedisClient.prototype.internal_send_command = function (command, args, callback,
             debug('send_command: buffer send ' + arg.length + ' bytes');
         }
     }
-    if (call_on_write) {
-        call_on_write();
+    if (command_obj.call_on_write) {
+        command_obj.call_on_write();
     }
     // Handle `CLIENT REPLY ON|OFF|SKIP`
     // This has to be checked after call_on_write
@@ -978,8 +970,8 @@ RedisClient.prototype.internal_send_command = function (command, args, callback,
     } else {
         // Do not expect a reply
         // Does this work in combination with the pub sub mode?
-        if (callback) {
-            utils.reply_in_order(this, callback, null, undefined, this.command_queue);
+        if (command_obj.callback) {
+            utils.reply_in_order(this, command_obj.callback, null, undefined, this.command_queue);
         }
         if (this.reply === 'SKIP') {
             this.reply = 'SKIP_ONE_MORE';

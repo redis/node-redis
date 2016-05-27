@@ -692,6 +692,11 @@ describe("The 'multi' method", function () {
                     // subscribe => enters subscribe mode and this does not work in combination with exec (the same for psubscribe, unsubscribe...)
                     //
 
+                    // Make sure send_command is not called
+                    client.send_command = function () {
+                        throw new Error('failed');
+                    };
+
                     assert.strictEqual(client.selected_db, undefined);
                     var multi = client.multi();
                     multi.select(5, function (err, res) {
