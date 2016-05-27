@@ -24,14 +24,13 @@ Deprecations
 
 Features
 
--  Added support for the new `CLIENT REPLY ON|OFF|SKIP` command (Redis v.3.2)
+-  Added support for the new [CLIENT REPLY ON|OFF|SKIP](http://redis.io/commands/client-reply) command (Redis v.3.2)
 -  Added support for camelCase
  -  The Node.js landscape default is to use camelCase. node_redis is a bit out of the box here
     but from now on it is possible to use both, just as you prefer!
  -  If there's any documented variable missing as camelCased, please open a issue for it
 -  Improve error handling significantly
  -  Only emit an error if the error has not already been handled in a callback
- -  Emit an error if a command would otherwise silently fail (no callback present)
  -  Improved unspecific error messages e.g. "Connection gone from end / close event"
  -  Added `args` to command errors to improve identification of the error
  -  Added origin to errors if there's e.g. a connection error
