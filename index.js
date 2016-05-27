@@ -1042,7 +1042,7 @@ Object.defineProperty(RedisClient.prototype, 'offline_queue_length', {
 });
 
 // Add support for camelCase by adding read only properties to the client
-// All known exposed snack_case variables are added here
+// All known exposed snake_case variables are added here
 Object.defineProperty(RedisClient.prototype, 'retryDelay', {
     get: function () {
         return this.retry_delay;

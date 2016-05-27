@@ -29,7 +29,7 @@ describe('utils.js', function () {
             assert.strictEqual(Object.keys(b).length, 0);
         });
 
-        it('transform camelCase options to snack_case and add the camel_case option', function () {
+        it('transform camelCase options to snake_case and add the camel_case option', function () {
             var a = utils.clone({
                 optionOneTwo: true,
                 retryStrategy: false,
