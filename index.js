@@ -348,6 +348,9 @@ RedisClient.prototype.flush_and_error = function (error_attributes, options) {
         // Don't flush everything from the queue
         for (var command_obj = this[queue_names[i]].shift(); command_obj; command_obj = this[queue_names[i]].shift()) {
             var err = new errorClasses.AbortError(error_attributes);
+            if (command_obj.error) {
+                err.stack = err.stack + command_obj.error.stack.replace(/^Error.*?\n/, '\n');
+            }
             err.command = command_obj.command.toUpperCase();
             if (command_obj.args && command_obj.args.length) {
                 err.args = command_obj.args;
@@ -675,6 +678,9 @@ RedisClient.prototype.connection_gone = function (why, error) {
 
 RedisClient.prototype.return_error = function (err) {
     var command_obj = this.command_queue.shift();
+    if (command_obj.error) {
+        err.stack = command_obj.error.stack.replace(/^Error.*?\n/, 'ReplyError: ' + err.message + '\n');
+    }
     err.command = command_obj.command.toUpperCase();
     if (command_obj.args && command_obj.args.length) {
         err.args = command_obj.args;

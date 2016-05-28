@@ -757,6 +757,35 @@ clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, parser: javascript, connected by: tcp
 
 To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
+This is also going to result in good stack traces opposed to useless ones otherwise for any async operation.
+If you only want to have good stack traces but not the debug output run your application in development mode instead (`NODE_ENV=development`).
+
+Good stack traces are only activated in development and debug mode as this results in a significant performance penalty.
+
+___Comparison___:
+Useless stack trace:
+```
+ReplyError: ERR wrong number of arguments for 'set' command
+    at parseError (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:158:12)
+    at parseType (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:219:14)
+```
+Good stack trace:
+```
+ReplyError: ERR wrong number of arguments for 'set' command
+    at new Command (/home/ruben/repos/redis/lib/command.js:9:902)
+    at RedisClient.set (/home/ruben/repos/redis/lib/commands.js:9:3238)
+    at Context.<anonymous> (/home/ruben/repos/redis/test/good_stacks.spec.js:20:20)
+    at callFnAsync (/home/ruben/repos/redis/node_modules/mocha/lib/runnable.js:349:8)
+    at Test.Runnable.run (/home/ruben/repos/redis/node_modules/mocha/lib/runnable.js:301:7)
+    at Runner.runTest (/home/ruben/repos/redis/node_modules/mocha/lib/runner.js:422:10)
+    at /home/ruben/repos/redis/node_modules/mocha/lib/runner.js:528:12
+    at next (/home/ruben/repos/redis/node_modules/mocha/lib/runner.js:342:14)
+    at /home/ruben/repos/redis/node_modules/mocha/lib/runner.js:352:7
+    at next (/home/ruben/repos/redis/node_modules/mocha/lib/runner.js:284:14)
+    at Immediate._onImmediate (/home/ruben/repos/redis/node_modules/mocha/lib/runner.js:320:5)
+    at processImmediate [as _immediateCallback] (timers.js:383:17)
+```
+
 ## How to Contribute
 - Open a pull request or an issue about what you want to implement / change. We're glad for any help!
  - Please be aware that we'll only accept fully tested code.
