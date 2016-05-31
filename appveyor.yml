@@ -6,7 +6,7 @@ environment:
     - nodejs_version: "0.10"
     - nodejs_version: "0.12"
     - nodejs_version: "4"
-    - nodejs_version: "5"
+    - nodejs_version: "6"
 
 pull_requests:
   do_not_increment_build_number: true
@@ -21,11 +21,10 @@ install:
   - redis-64\tools\redis-server.exe --service-install
   - redis-64\tools\redis-server.exe --service-start
   - '@ECHO Redis Started'
-  # Get the latest stable version of Node 0.STABLE.latest
+  # Get the required Node version
   - ps: Install-Product node $env:nodejs_version
-  # Typical npm stuff. Use msvs 2013 for the hiredis parser
+  # Typical npm stuff
   - npm install
-  - npm install hiredis --msvs_version=2013
 
 # Post-install test scripts.
 test_script:
