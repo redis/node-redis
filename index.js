@@ -4,6 +4,7 @@ var net = require('net');
 var tls = require('tls');
 var util = require('util');
 var utils = require('./lib/utils');
+var Command = require('./lib/command');
 var Queue = require('double-ended-queue');
 var errorClasses = require('./lib/customErrors');
 var EventEmitter = require('events');
@@ -154,7 +155,6 @@ function RedisClient (options, stream) {
     this.times_connected = 0;
     this.buffers = options.return_buffers || options.detect_buffers;
     this.options = options;
-    this.old_state = {};
     this.reply = 'ON'; // Returning replies is the default
     // Init parser
     this.reply_parser = create_parser(this);
@@ -445,10 +445,10 @@ RedisClient.prototype.on_ready = function () {
 
     // Restore modal commands from previous connection. The order of the commands is important
     if (this.selected_db !== undefined) {
-        this.select(this.selected_db);
+        this.internal_send_command(new Command('select', [this.selected_db]));
     }
-    if (this.old_state.monitoring) { // Monitor has to be fired before pub sub commands
-        this.monitor();
+    if (this.monitoring) { // Monitor has to be fired before pub sub commands
+        this.internal_send_command(new Command('monitor', []));
     }
     var callback_count = Object.keys(this.subscription_set).length;
     if (!this.options.disable_resubscribing && callback_count) {
@@ -571,12 +571,6 @@ RedisClient.prototype.connection_gone = function (why, error) {
     this.cork = noop;
     this.uncork = noop;
     this.pipeline = false;
-
-    var state = {
-        monitoring: this.monitoring
-    };
-    this.old_state = state;
-    this.monitoring = false;
     this.pub_sub_mode = 0;
 
     // since we are collapsing end and close, users don't expect to be called twice
@@ -874,14 +868,14 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
     var big_data = false;
     var args_copy = new Array(len);
 
-    if (process.domain && command_obj.callback) {
-        command_obj.callback = process.domain.bind(command_obj.callback);
-    }
-
     if (this.ready === false || this.stream.writable === false) {
         // Handle offline commands right away
         handle_offline_command(this, command_obj);
         return false; // Indicate buffering
+    }
+
+    if (process.domain && command_obj.callback) {
+        command_obj.callback = process.domain.bind(command_obj.callback);
     }
 
     for (i = 0; i < len; i += 1) {
