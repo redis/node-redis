@@ -24,11 +24,11 @@ describe('errors', function () {
             assert.strictEqual(e.message, 'hello world');
             assert.strictEqual(e.name, 'weird');
             assert.strictEqual(e.property, true);
-            assert.strictEqual(Object.keys(e).length, 1);
+            assert.strictEqual(Object.keys(e).length, 2);
             assert(e instanceof Error);
             assert(e instanceof errors.AbortError);
             assert(delete e.name);
-            assert.strictEqual(e.name, 'Error');
+            assert.strictEqual(e.name, 'AbortError');
         });
 
         it('should change name and message', function () {
@@ -65,12 +65,12 @@ describe('errors', function () {
             assert.strictEqual(e.message, 'hello world');
             assert.strictEqual(e.name, 'weird');
             assert.strictEqual(e.property, true);
-            assert.strictEqual(Object.keys(e).length, 1);
+            assert.strictEqual(Object.keys(e).length, 2);
             assert(e instanceof Error);
             assert(e instanceof errors.AggregateError);
             assert(e instanceof errors.AbortError);
             assert(delete e.name);
-            assert.strictEqual(e.name, 'Error');
+            assert.strictEqual(e.name, 'AggregateError');
         });
 
         it('should change name and message', function () {
