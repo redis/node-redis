@@ -109,6 +109,12 @@ client.get("missingkey", function(err, reply) {
 });
 ```
 
+If you want receive reply as Buffers instead of Strings just add "b_" prefix before command name:
+
+```js
+client.b_get("some key", function(err, buf) {});
+```
+
 For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
 
 Minimal parsing is done on the replies. Commands that return a integer return JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object keyed by the hash keys. All strings will either be returned as string or as buffer depending on your setting.
@@ -665,6 +671,10 @@ you can use `send_command()` to send arbitrary commands to Redis.
 The command_name has to be lower case.
 
 All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
+
+## client.send_command_buf(command_name[, [args][, callback]])
+
+The same as client.send_command but is sending reply as Buffers instead of Strings.
 
 ## client.connected
 

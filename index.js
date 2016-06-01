@@ -26,19 +26,6 @@ if (typeof EventEmitter !== 'function') {
 
 function noop () {}
 
-function handle_detect_buffers_reply (reply, command, buffer_args) {
-    if (buffer_args === false || this.message_buffers) {
-        // If detect_buffers option was specified, then the reply from the parser will be a buffer.
-        // If this command did not use Buffer arguments, then convert the reply to Strings here.
-        reply = utils.reply_to_strings(reply);
-    }
-
-    if (command === 'hgetall') {
-        reply = utils.reply_to_object(reply);
-    }
-    return reply;
-}
-
 exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 // Attention: The second parameter might be removed at will and is not officially supported.
@@ -111,10 +98,6 @@ function RedisClient (options, stream) {
         self.warn('WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
         options.detect_buffers = false;
     }
-    if (options.detect_buffers) {
-        // We only need to look at the arguments if we do not know what we have to return
-        this.handle_reply = handle_detect_buffers_reply;
-    }
     this.should_buffer = false;
     this.max_attempts = options.max_attempts | 0;
     if ('max_attempts' in options) {
@@ -143,17 +126,18 @@ function RedisClient (options, stream) {
     this.pub_sub_mode = 0;
     this.subscription_set = {};
     this.monitoring = false;
-    this.message_buffers = false;
+    this.message_buffers = false; // Do we have subscribes on message_buffer event
     this.closing = false;
     this.server_info = {};
     this.auth_pass = options.auth_pass || options.password;
     this.selected_db = options.db; // Save the selected db here, used when reconnecting
     this.old_state = null;
     this.fire_strings = true; // Determine if strings or buffers should be written to the stream
+    this.cur_command_ret_buf = 0;
     this.pipeline = false;
     this.sub_commands_left = 0;
     this.times_connected = 0;
-    this.buffers = options.return_buffers || options.detect_buffers;
+    this.using_buffer_parser = options.return_buffers || options.detect_buffers;
     this.options = options;
     this.reply = 'ON'; // Returning replies is the default
     // Init parser
@@ -171,16 +155,22 @@ function RedisClient (options, stream) {
                 'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
                 'If you want to keep on listening to this event please listen to the stream drain event directly.'
             );
-        } else if (event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer' && !this.buffers) {
+        } else if (event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') {
             this.message_buffers = true;
-            this.handle_reply = handle_detect_buffers_reply;
-            this.reply_parser = create_parser(this);
+            if (!this.using_buffer_parser) {
+                this.switchToBufferParser();
+            }
         }
     });
 }
 util.inherits(RedisClient, EventEmitter);
 
 RedisClient.connection_id = 0;
+
+RedisClient.prototype.switchToBufferParser = function() {
+    this.using_buffer_parser = true;
+    this.reply_parser = create_parser(this);
+}
 
 function create_parser (self) {
     return new Parser({
@@ -206,7 +196,7 @@ function create_parser (self) {
             self.emit('error', err);
             self.create_stream();
         },
-        returnBuffers: self.buffers || self.message_buffers,
+        returnBuffers: self.using_buffer_parser,
         name: self.options.parser || 'javascript',
         stringNumbers: self.options.string_numbers || false
     });
@@ -302,7 +292,15 @@ RedisClient.prototype.create_stream = function () {
     }
 };
 
-RedisClient.prototype.handle_reply = function (reply, command) {
+RedisClient.prototype.handle_reply = function (reply, command, buffer_reply) {
+    if (!buffer_reply && this.using_buffer_parser) {
+        // Reply from parser will be Buffer if:
+        // 1) return_buffers option set to true
+        // 2) or detect_buffers option set to true and command used Buffer arguments
+        // 3) or buffer_reply argument was set to true when calling internal_send_command
+        reply = utils.reply_to_strings(reply);
+    }
+
     if (command === 'hgetall') {
         reply = utils.reply_to_object(reply);
     }
@@ -709,7 +707,7 @@ function normal_reply (self, reply) {
     var command_obj = self.command_queue.shift();
     if (typeof command_obj.callback === 'function') {
         if (command_obj.command !== 'exec') {
-            reply = self.handle_reply(reply, command_obj.command, command_obj.buffer_args);
+            reply = self.handle_reply(reply, command_obj.command, command_obj.buffer_reply);
         }
         command_obj.callback(null, reply);
     } else {
@@ -721,8 +719,7 @@ function subscribe_unsubscribe (self, reply, type) {
     // Subscribe commands take an optional callback and also emit an event, but only the _last_ response is included in the callback
     // The pub sub commands return each argument in a separate return value and have to be handled that way
     var command_obj = self.command_queue.get(0);
-    var buffer = self.options.return_buffers || self.options.detect_buffers && command_obj.buffer_args;
-    var channel = (buffer || reply[1] === null) ? reply[1] : reply[1].toString();
+    var channel = command_obj.buffer_reply || reply[1] === null ? reply[1] : reply[1].toString();
     var count = +reply[2]; // Return the channel counter as number no matter if `string_numbers` is activated or not
     debug(type, channel);
 
@@ -796,7 +793,7 @@ RedisClient.prototype.return_reply = function (reply) {
     // the average performance of all other commands in case of no monitor mode
     if (this.monitoring) {
         var replyStr;
-        if (this.buffers && Buffer.isBuffer(reply)) {
+        if (this.using_buffer_parser && Buffer.isBuffer(reply)) {
             replyStr = reply.toString();
         } else {
             replyStr = reply;
@@ -856,6 +853,11 @@ function handle_offline_command (self, command_obj) {
     self.should_buffer = true;
 }
 
+RedisClient.prototype.internal_send_command_buf = function (command_obj) {
+    command_obj.buffer_reply = true;
+    return this.internal_send_command(command_obj);
+};
+
 // Do not call internal_send_command directly, if you are not absolutly certain it handles everything properly
 // e.g. monitor / info does not work with internal_send_command only
 RedisClient.prototype.internal_send_command = function (command_obj) {
@@ -868,6 +870,12 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
     var big_data = false;
     var args_copy = new Array(len);
 
+    if (this.options.return_buffers || this.cur_command_ret_buf) {
+        // this.cur_command_ret_buf check is needed for send_command_buf and "b_" prefixed individual commands
+        // (but not for standart "b_" prefixed command)
+        command_obj.buffer_reply = true;
+    }
+
     if (this.ready === false || this.stream.writable === false) {
         // Handle offline commands right away
         handle_offline_command(this, command_obj);
@@ -876,6 +884,10 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
 
     if (process.domain && command_obj.callback) {
         command_obj.callback = process.domain.bind(command_obj.callback);
+    }
+
+    if (command_obj.buffer_reply && !this.using_buffer_parser) {
+        this.switchToBufferParser();
     }
 
     for (i = 0; i < len; i += 1) {
@@ -899,7 +911,7 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
                 args_copy[i] = 'null'; // Backwards compatible :/
             } else if (Buffer.isBuffer(args[i])) {
                 args_copy[i] = args[i];
-                command_obj.buffer_args = true;
+                if (this.options.detect_buffers) command_obj.buffer_reply = true;
                 big_data = true;
             } else {
                 this.warn(
