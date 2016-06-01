@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.6.0 - 25 Mai, 2016
+## v.2.6.0 - 01 Jun, 2016
 
 In addition to the pre-releases the following changes exist in v.2.6.0:
 
