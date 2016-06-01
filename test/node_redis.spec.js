@@ -851,7 +851,7 @@ describe('The node_redis client', function () {
 
                     var id = setTimeout(function () {
                         external.kill();
-                        done(Error('unref subprocess timed out'));
+                        done(new Error('unref subprocess timed out'));
                     }, 8000);
 
                     external.on('close', function (code) {
