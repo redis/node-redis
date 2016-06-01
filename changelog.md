@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.6.1 - 02 Jun, 2016
+
+Bugfixes
+
+-  Fixed invalid function name being exported
+
 ## v.2.6.0 - 01 Jun, 2016
 
 In addition to the pre-releases the following changes exist in v.2.6.0:

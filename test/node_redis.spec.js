@@ -9,6 +9,7 @@ var helper = require('./helper');
 var utils = require('../lib/utils');
 var fork = require('child_process').fork;
 var redis = config.redis;
+var client;
 
 describe('The node_redis client', function () {
 
@@ -29,10 +30,18 @@ describe('The node_redis client', function () {
         });
     });
 
+    it('convert minus to underscore in Redis function names', function (done) {
+        var names = Object.keys(redis.RedisClient.prototype);
+        client = redis.createClient();
+        for (var i = 0; i < names.length; i++) {
+            assert(/^([a-zA-Z_][a-zA-Z_0-9]*)?$/.test(client[names[i]].name));
+        }
+        client.quit(done);
+    });
+
     helper.allTests(function (parser, ip, args) {
 
         describe('using ' + parser + ' and ' + ip, function () {
-            var client;
 
             afterEach(function () {
                 client.end(true);
