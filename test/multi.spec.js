@@ -137,6 +137,7 @@ describe("The 'multi' method", function () {
                         client.monitor(function (e) {
                             client.on('error', function (err) {
                                 assert.strictEqual(err.code, 'EXECABORT');
+                                client.end(false);
                                 done();
                             });
                             var multi = client.multi();
@@ -149,6 +150,7 @@ describe("The 'multi' method", function () {
                         // Check that using monitor with a transactions results in an error
                         client.multi().set('foo', 'bar').monitor().exec(function (err, res) {
                             assert.strictEqual(err.code, 'EXECABORT');
+                            client.end(false);
                             done();
                         });
                     });
@@ -689,6 +691,11 @@ describe("The 'multi' method", function () {
                     // client reply skip|off => results in weird return values. Not sure what exactly happens
                     // subscribe => enters subscribe mode and this does not work in combination with exec (the same for psubscribe, unsubscribe...)
                     //
+
+                    // Make sure send_command is not called
+                    client.send_command = function () {
+                        throw new Error('failed');
+                    };
 
                     assert.strictEqual(client.selected_db, undefined);
                     var multi = client.multi();

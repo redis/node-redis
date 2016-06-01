@@ -325,9 +325,30 @@ describe('The node_redis client', function () {
                         bclient.blpop('blocking list 2', 5, function (err, value) {
                             assert.strictEqual(value[0], 'blocking list 2');
                             assert.strictEqual(value[1], 'initial value');
+                            bclient.end(true);
                             done(err);
                         });
                         bclient.once('ready', function () {
+                            setTimeout(function () {
+                                bclient.stream.destroy();
+                                client.rpush('blocking list 2', 'initial value', helper.isNumber(1));
+                            }, 100);
+                        });
+                    });
+
+                    it('should retry all commands even if the offline queue is disabled', function (done) {
+                        var bclient = redis.createClient({
+                            parser: parser,
+                            enableOfflineQueue: false,
+                            retryUnfulfilledCommands: true
+                        });
+                        bclient.once('ready', function () {
+                            bclient.blpop('blocking list 2', 5, function (err, value) {
+                                assert.strictEqual(value[0], 'blocking list 2');
+                                assert.strictEqual(value[1], 'initial value');
+                                bclient.end(true);
+                                done(err);
+                            });
                             setTimeout(function () {
                                 bclient.stream.destroy();
                                 client.rpush('blocking list 2', 'initial value', helper.isNumber(1));
@@ -649,6 +670,7 @@ describe('The node_redis client', function () {
                         });
 
                         monitorClient.on('monitor', function (time, args, rawOutput) {
+                            assert.strictEqual(monitorClient.monitoring, true);
                             responses.push(args);
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             if (responses.length === 6) {
@@ -669,6 +691,7 @@ describe('The node_redis client', function () {
                         });
 
                         monitorClient.MONITOR(function (err, res) {
+                            assert.strictEqual(monitorClient.monitoring, true);
                             assert.strictEqual(res.inspect(), new Buffer('OK').inspect());
                             client.mget('hello', new Buffer('world'));
                         });
@@ -687,6 +710,7 @@ describe('The node_redis client', function () {
                         client.MONITOR(helper.isString('OK'));
                         client.mget('hello', 'world');
                         client.on('monitor', function (time, args, rawOutput) {
+                            assert.strictEqual(client.monitoring, true);
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
                             if (i++ === 2) {
@@ -707,6 +731,7 @@ describe('The node_redis client', function () {
                             assert.deepEqual(res, ['OK', [null, null]]);
                         });
                         client.on('monitor', function (time, args, rawOutput) {
+                            assert.strictEqual(client.monitoring, true);
                             assert(utils.monitor_regex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
                             if (i++ === 2) {
@@ -718,20 +743,22 @@ describe('The node_redis client', function () {
                         });
                     });
 
-                    it('monitor does not activate if the command could not be processed properly', function (done) {
+                    it('monitor activates even if the command could not be processed properly after a reconnect', function (done) {
                         client.MONITOR(function (err, res) {
                             assert.strictEqual(err.code, 'UNCERTAIN_STATE');
                         });
                         client.on('error', function (err) {}); // Ignore error here
                         client.stream.destroy();
+                        var end = helper.callFuncAfter(done, 2);
                         client.on('monitor', function (time, args, rawOutput) {
-                            done(new Error('failed')); // Should not be activated
+                            assert.strictEqual(client.monitoring, true);
+                            end();
                         });
                         client.on('reconnecting', function () {
                             client.get('foo', function (err, res) {
                                 assert(!err);
-                                assert.strictEqual(client.monitoring, false);
-                                setTimeout(done, 10); // The monitor command might be returned a tiny bit later
+                                assert.strictEqual(client.monitoring, true);
+                                end();
                             });
                         });
                     });
@@ -824,7 +851,7 @@ describe('The node_redis client', function () {
 
                     var id = setTimeout(function () {
                         external.kill();
-                        done(Error('unref subprocess timed out'));
+                        done(new Error('unref subprocess timed out'));
                     }, 8000);
 
                     external.on('close', function (code) {
@@ -998,8 +1025,12 @@ describe('The node_redis client', function () {
                             assert(err instanceof redis.AbortError);
                             error = err.origin;
                         });
-                        // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
-                        client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                        // Make sure we call execute out of the reply
+                        // ready is called in a reply
+                        process.nextTick(function () {
+                            // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
+                            client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                        });
                     });
                 });
             });

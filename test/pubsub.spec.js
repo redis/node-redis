@@ -204,8 +204,8 @@ describe('publish/subscribe', function () {
 
                 it('subscribe; close; resubscribe with prototype inherited property names', function (done) {
                     var count = 0;
-                    var channels = ['__proto__', 'channel 2'];
-                    var msg = ['hi from channel __proto__', 'hi from channel 2'];
+                    var channels = ['channel 1', 'channel 2'];
+                    var msg = ['hi from channel 1', 'hi from channel 2'];
 
                     sub.on('message', function (channel, message) {
                         var n = Math.max(count - 1, 0);
@@ -215,6 +215,7 @@ describe('publish/subscribe', function () {
                         sub.stream.end();
                     });
 
+                    sub.select(3);
                     sub.subscribe(channels);
 
                     sub.on('ready', function (err, results) {
