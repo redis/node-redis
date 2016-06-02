@@ -294,10 +294,7 @@ RedisClient.prototype.create_stream = function () {
 
 RedisClient.prototype.handle_reply = function (reply, command, buffer_reply) {
     if (!buffer_reply && this.using_buffer_parser) {
-        // Reply from parser will be Buffer if:
-        // 1) return_buffers option set to true
-        // 2) or detect_buffers option set to true and command used Buffer arguments
-        // 3) or buffer_reply argument was set to true when calling internal_send_command
+        // If nobody wants buffers for any reasons then we must convert them to strings
         reply = utils.reply_to_strings(reply);
     }
 
@@ -870,9 +867,8 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
     var big_data = false;
     var args_copy = new Array(len);
 
-    if (this.options.return_buffers || this.cur_command_ret_buf) {
-        // this.cur_command_ret_buf check is needed for send_command_buf and "b_" prefixed individual commands
-        // (but not for standart "b_" prefixed command)
+    if (this.cur_command_ret_buf) {
+        // Needed for send_command_buf and overwritten individual commands with "b_" prefix
         command_obj.buffer_reply = true;
     }
 
@@ -884,10 +880,6 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
 
     if (process.domain && command_obj.callback) {
         command_obj.callback = process.domain.bind(command_obj.callback);
-    }
-
-    if (command_obj.buffer_reply && !this.using_buffer_parser) {
-        this.switchToBufferParser();
     }
 
     for (i = 0; i < len; i += 1) {
@@ -932,6 +924,14 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
             // Seems like numbers are converted fast using string concatenation
             args_copy[i] = '' + args[i];
         }
+    }
+
+    if (this.options.return_buffers) {
+        command_obj.buffer_reply = true;
+    }
+
+    if (command_obj.buffer_reply && !this.using_buffer_parser) {
+        this.switchToBufferParser();
     }
 
     if (this.options.prefix) {
