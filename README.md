@@ -618,13 +618,15 @@ the second word as first parameter:
 
 Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
 
-An example of when to use duplicate() would be to accomodate the connection- 
+One example of when to use duplicate() would be to accomodate the connection- 
 blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
 are used on the same redisClient instance as non-blocking commands, the 
 non-blocking ones may be queued up until after the blocking ones finish.
 
     var Redis=require('redis');
     var client = Redis.createClient();
+    var clientBlocking = client.duplicate();
+
     var get = function() {
         console.log("get called");
         client.get("any_key",function() { console.log("get returned"); });
@@ -632,7 +634,7 @@ non-blocking ones may be queued up until after the blocking ones finish.
     };
     var brpop = function() {
         console.log("brpop called");
-        client.brpop("nonexistent", 5, function() {
+        clientBlocking.brpop("nonexistent", 5, function() {
             console.log("brpop return");
             setTimeout( brpop, 1000 );
         });
@@ -640,16 +642,9 @@ non-blocking ones may be queued up until after the blocking ones finish.
     get();
     brpop();
     
-These two repeating functions will interfere with each other -- the `get`s will 
-not return until after the `brpop` returns.  This can be fixed by keeping the 
-blocking calls separate using `client.duplicate()`, eg:
-
-    ...
-    var clientBlocking = client.duplicate();
-    var brpop = function() {
-        console.log("brpop called");
-        clientBlocking.brpop( ...
-
+Another reason to use duplicate() is when multiple DBs on the same server are 
+accessed via the redis SELECT command.  Each DB could use its own connection.
+    
 ## client.send_command(command_name[, [args][, callback]])
 
 All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
