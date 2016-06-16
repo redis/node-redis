@@ -717,7 +717,7 @@ describe("The 'multi' method", function () {
                     multi.exec(function (err, res) {
                         res[2] = res[2].substr(0, 10);
                         assert.deepEqual(res, ['OK', 'OK', '# Server\r\n', 'bar']);
-                        done();
+                        client.flushdb(done);
                     });
                 });
 
