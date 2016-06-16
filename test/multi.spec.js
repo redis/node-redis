@@ -393,6 +393,7 @@ describe("The 'multi' method", function () {
                     var arr2 = ['some manner of key', 'otherTypes'];
                     var arr3 = [5768, 'multibarx', 'multifoox'];
                     var arr4 = ['mset', [578, 'multibar'], helper.isString('OK')];
+                    var called = false;
                     client.multi([
                         arr4,
                         [['mset', 'multifoo2', 'multibar2', 'multifoo3', 'multibar3'], helper.isString('OK')],
@@ -411,8 +412,10 @@ describe("The 'multi' method", function () {
                     .mget('multifoo2', ['multifoo3', 'multifoo'], function (err, res) {
                         assert(res[0], 'multifoo3');
                         assert(res[1], 'multifoo');
+                        called = true;
                     })
                     .exec(function (err, replies) {
+                        assert(called);
                         assert.equal(arr.length, 3);
                         assert.equal(arr2.length, 2);
                         assert.equal(arr3.length, 3);

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.6.2 - 16 Jun, 2016
+
+Bugfixes
+
+-  Fixed individual callbacks of a transaction not being called (2.6.0 regression)
+
 ## v.2.6.1 - 02 Jun, 2016
 
 Bugfixes
