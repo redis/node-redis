@@ -24,9 +24,9 @@ if (typeof EventEmitter !== 'function') {
     EventEmitter = EventEmitter.EventEmitter;
 }
 
-function noop() { }
+function noop () {}
 
-function handle_detect_buffers_reply(reply, command, buffer_args) {
+function handle_detect_buffers_reply (reply, command, buffer_args) {
     if (buffer_args === false || this.message_buffers) {
         // If detect_buffers option was specified, then the reply from the parser will be a buffer.
         // If this command did not use Buffer arguments, then convert the reply to Strings here.
@@ -43,7 +43,7 @@ exports.debug_mode = /\bredis\b/i.test(process.env.NODE_DEBUG);
 
 // Attention: The second parameter might be removed at will and is not officially supported.
 // Do not rely on this
-function RedisClient(options, stream) {
+function RedisClient (options, stream) {
     // Copy the options so they are not mutated
     options = utils.clone(options);
     EventEmitter.call(this);
@@ -182,7 +182,7 @@ util.inherits(RedisClient, EventEmitter);
 
 RedisClient.connection_id = 0;
 
-function create_parser(self) {
+function create_parser (self) {
     return new Parser({
         returnReply: function (data) {
             self.return_reply(data);
@@ -200,9 +200,9 @@ function create_parser(self) {
                 message: 'Fatal error encountert. Command aborted.',
                 code: 'NR_FATAL'
             }, {
-                    error: err,
-                    queues: ['command_queue']
-                });
+                error: err,
+                queues: ['command_queue']
+            });
             self.emit('error', err);
             self.create_stream();
         },
@@ -594,8 +594,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
             message: 'Stream connection ended and command aborted.',
             code: 'NR_CLOSED'
         }, {
-                error: error
-            });
+            error: error
+        });
         return;
     }
 
@@ -621,8 +621,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
                 message: 'Stream connection ended and command aborted.',
                 code: 'NR_CLOSED'
             }, {
-                    error: error
-                });
+                error: error
+            });
             this.end(false);
             return;
         }
@@ -640,8 +640,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
             message: message,
             code: 'CONNECTION_BROKEN',
         }, {
-                error: error
-            });
+            error: error
+        });
         var err = new Error(message);
         err.code = 'CONNECTION_BROKEN';
         if (error) {
@@ -661,9 +661,9 @@ RedisClient.prototype.connection_gone = function (why, error) {
             message: 'Redis connection lost and command aborted.',
             code: 'UNCERTAIN_STATE'
         }, {
-                error: error,
-                queues: ['command_queue']
-            });
+            error: error,
+            queues: ['command_queue']
+        });
     }
 
     if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
@@ -713,7 +713,7 @@ RedisClient.prototype.emit_idle = function () {
     }
 };
 
-function normal_reply(self, reply) {
+function normal_reply (self, reply) {
     var command_obj = self.command_queue.shift();
     if (typeof command_obj.callback === 'function') {
         if (command_obj.command !== 'exec') {
@@ -725,7 +725,7 @@ function normal_reply(self, reply) {
     }
 }
 
-function subscribe_unsubscribe(self, reply, type) {
+function subscribe_unsubscribe (self, reply, type) {
     // Subscribe commands take an optional callback and also emit an event, but only the _last_ response is included in the callback
     // The pub sub commands return each argument in a separate return value and have to be handled that way
     var command_obj = self.command_queue.get(0);
@@ -775,7 +775,7 @@ function subscribe_unsubscribe(self, reply, type) {
     }
 }
 
-function return_pub_sub(self, reply) {
+function return_pub_sub (self, reply) {
     var type = reply[0].toString();
     if (type === 'message') { // channel, message
         if (!self.options.return_buffers || self.message_buffers) { // backwards compatible. Refactor this in v.3 to always return a string on the normal emitter
@@ -834,7 +834,7 @@ RedisClient.prototype.return_reply = function (reply) {
     }
 };
 
-function handle_offline_command(self, command_obj) {
+function handle_offline_command (self, command_obj) {
     var command = command_obj.command;
     var err, msg;
     if (self.closing || !self.enable_offline_queue) {
