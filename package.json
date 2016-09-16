@@ -33,7 +33,7 @@
     "node": ">=0.10.0"
   },
   "devDependencies": {
-    "bluebird": "^3.0.2",
+    "bluebird": "^3.4.3",
     "coveralls": "^2.11.2",
     "intercept-stdout": "~0.1.2",
     "eslint": "^2.5.0",
