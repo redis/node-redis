@@ -6,7 +6,7 @@ redis - a node.js redis client
 [![Windows Tests](https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/NodeRedis/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-This is a complete and feature rich Redis client for node.js. It supports all Redis commands and focuses on high performance.
+This is a complete and feature rich Redis client for node.js. __It supports all Redis commands__ and focuses on high performance.
 
 Install with:
 
