@@ -623,6 +623,19 @@ describe('The node_redis client', function () {
                             });
                         });
 
+                        it('keeps the same domain by using the offline queue', function (done) {
+                            client.end(true);
+                            client = redis.createClient();
+                            var testDomain = require('domain').create();
+                            testDomain.run(function () {
+                                client.set('FOOBAR', 'def', function () {
+                                    assert.strictEqual(process.domain, testDomain);
+                                    done();
+                                });
+                            });
+                            require('domain').create();
+                        });
+
                         it('catches all errors from within the domain', function (done) {
                             var domain = require('domain').create();
 
