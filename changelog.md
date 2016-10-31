@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v.2.6.3 - 31 Oct, 2016
+
+Bugfixes
+
+-  Do not change the tls setting to camel_case
+-  Fix domain handling in combination with the offline queue (2.5.3 regression)
+
 ## v.2.6.2 - 16 Jun, 2016
 
 Bugfixes

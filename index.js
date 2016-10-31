@@ -868,14 +868,14 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
     var big_data = false;
     var args_copy = new Array(len);
 
+    if (process.domain && command_obj.callback) {
+        command_obj.callback = process.domain.bind(command_obj.callback);
+    }
+
     if (this.ready === false || this.stream.writable === false) {
         // Handle offline commands right away
         handle_offline_command(this, command_obj);
         return false; // Indicate buffering
-    }
-
-    if (process.domain && command_obj.callback) {
-        command_obj.callback = process.domain.bind(command_obj.callback);
     }
 
     for (i = 0; i < len; i += 1) {

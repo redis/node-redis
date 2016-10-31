@@ -371,7 +371,7 @@ describe('connection tests', function () {
                         if (err.code === 'ENETUNREACH') { // The test is run without a internet connection. Pretent it works
                             return done();
                         }
-                        assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message));
+                        assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message), err.message);
                         // The code execution on windows is very slow at times
                         var add = process.platform !== 'win32' ? 15 : 200;
                         var now = Date.now();
