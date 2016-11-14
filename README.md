@@ -237,7 +237,7 @@ var client = redis.createClient({
             return undefined;
         }
         // reconnect after
-        return Math.max(options.attempt * 100, 3000);
+        return Math.min(options.attempt * 100, 3000);
     }
 });
 ```
