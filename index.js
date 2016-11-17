@@ -1100,4 +1100,6 @@ exports.AggregateError = errorClasses.AggregateError;
 // Add all redis commands / node_redis api to the client
 require('./lib/individualCommands');
 require('./lib/extendedApi');
-require('./lib/commands');
+
+//enables adding new commands (for modules and new commands)
+exports.addCommand = exports.add_command = require('./lib/commands');
