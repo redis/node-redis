@@ -224,7 +224,7 @@ retry_strategy example
 ```js
 var client = redis.createClient({
     retry_strategy: function (options) {
-        if (options.error.code === 'ECONNREFUSED') {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
             // End reconnecting on a specific error and flush all commands with a individual error
             return new Error('The server refused the connection');
         }
