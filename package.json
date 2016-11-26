@@ -36,7 +36,7 @@
     "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
     "intercept-stdout": "~0.1.2",
-    "eslint": "^2.5.0",
+    "eslint": "^3.0.1",
     "metrics": "^0.1.9",
     "mocha": "^2.3.2",
     "nyc": "^8.3.0",
