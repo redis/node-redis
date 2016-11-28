@@ -1092,4 +1092,4 @@ require('./lib/individualCommands');
 require('./lib/extendedApi');
 
 //enables adding new commands (for modules and new commands)
-exports.addCommand = require('./lib/commands')
+exports.addCommand = exports.add_command = require('./lib/commands');
