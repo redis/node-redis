@@ -7,11 +7,6 @@ var fs = require('fs');
 var path = require('path');
 var util = require('util');
 
-// Newer Node.js versions > 0.10 return the EventEmitter right away and using .EventEmitter was deprecated
-if (typeof EventEmitter !== 'function') {
-    EventEmitter = EventEmitter.EventEmitter;
-}
-
 function once (cb) {
     var called = false;
     return function () {
