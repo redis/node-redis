@@ -3,7 +3,6 @@
 var assert = require('assert');
 var Queue = require('double-ended-queue');
 var utils = require('../lib/utils');
-var intercept = require('intercept-stdout');
 
 describe('utils.js', function () {
 
