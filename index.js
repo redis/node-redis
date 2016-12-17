@@ -68,11 +68,6 @@ function RedisClient (options, stream) {
     }
     // Warn on misusing deprecated functions
     if (typeof options.retry_strategy === 'function') {
-        if ('max_attempts' in options) {
-            self.warn('WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.');
-            // Do not print deprecation warnings twice
-            delete options.max_attempts;
-        }
         if ('retry_max_delay' in options) {
             self.warn('WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.');
             // Do not print deprecation warnings twice
@@ -102,14 +97,6 @@ function RedisClient (options, stream) {
         this.handle_reply = handle_detect_buffers_reply;
     }
     this.should_buffer = false;
-    this.max_attempts = options.max_attempts | 0;
-    if ('max_attempts' in options) {
-        self.warn(
-            'max_attempts is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the number of options and to improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
-            'This replaces the max_attempts and retry_max_delay option.'
-        );
-    }
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
     this.pipeline_queue = new Queue(); // Holds all pipelined commands
@@ -603,30 +590,6 @@ RedisClient.prototype.connection_gone = function (why, error) {
             this.end(false);
             return;
         }
-    }
-
-    if (this.max_attempts !== 0 && this.attempts >= this.max_attempts || this.retry_totaltime >= this.connect_timeout) {
-        var message = 'Redis connection in broken state: ';
-        if (this.retry_totaltime >= this.connect_timeout) {
-            message += 'connection timeout exceeded.';
-        } else {
-            message += 'maximum connection attempts exceeded.';
-        }
-
-        this.flush_and_error({
-            message: message,
-            code: 'CONNECTION_BROKEN',
-        }, {
-            error: error
-        });
-        var err = new Error(message);
-        err.code = 'CONNECTION_BROKEN';
-        if (error) {
-            err.origin = error;
-        }
-        this.emit('error', err);
-        this.end(false);
-        return;
     }
 
     // Retry commands after a reconnect instead of throwing an error. Use this with caution

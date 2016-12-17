@@ -219,7 +219,7 @@ describe("The 'multi' method", function () {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
-                        max_attempts: 1
+                        retryStrategy: function () {}
                     });
 
                     client.on('error', function (err) {
@@ -239,7 +239,7 @@ describe("The 'multi' method", function () {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
-                        max_attempts: 1
+                        retryStrategy: function () {}
                     });
 
                     client.on('error', function (err) {

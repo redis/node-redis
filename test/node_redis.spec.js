@@ -843,7 +843,6 @@ describe('The node_redis client', function () {
 
                     it('does not return an error and enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
-                            max_attempts: 0,
                             parser: parser
                         });
                         var finished = false;
@@ -867,7 +866,11 @@ describe('The node_redis client', function () {
 
                     it('enqueues operation and keep the queue while trying to reconnect', function (done) {
                         client = redis.createClient(9999, null, {
-                            max_attempts: 4,
+                            retryStrategy: function (options) {
+                                if (options.attempt < 4) {
+                                    return 200;
+                                }
+                            },
                             parser: parser
                         });
                         var i = 0;
@@ -971,7 +974,6 @@ describe('The node_redis client', function () {
                     it('emit an error and does not enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
                             parser: parser,
-                            max_attempts: 0,
                             enable_offline_queue: false
                         });
                         var end = helper.callFuncAfter(done, 3);

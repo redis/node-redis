@@ -152,73 +152,6 @@ describe('connection tests', function () {
         describe('using ' + parser + ' and ' + ip, function () {
 
             describe('on lost connection', function () {
-                it('emit an error after max retry attempts and do not try to reconnect afterwards', function (done) {
-                    var maxAttempts = 3;
-                    var options = {
-                        parser: parser,
-                        maxAttempts: maxAttempts
-                    };
-                    client = redis.createClient(options);
-                    assert.strictEqual(client.retryBackoff, 1.7);
-                    assert.strictEqual(client.retryDelay, 200);
-                    assert.strictEqual(Object.keys(options).length, 2);
-                    var calls = 0;
-
-                    client.once('ready', function () {
-                        helper.killConnection(client);
-                    });
-
-                    client.on('reconnecting', function (params) {
-                        calls++;
-                    });
-
-                    client.on('error', function (err) {
-                        if (/Redis connection in broken state: maximum connection attempts.*?exceeded./.test(err.message)) {
-                            process.nextTick(function () { // End is called after the error got emitted
-                                assert.strictEqual(calls, maxAttempts - 1);
-                                assert.strictEqual(client.emitted_end, true);
-                                assert.strictEqual(client.connected, false);
-                                assert.strictEqual(client.ready, false);
-                                assert.strictEqual(client.closing, true);
-                                done();
-                            });
-                        }
-                    });
-                });
-
-                it('emit an error after max retry timeout and do not try to reconnect afterwards', function (done) {
-                    // TODO: Investigate why this test fails with windows. Reconnect is only triggered once
-                    if (process.platform === 'win32') this.skip();
-
-                    var connect_timeout = 600; // in ms
-                    client = redis.createClient({
-                        parser: parser,
-                        connect_timeout: connect_timeout
-                    });
-                    var time = 0;
-
-                    client.once('ready', function () {
-                        helper.killConnection(client);
-                    });
-
-                    client.on('reconnecting', function (params) {
-                        time += params.delay;
-                    });
-
-                    client.on('error', function (err) {
-                        if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
-                            process.nextTick(function () { // End is called after the error got emitted
-                                assert.strictEqual(client.emitted_end, true);
-                                assert.strictEqual(client.connected, false);
-                                assert.strictEqual(client.ready, false);
-                                assert.strictEqual(client.closing, true);
-                                assert.strictEqual(client.retry_totaltime, connect_timeout);
-                                assert.strictEqual(time, connect_timeout);
-                                done();
-                            });
-                        }
-                    });
-                });
 
                 it('end connection while retry is still ongoing', function (done) {
                     var connect_timeout = 1000; // in ms
@@ -243,7 +176,7 @@ describe('connection tests', function () {
                         host: 'somewhere',
                         port: 6379,
                         family: ip,
-                        max_attempts: 1
+                        retryStrategy: function () {}
                     };
                     client = redis.createClient(options);
                     assert.strictEqual(client.connection_options.family, ip === 'IPv6' ? 6 : 4);
@@ -289,14 +222,12 @@ describe('connection tests', function () {
                             }
                             return Math.min(options.attempt * 25, 200);
                         },
-                        maxAttempts: 5,
                         retryMaxDelay: 123,
                         port: 9999
                     });
                     process.nextTick(function () {
                         assert.strictEqual(
                             text,
-                            'node_redis: WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
                             'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
                         );
                         unhookIntercept();
