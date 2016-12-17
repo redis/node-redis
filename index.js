@@ -115,19 +115,8 @@ function RedisClient (options, stream) {
     this.create_stream();
     // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached
     this.on('newListener', function (event) {
-        if (event === 'drain') {
-            this.warn(
-                'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
-                'If you want to keep on listening to this event please listen to the stream drain event directly.'
-            );
-        } else if ((event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.message_buffers) {
-            if (this.reply_parser.name !== 'javascript') {
-                return this.warn(
-                    'You attached the "' + event + '" listener without the returnBuffers option set to true.\n' +
-                    'Please use the JavaScript parser or set the returnBuffers option to true to return buffers.'
-                );
-            }
-            this.reply_parser.optionReturnBuffers = true;
+        if ((event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.message_buffers) {
+            this.reply_parser.setReturnBuffers(true);
             this.message_buffers = true;
             this.handle_reply = handle_detect_buffers_reply;
         }
@@ -241,10 +230,6 @@ RedisClient.prototype.create_stream = function () {
 
     this.stream.once('end', function () {
         self.connection_gone('end');
-    });
-
-    this.stream.on('drain', function () {
-        self.drain();
     });
 
     // Fire the command before redis is connected to be sure it's the first fired command
@@ -479,7 +464,6 @@ RedisClient.prototype.send_offline_queue = function () {
         debug('Sending offline command: ' + command_obj.command);
         this.internal_send_command(command_obj);
     }
-    this.drain();
 };
 
 var retry_connection = function (self, error) {
@@ -610,11 +594,6 @@ RedisClient.prototype.return_error = function (err) {
     }
 
     utils.callback_or_emit(this, command_obj.callback, err);
-};
-
-RedisClient.prototype.drain = function () {
-    this.emit('drain');
-    this.should_buffer = false;
 };
 
 function normal_reply (self, reply) {

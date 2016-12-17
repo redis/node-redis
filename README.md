@@ -158,17 +158,6 @@ So please attach the error listener to node_redis.
 
 `client` will emit `end` when an established Redis server connection has closed.
 
-### "drain" (deprecated)
-
-`client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
-writable. This event can be used to stream commands in to Redis and adapt to backpressure.
-
-If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
-That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
-
-You can also check the return value of each command as it will also return the backpressure indicator (deprecated).
-If false is returned the stream had to buffer.
-
 ### "warning"
 
 `client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
@@ -259,13 +248,6 @@ including reconnections. `callback` is invoked only once, after the response to 
 NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
-
-## backpressure
-
-### stream
-
-The client exposed the used [stream](https://nodejs.org/api/stream.html) in `client.stream` and if the stream or client had to [buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback) the command in `client.should_buffer`.
-In combination this can be used to implement backpressure by checking the buffer state before sending a command and listening to the stream [drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
 
 ## client.quit()
 

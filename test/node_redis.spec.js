@@ -952,28 +952,6 @@ describe('The node_redis client', function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
-                    it('should emit drain if offline queue is flushed and nothing to buffer', function (done) {
-                        client = redis.createClient({
-                            parser: parser,
-                            no_ready_check: true
-                        });
-                        var end = helper.callFuncAfter(done, 3);
-                        client.set('foo', 'bar');
-                        client.get('foo', end);
-                        client.on('warning', function (msg) {
-                            assert.strictEqual(
-                                msg,
-                                'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
-                                'If you want to keep on listening to this event please listen to the stream drain event directly.'
-                            );
-                            end();
-                        });
-                        client.on('drain', function () {
-                            assert(client.offline_queue.length === 0);
-                            end();
-                        });
-                    });
-
                     it('does not return an error and enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
                             parser: parser
