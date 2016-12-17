@@ -60,30 +60,6 @@ describe('utils.js', function () {
         });
     });
 
-    describe('print helper', function () {
-        it('callback with reply', function () {
-            var text = '';
-            var unhookIntercept = intercept(function (data) {
-                text += data;
-                return '';
-            });
-            utils.print(null, 'abc');
-            unhookIntercept();
-            assert.strictEqual(text, 'Reply: abc\n');
-        });
-
-        it('callback with error', function () {
-            var text = '';
-            var unhookIntercept = intercept(function (data) {
-                text += data;
-                return '';
-            });
-            utils.print(new Error('Wonderful exception'));
-            unhookIntercept();
-            assert.strictEqual(text, 'Error: Wonderful exception\n');
-        });
-    });
-
     describe('reply_in_order', function () {
 
         var err_count = 0;

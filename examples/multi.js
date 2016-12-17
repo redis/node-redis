@@ -17,7 +17,7 @@ client.multi()
     .scard('bigset')
     .smembers('bigset')
     .keys('*', function (err, replies) {
-        client.mget(replies, redis.print);
+        client.mget(replies, console.log);
     })
     .dbsize()
     .exec(function (err, replies) {
@@ -27,15 +27,15 @@ client.multi()
         });
     });
 
-client.mset('incr thing', 100, 'incr other thing', 1, redis.print);
+client.mset('incr thing', 100, 'incr other thing', 1, console.log);
 
 // start a separate multi command queue
 var multi = client.multi();
-multi.incr('incr thing', redis.print);
-multi.incr('incr other thing', redis.print);
+multi.incr('incr thing', console.log);
+multi.incr('incr other thing', console.log);
 
 // runs immediately
-client.get('incr thing', redis.print); // 100
+client.get('incr thing', console.log); // 100
 
 // drains multi queue and runs atomically
 multi.exec(function (err, replies) {

@@ -25,9 +25,11 @@ client.on("error", function (err) {
     console.log("Error " + err);
 });
 
-client.set("string key", "string val", redis.print);
-client.hset("hash key", "hashtest 1", "some value", redis.print);
-client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
+function callback () {}
+
+client.set("string key", "string val", callback);
+client.hset("hash key", "hashtest 1", "some value", callback);
+client.hset(["hash key", "hashtest 2", "some other value"], callback);
 client.hkeys("hash key", function (err, replies) {
     console.log(replies.length + " replies:");
     replies.forEach(function (reply, i) {
@@ -529,7 +531,7 @@ client.multi()
     .keys("*", function (err, replies) {
         // NOTE: code in this callback is NOT atomic
         // this only happens after the the .exec call finishes.
-        client.mget(replies, redis.print);
+        client.mget(replies, console.log);
     })
     .dbsize()
     .exec(function (err, replies) {
@@ -558,11 +560,11 @@ var redis  = require("redis"),
 
 // start a separate multi command queue
 multi = client.multi();
-multi.incr("incr thing", redis.print);
-multi.incr("incr other thing", redis.print);
+multi.incr("incr thing", console.log);
+multi.incr("incr other thing", console.log);
 
 // runs immediately
-client.mset("incr thing", 100, "incr other thing", 1, redis.print);
+client.mset("incr thing", 100, "incr other thing", 1, console.log);
 
 // drains multi queue and runs atomically
 multi.exec(function (err, replies) {
@@ -578,7 +580,7 @@ var redis  = require("redis"),
     client = redis.createClient(), multi;
 
 client.multi([
-    ["mget", "multifoo", "multibar", redis.print],
+    ["mget", "multifoo", "multibar", console.log],
     ["incr", "multifoo"],
     ["incr", "multibar"]
 ]).exec(function (err, replies) {
@@ -638,27 +640,6 @@ The `versions` key contains an array of the elements of the version string for e
     '2.3.0'
     > client.server_info.versions
     [ 2, 3, 0 ]
-
-## redis.print()
-
-A handy callback function for displaying return values when testing. Example:
-
-```js
-var redis = require("redis"),
-    client = redis.createClient();
-
-client.on("connect", function () {
-    client.set("foo_rand000000000000", "some fantastic value", redis.print);
-    client.get("foo_rand000000000000", redis.print);
-});
-```
-
-This will print:
-
-    Reply: OK
-    Reply: some fantastic value
-
-Note that this program will not exit cleanly because the client is still connected.
 
 ## Multi-word commands
 

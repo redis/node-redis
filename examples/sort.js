@@ -15,5 +15,5 @@ client.set('object_1', 'foo');
 client.set('object_2', 'bar');
 client.set('object_3', 'qux');
 
-client.sort('mylist', 'by', 'weight_*', 'get', 'object_*', redis.print);
+client.sort('mylist', 'by', 'weight_*', 'get', 'object_*', console.log);
 // Prints Reply: qux,foo,bar

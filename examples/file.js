@@ -19,7 +19,7 @@ fs.readFile(filename, function (err, data) {
     if (err) throw err;
     console.log('Read ' + data.length + ' bytes from filesystem.');
 
-    client.set(filename, data, redis.print); // set entire file
+    client.set(filename, data, console.log); // set entire file
     client.get(filename, function (err, reply) { // get entire file
         if (err) {
             console.log('Get error: ' + err);

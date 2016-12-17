@@ -1084,7 +1084,6 @@ exports.createClient = function () {
     return new RedisClient(unifyOptions.apply(null, arguments));
 };
 exports.RedisClient = RedisClient;
-exports.print = utils.print;
 exports.Multi = require('./lib/multi');
 exports.AbortError = errorClasses.AbortError;
 exports.RedisError = Parser.RedisError;

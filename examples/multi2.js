@@ -5,11 +5,11 @@ var client = redis.createClient();
 
 // start a separate command queue for multi
 var multi = client.multi();
-multi.incr('incr thing', redis.print);
-multi.incr('incr other thing', redis.print);
+multi.incr('incr thing', console.log);
+multi.incr('incr other thing', console.log);
 
 // runs immediately
-client.mset('incr thing', 100, 'incr other thing', 1, redis.print);
+client.mset('incr thing', 100, 'incr other thing', 1, console.log);
 
 // drains multi queue and runs atomically
 multi.exec(function (err, replies) {
@@ -23,7 +23,7 @@ multi.exec(function (err, replies) {
 });
 
 client.multi([
-    ['mget', 'multifoo', 'multibar', redis.print],
+    ['mget', 'multifoo', 'multibar', console.log],
     ['incr', 'multifoo'],
     ['incr', 'multibar']
 ]).exec(function (err, replies) {
