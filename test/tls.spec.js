@@ -51,7 +51,7 @@ describe('TLS connection tests', function () {
     });
 
     describe('on lost connection', function () {
-        it.only('emit an error after max retry timeout and do not try to reconnect afterwards', function (done) {
+        it('emit an error after max retry timeout and do not try to reconnect afterwards', function (done) {
             if (skip) this.skip();
             var connect_timeout = 500; // in ms
             client = redis.createClient({
