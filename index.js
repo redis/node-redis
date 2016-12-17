@@ -89,15 +89,6 @@ function RedisClient (options, stream) {
     this.connection_id = RedisClient.connection_id++;
     this.connected = false;
     this.ready = false;
-    if (options.socket_nodelay === undefined) {
-        options.socket_nodelay = true;
-    } else if (!options.socket_nodelay) { // Only warn users with this set to false
-        self.warn(
-            'socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
-            'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch for pipelining instead.\n' +
-            'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
-        );
-    }
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
     }
@@ -296,10 +287,6 @@ RedisClient.prototype.create_stream = function () {
     this.stream.on('drain', function () {
         self.drain();
     });
-
-    if (this.options.socket_nodelay) {
-        this.stream.setNoDelay();
-    }
 
     // Fire the command before redis is connected to be sure it's the first fired command
     if (this.auth_pass !== undefined) {

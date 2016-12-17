@@ -231,9 +231,6 @@ Deprecations
  -  Using .end without flush means that any command that did not yet return is going to silently fail. Therefor this is considered harmful and you should explicitly silence such errors if you are sure you want this
 -  Depending on the return value of a command to detect the backpressure is deprecated
  -  From version 3.0.0 on node_redis might not return true / false as a return value anymore. Please rely on client.should_buffer instead
--  The `socket_nodelay` option is deprecated and will be removed in v.3.0.0
- -  If you want to buffer commands you should use [.batch or .multi](./README.md) instead. This is necessary to reduce the amount of different options and this is very likely reducing your throughput if set to false.
- -  If you are sure you want to activate the NAGLE algorithm you can still activate it by using client.stream.setNoDelay(false)
 -  The `max_attempts` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
 -  The `retry_max_delay` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
 -  The drain event is deprecated and will be removed in v.3.0.0. Please listen to the stream drain event instead
