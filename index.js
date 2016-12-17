@@ -66,14 +66,6 @@ function RedisClient (options, stream) {
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
-    // Warn on misusing deprecated functions
-    if (typeof options.retry_strategy === 'function') {
-        if ('retry_max_delay' in options) {
-            self.warn('WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.');
-            // Do not print deprecation warnings twice
-            delete options.retry_max_delay;
-        }
-    }
 
     this.connection_options = cnx_options;
     this.connection_id = RedisClient.connection_id++;
@@ -104,14 +96,6 @@ function RedisClient (options, stream) {
     // This should be done by the retry_strategy. Instead it should only be the timeout for connecting to redis
     this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
-    this.retry_max_delay = +options.retry_max_delay || null;
-    if ('retry_max_delay' in options) {
-        self.warn(
-            'retry_max_delay is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
-            'This replaces the max_attempts and retry_max_delay option.'
-        );
-    }
     this.initialize_retry_vars();
     this.pub_sub_mode = 0;
     this.subscription_set = {};
@@ -604,13 +588,6 @@ RedisClient.prototype.connection_gone = function (why, error) {
             error: error,
             queues: ['command_queue']
         });
-    }
-
-    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
-        this.retry_delay = this.retry_max_delay;
-    } else if (this.retry_totaltime + this.retry_delay > this.connect_timeout) {
-        // Do not exceed the maximum
-        this.retry_delay = this.connect_timeout - this.retry_totaltime;
     }
 
     debug('Retry connection in ' + this.retry_delay + ' ms');

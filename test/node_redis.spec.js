@@ -757,34 +757,6 @@ describe('The node_redis client', function () {
                 // });
             });
 
-            describe('retry_max_delay', function () {
-                it('sets upper bound on how long client waits before reconnecting', function (done) {
-                    var time;
-                    var timeout = process.platform !== 'win32' ? 20 : 100;
-
-                    client = redis.createClient.apply(null, config.configureClient(parser, ip, {
-                        retry_max_delay: 1 // ms
-                    }));
-                    client.on('ready', function () {
-                        if (this.times_connected === 1) {
-                            this.stream.end();
-                            time = Date.now();
-                        } else {
-                            done();
-                        }
-                    });
-                    client.on('reconnecting', function () {
-                        time = Date.now() - time;
-                        assert(time < timeout, 'The reconnect should not have taken longer than ' + timeout + ' but it took ' + time);
-                    });
-                    client.on('error', function (err) {
-                        // This is rare but it might be triggered.
-                        // So let's have a robust test
-                        assert.strictEqual(err.code, 'ECONNRESET');
-                    });
-                });
-            });
-
             describe('protocol error', function () {
 
                 it('should gracefully recover and only fail on the already send commands', function (done) {

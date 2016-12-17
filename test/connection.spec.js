@@ -204,11 +204,6 @@ describe('connection tests', function () {
                 });
 
                 it('retryStrategy used to reconnect with individual error', function (done) {
-                    var text = '';
-                    var unhookIntercept = intercept(function (data) {
-                        text += data;
-                        return '';
-                    });
                     client = redis.createClient({
                         retryStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
@@ -222,15 +217,7 @@ describe('connection tests', function () {
                             }
                             return Math.min(options.attempt * 25, 200);
                         },
-                        retryMaxDelay: 123,
                         port: 9999
-                    });
-                    process.nextTick(function () {
-                        assert.strictEqual(
-                            text,
-                            'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
-                        );
-                        unhookIntercept();
                     });
                 });
 
