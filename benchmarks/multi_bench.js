@@ -29,7 +29,7 @@ var client_options = {
     parser: returnArg('parser', 'javascript'),
     path: returnArg('socket') // '/tmp/redis.sock'
 };
-var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf;
+var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf, mget_array;
 
 function lpad (input, len, chr) {
     var str = input.toString();
@@ -218,6 +218,7 @@ large_str = (new Array(4096 + 1).join('-'));
 large_buf = new Buffer(large_str);
 very_large_str = (new Array((4 * 1024 * 1024) + 1).join('-'));
 very_large_buf = new Buffer(very_large_str);
+mget_array = (new Array(1025)).join('foo_rand000000000001;').split(';');
 
 tests.push(new Test({descr: 'PING', command: 'ping', args: []}));
 tests.push(new Test({descr: 'PING', command: 'ping', args: [], batch: 50}));
@@ -269,6 +270,12 @@ tests.push(new Test({descr: 'GET 4MiB str', command: 'get', args: ['foo_rand0000
 
 tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['foo_rand000000000002'], client_options: { return_buffers: true} }));
 tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['foo_rand000000000002'], batch: 20, client_options: { return_buffers: true} }));
+
+tests.push(new Test({descr: 'MGET 4MiB str', command: 'mget', args: mget_array}));
+tests.push(new Test({descr: 'MGET 4MiB str', command: 'mget', args: mget_array, batch: 20}));
+
+tests.push(new Test({descr: 'MGET 4MiB buf', command: 'mget', args: mget_array, client_options: { return_buffers: true} }));
+tests.push(new Test({descr: 'MGET 4MiB buf', command: 'mget', args: mget_array, batch: 20, client_options: { return_buffers: true} }));
 
 function next () {
     var test = tests.shift();
