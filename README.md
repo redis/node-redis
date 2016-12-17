@@ -173,10 +173,6 @@ If false is returned the stream had to buffer.
 
 `client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
 
-### "idle" (deprecated)
-
-`client` will emit `idle` when there are no outstanding commands that are awaiting a response.
-
 ## redis.createClient()
 If you have `redis-server` running on the same machine as node, then the defaults for
 port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object. Otherwise, `createClient()` accepts these arguments:

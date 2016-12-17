@@ -115,12 +115,7 @@ function RedisClient (options, stream) {
     this.create_stream();
     // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached
     this.on('newListener', function (event) {
-        if (event === 'idle') {
-            this.warn(
-                'The idle event listener is deprecated and will likely be removed in v.3.0.0.\n' +
-                'If you rely on this feature please open a new ticket in node_redis with your use case'
-            );
-        } else if (event === 'drain') {
+        if (event === 'drain') {
             this.warn(
                 'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
                 'If you want to keep on listening to this event please listen to the stream drain event directly.'
@@ -228,7 +223,6 @@ RedisClient.prototype.create_stream = function () {
         // The buffer_from_socket.toString() has a significant impact on big chunks and therefore this should only be used if necessary
         debug('Net read ' + self.address + ' id ' + self.connection_id); // + ': ' + buffer_from_socket.toString());
         self.reply_parser.execute(buffer_from_socket);
-        self.emit_idle();
     });
 
     this.stream.on('error', function (err) {
@@ -621,12 +615,6 @@ RedisClient.prototype.return_error = function (err) {
 RedisClient.prototype.drain = function () {
     this.emit('drain');
     this.should_buffer = false;
-};
-
-RedisClient.prototype.emit_idle = function () {
-    if (this.command_queue.length === 0 && this.pub_sub_mode === 0) {
-        this.emit('idle');
-    }
 };
 
 function normal_reply (self, reply) {
