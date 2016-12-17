@@ -170,7 +170,7 @@ describe('connection tests', function () {
                     });
                 });
 
-                it('can not connect with wrong host / port in the options object', function (done) {
+                it.skip('can not connect with wrong host / port in the options object', function (done) {
                     var options = {
                         host: 'somewhere',
                         port: 6379,
@@ -265,7 +265,7 @@ describe('connection tests', function () {
 
             describe('when not connected', function () {
 
-                it('emit an error after the socket timeout exceeded the connect_timeout time', function (done) {
+                it.skip('emit an error after the socket timeout exceeded the connect_timeout time', function (done) {
                     var connect_timeout = 500; // in ms
                     client = redis.createClient({
                         // Auto detect ipv4 and use non routable ip to trigger the timeout

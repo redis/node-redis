@@ -235,7 +235,7 @@ describe("The 'multi' method", function () {
                     });
                 });
 
-                it('does not emit an error twice if connection is in broken mode with no callback', function (done) {
+                it.skip('does not emit an error twice if connection is in broken mode with no callback', function (done) {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
