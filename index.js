@@ -19,11 +19,6 @@ var SUBSCRIBE_COMMANDS = {
     punsubscribe: true
 };
 
-// Newer Node.js versions > 0.10 return the EventEmitter right away and using .EventEmitter was deprecated
-if (typeof EventEmitter !== 'function') {
-    EventEmitter = EventEmitter.EventEmitter;
-}
-
 function noop () {}
 
 function handle_detect_buffers_reply (reply, command, buffer_args) {
@@ -419,9 +414,7 @@ RedisClient.prototype.on_ready = function () {
 
     this.cork = function () {
         self.pipeline = true;
-        if (self.stream.cork) {
-            self.stream.cork();
-        }
+        self.stream.cork();
     };
     this.uncork = function () {
         if (self.fire_strings) {
@@ -431,10 +424,8 @@ RedisClient.prototype.on_ready = function () {
         }
         self.pipeline = false;
         self.fire_strings = true;
-        if (self.stream.uncork) {
-            // TODO: Consider using next tick here. See https://github.com/NodeRedis/node_redis/issues/1033
-            self.stream.uncork();
-        }
+        // TODO: Consider using next tick here. See https://github.com/NodeRedis/node_redis/issues/1033
+        self.stream.uncork();
     };
 
     // Restore modal commands from previous connection. The order of the commands is important

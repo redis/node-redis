@@ -31,7 +31,7 @@
     "redis-parser": "^2.6.0"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=0.12.0"
   },
   "devDependencies": {
     "bluebird": "^3.0.2",
