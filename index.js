@@ -92,9 +92,8 @@ function RedisClient (options, stream) {
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
     this.pipeline_queue = new Queue(); // Holds all pipelined commands
-    // ATTENTION: connect_timeout should change in v.3.0 so it does not count towards ending reconnection attempts after x seconds
-    // This should be done by the retry_strategy. Instead it should only be the timeout for connecting to redis
-    this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
+    // Only used as timeout until redis has to be connected to redis until throwing an connection error
+    this.connect_timeout = +options.connect_timeout || 60000; // 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
     this.initialize_retry_vars();
     this.pub_sub_mode = 0;
