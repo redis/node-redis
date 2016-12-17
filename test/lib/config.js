@@ -16,7 +16,7 @@ var config = {
         IPv4: '127.0.0.1',
         IPv6: '::1'
     },
-    configureClient: function (parser, ip, opts) {
+    configureClient: function (ip, opts) {
         var args = [];
         // Do not manipulate the opts => copy them each time
         opts = opts ? JSON.parse(JSON.stringify(opts)) : {};
@@ -29,7 +29,6 @@ var config = {
             opts.family = ip;
         }
 
-        opts.parser = parser;
         args.push(opts);
 
         return args;

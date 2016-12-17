@@ -147,16 +147,15 @@ describe('connection tests', function () {
 
     });
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
 
             describe('on lost connection', function () {
 
                 it('end connection while retry is still ongoing', function (done) {
                     var connect_timeout = 1000; // in ms
                     client = redis.createClient({
-                        parser: parser,
                         connect_timeout: connect_timeout
                     });
 
@@ -269,7 +268,6 @@ describe('connection tests', function () {
                 it('emit an error after the socket timeout exceeded the connect_timeout time', function (done) {
                     var connect_timeout = 500; // in ms
                     client = redis.createClient({
-                        parser: parser,
                         // Auto detect ipv4 and use non routable ip to trigger the timeout
                         host: '10.255.255.1',
                         connect_timeout: connect_timeout
@@ -302,7 +300,6 @@ describe('connection tests', function () {
 
                 it('use the system socket timeout if the connect_timeout has not been provided', function (done) {
                     client = redis.createClient({
-                        parser: parser,
                         host: '2001:db8::ff00:42:8329' // auto detect ip v6
                     });
                     assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
@@ -315,7 +312,6 @@ describe('connection tests', function () {
 
                 it('clears the socket timeout after a connection has been established', function (done) {
                     client = redis.createClient({
-                        parser: parser,
                         connect_timeout: 1000
                     });
                     process.nextTick(function () {
@@ -332,7 +328,6 @@ describe('connection tests', function () {
                     client = redis.createClient({
                         host: 'localhost',
                         port: '6379',
-                        parser: parser,
                         connect_timeout: 1000
                     });
 
@@ -345,7 +340,6 @@ describe('connection tests', function () {
                     }
                     client = redis.createClient({
                         path: '/tmp/redis.sock',
-                        parser: parser,
                         connect_timeout: 1000
                     });
 

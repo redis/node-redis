@@ -7,9 +7,9 @@ var redis = config.redis;
 
 describe("The 'hgetall' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client;
 
             describe('regular client', function () {
@@ -51,7 +51,7 @@ describe("The 'hgetall' method", function () {
 
             describe('binary client', function () {
                 var client;
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     return_buffers: true
                 });
 

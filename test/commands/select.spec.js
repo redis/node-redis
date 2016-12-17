@@ -7,9 +7,9 @@ var redis = config.redis;
 
 describe("The 'select' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             describe('when not connected', function () {
                 var client;
 

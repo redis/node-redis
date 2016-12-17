@@ -180,8 +180,7 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
 | url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
-| parser    | javascript | __Deprecated__ Use either the built-in JS parser [`javascript`]() or the native [`hiredis`]() parser. __Note__ `node_redis` < 2.6 uses hiredis as default if installed. This changed in v.2.6.0. |
-| string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
+| string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). |
 | return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
 | detect_buffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
 | socket_keepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket. |
@@ -716,7 +715,7 @@ operations.
 
 ```
 Lenovo T450s, i7-5600U and 12gb memory
-clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, parser: javascript, connected by: tcp
+clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, connected by: tcp
          PING,         1/1 avg/max:   0.02/  5.26 2501ms total,   46916 ops/sec
          PING,  batch 50/1 avg/max:   0.06/  4.35 2501ms total,  755178 ops/sec
    SET 4B str,         1/1 avg/max:   0.02/  4.75 2501ms total,   40856 ops/sec

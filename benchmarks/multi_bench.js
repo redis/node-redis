@@ -26,7 +26,6 @@ var run_time = returnArg('time', 2500); // ms
 var pipeline = returnArg('pipeline', 1); // number of concurrent commands
 var versions_logged = false;
 var client_options = {
-    parser: returnArg('parser', 'javascript'),
     path: returnArg('socket') // '/tmp/redis.sock'
 };
 var small_str, large_str, small_buf, large_buf, very_large_str, very_large_buf, mget_array;
@@ -56,7 +55,6 @@ function Test (args) {
     this.max_pipeline = +pipeline;
     this.batch_pipeline = this.args.batch || 0;
     this.client_options = args.client_options || {};
-    this.client_options.parser = client_options.parser;
     this.client_options.connect_timeout = 1000;
     if (client_options.path) {
         this.client_options.path = client_options.path;
@@ -90,7 +88,6 @@ Test.prototype.new_client = function (id) {
                 'clients: ' + num_clients +
                 ', NodeJS: ' + process.versions.node +
                 ', Redis: ' + new_client.server_info.redis_version +
-                ', parser: ' + client_options.parser +
                 ', connected by: ' + (client_options.path ? 'socket' : 'tcp')
             );
             versions_logged = true;

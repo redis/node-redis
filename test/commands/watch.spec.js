@@ -7,11 +7,11 @@ var redis = config.redis;
 
 describe("The 'watch' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
         var watched = 'foobar';
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client;
 
             beforeEach(function (done) {

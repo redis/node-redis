@@ -8,9 +8,9 @@ var intercept = require('intercept-stdout');
 
 describe("The 'blpop' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client;
             var bclient;
 
