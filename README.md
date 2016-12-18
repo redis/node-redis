@@ -51,8 +51,6 @@ This will display:
     mjr:~/work/node_redis (master)$
 
 Note that the API is entirely asynchronous. To get data back from the server, you'll need to use a callback.
-From v.2.6 on the API supports camelCase and snake_case and all options / variables / events etc. can be used either way.
-It is recommended to use camelCase as this is the default for the Node.js landscape.
 
 ### Promises
 
@@ -180,50 +178,50 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
 | url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
-| string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). |
-| return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
-| detect_buffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
-| socket_keepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket. |
-| no_ready_check | false |  When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check. |
-| enable_offline_queue |  true | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enable_offline_queue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified. |
-| connect_timeout | 60000 | Setting `connect_timeout` limits the total time for the client to connect the very first time. The value is provided in milliseconds and is counted from the moment a new client is created. Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1 minute has elapsed. |
-| retry_unfulfilled_commands | false | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands. |
-| password | null | If set, client will run Redis auth command on connect. Alias `auth_pass` __Note__ `node_redis` < 2.5 must use `auth_pass` |
+| stringNumbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). |
+| returnBuffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
+| detectBuffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `returnBuffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
+| socketKeepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket. |
+| noReadyCheck | false |  When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `noReadyCheck` to `true` will inhibit this check. |
+| enableOfflineQueue |  true | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enableOfflineQueue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified. |
+| connectTimeout | 60000 | Setting `connectTimeout` limits the total time for the client to connect the very first time. The value is provided in milliseconds and is counted from the moment a new client is created. Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1 minute has elapsed. |
+| retryUnfulfilledCommands | false | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands. |
+| password | null | If set, client will run Redis auth command on connect. |
 | db | null | If set, client will run Redis `select` command on connect. |
 | family | IPv4 | You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules on how to use the family type. |
-| disable_resubscribing | false | If set to `true`, a client won't resubscribe after disconnecting. |
-| rename_commands | null | Passing an object with renamed commands to use instead of the original functions. For example, if you renamed the command KEYS to "DO-NOT-USE" then the rename_commands object would be: `{ KEYS : "DO-NOT-USE" }` . See the [Redis security topics](http://redis.io/topics/security) for more info. |
+| disableResubscribing | false | If set to `true`, a client won't resubscribe after disconnecting. |
+| renameCommands | null | Passing an object with renamed commands to use instead of the original functions. For example, if you renamed the command KEYS to "DO-NOT-USE" then the rename_commands object would be: `{ KEYS : "DO-NOT-USE" }`. See the [Redis security topics](http://redis.io/topics/security) for more info. |
 | tls | null | An object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback) to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel). |
 | prefix | null | A string used to prefix all used keys (e.g. `namespace:test`). Please be aware that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed. |
-| retry_strategy | function | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
+| retryStrategy | function | A function that receives an options object as parameter including the retry `attempt`, the `totalRetryTime` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `timesConnected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
 
 ```js
 var redis = require("redis");
 var client = redis.createClient({detect_buffers: true});
 
-client.set("foo_rand000000000000", "OK");
+client.set("fooRand000000000000", "OK");
 
 // This will return a JavaScript String
-client.get("foo_rand000000000000", function (err, reply) {
+client.get("fooRand000000000000", function (err, reply) {
     console.log(reply.toString()); // Will print `OK`
 });
 
 // This will return a Buffer since original key is specified as a Buffer
-client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
+client.get(new Buffer("fooRand000000000000"), function (err, reply) {
     console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
 });
 client.quit();
 ```
 
-retry_strategy example
+retryStrategy example
 ```js
 var client = redis.createClient({
-    retry_strategy: function (options) {
+    retryStrategy: function (options) {
         if (options.error && options.error.code === 'ECONNREFUSED') {
             // End reconnecting on a specific error and flush all commands with a individual error
             return new Error('The server refused the connection');
         }
-        if (options.total_retry_time > 1000 * 60 * 60) {
+        if (options.totalRetryTime > 1000 * 60 * 60) {
             // End reconnecting after a specific timeout and flush all commands with a individual error
             return new Error('Retry time exhausted');
         }
@@ -269,13 +267,13 @@ want to do this:
 var redis = require("redis"),
     client = redis.createClient();
 
-client.set("foo_rand000000000000", "some fantastic value", function (err, reply) {
+client.set("fooRand000000000000", "some fantastic value", function (err, reply) {
     // This will either result in an error (flush parameter is set to true)
     // or will silently fail and this callback will not be called at all (flush set to false)
     console.log(err);
 });
 client.end(true); // No further commands will be processed
-client.get("foo_rand000000000000", function (err, reply) {
+client.get("fooRand000000000000", function (err, reply) {
     console.log(err); // => 'The connection has already been closed.'
 });
 ```
@@ -407,7 +405,7 @@ channel on the other:
 ```js
 var redis = require("redis");
 var sub = redis.createClient(), pub = redis.createClient();
-var msg_count = 0;
+var msgCount = 0;
 
 sub.on("subscribe", function (channel, count) {
     pub.publish("a nice channel", "I am sending a message.");
@@ -417,8 +415,8 @@ sub.on("subscribe", function (channel, count) {
 
 sub.on("message", function (channel, message) {
     console.log("sub channel " + channel + ": " + message);
-    msg_count += 1;
-    if (msg_count === 3) {
+    msgCount += 1;
+    if (msgCount === 3) {
         sub.unsubscribe();
         sub.quit();
         pub.quit();
@@ -449,15 +447,15 @@ Client will emit `pmessage` for every message received that matches an active su
 Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
 name as `channel`, and the message as `message`.
 
-### "message_buffer" (channel, message)
+### "messageBuffer" (channel, message)
 
 This is the same as the `message` event with the exception, that it is always going to emit a buffer.
-If you listen to the `message` event at the same time as the `message_buffer`, it is always going to emit a string.
+If you listen to the `message` event at the same time as the `messageBuffer`, it is always going to emit a string.
 
-### "pmessage_buffer" (pattern, channel, message)
+### "pmessageBuffer" (pattern, channel, message)
 
 This is the same as the `pmessage` event with the exception, that it is always going to emit a buffer.
-If you listen to the `pmessage` event at the same time as the `pmessage_buffer`, it is always going to emit a string.
+If you listen to the `pmessage` event at the same time as the `pmessageBuffer`, it is always going to emit a string.
 
 ### "subscribe" (channel, count)
 
@@ -563,7 +561,7 @@ client.multi([
 });
 ```
 
-### Multi.exec_atomic([callback])
+### Multi.execAtomic([callback])
 
 Identical to Multi.exec but with the difference that executing a single command will not use transactions.
 
@@ -595,7 +593,7 @@ client.monitor(function (err, res) {
 });
 client.set('foo', 'bar');
 
-client.on("monitor", function (time, args, raw_reply) {
+client.on("monitor", function (time, args, rawReply) {
     console.log(time + ": " + args); // 1458910076.446514:['set', 'foo', 'bar']
 });
 ```
@@ -604,16 +602,16 @@ client.on("monitor", function (time, args, raw_reply) {
 
 Some other things you might like to know about.
 
-## client.server_info
+## client.serverInfo
 
-After the ready probe completes, the results from the INFO command are saved in the `client.server_info`
+After the ready probe completes, the results from the INFO command are saved in the `client.serverInfo`
 object.
 
 The `versions` key contains an array of the elements of the version string for easy comparison.
 
-    > client.server_info.redis_version
+    > client.serverInfo.redis_version
     '2.3.0'
-    > client.server_info.versions
+    > client.serverInfo.versions
     [ 2, 3, 0 ]
 
 ## Multi-word commands
@@ -657,11 +655,11 @@ non-blocking ones may be queued up until after the blocking ones finish.
 Another reason to use duplicate() is when multiple DBs on the same server are
 accessed via the redis SELECT command.  Each DB could use its own connection.
 
-## client.send_command(command_name[, [args][, callback]])
+## client.sendCommand(command_name[, [args][, callback]])
 
 All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
-you can use `send_command()` to send arbitrary commands to Redis.
-The command_name has to be lower case.
+you can use `sendCommand()` to send arbitrary commands to Redis.
+The commandName has to be lower case.
 
 All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
 
@@ -669,12 +667,12 @@ All commands are sent as multi-bulk commands. `args` can either be an Array of a
 
 Boolean tracking the state of the connection to the Redis server.
 
-## client.command_queue_length
+## client.commandQueue.length
 
 The number of commands that have been sent to the Redis server but not yet replied to. You can use this to
 enforce some kind of maximum queue depth for commands while connected.
 
-## client.offline_queue_length
+## client.offlineQueue.length
 
 The number of commands that have been queued up for a future connection. You can use this to enforce
 some kind of maximum queue depth for pre-connection commands.
