@@ -5,7 +5,7 @@ var client1 = redis.createClient();
 var client2 = redis.createClient();
 var client3 = redis.createClient();
 var client4 = redis.createClient();
-var msg_count = 0;
+var msgCount = 0;
 
 client1.on('psubscribe', function (pattern, count) {
     console.log('client1 psubscribed to ' + pattern + ', ' + count + ' total subscriptions');
@@ -24,8 +24,8 @@ client1.on('punsubscribe', function (pattern, count) {
 
 client1.on('pmessage', function (pattern, channel, message) {
     console.log('(' + pattern + ') client1 received message on ' + channel + ': ' + message);
-    msg_count += 1;
-    if (msg_count === 3) {
+    msgCount += 1;
+    if (msgCount === 3) {
         client1.punsubscribe();
     }
 });

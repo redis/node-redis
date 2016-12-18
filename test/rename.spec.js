@@ -25,7 +25,7 @@ describe('rename commands', function () {
             beforeEach(function (done) {
                 if (helper.redisProcess().spawnFailed()) return done();
                 client = redis.createClient({
-                    rename_commands: {
+                    renameCommands: {
                         set: '807081f5afa96845a02816a28b7258c3',
                         GETRANGE: '9e3102b15cf231c4e9e940f284744fe0'
                     }
@@ -120,7 +120,7 @@ describe('rename commands', function () {
 
                 client.end(true);
                 client = redis.createClient({
-                    rename_commands: {
+                    renameCommands: {
                         set: '807081f5afa96845a02816a28b7258c3'
                     },
                     prefix: 'baz'

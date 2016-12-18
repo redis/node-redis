@@ -5,11 +5,11 @@ var config = require('./lib/config');
 var helper = require('./helper');
 var redis = config.redis;
 
-describe('detect_buffers', function () {
+describe('detectBuffers', function () {
 
     var client;
     var args = config.configureClient('localhost', {
-        detect_buffers: true
+        detectBuffers: true
     });
 
     beforeEach(function (done) {

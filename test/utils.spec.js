@@ -28,25 +28,6 @@ describe('utils.js', function () {
             assert.strictEqual(Object.keys(b).length, 0);
         });
 
-        it('transform camelCase options to snake_case and add the camel_case option', function () {
-            var a = utils.clone({
-                optionOneTwo: true,
-                retryStrategy: false,
-                nested: {
-                    onlyContainCamelCaseOnce: true
-                },
-                tls: {
-                    rejectUnauthorized: true
-                }
-            });
-            assert.strictEqual(Object.keys(a).length, 5);
-            assert.strictEqual(a.option_one_two, true);
-            assert.strictEqual(a.retry_strategy, false);
-            assert.strictEqual(a.camel_case, true);
-            assert.strictEqual(a.tls.rejectUnauthorized, true);
-            assert.strictEqual(Object.keys(a.nested).length, 1);
-        });
-
         it('throws on circular data', function () {
             try {
                 var a = {};
@@ -59,36 +40,36 @@ describe('utils.js', function () {
         });
     });
 
-    describe('reply_in_order', function () {
+    describe('replyInOrder', function () {
 
-        var err_count = 0;
-        var res_count = 0;
+        var errCount = 0;
+        var resCount = 0;
         var emitted = false;
         var clientMock = {
             emit: function () { emitted = true; },
-            offline_queue: new Queue(),
-            command_queue: new Queue()
+            offlineQueue: new Queue(),
+            commandQueue: new Queue()
         };
-        var create_command_obj = function () {
+        var createCommandObj = function () {
             return {
                 callback: function (err, res) {
-                    if (err) err_count++;
-                    else res_count++;
+                    if (err) errCount++;
+                    else resCount++;
                 }
             };
         };
 
         beforeEach(function () {
-            clientMock.offline_queue.clear();
-            clientMock.command_queue.clear();
-            err_count = 0;
-            res_count = 0;
+            clientMock.offlineQueue.clear();
+            clientMock.commandQueue.clear();
+            errCount = 0;
+            resCount = 0;
             emitted = false;
         });
 
         it('no elements in either queue. Reply in the next tick with callback', function (done) {
             var called = false;
-            utils.reply_in_order(clientMock, function () {
+            utils.replyInOrder(clientMock, function () {
                 called = true;
                 done();
             }, null, null);
@@ -97,7 +78,7 @@ describe('utils.js', function () {
 
         it('no elements in either queue. Reply in the next tick without callback', function (done) {
             assert(!emitted);
-            utils.reply_in_order(clientMock, null, new Error('tada'));
+            utils.replyInOrder(clientMock, null, new Error('tada'));
             assert(!emitted);
             setTimeout(function () {
                 assert(emitted);
@@ -105,48 +86,48 @@ describe('utils.js', function () {
             }, 1);
         });
 
-        it('elements in the offline queue. Reply after the offline queue is empty and respect the command_obj callback', function (done) {
-            clientMock.offline_queue.push(create_command_obj(), create_command_obj());
-            utils.reply_in_order(clientMock, function () {
-                assert.strictEqual(clientMock.offline_queue.length, 0);
-                assert.strictEqual(res_count, 2);
+        it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj callback', function (done) {
+            clientMock.offlineQueue.push(createCommandObj(), createCommandObj());
+            utils.replyInOrder(clientMock, function () {
+                assert.strictEqual(clientMock.offlineQueue.length, 0);
+                assert.strictEqual(resCount, 2);
                 done();
             }, null, null);
-            while (clientMock.offline_queue.length) clientMock.offline_queue.shift().callback(null, 'foo');
+            while (clientMock.offlineQueue.length) clientMock.offlineQueue.shift().callback(null, 'foo');
         });
 
-        it('elements in the offline queue. Reply after the offline queue is empty and respect the command_obj error emit', function (done) {
-            clientMock.command_queue.push({}, create_command_obj(), {});
-            utils.reply_in_order(clientMock, function () {
-                assert.strictEqual(clientMock.command_queue.length, 0);
+        it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj error emit', function (done) {
+            clientMock.commandQueue.push({}, createCommandObj(), {});
+            utils.replyInOrder(clientMock, function () {
+                assert.strictEqual(clientMock.commandQueue.length, 0);
                 assert(emitted);
-                assert.strictEqual(err_count, 1);
-                assert.strictEqual(res_count, 0);
+                assert.strictEqual(errCount, 1);
+                assert.strictEqual(resCount, 0);
                 done();
             }, null, null);
-            while (clientMock.command_queue.length) {
-                var command_obj = clientMock.command_queue.shift();
-                if (command_obj.callback) {
-                    command_obj.callback(new Error('tada'));
+            while (clientMock.commandQueue.length) {
+                var commandObj = clientMock.commandQueue.shift();
+                if (commandObj.callback) {
+                    commandObj.callback(new Error('tada'));
                 }
             }
         });
 
-        it('elements in the offline queue and the command_queue. Reply all other commands got handled respect the command_obj', function (done) {
-            clientMock.command_queue.push(create_command_obj(), create_command_obj());
-            clientMock.offline_queue.push(create_command_obj(), {});
-            utils.reply_in_order(clientMock, function (err, res) {
-                assert.strictEqual(clientMock.command_queue.length, 0);
-                assert.strictEqual(clientMock.offline_queue.length, 0);
+        it('elements in the offline queue and the commandQueue. Reply all other commands got handled respect the commandObj', function (done) {
+            clientMock.commandQueue.push(createCommandObj(), createCommandObj());
+            clientMock.offlineQueue.push(createCommandObj(), {});
+            utils.replyInOrder(clientMock, function (err, res) {
+                assert.strictEqual(clientMock.commandQueue.length, 0);
+                assert.strictEqual(clientMock.offlineQueue.length, 0);
                 assert(!emitted);
-                assert.strictEqual(res_count, 3);
+                assert.strictEqual(resCount, 3);
                 done();
             }, null, null);
-            while (clientMock.offline_queue.length) {
-                clientMock.command_queue.push(clientMock.offline_queue.shift());
+            while (clientMock.offlineQueue.length) {
+                clientMock.commandQueue.push(clientMock.offlineQueue.shift());
             }
-            while (clientMock.command_queue.length) {
-                clientMock.command_queue.shift().callback(null, 'hello world');
+            while (clientMock.commandQueue.length) {
+                clientMock.commandQueue.shift().callback(null, 'hello world');
             }
         });
     });

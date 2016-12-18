@@ -39,9 +39,9 @@ describe("The 'srem' method", function () {
                 });
             });
 
-            it('allows multiple values to be removed with send_command', function (done) {
-                client.send_command('sadd', ['set0', 'member0', 'member1', 'member2'], helper.isNumber(3));
-                client.send_command('srem', ['set0', 'member1', 'member2'], helper.isNumber(2));
+            it('allows multiple values to be removed with sendCommand', function (done) {
+                client.sendCommand('sadd', ['set0', 'member0', 'member1', 'member2'], helper.isNumber(3));
+                client.sendCommand('srem', ['set0', 'member1', 'member2'], helper.isNumber(2));
                 client.smembers('set0', function (err, res) {
                     assert.strictEqual(res.length, 1);
                     assert.ok(~res.indexOf('member0'));

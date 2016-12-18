@@ -1,4 +1,4 @@
-// spawned by the unref tests in node_redis.spec.js.
+// spawned by the unref tests in nodeRedis.spec.js.
 // when configured, unref causes the client to exit
 // as soon as there are no outstanding commands.
 'use strict';

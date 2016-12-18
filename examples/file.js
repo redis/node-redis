@@ -4,7 +4,7 @@
 
 var redis = require('redis');
 var client = redis.createClient({
-    return_buffers: true
+    returnBuffers: true
 });
 var fs = require('fs');
 var assert = require('assert');

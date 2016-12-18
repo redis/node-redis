@@ -22,8 +22,8 @@ describe("The 'multi' method", function () {
             var end = helper.callFuncAfter(done, 100);
 
             // Some random object created from http://beta.json-generator.com/
-            var test_obj = {
-                '_id': '5642c4c33d4667c4a1fefd99', 'index': 0, 'guid': '5baf1f1c-7621-41e7-ae7a-f8c6f3199b0f', 'isActive': true,
+            var testObj = {
+                'Id': '5642c4c33d4667c4a1fefd99', 'index': 0, 'guid': '5baf1f1c-7621-41e7-ae7a-f8c6f3199b0f', 'isActive': true,
                 'balance': '$1,028.63', 'picture': 'http://placehold.it/32x32', 'age': 31, 'eyeColor': 'green', 'name': {'first': 'Shana', 'last': 'Long'},
                 'company': 'MANGLO', 'email': 'shana.long@manglo.us', 'phone': '+1 (926) 405-3105', 'address': '747 Dank Court, Norfolk, Ohio, 1112',
                 'about': 'Eu pariatur in nisi occaecat enim qui consequat nostrud cupidatat id. ' +
@@ -38,14 +38,14 @@ describe("The 'multi' method", function () {
                     return;
                 }
                 // To demonstrate a big payload for hash set field values, let's create a big array
-                var test_arr = [];
+                var testArr = [];
                 var i = 0;
                 for (; i < 80; i++) {
-                    var new_obj = JSON.parse(JSON.stringify(test_obj));
-                    test_arr.push(new_obj);
+                    var newObj = JSON.parse(JSON.stringify(testObj));
+                    testArr.push(newObj);
                 }
 
-                var json = JSON.stringify(test_arr);
+                var json = JSON.stringify(testArr);
                 zlib.deflate(new Buffer(json), function (err, buffer) {
                     if (err) {
                         done(err);
@@ -165,13 +165,13 @@ describe("The 'multi' method", function () {
                         });
                         // Check if Redis still has the error
                         client.monitor();
-                        client.send_command('multi');
-                        client.send_command('set', ['foo', 'bar']);
-                        client.send_command('get', ['foo']);
-                        client.send_command('exec', function (err, res) {
+                        client.sendCommand('multi');
+                        client.sendCommand('set', ['foo', 'bar']);
+                        client.sendCommand('get', ['foo']);
+                        client.sendCommand('exec', function (err, res) {
                             // res[0] is going to be the monitor result of set
                             // res[1] is going to be the result of the set command
-                            assert(utils.monitor_regex.test(res[0]));
+                            assert(utils.monitorRegex.test(res[0]));
                             assert.strictEqual(res[1], 'OK');
                             assert.strictEqual(res.length, 2);
                             client.end(false);
@@ -184,7 +184,7 @@ describe("The 'multi' method", function () {
                     multi1.set('m1', '123');
                     multi1.get('m1');
                     multi1.exec(done);
-                    assert.strictEqual(client.offline_queue.length, 4);
+                    assert.strictEqual(client.offlineQueue.length, 4);
                 });
 
                 it('executes a pipelined multi properly after a reconnect in combination with the offline queue', function (done) {
@@ -328,15 +328,15 @@ describe("The 'multi' method", function () {
                     multi1.exec(function () {
                         // Redis 2.6.5+ will abort transactions with errors
                         // see: http://redis.io/topics/transactions
-                        var multibar_expected = 1;
-                        var multifoo_expected = 1;
+                        var multibarExpected = 1;
+                        var multifooExpected = 1;
                         // Confirm that the previous command, while containing an error, still worked.
                         multi2 = client.multi();
-                        multi2.incr('multibar', helper.isNumber(multibar_expected));
-                        multi2.incr('multifoo', helper.isNumber(multifoo_expected));
+                        multi2.incr('multibar', helper.isNumber(multibarExpected));
+                        multi2.incr('multifoo', helper.isNumber(multifooExpected));
                         multi2.exec(function (err, replies) {
-                            assert.strictEqual(multibar_expected, replies[0]);
-                            assert.strictEqual(multifoo_expected, replies[1]);
+                            assert.strictEqual(multibarExpected, replies[0]);
+                            assert.strictEqual(multifooExpected, replies[1]);
                             return done();
                         });
                     });
@@ -608,20 +608,20 @@ describe("The 'multi' method", function () {
                     client.get('foo', helper.isString('bar', done));
                 });
 
-                it('should not use a transaction with exec_atomic if no command is used', function () {
+                it('should not use a transaction with execAtomic if no command is used', function () {
                     var multi = client.multi();
                     var test = false;
-                    multi.exec_batch = function () {
+                    multi.execBatch = function () {
                         test = true;
                     };
-                    multi.exec_atomic();
+                    multi.execAtomic();
                     assert(test);
                 });
 
-                it('should not use a transaction with exec_atomic if only one command is used', function () {
+                it('should not use a transaction with execAtomic if only one command is used', function () {
                     var multi = client.multi();
                     var test = false;
-                    multi.exec_batch = function () {
+                    multi.execBatch = function () {
                         test = true;
                     };
                     multi.set('baz', 'binary');
@@ -629,15 +629,15 @@ describe("The 'multi' method", function () {
                     assert(test);
                 });
 
-                it('should use transaction with exec_atomic and more than one command used', function (done) {
+                it('should use transaction with execAtomic and more than one command used', function (done) {
                     var multi = client.multi();
                     var test = false;
-                    multi.exec_batch = function () {
+                    multi.execBatch = function () {
                         test = true;
                     };
                     multi.set('baz', 'binary');
                     multi.get('baz');
-                    multi.exec_atomic(done);
+                    multi.execAtomic(done);
                     assert(!test);
                 });
 
@@ -695,23 +695,23 @@ describe("The 'multi' method", function () {
                     // subscribe => enters subscribe mode and this does not work in combination with exec (the same for psubscribe, unsubscribe...)
                     //
 
-                    // Make sure send_command is not called
-                    client.send_command = function () {
+                    // Make sure sendCommand is not called
+                    client.sendCommand = function () {
                         throw new Error('failed');
                     };
 
-                    assert.strictEqual(client.selected_db, undefined);
+                    assert.strictEqual(client.selectedDb, undefined);
                     var multi = client.multi();
                     multi.select(5, function (err, res) {
-                        assert.strictEqual(client.selected_db, 5);
+                        assert.strictEqual(client.selectedDb, 5);
                         assert.strictEqual(res, 'OK');
-                        assert.notDeepEqual(client.server_info.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                        assert.notDeepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
                     });
                     // multi.client('reply', 'on', helper.isString('OK')); // Redis v.3.2
                     multi.set('foo', 'bar', helper.isString('OK'));
                     multi.info(function (err, res) {
                         assert.strictEqual(res.indexOf('# Server\r\nredis_version:'), 0);
-                        assert.deepEqual(client.server_info.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                        assert.deepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
                     });
                     multi.get('foo', helper.isString('bar'));
                     multi.exec(function (err, res) {

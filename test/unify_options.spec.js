@@ -122,9 +122,9 @@ describe('createClient options', function () {
             });
             unhookIntercept();
             assert.strictEqual(text,
-                'node_redis: WARNING: You passed the db option twice!\n' +
-                'node_redis: WARNING: You passed the port option twice!\n' +
-                'node_redis: WARNING: You passed the password option twice!\n'
+                'nodeRedis: WARNING: You passed the db option twice!\n' +
+                'nodeRedis: WARNING: You passed the port option twice!\n' +
+                'nodeRedis: WARNING: You passed the password option twice!\n'
             );
             assert.strictEqual(Object.keys(options).length, 5);
             assert.strictEqual(options.option.length, 3);
@@ -162,7 +162,7 @@ describe('createClient options', function () {
             unhookIntercept();
             assert.strictEqual(Object.keys(options).length, 1);
             assert.strictEqual(options.host, 'abc');
-            assert.strictEqual(text, 'node_redis: WARNING: You passed "http" as protocol instead of the "redis" protocol!\n');
+            assert.strictEqual(text, 'nodeRedis: WARNING: You passed "http" as protocol instead of the "redis" protocol!\n');
         });
     });
 

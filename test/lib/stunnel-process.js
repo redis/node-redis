@@ -16,15 +16,15 @@ function once (cb) {
     };
 }
 
-function StunnelProcess (conf_dir) {
+function StunnelProcess (confDir) {
     EventEmitter.call(this);
 
     // set up an stunnel to redis; edit the conf file to include required absolute paths
-    var conf_file = path.resolve(conf_dir, 'stunnel.conf');
-    var conf_text = fs.readFileSync(conf_file + '.template').toString().replace(/__dirname/g, conf_dir);
+    var confFile = path.resolve(confDir, 'stunnel.conf');
+    var confText = fs.readFileSync(confFile + '.template').toString().replace(/__dirname,/g, confDir);
 
-    fs.writeFileSync(conf_file, conf_text);
-    var stunnel = this.stunnel = spawn('stunnel', [conf_file]);
+    fs.writeFileSync(confFile, confText);
+    var stunnel = this.stunnel = spawn('stunnel', [confFile]);
 
     // handle child process events, and failure to set up tunnel
     var self = this;
@@ -68,9 +68,9 @@ StunnelProcess.prototype.stop = function (done) {
 };
 
 module.exports = {
-    start: function (done, conf_dir) {
+    start: function (done, confDir) {
         done = once(done);
-        var stunnel = new StunnelProcess(conf_dir);
+        var stunnel = new StunnelProcess(confDir);
         stunnel.once('error', done.bind(done));
         stunnel.once('started', done.bind(done, null, stunnel));
     },

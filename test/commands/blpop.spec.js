@@ -23,7 +23,7 @@ describe("The 'blpop' method", function () {
 
             it('pops value immediately if list contains values', function (done) {
                 bclient = redis.createClient.apply(null, args);
-                redis.debug_mode = true;
+                redis.debugMode = true;
                 var text = '';
                 var unhookIntercept = intercept(function (data) {
                     text += data;
@@ -32,7 +32,7 @@ describe("The 'blpop' method", function () {
                 client.rpush('blocking list', 'initial value', helper.isNumber(1));
                 unhookIntercept();
                 assert(/^Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n$/.test(text));
-                redis.debug_mode = false;
+                redis.debugMode = false;
                 bclient.blpop('blocking list', 0, function (err, value) {
                     assert.strictEqual(value[0], 'blocking list');
                     assert.strictEqual(value[1], 'initial value');

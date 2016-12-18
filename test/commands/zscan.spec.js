@@ -28,7 +28,7 @@ describe("The 'zscan' method", function () {
                 for (var i = 0; i < 500; i++) {
                     hash['key_' + i] = 'value_' + i;
                     set.push('member_' + i);
-                    zset.push(i, 'z_member_' + i);
+                    zset.push(i, 'zMember_' + i);
                 }
                 client.hmset('hash:1', hash);
                 client.sadd('set:1', set);

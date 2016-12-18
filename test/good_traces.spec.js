@@ -49,7 +49,7 @@ describe('stack traces', function () {
     // This is always going to return good stack traces
     it('should always return good stack traces for rejected offline commands', function (done) {
         var client = redis.createClient({
-            enable_offline_queue: false
+            enableOfflineQueue: false
         });
         client.set('foo', function (err, res) {
             assert(/good_traces.spec.js/.test(err.stack));

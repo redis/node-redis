@@ -5,29 +5,29 @@ var config = require('./lib/config');
 var helper = require('./helper');
 var redis = config.redis;
 
-describe('return_buffers', function () {
+describe('returnBuffers', function () {
 
     helper.allTests(function (ip, basicArgs) {
 
         describe('using ' + ip, function () {
             var client;
             var args = config.configureClient(ip, {
-                return_buffers: true,
-                detect_buffers: true
+                returnBuffers: true,
+                detectBuffers: true
             });
 
             beforeEach(function (done) {
                 client = redis.createClient.apply(null, args);
                 var i = 1;
-                if (args[2].detect_buffers) {
-                    // Test if detect_buffer option was deactivated
-                    assert.strictEqual(client.options.detect_buffers, false);
-                    args[2].detect_buffers = false;
+                if (args[2].detectBuffers) {
+                    // Test if detectBuffer option was deactivated
+                    assert.strictEqual(client.options.detectBuffers, false);
+                    args[2].detectBuffers = false;
                     i++;
                 }
                 var end = helper.callFuncAfter(done, i);
                 client.on('warning', function (msg) {
-                    assert.strictEqual(msg, 'WARNING: You activated return_buffers and detect_buffers at the same time. The return value is always going to be a buffer.');
+                    assert.strictEqual(msg, 'WARNING: You activated returnBuffers and detectBuffers at the same time. The return value is always going to be a buffer.');
                     end();
                 });
                 client.once('error', done);
@@ -244,7 +244,7 @@ describe('return_buffers', function () {
                 var message = new Buffer('test message');
 
                 var args = config.configureClient(ip, {
-                    return_buffers: true
+                    returnBuffers: true
                 });
 
                 beforeEach(function (done) {

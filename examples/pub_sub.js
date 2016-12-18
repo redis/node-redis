@@ -2,7 +2,7 @@
 
 var redis = require('redis');
 var client1 = redis.createClient();
-var msg_count = 0;
+var msgCount = 0;
 var client2 = redis.createClient();
 
 // Most clients probably don't do much on 'subscribe'. This example uses it to coordinate things within one program.
@@ -25,8 +25,8 @@ client1.on('unsubscribe', function (channel, count) {
 
 client1.on('message', function (channel, message) {
     console.log('client1 channel ' + channel + ': ' + message);
-    msg_count += 1;
-    if (msg_count === 3) {
+    msgCount += 1;
+    if (msgCount === 3) {
         client1.unsubscribe();
     }
 });

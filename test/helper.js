@@ -6,7 +6,7 @@ var config = require('./lib/config');
 var RedisProcess = require('./lib/redis-process');
 var StunnelProcess = require('./lib/stunnel-process');
 var rp;
-var stunnel_process;
+var stunnelProcess;
 
 function startRedis (conf, done, port) {
     RedisProcess.start(function (err, _rp) {
@@ -46,15 +46,15 @@ module.exports = {
     },
     startRedis: startRedis,
     stopStunnel: function (done) {
-        if (stunnel_process) {
-            StunnelProcess.stop(stunnel_process, done);
+        if (stunnelProcess) {
+            StunnelProcess.stop(stunnelProcess, done);
         } else {
             done();
         }
     },
     startStunnel: function (done) {
-        StunnelProcess.start(function (err, _stunnel_process) {
-            stunnel_process = _stunnel_process;
+        StunnelProcess.start(function (err, _stunnelProcess) {
+            stunnelProcess = _stunnelProcess;
             return done(err);
         }, path.resolve(__dirname, './conf'));
     },
@@ -138,18 +138,18 @@ module.exports = {
             if (done) done();
         };
     },
-    serverVersionAtLeast: function (connection, desired_version) {
+    serverVersionAtLeast: function (connection, desiredVersion) {
         // Wait until a connection has established (otherwise a timeout is going to be triggered at some point)
-        if (Object.keys(connection.server_info).length === 0) {
+        if (Object.keys(connection.serverInfo).length === 0) {
             throw new Error('Version check not possible as the client is not yet ready or did not expose the version');
         }
-        // Return true if the server version >= desired_version
-        var version = connection.server_info.versions;
+        // Return true if the server version >= desiredVersion
+        var version = connection.serverInfo.versions;
         for (var i = 0; i < 3; i++) {
-            if (version[i] > desired_version[i]) {
+            if (version[i] > desiredVersion[i]) {
                 return true;
             }
-            if (version[i] < desired_version[i]) {
+            if (version[i] < desiredVersion[i]) {
                 if (this.skip) this.skip();
                 return false;
             }
@@ -166,9 +166,9 @@ module.exports = {
             protocols.push('IPv6', '/tmp/redis.sock');
         }
         var options = [{
-            detect_buffers: true
+            detectBuffers: true
         }, {
-            detect_buffers: false
+            detectBuffers: false
         }];
         options.forEach(function (options) {
             var strOptions = '';
@@ -209,7 +209,7 @@ module.exports = {
     },
     killConnection: function (client) {
         // Change the connection option to a non existing one and destroy the stream
-        client.connection_options = {
+        client.connectionOptions = {
             port: 65535,
             host: '127.0.0.1',
             family: 4

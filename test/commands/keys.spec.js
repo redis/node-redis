@@ -31,22 +31,22 @@ describe("The 'keys' method", function () {
             });
 
             it('handles a large packet size', function (done) {
-                var keys_values = [];
+                var keysValues = [];
 
                 for (var i = 0; i < 200; i++) {
-                    var key_value = [
+                    var keyValue = [
                         'multibulk:' + crypto.randomBytes(256).toString('hex'), // use long strings as keys to ensure generation of large packet
                         'test val ' + i
                     ];
-                    keys_values.push(key_value);
+                    keysValues.push(keyValue);
                 }
 
-                client.mset(keys_values.reduce(function (a, b) {
+                client.mset(keysValues.reduce(function (a, b) {
                     return a.concat(b);
                 }), helper.isString('OK'));
 
                 client.keys('multibulk:*', function (err, results) {
-                    assert.deepEqual(keys_values.map(function (val) {
+                    assert.deepEqual(keysValues.map(function (val) {
                         return val[0];
                     }).sort(), results.sort());
                     return done(err);

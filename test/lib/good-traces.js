@@ -1,4 +1,4 @@
-// Spawned by the good_stacks.spec.js tests
+// Spawned by the goodStacks.spec.js tests
 'use strict';
 
 var assert = require('assert');

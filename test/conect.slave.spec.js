@@ -45,7 +45,7 @@ describe('master slave sync', function () {
         var firstInfo;
         slave = redis.createClient({
             port: port,
-            retry_strategy: function (options) {
+            retryStrategy: function (options) {
                 // Try to reconnect in very small intervals to catch the master_link_status down before the sync completes
                 return 10;
             }
@@ -57,7 +57,7 @@ describe('master slave sync', function () {
             i++;
             tmp(err, res);
             if (!firstInfo || Object.keys(firstInfo).length === 0) {
-                firstInfo = slave.server_info;
+                firstInfo = slave.serverInfo;
             }
         };
 
@@ -68,7 +68,7 @@ describe('master slave sync', function () {
         var end = helper.callFuncAfter(done, 2);
 
         slave.on('ready', function () {
-            assert.strictEqual(this.server_info.master_link_status, 'up');
+            assert.strictEqual(this.serverInfo.master_link_status, 'up');
             assert.strictEqual(firstInfo.master_link_status, 'down');
             assert(i > 1);
             this.get('foo300', function (err, res) {

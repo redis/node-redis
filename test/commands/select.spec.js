@@ -46,10 +46,10 @@ describe("The 'select' method", function () {
 
                 it('changes the database and calls the callback', function (done) {
                     // default value of null means database 0 will be used.
-                    assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
+                    assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
                     var buffering = client.SELECT(1, function (err, res) {
                         helper.isNotError()(err, res);
-                        assert.strictEqual(client.selected_db, 1, 'db should be 1 after select');
+                        assert.strictEqual(client.selectedDb, 1, 'db should be 1 after select');
                         done();
                     });
                     assert(typeof buffering === 'boolean');
@@ -58,10 +58,10 @@ describe("The 'select' method", function () {
                 describe('and a callback is specified', function () {
                     describe('with a valid db index', function () {
                         it('selects the appropriate database', function (done) {
-                            assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
+                            assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
                             client.select(1, function (err) {
                                 assert.equal(err, null);
-                                assert.equal(client.selected_db, 1, 'we should have selected the new valid DB');
+                                assert.equal(client.selectedDb, 1, 'we should have selected the new valid DB');
                                 done();
                             });
                         });
@@ -69,7 +69,7 @@ describe("The 'select' method", function () {
 
                     describe('with an invalid db index', function () {
                         it('returns an error', function (done) {
-                            assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
+                            assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
                             client.select(9999, function (err) {
                                 assert.equal(err.code, 'ERR');
                                 assert.equal(err.message, 'ERR invalid DB index');
@@ -82,10 +82,10 @@ describe("The 'select' method", function () {
                 describe('and no callback is specified', function () {
                     describe('with a valid db index', function () {
                         it('selects the appropriate database', function (done) {
-                            assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
+                            assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
                             client.select(1);
                             setTimeout(function () {
-                                assert.equal(client.selected_db, 1, 'we should have selected the new valid DB');
+                                assert.equal(client.selectedDb, 1, 'we should have selected the new valid DB');
                                 done();
                             }, 25);
                         });
@@ -93,7 +93,7 @@ describe("The 'select' method", function () {
 
                     describe('with an invalid db index', function () {
                         it('emits an error when callback not provided', function (done) {
-                            assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
+                            assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
 
                             client.on('error', function (err) {
                                 assert.strictEqual(err.command, 'SELECT');
@@ -108,14 +108,14 @@ describe("The 'select' method", function () {
 
                 describe('reconnection occurs', function () {
                     it('selects the appropriate database after a reconnect', function (done) {
-                        assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
+                        assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
                         client.select(3);
                         client.set('foo', 'bar', function () {
                             client.stream.destroy();
                         });
                         client.once('ready', function () {
-                            assert.strictEqual(client.selected_db, 3);
-                            assert(typeof client.server_info.db3 === 'object');
+                            assert.strictEqual(client.selectedDb, 3);
+                            assert(typeof client.serverInfo.db3 === 'object');
                             done();
                         });
                     });

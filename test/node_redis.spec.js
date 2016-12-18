@@ -10,21 +10,21 @@ var fork = require('child_process').fork;
 var redis = config.redis;
 var client;
 
-describe('The node_redis client', function () {
+describe('The nodeRedis client', function () {
 
     it('individual commands sanity check', function (done) {
         // All commands should work the same in multi context or without
         // Therefor individual commands always have to be handled in both cases
         fs.readFile(path.resolve(__dirname, '../lib/individualCommands.js'), 'utf8', function (err, data) {
-            var client_prototype = data.match(/(\n| = )RedisClient\.prototype.[a-zA-Z_]+/g);
-            var multi_prototype = data.match(/(\n| = )Multi\.prototype\.[a-zA-Z_]+/g);
+            var clientPrototype = data.match(/(\n| = )RedisClient\.prototype.[a-zA-Z_]+/g);
+            var multiPrototype = data.match(/(\n| = )Multi\.prototype\.[a-zA-Z_]+/g);
             // Check that every entry RedisClient entry has a correspondend Multi entry
-            assert.strictEqual(client_prototype.filter(function (entry) {
-                return multi_prototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1;
+            assert.strictEqual(clientPrototype.filter(function (entry) {
+                return multiPrototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1;
             }).length, 4); // multi and batch are included too
-            assert.strictEqual(client_prototype.length, multi_prototype.length + 4);
+            assert.strictEqual(clientPrototype.length, multiPrototype.length + 4);
             // Check that all entries exist in uppercase and in lowercase variants
-            assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-z_]+/g).length * 2, client_prototype.length);
+            assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-z_]+/g).length * 2, clientPrototype.length);
             done();
         });
     });
@@ -46,13 +46,13 @@ describe('The node_redis client', function () {
         });
         client.once('reconnecting', function () {
             process.nextTick(function () {
-                assert.strictEqual(client.reply_parser.buffer, null);
+                assert.strictEqual(client.replyParser.buffer, null);
                 done();
             });
         });
         var partialInput = new Buffer('$100\r\nabcdef');
-        client.reply_parser.execute(partialInput);
-        assert.strictEqual(client.reply_parser.buffer.inspect(), partialInput.inspect());
+        client.replyParser.execute(partialInput);
+        assert.strictEqual(client.replyParser.buffer.inspect(), partialInput.inspect());
         client.stream.destroy();
     });
 
@@ -74,10 +74,10 @@ describe('The node_redis client', function () {
 
                 describe('duplicate', function () {
                     it('check if all options got copied properly', function (done) {
-                        client.selected_db = 2;
+                        client.selectedDb = 2;
                         var client2 = client.duplicate();
-                        assert.strictEqual(client.connectionId + 1, client2.connection_id);
-                        assert.strictEqual(client2.selected_db, 2);
+                        assert.strictEqual(client.connectionId + 1, client2.connectionId);
+                        assert.strictEqual(client2.selectedDb, 2);
                         assert(client.connected);
                         assert(!client2.connected);
                         for (var elem in client.options) {
@@ -99,16 +99,16 @@ describe('The node_redis client', function () {
 
                     it('check if all new options replaced the old ones', function (done) {
                         var client2 = client.duplicate({
-                            no_ready_check: true
+                            noReadyCheck: true
                         });
                         assert(client.connected);
                         assert(!client2.connected);
-                        assert.strictEqual(client.options.no_ready_check, undefined);
-                        assert.strictEqual(client2.options.no_ready_check, true);
+                        assert.strictEqual(client.options.noReadyCheck, undefined);
+                        assert.strictEqual(client2.options.noReadyCheck, true);
                         assert.notDeepEqual(client.options, client2.options);
                         for (var elem in client.options) {
                             if (client.options.hasOwnProperty(elem)) {
-                                if (elem !== 'no_ready_check') {
+                                if (elem !== 'noReadyCheck') {
                                     assert.strictEqual(client2.options[elem], client.options[elem]);
                                 }
                             }
@@ -173,12 +173,12 @@ describe('The node_redis client', function () {
                             str += str;
                         }
                         var called = false;
-                        var temp = client.write_buffers.bind(client);
-                        assert(client.fire_strings);
-                        client.write_buffers = function (data) {
+                        var temp = client.writeBuffers.bind(client);
+                        assert(client.fireStrings);
+                        client.writeBuffers = function (data) {
                             called = true;
                             // To increase write performance for strings the value is converted to a buffer
-                            assert(!client.fire_strings);
+                            assert(!client.fireStrings);
                             temp(data);
                         };
                         client.multi().set('foo', str).get('foo', function (err, res) {
@@ -188,46 +188,46 @@ describe('The node_redis client', function () {
                             assert.strictEqual(res[1], str);
                             done();
                         });
-                        assert(client.fire_strings);
+                        assert(client.fireStrings);
                     });
                 });
 
-                describe('send_command', function () {
+                describe('sendCommand', function () {
 
                     it('omitting args should be fine', function (done) {
-                        client.server_info = {};
-                        client.send_command('info');
-                        client.send_command('ping', function (err, res) {
+                        client.serverInfo = {};
+                        client.sendCommand('info');
+                        client.sendCommand('ping', function (err, res) {
                             assert.strictEqual(res, 'PONG');
                             // Check if the previous info command used the internal individual info command
-                            assert.notDeepEqual(client.server_info, {});
-                            client.server_info = {};
+                            assert.notDeepEqual(client.serverInfo, {});
+                            client.serverInfo = {};
                         });
-                        client.send_command('info', null, undefined);
-                        client.send_command('ping', null, function (err, res) {
+                        client.sendCommand('info', null, undefined);
+                        client.sendCommand('ping', null, function (err, res) {
                             assert.strictEqual(res, 'PONG');
                             // Check if the previous info command used the internal individual info command
-                            assert.notDeepEqual(client.server_info, {});
-                            client.server_info = {};
+                            assert.notDeepEqual(client.serverInfo, {});
+                            client.serverInfo = {};
                         });
-                        client.send_command('info', undefined, undefined);
-                        client.send_command('ping', function (err, res) {
+                        client.sendCommand('info', undefined, undefined);
+                        client.sendCommand('ping', function (err, res) {
                             assert.strictEqual(res, 'PONG');
                             // Check if the previous info command used the internal individual info command
-                            assert.notDeepEqual(client.server_info, {});
-                            client.server_info = {};
+                            assert.notDeepEqual(client.serverInfo, {});
+                            client.serverInfo = {};
                         });
-                        client.send_command('info', undefined, function (err, res) {
+                        client.sendCommand('info', undefined, function (err, res) {
                             assert(/redis_version/.test(res));
-                            // The individual info command should also be called by using send_command
-                            // console.log(info, client.server_info);
-                            assert.notDeepEqual(client.server_info, {});
+                            // The individual info command should also be called by using sendCommand
+                            // console.log(info, client.serverInfo);
+                            assert.notDeepEqual(client.serverInfo, {});
                             done();
                         });
                     });
 
                     it('using multi with sendCommand should work as individual command instead of using the internal multi', function (done) {
-                        // This is necessary to keep backwards compatibility and it is the only way to handle multis as you want in node_redis
+                        // This is necessary to keep backwards compatibility and it is the only way to handle multis as you want in nodeRedis
                         client.sendCommand('multi');
                         client.sendCommand('set', ['foo', 'bar'], helper.isString('QUEUED'));
                         client.get('foo');
@@ -240,9 +240,9 @@ describe('The node_redis client', function () {
                     });
 
                     it('multi should be handled special', function (done) {
-                        client.send_command('multi', undefined, helper.isString('OK'));
+                        client.sendCommand('multi', undefined, helper.isString('OK'));
                         var args = ['test', 'bla'];
-                        client.send_command('set', args, helper.isString('QUEUED'));
+                        client.sendCommand('set', args, helper.isString('QUEUED'));
                         assert.deepEqual(args, ['test', 'bla']); // Check args manipulation
                         client.get('test', helper.isString('QUEUED'));
                         client.exec(function (err, res) {
@@ -255,13 +255,13 @@ describe('The node_redis client', function () {
 
                     it('using another type as cb should throw', function () {
                         try {
-                            client.send_command('set', ['test', 'bla'], [true]);
+                            client.sendCommand('set', ['test', 'bla'], [true]);
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "Array" for callback function');
                         }
                         try {
-                            client.send_command('set', ['test', 'bla'], null);
+                            client.sendCommand('set', ['test', 'bla'], null);
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "null" for callback function');
@@ -270,19 +270,19 @@ describe('The node_redis client', function () {
 
                     it('command argument has to be of type string', function () {
                         try {
-                            client.send_command(true, ['test', 'bla'], function () {});
+                            client.sendCommand(true, ['test', 'bla'], function () {});
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "Boolean" for command name');
                         }
                         try {
-                            client.send_command(undefined, ['test', 'bla'], function () {});
+                            client.sendCommand(undefined, ['test', 'bla'], function () {});
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "undefined" for command name');
                         }
                         try {
-                            client.send_command(null, ['test', 'bla'], function () {});
+                            client.sendCommand(null, ['test', 'bla'], function () {});
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "null" for command name');
@@ -291,7 +291,7 @@ describe('The node_redis client', function () {
 
                     it('args may only be of type Array or undefined', function () {
                         try {
-                            client.send_command('info', 123);
+                            client.sendCommand('info', 123);
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "Number" for args');
@@ -300,7 +300,7 @@ describe('The node_redis client', function () {
 
                     it('passing a callback as args and as callback should throw', function () {
                         try {
-                            client.send_command('info', function a () {}, function b () {});
+                            client.sendCommand('info', function a () {}, function b () {});
                             throw new Error('failed');
                         } catch (err) {
                             assert.strictEqual(err.message, 'Wrong input type "Function" for args');
@@ -308,9 +308,9 @@ describe('The node_redis client', function () {
                     });
 
                     it('multi should be handled special', function (done) {
-                        client.send_command('multi', undefined, helper.isString('OK'));
+                        client.sendCommand('multi', undefined, helper.isString('OK'));
                         var args = ['test', 'bla'];
-                        client.send_command('set', args, helper.isString('QUEUED'));
+                        client.sendCommand('set', args, helper.isString('QUEUED'));
                         assert.deepEqual(args, ['test', 'bla']); // Check args manipulation
                         client.get('test', helper.isString('QUEUED'));
                         client.exec(function (err, res) {
@@ -322,7 +322,7 @@ describe('The node_redis client', function () {
                     });
 
                     it('the args array may contain a arbitrary number of arguments', function (done) {
-                        client.send_command('mset', ['foo', 1, 'bar', 2, 'baz', 3], helper.isString('OK'));
+                        client.sendCommand('mset', ['foo', 1, 'bar', 2, 'baz', 3], helper.isString('OK'));
                         client.mget(['foo', 'bar', 'baz'], function (err, res) {
                             // As the multi command is handled individually by the user he also has to handle the return value
                             assert.strictEqual(res[0].toString(), '1');
@@ -332,8 +332,8 @@ describe('The node_redis client', function () {
                         });
                     });
 
-                    it('send_command with callback as args', function (done) {
-                        client.send_command('abcdef', function (err, res) {
+                    it('sendCommand with callback as args', function (done) {
+                        client.sendCommand('abcdef', function (err, res) {
                             assert.strictEqual(err.message, "ERR unknown command 'abcdef'");
                             done();
                         });
@@ -341,11 +341,11 @@ describe('The node_redis client', function () {
 
                 });
 
-                describe('retry_unfulfilled_commands', function () {
+                describe('retryUnfulfilledCommands', function () {
 
                     it('should retry all commands instead of returning an error if a command did not yet return after a connection loss', function (done) {
                         var bclient = redis.createClient({
-                            retry_unfulfilled_commands: true
+                            retryUnfulfilledCommands: true
                         });
                         bclient.blpop('blocking list 2', 5, function (err, value) {
                             assert.strictEqual(value[0], 'blocking list 2');
@@ -426,8 +426,8 @@ describe('The node_redis client', function () {
                         }
                     });
 
-                    it('emits an aggregate error if no callback was present for multiple commands in debug_mode', function (done) {
-                        redis.debug_mode = true;
+                    it('emits an aggregate error if no callback was present for multiple commands in debugMode', function (done) {
+                        redis.debugMode = true;
                         var unhookIntercept = intercept(function (data) {
                             return ''; // Don't print the debug messages
                         });
@@ -449,11 +449,11 @@ describe('The node_redis client', function () {
                         });
                         client.end(true);
                         unhookIntercept();
-                        redis.debug_mode = false;
+                        redis.debugMode = false;
                     });
 
                     it('emits an abort error if no callback was present for a single commands', function (done) {
-                        redis.debug_mode = true;
+                        redis.debugMode = true;
                         var unhookIntercept = intercept(function (data) {
                             return ''; // Don't print the debug messages
                         });
@@ -470,10 +470,10 @@ describe('The node_redis client', function () {
                         });
                         client.end(true);
                         unhookIntercept();
-                        redis.debug_mode = false;
+                        redis.debugMode = false;
                     });
 
-                    it('does not emit abort errors if no callback was present while not being in debug_mode ', function (done) {
+                    it('does not emit abort errors if no callback was present while not being in debugMode ', function (done) {
                         client.set('foo', 'bar');
                         client.end(true);
                         setTimeout(done, 100);
@@ -492,7 +492,7 @@ describe('The node_redis client', function () {
                         client.quit(function () {
                             client.get('foo', function (err, res) {
                                 assert.strictEqual(err.message, 'Stream connection ended and command aborted. It might have been processed.');
-                                assert.strictEqual(client.offline_queue.length, 0);
+                                assert.strictEqual(client.offlineQueue.length, 0);
                                 done();
                             });
                         });
@@ -506,7 +506,7 @@ describe('The node_redis client', function () {
                             client.get('foo', function (err, res) {
                                 assert.strictEqual(err.message, 'GET can\'t be processed. The connection is already closed.');
                                 assert.strictEqual(err.command, 'GET');
-                                assert.strictEqual(client.offline_queue.length, 0);
+                                assert.strictEqual(client.offlineQueue.length, 0);
                                 done();
                             });
                         }, 50);
@@ -518,7 +518,7 @@ describe('The node_redis client', function () {
                         client.on('error', function (err) {
                             assert.strictEqual(err.message, 'SET can\'t be processed. The connection is already closed.');
                             assert.strictEqual(err.command, 'SET');
-                            assert.strictEqual(client.offline_queue_length, 0);
+                            assert.strictEqual(client.offlineQueue.length, 0);
                             done();
                         });
                         setTimeout(function () {
@@ -530,13 +530,13 @@ describe('The node_redis client', function () {
 
                 describe('when redis closes unexpectedly', function () {
                     it('reconnects and can retrieve the pre-existing data', function (done) {
-                        client.on('reconnecting', function on_recon (params) {
-                            client.on('connect', function on_connect () {
+                        client.on('reconnecting', function onRecon (params) {
+                            client.on('connect', function onConnect () {
                                 var end = helper.callFuncAfter(function () {
-                                    client.removeListener('connect', on_connect);
-                                    client.removeListener('reconnecting', on_recon);
-                                    assert.strictEqual(client.server_info.db0.keys, 2);
-                                    assert.strictEqual(Object.keys(client.server_info.db0).length, 3);
+                                    client.removeListener('connect', onConnect);
+                                    client.removeListener('reconnecting', onRecon);
+                                    assert.strictEqual(client.serverInfo.db0.keys, 2);
+                                    assert.strictEqual(Object.keys(client.serverInfo.db0).length, 3);
                                     done();
                                 }, 4);
                                 client.get('recon 1', helper.isString('one', end));
@@ -555,11 +555,11 @@ describe('The node_redis client', function () {
                     });
 
                     it('reconnects properly when monitoring', function (done) {
-                        client.on('reconnecting', function on_recon (params) {
-                            client.on('ready', function on_ready () {
+                        client.on('reconnecting', function onRecon (params) {
+                            client.on('ready', function onReady () {
                                 assert.strictEqual(client.monitoring, true, 'monitoring after reconnect');
-                                client.removeListener('ready', on_ready);
-                                client.removeListener('reconnecting', on_recon);
+                                client.removeListener('ready', onReady);
+                                client.removeListener('reconnecting', onRecon);
                                 done();
                             });
                         });
@@ -579,7 +579,7 @@ describe('The node_redis client', function () {
                     describe("and it's subscribed to a channel", function () {
                         // "Connection in subscriber mode, only subscriber commands may be used"
                         it('reconnects, unsubscribes, and can retrieve the pre-existing data', function (done) {
-                            client.on('ready', function on_connect () {
+                            client.on('ready', function onConnect () {
                                 client.unsubscribe(helper.isNotError());
 
                                 client.on('unsubscribe', function (channel, count) {
@@ -599,7 +599,7 @@ describe('The node_redis client', function () {
                         });
 
                         it('reconnects, unsubscribes, and can retrieve the pre-existing data of a explicit channel', function (done) {
-                            client.on('ready', function on_connect () {
+                            client.on('ready', function onConnect () {
                                 client.unsubscribe('recon channel', helper.isNotError());
 
                                 client.on('unsubscribe', function (channel, count) {
@@ -709,7 +709,7 @@ describe('The node_redis client', function () {
                         monitorClient.on('monitor', function (time, args, rawOutput) {
                             assert.strictEqual(monitorClient.monitoring, true);
                             responses.push(args);
-                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert(utils.monitorRegex.test(rawOutput), rawOutput);
                             if (responses.length === 6) {
                                 assert.deepEqual(responses[0], ['mget', 'some', 'keys', 'foo', 'bar']);
                                 assert.deepEqual(responses[1], ['set', 'json', '{"foo":"123","bar":"sdflkdfsjk","another":false}']);
@@ -722,9 +722,9 @@ describe('The node_redis client', function () {
                         });
                     });
 
-                    it('monitors returns strings in the rawOutput even with return_buffers activated', function (done) {
+                    it('monitors returns strings in the rawOutput even with returnBuffers activated', function (done) {
                         var monitorClient = redis.createClient({
-                            return_buffers: true
+                            returnBuffers: true
                         });
 
                         monitorClient.MONITOR(function (err, res) {
@@ -735,7 +735,7 @@ describe('The node_redis client', function () {
 
                         monitorClient.on('monitor', function (time, args, rawOutput) {
                             assert.strictEqual(typeof rawOutput, 'string');
-                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert(utils.monitorRegex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
                             // Quit immediatly ends monitoring mode and therefore does not stream back the quit command
                             monitorClient.quit(done);
@@ -748,7 +748,7 @@ describe('The node_redis client', function () {
                         client.mget('hello', 'world');
                         client.on('monitor', function (time, args, rawOutput) {
                             assert.strictEqual(client.monitoring, true);
-                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert(utils.monitorRegex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
                             if (i++ === 2) {
                                 // End after two reconnects
@@ -769,7 +769,7 @@ describe('The node_redis client', function () {
                         });
                         client.on('monitor', function (time, args, rawOutput) {
                             assert.strictEqual(client.monitoring, true);
-                            assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                            assert(utils.monitorRegex.test(rawOutput), rawOutput);
                             assert.deepEqual(args, ['mget', 'hello', 'world']);
                             if (i++ === 2) {
                                 // End after two reconnects
@@ -822,7 +822,7 @@ describe('The node_redis client', function () {
                             var called = false;
                             client.on('monitor', function (time, args, rawOutput) {
                                 responses.push(args);
-                                assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                                assert(utils.monitorRegex.test(rawOutput), rawOutput);
                                 if (responses.length === 7) {
                                     assert.deepEqual(responses[0], ['subscribe', '/foo', '/bar']);
                                     assert.deepEqual(responses[1], ['unsubscribe', '/bar']);
@@ -851,10 +851,10 @@ describe('The node_redis client', function () {
 
                 describe('utf8', function () {
                     it('handles utf-8 keys', function (done) {
-                        var utf8_sample = 'ಠ_ಠ';
-                        client.set(['utf8test', utf8_sample], helper.isString('OK'));
+                        var utf8Sample = 'ಠ_ಠ';
+                        client.set(['utf8test', utf8Sample], helper.isString('OK'));
                         client.get(['utf8test'], function (err, obj) {
-                            assert.strictEqual(utf8_sample, obj);
+                            assert.strictEqual(utf8Sample, obj);
                             done(err);
                         });
                     });
@@ -904,14 +904,14 @@ describe('The node_redis client', function () {
                 //         assert(fired);
                 //         done();
                 //     });
-                //     assert.strictEqual(client.offline_queue.length, 1);
-                //     assert.strictEqual(client.command_queue.length, 1);
+                //     assert.strictEqual(client.offlineQueue.length, 1);
+                //     assert.strictEqual(client.commandQueue.length, 1);
                 //     client.on('connect', function () {
-                //         assert.strictEqual(client.offline_queue.length, 1);
-                //         assert.strictEqual(client.command_queue.length, 1);
+                //         assert.strictEqual(client.offlineQueue.length, 1);
+                //         assert.strictEqual(client.commandQueue.length, 1);
                 //     });
                 //     client.on('ready', function () {
-                //         assert.strictEqual(client.offline_queue.length, 0);
+                //         assert.strictEqual(client.offlineQueue.length, 0);
                 //     });
                 // });
             });
@@ -942,13 +942,13 @@ describe('The node_redis client', function () {
                         // ready is called in a reply
                         process.nextTick(function () {
                             // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
-                            client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                            client.replyParser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
                         });
                     });
                 });
             });
 
-            describe('enable_offline_queue', function () {
+            describe('enableOfflineQueue', function () {
                 describe('true', function () {
                     it('does not return an error and enqueues operation', function (done) {
                         client = redis.createClient(9999);
@@ -964,7 +964,7 @@ describe('The node_redis client', function () {
                             });
 
                             setTimeout(function () {
-                                assert.strictEqual(client.offline_queue.length, 1);
+                                assert.strictEqual(client.offlineQueue.length, 1);
                                 finished = true;
                                 done();
                             }, 25);
@@ -974,6 +974,7 @@ describe('The node_redis client', function () {
                     it.skip('enqueues operation and keep the queue while trying to reconnect', function (done) {
                         client = redis.createClient(9999, null, {
                             retryStrategy: function (options) {
+                                console.log(options)
                                 if (options.attempt < 4) {
                                     return 200;
                                 }
@@ -984,7 +985,7 @@ describe('The node_redis client', function () {
                         client.on('error', function (err) {
                             if (err.code === 'CONNECTION_BROKEN') {
                                 assert(i, 3);
-                                assert.strictEqual(client.offline_queue.length, 0);
+                                assert.strictEqual(client.offlineQueue.length, 0);
                                 assert.strictEqual(err.origin.code, 'ECONNREFUSED');
                                 if (!(err instanceof redis.AbortError)) {
                                     done();
@@ -1001,10 +1002,10 @@ describe('The node_redis client', function () {
                         client.on('reconnecting', function (params) {
                             i++;
                             assert.equal(params.attempt, i);
-                            assert.strictEqual(params.times_connected, 0);
+                            assert.strictEqual(params.timesConnected, 0);
                             assert(params.error instanceof Error);
-                            assert(typeof params.total_retry_time === 'number');
-                            assert.strictEqual(client.offline_queue.length, 2);
+                            assert(typeof params.totalRetryTime === 'number');
+                            assert.strictEqual(client.offlineQueue.length, 2);
                         });
 
                         // Should work with either a callback or without
@@ -1012,7 +1013,7 @@ describe('The node_redis client', function () {
                         client.set('foo', 'bar', function (err, result) {
                             assert(i, 3);
                             assert(err);
-                            assert.strictEqual(client.offline_queue.length, 0);
+                            assert.strictEqual(client.offlineQueue.length, 0);
                         });
                     });
 
@@ -1031,20 +1032,20 @@ describe('The node_redis client', function () {
                                 multi.set('foo' + (i + 2), 'bar' + (i + 2));
                             }
                             multi.exec();
-                            assert.equal(client.command_queue_length, 15);
+                            assert.equal(client.commandQueue.length, 15);
                             helper.killConnection(client);
                         });
 
                         var end = helper.callFuncAfter(done, 3);
                         client.on('error', function (err) {
                             if (err.command === 'EXEC') {
-                                assert.strictEqual(client.command_queue.length, 0);
+                                assert.strictEqual(client.commandQueue.length, 0);
                                 assert.strictEqual(err.errors.length, 9);
                                 assert.strictEqual(err.errors[1].command, 'SET');
                                 assert.deepEqual(err.errors[1].args, ['foo1', 'bar1']);
                                 end();
                             } else if (err.code === 'UNCERTAIN_STATE') {
-                                assert.strictEqual(client.command_queue.length, 0);
+                                assert.strictEqual(client.commandQueue.length, 0);
                                 assert.strictEqual(err.errors.length, 4);
                                 assert.strictEqual(err.errors[0].command, 'SET');
                                 assert.deepEqual(err.errors[0].args, ['foo0', 'bar0']);
@@ -1063,7 +1064,7 @@ describe('The node_redis client', function () {
 
                     it('stream not writable', function (done) {
                         client = redis.createClient({
-                            enable_offline_queue: false
+                            enableOfflineQueue: false
                         });
                         client.on('ready', function () {
                             client.stream.destroy();
@@ -1076,13 +1077,13 @@ describe('The node_redis client', function () {
 
                     it('emit an error and does not enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
-                            enable_offline_queue: false
+                            enableOfflineQueue: false
                         });
                         var end = helper.callFuncAfter(done, 3);
 
                         client.on('error', function (err) {
                             assert(/offline queue is deactivated|ECONNREFUSED/.test(err.message));
-                            assert.equal(client.command_queue.length, 0);
+                            assert.equal(client.commandQueue.length, 0);
                             end();
                         });
 
@@ -1099,10 +1100,10 @@ describe('The node_redis client', function () {
 
                     it('flushes the command queue if connection is lost', function (done) {
                         client = redis.createClient({
-                            enable_offline_queue: false
+                            enableOfflineQueue: false
                         });
 
-                        redis.debug_mode = true;
+                        redis.debugMode = true;
                         var unhookIntercept = intercept(function () {
                             return '';
                         });
@@ -1118,13 +1119,13 @@ describe('The node_redis client', function () {
                                 multi.set('foo' + (i + 2), 'bar' + (i + 2));
                             }
                             multi.exec();
-                            assert.equal(client.command_queue.length, 15);
+                            assert.equal(client.commandQueue.length, 15);
                             helper.killConnection(client);
                         });
 
                         var end = helper.callFuncAfter(done, 3);
                         client.on('error', function (err) {
-                            assert.equal(client.command_queue.length, 0);
+                            assert.equal(client.commandQueue.length, 0);
                             if (err.command === 'EXEC') {
                                 assert.equal(err.errors.length, 9);
                                 end();
@@ -1135,7 +1136,7 @@ describe('The node_redis client', function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 assert.equal(err.errno, 'ECONNREFUSED');
                                 assert.equal(err.syscall, 'connect');
-                                redis.debug_mode = false;
+                                redis.debugMode = false;
                                 client.end(true);
                                 unhookIntercept();
                                 end();

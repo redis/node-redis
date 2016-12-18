@@ -33,8 +33,8 @@ describe("The 'hgetall' method", function () {
                 });
 
                 it('handles fetching keys set using an object', function (done) {
-                    client.batch().HMSET('msg_test', { message: 'hello' }, undefined).exec();
-                    client.hgetall('msg_test', function (err, obj) {
+                    client.batch().HMSET('msgTest', { message: 'hello' }, undefined).exec();
+                    client.hgetall('msgTest', function (err, obj) {
                         assert.strictEqual(1, Object.keys(obj).length);
                         assert.strictEqual(obj.message, 'hello');
                         done(err);
@@ -52,7 +52,7 @@ describe("The 'hgetall' method", function () {
             describe('binary client', function () {
                 var client;
                 var args = config.configureClient(ip, {
-                    return_buffers: true
+                    returnBuffers: true
                 });
 
                 beforeEach(function (done) {

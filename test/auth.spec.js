@@ -58,8 +58,8 @@ describe('client authentication', function () {
                     assert(now - time < 225, 'Time should be below 255 ms (the reconnect should only take a bit above 100 ms) and is ' + (now - time));
                     done();
                 });
-                var tmp = client.command_queue.get(0).callback;
-                client.command_queue.get(0).callback = function (err, res) {
+                var tmp = client.commandQueue.get(0).callback;
+                client.commandQueue.get(0).callback = function (err, res) {
                     client.auth = function (pass, callback) {
                         callback(null, 'retry worked');
                     };
@@ -115,15 +115,15 @@ describe('client authentication', function () {
                     client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT + '?db=2&password=' + auth);
                     assert.strictEqual(client.options.db, '2');
                     assert.strictEqual(client.options.password, auth);
-                    assert.strictEqual(client.auth_pass, auth);
+                    assert.strictEqual(client.authPass, auth);
                     client.on('ready', function () {
                         // Set a key so the used database is returned in the info command
                         client.set('foo', 'bar');
                         client.get('foo');
-                        assert.strictEqual(client.server_info.db2, undefined);
-                        // Using the info command should update the server_info
+                        assert.strictEqual(client.serverInfo.db2, undefined);
+                        // Using the info command should update the serverInfo
                         client.info(function (err, res) {
-                            assert(typeof client.server_info.db2 === 'object');
+                            assert(typeof client.serverInfo.db2 === 'object');
                         });
                         client.flushdb(done);
                     });
@@ -134,18 +134,18 @@ describe('client authentication', function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 var args = config.configureClient(ip, {
-                    auth_pass: auth
+                    authPass: auth
                 });
                 client = redis.createClient.apply(null, args);
                 client.on('ready', done);
             });
 
-            it('allows auth and no_ready_check to be provided as config option for client', function (done) {
+            it('allows auth and noReadyCheck to be provided as config option for client', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 var args = config.configureClient(ip, {
                     password: auth,
-                    no_ready_check: true
+                    noReadyCheck: true
                 });
                 client = redis.createClient.apply(null, args);
                 client.on('ready', done);
@@ -166,9 +166,9 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 client.auth(auth);
                 client.on('ready', function () {
-                    if (this.times_connected < 3) {
+                    if (this.timesConnected < 3) {
                         var interval = setInterval(function () {
-                            if (client.commandQueueLength !== 0) {
+                            if (client.commandQueue.length !== 0) {
                                 return;
                             }
                             clearInterval(interval);
@@ -176,7 +176,7 @@ describe('client authentication', function () {
                             client.stream.destroy();
                             client.set('foo', 'bar');
                             client.get('foo'); // Errors would bubble
-                            assert.strictEqual(client.offlineQueueLength, 2);
+                            assert.strictEqual(client.offlineQueue.length, 2);
                         }, 1);
                     } else {
                         done();
@@ -218,7 +218,7 @@ describe('client authentication', function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 var args = config.configureClient(ip, {
-                    auth_pass: auth
+                    authPass: auth
                 });
                 client = redis.createClient.apply(null, args);
                 client.on('ready', function () {
@@ -226,11 +226,11 @@ describe('client authentication', function () {
                 });
             });
 
-            it('does not allow any commands to be processed if not authenticated using no_ready_check true', function (done) {
+            it('does not allow any commands to be processed if not authenticated using noReadyCheck true', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
                 var args = config.configureClient(ip, {
-                    no_ready_check: true
+                    noReadyCheck: true
                 });
                 client = redis.createClient.apply(null, args);
                 client.on('ready', function () {
@@ -257,7 +257,7 @@ describe('client authentication', function () {
             it('should emit an error if the provided password is faulty', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
                 client = redis.createClient({
-                    password: 'wrong_password'
+                    password: 'wrongPassword'
                 });
                 client.once('error', function (err) {
                     assert.strictEqual(err.message, 'ERR invalid password');
@@ -275,7 +275,7 @@ describe('client authentication', function () {
                 client.set('foo', 'bar');
                 client.subscribe('somechannel', 'another channel', function (err, res) {
                     client.once('ready', function () {
-                        assert.strictEqual(client.pub_sub_mode, 1);
+                        assert.strictEqual(client.pubSubMode, 1);
                         client.get('foo', function (err, res) {
                             assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
                             done();
@@ -284,7 +284,7 @@ describe('client authentication', function () {
                 });
                 client.once('ready', function () {
                     // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
-                    assert.strictEqual(client.pub_sub_mode, 2);
+                    assert.strictEqual(client.pubSubMode, 2);
                     client.ping(function () { // Make sure all commands were properly processed already
                         client.stream.destroy();
                     });
@@ -302,7 +302,7 @@ describe('client authentication', function () {
                     noReadyCheck: true
                 });
                 client = redis.createClient.apply(null, args);
-                assert.strictEqual(client.selected_db, undefined);
+                assert.strictEqual(client.selectedDb, undefined);
                 var end = helper.callFuncAfter(done, 8);
                 client.on('monitor', function () {
                     end(); // Should be called for each command after monitor
@@ -310,9 +310,9 @@ describe('client authentication', function () {
                 client.batch()
                     .auth(auth)
                     .SELECT(5, function (err, res) {
-                        assert.strictEqual(client.selected_db, 5);
+                        assert.strictEqual(client.selectedDb, 5);
                         assert.strictEqual(res, 'OK');
-                        assert.notDeepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 });
+                        assert.notDeepEqual(client.serverInfo.db5, { avgTtl: 0, expires: 0, keys: 1 });
                     })
                     .monitor()
                     .set('foo', 'bar', helper.isString('OK'))

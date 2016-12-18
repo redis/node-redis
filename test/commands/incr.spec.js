@@ -52,7 +52,7 @@ describe("The 'incr' method", function () {
                 });
 
                 it('count above the safe integers as strings', function (done) {
-                    args[2].string_numbers = true;
+                    args[2].stringNumbers = true;
                     client = redis.createClient.apply(null, args);
                     // Set a value to the maximum safe allowed javascript number (2^53)
                     client.set(key, MAX_SAFE_INTEGER, helper.isNotError());

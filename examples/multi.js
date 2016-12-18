@@ -2,14 +2,14 @@
 
 var redis = require('redis');
 var client = redis.createClient();
-var set_size = 20;
+var setSize = 20;
 
 client.sadd('bigset', 'a member');
 client.sadd('bigset', 'another member');
 
-while (set_size > 0) {
-    client.sadd('bigset', 'member ' + set_size);
-    set_size -= 1;
+while (setSize > 0) {
+    client.sadd('bigset', 'member ' + setSize);
+    setSize -= 1;
 }
 
 // multi chain with an individual callback

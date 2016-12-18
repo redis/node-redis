@@ -35,7 +35,7 @@ describe('publish/subscribe', function () {
                 beforeEach(function (done) {
                     sub.end(false);
                     sub = redis.createClient({
-                        disable_resubscribing: true
+                        disableResubscribing: true
                     });
                     sub.once('connect', function () {
                         done();
@@ -57,7 +57,7 @@ describe('publish/subscribe', function () {
                     sub.on('reconnecting', function () {
                         a = true;
                         sub.on('ready', function () {
-                            assert.strictEqual(sub.command_queue.length, 0);
+                            assert.strictEqual(sub.commandQueue.length, 0);
                             done();
                         });
                     });
@@ -66,11 +66,11 @@ describe('publish/subscribe', function () {
                 });
             });
 
-            describe('string_numbers and pub sub', function () {
+            describe('stringNumbers and pub sub', function () {
                 beforeEach(function (done) {
                     sub.end(false);
                     sub = redis.createClient({
-                        string_numbers: true
+                        stringNumbers: true
                     });
                     sub.once('connect', function () {
                         done();
@@ -90,8 +90,8 @@ describe('publish/subscribe', function () {
                     });
                     sub.subscribe(channel, channel2);
                     sub.unsubscribe(function (err, res) { // Do not pass a channel here!
-                        assert.strictEqual(sub.pub_sub_mode, 2);
-                        assert.deepEqual(sub.subscription_set, {});
+                        assert.strictEqual(sub.pubSubMode, 2);
+                        assert.deepEqual(sub.subscriptionSet, {});
                         end();
                     });
                     sub.set('foo', 'bar', helper.isString('OK'));
@@ -121,7 +121,7 @@ describe('publish/subscribe', function () {
                     var a = false;
                     sub.end(true);
                     sub = redis.createClient({
-                        detect_buffers: true
+                        detectBuffers: true
                     });
                     sub.on('subscribe', function (chnl, count) {
                         if (chnl.inspect() === new Buffer([0xAA, 0xBB, 0x00, 0xF0]).inspect()) {
@@ -178,7 +178,7 @@ describe('publish/subscribe', function () {
                     sub.subscribe(channel);
                 });
 
-                it('handles SUB_UNSUB_MSG_SUB', function (done) {
+                it('handles SUB UNSUB MSG SUB', function (done) {
                     sub.subscribe('chan8');
                     sub.subscribe('chan9');
                     sub.unsubscribe('chan9');
@@ -186,7 +186,7 @@ describe('publish/subscribe', function () {
                     sub.subscribe('chan9', done);
                 });
 
-                it('handles SUB_UNSUB_MSG_SUB 2', function (done) {
+                it('handles SUB UNSUB MSG SUB 2', function (done) {
                     sub.psubscribe('abc*', helper.isString('abc*'));
                     sub.subscribe('xyz');
                     sub.unsubscribe('xyz');
@@ -263,7 +263,7 @@ describe('publish/subscribe', function () {
 
                 it('handles multiple channels with the same channel name properly, even with buffers', function (done) {
                     var channels = ['a', 'b', 'a', new Buffer('a'), 'c', 'b'];
-                    var subscribed_channels = [1, 2, 2, 2, 3, 3];
+                    var subscribedChannels = [1, 2, 2, 2, 3, 3];
                     var i = 0;
                     sub.subscribe(channels);
                     sub.on('subscribe', function (channel, count) {
@@ -272,7 +272,7 @@ describe('publish/subscribe', function () {
                         } else {
                             assert.strictEqual(channel, channels[i].toString());
                         }
-                        assert.strictEqual(count, subscribed_channels[i]);
+                        assert.strictEqual(count, subscribedChannels[i]);
                         i++;
                     });
                     sub.unsubscribe('a', 'c', 'b');
@@ -486,24 +486,25 @@ describe('publish/subscribe', function () {
 
             describe('psubscribe', function () {
                 it('allows all channels to be subscribed to using a * pattern', function (done) {
-                    sub.subscribe('/foo');
                     var sub2 = redis.createClient({
-                        return_buffers: true
+                        returnBuffers: true
                     });
-                    sub2.on('ready', function () {
-                        sub2.batch().psubscribe('*', helper.isString('*')).exec();
-                        sub2.subscribe('/foo');
-                        sub2.on('pmessage', function (pattern, channel, message) {
-                            assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
-                            assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
-                            assert.strictEqual(message.inspect(), new Buffer('hello world').inspect());
-                            sub2.quit(done);
+                    sub.subscribe('/foo', function () {
+                        sub2.on('ready', function () {
+                            sub2.batch().psubscribe('*', helper.isString('*')).exec();
+                            sub2.subscribe('/foo');
+                            sub2.on('pmessage', function (pattern, channel, message) {
+                                assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
+                                assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
+                                assert.strictEqual(message.inspect(), new Buffer('hello world').inspect());
+                                sub2.quit(done);
+                            });
+                            pub.pubsub('numsub', '/foo', function (err, res) {
+                                assert.deepEqual(res, ['/foo', 2]);
+                            });
+                            // sub2 is counted twice as it subscribed with psubscribe and subscribe
+                            pub.publish('/foo', 'hello world', helper.isNumber(3));
                         });
-                        pub.pubsub('numsub', '/foo', function (err, res) {
-                            assert.deepEqual(res, ['/foo', 2]);
-                        });
-                        // sub2 is counted twice as it subscribed with psubscribe and subscribe
-                        pub.publish('/foo', 'hello world', helper.isNumber(3));
                     });
                 });
 
@@ -513,21 +514,14 @@ describe('publish/subscribe', function () {
                     sub.set('foo', data, function () {
                         sub.get('foo');
                         sub.stream.once('data', function () {
-                            assert.strictEqual(sub.message_buffers, false);
+                            assert.strictEqual(sub.messageBuffers, false);
                             assert.strictEqual(sub.shouldBuffer, false);
                             sub.on('pmessageBuffer', function (pattern, channel, message) {
-                                if (parser !== 'javascript' && typeof pattern === 'string') {
-                                    pattern = new Buffer(pattern);
-                                    channel = new Buffer(channel);
-                                }
                                 assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
                                 assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
                                 sub.quit(end);
                             });
-                            if (parser === 'javascript') {
-                                assert.notStrictEqual(sub.message_buffers, sub.buffers);
-                            }
-
+                            assert.notStrictEqual(sub.messageBuffers, sub.buffers);
                         });
                         var batch = sub.batch();
                         batch.psubscribe('*');
@@ -553,7 +547,7 @@ describe('publish/subscribe', function () {
                             });
                             pub.publish('/foo', 'hello world', helper.isNumber(2));
                         });
-                        // Either message_buffers or buffers has to be true, but not both at the same time
+                        // Either messageBuffers or buffers has to be true, but not both at the same time
                         sub.on('pmessage', function (pattern, channel, message) {
                             assert.strictEqual(pattern, '*');
                             assert.strictEqual(channel, '/foo');
