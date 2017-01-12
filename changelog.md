@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.6.4 - 12 Jan, 2017
+
+Bugfixes
+
+-  Fixed monitor mode not working in combination with IPv6, sockets or lua scripts (2.6.0 regression)
+
 ## v.2.6.3 - 31 Oct, 2016
 
 Bugfixes

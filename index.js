@@ -791,9 +791,6 @@ function return_pub_sub (self, reply) {
 }
 
 RedisClient.prototype.return_reply = function (reply) {
-    // If in monitor mode, all normal commands are still working and we only want to emit the streamlined commands
-    // As this is not the average use case and monitor is expensive anyway, let's change the code here, to improve
-    // the average performance of all other commands in case of no monitor mode
     if (this.monitoring) {
         var replyStr;
         if (this.buffers && Buffer.isBuffer(reply)) {
@@ -801,8 +798,7 @@ RedisClient.prototype.return_reply = function (reply) {
         } else {
             replyStr = reply;
         }
-        // While reconnecting the redis server does not recognize the client as in monitor mode anymore
-        // Therefore the monitor command has to finish before it catches further commands
+        // If in monitor mode, all normal commands are still working and we only want to emit the streamlined commands
         if (typeof replyStr === 'string' && utils.monitor_regex.test(replyStr)) {
             var timestamp = replyStr.slice(0, replyStr.indexOf(' '));
             var args = replyStr.slice(replyStr.indexOf('"') + 1, -1).split('" "').map(function (elem) {
