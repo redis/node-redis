@@ -5,6 +5,7 @@ Changelog
 
 Bugfixes
 
+-  Fixed parser not being reset in case the redis connection closed ASAP for overcoming of output buffer limits
 -  Fixed parser reset if (p)message_buffer listener is attached
 
 ## v.2.6.4 - 12 Jan, 2017

@@ -38,6 +38,24 @@ describe('The node_redis client', function () {
         client.quit(done);
     });
 
+    it('reset the parser while reconnecting', function (done) {
+        var client = redis.createClient({
+            retryStrategy: function () {
+                return 5;
+            }
+        });
+        client.once('reconnecting', function () {
+            process.nextTick(function () {
+                assert.strictEqual(client.reply_parser.buffer, null);
+                done();
+            });
+        });
+        var partialInput = new Buffer('$100\r\nabcdef');
+        client.reply_parser.execute(partialInput);
+        assert.strictEqual(client.reply_parser.buffer.inspect(), partialInput.inspect());
+        client.stream.destroy();
+    });
+
     helper.allTests(function (parser, ip, args) {
 
         describe('using ' + parser + ' and ' + ip, function () {

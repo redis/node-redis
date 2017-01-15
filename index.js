@@ -156,8 +156,6 @@ function RedisClient (options, stream) {
     this.buffers = options.return_buffers || options.detect_buffers;
     this.options = options;
     this.reply = 'ON'; // Returning replies is the default
-    // Init parser
-    this.reply_parser = create_parser(this);
     this.create_stream();
     // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached
     this.on('newListener', function (event) {
@@ -229,6 +227,9 @@ function create_parser (self) {
 // Attention: the function name "create_stream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.create_stream = function () {
     var self = this;
+
+    // Init parser
+    this.reply_parser = create_parser(this);
 
     if (this.options.stream) {
         // Only add the listeners once in case of a reconnect try (that won't work)
