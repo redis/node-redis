@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.6.5 - 15 Jan, 2017
+
+Bugfixes
+
+-  Fixed parser reset if (p)message_buffer listener is attached
+
 ## v.2.6.4 - 12 Jan, 2017
 
 Bugfixes

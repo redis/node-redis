@@ -508,52 +508,64 @@ describe('publish/subscribe', function () {
                 });
 
                 it('allows to listen to pmessageBuffer and pmessage', function (done) {
-                    var batch = sub.batch();
                     var end = helper.callFuncAfter(done, 6);
-                    assert.strictEqual(sub.message_buffers, false);
-                    batch.psubscribe('*');
-                    batch.subscribe('/foo');
-                    batch.unsubscribe('/foo');
-                    batch.unsubscribe(helper.isNull());
-                    batch.subscribe(['/foo'], helper.isString('/foo'));
-                    batch.exec();
-                    assert.strictEqual(sub.shouldBuffer, false);
-                    sub.on('pmessageBuffer', function (pattern, channel, message) {
-                        assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
-                        assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
-                        sub.quit(end);
-                    });
-                    // Either message_buffers or buffers has to be true, but not both at the same time
-                    assert.notStrictEqual(sub.message_buffers, sub.buffers);
-                    sub.on('pmessage', function (pattern, channel, message) {
-                        assert.strictEqual(pattern, '*');
-                        assert.strictEqual(channel, '/foo');
-                        assert.strictEqual(message, 'hello world');
-                        end();
-                    });
-                    sub.on('message', function (channel, message) {
-                        assert.strictEqual(channel, '/foo');
-                        assert.strictEqual(message, 'hello world');
-                        end();
-                    });
-                    setTimeout(function () {
-                        pub.pubsub('numsub', '/foo', function (err, res) {
-                            // There's one subscriber to this channel
-                            assert.deepEqual(res, ['/foo', 1]);
+                    var data = Array(10000).join('äüs^öéÉÉ`e');
+                    sub.set('foo', data, function () {
+                        sub.get('foo');
+                        sub.stream.once('data', function () {
+                            assert.strictEqual(sub.message_buffers, false);
+                            assert.strictEqual(sub.shouldBuffer, false);
+                            sub.on('pmessageBuffer', function (pattern, channel, message) {
+                                if (parser !== 'javascript' && typeof pattern === 'string') {
+                                    pattern = new Buffer(pattern);
+                                    channel = new Buffer(channel);
+                                }
+                                assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
+                                assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
+                                sub.quit(end);
+                            });
+                            if (parser === 'javascript') {
+                                assert.notStrictEqual(sub.message_buffers, sub.buffers);
+                            }
+
+                        });
+                        var batch = sub.batch();
+                        batch.psubscribe('*');
+                        batch.subscribe('/foo');
+                        batch.unsubscribe('/foo');
+                        batch.unsubscribe(helper.isNull());
+                        batch.subscribe(['/foo'], helper.isString('/foo'));
+                        batch.exec(function () {
+                            pub.pubsub('numsub', '/foo', function (err, res) {
+                                // There's one subscriber to this channel
+                                assert.deepEqual(res, ['/foo', 1]);
+                                end();
+                            });
+                            pub.pubsub('channels', function (err, res) {
+                                // There's exactly one channel that is listened too
+                                assert.deepEqual(res, ['/foo']);
+                                end();
+                            });
+                            pub.pubsub('numpat', function (err, res) {
+                                // One pattern is active
+                                assert.strictEqual(res, 1);
+                                end();
+                            });
+                            pub.publish('/foo', 'hello world', helper.isNumber(2));
+                        });
+                        // Either message_buffers or buffers has to be true, but not both at the same time
+                        sub.on('pmessage', function (pattern, channel, message) {
+                            assert.strictEqual(pattern, '*');
+                            assert.strictEqual(channel, '/foo');
+                            assert.strictEqual(message, 'hello world');
                             end();
                         });
-                        pub.pubsub('channels', function (err, res) {
-                            // There's exactly one channel that is listened too
-                            assert.deepEqual(res, ['/foo']);
+                        sub.on('message', function (channel, message) {
+                            assert.strictEqual(channel, '/foo');
+                            assert.strictEqual(message, 'hello world');
                             end();
                         });
-                        pub.pubsub('numpat', function (err, res) {
-                            // One pattern is active
-                            assert.strictEqual(res, 1);
-                            end();
-                        });
-                        pub.publish('/foo', 'hello world', helper.isNumber(2));
-                    }, 50);
+                    });
                 });
             });
 
