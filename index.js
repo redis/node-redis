@@ -172,7 +172,7 @@ function RedisClient (options, stream) {
         } else if ((event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.message_buffers) {
             if (this.reply_parser.name !== 'javascript') {
                 return this.warn(
-                    'You attached the ' + event + ' without the hiredis parser without the returnBuffers option set to true.\n' +
+                    'You attached the "' + event + '" listener without the returnBuffers option set to true.\n' +
                     'Please use the JavaScript parser or set the returnBuffers option to true to return buffers.'
                 );
             }
