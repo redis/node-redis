@@ -80,6 +80,9 @@ describe("The 'monitor' method", function () {
         });
 
         it('monitors returns strings in the rawOutput even with return_buffers activated', function (done) {
+            if (process.platform === 'win32') {
+                this.skip();
+            }
             var monitorClient = redis.createClient({
                 return_buffers: true,
                 path: '/tmp/redis.sock'
