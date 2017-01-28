@@ -1,6 +1,7 @@
 redis - a node.js redis client
 ===========================
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/0b5257f7fb4b4a9997eb6e0de5c81f30)](https://www.codacy.com/app/BridgeAR/node_redis?utm_source=github.com&utm_medium=referral&utm_content=NodeRedis/node_redis&utm_campaign=badger)
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.svg?branch=master)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
 [![Windows Tests](https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
