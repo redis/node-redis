@@ -256,7 +256,7 @@ var client = redis.createClient({
         // attempt reconnect after retry_delay, and flush any pending commands
         return {
             retry_delay: Math.min(options.attempt * 100, 3000),
-            error: error
+            error: new Error('Your custom error.');
         }
     }
 });
