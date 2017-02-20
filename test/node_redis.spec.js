@@ -40,7 +40,7 @@ describe('The node_redis client', function () {
 
     it('reset the parser while reconnecting (See #1190)', function (done) {
         var client = redis.createClient({
-            retryStrategy: function () {
+            connectionStrategy: function () {
                 return 5;
             }
         });

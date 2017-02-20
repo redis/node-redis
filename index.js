@@ -72,14 +72,14 @@ function RedisClient (options, stream) {
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
     // Warn on misusing deprecated functions
-    if (typeof options.retry_strategy === 'function') {
+    if (typeof options.connection_strategy === 'function') {
         if ('max_attempts' in options) {
-            self.warn('WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.');
+            self.warn('WARNING: You activated the connection_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.');
             // Do not print deprecation warnings twice
             delete options.max_attempts;
         }
         if ('retry_max_delay' in options) {
-            self.warn('WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.');
+            self.warn('WARNING: You activated the connection_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.');
             // Do not print deprecation warnings twice
             delete options.retry_max_delay;
         }
@@ -120,7 +120,7 @@ function RedisClient (options, stream) {
     if ('max_attempts' in options) {
         self.warn(
             'max_attempts is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
+            'To reduce the amount of options and the improve the reconnection handling please use the new `connection_strategy` option instead.\n' +
             'This replaces the max_attempts and retry_max_delay option.'
         );
     }
@@ -128,14 +128,14 @@ function RedisClient (options, stream) {
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
     this.pipeline_queue = new Queue(); // Holds all pipelined commands
     // ATTENTION: connect_timeout should change in v.3.0 so it does not count towards ending reconnection attempts after x seconds
-    // This should be done by the retry_strategy. Instead it should only be the timeout for connecting to redis
+    // This should be done by the connection_strategy. Instead it should only be the timeout for connecting to redis
     this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
     this.retry_max_delay = +options.retry_max_delay || null;
     if ('retry_max_delay' in options) {
         self.warn(
             'retry_max_delay is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
+            'To reduce the amount of options and the improve the reconnection handling please use the new `connection_strategy` option instead.\n' +
             'This replaces the max_attempts and retry_max_delay option.'
         );
     }
@@ -397,7 +397,7 @@ RedisClient.prototype.on_error = function (err) {
     this.ready = false;
 
     // Only emit the error if the retry_stategy option is not set
-    if (!this.options.retry_strategy) {
+    if (!this.options.connection_strategy) {
         this.emit('error', err);
     }
     // 'error' events get turned into exceptions if they aren't listened for. If the user handled this error
@@ -598,7 +598,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
         return;
     }
 
-    if (typeof this.options.retry_strategy === 'function') {
+    if (typeof this.options.connection_strategy === 'function') {
         var retry_params = {
             attempt: this.attempts,
             error: error
@@ -610,7 +610,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
             retry_params.total_retry_time = this.retry_totaltime;
             retry_params.times_connected = this.times_connected;
         }
-        this.retry_delay = this.options.retry_strategy(retry_params);
+        this.retry_delay = this.options.connection_strategy(retry_params);
         if (typeof this.retry_delay !== 'number') {
             // Pass individual error through
             if (this.retry_delay instanceof Error) {

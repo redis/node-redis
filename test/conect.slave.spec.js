@@ -45,7 +45,7 @@ describe('master slave sync', function () {
         var firstInfo;
         slave = redis.createClient({
             port: port,
-            retry_strategy: function (options) {
+            connection_strategy: function (options) {
                 // Try to reconnect in very small intervals to catch the master_link_status down before the sync completes
                 return 10;
             }

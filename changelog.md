@@ -174,7 +174,7 @@ Features
 -  The client.server_info is from now on updated while using the info command
 -  Gracefuly handle redis protocol errors from now on
 -  Added a `warning` emitter that receives node_redis warnings like auth not required and deprecation messages
--  Added a `retry_strategy` option that replaces all reconnect options
+-  Added a `connection_strategy` option that replaces all reconnect options
 -  The reconnecting event from now on also receives:
  -  The error message why the reconnect happend (params.error)
  -  The amount of times the client was connected (params.times_connected)
@@ -212,8 +212,8 @@ Deprecations
 -  The `socket_nodelay` option is deprecated and will be removed in v.3.0.0
  -  If you want to buffer commands you should use [.batch or .multi](./README.md) instead. This is necessary to reduce the amount of different options and this is very likely reducing your throughput if set to false.
  -  If you are sure you want to activate the NAGLE algorithm you can still activate it by using client.stream.setNoDelay(false)
--  The `max_attempts` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
--  The `retry_max_delay` option is deprecated and will be removed in v.3.0.0. Please use the `retry_strategy` instead
+-  The `max_attempts` option is deprecated and will be removed in v.3.0.0. Please use the `connection_strategy` instead
+-  The `retry_max_delay` option is deprecated and will be removed in v.3.0.0. Please use the `connection_strategy` instead
 -  The drain event is deprecated and will be removed in v.3.0.0. Please listen to the stream drain event instead
 -  The idle event is deprecated and will likely be removed in v.3.0.0. If you rely on this feature please open a new ticket in node_redis with your use case
 -  Redis < v. 2.6 is not officially supported anymore and might not work in all cases. Please update to a newer redis version as it is not possible to test for these old versions
