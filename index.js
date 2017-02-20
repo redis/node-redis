@@ -83,6 +83,10 @@ function RedisClient (options, stream) {
             // Do not print deprecation warnings twice
             delete options.retry_max_delay;
         }
+        this.retry_on_flush = false;
+        if (options.retry_on_flush) {
+            this.retry_on_flush = options.retry_on_flush;
+        }
     }
 
     this.connection_options = cnx_options;
@@ -616,14 +620,25 @@ RedisClient.prototype.connection_gone = function (why, error) {
             if (this.retry_delay instanceof Error) {
                 error = this.retry_delay;
             }
+            // Handle object pattern
+            if (typeof this.retry_delay == 'object' && !(this.retry_delay instanceof Error) && this.retry_delay != null) {
+                if (this.retry_delay.error && this.retry_delay.error instanceof Error) {
+                    error = this.retry_delay.error;
+                }
+                if (typeof this.retry_delay.retry_delay == 'number') {
+                    this.retry_delay = this.retry_delay.retry_delay;
+                }
+            }
             this.flush_and_error({
                 message: 'Stream connection ended and command aborted.',
                 code: 'NR_CLOSED'
             }, {
                 error: error
             });
-            this.end(false);
-            return;
+            if (typeof this.retry_delay !== 'number') {
+                this.end(false);
+                return;
+            }
         }
     }
 
