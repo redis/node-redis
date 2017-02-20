@@ -83,10 +83,6 @@ function RedisClient (options, stream) {
             // Do not print deprecation warnings twice
             delete options.retry_max_delay;
         }
-        this.retry_on_flush = false;
-        if (options.retry_on_flush) {
-            this.retry_on_flush = options.retry_on_flush;
-        }
     }
 
     this.connection_options = cnx_options;
