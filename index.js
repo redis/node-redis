@@ -598,18 +598,19 @@ RedisClient.prototype.connection_gone = function (why, error) {
         return;
     }
 
+    var retry_params = {
+        attempt: this.attempts,
+        error: error
+    };
+    if (this.options.camel_case) {
+        retry_params.totalRetryTime = this.retry_totaltime;
+        retry_params.timesConnected = this.times_connected;
+    } else {
+        retry_params.total_retry_time = this.retry_totaltime;
+        retry_params.times_connected = this.times_connected;
+    }
+
     if (typeof this.options.connection_strategy === 'function') {
-        var retry_params = {
-            attempt: this.attempts,
-            error: error
-        };
-        if (this.options.camel_case) {
-            retry_params.totalRetryTime = this.retry_totaltime;
-            retry_params.timesConnected = this.times_connected;
-        } else {
-            retry_params.total_retry_time = this.retry_totaltime;
-            retry_params.times_connected = this.times_connected;
-        }
         this.retry_delay = this.options.connection_strategy(retry_params);
         if (typeof this.retry_delay !== 'number') {
             // Pass individual error through
@@ -624,6 +625,18 @@ RedisClient.prototype.connection_gone = function (why, error) {
             });
             this.end(false);
             return;
+        }
+    }
+
+    if (typeof this.options.retry_strategy === 'function') {
+        var flush_error = this.options.retry_strategy(retry_params);
+        if (flush_error instanceof Error) {
+            this.flush_and_error({
+                message: 'Stream connection ended and command aborted.',
+                code: 'NR_CLOSED'
+            }, {
+                error: flush_error
+            });
         }
     }
 
