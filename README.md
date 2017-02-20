@@ -220,7 +220,8 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.quit();
 ```
 
-retry_strategy example
+####retry_strategy example
+
 ```js
 var client = redis.createClient({
     retry_strategy: function (options) {
