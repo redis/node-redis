@@ -345,7 +345,7 @@ RedisClient.prototype.flush_and_error = function (error_attributes, options) {
     options = options || {};
     var aggregated_errors = [];
     var queue_names = options.queues || ['command_queue', 'offline_queue']; // Flush the command_queue first to keep the order intakt
-    debug("flushing queues " + queue_names.toString());
+    debug('flushing queues ' + queue_names.toString());
     for (var i = 0; i < queue_names.length; i++) {
         // If the command was fired it might have been processed so far
         if (queue_names[i] === 'command_queue') {
