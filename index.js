@@ -345,6 +345,7 @@ RedisClient.prototype.flush_and_error = function (error_attributes, options) {
     options = options || {};
     var aggregated_errors = [];
     var queue_names = options.queues || ['command_queue', 'offline_queue']; // Flush the command_queue first to keep the order intakt
+    debug("flushing queues " + queue_names.toString());
     for (var i = 0; i < queue_names.length; i++) {
         // If the command was fired it might have been processed so far
         if (queue_names[i] === 'command_queue') {
@@ -556,7 +557,6 @@ var retry_connection = function (self, error) {
         reconnect_params.times_connected = self.times_connected;
     }
     self.emit('reconnecting', reconnect_params);
-
     self.retry_totaltime += self.retry_delay;
     self.attempts += 1;
     self.retry_delay = Math.round(self.retry_delay * self.retry_backoff);

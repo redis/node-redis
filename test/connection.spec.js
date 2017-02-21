@@ -344,6 +344,38 @@ describe('connection tests', function () {
                         done();
                     });
                 });
+
+                it('retry_strategy used to flush command queue', function (done) {
+                    var offlineQueueLengthTotal = 0;
+                    client = redis.createClient({
+                        connection_strategy: function (options) {
+                            offlineQueueLengthTotal += client.offlineQueueLength
+                            return Math.min(options.attempt * 25, 200);
+                        },
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time == 150) {
+                                return new Error("Redis unavailable.");
+                            }
+                            if (options.total_retry_time > 150) {
+                                var isLessThanBefore = (client.offlineQueueLength < offlineQueueLengthTotal);
+                                assert.strictEqual(isLessThanBefore, true);
+                                done();
+                                clearTimeout(attemptTimeout);
+                            }
+                            return null;
+                        }
+                    });
+                    setTimeout(function () {
+                        client.stream.destroy();
+                        client.connection_options.port = 9999;
+                    }, 50);
+                    var attemptTimeout = null;
+                    function attemptSet () {
+                        client.set("foo", new Date().toString());
+                        attemptTimeout = setTimeout(attemptSet, 25);
+                    }
+                    attemptSet();
+                });
             });
 
             describe('when not connected', function () {
