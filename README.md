@@ -201,6 +201,7 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | tls | null | An object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback) to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel). |
 | prefix | null | A string used to prefix all used keys (e.g. `namespace:test`). Please be aware that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed. |
 | connection_strategy | function | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
+| retry_strategy | function | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return an instance of a Error, then all pending commands will be flushed with that error. Any other return value will have no effect. |
 
 ```js
 var redis = require("redis");
@@ -220,7 +221,7 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.quit();
 ```
 
-connection_strategy example
+####connection_strategy example
 ```js
 var client = redis.createClient({
     connection_strategy: function (options) {
@@ -238,6 +239,28 @@ var client = redis.createClient({
         }
         // reconnect after
         return Math.min(options.attempt * 100, 3000);
+    }
+});
+```
+
+####retry_strategy example
+```js
+client = redis.createClient({
+    connection_strategy: function (options) {
+        if (options.total_retry_time > 1000 * 60 * 60) {
+            // kill the client with the error event
+            return new Error('Retry time exhausted');
+        }
+        // attempt reconnect after this delay
+        return Math.min(options.attempt * 100, 3000);
+    },
+    retry_strategy: function (options) {
+        if (options.attempt >= 3) {
+            // flush all pending commands with this error
+            return new Error('Redis unavailable');
+        }
+        // let the client maintain its existing queues
+        return null;
     }
 });
 ```
