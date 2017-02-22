@@ -38,7 +38,7 @@
     "intercept-stdout": "~0.1.2",
     "eslint": "^3.5.0",
     "metrics": "^0.1.9",
-    "mocha": "^2.3.2",
+    "mocha": "^3.1.2",
     "nyc": "^8.3.0",
     "tcp-port-used": "^0.1.2",
     "uuid": "^2.0.1",
