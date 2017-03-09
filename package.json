@@ -27,7 +27,7 @@
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
     "redis-commands": "^1.2.0",
-    "redis-parser": "^2.0.0"
+    "redis-parser": "^2.5.0"
   },
   "engines": {
     "node": ">=0.10.0"
