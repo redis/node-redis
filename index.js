@@ -1087,6 +1087,8 @@ exports.RedisClient = RedisClient;
 exports.print = utils.print;
 exports.Multi = require('./lib/multi');
 exports.AbortError = errorClasses.AbortError;
+exports.RedisError = Parser.RedisError;
+exports.ParserError = Parser.ParserError;
 exports.ReplyError = Parser.ReplyError;
 exports.AggregateError = errorClasses.AggregateError;
 
