@@ -296,10 +296,15 @@ client.get("foo_rand000000000000", function (err, reply) {
 
 ## Error handling (>= v.2.6)
 
-All redis errors are returned as `ReplyError`.
-All unresolved commands that get rejected due to what ever reason return a `AbortError`.
-As subclass of the `AbortError` a `AggregateError` exists. This is emitted in case multiple unresolved commands without callback got rejected in debug_mode.
-They are all aggregated and a single error is emitted in that case.
+Currently the following error subclasses exist:
+
+* `RedisError`: _All errors_ returned by the client
+* `ReplyError` subclass of `RedisError`: All errors returned by __Redis__ itself
+* `AbortError` subclass of `RedisError`: All commands that could not finish due to what ever reason
+* `ParserError` subclass of `RedisError`: Returned in case of a parser error (this should not happen)
+* `AggregateError` subclass of `AbortError`: Emitted in case multiple unresolved commands without callback got rejected in debug_mode instead of lots of `AbortError`s.
+
+All error classes are exported by the module.
 
 Example:
 ```js
