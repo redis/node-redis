@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## v.2.7.0 - xx Mar, 2017
+## v.2.7.0 - 11 Mar, 2017
 
 Features
 
