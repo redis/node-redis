@@ -1,6 +1,17 @@
 Changelog
 =========
 
+## v.2.7.0 - xx Mar, 2017
+
+Features
+
+-  All returned errors are from now a subclass of `RedisError`.
+
+Bugfixes
+
+-  Fixed rename_commands not accepting `null` as value
+-  Fixed `AbortError`s and `AggregateError`s not showing the error message in the stack trace
+
 ## v.2.6.5 - 15 Jan, 2017
 
 Bugfixes
