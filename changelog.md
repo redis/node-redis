@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v.2.7.1 - 14 Mar, 2017
+
+Bugfixes
+
+-  Fixed monitor mode not working in combination with IPv6 (2.6.0 regression)
+
 ## v.2.7.0 - 11 Mar, 2017
 
 Features
