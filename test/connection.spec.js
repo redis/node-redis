@@ -40,7 +40,7 @@ describe('connection tests', function () {
             var called = 0;
             client = redis.createClient({
                 port: 9999,
-                retry_strategy: function (options) {
+                connection_strategy: function (options) {
                     var bool = client.quit(function (err, res) {
                         assert.strictEqual(res, 'OK');
                         assert.strictEqual(err, null);
@@ -270,14 +270,14 @@ describe('connection tests', function () {
                     });
                 });
 
-                it('retryStrategy used to reconnect with individual error', function (done) {
+                it('connectionStrategy used to reconnect with individual error', function (done) {
                     var text = '';
                     var unhookIntercept = intercept(function (data) {
                         text += data;
                         return '';
                     });
                     client = redis.createClient({
-                        retryStrategy: function (options) {
+                        connectionStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
                                 client.set('foo', 'bar', function (err, res) {
                                     assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
@@ -296,16 +296,16 @@ describe('connection tests', function () {
                     process.nextTick(function () {
                         assert.strictEqual(
                             text,
-                            'node_redis: WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
-                            'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
+                            'node_redis: WARNING: You activated the connection_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
+                            'node_redis: WARNING: You activated the connection_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
                         );
                         unhookIntercept();
                     });
                 });
 
-                it('retry_strategy used to reconnect', function (done) {
+                it('connection_strategy used to reconnect', function (done) {
                     client = redis.createClient({
-                        retry_strategy: function (options) {
+                        connection_strategy: function (options) {
                             if (options.total_retry_time > 150) {
                                 client.set('foo', 'bar', function (err, res) {
                                     assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
@@ -321,13 +321,13 @@ describe('connection tests', function () {
                     });
                 });
 
-                it('retryStrategy used to reconnect with defaults', function (done) {
+                it('connectionStrategy used to reconnect with defaults', function (done) {
                     var unhookIntercept = intercept(function () {
                         return '';
                     });
                     redis.debugMode = true;
                     client = redis.createClient({
-                        retryStrategy: function (options) {
+                        connectionStrategy: function (options) {
                             client.set('foo', 'bar');
                             assert(redis.debugMode);
                             return null;
@@ -343,6 +343,38 @@ describe('connection tests', function () {
                         redis.debugMode = false;
                         done();
                     });
+                });
+
+                it('retry_strategy used to flush command queue', function (done) {
+                    var offlineQueueLengthTotal = 0;
+                    client = redis.createClient({
+                        connection_strategy: function (options) {
+                            offlineQueueLengthTotal += client.offlineQueueLength;
+                            return Math.min(options.attempt * 25, 200);
+                        },
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time === 150) {
+                                return new Error('Redis unavailable.');
+                            }
+                            if (options.total_retry_time > 150) {
+                                var isLessThanBefore = (client.offlineQueueLength < offlineQueueLengthTotal);
+                                assert.strictEqual(isLessThanBefore, true);
+                                done();
+                                clearTimeout(attemptTimeout);
+                            }
+                            return null;
+                        }
+                    });
+                    setTimeout(function () {
+                        client.stream.destroy();
+                        client.connection_options.port = 9999;
+                    }, 50);
+                    var attemptTimeout = null;
+                    function attemptSet () {
+                        client.set('foo', new Date().toString());
+                        attemptTimeout = setTimeout(attemptSet, 25);
+                    }
+                    attemptSet();
                 });
             });
 

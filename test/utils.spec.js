@@ -32,7 +32,7 @@ describe('utils.js', function () {
         it('transform camelCase options to snake_case and add the camel_case option', function () {
             var a = utils.clone({
                 optionOneTwo: true,
-                retryStrategy: false,
+                connectionStrategy: false,
                 nested: {
                     onlyContainCamelCaseOnce: true
                 },
@@ -42,7 +42,7 @@ describe('utils.js', function () {
             });
             assert.strictEqual(Object.keys(a).length, 5);
             assert.strictEqual(a.option_one_two, true);
-            assert.strictEqual(a.retry_strategy, false);
+            assert.strictEqual(a.connection_strategy, false);
             assert.strictEqual(a.camel_case, true);
             assert.strictEqual(a.tls.rejectUnauthorized, true);
             assert.strictEqual(Object.keys(a.nested).length, 1);
