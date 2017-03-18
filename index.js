@@ -120,7 +120,7 @@ function RedisClient (options, stream) {
     if ('max_attempts' in options) {
         self.warn(
             'max_attempts is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
+            'To reduce the number of options and to improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
             'This replaces the max_attempts and retry_max_delay option.'
         );
     }
