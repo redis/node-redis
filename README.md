@@ -232,7 +232,7 @@ var client = redis.createClient({
             // End reconnecting after a specific timeout and flush all commands with a individual error
             return new Error('Retry time exhausted');
         }
-        if (options.times_connected > 10) {
+        if (options.attempt > 10) {
             // End reconnecting with built in error
             return undefined;
         }
