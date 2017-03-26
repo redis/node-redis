@@ -342,8 +342,8 @@ describe('connection tests', function () {
                 });
 
                 it('retryStrategy used to reconnect with defaults', function (done) {
-                    var unhookIntercept = intercept(function (text) {
-                        return "";
+                    var unhookIntercept = intercept(function () {
+                        return '';
                     });
                     redis.debugMode = true;
                     client = redis.createClient({
