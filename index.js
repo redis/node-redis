@@ -617,7 +617,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
                 error = this.retry_delay;
             }
             // Handle object pattern
-            if (typeof this.retry_delay === 'object' && !(this.retry_delay instanceof Error) && this.retry_delay !== null) {
+            else if (typeof this.retry_delay === 'object' && this.retry_delay !== null) {
                 if (this.retry_delay.error && this.retry_delay.error instanceof Error) {
                     error = this.retry_delay.error;
                 }
