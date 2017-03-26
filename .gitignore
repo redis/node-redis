@@ -7,3 +7,4 @@ coverage
 stunnel.conf
 stunnel.pid
 *.out
+.idea
