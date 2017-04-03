@@ -341,7 +341,7 @@ If node_redis emits a library error because of another error, the triggering err
 
 ___Error codes___
 
-node_redis returns a `NR_CLOSED` error code if the clients connection dropped. If a command unresolved command got rejected a `UNERCTAIN_STATE` code is returned.
+node_redis returns a `NR_CLOSED` error code if the clients connection dropped. If a command unresolved command got rejected a `UNCERTAIN_STATE` code is returned.
 A `CONNECTION_BROKEN` error code is used in case node_redis gives up to reconnect.
 
 ## client.unref()
