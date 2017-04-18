@@ -588,7 +588,7 @@ Redis. The interface in `node_redis` is to return an individual `Batch` object b
 The only difference between .batch and .multi is that no transaction is going to be used.
 Be aware that the errors are - just like in multi statements - in the result. Otherwise both, errors and results could be returned at the same time.
 
-If you fire many commands at once this is going to boost the execution speed significantly compared to fireing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
+If you fire many commands at once this is going to boost the execution speed significantly compared to firing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
 
 ## Monitor mode
 
@@ -663,7 +663,7 @@ the second word as first parameter:
 Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
 If you pass a callback, duplicate is going to wait until the client is ready and returns it in the callback. If an error occurs in the meanwhile, that is going to return an error instead in the callback.
 
-One example of when to use duplicate() would be to accomodate the connection- 
+One example of when to use duplicate() would be to accommodate the connection- 
 blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
 are used on the same redisClient instance as non-blocking commands, the 
 non-blocking ones may be queued up until after the blocking ones finish.
@@ -838,7 +838,7 @@ Many [others](https://github.com/NodeRedis/node_redis/graphs/contributors) contr
 
 Right now there are two great redis clients around and both have some advantages above each other. We speak about ioredis and node_redis. So after talking to each other about how we could improve in working together we (that is @luin and @BridgeAR) decided to work towards a single library on the long run. But step by step.
 
-First of all, we want to split small parts of our libraries into others so that we're both able to use the same code. Those libraries are going to be maintained under the NodeRedis organization. This is going to reduce the maintance overhead, allows others to use the very same code, if they need it and it's way easyer for others to contribute to both libraries.
+First of all, we want to split small parts of our libraries into others so that we're both able to use the same code. Those libraries are going to be maintained under the NodeRedis organization. This is going to reduce the maintenance overhead, allows others to use the very same code, if they need it and it's way easyer for others to contribute to both libraries.
 
 We're very happy about this step towards working together as we both want to give you the best redis experience possible.
 
