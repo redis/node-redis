@@ -9,8 +9,6 @@ addons:
     packages:
     - g++-4.8
 node_js:
-  - "0.12"
-  - "4"
   - "6"
   - "7"
 after_success: npm run coveralls

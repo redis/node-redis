@@ -3,8 +3,7 @@
 # Test against these versions of Node.js.
 environment:
   matrix:
-    - nodejs_version: "0.12"
-    - nodejs_version: "4"
+    - nodejs_version: "6"
     - nodejs_version: "7"
 
 pull_requests:
