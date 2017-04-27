@@ -117,11 +117,11 @@ Please be aware that sending null, undefined and Boolean values will result in t
 # Redis Commands
 This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands). It is not a cache library so please refer to Redis commands page for full usage details.
 
-Example setting key to auto expire using [setex command](https://redis.io/commands/setex)
+Example setting key to auto expire using [SET command](https://redis.io/commands/set)
 
 ```js
 // this key will expires after 10 seconds
-client.setex('myKey', 10, 'Awesome value!');
+client.set('key', 'value!', 'EX', 10);
 ```
 
 
