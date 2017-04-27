@@ -714,7 +714,7 @@ RedisClient.prototype.emit_idle = function () {
 
 function normal_reply (self, reply) {
     var command_obj = self.command_queue.shift();
-    if (typeof command_obj.callback === 'function') {
+    if (command_obj&&typeof command_obj.callback === 'function') {
         if (command_obj.command !== 'exec') {
             reply = self.handle_reply(reply, command_obj.command, command_obj.buffer_args);
         }
