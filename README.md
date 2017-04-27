@@ -114,6 +114,17 @@ For a list of Redis commands, see [Redis Command Reference](http://redis.io/comm
 Minimal parsing is done on the replies. Commands that return a integer return JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object keyed by the hash keys. All strings will either be returned as string or as buffer depending on your setting.
 Please be aware that sending null, undefined and Boolean values will result in the value coerced to a string!
 
+# Redis Commands
+This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands). It is not a cache library so please refer to Redis commands page for full usage details.
+
+Example setting key to auto expire using [SET command](https://redis.io/commands/set)
+
+```js
+// this key will expires after 10 seconds
+client.set('key', 'value!', 'EX', 10);
+```
+
+
 # API
 
 ## Connection and other Events
@@ -663,9 +674,9 @@ the second word as first parameter:
 Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
 If you pass a callback, duplicate is going to wait until the client is ready and returns it in the callback. If an error occurs in the meanwhile, that is going to return an error instead in the callback.
 
-One example of when to use duplicate() would be to accommodate the connection- 
+One example of when to use duplicate() would be to accommodate the connection-
 blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
-are used on the same redisClient instance as non-blocking commands, the 
+are used on the same redisClient instance as non-blocking commands, the
 non-blocking ones may be queued up until after the blocking ones finish.
 
     var Redis=require('redis');
@@ -686,10 +697,10 @@ non-blocking ones may be queued up until after the blocking ones finish.
     };
     get();
     brpop();
-    
-Another reason to use duplicate() is when multiple DBs on the same server are 
+
+Another reason to use duplicate() is when multiple DBs on the same server are
 accessed via the redis SELECT command.  Each DB could use its own connection.
-    
+
 ## client.send_command(command_name[, [args][, callback]])
 
 All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
