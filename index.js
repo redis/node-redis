@@ -244,11 +244,19 @@ RedisClient.prototype.create_stream = function () {
             this.stream.destroy();
         }
 
+        // Accept snake_case options and convert them to camelCase
+        var opts = {};
+        var keys = Object.keys(this.connection_options);
+        var key;
+        while (key = keys.pop()) {
+            opts[key.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); })] = this.connection_options[key];
+        }
+
         /* istanbul ignore if: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
         if (this.options.tls) {
-            this.stream = tls.connect(this.connection_options);
+            this.stream = tls.connect(opts);
         } else {
-            this.stream = net.createConnection(this.connection_options);
+            this.stream = net.createConnection(opts);
         }
     }
 
