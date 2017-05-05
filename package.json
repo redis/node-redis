@@ -35,8 +35,8 @@
   "devDependencies": {
     "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
-    "intercept-stdout": "~0.1.2",
     "eslint": "^3.5.0",
+    "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.9",
     "mocha": "^3.1.2",
     "nyc": "^8.3.0",
