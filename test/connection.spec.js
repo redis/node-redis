@@ -265,6 +265,7 @@ describe('connection tests', function () {
 
             describe('when not connected', function () {
 
+                // TODO: Fix this test
                 it.skip('emit an error after the socket timeout exceeded the connectTimeout time', function (done) {
                     var connectTimeout = 500; // in ms
                     client = redis.createClient({

@@ -64,7 +64,7 @@ describe("The 'batch' method", function () {
                     client.end(true);
                 });
 
-                it('returns an empty array and keep the execution order in takt', function (done) {
+                it('returns an empty array and keep the execution order in tact', function (done) {
                     var called = false;
                     client.set('foo', 'bar', function (err, res) {
                         called = true;
@@ -78,7 +78,7 @@ describe("The 'batch' method", function () {
                     });
                 });
 
-                it('runs normal calls inbetween batch', function (done) {
+                it('runs normal calls in-between batch', function (done) {
                     var batch = client.batch();
                     batch.set('m1', '123');
                     client.set('m2', '456', done);

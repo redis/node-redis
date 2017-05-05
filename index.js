@@ -142,7 +142,7 @@ function createParser (self) {
             err.message += '. Please report this.';
             self.ready = false;
             self.flushAndError({
-                message: 'Fatal error encountert. Command aborted.',
+                message: 'Fatal error encountered. Command aborted.',
                 code: 'NR_FATAL'
             }, {
                 error: err,
@@ -220,7 +220,7 @@ RedisClient.prototype.createStream = function () {
 
     /* istanbul ignore next: difficult to test and not important as long as we keep this listener */
     this.stream.on('clientError', function (err) {
-        debug('clientError occured');
+        debug('clientError occurred');
         self.onError(err);
     });
 
@@ -327,7 +327,7 @@ RedisClient.prototype.onError = function (err) {
     this.connected = false;
     this.ready = false;
 
-    // Only emit the error if the retryStategy option is not set
+    // Only emit the error if the retryStrategy option is not set
     if (!this.options.retryStrategy) {
         this.emit('error', err);
     }
@@ -724,7 +724,7 @@ function handleOfflineCommand (self, commandObj) {
     self.shouldBuffer = true;
 }
 
-// Do not call internalSendCommand directly, if you are not absolutly certain it handles everything properly
+// Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
 // e.g. monitor / info does not work with internalSendCommand only
 RedisClient.prototype.internalSendCommand = function (commandObj) {
     var arg, prefixKeys;
