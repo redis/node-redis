@@ -1,5 +1,10 @@
-Changelog
-=========
+# Changelog
+
+## v.2.7.2 - 14 Mar, 2017
+
+Bugfixes
+
+- Fixed not always copying subscribe unsubscribe arguments
 
 ## v.2.7.1 - 14 Mar, 2017
 
