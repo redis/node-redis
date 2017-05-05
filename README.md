@@ -1,5 +1,4 @@
-redis - a node.js redis client
-===========================
+# redis - a node.js redis client
 
 [![Build Status](https://travis-ci.org/NodeRedis/node_redis.svg?branch=master)](https://travis-ci.org/NodeRedis/node_redis)
 [![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
@@ -115,6 +114,7 @@ Minimal parsing is done on the replies. Commands that return a integer return Ja
 Please be aware that sending null, undefined and Boolean values will result in the value coerced to a string!
 
 # Redis Commands
+
 This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands). It is not a cache library so please refer to Redis commands page for full usage details.
 
 Example setting key to auto expire using [SET command](https://redis.io/commands/set)
@@ -123,7 +123,6 @@ Example setting key to auto expire using [SET command](https://redis.io/commands
 // this key will expires after 10 seconds
 client.set('key', 'value!', 'EX', 10);
 ```
-
 
 # API
 
@@ -161,6 +160,7 @@ So please attach the error listener to node_redis.
 `client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
 
 ## redis.createClient()
+
 If you have `redis-server` running on the same machine as node, then the defaults for
 port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object. Otherwise, `createClient()` accepts these arguments:
 
@@ -172,12 +172,13 @@ port and host are probably fine and you don't need to supply any arguments. `cre
 __Tip:__ If the Redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
 
 #### `options` object properties
+
 | Property  | Default   | Description |
 |-----------|-----------|-------------|
 | host      | 127.0.0.1 | IP address of the Redis server |
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
-| url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
+| url       | null      | The URL of the Redis server. Format: `[redis:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info available at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
 | stringNumbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). |
 | returnBuffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
 | detectBuffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `returnBuffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
@@ -214,6 +215,7 @@ client.quit();
 ```
 
 retryStrategy example
+
 ```js
 var client = redis.createClient({
     retryStrategy: function (options) {
@@ -293,6 +295,7 @@ Currently the following error subclasses exist:
 All error classes are exported by the module.
 
 Example:
+
 ```js
 var redis = require('./');
 var assert = require('assert');
@@ -521,7 +524,7 @@ client.multi()
 same command methods as `client` objects do. Commands are queued up inside the `Multi` object
 until `Multi.exec()` is invoked.
 
-If your code contains an syntax error an EXECABORT error is going to be thrown and all commands are going to be aborted. That error contains a `.errors` property that contains the concret errors.
+If your code contains an syntax error an EXECABORT error is going to be thrown and all commands are going to be aborted. That error contains a `.errors` property that contains the concrete errors.
 If all commands were queued successfully and an error is thrown by redis while processing the commands that error is going to be returned in the result array! No other command is going to be aborted though than the onces failing.
 
 You can either chain together `MULTI` commands as in the above example, or you can queue individual
@@ -682,14 +685,15 @@ some kind of maximum queue depth for pre-connection commands.
 This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset count]` in the [redis.io/commands](http://redis.io/commands) documentation.
 
 Example:
+
 ```js
-var args = [ 'myzset', 1, 'one', 2, 'two', 3, 'three', 99, 'ninety-nine' ];
+var args = ['myzset', 1, 'one', 2, 'two', 3, 'three', 99, 'ninety-nine'];
 client.zadd(args, function (err, response) {
     if (err) throw err;
     console.log('added '+response+' items.');
 
     // -Infinity and +Infinity also work
-    var args1 = [ 'myzset', '+inf', '-inf' ];
+    var args1 = ['myzset', '+inf', '-inf'];
     client.zrevrangebyscore(args1, function (err, response) {
         if (err) throw err;
         console.log('example1', response);
@@ -697,7 +701,7 @@ client.zadd(args, function (err, response) {
     });
 
     var max = 3, min = 1, offset = 1, count = 2;
-    var args2 = [ 'myzset', max, min, 'WITHSCORES', 'LIMIT', offset, count ];
+    var args2 = ['myzset', max, min, 'WITHSCORES', 'LIMIT', offset, count];
     client.zrevrangebyscore(args2, function (err, response) {
         if (err) throw err;
         console.log('example2', response);
@@ -761,12 +765,15 @@ Good stack traces are only activated in development and debug mode as this resul
 
 ___Comparison___:
 Useless stack trace:
+
 ```
 ReplyError: ERR wrong number of arguments for 'set' command
     at parseError (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:158:12)
     at parseType (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:219:14)
 ```
+
 Good stack trace:
+
 ```
 ReplyError: ERR wrong number of arguments for 'set' command
     at new Command (/home/ruben/repos/redis/lib/command.js:9:902)
@@ -784,6 +791,7 @@ ReplyError: ERR wrong number of arguments for 'set' command
 ```
 
 ## How to Contribute
+
 - Open a pull request or an issue about what you want to implement / change. We're glad for any help!
  - Please be aware that we'll only accept fully tested code.
 
