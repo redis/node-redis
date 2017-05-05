@@ -275,7 +275,7 @@ RedisClient.prototype.warn = function (msg) {
 RedisClient.prototype.flushAndError = function (errorAttributes, options) {
     options = options || {};
     var aggregatedErrors = [];
-    var queueNames = options.queues || ['commandQueue', 'offlineQueue']; // Flush the commandQueue first to keep the order intakt
+    var queueNames = options.queues || ['commandQueue', 'offlineQueue']; // Flush the commandQueue first to keep the order intact
     for (var i = 0; i < queueNames.length; i++) {
         // If the command was fired it might have been processed so far
         if (queueNames[i] === 'commandQueue') {
@@ -386,23 +386,12 @@ RedisClient.prototype.onReady = function () {
     }
     var callbackCount = Object.keys(this.subscriptionSet).length;
     if (!this.options.disableResubscribing && callbackCount) {
-        // only emit 'ready' when all subscriptions were made again
-        // TODO: Remove the countdown for ready here. This is not coherent with all other modes and should therefore not be handled special
-        // We know we are ready as soon as all commands were fired
-        var callback = function () {
-            callbackCount--;
-            if (callbackCount === 0) {
-                self.emit('ready');
-            }
-        };
         debug('Sending pub/sub onReady commands');
         for (var key in this.subscriptionSet) {
             var command = key.slice(0, key.indexOf('_'));
             var args = this.subscriptionSet[key];
-            this[command]([args], callback);
+            this[command]([args]);
         }
-        this.sendOfflineQueue();
-        return;
     }
     this.sendOfflineQueue();
     this.emit('ready');
