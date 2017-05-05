@@ -27,7 +27,7 @@
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
     "redis-commands": "^1.2.0",
-    "redis-parser": "^2.5.0"
+    "redis-parser": "^2.6.0"
   },
   "engines": {
     "node": ">=0.10.0"
@@ -35,14 +35,14 @@
   "devDependencies": {
     "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
-    "eslint": "^3.5.0",
+    "cross-spawn": "^5.0.0",
+    "eslint": "^4.2.0",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.9",
     "mocha": "^3.1.2",
-    "nyc": "^8.3.0",
+    "nyc": "^11.0.0",
     "tcp-port-used": "^0.1.2",
-    "uuid": "^2.0.1",
-    "win-spawn": "^2.0.0"
+    "uuid": "^2.0.1"
   },
   "repository": {
     "type": "git",
