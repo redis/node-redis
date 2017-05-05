@@ -72,19 +72,19 @@ describe("The 'monitor' method", function () {
             monitorClient.on('monitor', function (time, args, rawOutput) {
                 assert.strictEqual(monitorClient.monitoring, true);
                 assert.deepEqual(args, responses.shift());
-                assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                assert(utils.monitorRegex.test(rawOutput), rawOutput);
                 if (responses.length === 0) {
                     monitorClient.quit(end);
                 }
             });
         });
 
-        it('monitors returns strings in the rawOutput even with return_buffers activated', function (done) {
+        it('monitors returns strings in the rawOutput even with returnBuffers activated', function (done) {
             if (process.platform === 'win32') {
                 this.skip();
             }
             var monitorClient = redis.createClient({
-                return_buffers: true,
+                returnBuffers: true,
                 path: '/tmp/redis.sock'
             });
 
@@ -96,7 +96,7 @@ describe("The 'monitor' method", function () {
 
             monitorClient.on('monitor', function (time, args, rawOutput) {
                 assert.strictEqual(typeof rawOutput, 'string');
-                assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                assert(utils.monitorRegex.test(rawOutput), rawOutput);
                 assert.deepEqual(args, ['mget', 'hello', 'world']);
                 // Quit immediatly ends monitoring mode and therefore does not stream back the quit command
                 monitorClient.quit(done);
@@ -109,7 +109,7 @@ describe("The 'monitor' method", function () {
             client.mget('hello', 'world');
             client.on('monitor', function (time, args, rawOutput) {
                 assert.strictEqual(client.monitoring, true);
-                assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                assert(utils.monitorRegex.test(rawOutput), rawOutput);
                 assert.deepEqual(args, ['mget', 'hello', 'world']);
                 if (called) {
                     // End after a reconnect
@@ -131,7 +131,7 @@ describe("The 'monitor' method", function () {
             });
             client.on('monitor', function (time, args, rawOutput) {
                 assert.strictEqual(client.monitoring, true);
-                assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                assert(utils.monitorRegex.test(rawOutput), rawOutput);
                 assert.deepEqual(args, ['mget', 'hello', 'world']);
                 if (called) {
                     // End after a reconnect
@@ -193,7 +193,7 @@ describe("The 'monitor' method", function () {
                 var called = false;
                 client.on('monitor', function (time, args, rawOutput) {
                     assert.deepEqual(args, responses.shift());
-                    assert(utils.monitor_regex.test(rawOutput), rawOutput);
+                    assert(utils.monitorRegex.test(rawOutput), rawOutput);
                     if (responses.length === 0) {
                         // The publish is called right after the reconnect and the monitor is called before the message is emitted.
                         // Therefore we have to wait till the next tick

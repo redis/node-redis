@@ -170,7 +170,7 @@ RedisClient.prototype.createStream = function () {
     var self = this;
 
     // Init parser
-    this.reply_parser = create_parser(this);
+    this.replyParser = createParser(this);
 
     if (this.options.stream) {
         // Only add the listeners once in case of a reconnect try (that won't work)
