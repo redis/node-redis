@@ -5,50 +5,50 @@ Changelog
 
 Bugfixes
 
--  Fixed monitor mode not working in combination with IPv6 (2.6.0 regression)
+- Fixed monitor mode not working in combination with IPv6 (2.6.0 regression)
 
 ## v.2.7.0 - 11 Mar, 2017
 
 Features
 
--  All returned errors are from now a subclass of `RedisError`.
+- All returned errors are from now a subclass of `RedisError`.
 
 Bugfixes
 
--  Fixed rename_commands not accepting `null` as value
--  Fixed `AbortError`s and `AggregateError`s not showing the error message in the stack trace
+- Fixed rename_commands not accepting `null` as value
+- Fixed `AbortError`s and `AggregateError`s not showing the error message in the stack trace
 
 ## v.2.6.5 - 15 Jan, 2017
 
 Bugfixes
 
--  Fixed parser not being reset in case the redis connection closed ASAP for overcoming of output buffer limits
--  Fixed parser reset if (p)message_buffer listener is attached
+- Fixed parser not being reset in case the redis connection closed ASAP for overcoming of output buffer limits
+- Fixed parser reset if (p)message_buffer listener is attached
 
 ## v.2.6.4 - 12 Jan, 2017
 
 Bugfixes
 
--  Fixed monitor mode not working in combination with IPv6, sockets or lua scripts (2.6.0 regression)
+- Fixed monitor mode not working in combination with IPv6, sockets or lua scripts (2.6.0 regression)
 
 ## v.2.6.3 - 31 Oct, 2016
 
 Bugfixes
 
--  Do not change the tls setting to camel_case
--  Fix domain handling in combination with the offline queue (2.5.3 regression)
+- Do not change the tls setting to camel_case
+- Fix domain handling in combination with the offline queue (2.5.3 regression)
 
 ## v.2.6.2 - 16 Jun, 2016
 
 Bugfixes
 
--  Fixed individual callbacks of a transaction not being called (2.6.0 regression)
+- Fixed individual callbacks of a transaction not being called (2.6.0 regression)
 
 ## v.2.6.1 - 02 Jun, 2016
 
 Bugfixes
 
--  Fixed invalid function name being exported
+- Fixed invalid function name being exported
 
 ## v.2.6.0 - 01 Jun, 2016
 
@@ -130,7 +130,7 @@ Features
 -  Monitor and pub sub mode now work together with the offline queue
  -  All commands that were send after a connection loss are now going to be send after reconnecting
 -  Activating monitor mode does now work together with arbitrary commands including pub sub mode
--  Pub sub mode is completly rewritten and all known issues fixed
+-  Pub sub mode is completely rewritten and all known issues fixed
 -  Added `string_numbers` option to get back strings instead of numbers
 -  Quit command is from now on always going to end the connection properly
 
@@ -173,7 +173,7 @@ Same changelog as the pre-release
 
 ## v.2.5.0-1 - 07 Mar, 2016
 
-This is a big release with some substaintual underlining changes. Therefor this is released as a pre-release and I encourage anyone who's able to, to test this out.
+This is a big release with some substantial underlining changes. Therefor this is released as a pre-release and I encourage anyone who's able to, to test this out.
 
 It took way to long to release this one and the next release cycles will be shorter again.
 
@@ -193,7 +193,7 @@ Features
 -  Added a `warning` emitter that receives node_redis warnings like auth not required and deprecation messages
 -  Added a `retry_strategy` option that replaces all reconnect options
 -  The reconnecting event from now on also receives:
- -  The error message why the reconnect happend (params.error)
+ -  The error message why the reconnect happened (params.error)
  -  The amount of times the client was connected (params.times_connected)
  -  The total reconnecting time since the last time connected (params.total_retry_time)
 -  Always respect the command execution order no matter if the reply could be returned sync or not (former exceptions: [#937](https://github.com/NodeRedis/node_redis/issues/937#issuecomment-167525939))
@@ -208,9 +208,9 @@ Bugfixes
 -  Fixed do not run toString on an array argument and throw a "invalid data" error instead
  -  This is not considered as breaking change, as this is likely a error in your code and if you want to have such a behavior you should handle this beforehand
  -  The same applies to Map / Set and individual Object types
--  Fixed redis url not accepting the protocol being omitted or protocols other than the redis protocol for convienence
+-  Fixed redis url not accepting the protocol being omitted or protocols other than the redis protocol for convenience
 -  Fixed parsing the db keyspace even if the first database does not begin with a zero
--  Fixed handling of errors occuring while receiving pub sub messages
+-  Fixed handling of errors occurring while receiving pub sub messages
 -  Fixed huge string pipelines crashing NodeJS (Pipeline size above 256mb)
 -  Fixed rename_commands and prefix option not working together
 -  Fixed ready being emitted to early in case a slave is still syncing / master down
@@ -223,7 +223,7 @@ Deprecations
  -  Using SET or SETEX with a undefined or null value will from now on also result in converting the value to "null" / "undefined" to have a consistent behavior. This is not considered as breaking change, as it returned an error earlier.
 -  Using .end(flush) without the flush parameter is deprecated and the flush parameter should explicitly be used
  -  From v.3.0.0 on using .end without flush will result in an error
- -  Using .end without flush means that any command that did not yet return is going to silently fail. Therefor this is considered harmfull and you should explicitly silence such errors if you are sure you want this
+ -  Using .end without flush means that any command that did not yet return is going to silently fail. Therefor this is considered harmful and you should explicitly silence such errors if you are sure you want this
 -  Depending on the return value of a command to detect the backpressure is deprecated
  -  From version 3.0.0 on node_redis might not return true / false as a return value anymore. Please rely on client.should_buffer instead
 -  The `socket_nodelay` option is deprecated and will be removed in v.3.0.0
