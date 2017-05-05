@@ -15,7 +15,6 @@ describe("The 'incr' method", function () {
 
                 var client;
                 var key = 'ABOVE_SAFE_JAVASCRIPT_INTEGER';
-                var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || 9007199254740991; // Backwards compatible
 
                 afterEach(function () {
                     client.end(true);
@@ -35,27 +34,27 @@ describe("The 'incr' method", function () {
                 it('count above the safe integers as numbers', function (done) {
                     client = redis.createClient.apply(null, args);
                     // Set a value to the maximum safe allowed javascript number (2^53) - 1
-                    client.set(key, MAX_SAFE_INTEGER, helper.isNotError());
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 1));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 2));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 3));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 4));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 5));
-                    client.INCR(key, function (err, res) {
-                        helper.isNumber(MAX_SAFE_INTEGER + 6)(err, res);
+                    client.set(key, Number.MAX_SAFE_INTEGER, helper.isNotError());
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 1));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 2));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 3));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 4));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 5));
+                    client.incr(key, function (err, res) {
+                        helper.isNumber(Number.MAX_SAFE_INTEGER + 6)(err, res);
                         assert.strictEqual(typeof res, 'number');
                     });
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 7));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 8));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 9));
-                    client.INCR(key, helper.isNumber(MAX_SAFE_INTEGER + 10, done));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 7));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 8));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 9));
+                    client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 10, done));
                 });
 
                 it('count above the safe integers as strings', function (done) {
                     args[2].stringNumbers = true;
                     client = redis.createClient.apply(null, args);
                     // Set a value to the maximum safe allowed javascript number (2^53)
-                    client.set(key, MAX_SAFE_INTEGER, helper.isNotError());
+                    client.set(key, Number.MAX_SAFE_INTEGER, helper.isNotError());
                     client.incr(key, helper.isString('9007199254740992'));
                     client.incr(key, helper.isString('9007199254740993'));
                     client.incr(key, helper.isString('9007199254740994'));

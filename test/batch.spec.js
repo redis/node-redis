@@ -182,7 +182,7 @@ describe("The 'batch' method", function () {
                     });
 
                     // test nested batch-bulk replies with empty mb elements.
-                    client.BATCH([
+                    client.batch([
                         ['smembers', ['some set']],
                         ['del', 'some set'],
                         ['smembers', 'some set', undefined] // The explicit undefined is handled as a callback that is undefined
@@ -210,7 +210,7 @@ describe("The 'batch' method", function () {
                         ['hmset', arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
                         ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}, helper.isString('OK')],
-                        ['HMSET', 'batchhmset', ['batchbar', 'batchbaz']],
+                        ['hmset', 'batchhmset', ['batchbar', 'batchbaz']],
                         ['hmset', 'batchhmset', ['batchbar', 'batchbaz'], helper.isString('OK')],
                     ])
                     .hmget(now, 123456789, 'otherTypes')

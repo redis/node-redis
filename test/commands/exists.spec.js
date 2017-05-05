@@ -20,12 +20,12 @@ describe("The 'exists' method", function () {
 
             it('returns 1 if the key exists', function (done) {
                 client.set('foo', 'bar');
-                client.EXISTS('foo', helper.isNumber(1, done));
+                client.exists('foo', helper.isNumber(1, done));
             });
 
             it('returns 1 if the key exists with array syntax', function (done) {
                 client.set('foo', 'bar');
-                client.EXISTS(['foo'], helper.isNumber(1, done));
+                client.exists(['foo'], helper.isNumber(1, done));
             });
 
             it('returns 0 if the key does not exist', function (done) {

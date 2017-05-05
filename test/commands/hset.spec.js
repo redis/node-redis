@@ -25,23 +25,23 @@ describe("The 'hset' method", function () {
                 var value = new Buffer('abcdefghij');
 
                 client.hset(hash, field, value, helper.isNumber(1));
-                client.HGET(hash, field, helper.isString(value.toString(), done));
+                client.hget(hash, field, helper.isString(value.toString(), done));
             });
 
             it('handles an empty value', function (done) {
                 var field = new Buffer('0123456789');
                 var value = new Buffer(0);
 
-                client.HSET(hash, field, value, helper.isNumber(1));
-                client.HGET([hash, field], helper.isString('', done));
+                client.hset(hash, field, value, helper.isNumber(1));
+                client.hget([hash, field], helper.isString('', done));
             });
 
             it('handles empty key and value', function (done) {
                 var field = new Buffer(0);
                 var value = new Buffer(0);
-                client.HSET([hash, field, value], function (err, res) {
+                client.hset([hash, field, value], function (err, res) {
                     assert.strictEqual(res, 1);
-                    client.HSET(hash, field, value, helper.isNumber(0, done));
+                    client.hset(hash, field, value, helper.isNumber(0, done));
                 });
             });
 
@@ -60,7 +60,7 @@ describe("The 'hset' method", function () {
                     );
                     done();
                 });
-                client.HMSET(hash, field, value);
+                client.hmset(hash, field, value);
             });
 
             it('does not error when a buffer and date are set as values on the same hash', function (done) {
@@ -70,7 +70,7 @@ describe("The 'hset' method", function () {
                 var field2 = 'date';
                 var value2 = new Date();
 
-                client.HMSET(hash, field1, value1, field2, value2, helper.isString('OK', done));
+                client.hmset(hash, field1, value1, field2, value2, helper.isString('OK', done));
             });
 
             it('does not error when a buffer and date are set as fields on the same hash', function (done) {
@@ -80,7 +80,7 @@ describe("The 'hset' method", function () {
                 var value2 = 'date';
                 var field2 = new Date();
 
-                client.HMSET(hash, field1, value1, field2, value2, helper.isString('OK', done));
+                client.hmset(hash, field1, value1, field2, value2, helper.isString('OK', done));
             });
 
             afterEach(function () {

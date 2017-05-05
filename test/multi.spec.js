@@ -319,7 +319,7 @@ describe("The 'multi' method", function () {
                 it('roles back a transaction when one command in a sequence of commands fails', function (done) {
                     var multi1, multi2;
                     // Provoke an error at queue time
-                    multi1 = client.MULTI();
+                    multi1 = client.multi();
                     multi1.mset('multifoo', '10', 'multibar', '20', helper.isString('OK'));
 
                     multi1.set('foo2', helper.isError());
@@ -403,7 +403,7 @@ describe("The 'multi' method", function () {
                         ['hmset', arr3, helper.isString('OK')],
                         ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
                         ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}, helper.isString('OK')],
-                        ['HMSET', 'multihmset', ['multibar', 'multibaz'], undefined], // undefined is used as a explicit not set callback variable
+                        ['hmset', 'multihmset', ['multibar', 'multibaz'], undefined], // undefined is used as a explicit not set callback variable
                         ['hmset', 'multihmset', ['multibar', 'multibaz'], helper.isString('OK')],
                     ])
                     .hmget(now, 123456789, 'otherTypes')
@@ -625,7 +625,7 @@ describe("The 'multi' method", function () {
                         test = true;
                     };
                     multi.set('baz', 'binary');
-                    multi.EXEC_ATOMIC();
+                    multi.execAtomic();
                     assert(test);
                 });
 

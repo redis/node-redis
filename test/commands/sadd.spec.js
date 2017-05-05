@@ -20,7 +20,7 @@ describe("The 'sadd' method", function () {
             });
 
             it('allows a single value to be added to the set', function (done) {
-                client.SADD('set0', 'member0', helper.isNumber(1));
+                client.sadd('set0', 'member0', helper.isNumber(1));
                 client.smembers('set0', function (err, res) {
                     assert.ok(~res.indexOf('member0'));
                     return done(err);
@@ -29,7 +29,7 @@ describe("The 'sadd' method", function () {
 
             it('does not add the same value to the set twice', function (done) {
                 client.sadd('set0', 'member0', helper.isNumber(1));
-                client.SADD('set0', 'member0', helper.isNumber(0, done));
+                client.sadd('set0', 'member0', helper.isNumber(0, done));
             });
 
             it('allows multiple values to be added to the set', function (done) {

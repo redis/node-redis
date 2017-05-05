@@ -25,9 +25,9 @@ describe("The 'hlen' method", function () {
                 var field2 = new Buffer(0);
                 var value2 = new Buffer(0);
 
-                client.HSET(hash, field1, value1, helper.isNumber(1));
-                client.HSET(hash, field2, value2, helper.isNumber(1));
-                client.HLEN(hash, helper.isNumber(2, done));
+                client.hset(hash, field1, value1, helper.isNumber(1));
+                client.hset(hash, field2, value2, helper.isNumber(1));
+                client.hlen(hash, helper.isNumber(2, done));
             });
 
             afterEach(function () {

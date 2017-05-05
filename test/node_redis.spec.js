@@ -21,8 +21,8 @@ describe('The nodeRedis client', function () {
             // Check that every entry RedisClient entry has a correspondend Multi entry
             assert.strictEqual(clientPrototype.filter(function (entry) {
                 return multiPrototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1;
-            }).length, 4); // multi and batch are included too
-            assert.strictEqual(clientPrototype.length, multiPrototype.length + 4);
+            }).length, 3); // multi and batch are included too
+            assert.strictEqual(clientPrototype.length, multiPrototype.length + 3);
             // Check that all entries exist in uppercase and in lowercase variants
             assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-z_]+/g).length * 2, clientPrototype.length);
             done();

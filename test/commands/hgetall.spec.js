@@ -23,7 +23,7 @@ describe("The 'hgetall' method", function () {
 
                 it('handles simple keys and values', function (done) {
                     client.hmset(['hosts', 'hasOwnProperty', '1', 'another', '23', 'home', '1234'], helper.isString('OK'));
-                    client.HGETALL(['hosts'], function (err, obj) {
+                    client.hgetall(['hosts'], function (err, obj) {
                         assert.strictEqual(3, Object.keys(obj).length);
                         assert.strictEqual('1', obj.hasOwnProperty.toString());
                         assert.strictEqual('23', obj.another.toString());
@@ -33,7 +33,7 @@ describe("The 'hgetall' method", function () {
                 });
 
                 it('handles fetching keys set using an object', function (done) {
-                    client.batch().HMSET('msgTest', { message: 'hello' }, undefined).exec();
+                    client.batch().hmset('msgTest', { message: 'hello' }, undefined).exec();
                     client.hgetall('msgTest', function (err, obj) {
                         assert.strictEqual(1, Object.keys(obj).length);
                         assert.strictEqual(obj.message, 'hello');
@@ -64,7 +64,7 @@ describe("The 'hgetall' method", function () {
 
                 it('returns binary results', function (done) {
                     client.hmset(['bhosts', 'mjr', '1', 'another', '23', 'home', '1234', new Buffer([0xAA, 0xBB, 0x00, 0xF0]), new Buffer([0xCC, 0xDD, 0x00, 0xF0])], helper.isString('OK'));
-                    client.HGETALL('bhosts', function (err, obj) {
+                    client.hgetall('bhosts', function (err, obj) {
                         assert.strictEqual(4, Object.keys(obj).length);
                         assert.strictEqual('1', obj.mjr.toString());
                         assert.strictEqual('23', obj.another.toString());

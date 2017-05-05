@@ -20,7 +20,7 @@ describe("The 'type' method", function () {
 
             it('reports string type', function (done) {
                 client.set(['string key', 'should be a string'], helper.isString('OK'));
-                client.TYPE(['string key'], helper.isString('string', done));
+                client.type(['string key'], helper.isString('string', done));
             });
 
             it('reports list type', function (done) {
@@ -30,21 +30,21 @@ describe("The 'type' method", function () {
 
             it('reports set type', function (done) {
                 client.sadd(['set key', 'should be a set'], helper.isNumber(1));
-                client.TYPE(['set key'], helper.isString('set', done));
+                client.type(['set key'], helper.isString('set', done));
             });
 
             it('reports zset type', function (done) {
                 client.zadd('zset key', ['10.0', 'should be a zset'], helper.isNumber(1));
-                client.TYPE(['zset key'], helper.isString('zset', done));
+                client.type(['zset key'], helper.isString('zset', done));
             });
 
             it('reports hash type', function (done) {
                 client.hset('hash key', 'hashtest', 'should be a hash', helper.isNumber(1));
-                client.TYPE(['hash key'], helper.isString('hash', done));
+                client.type(['hash key'], helper.isString('hash', done));
             });
 
             it('reports none for null key', function (done) {
-                client.TYPE('not here yet', helper.isString('none', done));
+                client.type('not here yet', helper.isString('none', done));
             });
 
             afterEach(function () {

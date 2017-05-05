@@ -20,7 +20,7 @@ describe("The 'msetnx' method", function () {
 
             it('if any keys exist entire operation fails', function (done) {
                 client.mset(['mset1', 'val1', 'mset2', 'val2', 'mset3', 'val3'], helper.isString('OK'));
-                client.MSETNX(['mset3', 'val3', 'mset4', 'val4'], helper.isNumber(0));
+                client.msetnx(['mset3', 'val3', 'mset4', 'val4'], helper.isNumber(0));
                 client.exists(['mset4'], helper.isNumber(0, done));
             });
 

@@ -88,7 +88,7 @@ describe("The 'monitor' method", function () {
                 path: '/tmp/redis.sock'
             });
 
-            monitorClient.MONITOR(function (err, res) {
+            monitorClient.monitor(function (err, res) {
                 assert.strictEqual(monitorClient.monitoring, true);
                 assert.strictEqual(res.inspect(), new Buffer('OK').inspect());
                 monitorClient.mget('hello', new Buffer('world'));
@@ -105,7 +105,7 @@ describe("The 'monitor' method", function () {
 
         it('monitors reconnects properly and works with the offline queue', function (done) {
             var called = false;
-            client.MONITOR(helper.isString('OK'));
+            client.monitor(helper.isString('OK'));
             client.mget('hello', 'world');
             client.on('monitor', function (time, args, rawOutput) {
                 assert.strictEqual(client.monitoring, true);
@@ -124,7 +124,7 @@ describe("The 'monitor' method", function () {
         it('monitors reconnects properly and works with the offline queue in a batch statement', function (done) {
             var called = false;
             var multi = client.batch();
-            multi.MONITOR(helper.isString('OK'));
+            multi.monitor(helper.isString('OK'));
             multi.mget('hello', 'world');
             multi.exec(function (err, res) {
                 assert.deepEqual(res, ['OK', [null, null]]);
@@ -144,7 +144,7 @@ describe("The 'monitor' method", function () {
         });
 
         it('monitor activates even if the command could not be processed properly after a reconnect', function (done) {
-            client.MONITOR(function (err, res) {
+            client.monitor(function (err, res) {
                 assert.strictEqual(err.code, 'UNCERTAIN_STATE');
             });
             client.on('error', function (err) {}); // Ignore error here
@@ -175,7 +175,7 @@ describe("The 'monitor' method", function () {
             ];
             var pub = redis.createClient();
             pub.on('ready', function () {
-                client.MONITOR(function (err, res) {
+                client.monitor(function (err, res) {
                     assert.strictEqual(res, 'OK');
                     pub.get('foo', helper.isNull());
                 });

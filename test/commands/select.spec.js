@@ -47,7 +47,7 @@ describe("The 'select' method", function () {
                 it('changes the database and calls the callback', function (done) {
                     // default value of null means database 0 will be used.
                     assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined');
-                    var buffering = client.SELECT(1, function (err, res) {
+                    var buffering = client.select(1, function (err, res) {
                         helper.isNotError()(err, res);
                         assert.strictEqual(client.selectedDb, 1, 'db should be 1 after select');
                         done();

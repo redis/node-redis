@@ -22,7 +22,7 @@ describe("The 'ttl' method", function () {
             it('returns the current ttl on a key', function (done) {
                 client.set(['ttl key', 'ttl val'], helper.isString('OK'));
                 client.expire(['ttl key', '100'], helper.isNumber(1));
-                client.TTL(['ttl key'], function (err, ttl) {
+                client.ttl(['ttl key'], function (err, ttl) {
                     assert(ttl >= 99);
                     assert(ttl <= 100);
                     done(err);

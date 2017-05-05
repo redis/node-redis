@@ -21,7 +21,7 @@ describe("The 'randomkey' method", function () {
 
             it('returns a random key', function (done) {
                 client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'));
-                client.RANDOMKEY([], function (err, results) {
+                client.randomkey([], function (err, results) {
                     assert.strictEqual(true, /test keys.+/.test(results));
                     return done(err);
                 });

@@ -66,14 +66,14 @@ describe("The 'get' method", function () {
                     });
 
                     it('gets the value correctly', function (done) {
-                        client.GET(key, function (err, res) {
+                        client.get(key, function (err, res) {
                             helper.isString(value)(err, res);
                             done(err);
                         });
                     });
 
                     it("should not throw on a get without callback (even if it's not useful)", function (done) {
-                        client.GET(key);
+                        client.get(key);
                         client.on('error', function (err) {
                             throw err;
                         });

@@ -61,7 +61,7 @@ describe("The 'getset' method", function () {
                     });
 
                     it('gets the value correctly', function (done) {
-                        client.GETSET(key, value2, function (err, res) {
+                        client.getset(key, value2, function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
                                 helper.isString(value2)(err, res);
@@ -71,7 +71,7 @@ describe("The 'getset' method", function () {
                     });
 
                     it('gets the value correctly with array syntax', function (done) {
-                        client.GETSET([key, value2], function (err, res) {
+                        client.getset([key, value2], function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
                                 helper.isString(value2)(err, res);
@@ -81,7 +81,7 @@ describe("The 'getset' method", function () {
                     });
 
                     it('gets the value correctly with array syntax style 2', function (done) {
-                        client.GETSET(key, [value2], function (err, res) {
+                        client.getset(key, [value2], function (err, res) {
                             helper.isString(value)(err, res);
                             client.get(key, function (err, res) {
                                 helper.isString(value2)(err, res);

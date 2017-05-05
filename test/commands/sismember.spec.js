@@ -24,7 +24,7 @@ describe("The 'sismember' method", function () {
 
             it('returns 1 if the value is in the set', function (done) {
                 client.sadd('foo', 'banana', helper.isNumber(1));
-                client.SISMEMBER('foo', 'banana', helper.isNumber(1, done));
+                client.sismember('foo', 'banana', helper.isNumber(1, done));
             });
 
             afterEach(function () {

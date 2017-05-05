@@ -309,21 +309,21 @@ describe('client authentication', function () {
                 });
                 client.batch()
                     .auth(auth)
-                    .SELECT(5, function (err, res) {
+                    .select(5, function (err, res) {
                         assert.strictEqual(client.selectedDb, 5);
                         assert.strictEqual(res, 'OK');
                         assert.notDeepEqual(client.serverInfo.db5, { avgTtl: 0, expires: 0, keys: 1 });
                     })
                     .monitor()
                     .set('foo', 'bar', helper.isString('OK'))
-                    .INFO('stats', function (err, res) {
+                    .info('stats', function (err, res) {
                         assert.strictEqual(res.indexOf('# Stats\r\n'), 0);
                         assert.strictEqual(client.serverInfo.sync_full, '0');
                     })
                     .get('foo', helper.isString('bar'))
                     .subscribe(['foo', 'bar', 'foo'], helper.isUnSubscribe(2, ['foo', 'bar', 'foo']))
                     .unsubscribe('foo')
-                    .SUBSCRIBE('/foo', helper.isUnSubscribe(2, '/foo'))
+                    .subscribe('/foo', helper.isUnSubscribe(2, '/foo'))
                     .psubscribe('*')
                     .quit(helper.isString('OK'))
                     .exec(function (err, res) {

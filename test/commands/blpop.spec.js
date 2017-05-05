@@ -62,7 +62,7 @@ describe("The 'blpop' method", function () {
 
             it('times out after specified time', function (done) {
                 bclient = redis.createClient.apply(null, args);
-                bclient.BLPOP('blocking list', 1, function (err, res) {
+                bclient.blpop('blocking list', 1, function (err, res) {
                     assert.strictEqual(res, null);
                     return done(err);
                 });

@@ -19,7 +19,7 @@ describe("The 'setnx' method", function () {
             });
 
             it('sets key if it does not have a value', function (done) {
-                client.SETNX('foo', 'banana', helper.isNumber(1));
+                client.setnx('foo', 'banana', helper.isNumber(1));
                 client.get('foo', helper.isString('banana', done));
             });
 
