@@ -187,7 +187,7 @@ describe('publish/subscribe', function () {
                 });
 
                 it('handles SUB UNSUB MSG SUB 2', function (done) {
-                    sub.psubscribe('abc*', helper.isString('abc*'));
+                    sub.psubscribe('abc*', helper.isUnSubscribe(1, 'abc*'));
                     sub.subscribe('xyz');
                     sub.unsubscribe('xyz');
                     pub.publish('abcd', 'something');
@@ -256,7 +256,7 @@ describe('publish/subscribe', function () {
                     });
                     sub.set('foo', 'bar');
                     sub.unsubscribe(function (err, res) {
-                        assert.strictEqual(res, null);
+                        assert.deepStrictEqual(res, [0, []]);
                     });
                     sub.del('foo', done);
                 });
@@ -427,7 +427,7 @@ describe('publish/subscribe', function () {
                             });
                             sub.punsubscribe(function (err, res) {
                                 assert(!err);
-                                assert.strictEqual(res, 'bla');
+                                assert.deepStrictEqual(res, [0, ['prefix:3', 'prefix:2', '5', 'test:a', 'bla']]);
                                 assert(all);
                                 all = false; // Make sure the callback is actually after the emit
                                 end();
@@ -468,19 +468,13 @@ describe('publish/subscribe', function () {
                     });
                 });
 
-                it('does not complain when unsubscribe is called and there are no subscriptions', function (done) {
-                    sub.unsubscribe(function (err, res) {
-                        assert.strictEqual(err, null);
-                        assert.strictEqual(res, null);
-                        done();
-                    });
+                it('sub executes callback when unsubscribe is called and there are no subscriptions', function (done) {
+                    sub.unsubscribe(helper.isUnSubscribe(0, [], done));
                 });
 
-                it('executes callback when unsubscribe is called and there are no subscriptions', function (done) {
-                    pub.unsubscribe(function (err, results) {
-                        assert.strictEqual(null, results);
-                        done(err);
-                    });
+                it('pub executes callback when unsubscribe is called and there are no subscriptions', function (done) {
+                    pub.unsubscribe(helper.isUnSubscribe(0, []));
+                    pub.get('foo', done);
                 });
             });
 
@@ -491,7 +485,7 @@ describe('publish/subscribe', function () {
                     });
                     sub.subscribe('/foo', function () {
                         sub2.on('ready', function () {
-                            sub2.batch().psubscribe('*', helper.isString('*')).exec();
+                            sub2.batch().psubscribe('*', helper.isUnSubscribe(1, '*')).exec();
                             sub2.subscribe('/foo');
                             sub2.on('pmessage', function (pattern, channel, message) {
                                 assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
@@ -500,7 +494,7 @@ describe('publish/subscribe', function () {
                                 sub2.quit(done);
                             });
                             pub.pubsub('numsub', '/foo', function (err, res) {
-                                assert.deepEqual(res, ['/foo', 2]);
+                                assert.deepStrictEqual(res, ['/foo', 2]);
                             });
                             // sub2 is counted twice as it subscribed with psubscribe and subscribe
                             pub.publish('/foo', 'hello world', helper.isNumber(3));
@@ -527,8 +521,8 @@ describe('publish/subscribe', function () {
                         batch.psubscribe('*');
                         batch.subscribe('/foo');
                         batch.unsubscribe('/foo');
-                        batch.unsubscribe(helper.isNull());
-                        batch.subscribe(['/foo'], helper.isString('/foo'));
+                        batch.unsubscribe(helper.isUnSubscribe(1, []));
+                        batch.subscribe(['/foo'], helper.isUnSubscribe(2, '/foo'));
                         batch.exec(function () {
                             pub.pubsub('numsub', '/foo', function (err, res) {
                                 // There's one subscriber to this channel
@@ -569,7 +563,7 @@ describe('publish/subscribe', function () {
                 });
 
                 it('executes callback when punsubscribe is called and there are no subscriptions', function (done) {
-                    pub.batch().punsubscribe(helper.isNull()).exec(done);
+                    pub.batch().punsubscribe(helper.isUnSubscribe(0, [])).exec(done);
                 });
             });
 
@@ -654,7 +648,7 @@ describe('publish/subscribe', function () {
                     .client('KILL', ['type', 'pubsub'], function () {})
                     .unsubscribe()
                     .psubscribe(['pattern:*'])
-                    .punsubscribe('unkown*')
+                    .punsubscribe('unknown*')
                     .punsubscribe(['pattern:*'])
                     .exec(function (err, res) {
                         sub.client('kill', ['type', 'pubsub']);

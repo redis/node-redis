@@ -112,6 +112,7 @@ function RedisClient (options, stream) {
     this.buffers = options.returnBuffers || options.detectBuffers;
     this.options = options;
     this.reply = 'ON'; // Returning replies is the default
+    this.subscribeChannels = [];
     // Init parser
     this.replyParser = createParser(this);
     this.createStream();
@@ -605,6 +606,7 @@ function subscribeUnsubscribe (self, reply, type) {
             type = type === 'unsubscribe' ? 'subscribe' : 'psubscribe'; // Make types consistent
             delete self.subscriptionSet[type + '_' + channel];
         }
+        self.subscribeChannels.push(channel);
     }
 
     if (commandObj.args.length === 1 || self.subCommandsLeft === 1 || commandObj.args.length === 0 && (count === 0 || channel === null)) {
@@ -623,10 +625,9 @@ function subscribeUnsubscribe (self, reply, type) {
         }
         self.commandQueue.shift();
         if (typeof commandObj.callback === 'function') {
-            // TODO: The current return value is pretty useless.
-            // Evaluate to change this in v.3 to return all subscribed / unsubscribed channels in an array including the number of channels subscribed too
-            commandObj.callback(null, channel);
+            commandObj.callback(null, [count, self.subscribeChannels]);
         }
+        self.subscribeChannels = [];
         self.subCommandsLeft = 0;
     } else {
         if (self.subCommandsLeft !== 0) {

@@ -321,14 +321,17 @@ describe('client authentication', function () {
                         assert.strictEqual(client.serverInfo.sync_full, '0');
                     })
                     .get('foo', helper.isString('bar'))
-                    .subscribe(['foo', 'bar'])
+                    .subscribe(['foo', 'bar', 'foo'], helper.isUnSubscribe(2, ['foo', 'bar', 'foo']))
                     .unsubscribe('foo')
-                    .SUBSCRIBE('/foo', helper.isString('/foo'))
+                    .SUBSCRIBE('/foo', helper.isUnSubscribe(2, '/foo'))
                     .psubscribe('*')
-                    .quit(helper.isString('OK')) // this might be interesting
+                    .quit(helper.isString('OK'))
                     .exec(function (err, res) {
                         res[4] = res[4].substr(0, 9);
-                        assert.deepEqual(res, ['OK', 'OK', 'OK', 'OK', '# Stats\r\n', 'bar', 'bar', 'foo', '/foo', '*', 'OK']);
+                        assert.deepStrictEqual(
+                            res,
+                            ['OK', 'OK', 'OK', 'OK', '# Stats\r\n', 'bar', [2, ['foo', 'bar', 'foo']], [1, ['foo']], [2, ['/foo']], [3, ['*']], 'OK']
+                        );
                         end();
                     });
             });

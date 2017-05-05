@@ -130,6 +130,31 @@ module.exports = {
             };
         }
     },
+    isUnSubscribe: function (count, channels, done) {
+        if (typeof count !== 'number') {
+            done = channels;
+            channels = count;
+            count = undefined;
+        }
+        if (typeof channels === 'function') {
+            done = count;
+            count = undefined;
+        }
+        if (typeof channels === 'string') {
+            channels = [channels];
+        }
+        var len = channels.length;
+        return function (err, results) {
+            assert.strictEqual(err, null, 'expected an array, got: ' + err);
+            assert.strictEqual(Array.isArray(results), true, results);
+            assert.strictEqual(Array.isArray(results[1]), true, results);
+            assert.strictEqual(results[1].length, len, results);
+            assert.strictEqual(typeof results[0], 'number', results);
+            if (count) assert.strictEqual(count, results[0], results);
+            if (done) done();
+        };
+
+    },
     match: function (pattern, done) {
         return function (err, results) {
             assert.strictEqual(err, null, 'expected ' + pattern.toString() + ', got error: ' + err);

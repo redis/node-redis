@@ -309,6 +309,7 @@ describe('connection tests', function () {
                         assert.strictEqual(client.stream.listeners('timeout').length, 0);
                         done();
                     });
+                    client.end(true);
                 });
 
                 it('clears the socket timeout after a connection has been established', function (done) {
