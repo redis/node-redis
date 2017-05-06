@@ -1,46 +1,44 @@
-'use strict';
+'use strict'
 
-var assert = require('assert');
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var assert = require('assert')
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'sunion' method", function () {
+describe('The \'sunion\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      it('returns the union of a group of sets', function (done) {
+        client.sadd('sa', 'a', helper.isNumber(1))
+        client.sadd('sa', 'b', helper.isNumber(1))
+        client.sadd('sa', 'c', helper.isNumber(1))
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
+        client.sadd('sb', 'b', helper.isNumber(1))
+        client.sadd('sb', 'c', helper.isNumber(1))
+        client.sadd('sb', 'd', helper.isNumber(1))
 
-            it('returns the union of a group of sets', function (done) {
-                client.sadd('sa', 'a', helper.isNumber(1));
-                client.sadd('sa', 'b', helper.isNumber(1));
-                client.sadd('sa', 'c', helper.isNumber(1));
+        client.sadd('sc', 'c', helper.isNumber(1))
+        client.sadd('sc', 'd', helper.isNumber(1))
+        client.sadd('sc', 'e', helper.isNumber(1))
 
-                client.sadd('sb', 'b', helper.isNumber(1));
-                client.sadd('sb', 'c', helper.isNumber(1));
-                client.sadd('sb', 'd', helper.isNumber(1));
+        client.sunion('sa', 'sb', 'sc', function (err, union) {
+          assert.deepEqual(union.sort(), ['a', 'b', 'c', 'd', 'e'])
+          return done(err)
+        })
+      })
 
-                client.sadd('sc', 'c', helper.isNumber(1));
-                client.sadd('sc', 'd', helper.isNumber(1));
-                client.sadd('sc', 'e', helper.isNumber(1));
-
-                client.sunion('sa', 'sb', 'sc', function (err, union) {
-                    assert.deepEqual(union.sort(), ['a', 'b', 'c', 'd', 'e']);
-                    return done(err);
-                });
-            });
-
-            afterEach(function () {
-                client.end(true);
-            });
-        });
-    });
-});
+      afterEach(function () {
+        client.end(true)
+      })
+    })
+  })
+})

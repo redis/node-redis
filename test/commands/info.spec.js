@@ -1,79 +1,78 @@
-'use strict';
+'use strict'
 
-var assert = require('assert');
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var assert = require('assert')
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'info' method", function () {
+describe('The \'info\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushall(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      afterEach(function () {
+        client.end(true)
+      })
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushall(done);
-                });
-            });
+      it('update serverInfo after a info command', function (done) {
+        client.set('foo', 'bar')
+        client.info()
+        client.select(2, function () {
+          assert.strictEqual(client.serverInfo.db2, undefined)
+        })
+        client.set('foo', 'bar')
+        client.info()
+        setTimeout(function () {
+          assert.strictEqual(typeof client.serverInfo.db2, 'object')
+          done()
+        }, 30)
+      })
 
-            afterEach(function () {
-                client.end(true);
-            });
+      it('works with optional section provided with and without callback', function (done) {
+        client.set('foo', 'bar')
+        client.info('keyspace')
+        client.select(2, function () {
+          assert.strictEqual(Object.keys(client.serverInfo).length, 2, 'Key length should be three')
+          assert.strictEqual(typeof client.serverInfo.db0, 'object', 'db0 keyspace should be an object')
+        })
+        client.info(['keyspace'])
+        client.set('foo', 'bar')
+        client.info('all', function (err, res) {
+          assert.strictEqual(err, null)
+          assert(Object.keys(client.serverInfo).length > 3, 'Key length should be way above three')
+          assert.strictEqual(typeof client.serverInfo.redis_version, 'string')
+          assert.strictEqual(typeof client.serverInfo.db2, 'object')
+          done()
+        })
+      })
 
-            it('update serverInfo after a info command', function (done) {
-                client.set('foo', 'bar');
-                client.info();
-                client.select(2, function () {
-                    assert.strictEqual(client.serverInfo.db2, undefined);
-                });
-                client.set('foo', 'bar');
-                client.info();
-                setTimeout(function () {
-                    assert.strictEqual(typeof client.serverInfo.db2, 'object');
-                    done();
-                }, 30);
-            });
+      it('check redis v.2.4 support', function (done) {
+        var end = helper.callFuncAfter(done, 2)
+        client.internalSendCommand = function (commandObj) {
+          assert.strictEqual(commandObj.args.length, 0)
+          assert.strictEqual(commandObj.command, 'info')
+          end()
+        }
+        client.info()
+        client.info(function () {})
+      })
 
-            it('works with optional section provided with and without callback', function (done) {
-                client.set('foo', 'bar');
-                client.info('keyspace');
-                client.select(2, function () {
-                    assert.strictEqual(Object.keys(client.serverInfo).length, 2, 'Key length should be three');
-                    assert.strictEqual(typeof client.serverInfo.db0, 'object', 'db0 keyspace should be an object');
-                });
-                client.info(['keyspace']);
-                client.set('foo', 'bar');
-                client.info('all', function (err, res) {
-                    assert(Object.keys(client.serverInfo).length > 3, 'Key length should be way above three');
-                    assert.strictEqual(typeof client.serverInfo.redis_version, 'string');
-                    assert.strictEqual(typeof client.serverInfo.db2, 'object');
-                    done();
-                });
-            });
-
-            it('check redis v.2.4 support', function (done) {
-                var end = helper.callFuncAfter(done, 2);
-                client.internalSendCommand = function (commandObj) {
-                    assert.strictEqual(commandObj.args.length, 0);
-                    assert.strictEqual(commandObj.command, 'info');
-                    end();
-                };
-                client.info();
-                client.info(function () {});
-            });
-
-            it('emit error after a failure', function (done) {
-                client.info();
-                client.once('error', function (err) {
-                    assert.strictEqual(err.code, 'UNCERTAIN_STATE');
-                    assert.strictEqual(err.command, 'INFO');
-                    done();
-                });
-                client.stream.destroy();
-            });
-        });
-    });
-});
+      it('emit error after a failure', function (done) {
+        client.info()
+        client.once('error', function (err) {
+          assert.strictEqual(err.code, 'UNCERTAIN_STATE')
+          assert.strictEqual(err.command, 'INFO')
+          done()
+        })
+        client.stream.destroy()
+      })
+    })
+  })
+})

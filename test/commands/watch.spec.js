@@ -1,54 +1,50 @@
-'use strict';
+'use strict'
 
-var assert = require('assert');
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var assert = require('assert')
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'watch' method", function () {
+describe('The \'watch\' method', function () {
+  helper.allTests(function (ip, args) {
+    var watched = 'foobar'
 
-    helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-        var watched = 'foobar';
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      afterEach(function () {
+        client.end(true)
+      })
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
+      it('does not execute transaction if watched key was modified prior to execution', function (done) {
+        client.watch(watched)
+        client.incr(watched)
+        var multi = client.multi()
+        multi.incr(watched)
+        multi.exec(helper.isNull(done))
+      })
 
-            afterEach(function () {
-                client.end(true);
-            });
+      it('successfully modifies other keys independently of transaction', function (done) {
+        client.set('unwatched', 200)
 
-            it('does not execute transaction if watched key was modified prior to execution', function (done) {
-                client.watch(watched);
-                client.incr(watched);
-                var multi = client.multi();
-                multi.incr(watched);
-                multi.exec(helper.isNull(done));
-            });
+        client.set(watched, 0)
+        client.watch(watched)
+        client.incr(watched)
 
-            it('successfully modifies other keys independently of transaction', function (done) {
-                client.set('unwatched', 200);
+        client.multi().incr(watched).exec(function (err, replies) {
+          assert.strictEqual(err, null)
+          assert.strictEqual(replies, null, 'Aborted transaction multi-bulk reply should be null.')
 
-                client.set(watched, 0);
-                client.watch(watched);
-                client.incr(watched);
-
-                client.multi().incr(watched).exec(function (err, replies) {
-                    assert.strictEqual(replies, null, 'Aborted transaction multi-bulk reply should be null.');
-
-                    client.get('unwatched', function (err, reply) {
-                        assert.equal(reply, 200, 'Expected 200, got ' + reply);
-                        return done(err);
-                    });
-                });
-            });
-        });
-    });
-});
+          client.get('unwatched', helper.isString('200', done))
+        })
+      })
+    })
+  })
+})

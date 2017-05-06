@@ -1,588 +1,580 @@
-'use strict';
+'use strict'
 
-var assert = require('assert');
-var config = require('./lib/config');
-var helper = require('./helper');
-var redis = config.redis;
-var intercept = require('intercept-stdout');
-var net = require('net');
-var client;
+var assert = require('assert')
+var config = require('./lib/config')
+var helper = require('./helper')
+var redis = config.redis
+var intercept = require('intercept-stdout')
+var net = require('net')
+var client
 
 describe('connection tests', function () {
+  beforeEach(function () {
+    client = null
+  })
+  afterEach(function () {
+    client.end(true)
+  })
 
-    beforeEach(function () {
-        client = null;
-    });
-    afterEach(function () {
-        client.end(true);
-    });
+  it('unofficially support for a private stream', function () {
+    // While using a private stream, reconnection and other features are not going to work properly.
+    // Besides that some functions also have to be monkey patched to be safe from errors in this case.
+    // Therefore this is not officially supported!
+    var socket = new net.Socket()
+    client = new redis.RedisClient({
+      prefix: 'test'
+    }, socket)
+    assert.strictEqual(client.stream, socket)
+    assert.strictEqual(client.stream.listeners('error').length, 1)
+    assert.strictEqual(client.address, '"Private stream"')
+    // Pretend a reconnect event
+    client.createStream()
+    assert.strictEqual(client.stream, socket)
+    assert.strictEqual(client.stream.listeners('error').length, 1)
+  })
 
-    it('unofficially support for a private stream', function () {
-        // While using a private stream, reconnection and other features are not going to work properly.
-        // Besides that some functions also have to be monkey patched to be safe from errors in this case.
-        // Therefore this is not officially supported!
-        var socket = new net.Socket();
-        client = new redis.RedisClient({
-            prefix: 'test'
-        }, socket);
-        assert.strictEqual(client.stream, socket);
-        assert.strictEqual(client.stream.listeners('error').length, 1);
-        assert.strictEqual(client.address, '"Private stream"');
-        // Pretent a reconnect event
-        client.createStream();
-        assert.strictEqual(client.stream, socket);
-        assert.strictEqual(client.stream.listeners('error').length, 1);
-    });
+  describe('quit on lost connections', function () {
+    it('calling quit while the connection is down should not end in reconnecting version a', function (done) {
+      var called = 0
+      client = redis.createClient({
+        port: 9999,
+        retryStrategy: function (options) {
+          var bool = client.quit(function (err, res) {
+            assert.strictEqual(res, 'OK')
+            assert.strictEqual(err, null)
+            assert.strictEqual(called++, -1)
+            setTimeout(done, 25)
+          })
+          assert.strictEqual(bool, false)
+          assert.strictEqual(called++, 0)
+          return 5
+        }
+      })
+      client.set('foo', 'bar', function (err, res) {
+        assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
+        called = -1
+      })
+    })
 
-    describe('quit on lost connections', function () {
+    it('calling quit while the connection is down should not end in reconnecting version b', function (done) {
+      var called = false
+      client = redis.createClient(9999)
+      client.set('foo', 'bar', function (err, res) {
+        assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
+        called = true
+      })
+      var bool = client.quit(function (err, res) {
+        assert.strictEqual(res, 'OK')
+        assert.strictEqual(err, null)
+        assert(called)
+        done()
+      })
+      assert.strictEqual(bool, false)
+    })
 
-        it('calling quit while the connection is down should not end in reconnecting version a', function (done) {
-            var called = 0;
-            client = redis.createClient({
-                port: 9999,
-                retryStrategy: function (options) {
-                    var bool = client.quit(function (err, res) {
-                        assert.strictEqual(res, 'OK');
-                        assert.strictEqual(err, null);
-                        assert.strictEqual(called++, -1);
-                        setTimeout(done, 25);
-                    });
-                    assert.strictEqual(bool, false);
-                    assert.strictEqual(called++, 0);
-                    return 5;
-                }
-            });
-            client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                called = -1;
-            });
-        });
+    it('calling quit while the connection is down without offline queue should end the connection right away', function (done) {
+      var called = false
+      client = redis.createClient(9999, {
+        enableOfflineQueue: false
+      })
+      client.set('foo', 'bar', function (err, res) {
+        assert.strictEqual(err.message, 'SET can\'t be processed. The connection is not yet established and the offline queue is deactivated.')
+        called = true
+      })
+      var bool = client.quit(function (err, res) {
+        assert.strictEqual(res, 'OK')
+        assert.strictEqual(err, null)
+        assert(called)
+        done()
+      })
+      // TODO: In v.3 the quit command would be fired right away, so bool should be true
+      assert.strictEqual(bool, false)
+    })
 
-        it('calling quit while the connection is down should not end in reconnecting version b', function (done) {
-            var called = false;
-            client = redis.createClient(9999);
-            client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                called = true;
-            });
-            var bool = client.quit(function (err, res) {
-                assert.strictEqual(res, 'OK');
-                assert.strictEqual(err, null);
-                assert(called);
-                done();
-            });
-            assert.strictEqual(bool, false);
-        });
+    it('calling quit while connected without offline queue should end the connection when all commands have finished', function (done) {
+      var called = false
+      client = redis.createClient({
+        enableOfflineQueue: false
+      })
+      client.on('ready', function () {
+        client.set('foo', 'bar', function (err, res) {
+          assert.strictEqual(err, null)
+          assert.strictEqual(res, 'OK')
+          called = true
+        })
+        var bool = client.quit(function (err, res) {
+          assert.strictEqual(res, 'OK')
+          assert.strictEqual(err, null)
+          assert(called)
+          done()
+        })
+        // TODO: In v.3 the quit command would be fired right away, so bool should be true
+        assert.strictEqual(bool, true)
+      })
+    })
 
-        it('calling quit while the connection is down without offline queue should end the connection right away', function (done) {
-            var called = false;
-            client = redis.createClient(9999, {
-                enableOfflineQueue: false
-            });
-            client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(err.message, 'SET can\'t be processed. The connection is not yet established and the offline queue is deactivated.');
-                called = true;
-            });
-            var bool = client.quit(function (err, res) {
-                assert.strictEqual(res, 'OK');
-                assert.strictEqual(err, null);
-                assert(called);
-                done();
-            });
-            // TODO: In v.3 the quit command would be fired right away, so bool should be true
-            assert.strictEqual(bool, false);
-        });
+    it('do not quit before connected or a connection issue is detected', function (done) {
+      client = redis.createClient()
+      client.set('foo', 'bar', helper.isString('OK'))
+      var bool = client.quit(done)
+      assert.strictEqual(bool, false)
+    })
 
-        it('calling quit while connected without offline queue should end the connection when all commands have finished', function (done) {
-            var called = false;
-            client = redis.createClient({
-                enableOfflineQueue: false
-            });
-            client.on('ready', function () {
+    it('quit "succeeds" even if the client connection is closed while doing so', function (done) {
+      client = redis.createClient()
+      client.set('foo', 'bar', function (err, res) {
+        assert.strictEqual(err, null)
+        assert.strictEqual(res, 'OK')
+        client.quit(function (err, res) {
+          assert.strictEqual(res, 'OK')
+          done(err)
+        })
+        client.end(true) // Flushing the quit command should result in a success
+      })
+    })
+
+    it('quit right away if connection drops while quit command is on the fly', function (done) {
+      client = redis.createClient()
+      client.once('ready', function () {
+        client.set('foo', 'bar', helper.isError())
+        var bool = client.quit(done)
+        assert.strictEqual(bool, true)
+        process.nextTick(function () {
+          client.stream.destroy()
+        })
+      })
+    })
+  })
+
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      describe('on lost connection', function () {
+        it('end connection while retry is still ongoing', function (done) {
+          var connectTimeout = 1000 // in ms
+          client = redis.createClient({
+            connectTimeout: connectTimeout
+          })
+
+          client.once('ready', function () {
+            helper.killConnection(client)
+          })
+
+          client.on('reconnecting', function (params) {
+            client.end(true)
+            assert.strictEqual(params.timesConnected, 1)
+            setTimeout(done, 5)
+          })
+        })
+
+        it.skip('can not connect with wrong host / port in the options object', function (done) {
+          var options = {
+            host: 'somewhere',
+            port: 6379,
+            family: ip,
+            retryStrategy: function () {}
+          }
+          client = redis.createClient(options)
+          assert.strictEqual(client.connectionOptions.family, ip === 'IPv6' ? 6 : 4)
+          assert.strictEqual(Object.keys(options).length, 4)
+          var end = helper.callFuncAfter(done, 2)
+
+          client.on('error', function (err) {
+            assert(/CONNECTION_BROKEN|ENOTFOUND|EAI_AGAIN/.test(err.code))
+            end()
+          })
+        })
+
+        it('emits error once if reconnecting after command has been executed but not yet returned without callback', function (done) {
+          client = redis.createClient.apply(null, args)
+
+          client.on('ready', function () {
+            client.set('foo', 'bar', function (err) {
+              assert.strictEqual(err.code, 'UNCERTAIN_STATE')
+              done()
+            })
+            // Abort connection before the value returned
+            client.stream.destroy()
+          })
+        })
+
+        it('retryStrategy used to reconnect with individual error', function (done) {
+          client = redis.createClient({
+            retryStrategy: function (options) {
+              if (options.totalRetryTime > 150) {
                 client.set('foo', 'bar', function (err, res) {
-                    assert.strictEqual(res, 'OK');
-                    called = true;
-                });
-                var bool = client.quit(function (err, res) {
-                    assert.strictEqual(res, 'OK');
-                    assert.strictEqual(err, null);
-                    assert(called);
-                    done();
-                });
-                // TODO: In v.3 the quit command would be fired right away, so bool should be true
-                assert.strictEqual(bool, true);
-            });
-        });
+                  assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
+                  assert.strictEqual(err.origin.message, 'Connection timeout')
+                  done()
+                })
+                // Pass a individual error message to the error handler
+                return new Error('Connection timeout')
+              }
+              return Math.min(options.attempt * 25, 200)
+            },
+            port: 9999
+          })
+        })
 
-        it('do not quit before connected or a connection issue is detected', function (done) {
-            client = redis.createClient();
-            client.set('foo', 'bar', helper.isString('OK'));
-            var bool = client.quit(done);
-            assert.strictEqual(bool, false);
-        });
+        it('retryStrategy used to reconnect', function (done) {
+          client = redis.createClient({
+            retryStrategy: function (options) {
+              if (options.totalRetryTime > 150) {
+                client.set('foo', 'bar', function (err, res) {
+                  assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
+                  assert.strictEqual(err.code, 'NR_CLOSED')
+                  assert.strictEqual(err.origin.code, 'ECONNREFUSED')
+                  done()
+                })
+                return false
+              }
+              return Math.min(options.attempt * 25, 200)
+            },
+            port: 9999
+          })
+        })
 
-        it('quit "succeeds" even if the client connection is closed while doing so', function (done) {
-            client = redis.createClient();
-            client.set('foo', 'bar', function (err, res) {
-                assert.strictEqual(res, 'OK');
-                client.quit(function (err, res) {
-                    assert.strictEqual(res, 'OK');
-                    done(err);
-                });
-                client.end(true); // Flushing the quit command should result in a success
-            });
-        });
+        it('retryStrategy used to reconnect with defaults', function (done) {
+          var unhookIntercept = intercept(function () {
+            return ''
+          })
+          redis.debugMode = true
+          client = redis.createClient({
+            retryStrategy: function (options) {
+              client.set('foo', 'bar')
+              assert(redis.debugMode)
+              return null
+            }
+          })
+          setTimeout(function () {
+            client.stream.destroy()
+          }, 50)
+          client.on('error', function (err) {
+            assert.strictEqual(err.code, 'NR_CLOSED')
+            assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
+            unhookIntercept()
+            redis.debugMode = false
+            done()
+          })
+        })
+      })
 
-        it('quit right away if connection drops while quit command is on the fly', function (done) {
-            client = redis.createClient();
-            client.once('ready', function () {
-                client.set('foo', 'bar', helper.isError());
-                var bool = client.quit(done);
-                assert.strictEqual(bool, true);
-                process.nextTick(function () {
-                    client.stream.destroy();
-                });
-            });
-        });
+      describe('when not connected', function () {
+        // TODO: Fix this test
+        it.skip('emit an error after the socket timeout exceeded the connectTimeout time', function (done) {
+          var connectTimeout = 500 // in ms
+          client = redis.createClient({
+            // Auto detect ipv4 and use non routable ip to trigger the timeout
+            host: '10.255.255.1',
+            connectTimeout: connectTimeout
+          })
+          process.nextTick(function () {
+            assert.strictEqual(client.stream.listeners('timeout').length, 1)
+          })
+          assert.strictEqual(client.address, '10.255.255.1:6379')
+          assert.strictEqual(client.connectionOptions.family, 4)
 
-    });
+          client.on('reconnecting', function (params) {
+            throw new Error('No reconnect, since no connection was ever established')
+          })
 
-    helper.allTests(function (ip, args) {
+          var time = Date.now()
+          client.on('error', function (err) {
+            if (err.code === 'ENETUNREACH') { // The test is run without a internet connection. Pretent it works
+              return done()
+            }
+            assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message), err.message)
+            // The code execution on windows is very slow at times
+            var add = process.platform !== 'win32' ? 15 : 200
+            var now = Date.now()
+            assert(now - time < connectTimeout + add, 'The real timeout time should be below ' + (connectTimeout + add) + 'ms but is: ' + (now - time))
+            // Timers sometimes trigger early (e.g. 1ms to early)
+            assert(now - time >= connectTimeout - 5, 'The real timeout time should be above ' + connectTimeout + 'ms, but it is: ' + (now - time))
+            done()
+          })
+        })
 
-        describe('using ' + ip, function () {
+        it('use the system socket timeout if the connectTimeout has not been provided', function (done) {
+          client = redis.createClient({
+            host: '2001:db8::ff00:42:8329' // auto detect ip v6
+          })
+          assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379')
+          assert.strictEqual(client.connectionOptions.family, 6)
+          process.nextTick(function () {
+            assert.strictEqual(client.stream.listeners('timeout').length, 0)
+            done()
+          })
+          client.end(true)
+        })
 
-            describe('on lost connection', function () {
+        it('clears the socket timeout after a connection has been established', function (done) {
+          client = redis.createClient({
+            connectTimeout: 1000
+          })
+          process.nextTick(function () {
+            assert.strictEqual(client.stream._idleTimeout, 1000)
+          })
+          client.on('connect', function () {
+            assert.strictEqual(client.stream._idleTimeout, -1)
+            assert.strictEqual(client.stream.listeners('timeout').length, 0)
+            client.on('ready', done)
+          })
+        })
 
-                it('end connection while retry is still ongoing', function (done) {
-                    var connectTimeout = 1000; // in ms
-                    client = redis.createClient({
-                        connectTimeout: connectTimeout
-                    });
+        it('connect with host and port provided in the options object', function (done) {
+          client = redis.createClient({
+            host: 'localhost',
+            port: '6379',
+            connectTimeout: 1000
+          })
 
-                    client.once('ready', function () {
-                        helper.killConnection(client);
-                    });
+          client.once('ready', done)
+        })
 
-                    client.on('reconnecting', function (params) {
-                        client.end(true);
-                        assert.strictEqual(params.timesConnected, 1);
-                        setTimeout(done, 5);
-                    });
-                });
+        it('connect with path provided in the options object', function (done) {
+          if (process.platform === 'win32') {
+            this.skip()
+          }
+          client = redis.createClient({
+            path: '/tmp/redis.sock',
+            connectTimeout: 1000
+          })
 
-                it.skip('can not connect with wrong host / port in the options object', function (done) {
-                    var options = {
-                        host: 'somewhere',
-                        port: 6379,
-                        family: ip,
-                        retryStrategy: function () {}
-                    };
-                    client = redis.createClient(options);
-                    assert.strictEqual(client.connectionOptions.family, ip === 'IPv6' ? 6 : 4);
-                    assert.strictEqual(Object.keys(options).length, 4);
-                    var end = helper.callFuncAfter(done, 2);
+          var end = helper.callFuncAfter(done, 2)
 
-                    client.on('error', function (err) {
-                        assert(/CONNECTION_BROKEN|ENOTFOUND|EAI_AGAIN/.test(err.code));
-                        end();
-                    });
+          client.once('ready', end)
+          client.set('foo', 'bar', end)
+        })
 
-                });
+        it('connects correctly with args', function (done) {
+          client = redis.createClient.apply(null, args)
+          client.on('error', done)
 
-                it('emits error once if reconnecting after command has been executed but not yet returned without callback', function (done) {
-                    client = redis.createClient.apply(null, args);
+          client.once('ready', function () {
+            client.removeListener('error', done)
+            client.get('recon 1', done)
+          })
+        })
 
-                    client.on('ready', function () {
-                        client.set('foo', 'bar', function (err) {
-                            assert.strictEqual(err.code, 'UNCERTAIN_STATE');
-                            done();
-                        });
-                        // Abort connection before the value returned
-                        client.stream.destroy();
-                    });
-                });
+        it('connects correctly with default values', function (done) {
+          client = redis.createClient()
+          client.on('error', done)
 
-                it('retryStrategy used to reconnect with individual error', function (done) {
-                    client = redis.createClient({
-                        retryStrategy: function (options) {
-                            if (options.totalRetryTime > 150) {
-                                client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                                    assert.strictEqual(err.origin.message, 'Connection timeout');
-                                    done();
-                                });
-                                // Pass a individual error message to the error handler
-                                return new Error('Connection timeout');
-                            }
-                            return Math.min(options.attempt * 25, 200);
-                        },
-                        port: 9999
-                    });
-                });
+          client.once('ready', function () {
+            client.removeListener('error', done)
+            client.get('recon 1', done)
+          })
+        })
 
-                it('retryStrategy used to reconnect', function (done) {
-                    client = redis.createClient({
-                        retryStrategy: function (options) {
-                            if (options.totalRetryTime > 150) {
-                                client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                                    assert.strictEqual(err.code, 'NR_CLOSED');
-                                    assert.strictEqual(err.origin.code, 'ECONNREFUSED');
-                                    done();
-                                });
-                                return false;
-                            }
-                            return Math.min(options.attempt * 25, 200);
-                        },
-                        port: 9999
-                    });
-                });
+        it('connects with a port only', function (done) {
+          client = redis.createClient(6379)
+          assert.strictEqual(client.connectionOptions.family, 4)
+          client.on('error', done)
 
-                it('retryStrategy used to reconnect with defaults', function (done) {
-                    var unhookIntercept = intercept(function () {
-                        return '';
-                    });
-                    redis.debugMode = true;
-                    client = redis.createClient({
-                        retryStrategy: function (options) {
-                            client.set('foo', 'bar');
-                            assert(redis.debugMode);
-                            return null;
-                        }
-                    });
-                    setTimeout(function () {
-                        client.stream.destroy();
-                    }, 50);
-                    client.on('error', function (err) {
-                        assert.strictEqual(err.code, 'NR_CLOSED');
-                        assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                        unhookIntercept();
-                        redis.debugMode = false;
-                        done();
-                    });
-                });
-            });
+          client.once('ready', function () {
+            client.removeListener('error', done)
+            client.get('recon 1', done)
+          })
+        })
 
-            describe('when not connected', function () {
+        it('connects correctly to localhost', function (done) {
+          client = redis.createClient(null, null)
+          client.on('error', done)
 
-                // TODO: Fix this test
-                it.skip('emit an error after the socket timeout exceeded the connectTimeout time', function (done) {
-                    var connectTimeout = 500; // in ms
-                    client = redis.createClient({
-                        // Auto detect ipv4 and use non routable ip to trigger the timeout
-                        host: '10.255.255.1',
-                        connectTimeout: connectTimeout
-                    });
-                    process.nextTick(function () {
-                        assert.strictEqual(client.stream.listeners('timeout').length, 1);
-                    });
-                    assert.strictEqual(client.address, '10.255.255.1:6379');
-                    assert.strictEqual(client.connectionOptions.family, 4);
+          client.once('ready', function () {
+            client.removeListener('error', done)
+            client.get('recon 1', done)
+          })
+        })
 
-                    client.on('reconnecting', function (params) {
-                        throw new Error('No reconnect, since no connection was ever established');
-                    });
+        it('connects correctly to the provided host with the port set to null', function (done) {
+          client = redis.createClient(null, 'localhost')
+          client.on('error', done)
+          assert.strictEqual(client.address, 'localhost:6379')
 
-                    var time = Date.now();
-                    client.on('error', function (err) {
-                        if (err.code === 'ENETUNREACH') { // The test is run without a internet connection. Pretent it works
-                            return done();
-                        }
-                        assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message), err.message);
-                        // The code execution on windows is very slow at times
-                        var add = process.platform !== 'win32' ? 15 : 200;
-                        var now = Date.now();
-                        assert(now - time < connectTimeout + add, 'The real timeout time should be below ' + (connectTimeout + add) + 'ms but is: ' + (now - time));
-                         // Timers sometimes trigger early (e.g. 1ms to early)
-                        assert(now - time >= connectTimeout - 5, 'The real timeout time should be above ' + connectTimeout + 'ms, but it is: ' + (now - time));
-                        done();
-                    });
-                });
+          client.once('ready', function () {
+            client.set('foo', 'bar')
+            client.get('foo', function (err, res) {
+              assert.strictEqual(res, 'bar')
+              done(err)
+            })
+          })
+        })
 
-                it('use the system socket timeout if the connectTimeout has not been provided', function (done) {
-                    client = redis.createClient({
-                        host: '2001:db8::ff00:42:8329' // auto detect ip v6
-                    });
-                    assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
-                    assert.strictEqual(client.connectionOptions.family, 6);
-                    process.nextTick(function () {
-                        assert.strictEqual(client.stream.listeners('timeout').length, 0);
-                        done();
-                    });
-                    client.end(true);
-                });
+        it('connects correctly to localhost and no ready check', function (done) {
+          client = redis.createClient(undefined, undefined, {
+            noReadyCheck: true
+          })
+          client.on('error', done)
 
-                it('clears the socket timeout after a connection has been established', function (done) {
-                    client = redis.createClient({
-                        connectTimeout: 1000
-                    });
-                    process.nextTick(function () {
-                        assert.strictEqual(client.stream._idleTimeout, 1000);
-                    });
-                    client.on('connect', function () {
-                        assert.strictEqual(client.stream._idleTimeout, -1);
-                        assert.strictEqual(client.stream.listeners('timeout').length, 0);
-                        client.on('ready', done);
-                    });
-                });
+          client.once('ready', function () {
+            client.set('foo', 'bar')
+            client.get('foo', function (err, res) {
+              assert.strictEqual(res, 'bar')
+              done(err)
+            })
+          })
+        })
 
-                it('connect with host and port provided in the options object', function (done) {
-                    client = redis.createClient({
-                        host: 'localhost',
-                        port: '6379',
-                        connectTimeout: 1000
-                    });
+        it('connects correctly to the provided host with the port set to undefined', function (done) {
+          client = redis.createClient(undefined, 'localhost', {
+            noReadyCheck: true
+          })
+          client.on('error', done)
+          assert.strictEqual(client.address, 'localhost:6379')
 
-                    client.once('ready', done);
-                });
+          client.once('ready', function () {
+            client.set('foo', 'bar')
+            client.get('foo', function (err, res) {
+              assert.strictEqual(res, 'bar')
+              done(err)
+            })
+          })
+        })
 
-                it('connect with path provided in the options object', function (done) {
-                    if (process.platform === 'win32') {
-                        this.skip();
-                    }
-                    client = redis.createClient({
-                        path: '/tmp/redis.sock',
-                        connectTimeout: 1000
-                    });
+        it('connects correctly even if the info command is not present on the redis server', function (done) {
+          client = redis.createClient.apply(null, args)
+          client.info = function (cb) {
+            // Mock the result
+            cb(new Error('ERR unknown command \'info\''))
+          }
+          client.once('ready', function () {
+            assert.strictEqual(Object.keys(client.serverInfo).length, 0)
+            done()
+          })
+        })
 
-                    var end = helper.callFuncAfter(done, 2);
+        it('fake the stream to mock redis', function () {
+          // This is needed for libraries that want to mock the stream like fakeredis
+          var temp = redis.RedisClient.prototype.createStream
+          var createStreamString = String(temp)
+          redis.RedisClient.prototype.createStream = function () {
+            this.connected = true
+            this.ready = true
+          }
+          client = new redis.RedisClient()
+          assert.strictEqual(client.stream, undefined)
+          assert.strictEqual(client.ready, true)
+          assert.strictEqual(client.connected, true)
+          client.end = function () {}
+          assert(createStreamString !== String(redis.RedisClient.prototype.createStream))
+          redis.RedisClient.prototype.createStream = temp
+          assert(createStreamString === String(redis.RedisClient.prototype.createStream))
+        })
 
-                    client.once('ready', end);
-                    client.set('foo', 'bar', end);
-                });
+        if (ip === 'IPv4') {
+          it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', function (done) {
+            client = redis.createClient('redis:///3?db=3')
+            assert.strictEqual(client.selectedDb, '3')
+            client.on('ready', done)
+          })
 
-                it('connects correctly with args', function (done) {
-                    client = redis.createClient.apply(null, args);
-                    client.on('error', done);
+          it('allows connecting with the redis url and the default port and auth provided even though it is not required', function (done) {
+            client = redis.createClient('redis://:porkchopsandwiches@' + config.HOST[ip] + '/')
+            var end = helper.callFuncAfter(done, 2)
+            client.on('warning', function (msg) {
+              assert.strictEqual(msg, 'Warning: Redis server does not require a password, but a password was supplied.')
+              end()
+            })
+            client.on('ready', end)
+          })
 
-                    client.once('ready', function () {
-                        client.removeListener('error', done);
-                        client.get('recon 1', done);
-                    });
-                });
+          it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {
+            client = redis.createClient('//127.0.0.1', {
+              connectTimeout: 1000
+            })
+            assert.strictEqual(client.options.connectTimeout, 1000)
+            client.on('ready', done)
+          })
 
-                it('connects correctly with default values', function (done) {
-                    client = redis.createClient();
-                    client.on('error', done);
+          it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', function (done) {
+            client = redis.createClient({
+              url: 'http://foo:porkchopsandwiches@' + config.HOST[ip] + '/3'
+            })
+            assert.strictEqual(client.authPass, 'porkchopsandwiches')
+            assert.strictEqual(+client.selectedDb, 3)
+            assert(!client.options.port)
+            assert.strictEqual(client.options.host, config.HOST[ip])
+            client.on('ready', done)
+          })
 
-                    client.once('ready', function () {
-                        client.removeListener('error', done);
-                        client.get('recon 1', done);
-                    });
-                });
+          it('allows connecting with the redis url and no auth and options as second parameter', function (done) {
+            var options = {
+              detectBuffers: false
+            }
+            client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, options)
+            assert.strictEqual(Object.keys(options).length, 1)
+            client.on('ready', done)
+          })
 
-                it('connects with a port only', function (done) {
-                    client = redis.createClient(6379);
-                    assert.strictEqual(client.connectionOptions.family, 4);
-                    client.on('error', done);
+          it('allows connecting with the redis url and no auth and options as third parameter', function (done) {
+            client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, null, {
+              detectBuffers: false
+            })
+            client.on('ready', done)
+          })
+        }
 
-                    client.once('ready', function () {
-                        client.removeListener('error', done);
-                        client.get('recon 1', done);
-                    });
-                });
+        it('redis still loading <= 500', function (done) {
+          client = redis.createClient.apply(null, args)
+          var tmp = client.info.bind(client)
+          var end = helper.callFuncAfter(done, 3)
+          var delayed = false
+          var time
+          // Mock original function and pretent redis is still loading
+          client.info = function (cb) {
+            tmp(function (err, res) {
+              if (!delayed) {
+                assert(!err)
+                client.serverInfo.loading = 1
+                client.serverInfo.loading_eta_seconds = 0.5
+                delayed = true
+                time = Date.now()
+              }
+              end()
+              cb(err, res)
+            })
+          }
+          client.on('ready', function () {
+            var rest = Date.now() - time
+            assert(rest >= 495, 'Rest should be equal or above 500 ms but is: ' + rest) // setTimeout might trigger early
+            // Be on the safe side and accept 200ms above the original value
+            assert(rest - 250 < 500, 'Rest - 250 should be below 500 ms but is: ' + (rest - 250))
+            assert(delayed)
+            end()
+          })
+        })
 
-                it('connects correctly to localhost', function (done) {
-                    client = redis.createClient(null, null);
-                    client.on('error', done);
-
-                    client.once('ready', function () {
-                        client.removeListener('error', done);
-                        client.get('recon 1', done);
-                    });
-                });
-
-                it('connects correctly to the provided host with the port set to null', function (done) {
-                    client = redis.createClient(null, 'localhost');
-                    client.on('error', done);
-                    assert.strictEqual(client.address, 'localhost:6379');
-
-                    client.once('ready', function () {
-                        client.set('foo', 'bar');
-                        client.get('foo', function (err, res) {
-                            assert.strictEqual(res, 'bar');
-                            done(err);
-                        });
-                    });
-                });
-
-                it('connects correctly to localhost and no ready check', function (done) {
-                    client = redis.createClient(undefined, undefined, {
-                        noReadyCheck: true
-                    });
-                    client.on('error', done);
-
-                    client.once('ready', function () {
-                        client.set('foo', 'bar');
-                        client.get('foo', function (err, res) {
-                            assert.strictEqual(res, 'bar');
-                            done(err);
-                        });
-                    });
-                });
-
-                it('connects correctly to the provided host with the port set to undefined', function (done) {
-                    client = redis.createClient(undefined, 'localhost', {
-                        noReadyCheck: true
-                    });
-                    client.on('error', done);
-                    assert.strictEqual(client.address, 'localhost:6379');
-
-                    client.once('ready', function () {
-                        client.set('foo', 'bar');
-                        client.get('foo', function (err, res) {
-                            assert.strictEqual(res, 'bar');
-                            done(err);
-                        });
-                    });
-                });
-
-                it('connects correctly even if the info command is not present on the redis server', function (done) {
-                    client = redis.createClient.apply(null, args);
-                    client.info = function (cb) {
-                        // Mock the result
-                        cb(new Error("ERR unknown command 'info'"));
-                    };
-                    client.once('ready', function () {
-                        assert.strictEqual(Object.keys(client.serverInfo).length, 0);
-                        done();
-                    });
-                });
-
-                it('fake the stream to mock redis', function () {
-                    // This is needed for libraries that want to mock the stream like fakeredis
-                    var temp = redis.RedisClient.prototype.createStream;
-                    var createStreamString = String(temp);
-                    redis.RedisClient.prototype.createStream = function () {
-                        this.connected = true;
-                        this.ready = true;
-                    };
-                    client = new redis.RedisClient();
-                    assert.strictEqual(client.stream, undefined);
-                    assert.strictEqual(client.ready, true);
-                    assert.strictEqual(client.connected, true);
-                    client.end = function () {};
-                    assert(createStreamString !== String(redis.RedisClient.prototype.createStream));
-                    redis.RedisClient.prototype.createStream = temp;
-                    assert(createStreamString === String(redis.RedisClient.prototype.createStream));
-                });
-
-                if (ip === 'IPv4') {
-                    it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', function (done) {
-                        client = redis.createClient('redis:///3?db=3');
-                        assert.strictEqual(client.selectedDb, '3');
-                        client.on('ready', done);
-                    });
-
-                    it('allows connecting with the redis url and the default port and auth provided even though it is not required', function (done) {
-                        client = redis.createClient('redis://:porkchopsandwiches@' + config.HOST[ip] + '/');
-                        var end = helper.callFuncAfter(done, 2);
-                        client.on('warning', function (msg) {
-                            assert.strictEqual(msg, 'Warning: Redis server does not require a password, but a password was supplied.');
-                            end();
-                        });
-                        client.on('ready', end);
-                    });
-
-                    it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {
-                        client = redis.createClient('//127.0.0.1', {
-                            connectTimeout: 1000
-                        });
-                        assert.strictEqual(client.options.connectTimeout, 1000);
-                        client.on('ready', done);
-                    });
-
-                    it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', function (done) {
-                        client = redis.createClient({
-                            url: 'http://foo:porkchopsandwiches@' + config.HOST[ip] + '/3'
-                        });
-                        assert.strictEqual(client.authPass, 'porkchopsandwiches');
-                        assert.strictEqual(+client.selectedDb, 3);
-                        assert(!client.options.port);
-                        assert.strictEqual(client.options.host, config.HOST[ip]);
-                        client.on('ready', done);
-                    });
-
-                    it('allows connecting with the redis url and no auth and options as second parameter', function (done) {
-                        var options = {
-                            detectBuffers: false
-                        };
-                        client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, options);
-                        assert.strictEqual(Object.keys(options).length, 1);
-                        client.on('ready', done);
-                    });
-
-                    it('allows connecting with the redis url and no auth and options as third parameter', function (done) {
-                        client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, null, {
-                            detectBuffers: false
-                        });
-                        client.on('ready', done);
-                    });
-                }
-
-                it('redis still loading <= 500', function (done) {
-                    client = redis.createClient.apply(null, args);
-                    var tmp = client.info.bind(client);
-                    var end = helper.callFuncAfter(done, 3);
-                    var delayed = false;
-                    var time;
-                    // Mock original function and pretent redis is still loading
-                    client.info = function (cb) {
-                        tmp(function (err, res) {
-                            if (!delayed) {
-                                assert(!err);
-                                client.serverInfo.loading = 1;
-                                client.serverInfo.loading_eta_seconds = 0.5;
-                                delayed = true;
-                                time = Date.now();
-                            }
-                            end();
-                            cb(err, res);
-                        });
-                    };
-                    client.on('ready', function () {
-                        var rest = Date.now() - time;
-                        assert(rest >= 495, 'Rest should be equal or above 500 ms but is: ' + rest); // setTimeout might trigger early
-                        // Be on the safe side and accept 200ms above the original value
-                        assert(rest - 250 < 500, 'Rest - 250 should be below 500 ms but is: ' + (rest - 250));
-                        assert(delayed);
-                        end();
-                    });
-                });
-
-                it('redis still loading > 1000ms', function (done) {
-                    client = redis.createClient.apply(null, args);
-                    var tmp = client.info.bind(client);
-                    var end = helper.callFuncAfter(done, 3);
-                    var delayed = false;
-                    var time;
-                    // Mock original function and pretent redis is still loading
-                    client.info = function (cb) {
-                        tmp(function (err, res) {
-                            if (!delayed) {
-                                assert(!err);
-                                // Try reconnecting after one second even if redis tells us the time needed is above one second
-                                client.serverInfo.loading = 1;
-                                client.serverInfo.loading_eta_seconds = 2.5;
-                                delayed = true;
-                                time = Date.now();
-                            }
-                            end();
-                            cb(err, res);
-                        });
-                    };
-                    client.on('ready', function () {
-                        var rest = Date.now() - time;
-                        assert(rest >= 998, '`rest` should be equal or above 1000 ms but is: ' + rest); // setTimeout might trigger early
-                        // Be on the safe side and accept 200ms above the original value
-                        assert(rest - 250 < 1000, '`rest` - 250 should be below 1000 ms but is: ' + (rest - 250));
-                        assert(delayed);
-                        end();
-                    });
-                });
-
-            });
-
-        });
-    });
-});
+        it('redis still loading > 1000ms', function (done) {
+          client = redis.createClient.apply(null, args)
+          var tmp = client.info.bind(client)
+          var end = helper.callFuncAfter(done, 3)
+          var delayed = false
+          var time
+          // Mock original function and pretent redis is still loading
+          client.info = function (cb) {
+            tmp(function (err, res) {
+              if (!delayed) {
+                assert(!err)
+                // Try reconnecting after one second even if redis tells us the time needed is above one second
+                client.serverInfo.loading = 1
+                client.serverInfo.loading_eta_seconds = 2.5
+                delayed = true
+                time = Date.now()
+              }
+              end()
+              cb(err, res)
+            })
+          }
+          client.on('ready', function () {
+            var rest = Date.now() - time
+            assert(rest >= 998, '`rest` should be equal or above 1000 ms but is: ' + rest) // setTimeout might trigger early
+            // Be on the safe side and accept 200ms above the original value
+            assert(rest - 250 < 1000, '`rest` - 250 should be below 1000 ms but is: ' + (rest - 250))
+            assert(delayed)
+            end()
+          })
+        })
+      })
+    })
+  })
+})

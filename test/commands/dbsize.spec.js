@@ -1,95 +1,93 @@
-'use strict';
+'use strict'
 
-var assert = require('assert');
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
-var uuid = require('uuid');
+var assert = require('assert')
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
+var uuid = require('uuid')
 
-describe("The 'dbsize' method", function () {
+describe('The \'dbsize\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var key, value
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function () {
+        key = uuid.v4()
+        value = uuid.v4()
+      })
 
-        describe('using ' + ip, function () {
-            var key, value;
+      describe('when not connected', function () {
+        var client
 
-            beforeEach(function () {
-                key = uuid.v4();
-                value = uuid.v4();
-            });
+        beforeEach(function (done) {
+          client = redis.createClient.apply(null, args)
+          client.once('ready', function () {
+            client.quit()
+          })
+          client.on('end', done)
+        })
 
-            describe('when not connected', function () {
-                var client;
+        it('reports an error', function (done) {
+          client.dbsize([], function (err, res) {
+            assert(err.message.match(/The connection is already closed/))
+            done()
+          })
+        })
+      })
 
-                beforeEach(function (done) {
-                    client = redis.createClient.apply(null, args);
-                    client.once('ready', function () {
-                        client.quit();
-                    });
-                    client.on('end', done);
-                });
+      describe('when connected', function () {
+        var client
 
-                it('reports an error', function (done) {
-                    client.dbsize([], function (err, res) {
-                        assert(err.message.match(/The connection is already closed/));
-                        done();
-                    });
-                });
-            });
+        beforeEach(function (done) {
+          client = redis.createClient.apply(null, args)
+          client.once('ready', function () {
+            client.flushdb(function (err, res) {
+              helper.isString('OK')(err, res)
+              done()
+            })
+          })
+        })
 
-            describe('when connected', function () {
-                var client;
+        afterEach(function () {
+          client.end(true)
+        })
 
-                beforeEach(function (done) {
-                    client = redis.createClient.apply(null, args);
-                    client.once('ready', function () {
-                        client.flushdb(function (err, res) {
-                            helper.isString('OK')(err, res);
-                            done();
-                        });
-                    });
-                });
+        it('returns a zero db size', function (done) {
+          client.dbsize([], function (err, res) {
+            helper.isNotError()(err, res)
+            helper.isType.number()(err, res)
+            assert.strictEqual(res, 0, 'Initial db size should be 0')
+            done()
+          })
+        })
 
-                afterEach(function () {
-                    client.end(true);
-                });
+        describe('when more data is added to Redis', function () {
+          var oldSize
 
-                it('returns a zero db size', function (done) {
-                    client.dbsize([], function (err, res) {
-                        helper.isNotError()(err, res);
-                        helper.isType.number()(err, res);
-                        assert.strictEqual(res, 0, 'Initial db size should be 0');
-                        done();
-                    });
-                });
+          beforeEach(function (done) {
+            client.dbsize(function (err, res) {
+              helper.isType.number()(err, res)
+              assert.strictEqual(res, 0, 'Initial db size should be 0')
 
-                describe('when more data is added to Redis', function () {
-                    var oldSize;
+              oldSize = res
 
-                    beforeEach(function (done) {
-                        client.dbsize(function (err, res) {
-                            helper.isType.number()(err, res);
-                            assert.strictEqual(res, 0, 'Initial db size should be 0');
+              client.set(key, value, function (err, res) {
+                helper.isNotError()(err, res)
+                done()
+              })
+            })
+          })
 
-                            oldSize = res;
-
-                            client.set(key, value, function (err, res) {
-                                helper.isNotError()(err, res);
-                                done();
-                            });
-                        });
-                    });
-
-                    it('returns a larger db size', function (done) {
-                        client.dbsize([], function (err, res) {
-                            helper.isNotError()(err, res);
-                            helper.isType.positiveNumber()(err, res);
-                            assert.strictEqual(true, (oldSize < res), 'Adding data should increase db size.');
-                            done();
-                        });
-                    });
-                });
-            });
-        });
-    });
-});
+          it('returns a larger db size', function (done) {
+            client.dbsize([], function (err, res) {
+              helper.isNotError()(err, res)
+              helper.isType.positiveNumber()(err, res)
+              assert.strictEqual(true, (oldSize < res), 'Adding data should increase db size.')
+              done()
+            })
+          })
+        })
+      })
+    })
+  })
+})

@@ -1,35 +1,33 @@
-'use strict';
+'use strict'
 
-var assert = require('assert');
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var assert = require('assert')
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'randomkey' method", function () {
+describe('The \'randomkey\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      it('returns a random key', function (done) {
+        client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'))
+        client.randomkey([], function (err, results) {
+          assert.strictEqual(true, /test keys.+/.test(results))
+          return done(err)
+        })
+      })
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
-
-            it('returns a random key', function (done) {
-                client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'));
-                client.randomkey([], function (err, results) {
-                    assert.strictEqual(true, /test keys.+/.test(results));
-                    return done(err);
-                });
-            });
-
-            afterEach(function () {
-                client.end(true);
-            });
-        });
-    });
-});
+      afterEach(function () {
+        client.end(true)
+      })
+    })
+  })
+})

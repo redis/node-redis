@@ -1,31 +1,29 @@
-'use strict';
+'use strict'
 
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'scard' method", function () {
+describe('The \'scard\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      it('returns the number of values in a set', function (done) {
+        client.sadd('foo', [1, 2, 3], helper.isNumber(3))
+        client.scard('foo', helper.isNumber(3, done))
+      })
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
-
-            it('returns the number of values in a set', function (done) {
-                client.sadd('foo', [1, 2, 3], helper.isNumber(3));
-                client.scard('foo', helper.isNumber(3, done));
-            });
-
-            afterEach(function () {
-                client.end(true);
-            });
-        });
-    });
-});
+      afterEach(function () {
+        client.end(true)
+      })
+    })
+  })
+})

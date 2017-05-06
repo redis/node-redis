@@ -1,26 +1,27 @@
-'use strict';
+'use strict'
 
-var redis = require('redis');
-var client = redis.createClient();
+var redis = require('redis')
+var client = redis.createClient()
 
 // Extend the RedisClient prototype to add a custom method
 // This one converts the results from 'INFO' into a JavaScript Object
 
 redis.RedisClient.prototype.parseInfo = function (callback) {
-    this.info(function (err, res) {
-        var lines = res.toString().split('\r\n').sort();
-        var obj = {};
-        lines.forEach(function (line) {
-            var parts = line.split(':');
-            if (parts[1]) {
-                obj[parts[0]] = parts[1];
-            }
-        });
-        callback(obj);
-    });
-};
+  this.info(function (err, res) {
+    if (err) throw err
+    var lines = res.toString().split('\r\n').sort()
+    var obj = {}
+    lines.forEach(function (line) {
+      var parts = line.split(':')
+      if (parts[1]) {
+        obj[parts[0]] = parts[1]
+      }
+    })
+    callback(obj)
+  })
+}
 
 client.parseInfo(function (info) {
-    console.dir(info);
-    client.quit();
-});
+  console.dir(info)
+  client.quit()
+})

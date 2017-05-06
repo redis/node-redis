@@ -1,35 +1,33 @@
-'use strict';
+'use strict'
 
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'sismember' method", function () {
+describe('The \'sismember\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      it('returns 0 if the value is not in the set', function (done) {
+        client.sismember('foo', 'banana', helper.isNumber(0, done))
+      })
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
+      it('returns 1 if the value is in the set', function (done) {
+        client.sadd('foo', 'banana', helper.isNumber(1))
+        client.sismember('foo', 'banana', helper.isNumber(1, done))
+      })
 
-            it('returns 0 if the value is not in the set', function (done) {
-                client.sismember('foo', 'banana', helper.isNumber(0, done));
-            });
-
-            it('returns 1 if the value is in the set', function (done) {
-                client.sadd('foo', 'banana', helper.isNumber(1));
-                client.sismember('foo', 'banana', helper.isNumber(1, done));
-            });
-
-            afterEach(function () {
-                client.end(true);
-            });
-        });
-    });
-});
+      afterEach(function () {
+        client.end(true)
+      })
+    })
+  })
+})

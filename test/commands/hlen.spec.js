@@ -1,38 +1,37 @@
-'use strict';
+'use strict'
 
-var config = require('../lib/config');
-var helper = require('../helper');
-var redis = config.redis;
+var Buffer = require('safe-buffer').Buffer
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'hlen' method", function () {
+describe('The \'hlen\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      it('reports the count of keys', function (done) {
+        var hash = 'test hash'
+        var field1 = Buffer.from('0123456789')
+        var value1 = Buffer.from('abcdefghij')
+        var field2 = Buffer.from('')
+        var value2 = Buffer.from('')
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
+        client.hset(hash, field1, value1, helper.isNumber(1))
+        client.hset(hash, field2, value2, helper.isNumber(1))
+        client.hlen(hash, helper.isNumber(2, done))
+      })
 
-            it('reports the count of keys', function (done) {
-                var hash = 'test hash';
-                var field1 = new Buffer('0123456789');
-                var value1 = new Buffer('abcdefghij');
-                var field2 = new Buffer(0);
-                var value2 = new Buffer(0);
-
-                client.hset(hash, field1, value1, helper.isNumber(1));
-                client.hset(hash, field2, value2, helper.isNumber(1));
-                client.hlen(hash, helper.isNumber(2, done));
-            });
-
-            afterEach(function () {
-                client.end(true);
-            });
-        });
-    });
-});
+      afterEach(function () {
+        client.end(true)
+      })
+    })
+  })
+})

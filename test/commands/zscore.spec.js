@@ -1,35 +1,29 @@
-'use strict';
+'use strict'
 
-var config = require('../lib/config');
-var helper = require('../helper');
-var assert = require('assert');
-var redis = config.redis;
+var config = require('../lib/config')
+var helper = require('../helper')
+var redis = config.redis
 
-describe("The 'zscore' method", function () {
+describe('The \'zscore\' method', function () {
+  helper.allTests(function (ip, args) {
+    describe('using ' + ip, function () {
+      var client
 
-    helper.allTests(function (ip, args) {
+      beforeEach(function (done) {
+        client = redis.createClient.apply(null, args)
+        client.once('ready', function () {
+          client.flushdb(done)
+        })
+      })
 
-        describe('using ' + ip, function () {
-            var client;
+      it('should return the score of member in the sorted set at key', function (done) {
+        client.zadd('myzset', 1, 'one')
+        client.zscore('myzset', 'one', helper.isString('1', done))
+      })
 
-            beforeEach(function (done) {
-                client = redis.createClient.apply(null, args);
-                client.once('ready', function () {
-                    client.flushdb(done);
-                });
-            });
-
-            it('should return the score of member in the sorted set at key', function (done) {
-                client.zadd('myzset', 1, 'one');
-                client.zscore('myzset', 'one', function (err, res) {
-                    assert.equal(res, 1);
-                    done();
-                });
-            });
-
-            afterEach(function () {
-                client.end(true);
-            });
-        });
-    });
-});
+      afterEach(function () {
+        client.end(true)
+      })
+    })
+  })
+})
