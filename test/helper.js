@@ -1,15 +1,15 @@
 'use strict'
 
-var assert = require('assert')
-var path = require('path')
-var config = require('./lib/config')
-var RedisProcess = require('./lib/redis-process')
-var StunnelProcess = require('./lib/stunnel-process')
-var rp
-var stunnelProcess
+const assert = require('assert')
+const path = require('path')
+const config = require('./lib/config')
+const RedisProcess = require('./lib/redis-process')
+const StunnelProcess = require('./lib/stunnel-process')
+let rp
+let stunnelProcess
 
 function startRedis (conf, done, port) {
-  RedisProcess.start(function (err, _rp) {
+  RedisProcess.start((err, _rp) => {
     rp = _rp
     return done(err)
   }, path.resolve(__dirname, conf), port)
@@ -20,11 +20,11 @@ function startRedis (conf, done, port) {
 if (!process.env.REDIS_TESTS_STARTED) {
   process.env.REDIS_TESTS_STARTED = true
 
-  before(function (done) {
+  before((done) => {
     startRedis('./conf/redis.conf', done)
   })
 
-  after(function (done) {
+  after((done) => {
     if (rp) rp.stop(done)
   })
 }
@@ -49,120 +49,120 @@ function toString (res) {
 }
 
 module.exports = {
-  redisProcess: function () {
+  redisProcess () {
     return rp
   },
-  stopRedis: function (done) {
+  stopRedis (done) {
     rp.stop(done)
   },
-  startRedis: startRedis,
-  stopStunnel: function (done) {
+  startRedis,
+  stopStunnel (done) {
     if (stunnelProcess) {
       StunnelProcess.stop(stunnelProcess, done)
     } else {
       done()
     }
   },
-  startStunnel: function (done) {
-    StunnelProcess.start(function (err, _stunnelProcess) {
+  startStunnel (done) {
+    StunnelProcess.start((err, _stunnelProcess) => {
       stunnelProcess = _stunnelProcess
       return done(err)
     }, path.resolve(__dirname, './conf'))
   },
-  isNumber: function (expected, done) {
+  isNumber (expected, done) {
     return function (err, results) {
-      assert.strictEqual(err, null, 'expected ' + expected + ', got error: ' + err)
+      assert.strictEqual(err, null, `expected ${expected}, got error: ${err}`)
       results = arrayHelper(results)
-      assert.strictEqual(results, expected, expected + ' !== ' + results)
-      assert.strictEqual(typeof results, 'number', 'expected a number, got ' + typeof results)
+      assert.strictEqual(results, expected, `${expected  } !== ${results}`)
+      assert.strictEqual(typeof results, 'number', `expected a number, got ${typeof results}`)
       if (done) done()
     }
   },
-  isString: function (str, done) {
-    str = '' + str // Make sure it's a string
+  isString (str, done) {
+    str = `${str}` // Make sure it's a string
     return function (err, results) {
-      assert.strictEqual(err, null, 'expected string \'' + str + '\', got error: ' + err)
+      assert.strictEqual(err, null, `expected string '${str}', got error: ${err}`)
       results = arrayHelper(results)
       results = toString(results)
-      assert.strictEqual(results, str, str + ' does not match ' + results)
+      assert.strictEqual(results, str, `${str  } does not match ${results}`)
       if (done) done()
     }
   },
-  isNull: function (done) {
+  isNull (done) {
     return function (err, results) {
-      assert.strictEqual(err, null, 'expected null, got error: ' + err)
+      assert.strictEqual(err, null, `expected null, got error: ${err}`)
       results = arrayHelper(results)
-      assert.strictEqual(results, null, results + ' is not null')
+      assert.strictEqual(results, null, `${results  } is not null`)
       if (done) done()
     }
   },
-  isUndefined: function (done) {
+  isUndefined (done) {
     return function (err, results) {
-      assert.strictEqual(err, null, 'expected null, got error: ' + err)
+      assert.strictEqual(err, null, `expected null, got error: ${err}`)
       results = arrayHelper(results)
-      assert.strictEqual(results, undefined, results + ' is not undefined')
+      assert.strictEqual(results, undefined, `${results  } is not undefined`)
       if (done) done()
     }
   },
-  isError: function (done) {
+  isError (done) {
     return function (err, results) {
       assert(err instanceof Error, 'err is not instance of \'Error\', but an error is expected here.')
       if (done) done()
     }
   },
-  isNotError: function (done) {
+  isNotError (done) {
     return function (err, results) {
-      assert.strictEqual(err, null, 'expected success, got an error: ' + err)
+      assert.strictEqual(err, null, `expected success, got an error: ${err}`)
       if (done) done()
     }
   },
-  isDeepEqual: function (args, done) {
+  isDeepEqual (args, done) {
     return function (err, res) {
-      assert.strictEqual(err, null, 'expected null, got error: ' + err)
+      assert.strictEqual(err, null, `expected null, got error: ${err}`)
       res = toString(res)
       assert.deepStrictEqual(res, args)
       if (done) done()
     }
   },
   isType: {
-    number: function (done) {
+    number (done) {
       return function (err, results) {
-        assert.strictEqual(err, null, 'expected any number, got error: ' + err)
-        assert.strictEqual(typeof results, 'number', results + ' is not a number')
+        assert.strictEqual(err, null, `expected any number, got error: ${err}`)
+        assert.strictEqual(typeof results, 'number', `${results  } is not a number`)
         if (done) done()
       }
     },
-    string: function (done) {
+    string (done) {
       return function (err, results) {
-        assert.strictEqual(err, null, 'expected any string, got error: ' + err)
-        assert.strictEqual(typeof results, 'string', results + ' is not a string')
+        assert.strictEqual(err, null, `expected any string, got error: ${err}`)
+        assert.strictEqual(typeof results, 'string', `${results  } is not a string`)
         if (done) done()
       }
     },
-    positiveNumber: function (done) {
+    positiveNumber (done) {
       return function (err, results) {
-        assert.strictEqual(err, null, 'expected positive number, got error: ' + err)
-        assert(results > 0, results + ' is not a positive number')
+        assert.strictEqual(err, null, `expected positive number, got error: ${err}`)
+        assert(results > 0, `${results  } is not a positive number`)
         if (done) done()
       }
     }
   },
-  match: function (pattern, done) {
+  match (pattern, done) {
     return function (err, results) {
-      assert.strictEqual(err, null, 'expected ' + pattern.toString() + ', got error: ' + err)
+      assert.strictEqual(err, null, `expected ${pattern.toString()}, got error: ${err}`)
       results = arrayHelper(results)
-      assert(pattern.test(results), 'expected string \'' + results + '\' to match ' + pattern.toString())
+      assert(pattern.test(results), `expected string '${results}' to match ${pattern.toString()}`)
       if (done) done()
     }
   },
-  serverVersionAtLeast: function (connection, desiredVersion) {
+  serverVersionAtLeast (connection, desiredVersion) {
     // Wait until a connection has established (otherwise a timeout is going to be triggered at some point)
     if (Object.keys(connection.serverInfo).length === 0) {
       throw new Error('Version check not possible as the client is not yet ready or did not expose the version')
     }
     // Return true if the server version >= desiredVersion
-    var version = connection.serverInfo.versions
-    for (var i = 0; i < 3; i++) {
+    const version = connection.serverInfo.versions
+    for (let i = 0; i < 3; i++) {
       if (version[i] > desiredVersion[i]) {
         return true
       }
@@ -173,30 +173,30 @@ module.exports = {
     }
     return true
   },
-  allTests: function (opts, cb) {
+  allTests (opts, cb) {
     if (!cb) {
       cb = opts
       opts = {}
     }
-    var protocols = ['IPv4']
+    const protocols = ['IPv4']
     if (process.platform !== 'win32') {
       protocols.push('IPv6', '/tmp/redis.sock')
     }
-    var options = [{
+    const options = [{
       detectBuffers: true
     }, {
       detectBuffers: false
     }]
-    options.forEach(function (options) {
-      var strOptions = ''
-      var key
+    options.forEach((options) => {
+      let strOptions = ''
+      let key
       for (key in options) {
         if (options.hasOwnProperty(key)) {
-          strOptions += key + ': ' + options[key] + '; '
+          strOptions += `${key  }: ${options[key]}; `
         }
       }
-      describe('using options: ' + strOptions, function () {
-        protocols.forEach(function (ip, i) {
+      describe(`using options: ${strOptions}`, () => {
+        protocols.forEach((ip, i) => {
           if (i !== 0 && !opts.allConnections) {
             return
           }
@@ -205,13 +205,13 @@ module.exports = {
       })
     })
   },
-  removeMochaListener: function () {
-    var mochaListener = process.listeners('uncaughtException').pop()
+  removeMochaListener () {
+    const mochaListener = process.listeners('uncaughtException').pop()
     process.removeListener('uncaughtException', mochaListener)
     return mochaListener
   },
-  callFuncAfter: function (func, max) {
-    var i = 0
+  callFuncAfter (func, max) {
+    let i = 0
     return function (err) {
       if (err) {
         throw err
@@ -224,7 +224,7 @@ module.exports = {
       return false
     }
   },
-  killConnection: function (client) {
+  killConnection (client) {
     // Change the connection option to a non existing one and destroy the stream
     client.connectionOptions = {
       port: 65535,

@@ -1,19 +1,19 @@
 'use strict'
 
-var Buffer = require('safe-buffer').Buffer
-var net = require('net')
-var tls = require('tls')
-var util = require('util')
-var utils = require('./lib/utils')
-var Command = require('./lib/command')
-var Queue = require('double-ended-queue')
-var errorClasses = require('./lib/customErrors')
-var EventEmitter = require('events')
-var Parser = require('redis-parser')
-var commands = require('redis-commands')
-var debug = require('./lib/debug')
-var unifyOptions = require('./lib/createClient')
-var SUBSCRIBE_COMMANDS = {
+const Buffer = require('safe-buffer').Buffer
+const net = require('net')
+const tls = require('tls')
+const util = require('util')
+const utils = require('./lib/utils')
+const Command = require('./lib/command')
+const Queue = require('double-ended-queue')
+const errorClasses = require('./lib/customErrors')
+const EventEmitter = require('events')
+const Parser = require('redis-parser')
+const commands = require('redis-commands')
+const debug = require('./lib/debug')
+const unifyOptions = require('./lib/createClient')
+const SUBSCRIBE_COMMANDS = {
   subscribe: true,
   unsubscribe: true,
   psubscribe: true,
@@ -43,10 +43,10 @@ function RedisClient (options, stream) {
   // Copy the options so they are not mutated
   options = utils.clone(options)
   EventEmitter.call(this)
-  var cnxOptions = {}
-  var self = this
+  const cnxOptions = {}
+  const self = this
   /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
-  for (var tlsOption in options.tls) {
+  for (const tlsOption in options.tls) {
     cnxOptions[tlsOption] = options.tls[tlsOption]
     // Copy the tls options into the general options to make sure the address is set right
     if (tlsOption === 'port' || tlsOption === 'host' || tlsOption === 'path' || tlsOption === 'family') {
@@ -65,7 +65,7 @@ function RedisClient (options, stream) {
     cnxOptions.port = +options.port || 6379
     cnxOptions.host = options.host || '127.0.0.1'
     cnxOptions.family = (!options.family && net.isIP(cnxOptions.host)) || (options.family === 'IPv6' ? 6 : 4)
-    this.address = cnxOptions.host + ':' + cnxOptions.port
+    this.address = `${cnxOptions.host}:${cnxOptions.port}`
   }
 
   this.connectionOptions = cnxOptions
@@ -75,7 +75,7 @@ function RedisClient (options, stream) {
   if (options.socketKeepalive === undefined) {
     options.socketKeepalive = true
   }
-  for (var command in options.renameCommands) {
+  for (const command in options.renameCommands) {
     options.renameCommands[command.toLowerCase()] = options.renameCommands[command]
   }
   options.returnBuffers = !!options.returnBuffers
@@ -131,14 +131,14 @@ RedisClient.connectionId = 0
 
 function createParser (self) {
   return new Parser({
-    returnReply: function (data) {
+    returnReply (data) {
       self.returnReply(data)
     },
-    returnError: function (err) {
+    returnError (err) {
       // Return a ReplyError to indicate Redis returned an error
       self.returnError(err)
     },
-    returnFatalError: function (err) {
+    returnFatalError (err) {
       // Error out all fired commands. Otherwise they might rely on faulty data. We have to reconnect to get in a working state again
       // Note: the execution order is important. First flush and emit, then create the stream
       err.message += '. Please report this.'
@@ -168,7 +168,7 @@ function createParser (self) {
 
 // Attention: the function name "createStream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.createStream = function () {
-  var self = this
+  const self = this
 
   // Init parser
   this.replyParser = createParser(this)
@@ -195,7 +195,7 @@ RedisClient.prototype.createStream = function () {
   }
 
   if (this.options.connectTimeout) {
-    this.stream.setTimeout(this.connectTimeout, function () {
+    this.stream.setTimeout(this.connectTimeout, () => {
       // Note: This is only tested if a internet connection is established
       self.retryTotaltime = self.connectTimeout
       self.connectionGone('timeout')
@@ -203,34 +203,34 @@ RedisClient.prototype.createStream = function () {
   }
 
   /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
-  var connectEvent = this.options.tls ? 'secureConnect' : 'connect'
+  const connectEvent = this.options.tls ? 'secureConnect' : 'connect'
   this.stream.once(connectEvent, function () {
     this.removeAllListeners('timeout')
     self.timesConnected++
     self.onConnect()
   })
 
-  this.stream.on('data', function (bufferFromSocket) {
+  this.stream.on('data', (bufferFromSocket) => {
     // The bufferFromSocket.toString() has a significant impact on big chunks and therefore this should only be used if necessary
-    debug('Net read ' + self.address + ' id ' + self.connectionId) // + ': ' + bufferFromSocket.toString());
+    debug(`Net read ${self.address} id ${self.connectionId}`) // + ': ' + bufferFromSocket.toString());
     self.replyParser.execute(bufferFromSocket)
   })
 
-  this.stream.on('error', function (err) {
+  this.stream.on('error', (err) => {
     self.onError(err)
   })
 
   /* istanbul ignore next: difficult to test and not important as long as we keep this listener */
-  this.stream.on('clientError', function (err) {
+  this.stream.on('clientError', (err) => {
     debug('clientError occurred')
     self.onError(err)
   })
 
-  this.stream.once('close', function (hadError) {
+  this.stream.once('close', (hadError) => {
     self.connectionGone('close')
   })
 
-  this.stream.once('end', function () {
+  this.stream.once('end', () => {
     self.connectionGone('end')
   })
 
@@ -261,10 +261,10 @@ RedisClient.prototype.initializeRetryVars = function () {
 }
 
 RedisClient.prototype.warn = function (msg) {
-  var self = this
+  const self = this
   // Warn on the next tick. Otherwise no event listener can be added
   // for warnings that are emitted in the redis client constructor
-  process.nextTick(function () {
+  process.nextTick(() => {
     if (self.listeners('warning').length !== 0) {
       self.emit('warning', msg)
     } else {
@@ -276,9 +276,9 @@ RedisClient.prototype.warn = function (msg) {
 // Flush provided queues, erroring any items with a callback first
 RedisClient.prototype.flushAndError = function (errorAttributes, options) {
   options = options || {}
-  var aggregatedErrors = []
-  var queueNames = options.queues || ['commandQueue', 'offlineQueue'] // Flush the commandQueue first to keep the order intact
-  for (var i = 0; i < queueNames.length; i++) {
+  const aggregatedErrors = []
+  const queueNames = options.queues || ['commandQueue', 'offlineQueue'] // Flush the commandQueue first to keep the order intact
+  for (let i = 0; i < queueNames.length; i++) {
     // If the command was fired it might have been processed so far
     if (queueNames[i] === 'commandQueue') {
       errorAttributes.message += ' It might have been processed.'
@@ -286,8 +286,8 @@ RedisClient.prototype.flushAndError = function (errorAttributes, options) {
       errorAttributes.message = errorAttributes.message.replace(' It might have been processed.', '')
     }
     // Don't flush everything from the queue
-    for (var commandObj = this[queueNames[i]].shift(); commandObj; commandObj = this[queueNames[i]].shift()) {
-      var err = new errorClasses.AbortError(errorAttributes)
+    for (let commandObj = this[queueNames[i]].shift(); commandObj; commandObj = this[queueNames[i]].shift()) {
+      const err = new errorClasses.AbortError(errorAttributes)
       if (commandObj.error) {
         err.stack = err.stack + commandObj.error.stack.replace(/^Error.*?\n/, '\n')
       }
@@ -307,7 +307,7 @@ RedisClient.prototype.flushAndError = function (errorAttributes, options) {
   }
   // Currently this would be a breaking change, therefore it's only emitted in debugMode
   if (exports.debugMode && aggregatedErrors.length) {
-    var error
+    let error
     if (aggregatedErrors.length === 1) {
       error = aggregatedErrors[0]
     } else {
@@ -324,7 +324,7 @@ RedisClient.prototype.onError = function (err) {
     return
   }
 
-  err.message = 'Redis connection to ' + this.address + ' failed - ' + err.message
+  err.message = `Redis connection to ${this.address} failed - ${err.message}`
   debug(err.message)
   this.connected = false
   this.ready = false
@@ -339,7 +339,7 @@ RedisClient.prototype.onError = function (err) {
 }
 
 RedisClient.prototype.onConnect = function () {
-  debug('Stream connected ' + this.address + ' id ' + this.connectionId)
+  debug(`Stream connected ${this.address} id ${this.connectionId}`)
 
   this.connected = true
   this.ready = false
@@ -358,9 +358,9 @@ RedisClient.prototype.onConnect = function () {
 }
 
 RedisClient.prototype.onReady = function () {
-  var self = this
+  const self = this
 
-  debug('onReady called ' + this.address + ' id ' + this.connectionId)
+  debug(`onReady called ${this.address} id ${this.connectionId}`)
   this.ready = true
 
   this.cork = function () {
@@ -386,12 +386,12 @@ RedisClient.prototype.onReady = function () {
   if (this.monitoring) { // Monitor has to be fired before pub sub commands
     this.internalSendCommand(new Command('monitor', []))
   }
-  var callbackCount = Object.keys(this.subscriptionSet).length
+  const callbackCount = Object.keys(this.subscriptionSet).length
   if (!this.options.disableResubscribing && callbackCount) {
     debug('Sending pub/sub onReady commands')
-    for (var key in this.subscriptionSet) {
-      var command = key.slice(0, key.indexOf('_'))
-      var args = this.subscriptionSet[key]
+    for (const key in this.subscriptionSet) {
+      const command = key.slice(0, key.indexOf('_'))
+      const args = this.subscriptionSet[key]
       this[command]([args])
     }
   }
@@ -405,7 +405,7 @@ RedisClient.prototype.onInfoCmd = function (err, res) {
       this.onReady()
       return
     }
-    err.message = 'Ready check failed: ' + err.message
+    err.message = `Ready check failed: ${err.message}`
     this.emit('error', err)
     return
   }
@@ -429,41 +429,41 @@ RedisClient.prototype.onInfoCmd = function (err, res) {
     }
   }
 
-  var retryTime = +this.serverInfo.loading_eta_seconds * 1000
+  let retryTime = +this.serverInfo.loading_eta_seconds * 1000
   if (retryTime > 1000) {
     retryTime = 1000
   }
-  debug('Redis server still loading, trying again in ' + retryTime)
-  setTimeout(function (self) {
+  debug(`Redis server still loading, trying again in ${retryTime}`)
+  setTimeout((self) => {
     self.readyCheck()
   }, retryTime, this)
 }
 
 RedisClient.prototype.readyCheck = function () {
-  var self = this
+  const self = this
   debug('Checking server ready state...')
   // Always fire this info command as first command even if other commands are already queued up
   this.ready = true
-  this.info(function (err, res) {
+  this.info((err, res) => {
     self.onInfoCmd(err, res)
   })
   this.ready = false
 }
 
 RedisClient.prototype.sendOfflineQueue = function () {
-  for (var commandObj = this.offlineQueue.shift(); commandObj; commandObj = this.offlineQueue.shift()) {
-    debug('Sending offline command: ' + commandObj.command)
+  for (let commandObj = this.offlineQueue.shift(); commandObj; commandObj = this.offlineQueue.shift()) {
+    debug(`Sending offline command: ${commandObj.command}`)
     this.internalSendCommand(commandObj)
   }
 }
 
-var retryConnection = function (self, error) {
+const retryConnection = function (self, error) {
   debug('Retrying connection...')
 
-  var reconnectParams = {
+  const reconnectParams = {
     delay: self.retryDelay,
     attempt: self.attempts,
-    error: error,
+    error,
     totalRetryTime: self.retryTotaltime,
     timesConnected: self.timesConnected
   }
@@ -483,7 +483,7 @@ RedisClient.prototype.connectionGone = function (why, error) {
   }
   error = error || null
 
-  debug('Redis connection is gone from ' + why + ' event.')
+  debug(`Redis connection is gone from ${why} event.`)
   this.connected = false
   this.ready = false
   // Deactivate cork to work with the offline queue
@@ -505,15 +505,15 @@ RedisClient.prototype.connectionGone = function (why, error) {
       message: 'Stream connection ended and command aborted.',
       code: 'NR_CLOSED'
     }, {
-      error: error
+      error
     })
     return
   }
 
   if (typeof this.options.retryStrategy === 'function') {
-    var retryParams = {
+    const retryParams = {
       attempt: this.attempts,
-      error: error,
+      error,
       totalRetryTime: this.retryTotaltime,
       timesConnected: this.timesConnected
     }
@@ -527,7 +527,7 @@ RedisClient.prototype.connectionGone = function (why, error) {
         message: 'Stream connection ended and command aborted.',
         code: 'NR_CLOSED'
       }, {
-        error: error
+        error
       })
       this.end(false)
       return
@@ -543,20 +543,20 @@ RedisClient.prototype.connectionGone = function (why, error) {
       message: 'Redis connection lost and command aborted.',
       code: 'UNCERTAIN_STATE'
     }, {
-      error: error,
+      error,
       queues: ['commandQueue']
     })
   }
 
-  debug('Retry connection in ' + this.retryDelay + ' ms')
+  debug(`Retry connection in ${this.retryDelay} ms`)
 
   this.retryTimer = setTimeout(retryConnection, this.retryDelay, this, error)
 }
 
 RedisClient.prototype.returnError = function (err) {
-  var commandObj = this.commandQueue.shift()
+  const commandObj = this.commandQueue.shift()
   if (commandObj.error) {
-    err.stack = commandObj.error.stack.replace(/^Error.*?\n/, 'ReplyError: ' + err.message + '\n')
+    err.stack = commandObj.error.stack.replace(/^Error.*?\n/, `ReplyError: ${err.message}\n`)
   }
   err.command = commandObj.command.toUpperCase()
   if (commandObj.args && commandObj.args.length) {
@@ -568,7 +568,7 @@ RedisClient.prototype.returnError = function (err) {
     this.pubSubMode--
   }
 
-  var match = err.message.match(utils.errCode)
+  const match = err.message.match(utils.errCode)
   // LUA script could return user errors that don't behave like all other errors!
   if (match) {
     err.code = match[1]
@@ -578,7 +578,7 @@ RedisClient.prototype.returnError = function (err) {
 }
 
 function normalReply (self, reply) {
-  var commandObj = self.commandQueue.shift()
+  const commandObj = self.commandQueue.shift()
   if (typeof commandObj.callback === 'function') {
     if (commandObj.command !== 'exec') {
       reply = self.handleReply(reply, commandObj.command, commandObj.bufferArgs)
@@ -592,28 +592,28 @@ function normalReply (self, reply) {
 function subscribeUnsubscribe (self, reply, type) {
     // Subscribe commands take an optional callback and also emit an event, but only the Last_ response is included in the callback
     // The pub sub commands return each argument in a separate return value and have to be handled that way
-  var commandObj = self.commandQueue.get(0)
-  var buffer = self.options.returnBuffers || self.options.detectBuffers && commandObj.bufferArgs
-  var channel = (buffer || reply[1] === null) ? reply[1] : reply[1].toString()
-  var count = +reply[2] // Return the channel counter as number no matter if `stringNumbers` is activated or not
+  const commandObj = self.commandQueue.get(0)
+  const buffer = self.options.returnBuffers || self.options.detectBuffers && commandObj.bufferArgs
+  const channel = (buffer || reply[1] === null) ? reply[1] : reply[1].toString()
+  const count = +reply[2] // Return the channel counter as number no matter if `stringNumbers` is activated or not
   debug(type, channel)
 
   // Emit first, then return the callback
   if (channel !== null) { // Do not emit or "unsubscribe" something if there was no channel to unsubscribe from
     self.emit(type, channel, count)
     if (type === 'subscribe' || type === 'psubscribe') {
-      self.subscriptionSet[type + '_' + channel] = channel
+      self.subscriptionSet[`${type}_${channel}`] = channel
     } else {
       type = type === 'unsubscribe' ? 'subscribe' : 'psubscribe' // Make types consistent
-      delete self.subscriptionSet[type + '_' + channel]
+      delete self.subscriptionSet[`${type}_${channel}`]
     }
     self.subscribeChannels.push(channel)
   }
 
   if (commandObj.args.length === 1 || self.subCommandsLeft === 1 || commandObj.args.length === 0 && (count === 0 || channel === null)) {
     if (count === 0) { // unsubscribed from all channels
-      var runningCommand
-      var i = 1
+      let runningCommand
+      let i = 1
       self.pubSubMode = 0 // Deactivating pub sub mode
       // This should be a rare case and therefore handling it this way should be good performance wise for the general case
       for (runningCommand = self.commandQueue.get(i); runningCommand !== undefined; runningCommand = self.commandQueue.get(i)) {
@@ -640,7 +640,7 @@ function subscribeUnsubscribe (self, reply, type) {
 }
 
 function returnPubSub (self, reply) {
-  var type = reply[0].toString()
+  const type = reply[0].toString()
   if (type === 'message') { // channel, message
     if (!self.options.returnBuffers || self.messageBuffers) { // backwards compatible. Refactor this in v.3 to always return a string on the normal emitter
       self.emit('message', reply[1].toString(), reply[2].toString())
@@ -665,7 +665,7 @@ RedisClient.prototype.returnReply = function (reply) {
   // As this is not the average use case and monitor is expensive anyway, let's change the code here, to improve
   // the average performance of all other commands in case of no monitor mode
   if (this.monitoring) {
-    var replyStr
+    let replyStr
     if (this.buffers && Buffer.isBuffer(reply)) {
       replyStr = reply.toString()
     } else {
@@ -674,8 +674,8 @@ RedisClient.prototype.returnReply = function (reply) {
     // While reconnecting the redis server does not recognize the client as in monitor mode anymore
     // Therefore the monitor command has to finish before it catches further commands
     if (typeof replyStr === 'string' && utils.monitorRegex.test(replyStr)) {
-      var timestamp = replyStr.slice(0, replyStr.indexOf(' '))
-      var args = replyStr.slice(replyStr.indexOf('"') + 1, -1).split('" "').map(function (elem) {
+      const timestamp = replyStr.slice(0, replyStr.indexOf(' '))
+      const args = replyStr.slice(replyStr.indexOf('"') + 1, -1).split('" "').map((elem) => {
         return elem.replace(/\\"/g, '"')
       })
       this.emit('monitor', timestamp, args, replyStr)
@@ -697,8 +697,8 @@ RedisClient.prototype.returnReply = function (reply) {
 }
 
 function handleOfflineCommand (self, commandObj) {
-  var command = commandObj.command
-  var err, msg
+  let command = commandObj.command
+  let err, msg
   if (self.closing || !self.enableOfflineQueue) {
     command = command.toUpperCase()
     if (!self.closing) {
@@ -711,16 +711,16 @@ function handleOfflineCommand (self, commandObj) {
       msg = 'The connection is already closed.'
     }
     err = new errorClasses.AbortError({
-      message: command + " can't be processed. " + msg,
+      message: `${command} can't be processed. ${msg}`,
       code: 'NR_CLOSED',
-      command: command
+      command
     })
     if (commandObj.args.length) {
       err.args = commandObj.args
     }
     utils.replyInOrder(self, commandObj.callback, err)
   } else {
-    debug('Queueing ' + command + ' for next server connection.')
+    debug(`Queueing ${command} for next server connection.`)
     self.offlineQueue.push(commandObj)
   }
   self.shouldBuffer = true
@@ -729,14 +729,14 @@ function handleOfflineCommand (self, commandObj) {
 // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
 // e.g. monitor / info does not work with internalSendCommand only
 RedisClient.prototype.internalSendCommand = function (commandObj) {
-  var arg, prefixKeys
-  var i = 0
-  var commandStr = ''
-  var args = commandObj.args
-  var command = commandObj.command
-  var len = args.length
-  var bigData = false
-  var argsCopy = new Array(len)
+  let arg, prefixKeys
+  let i = 0
+  let commandStr = ''
+  const args = commandObj.args
+  let command = commandObj.command
+  const len = args.length
+  let bigData = false
+  const argsCopy = new Array(len)
 
   if (process.domain && commandObj.callback) {
     commandObj.callback = process.domain.bind(commandObj.callback)
@@ -745,7 +745,7 @@ RedisClient.prototype.internalSendCommand = function (commandObj) {
   if (this.ready === false || this.stream.writable === false) {
     // Handle offline commands right away
     handleOfflineCommand(this, commandObj)
-    return false // Indicate buffering
+    return
   }
 
   for (i = 0; i < len; i += 1) {
@@ -761,34 +761,28 @@ RedisClient.prototype.internalSendCommand = function (commandObj) {
       if (args[i] instanceof Date) { // Accept dates as valid input
         argsCopy[i] = args[i].toString()
       } else if (args[i] === null) {
-        this.warn(
-          'Deprecated: The ' + command.toUpperCase() + ' command contains a "null" argument.\n' +
-          'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
-          'Please handle this in your code to make sure everything works as you intended it to.'
-        )
-        argsCopy[i] = 'null' // Backwards compatible :/
+        const err = new TypeError('The command contains a "null" argument but NodeRedis can only handle strings, numbers and buffers.')
+        err.command = command.toUpperCase()
+        err.args = args
+        return utils.replyInOrder(this, commandObj.callback, err, undefined, this.commandQueue)
       } else if (Buffer.isBuffer(args[i])) {
         argsCopy[i] = args[i]
         commandObj.bufferArgs = true
         bigData = true
       } else {
-        this.warn(
-          'Deprecated: The ' + command.toUpperCase() + ' command contains a argument of type ' + args[i].constructor.name + '.\n' +
-          'This is converted to "' + args[i].toString() + '" by using .toString() now and will return an error from v.3.0 on.\n' +
-          'Please handle this in your code to make sure everything works as you intended it to.'
-        )
-        argsCopy[i] = args[i].toString() // Backwards compatible :/
+        const err = new TypeError('The command contains a argument of type "' + args[i].constructor.name + '" but NodeRedis can only handle strings, numbers, and buffers.')
+        err.command = command.toUpperCase()
+        err.args = args
+        return utils.replyInOrder(this, commandObj.callback, err, undefined, this.commandQueue)
       }
     } else if (typeof args[i] === 'undefined') {
-      this.warn(
-        'Deprecated: The ' + command.toUpperCase() + ' command contains a "undefined" argument.\n' +
-        'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
-        'Please handle this in your code to make sure everything works as you intended it to.'
-      )
-      argsCopy[i] = 'undefined' // Backwards compatible :/
+      const err = new TypeError('The command contains a "undefined" argument but NodeRedis can only handle strings, numbers and buffers.')
+      err.command = command.toUpperCase()
+      err.args = args
+      return utils.replyInOrder(this, commandObj.callback, err, undefined, this.commandQueue)
     } else {
       // Seems like numbers are converted fast using string concatenation
-      argsCopy[i] = '' + args[i]
+      argsCopy[i] = `${args[i]}`
     }
   }
 
@@ -803,30 +797,30 @@ RedisClient.prototype.internalSendCommand = function (commandObj) {
   }
   // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
   // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
-  commandStr = '*' + (len + 1) + '\r\n$' + command.length + '\r\n' + command + '\r\n'
+  commandStr = `*${len + 1}\r\n$${command.length}\r\n${command}\r\n`
 
   if (bigData === false) { // Build up a string and send entire command in one write
     for (i = 0; i < len; i += 1) {
       arg = argsCopy[i]
-      commandStr += '$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n'
+      commandStr += `$${Buffer.byteLength(arg)}\r\n${arg}\r\n`
     }
-    debug('Send ' + this.address + ' id ' + this.connectionId + ': ' + commandStr)
+    debug(`Send ${this.address} id ${this.connectionId}: ${commandStr}`)
     this.write(commandStr)
   } else {
-    debug('Send command (' + commandStr + ') has Buffer arguments')
+    debug(`Send command (${commandStr}) has Buffer arguments`)
     this.fireStrings = false
     this.write(commandStr)
 
     for (i = 0; i < len; i += 1) {
       arg = argsCopy[i]
       if (typeof arg === 'string') {
-        this.write('$' + Buffer.byteLength(arg) + '\r\n' + arg + '\r\n')
+        this.write(`$${Buffer.byteLength(arg)}\r\n${arg}\r\n`)
       } else { // buffer
-        this.write('$' + arg.length + '\r\n')
+        this.write(`$${arg.length}\r\n`)
         this.write(arg)
         this.write('\r\n')
       }
-      debug('sendCommand: buffer send ' + arg.length + ' bytes')
+      debug(`sendCommand: buffer send ${arg.length} bytes`)
     }
   }
   if (commandObj.callOnWrite) {
@@ -849,12 +843,12 @@ RedisClient.prototype.internalSendCommand = function (commandObj) {
       this.reply = 'ON'
     }
   }
-  return !this.shouldBuffer
+  return
 }
 
 RedisClient.prototype.writeStrings = function () {
-  var str = ''
-  for (var command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
+  let str = ''
+  for (let command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
     // Write to stream if the string is bigger than 4mb. The biggest string may be Math.pow(2, 28) - 15 chars long
     if (str.length + command.length > 4 * 1024 * 1024) {
       this.shouldBuffer = !this.stream.write(str)
@@ -868,7 +862,7 @@ RedisClient.prototype.writeStrings = function () {
 }
 
 RedisClient.prototype.writeBuffers = function () {
-  for (var command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
+  for (let command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
     this.shouldBuffer = !this.stream.write(command)
   }
 }

@@ -1,23 +1,23 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'sinter\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'sinter\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('handles two sets being intersected', function (done) {
+      it('handles two sets being intersected', (done) => {
         client.sadd('sa', 'a', helper.isNumber(1))
         client.sadd('sa', 'b', helper.isNumber(1))
         client.sadd('sa', 'c', helper.isNumber(1))
@@ -26,14 +26,14 @@ describe('The \'sinter\' method', function () {
         client.sadd('sb', 'c', helper.isNumber(1))
         client.sadd('sb', 'd', helper.isNumber(1))
 
-        client.sinter('sa', 'sb', function (err, intersection) {
+        client.sinter('sa', 'sb', (err, intersection) => {
           assert.strictEqual(intersection.length, 2)
           assert.deepEqual(intersection.sort(), [ 'b', 'c' ])
           return done(err)
         })
       })
 
-      it('handles three sets being intersected', function (done) {
+      it('handles three sets being intersected', (done) => {
         client.sadd('sa', 'a', helper.isNumber(1))
         client.sadd('sa', 'b', helper.isNumber(1))
         client.sadd('sa', 'c', helper.isNumber(1))
@@ -46,14 +46,14 @@ describe('The \'sinter\' method', function () {
         client.sadd('sc', 'd', helper.isNumber(1))
         client.sadd('sc', 'e', helper.isNumber(1))
 
-        client.sinter('sa', 'sb', 'sc', function (err, intersection) {
+        client.sinter('sa', 'sb', 'sc', (err, intersection) => {
           assert.strictEqual(intersection.length, 1)
           assert.strictEqual(intersection[0], 'c')
           return done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

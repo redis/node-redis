@@ -1,87 +1,87 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
-var uuid = require('uuid')
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
+const uuid = require('uuid')
 
-describe('The \'get\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var key, value
+describe('The \'get\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let key, value
 
-      beforeEach(function () {
+      beforeEach(() => {
         key = uuid.v4()
         value = uuid.v4()
       })
 
-      describe('when not connected', function () {
-        var client
+      describe('when not connected', () => {
+        let client
 
-        beforeEach(function (done) {
+        beforeEach((done) => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.quit()
           })
           client.on('end', done)
         })
 
-        it('reports an error', function (done) {
-          client.get(key, function (err, res) {
+        it('reports an error', (done) => {
+          client.get(key, (err, res) => {
             assert(err.message.match(/The connection is already closed/))
             done()
           })
         })
 
-        it('reports an error promisified', function () {
-          return client.getAsync(key).then(assert, function (err) {
+        it('reports an error promisified', () => {
+          return client.getAsync(key).then(assert, (err) => {
             assert(err.message.match(/The connection is already closed/))
           })
         })
       })
 
-      describe('when connected', function () {
-        var client
+      describe('when connected', () => {
+        let client
 
-        beforeEach(function (done) {
+        beforeEach((done) => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', function () {
+          client.once('ready', () => {
             done()
           })
         })
 
-        afterEach(function () {
+        afterEach(() => {
           client.end(true)
         })
 
-        describe('when the key exists in Redis', function () {
-          beforeEach(function (done) {
-            client.set(key, value, function (err, res) {
+        describe('when the key exists in Redis', () => {
+          beforeEach((done) => {
+            client.set(key, value, (err, res) => {
               helper.isNotError()(err, res)
               done()
             })
           })
 
-          it('gets the value correctly', function (done) {
-            client.get(key, function (err, res) {
+          it('gets the value correctly', (done) => {
+            client.get(key, (err, res) => {
               helper.isString(value)(err, res)
               done(err)
             })
           })
 
-          it('should not throw on a get without callback (even if it\'s not useful)', function (done) {
+          it('should not throw on a get without callback (even if it\'s not useful)', (done) => {
             client.get(key)
-            client.on('error', function (err) {
+            client.on('error', (err) => {
               throw err
             })
             setTimeout(done, 25)
           })
         })
 
-        describe('when the key does not exist in Redis', function () {
-          it('gets a null value', function (done) {
-            client.get(key, function (err, res) {
+        describe('when the key does not exist in Redis', () => {
+          it('gets a null value', (done) => {
+            client.get(key, (err, res) => {
               helper.isNull()(err, res)
               done(err)
             })

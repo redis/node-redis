@@ -14,6 +14,7 @@ Breaking Changes
 - Removed `maxAttempts` (max_attempts) option
 - Removed `socketNoDelay` (socket_no_delay) option
 - Removed `Redis.print` helper function
+- Removed backpressure indicator from function return value
 - Changed return value of `(p)(un)subscribe`
   - Return an array with the number of current subscribed channels and an array with all affected channels
 - Changed `connectTimeout` (connect_timeout) option

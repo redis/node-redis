@@ -1,30 +1,30 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('./lib/config')
-var helper = require('./helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('./lib/config')
+const helper = require('./helper')
+const redis = config.redis
 
-  // TODO: Fix redis process spawn on windows
+// TODO: Fix redis process spawn on windows
 if (process.platform !== 'win32') {
-  describe('client authentication', function () {
-    before(function (done) {
-      helper.stopRedis(function () {
+  describe('client authentication', () => {
+    before((done) => {
+      helper.stopRedis(() => {
         helper.startRedis('./conf/password.conf', done)
       })
     })
 
     helper.allTests({
       allConnections: true
-    }, function (ip, args) {
-      describe('using ' + ip, function () {
-        var auth = 'porkchopsandwiches'
-        var client = null
+    }, (ip, args) => {
+      describe(`using ${ip}`, () => {
+        const auth = 'porkchopsandwiches'
+        let client = null
 
-        beforeEach(function () {
+        beforeEach(() => {
           client = null
         })
-        afterEach(function () {
+        afterEach(() => {
         // Explicitly ignore still running commands
         // The ready command could still be running
           client.end(false)
@@ -34,7 +34,7 @@ if (process.platform !== 'win32') {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
           client = redis.createClient.apply(null, args)
-          client.auth(auth, function (err, res) {
+          client.auth(auth, (err, res) => {
             assert.strictEqual(null, err)
             assert.strictEqual('OK', res.toString())
             return done(err)
@@ -45,17 +45,17 @@ if (process.platform !== 'win32') {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
           client = redis.createClient.apply(null, args)
-          var time = Date.now()
-          client.auth(auth, function (err, res) {
+          const time = Date.now()
+          client.auth(auth, (err, res) => {
             assert.strictEqual(err, null)
             assert.strictEqual('retry worked', res)
-            var now = Date.now()
+            const now = Date.now()
           // Hint: setTimeout sometimes triggers early and therefore the value can be like one or two ms to early
-            assert(now - time >= 98, 'Time should be above 100 ms (the reconnect time) and is ' + (now - time))
-            assert(now - time < 225, 'Time should be below 255 ms (the reconnect should only take a bit above 100 ms) and is ' + (now - time))
+            assert(now - time >= 98, `Time should be above 100 ms (the reconnect time) and is ${now - time}`)
+            assert(now - time < 225, `Time should be below 255 ms (the reconnect should only take a bit above 100 ms) and is ${now - time}`)
             done()
           })
-          var tmp = client.commandQueue.get(0).callback
+          const tmp = client.commandQueue.get(0).callback
           client.commandQueue.get(0).callback = function (err) {
             assert.strictEqual(err, null)
             client.auth = function (pass, callback) {
@@ -70,13 +70,13 @@ if (process.platform !== 'win32') {
 
           client = redis.createClient.apply(null, args)
 
-          client.once('error', function (err) {
+          client.once('error', (err) => {
             assert.strictEqual(err.command, 'AUTH')
             assert.ok(/ERR invalid password/.test(err.message))
             return done()
           })
 
-          client.auth(auth + 'bad')
+          client.auth(`${auth}bad`)
         })
 
         it('returns an error when auth is bad (empty string) with a callback', function (done) {
@@ -84,7 +84,7 @@ if (process.platform !== 'win32') {
 
           client = redis.createClient.apply(null, args)
 
-          client.auth('', function (err) {
+          client.auth('', (err) => {
             assert.strictEqual(err.command, 'AUTH')
             assert.ok(/ERR invalid password/.test(err.message))
             done()
@@ -95,13 +95,13 @@ if (process.platform !== 'win32') {
           it('allows auth to be provided as part of redis url and do not fire commands before auth is done', function (done) {
             if (helper.redisProcess().spawnFailed()) this.skip()
 
-            var end = helper.callFuncAfter(done, 2)
-            client = redis.createClient('redis://:' + auth + '@' + config.HOST[ip] + ':' + config.PORT)
-            client.on('ready', function () {
+            const end = helper.callFuncAfter(done, 2)
+            client = redis.createClient(`redis://:${auth}@${config.HOST[ip]}:${config.PORT}`)
+            client.on('ready', () => {
               end()
             })
           // The info command may be used while loading but not if not yet authenticated
-            client.info(function (err) {
+            client.info((err) => {
               assert.strictEqual(err, null)
               end(err)
             })
@@ -110,17 +110,17 @@ if (process.platform !== 'win32') {
           it('allows auth and database to be provided as part of redis url query parameter', function (done) {
             if (helper.redisProcess().spawnFailed()) this.skip()
 
-            client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT + '?db=2&password=' + auth)
+            client = redis.createClient(`redis://${config.HOST[ip]}:${config.PORT}?db=2&password=${auth}`)
             assert.strictEqual(client.options.db, '2')
             assert.strictEqual(client.options.password, auth)
             assert.strictEqual(client.authPass, auth)
-            client.on('ready', function () {
+            client.on('ready', () => {
             // Set a key so the used database is returned in the info command
               client.set('foo', 'bar')
               client.get('foo')
               assert.strictEqual(client.serverInfo.db2, undefined)
             // Using the info command should update the serverInfo
-              client.info(function (err) {
+              client.info((err) => {
                 assert.strictEqual(err, null)
                 assert(typeof client.serverInfo.db2 === 'object')
               })
@@ -132,7 +132,7 @@ if (process.platform !== 'win32') {
         it('allows auth to be provided as config option for client', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var args = config.configureClient(ip, {
+          const args = config.configureClient(ip, {
             authPass: auth
           })
           client = redis.createClient.apply(null, args)
@@ -142,7 +142,7 @@ if (process.platform !== 'win32') {
         it('allows auth and noReadyCheck to be provided as config option for client', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var args = config.configureClient(ip, {
+          const args = config.configureClient(ip, {
             password: auth,
             noReadyCheck: true
           })
@@ -153,7 +153,7 @@ if (process.platform !== 'win32') {
         it('allows auth to be provided post-hoc with auth method', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var args = config.configureClient(ip)
+          const args = config.configureClient(ip)
           client = redis.createClient.apply(null, args)
           client.auth(auth)
           client.on('ready', done)
@@ -166,7 +166,7 @@ if (process.platform !== 'win32') {
           client.auth(auth)
           client.on('ready', function () {
             if (this.timesConnected < 3) {
-              var interval = setInterval(function () {
+              let interval = setInterval(() => {
                 if (client.commandQueue.length !== 0) {
                   return
                 }
@@ -181,46 +181,19 @@ if (process.platform !== 'win32') {
               done()
             }
           })
-          client.on('reconnecting', function (params) {
+          client.on('reconnecting', (params) => {
             assert.strictEqual(params.error, null)
           })
-        })
-
-        it('should return an error if the password is not correct and a callback has been provided', function (done) {
-          if (helper.redisProcess().spawnFailed()) this.skip()
-
-          client = redis.createClient.apply(null, args)
-          var async = true
-          client.auth(undefined, function (err, res) {
-            assert.strictEqual(err.message, 'ERR invalid password')
-            assert.strictEqual(err.command, 'AUTH')
-            assert.strictEqual(res, undefined)
-            async = false
-            done()
-          })
-          assert(async)
-        })
-
-        it('should emit an error if the password is not correct and no callback has been provided', function (done) {
-          if (helper.redisProcess().spawnFailed()) this.skip()
-
-          client = redis.createClient.apply(null, args)
-          client.on('error', function (err) {
-            assert.strictEqual(err.message, 'ERR invalid password')
-            assert.strictEqual(err.command, 'AUTH')
-            done()
-          })
-          client.auth(234567)
         })
 
         it('allows auth to be provided post-hoc with auth method again', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var args = config.configureClient(ip, {
+          const args = config.configureClient(ip, {
             authPass: auth
           })
           client = redis.createClient.apply(null, args)
-          client.on('ready', function () {
+          client.on('ready', () => {
             client.auth(auth, helper.isString('OK', done))
           })
         })
@@ -228,12 +201,12 @@ if (process.platform !== 'win32') {
         it('does not allow any commands to be processed if not authenticated using noReadyCheck true', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var args = config.configureClient(ip, {
+          const args = config.configureClient(ip, {
             noReadyCheck: true
           })
           client = redis.createClient.apply(null, args)
-          client.on('ready', function () {
-            client.set('foo', 'bar', function (err) {
+          client.on('ready', () => {
+            client.set('foo', 'bar', (err) => {
               assert.strictEqual(err.message, 'NOAUTH Authentication required.')
               assert.strictEqual(err.code, 'NOAUTH')
               assert.strictEqual(err.command, 'SET')
@@ -245,7 +218,7 @@ if (process.platform !== 'win32') {
         it('does not allow auth to be provided post-hoc with auth method if not authenticated before', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
           client = redis.createClient.apply(null, args)
-          client.on('error', function (err) {
+          client.on('error', (err) => {
             assert.strictEqual(err.code, 'NOAUTH')
             assert.strictEqual(err.message, 'Ready check failed: NOAUTH Authentication required.')
             assert.strictEqual(err.command, 'INFO')
@@ -258,7 +231,7 @@ if (process.platform !== 'win32') {
           client = redis.createClient({
             password: 'wrongPassword'
           })
-          client.once('error', function (err) {
+          client.once('error', (err) => {
             assert.strictEqual(err.message, 'ERR invalid password')
             done()
           })
@@ -267,49 +240,49 @@ if (process.platform !== 'win32') {
         it('pubsub working with auth', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var args = config.configureClient(ip, {
+          const args = config.configureClient(ip, {
             password: auth
           })
           client = redis.createClient.apply(null, args)
           client.set('foo', 'bar')
-          client.subscribe('somechannel', 'another channel', function (err) {
+          client.subscribe('somechannel', 'another channel', (err) => {
             assert.strictEqual(err, null)
-            client.once('ready', function () {
+            client.once('ready', () => {
               assert.strictEqual(client.pubSubMode, 1)
-              client.get('foo', function (err) {
+              client.get('foo', (err) => {
                 assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message))
                 done()
               })
             })
           })
-          client.once('ready', function () {
+          client.once('ready', () => {
           // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
             assert.strictEqual(client.pubSubMode, 2)
-            client.ping(function () { // Make sure all commands were properly processed already
+            client.ping(() => { // Make sure all commands were properly processed already
               client.stream.destroy()
             })
           })
         })
 
-        it('individual commands work properly with batch', function (done) {
+        it('individual commands work properly with batch', (done) => {
         // quit => might return an error instead of "OK" in the exec callback... (if not connected)
         // auth => might return an error instead of "OK" in the exec callback... (if no password is required / still loading on Redis <= 2.4)
         // This could be fixed by checking the return value of the callback in the exec callback and
         // returning the manipulated [error, result] from the callback.
         // There should be a better solution though
 
-          var args = config.configureClient('localhost', {
+          const args = config.configureClient('localhost', {
             noReadyCheck: true
           })
           client = redis.createClient.apply(null, args)
           assert.strictEqual(client.selectedDb, undefined)
-          var end = helper.callFuncAfter(done, 8)
-          client.on('monitor', function () {
+          const end = helper.callFuncAfter(done, 8)
+          client.on('monitor', () => {
             end() // Should be called for each command after monitor
           })
           client.batch()
           .auth(auth)
-          .select(5, function (err, res) {
+          .select(5, (err, res) => {
             assert.strictEqual(err, null)
             assert.strictEqual(client.selectedDb, 5)
             assert.strictEqual(res, 'OK')
@@ -317,7 +290,7 @@ if (process.platform !== 'win32') {
           })
           .monitor()
           .set('foo', 'bar', helper.isString('OK'))
-          .info('stats', function (err, res) {
+          .info('stats', (err, res) => {
             assert.strictEqual(err, null)
             assert.strictEqual(res.indexOf('# Stats\r\n'), 0)
             assert.strictEqual(client.serverInfo.sync_full, '0')
@@ -328,7 +301,7 @@ if (process.platform !== 'win32') {
           .subscribe('/foo', helper.isDeepEqual([2, ['/foo']]))
           .psubscribe('*')
           .quit(helper.isString('OK'))
-          .exec(function (err, res) {
+          .exec((err, res) => {
             assert.strictEqual(err, null)
             res[4] = res[4].substr(0, 9)
             assert.deepStrictEqual(
@@ -341,9 +314,9 @@ if (process.platform !== 'win32') {
       })
     })
 
-    after(function (done) {
+    after((done) => {
       if (helper.redisProcess().spawnFailed()) return done()
-      helper.stopRedis(function () {
+      helper.stopRedis(() => {
         helper.startRedis('./conf/redis.conf', done)
       })
     })

@@ -1,22 +1,22 @@
 'use strict'
 
-var Buffer = require('safe-buffer').Buffer
-var assert = require('assert')
-var config = require('./lib/config')
-var helper = require('./helper')
-var redis = config.redis
+const Buffer = require('safe-buffer').Buffer
+const assert = require('assert')
+const config = require('./lib/config')
+const helper = require('./helper')
+const redis = config.redis
 
-describe('detectBuffers', function () {
-  var client
-  var args = config.configureClient('localhost', {
+describe('detectBuffers', () => {
+  let client
+  const args = config.configureClient('localhost', {
     detectBuffers: true
   })
 
-  beforeEach(function (done) {
+  beforeEach((done) => {
     client = redis.createClient.apply(null, args)
     client.once('error', done)
-    client.once('connect', function () {
-      client.flushdb(function (err) {
+    client.once('connect', () => {
+      client.flushdb((err) => {
         client.hmset('hash key 2', 'key 1', 'val 1', 'key 2', 'val 2')
         client.set('string key 1', 'string value')
         return done(err)
@@ -24,34 +24,34 @@ describe('detectBuffers', function () {
     })
   })
 
-  afterEach(function () {
+  afterEach(() => {
     client.end(true)
   })
 
-  describe('get', function () {
-    describe('first argument is a string', function () {
-      it('returns a string', function (done) {
+  describe('get', () => {
+    describe('first argument is a string', () => {
+      it('returns a string', (done) => {
         client.get('string key 1', helper.isString('string value', done))
       })
 
-      it('returns a string when executed as part of transaction', function (done) {
-        client.multi().get('string key 1').exec(function (err, res) {
+      it('returns a string when executed as part of transaction', (done) => {
+        client.multi().get('string key 1').exec((err, res) => {
           helper.isString('string value', done)(err, res[0])
         })
       })
     })
 
-    describe('first argument is a buffer', function () {
-      it('returns a buffer', function (done) {
-        client.get(Buffer.from('string key 1'), function (err, reply) {
+    describe('first argument is a buffer', () => {
+      it('returns a buffer', (done) => {
+        client.get(Buffer.from('string key 1'), (err, reply) => {
           assert.strictEqual(true, Buffer.isBuffer(reply))
           assert.strictEqual('<Buffer 73 74 72 69 6e 67 20 76 61 6c 75 65>', reply.inspect())
           return done(err)
         })
       })
 
-      it('returns a bufffer when executed as part of transaction', function (done) {
-        client.multi().get(Buffer.from('string key 1')).exec(function (err, reply) {
+      it('returns a bufffer when executed as part of transaction', (done) => {
+        client.multi().get(Buffer.from('string key 1')).exec((err, reply) => {
           assert.strictEqual(1, reply.length)
           assert.strictEqual(true, Buffer.isBuffer(reply[0]))
           assert.strictEqual('<Buffer 73 74 72 69 6e 67 20 76 61 6c 75 65>', reply[0].inspect())
@@ -61,14 +61,14 @@ describe('detectBuffers', function () {
     })
   })
 
-  describe('multi.hget', function () {
-    it('can interleave string and buffer results', function (done) {
+  describe('multi.hget', () => {
+    it('can interleave string and buffer results', (done) => {
       client.multi()
         .hget('hash key 2', 'key 1')
         .hget(Buffer.from('hash key 2'), 'key 1')
         .hget('hash key 2', Buffer.from('key 2'))
         .hget('hash key 2', 'key 2')
-        .exec(function (err, reply) {
+        .exec((err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(4, reply.length)
           assert.strictEqual('val 1', reply[0])
@@ -82,14 +82,14 @@ describe('detectBuffers', function () {
     })
   })
 
-  describe('batch.hget', function () {
-    it('can interleave string and buffer results', function (done) {
+  describe('batch.hget', () => {
+    it('can interleave string and buffer results', (done) => {
       client.batch()
         .hget('hash key 2', 'key 1')
         .hget(Buffer.from('hash key 2'), 'key 1')
         .hget('hash key 2', Buffer.from('key 2'))
         .hget('hash key 2', 'key 2')
-        .exec(function (err, reply) {
+        .exec((err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(4, reply.length)
           assert.strictEqual('val 1', reply[0])
@@ -103,10 +103,10 @@ describe('detectBuffers', function () {
     })
   })
 
-  describe('hmget', function () {
-    describe('first argument is a string', function () {
-      it('returns strings for keys requested', function (done) {
-        client.hmget('hash key 2', 'key 1', 'key 2', function (err, reply) {
+  describe('hmget', () => {
+    describe('first argument is a string', () => {
+      it('returns strings for keys requested', (done) => {
+        client.hmget('hash key 2', 'key 1', 'key 2', (err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(2, reply.length)
           assert.strictEqual('val 1', reply[0])
@@ -115,8 +115,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns strings for keys requested in transaction', function (done) {
-        client.multi().hmget('hash key 2', 'key 1', 'key 2').exec(function (err, reply) {
+      it('returns strings for keys requested in transaction', (done) => {
+        client.multi().hmget('hash key 2', 'key 1', 'key 2').exec((err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(1, reply.length)
           assert.strictEqual(2, reply[0].length)
@@ -126,8 +126,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('handles array of strings with undefined values (repro #344)', function (done) {
-        client.hmget('hash key 2', 'key 3', 'key 4', function (err, reply) {
+      it('handles array of strings with undefined values (repro #344)', (done) => {
+        client.hmget('hash key 2', 'key 3', 'key 4', (err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(2, reply.length)
           assert.strictEqual(null, reply[0])
@@ -136,8 +136,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('handles array of strings with undefined values in transaction (repro #344)', function (done) {
-        client.multi().hmget('hash key 2', 'key 3', 'key 4').exec(function (err, reply) {
+      it('handles array of strings with undefined values in transaction (repro #344)', (done) => {
+        client.multi().hmget('hash key 2', 'key 3', 'key 4').exec((err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(1, reply.length)
           assert.strictEqual(2, reply[0].length)
@@ -148,9 +148,9 @@ describe('detectBuffers', function () {
       })
     })
 
-    describe('first argument is a buffer', function () {
-      it('returns buffers for keys requested', function (done) {
-        client.hmget(Buffer.from('hash key 2'), 'key 1', 'key 2', function (err, reply) {
+    describe('first argument is a buffer', () => {
+      it('returns buffers for keys requested', (done) => {
+        client.hmget(Buffer.from('hash key 2'), 'key 1', 'key 2', (err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(2, reply.length)
           assert.strictEqual(true, Buffer.isBuffer(reply[0]))
@@ -161,8 +161,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns buffers for keys requested in transaction', function (done) {
-        client.multi().hmget(Buffer.from('hash key 2'), 'key 1', 'key 2').exec(function (err, reply) {
+      it('returns buffers for keys requested in transaction', (done) => {
+        client.multi().hmget(Buffer.from('hash key 2'), 'key 1', 'key 2').exec((err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(1, reply.length)
           assert.strictEqual(2, reply[0].length)
@@ -174,8 +174,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns buffers for keys requested in .batch', function (done) {
-        client.batch().hmget(Buffer.from('hash key 2'), 'key 1', 'key 2').exec(function (err, reply) {
+      it('returns buffers for keys requested in .batch', (done) => {
+        client.batch().hmget(Buffer.from('hash key 2'), 'key 1', 'key 2').exec((err, reply) => {
           assert.strictEqual(true, Array.isArray(reply))
           assert.strictEqual(1, reply.length)
           assert.strictEqual(2, reply[0].length)
@@ -189,10 +189,10 @@ describe('detectBuffers', function () {
     })
   })
 
-  describe('hgetall', function (done) {
-    describe('first argument is a string', function () {
-      it('returns string values', function (done) {
-        client.hgetall('hash key 2', function (err, reply) {
+  describe('hgetall', (done) => {
+    describe('first argument is a string', () => {
+      it('returns string values', (done) => {
+        client.hgetall('hash key 2', (err, reply) => {
           assert.strictEqual('object', typeof reply)
           assert.strictEqual(2, Object.keys(reply).length)
           assert.strictEqual('val 1', reply['key 1'])
@@ -201,8 +201,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns string values when executed in transaction', function (done) {
-        client.multi().hgetall('hash key 2').exec(function (err, reply) {
+      it('returns string values when executed in transaction', (done) => {
+        client.multi().hgetall('hash key 2').exec((err, reply) => {
           assert.strictEqual(1, reply.length)
           assert.strictEqual('object', typeof reply[0])
           assert.strictEqual(2, Object.keys(reply[0]).length)
@@ -212,8 +212,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns string values when executed in .batch', function (done) {
-        client.batch().hgetall('hash key 2').exec(function (err, reply) {
+      it('returns string values when executed in .batch', (done) => {
+        client.batch().hgetall('hash key 2').exec((err, reply) => {
           assert.strictEqual(1, reply.length)
           assert.strictEqual('object', typeof reply[0])
           assert.strictEqual(2, Object.keys(reply[0]).length)
@@ -224,9 +224,9 @@ describe('detectBuffers', function () {
       })
     })
 
-    describe('first argument is a buffer', function () {
-      it('returns buffer values', function (done) {
-        client.hgetall(Buffer.from('hash key 2'), function (err, reply) {
+    describe('first argument is a buffer', () => {
+      it('returns buffer values', (done) => {
+        client.hgetall(Buffer.from('hash key 2'), (err, reply) => {
           assert.strictEqual(null, err)
           assert.strictEqual('object', typeof reply)
           assert.strictEqual(2, Object.keys(reply).length)
@@ -238,8 +238,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns buffer values when executed in transaction', function (done) {
-        client.multi().hgetall(Buffer.from('hash key 2')).exec(function (err, reply) {
+      it('returns buffer values when executed in transaction', (done) => {
+        client.multi().hgetall(Buffer.from('hash key 2')).exec((err, reply) => {
           assert.strictEqual(1, reply.length)
           assert.strictEqual('object', typeof reply[0])
           assert.strictEqual(2, Object.keys(reply[0]).length)
@@ -251,8 +251,8 @@ describe('detectBuffers', function () {
         })
       })
 
-      it('returns buffer values when executed in .batch', function (done) {
-        client.batch().hgetall(Buffer.from('hash key 2')).exec(function (err, reply) {
+      it('returns buffer values when executed in .batch', (done) => {
+        client.batch().hgetall(Buffer.from('hash key 2')).exec((err, reply) => {
           assert.strictEqual(1, reply.length)
           assert.strictEqual('object', typeof reply[0])
           assert.strictEqual(2, Object.keys(reply[0]).length)

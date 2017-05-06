@@ -1,24 +1,24 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('./lib/config')
-var helper = require('./helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('./lib/config')
+const helper = require('./helper')
+const redis = config.redis
 
   // TODO: Fix redis process spawn on windows
 if (process.platform !== 'win32') {
-  describe('rename commands', function () {
-    before(function (done) {
-      helper.stopRedis(function () {
+  describe('rename commands', () => {
+    before((done) => {
+      helper.stopRedis(() => {
         helper.startRedis('./conf/rename.conf', done)
       })
     })
 
-    helper.allTests(function (ip, args) {
-      describe('using ' + ip, function () {
-        var client = null
+    helper.allTests((ip, args) => {
+      describe(`using ${ip}`, () => {
+        let client = null
 
-        beforeEach(function (done) {
+        beforeEach((done) => {
           if (helper.redisProcess().spawnFailed()) return done()
           client = redis.createClient({
             renameCommands: {
@@ -27,12 +27,12 @@ if (process.platform !== 'win32') {
             }
           })
 
-          client.on('ready', function () {
+          client.on('ready', () => {
             client.flushdb(done)
           })
         })
 
-        afterEach(function () {
+        afterEach(() => {
           if (helper.redisProcess().spawnFailed()) return
           client.end(true)
         })
@@ -42,13 +42,13 @@ if (process.platform !== 'win32') {
 
           client.set('key', 'value', helper.isString('OK'))
 
-          client.get('key', function (err, reply) {
+          client.get('key', (err, reply) => {
             assert.strictEqual(err.message, 'ERR unknown command \'get\'')
             assert.strictEqual(err.command, 'GET')
             assert.strictEqual(reply, undefined)
           })
 
-          client.getrange('key', 1, -1, function (err, reply) {
+          client.getrange('key', 1, -1, (err, reply) => {
             assert.strictEqual(reply, 'alue')
             assert.strictEqual(err, null)
             done()
@@ -60,9 +60,9 @@ if (process.platform !== 'win32') {
 
           client.batch([['set', 'key', 'value']]).exec(helper.isDeepEqual(['OK']))
 
-          var batch = client.batch()
+          const batch = client.batch()
           batch.getrange('key', 1, -1)
-          batch.exec(function (err, res) {
+          batch.exec((err, res) => {
             assert(!err)
             assert.strictEqual(res.length, 1)
             assert.strictEqual(res[0], 'alue')
@@ -75,9 +75,9 @@ if (process.platform !== 'win32') {
 
           client.multi([['set', 'key', 'value']]).exec(helper.isDeepEqual(['OK']))
 
-          var multi = client.multi()
+          const multi = client.multi()
           multi.getrange('key', 1, -1)
-          multi.exec(function (err, res) {
+          multi.exec((err, res) => {
             assert(!err)
             assert.strictEqual(res.length, 1)
             assert.strictEqual(res[0], 'alue')
@@ -88,13 +88,13 @@ if (process.platform !== 'win32') {
         it('should also work with multi and abort transaction', function (done) {
           if (helper.redisProcess().spawnFailed()) this.skip()
 
-          var multi = client.multi()
+          const multi = client.multi()
           multi.get('key')
-          multi.getrange('key', 1, -1, function (err, reply) {
+          multi.getrange('key', 1, -1, (err, reply) => {
             assert.strictEqual(reply, 'alue')
             assert.strictEqual(err, null)
           })
-          multi.exec(function (err, res) {
+          multi.exec((err, res) => {
             assert(err)
             assert.strictEqual(err.message, 'EXECABORT Transaction discarded because of previous errors.')
             assert.strictEqual(err.errors[0].message, 'ERR unknown command \'get\'')
@@ -116,7 +116,7 @@ if (process.platform !== 'win32') {
             prefix: 'baz'
           })
           client.set('foo', 'bar')
-          client.keys('*', function (err, reply) {
+          client.keys('*', (err, reply) => {
             assert.strictEqual(reply[0], 'bazfoo')
             assert.strictEqual(err, null)
             done()
@@ -125,9 +125,9 @@ if (process.platform !== 'win32') {
       })
     })
 
-    after(function (done) {
+    after((done) => {
       if (helper.redisProcess().spawnFailed()) return done()
-      helper.stopRedis(function () {
+      helper.stopRedis(() => {
         helper.startRedis('./conf/redis.conf', done)
       })
     })

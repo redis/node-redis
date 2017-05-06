@@ -1,56 +1,56 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'srem\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'srem\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('removes a value', function (done) {
+      it('removes a value', (done) => {
         client.sadd('set0', 'member0', helper.isNumber(1))
         client.srem('set0', 'member0', helper.isNumber(1))
         client.scard('set0', helper.isNumber(0, done))
       })
 
-      it('handles attempting to remove a missing value', function (done) {
+      it('handles attempting to remove a missing value', (done) => {
         client.srem('set0', 'member0', helper.isNumber(0, done))
       })
 
-      it('allows multiple values to be removed', function (done) {
+      it('allows multiple values to be removed', (done) => {
         client.sadd('set0', ['member0', 'member1', 'member2'], helper.isNumber(3))
         client.srem('set0', ['member1', 'member2'], helper.isNumber(2))
-        client.smembers('set0', function (err, res) {
+        client.smembers('set0', (err, res) => {
           assert.strictEqual(res.length, 1)
           assert.ok(~res.indexOf('member0'))
           return done(err)
         })
       })
 
-      it('allows multiple values to be removed with sendCommand', function (done) {
+      it('allows multiple values to be removed with sendCommand', (done) => {
         client.sendCommand('sadd', ['set0', 'member0', 'member1', 'member2'], helper.isNumber(3))
         client.sendCommand('srem', ['set0', 'member1', 'member2'], helper.isNumber(2))
-        client.smembers('set0', function (err, res) {
+        client.smembers('set0', (err, res) => {
           assert.strictEqual(res.length, 1)
           assert.ok(~res.indexOf('member0'))
           return done(err)
         })
       })
 
-      it('handles a value missing from the set of values being removed', function (done) {
+      it('handles a value missing from the set of values being removed', (done) => {
         client.sadd(['set0', 'member0', 'member1', 'member2'], helper.isNumber(3))
         client.srem(['set0', 'member3', 'member4'], helper.isNumber(0))
-        client.smembers('set0', function (err, res) {
+        client.smembers('set0', (err, res) => {
           assert.strictEqual(res.length, 3)
           assert.ok(~res.indexOf('member0'))
           assert.ok(~res.indexOf('member1'))
@@ -59,7 +59,7 @@ describe('The \'srem\' method', function () {
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

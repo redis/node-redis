@@ -1,38 +1,34 @@
 'use strict'
 
-var Buffer = require('safe-buffer').Buffer
-var path = require('path')
-var RedisProcess = require('../test/lib/redis-process')
-var rp
-var clientNr = 0
-var redis = require('../index')
-var totalTime = 0
-var metrics = require('metrics')
-var tests = []
-// var bluebird = require('bluebird');
-// bluebird.promisifyAll(redis.RedisClient.prototype);
-// bluebird.promisifyAll(redis.Multi.prototype);
+const Buffer = require('safe-buffer').Buffer
+const path = require('path')
+const RedisProcess = require('../test/lib/redis-process')
+let rp
+let clientNr = 0
+const redis = require('../index')
+let totalTime = 0
+const metrics = require('metrics')
+const tests = []
 
 function returnArg (name, def) {
-  var matches = process.argv.filter(function (entry) {
-    return entry.indexOf(name + '=') === 0
+  const matches = process.argv.filter((entry) => {
+    return entry.indexOf(`${name}=`) === 0
   })
   if (matches.length) {
     return matches[0].substr(name.length + 1)
   }
   return def
 }
-var numClients = returnArg('clients', 1)
-var runTime = returnArg('time', 2500) // ms
-var pipeline = returnArg('pipeline', 1) // number of concurrent commands
-var versionsLogged = false
-var clientOptions = {
+const numClients = returnArg('clients', 1)
+const runTime = returnArg('time', 2500) // ms
+const pipeline = returnArg('pipeline', 1) // number of concurrent commands
+let versionsLogged = false
+const clientOptions = {
   path: returnArg('socket') // '/tmp/redis.sock'
 }
-var smallStr, largeStr, smallBuf, largeBuf, veryLargeStr, veryLargeBuf, mgetArray
 
 function lpad (input, len, chr) {
-  var str = input.toString()
+  let str = input.toString()
   chr = chr || ' '
   while (str.length < len) {
     str = chr + str
@@ -41,8 +37,8 @@ function lpad (input, len, chr) {
 }
 
 metrics.Histogram.prototype.printLine = function () {
-  var obj = this.printObj()
-  return lpad((obj.mean / 1e6).toFixed(2), 6) + '/' + lpad((obj.max / 1e6).toFixed(2), 6)
+  const obj = this.printObj()
+  return `${lpad((obj.mean / 1e6).toFixed(2), 6)}/${lpad((obj.max / 1e6).toFixed(2), 6)}`
 }
 
 function Test (args) {
@@ -66,7 +62,7 @@ function Test (args) {
 }
 
 Test.prototype.run = function (callback) {
-  var i
+  let i
   this.callback = callback
   for (i = 0; i < numClients; i++) {
     this.newClient(i)
@@ -74,24 +70,22 @@ Test.prototype.run = function (callback) {
 }
 
 Test.prototype.newClient = function (id) {
-  var self = this
-  var newClient
-
-  newClient = redis.createClient(this.clientOptions)
+  const self = this
+  const newClient = redis.createClient(this.clientOptions)
   newClient.createTime = Date.now()
 
-  newClient.on('connect', function () {
+  newClient.on('connect', () => {
     self.connectLatency.update(Date.now() - newClient.createTime)
   })
 
-  newClient.on('ready', function () {
+  newClient.on('ready', () => {
     if (!versionsLogged) {
-      console.log(
-        'clients: ' + numClients +
-        ', NodeJS: ' + process.versions.node +
-        ', Redis: ' + newClient.serverInfo.redis_version +
-        ', connected by: ' + (clientOptions.path ? 'socket' : 'tcp')
-      )
+      console.log([
+        `clients: ${numClients}`,
+        `NodeJS: ${process.versions.node}`,
+        `Redis: ${newClient.serverInfo.redis_version}`,
+        `connected by: ${clientOptions.path ? 'socket' : 'tcp'}`
+      ].join(', '))
       versionsLogged = true
     }
     self.readyLatency.update(Date.now() - newClient.createTime)
@@ -102,7 +96,7 @@ Test.prototype.newClient = function (id) {
   })
 
   // If no redis server is running, start one
-  newClient.on('error', function (err) {
+  newClient.on('error', (err) => {
     if (err.code === 'CONNECTION_BROKEN') {
       throw err
     }
@@ -110,8 +104,8 @@ Test.prototype.newClient = function (id) {
       return
     }
     rp = true
-    var conf = '../test/conf/redis.conf'
-    RedisProcess.start(function (err, Rp) {
+    const conf = '../test/conf/redis.conf'
+    RedisProcess.start((err, Rp) => {
       if (err) {
         throw err
       }
@@ -123,13 +117,13 @@ Test.prototype.newClient = function (id) {
 }
 
 Test.prototype.onClientsReady = function () {
-  process.stdout.write(lpad(this.args.descr, 13) + ', ' + (this.args.batch ? lpad('batch ' + this.args.batch, 9) : lpad(this.args.pipeline, 9)) + '/' + this.clientsReady + ' ')
+  process.stdout.write(`${lpad(this.args.descr, 13)  }, ${this.args.batch ? lpad(`batch ${this.args.batch}`, 9) : lpad(this.args.pipeline, 9)  }/${this.clientsReady} `)
   this.testStart = Date.now()
   this.fillPipeline()
 }
 
 Test.prototype.fillPipeline = function () {
-  var pipeline = this.commandsSent - this.commandsCompleted
+  let pipeline = this.commandsSent - this.commandsCompleted
 
   if (this.testStart < Date.now() - runTime) {
     if (this.ended) {
@@ -153,18 +147,18 @@ Test.prototype.fillPipeline = function () {
 }
 
 Test.prototype.batch = function () {
-  var self = this
-  var curClient = clientNr++ % this.clients.length
-  var start = process.hrtime()
-  var i = 0
-  var batch = this.clients[curClient].batch()
+  const self = this
+  const curClient = clientNr++ % this.clients.length
+  const start = process.hrtime()
+  let i = 0
+  const batch = this.clients[curClient].batch()
 
   while (i++ < this.batchPipeline) {
     this.commandsSent++
     batch[this.args.command](this.args.args)
   }
 
-  batch.exec(function (err, res) {
+  batch.exec((err, res) => {
     if (err) {
       throw err
     }
@@ -175,11 +169,11 @@ Test.prototype.batch = function () {
 }
 
 Test.prototype.stopClients = function () {
-  var self = this
+  const self = this
 
-  this.clients.forEach(function (client, pos) {
+  this.clients.forEach((client, pos) => {
     if (pos === self.clients.length - 1) {
-      client.quit(function (err, res) {
+      client.quit((err, res) => {
         if (err) throw err
         self.callback()
       })
@@ -190,11 +184,11 @@ Test.prototype.stopClients = function () {
 }
 
 Test.prototype.sendNext = function () {
-  var self = this
-  var curClient = this.commandsSent % this.clients.length
-  var start = process.hrtime()
+  const self = this
+  const curClient = this.commandsSent % this.clients.length
+  const start = process.hrtime()
 
-  this.clients[curClient][this.args.command](this.args.args, function (err, res) {
+  this.clients[curClient][this.args.command](this.args.args, (err, res) => {
     if (err) {
       throw err
     }
@@ -205,20 +199,22 @@ Test.prototype.sendNext = function () {
 }
 
 Test.prototype.printStats = function () {
-  var duration = Date.now() - this.testStart
+  const duration = Date.now() - this.testStart
   totalTime += duration
 
-  console.log('avg/max: ' + this.commandLatency.printLine() + lpad(duration, 5) + 'ms total, ' +
-    lpad(Math.round(this.commandsCompleted / (duration / 1000)), 7) + ' ops/sec')
+  console.log([
+    `avg/max: ${this.commandLatency.printLine()}${lpad(duration, 5)}ms total`,
+    `${lpad(Math.round(this.commandsCompleted / (duration / 1000)), 7)} ops/sec`
+  ].join(','))
 }
 
-smallStr = '1234'
-smallBuf = Buffer.from(smallStr)
-largeStr = (new Array(4096 + 1).join('-'))
-largeBuf = Buffer.from(largeStr)
-veryLargeStr = (new Array((4 * 1024 * 1024) + 1).join('-'))
-veryLargeBuf = Buffer.from(veryLargeStr)
-mgetArray = (new Array(1025)).join('fooRand000000000001;').split(';')
+const smallStr = '1234'
+const smallBuf = Buffer.from(smallStr)
+const largeStr = (new Array(4096 + 1).join('-'))
+const largeBuf = Buffer.from(largeStr)
+const veryLargeStr = (new Array((4 * 1024 * 1024) + 1).join('-'))
+const veryLargeBuf = Buffer.from(veryLargeStr)
+const mgetArray = (new Array(1025)).join('fooRand000000000001;').split(';')
 
 tests.push(new Test({descr: 'PING', command: 'ping', args: []}))
 tests.push(new Test({descr: 'PING', command: 'ping', args: [], batch: 50}))
@@ -278,14 +274,14 @@ tests.push(new Test({descr: 'MGET 4MiB buf', command: 'mget', args: mgetArray, c
 tests.push(new Test({descr: 'MGET 4MiB buf', command: 'mget', args: mgetArray, batch: 20, clientOptions: {returnBuffers: true}}))
 
 function next () {
-  var test = tests.shift()
+  const test = tests.shift()
   if (test) {
-    test.run(function () {
+    test.run(() => {
       next()
     })
   } else if (rp) {
         // Stop the redis process if started by the benchmark
-    rp.stop(function () {
+    rp.stop(() => {
       rp = undefined
       next()
     })

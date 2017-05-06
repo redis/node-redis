@@ -1,15 +1,15 @@
 'use strict'
 
-var assert = require('assert')
-var unifyOptions = require('../lib/createClient')
-var intercept = require('intercept-stdout')
+const assert = require('assert')
+const unifyOptions = require('../lib/createClient')
+const intercept = require('intercept-stdout')
 
-describe('createClient options', function () {
-  describe('port as first parameter', function () {
-    it('pass the options in the second parameter after a port', function () {
-      var options = unifyOptions(1234, {
+describe('createClient options', () => {
+  describe('port as first parameter', () => {
+    it('pass the options in the second parameter after a port', () => {
+      const options = unifyOptions(1234, {
         option1: true,
-        option2: function () {}
+        option2 () {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -18,10 +18,10 @@ describe('createClient options', function () {
       assert.strictEqual(typeof options.option2, 'function')
     })
 
-    it('pass the options in the third parameter after a port and host being set to null', function () {
-      var options = unifyOptions(1234, null, {
+    it('pass the options in the third parameter after a port and host being set to null', () => {
+      const options = unifyOptions(1234, null, {
         option1: true,
-        option2: function () {}
+        option2 () {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -30,10 +30,10 @@ describe('createClient options', function () {
       assert.strictEqual(typeof options.option2, 'function')
     })
 
-    it('pass the options in the third parameter after a port and host being set to undefined', function () {
-      var options = unifyOptions(1234, undefined, {
+    it('pass the options in the third parameter after a port and host being set to undefined', () => {
+      const options = unifyOptions(1234, undefined, {
         option1: true,
-        option2: function () {}
+        option2 () {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -42,10 +42,10 @@ describe('createClient options', function () {
       assert.strictEqual(typeof options.option2, 'function')
     })
 
-    it('pass the options in the third parameter after a port and host', function () {
-      var options = unifyOptions('1234', 'localhost', {
+    it('pass the options in the third parameter after a port and host', () => {
+      const options = unifyOptions('1234', 'localhost', {
         option1: true,
-        option2: function () {}
+        option2 () {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -54,7 +54,7 @@ describe('createClient options', function () {
       assert.strictEqual(typeof options.option2, 'function')
     })
 
-    it('should throw with three parameters all set to a truthy value', function () {
+    it('should throw with three parameters all set to a truthy value', () => {
       try {
         unifyOptions(1234, {}, {})
         throw new Error('failed')
@@ -64,11 +64,11 @@ describe('createClient options', function () {
     })
   })
 
-  describe('unix socket as first parameter', function () {
-    it('pass the options in the second parameter after a port', function () {
-      var options = unifyOptions('/tmp/redis.sock', {
+  describe('unix socket as first parameter', () => {
+    it('pass the options in the second parameter after a port', () => {
+      const options = unifyOptions('/tmp/redis.sock', {
         option1: true,
-        option2: function () {},
+        option2 () {},
         option3: [1, 2, 3]
       })
       assert.strictEqual(Object.keys(options).length, 4)
@@ -78,10 +78,10 @@ describe('createClient options', function () {
       assert.strictEqual(options.option3.length, 3)
     })
 
-    it('pass the options in the third parameter after a port and host being set to null', function () {
-      var options = unifyOptions('/tmp/redis.sock', null, {
+    it('pass the options in the third parameter after a port and host being set to null', () => {
+      const options = unifyOptions('/tmp/redis.sock', null, {
         option1: true,
-        option2: function () {}
+        option2 () {}
       })
       assert.strictEqual(Object.keys(options).length, 3)
       assert(options.option1)
@@ -90,17 +90,17 @@ describe('createClient options', function () {
     })
   })
 
-  describe('redis url as first parameter', function () {
-    it('empty redis url including options as second parameter', function () {
-      var options = unifyOptions('redis://', {
+  describe('redis url as first parameter', () => {
+    it('empty redis url including options as second parameter', () => {
+      const options = unifyOptions('redis://', {
         option: [1, 2, 3]
       })
       assert.strictEqual(Object.keys(options).length, 1)
       assert.strictEqual(options.option.length, 3)
     })
 
-    it('begin with two slashes including options as third parameter', function () {
-      var options = unifyOptions('//:abc@/3?port=123', {
+    it('begin with two slashes including options as third parameter', () => {
+      const options = unifyOptions('//:abc@/3?port=123', {
         option: [1, 2, 3]
       })
       assert.strictEqual(Object.keys(options).length, 4)
@@ -110,13 +110,13 @@ describe('createClient options', function () {
       assert.strictEqual(options.password, 'abc')
     })
 
-    it('duplicated, identical query options including options obj', function () {
-      var text = ''
-      var unhookIntercept = intercept(function (data) {
+    it('duplicated, identical query options including options obj', () => {
+      let text = ''
+      const unhookIntercept = intercept((data) => {
         text += data
         return ''
       })
-      var options = unifyOptions('//:abc@localhost:123/3?db=3&port=123&password=abc', null, {
+      const options = unifyOptions('//:abc@localhost:123/3?db=3&port=123&password=abc', null, {
         option: [1, 2, 3]
       })
       unhookIntercept()
@@ -133,7 +133,7 @@ describe('createClient options', function () {
       assert.strictEqual(options.password, 'abc')
     })
 
-    it('should throw on duplicated, non-identical query options', function () {
+    it('should throw on duplicated, non-identical query options', () => {
       try {
         unifyOptions('//:abc@localhost:1234/3?port=123&password=abc')
         throw new Error('failed')
@@ -142,7 +142,7 @@ describe('createClient options', function () {
       }
     })
 
-    it('should throw without protocol slashes', function () {
+    it('should throw without protocol slashes', () => {
       try {
         unifyOptions('redis:abc@localhost:123/3?db=3&port=123&password=abc')
         throw new Error('failed')
@@ -151,13 +151,13 @@ describe('createClient options', function () {
       }
     })
 
-    it('warns on protocol other than redis in the redis url', function () {
-      var text = ''
-      var unhookIntercept = intercept(function (data) {
+    it('warns on protocol other than redis in the redis url', () => {
+      let text = ''
+      const unhookIntercept = intercept((data) => {
         text += data
         return ''
       })
-      var options = unifyOptions('http://abc')
+      const options = unifyOptions('http://abc')
       unhookIntercept()
       assert.strictEqual(Object.keys(options).length, 1)
       assert.strictEqual(options.host, 'abc')
@@ -165,29 +165,29 @@ describe('createClient options', function () {
     })
   })
 
-  describe('no parameters or set to null / undefined', function () {
-    it('no parameters', function () {
-      var options = unifyOptions()
+  describe('no parameters or set to null / undefined', () => {
+    it('no parameters', () => {
+      const options = unifyOptions()
       assert.strictEqual(Object.keys(options).length, 1)
       assert.strictEqual(options.host, undefined)
     })
 
-    it('set to null', function () {
-      var options = unifyOptions(null, null)
+    it('set to null', () => {
+      const options = unifyOptions(null, null)
       assert.strictEqual(Object.keys(options).length, 1)
       assert.strictEqual(options.host, null)
     })
 
-    it('set to undefined', function () {
-      var options = unifyOptions(undefined, undefined)
+    it('set to undefined', () => {
+      const options = unifyOptions(undefined, undefined)
       assert.strictEqual(Object.keys(options).length, 1)
       assert.strictEqual(options.host, undefined)
     })
   })
 
-  describe('only an options object is passed', function () {
-    it('with options', function () {
-      var options = unifyOptions({
+  describe('only an options object is passed', () => {
+    it('with options', () => {
+      const options = unifyOptions({
         option: true
       })
       assert.strictEqual(Object.keys(options).length, 2)
@@ -195,13 +195,13 @@ describe('createClient options', function () {
       assert.strictEqual(options.option, true)
     })
 
-    it('without options', function () {
-      var options = unifyOptions({})
+    it('without options', () => {
+      const options = unifyOptions({})
       assert.strictEqual(Object.keys(options).length, 1)
       assert.strictEqual(options.host, undefined)
     })
 
-    it('should throw with more parameters', function () {
+    it('should throw with more parameters', () => {
       try {
         unifyOptions({
           option: true
@@ -212,8 +212,8 @@ describe('createClient options', function () {
       }
     })
 
-    it('including url as option', function () {
-      var options = unifyOptions({
+    it('including url as option', () => {
+      const options = unifyOptions({
         option: [1, 2, 3],
         url: '//hm:abc@localhost:123/3'
       })
@@ -227,8 +227,8 @@ describe('createClient options', function () {
     })
   })
 
-  describe('faulty data', function () {
-    it('throws on strange connection info', function () {
+  describe('faulty data', () => {
+    it('throws on strange connection info', () => {
       try {
         unifyOptions(true)
         throw new Error('failed')

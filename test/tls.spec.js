@@ -1,28 +1,28 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('./lib/config')
-var fs = require('fs')
-var helper = require('./helper')
-var path = require('path')
-var redis = config.redis
-var utils = require('../lib/utils')
+const assert = require('assert')
+const config = require('./lib/config')
+const fs = require('fs')
+const helper = require('./helper')
+const path = require('path')
+const redis = config.redis
+const utils = require('../lib/utils')
 
-var tlsOptions = {
+const tlsOptions = {
   servername: 'redis.js.org',
   rejectUnauthorized: true,
   ca: [ String(fs.readFileSync(path.resolve(__dirname, './conf/redis.js.org.cert'))) ]
 }
 
-var tlsPort = 6380
+const tlsPort = 6380
 // Use skip instead of returning to indicate what tests really got skipped
-var skip = false
+let skip = false
 
 // Wait until stunnel4 is in the travis whitelist
 // Check: https://github.com/travis-ci/apt-package-whitelist/issues/403
 // If this is merged, remove the travis env checks
-describe.skip('TLS connection tests', function () {
-  before(function (done) {
+describe.skip('TLS connection tests', () => {
+  before((done) => {
     // Print the warning when the tests run instead of while starting mocha
     if (process.platform === 'win32') {
       skip = true
@@ -32,46 +32,46 @@ describe.skip('TLS connection tests', function () {
       console.warn('\nTravis does not support stunnel right now. Skipping tests.\nCheck: https://github.com/travis-ci/apt-package-whitelist/issues/403\n')
     }
     if (skip) return done()
-    helper.stopStunnel(function () {
+    helper.stopStunnel(() => {
       helper.startStunnel(done)
     })
   })
 
-  after(function (done) {
+  after((done) => {
     if (skip) return done()
     helper.stopStunnel(done)
   })
 
-  var client
+  let client
 
-  afterEach(function () {
+  afterEach(() => {
     if (skip) return
     client.end(true)
   })
 
-  describe('on lost connection', function () {
+  describe('on lost connection', () => {
     it.skip('emit an error after max retry timeout and do not try to reconnect afterwards', function (done) {
       if (skip) this.skip()
-      var connectTimeout = 500 // in ms
+      const connectTimeout = 500 // in ms
       client = redis.createClient({
-        connectTimeout: connectTimeout,
+        connectTimeout,
         port: tlsPort,
         tls: tlsOptions
       })
-      var time = 0
-      assert.strictEqual(client.address, '127.0.0.1:' + tlsPort)
+      let time = 0
+      assert.strictEqual(client.address, `127.0.0.1:${tlsPort}`)
 
-      client.once('ready', function () {
+      client.once('ready', () => {
         helper.killConnection(client)
       })
 
-      client.on('reconnecting', function (params) {
+      client.on('reconnecting', (params) => {
         time += params.delay
       })
 
-      client.on('error', function (err) {
+      client.on('error', (err) => {
         if (/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message)) {
-          process.nextTick(function () {
+          process.nextTick(() => {
             assert.strictEqual(time, connectTimeout)
             assert.strictEqual(client.emittedEnd, true)
             assert.strictEqual(client.connected, false)
@@ -85,21 +85,21 @@ describe.skip('TLS connection tests', function () {
     })
   })
 
-  describe('when not connected', function () {
+  describe('when not connected', () => {
     it('connect with host and port provided in the tls object', function (done) {
       if (skip) this.skip()
-      var tls = utils.clone(tlsOptions)
+      const tls = utils.clone(tlsOptions)
       tls.port = tlsPort
       tls.host = 'localhost'
       client = redis.createClient({
         connectTimeout: 1000,
-        tls: tls
+        tls
       })
 
       // verify connection is using TCP, not UNIX socket
       assert.strictEqual(client.connectionOptions.host, 'localhost')
       assert.strictEqual(client.connectionOptions.port, tlsPort)
-      assert.strictEqual(client.address, 'localhost:' + tlsPort)
+      assert.strictEqual(client.address, `localhost:${tlsPort}`)
       assert(client.stream.encrypted)
 
       client.set('foo', 'bar')
@@ -108,7 +108,7 @@ describe.skip('TLS connection tests', function () {
 
     it('fails to connect because the cert is not correct', function (done) {
       if (skip) this.skip()
-      var faultyCert = utils.clone(tlsOptions)
+      const faultyCert = utils.clone(tlsOptions)
       faultyCert.ca = [ String(fs.readFileSync(path.resolve(__dirname, './conf/faulty.cert'))) ]
       client = redis.createClient({
         host: 'localhost',
@@ -116,8 +116,8 @@ describe.skip('TLS connection tests', function () {
         port: tlsPort,
         tls: faultyCert
       })
-      assert.strictEqual(client.address, 'localhost:' + tlsPort)
-      client.on('error', function (err) {
+      assert.strictEqual(client.address, `localhost:${tlsPort}`)
+      client.on('error', (err) => {
         assert(/DEPTH_ZERO_SELF_SIGNED_CERT/.test(err.code || err.message), err)
         client.end(true)
       })

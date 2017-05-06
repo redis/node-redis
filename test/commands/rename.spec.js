@@ -1,34 +1,34 @@
 'use strict'
 
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'rename\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'rename\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('populates the new key', function (done) {
+      it('populates the new key', (done) => {
         client.set(['foo', 'bar'], helper.isString('OK'))
         client.rename(['foo', 'new foo'], helper.isString('OK'))
         client.exists(['new foo'], helper.isNumber(1, done))
       })
 
-      it('removes the old key', function (done) {
+      it('removes the old key', (done) => {
         client.set(['foo', 'bar'], helper.isString('OK'))
         client.rename(['foo', 'new foo'], helper.isString('OK'))
         client.exists(['foo'], helper.isNumber(0, done))
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

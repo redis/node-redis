@@ -1,33 +1,33 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'ttl\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'ttl\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('returns the current ttl on a key', function (done) {
+      it('returns the current ttl on a key', (done) => {
         client.set(['ttl key', 'ttl val'], helper.isString('OK'))
         client.expire(['ttl key', '100'], helper.isNumber(1))
-        client.ttl(['ttl key'], function (err, ttl) {
+        client.ttl(['ttl key'], (err, ttl) => {
           assert(ttl >= 99)
           assert(ttl <= 100)
           done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

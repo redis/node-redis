@@ -1,8 +1,8 @@
 'use strict'
 
-var client = require('redis').createClient()
+const client = require('redis').createClient()
 
-client.mget(['sessions started', 'sessions started', 'foo'], function (err, res) {
+client.mget(['sessions started', 'sessions started', 'foo'], (err, res) => {
   if (err) throw err
   console.dir(res)
 })

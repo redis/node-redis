@@ -3,13 +3,13 @@
 // as soon as there are no outstanding commands.
 'use strict'
 
-var redis = require('../../index')
-var HOST = process.argv[2] || '127.0.0.1'
-var PORT = process.argv[3]
-var args = PORT ? [PORT, HOST] : [HOST]
+const redis = require('../../index')
+const HOST = process.argv[2] || '127.0.0.1'
+const PORT = process.argv[3]
+const args = PORT ? [PORT, HOST] : [HOST]
 
-var c = redis.createClient.apply(redis, args)
-c.info(function (err, reply) {
+const c = redis.createClient.apply(redis, args)
+c.info((err, reply) => {
   if (err) process.exit(-1)
   if (!reply.length) process.exit(-1)
   process.stdout.write(reply.length.toString())

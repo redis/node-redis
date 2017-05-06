@@ -1,12 +1,12 @@
 'use strict'
 
-var assert = require('assert')
-var errors = require('../lib/customErrors')
+const assert = require('assert')
+const errors = require('../lib/customErrors')
 
-describe('errors', function () {
-  describe('AbortError', function () {
-    it('should inherit from Error', function () {
-      var e = new errors.AbortError({})
+describe('errors', () => {
+  describe('AbortError', () => {
+    it('should inherit from Error', () => {
+      const e = new errors.AbortError({})
       assert.strictEqual(e.message, '')
       assert.strictEqual(e.name, 'AbortError')
       assert.strictEqual(Object.keys(e).length, 0)
@@ -14,8 +14,8 @@ describe('errors', function () {
       assert(e instanceof errors.AbortError)
     })
 
-    it('should list options properties but not name and message', function () {
-      var e = new errors.AbortError({
+    it('should list options properties but not name and message', () => {
+      const e = new errors.AbortError({
         name: 'weird',
         message: 'hello world',
         property: true
@@ -30,8 +30,8 @@ describe('errors', function () {
       assert.strictEqual(e.name, 'AbortError')
     })
 
-    it('should change name and message', function () {
-      var e = new errors.AbortError({
+    it('should change name and message', () => {
+      const e = new errors.AbortError({
         message: 'hello world',
         property: true
       })
@@ -44,9 +44,9 @@ describe('errors', function () {
     })
   })
 
-  describe('AggregateError', function () {
-    it('should inherit from Error and AbortError', function () {
-      var e = new errors.AggregateError({})
+  describe('AggregateError', () => {
+    it('should inherit from Error and AbortError', () => {
+      const e = new errors.AggregateError({})
       assert.strictEqual(e.message, '')
       assert.strictEqual(e.name, 'AggregateError')
       assert.strictEqual(Object.keys(e).length, 0)
@@ -55,8 +55,8 @@ describe('errors', function () {
       assert(e instanceof errors.AbortError)
     })
 
-    it('should list options properties but not name and message', function () {
-      var e = new errors.AggregateError({
+    it('should list options properties but not name and message', () => {
+      const e = new errors.AggregateError({
         name: 'weird',
         message: 'hello world',
         property: true
@@ -72,8 +72,8 @@ describe('errors', function () {
       assert.strictEqual(e.name, 'AggregateError')
     })
 
-    it('should change name and message', function () {
-      var e = new errors.AggregateError({
+    it('should change name and message', () => {
+      const e = new errors.AggregateError({
         message: 'hello world',
         property: true
       })

@@ -1,32 +1,32 @@
 'use strict'
 
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
-var assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
+const assert = require('assert')
 
-describe('The \'rpush\' command', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'rpush\' command', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('inserts multiple values at a time into a list', function (done) {
+      it('inserts multiple values at a time into a list', (done) => {
         client.rpush('test', ['list key', 'should be a list'])
-        client.lrange('test', 0, -1, function (err, res) {
+        client.lrange('test', 0, -1, (err, res) => {
           assert.strictEqual(res[0], 'list key')
           assert.strictEqual(res[1], 'should be a list')
           done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

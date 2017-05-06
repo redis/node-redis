@@ -1,27 +1,27 @@
 'use strict'
 
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'scard\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'scard\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('returns the number of values in a set', function (done) {
+      it('returns the number of values in a set', (done) => {
         client.sadd('foo', [1, 2, 3], helper.isNumber(3))
         client.scard('foo', helper.isNumber(3, done))
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

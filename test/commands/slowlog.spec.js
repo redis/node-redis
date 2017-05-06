@@ -1,28 +1,28 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'slowlog\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'slowlog\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('logs operations in slowlog', function (done) {
+      it('logs operations in slowlog', (done) => {
         client.config('set', 'slowlog-log-slower-than', 0, helper.isString('OK'))
         client.slowlog('reset', helper.isString('OK'))
         client.set('foo', 'bar', helper.isString('OK'))
         client.get('foo', helper.isString('bar'))
-        client.slowlog('get', function (err, res) {
+        client.slowlog('get', (err, res) => {
           assert.strictEqual(res.length, 3)
           assert.strictEqual(res[0][3].length, 2)
           assert.deepEqual(res[1][3], ['set', 'foo', 'bar'])
@@ -31,7 +31,7 @@ describe('The \'slowlog\' method', function () {
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

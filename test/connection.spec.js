@@ -1,26 +1,26 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('./lib/config')
-var helper = require('./helper')
-var redis = config.redis
-var intercept = require('intercept-stdout')
-var net = require('net')
-var client
+const assert = require('assert')
+const config = require('./lib/config')
+const helper = require('./helper')
+const redis = config.redis
+const intercept = require('intercept-stdout')
+const net = require('net')
+let client
 
-describe('connection tests', function () {
-  beforeEach(function () {
+describe('connection tests', () => {
+  beforeEach(() => {
     client = null
   })
-  afterEach(function () {
+  afterEach(() => {
     client.end(true)
   })
 
-  it('unofficially support for a private stream', function () {
+  it('unofficially support for a private stream', () => {
     // While using a private stream, reconnection and other features are not going to work properly.
     // Besides that some functions also have to be monkey patched to be safe from errors in this case.
     // Therefore this is not officially supported!
-    var socket = new net.Socket()
+    const socket = new net.Socket()
     client = new redis.RedisClient({
       prefix: 'test'
     }, socket)
@@ -33,99 +33,92 @@ describe('connection tests', function () {
     assert.strictEqual(client.stream.listeners('error').length, 1)
   })
 
-  describe('quit on lost connections', function () {
-    it('calling quit while the connection is down should not end in reconnecting version a', function (done) {
-      var called = 0
+  describe('quit on lost connections', () => {
+    it('calling quit while the connection is down should not end in reconnecting version a', (done) => {
+      let called = 0
       client = redis.createClient({
         port: 9999,
-        retryStrategy: function (options) {
-          var bool = client.quit(function (err, res) {
+        retryStrategy (options) {
+          client.quit((err, res) => {
             assert.strictEqual(res, 'OK')
             assert.strictEqual(err, null)
             assert.strictEqual(called++, -1)
             setTimeout(done, 25)
           })
-          assert.strictEqual(bool, false)
           assert.strictEqual(called++, 0)
           return 5
         }
       })
-      client.set('foo', 'bar', function (err, res) {
+      client.set('foo', 'bar', (err, res) => {
         assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
         called = -1
       })
     })
 
-    it('calling quit while the connection is down should not end in reconnecting version b', function (done) {
-      var called = false
+    it('calling quit while the connection is down should not end in reconnecting version b', (done) => {
+      let called = false
       client = redis.createClient(9999)
-      client.set('foo', 'bar', function (err, res) {
+      client.set('foo', 'bar', (err, res) => {
         assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
         called = true
       })
-      var bool = client.quit(function (err, res) {
+      client.quit((err, res) => {
         assert.strictEqual(res, 'OK')
         assert.strictEqual(err, null)
         assert(called)
         done()
       })
-      assert.strictEqual(bool, false)
     })
 
-    it('calling quit while the connection is down without offline queue should end the connection right away', function (done) {
-      var called = false
+    it('calling quit while the connection is down without offline queue should end the connection right away', (done) => {
+      let called = false
       client = redis.createClient(9999, {
         enableOfflineQueue: false
       })
-      client.set('foo', 'bar', function (err, res) {
+      client.set('foo', 'bar', (err, res) => {
         assert.strictEqual(err.message, 'SET can\'t be processed. The connection is not yet established and the offline queue is deactivated.')
         called = true
       })
-      var bool = client.quit(function (err, res) {
+      client.quit((err, res) => {
         assert.strictEqual(res, 'OK')
         assert.strictEqual(err, null)
         assert(called)
         done()
       })
-      // TODO: In v.3 the quit command would be fired right away, so bool should be true
-      assert.strictEqual(bool, false)
     })
 
-    it('calling quit while connected without offline queue should end the connection when all commands have finished', function (done) {
-      var called = false
+    it('calling quit while connected without offline queue should end the connection when all commands have finished', (done) => {
+      let called = false
       client = redis.createClient({
         enableOfflineQueue: false
       })
-      client.on('ready', function () {
-        client.set('foo', 'bar', function (err, res) {
+      client.on('ready', () => {
+        client.set('foo', 'bar', (err, res) => {
           assert.strictEqual(err, null)
           assert.strictEqual(res, 'OK')
           called = true
         })
-        var bool = client.quit(function (err, res) {
+        client.quit((err, res) => {
           assert.strictEqual(res, 'OK')
           assert.strictEqual(err, null)
           assert(called)
           done()
         })
-        // TODO: In v.3 the quit command would be fired right away, so bool should be true
-        assert.strictEqual(bool, true)
       })
     })
 
-    it('do not quit before connected or a connection issue is detected', function (done) {
+    it('do not quit before connected or a connection issue is detected', (done) => {
       client = redis.createClient()
       client.set('foo', 'bar', helper.isString('OK'))
-      var bool = client.quit(done)
-      assert.strictEqual(bool, false)
+      client.quit(done)
     })
 
-    it('quit "succeeds" even if the client connection is closed while doing so', function (done) {
+    it('quit "succeeds" even if the client connection is closed while doing so', (done) => {
       client = redis.createClient()
-      client.set('foo', 'bar', function (err, res) {
+      client.set('foo', 'bar', (err, res) => {
         assert.strictEqual(err, null)
         assert.strictEqual(res, 'OK')
-        client.quit(function (err, res) {
+        client.quit((err, res) => {
           assert.strictEqual(res, 'OK')
           done(err)
         })
@@ -133,62 +126,61 @@ describe('connection tests', function () {
       })
     })
 
-    it('quit right away if connection drops while quit command is on the fly', function (done) {
+    it('quit right away if connection drops while quit command is on the fly', (done) => {
       client = redis.createClient()
-      client.once('ready', function () {
+      client.once('ready', () => {
         client.set('foo', 'bar', helper.isError())
-        var bool = client.quit(done)
-        assert.strictEqual(bool, true)
-        process.nextTick(function () {
+        client.quit(done)
+        process.nextTick(() => {
           client.stream.destroy()
         })
       })
     })
   })
 
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      describe('on lost connection', function () {
-        it('end connection while retry is still ongoing', function (done) {
-          var connectTimeout = 1000 // in ms
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      describe('on lost connection', () => {
+        it('end connection while retry is still ongoing', (done) => {
+          const connectTimeout = 1000 // in ms
           client = redis.createClient({
-            connectTimeout: connectTimeout
+            connectTimeout
           })
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             helper.killConnection(client)
           })
 
-          client.on('reconnecting', function (params) {
+          client.on('reconnecting', (params) => {
             client.end(true)
             assert.strictEqual(params.timesConnected, 1)
             setTimeout(done, 5)
           })
         })
 
-        it.skip('can not connect with wrong host / port in the options object', function (done) {
-          var options = {
+        it.skip('can not connect with wrong host / port in the options object', (done) => {
+          const options = {
             host: 'somewhere',
             port: 6379,
             family: ip,
-            retryStrategy: function () {}
+            retryStrategy () {}
           }
           client = redis.createClient(options)
           assert.strictEqual(client.connectionOptions.family, ip === 'IPv6' ? 6 : 4)
           assert.strictEqual(Object.keys(options).length, 4)
-          var end = helper.callFuncAfter(done, 2)
+          const end = helper.callFuncAfter(done, 2)
 
-          client.on('error', function (err) {
+          client.on('error', (err) => {
             assert(/CONNECTION_BROKEN|ENOTFOUND|EAI_AGAIN/.test(err.code))
             end()
           })
         })
 
-        it('emits error once if reconnecting after command has been executed but not yet returned without callback', function (done) {
+        it('emits error once if reconnecting after command has been executed but not yet returned without callback', (done) => {
           client = redis.createClient.apply(null, args)
 
-          client.on('ready', function () {
-            client.set('foo', 'bar', function (err) {
+          client.on('ready', () => {
+            client.set('foo', 'bar', (err) => {
               assert.strictEqual(err.code, 'UNCERTAIN_STATE')
               done()
             })
@@ -197,11 +189,11 @@ describe('connection tests', function () {
           })
         })
 
-        it('retryStrategy used to reconnect with individual error', function (done) {
+        it('retryStrategy used to reconnect with individual error', (done) => {
           client = redis.createClient({
-            retryStrategy: function (options) {
+            retryStrategy (options) {
               if (options.totalRetryTime > 150) {
-                client.set('foo', 'bar', function (err, res) {
+                client.set('foo', 'bar', (err, res) => {
                   assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
                   assert.strictEqual(err.origin.message, 'Connection timeout')
                   done()
@@ -215,11 +207,11 @@ describe('connection tests', function () {
           })
         })
 
-        it('retryStrategy used to reconnect', function (done) {
+        it('retryStrategy used to reconnect', (done) => {
           client = redis.createClient({
-            retryStrategy: function (options) {
+            retryStrategy (options) {
               if (options.totalRetryTime > 150) {
-                client.set('foo', 'bar', function (err, res) {
+                client.set('foo', 'bar', (err, res) => {
                   assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
                   assert.strictEqual(err.code, 'NR_CLOSED')
                   assert.strictEqual(err.origin.code, 'ECONNREFUSED')
@@ -233,22 +225,22 @@ describe('connection tests', function () {
           })
         })
 
-        it('retryStrategy used to reconnect with defaults', function (done) {
-          var unhookIntercept = intercept(function () {
+        it('retryStrategy used to reconnect with defaults', (done) => {
+          const unhookIntercept = intercept(() => {
             return ''
           })
           redis.debugMode = true
           client = redis.createClient({
-            retryStrategy: function (options) {
+            retryStrategy (options) {
               client.set('foo', 'bar')
               assert(redis.debugMode)
               return null
             }
           })
-          setTimeout(function () {
+          setTimeout(() => {
             client.stream.destroy()
           }, 50)
-          client.on('error', function (err) {
+          client.on('error', (err) => {
             assert.strictEqual(err.code, 'NR_CLOSED')
             assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
             unhookIntercept()
@@ -258,69 +250,69 @@ describe('connection tests', function () {
         })
       })
 
-      describe('when not connected', function () {
+      describe('when not connected', () => {
         // TODO: Fix this test
-        it.skip('emit an error after the socket timeout exceeded the connectTimeout time', function (done) {
-          var connectTimeout = 500 // in ms
+        it.skip('emit an error after the socket timeout exceeded the connectTimeout time', (done) => {
+          const connectTimeout = 500 // in ms
           client = redis.createClient({
             // Auto detect ipv4 and use non routable ip to trigger the timeout
             host: '10.255.255.1',
-            connectTimeout: connectTimeout
+            connectTimeout
           })
-          process.nextTick(function () {
+          process.nextTick(() => {
             assert.strictEqual(client.stream.listeners('timeout').length, 1)
           })
           assert.strictEqual(client.address, '10.255.255.1:6379')
           assert.strictEqual(client.connectionOptions.family, 4)
 
-          client.on('reconnecting', function (params) {
+          client.on('reconnecting', (params) => {
             throw new Error('No reconnect, since no connection was ever established')
           })
 
-          var time = Date.now()
-          client.on('error', function (err) {
+          const time = Date.now()
+          client.on('error', (err) => {
             if (err.code === 'ENETUNREACH') { // The test is run without a internet connection. Pretent it works
               return done()
             }
             assert(/Redis connection in broken state: connection timeout.*?exceeded./.test(err.message), err.message)
             // The code execution on windows is very slow at times
-            var add = process.platform !== 'win32' ? 15 : 200
-            var now = Date.now()
-            assert(now - time < connectTimeout + add, 'The real timeout time should be below ' + (connectTimeout + add) + 'ms but is: ' + (now - time))
+            const add = process.platform !== 'win32' ? 15 : 200
+            const now = Date.now()
+            assert(now - time < connectTimeout + add, `The real timeout time should be below ${connectTimeout + add}ms but is: ${now - time}`)
             // Timers sometimes trigger early (e.g. 1ms to early)
-            assert(now - time >= connectTimeout - 5, 'The real timeout time should be above ' + connectTimeout + 'ms, but it is: ' + (now - time))
+            assert(now - time >= connectTimeout - 5, `The real timeout time should be above ${connectTimeout}ms, but it is: ${now - time}`)
             done()
           })
         })
 
-        it('use the system socket timeout if the connectTimeout has not been provided', function (done) {
+        it('use the system socket timeout if the connectTimeout has not been provided', (done) => {
           client = redis.createClient({
             host: '2001:db8::ff00:42:8329' // auto detect ip v6
           })
           assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379')
           assert.strictEqual(client.connectionOptions.family, 6)
-          process.nextTick(function () {
+          process.nextTick(() => {
             assert.strictEqual(client.stream.listeners('timeout').length, 0)
             done()
           })
           client.end(true)
         })
 
-        it('clears the socket timeout after a connection has been established', function (done) {
+        it('clears the socket timeout after a connection has been established', (done) => {
           client = redis.createClient({
             connectTimeout: 1000
           })
-          process.nextTick(function () {
+          process.nextTick(() => {
             assert.strictEqual(client.stream._idleTimeout, 1000)
           })
-          client.on('connect', function () {
+          client.on('connect', () => {
             assert.strictEqual(client.stream._idleTimeout, -1)
             assert.strictEqual(client.stream.listeners('timeout').length, 0)
             client.on('ready', done)
           })
         })
 
-        it('connect with host and port provided in the options object', function (done) {
+        it('connect with host and port provided in the options object', (done) => {
           client = redis.createClient({
             host: 'localhost',
             port: '6379',
@@ -339,114 +331,114 @@ describe('connection tests', function () {
             connectTimeout: 1000
           })
 
-          var end = helper.callFuncAfter(done, 2)
+          const end = helper.callFuncAfter(done, 2)
 
           client.once('ready', end)
           client.set('foo', 'bar', end)
         })
 
-        it('connects correctly with args', function (done) {
+        it('connects correctly with args', (done) => {
           client = redis.createClient.apply(null, args)
           client.on('error', done)
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.removeListener('error', done)
             client.get('recon 1', done)
           })
         })
 
-        it('connects correctly with default values', function (done) {
+        it('connects correctly with default values', (done) => {
           client = redis.createClient()
           client.on('error', done)
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.removeListener('error', done)
             client.get('recon 1', done)
           })
         })
 
-        it('connects with a port only', function (done) {
+        it('connects with a port only', (done) => {
           client = redis.createClient(6379)
           assert.strictEqual(client.connectionOptions.family, 4)
           client.on('error', done)
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.removeListener('error', done)
             client.get('recon 1', done)
           })
         })
 
-        it('connects correctly to localhost', function (done) {
+        it('connects correctly to localhost', (done) => {
           client = redis.createClient(null, null)
           client.on('error', done)
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.removeListener('error', done)
             client.get('recon 1', done)
           })
         })
 
-        it('connects correctly to the provided host with the port set to null', function (done) {
+        it('connects correctly to the provided host with the port set to null', (done) => {
           client = redis.createClient(null, 'localhost')
           client.on('error', done)
           assert.strictEqual(client.address, 'localhost:6379')
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.set('foo', 'bar')
-            client.get('foo', function (err, res) {
+            client.get('foo', (err, res) => {
               assert.strictEqual(res, 'bar')
               done(err)
             })
           })
         })
 
-        it('connects correctly to localhost and no ready check', function (done) {
+        it('connects correctly to localhost and no ready check', (done) => {
           client = redis.createClient(undefined, undefined, {
             noReadyCheck: true
           })
           client.on('error', done)
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.set('foo', 'bar')
-            client.get('foo', function (err, res) {
+            client.get('foo', (err, res) => {
               assert.strictEqual(res, 'bar')
               done(err)
             })
           })
         })
 
-        it('connects correctly to the provided host with the port set to undefined', function (done) {
+        it('connects correctly to the provided host with the port set to undefined', (done) => {
           client = redis.createClient(undefined, 'localhost', {
             noReadyCheck: true
           })
           client.on('error', done)
           assert.strictEqual(client.address, 'localhost:6379')
 
-          client.once('ready', function () {
+          client.once('ready', () => {
             client.set('foo', 'bar')
-            client.get('foo', function (err, res) {
+            client.get('foo', (err, res) => {
               assert.strictEqual(res, 'bar')
               done(err)
             })
           })
         })
 
-        it('connects correctly even if the info command is not present on the redis server', function (done) {
+        it('connects correctly even if the info command is not present on the redis server', (done) => {
           client = redis.createClient.apply(null, args)
           client.info = function (cb) {
             // Mock the result
             cb(new Error('ERR unknown command \'info\''))
           }
-          client.once('ready', function () {
+          client.once('ready', () => {
             assert.strictEqual(Object.keys(client.serverInfo).length, 0)
             done()
           })
         })
 
-        it('fake the stream to mock redis', function () {
+        it('fake the stream to mock redis', () => {
           // This is needed for libraries that want to mock the stream like fakeredis
-          var temp = redis.RedisClient.prototype.createStream
-          var createStreamString = String(temp)
+          const temp = redis.RedisClient.prototype.createStream
+          const createStreamString = String(temp)
           redis.RedisClient.prototype.createStream = function () {
             this.connected = true
             this.ready = true
@@ -462,23 +454,23 @@ describe('connection tests', function () {
         })
 
         if (ip === 'IPv4') {
-          it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', function (done) {
+          it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', (done) => {
             client = redis.createClient('redis:///3?db=3')
             assert.strictEqual(client.selectedDb, '3')
             client.on('ready', done)
           })
 
-          it('allows connecting with the redis url and the default port and auth provided even though it is not required', function (done) {
-            client = redis.createClient('redis://:porkchopsandwiches@' + config.HOST[ip] + '/')
-            var end = helper.callFuncAfter(done, 2)
-            client.on('warning', function (msg) {
+          it('allows connecting with the redis url and the default port and auth provided even though it is not required', (done) => {
+            client = redis.createClient(`redis://:porkchopsandwiches@${config.HOST[ip]}/`)
+            const end = helper.callFuncAfter(done, 2)
+            client.on('warning', (msg) => {
               assert.strictEqual(msg, 'Warning: Redis server does not require a password, but a password was supplied.')
               end()
             })
             client.on('ready', end)
           })
 
-          it('allows connecting with the redis url as first parameter and the options as second parameter', function (done) {
+          it('allows connecting with the redis url as first parameter and the options as second parameter', (done) => {
             client = redis.createClient('//127.0.0.1', {
               connectTimeout: 1000
             })
@@ -486,9 +478,9 @@ describe('connection tests', function () {
             client.on('ready', done)
           })
 
-          it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', function (done) {
+          it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', (done) => {
             client = redis.createClient({
-              url: 'http://foo:porkchopsandwiches@' + config.HOST[ip] + '/3'
+              url: `http://foo:porkchopsandwiches@${config.HOST[ip]}/3`
             })
             assert.strictEqual(client.authPass, 'porkchopsandwiches')
             assert.strictEqual(+client.selectedDb, 3)
@@ -497,32 +489,32 @@ describe('connection tests', function () {
             client.on('ready', done)
           })
 
-          it('allows connecting with the redis url and no auth and options as second parameter', function (done) {
-            var options = {
+          it('allows connecting with the redis url and no auth and options as second parameter', (done) => {
+            const options = {
               detectBuffers: false
             }
-            client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, options)
+            client = redis.createClient(`redis://${config.HOST[ip]}:${config.PORT}`, options)
             assert.strictEqual(Object.keys(options).length, 1)
             client.on('ready', done)
           })
 
-          it('allows connecting with the redis url and no auth and options as third parameter', function (done) {
-            client = redis.createClient('redis://' + config.HOST[ip] + ':' + config.PORT, null, {
+          it('allows connecting with the redis url and no auth and options as third parameter', (done) => {
+            client = redis.createClient(`redis://${config.HOST[ip]}:${config.PORT}`, null, {
               detectBuffers: false
             })
             client.on('ready', done)
           })
         }
 
-        it('redis still loading <= 500', function (done) {
+        it('redis still loading <= 500', (done) => {
           client = redis.createClient.apply(null, args)
-          var tmp = client.info.bind(client)
-          var end = helper.callFuncAfter(done, 3)
-          var delayed = false
-          var time
+          const tmp = client.info.bind(client)
+          const end = helper.callFuncAfter(done, 3)
+          let delayed = false
+          let time
           // Mock original function and pretent redis is still loading
           client.info = function (cb) {
-            tmp(function (err, res) {
+            tmp((err, res) => {
               if (!delayed) {
                 assert(!err)
                 client.serverInfo.loading = 1
@@ -534,25 +526,25 @@ describe('connection tests', function () {
               cb(err, res)
             })
           }
-          client.on('ready', function () {
-            var rest = Date.now() - time
-            assert(rest >= 495, 'Rest should be equal or above 500 ms but is: ' + rest) // setTimeout might trigger early
+          client.on('ready', () => {
+            const rest = Date.now() - time
+            assert(rest >= 495, `Rest should be equal or above 500 ms but is: ${rest}`) // setTimeout might trigger early
             // Be on the safe side and accept 200ms above the original value
-            assert(rest - 250 < 500, 'Rest - 250 should be below 500 ms but is: ' + (rest - 250))
+            assert(rest - 250 < 500, `Rest - 250 should be below 500 ms but is: ${rest - 250}`)
             assert(delayed)
             end()
           })
         })
 
-        it('redis still loading > 1000ms', function (done) {
+        it('redis still loading > 1000ms', (done) => {
           client = redis.createClient.apply(null, args)
-          var tmp = client.info.bind(client)
-          var end = helper.callFuncAfter(done, 3)
-          var delayed = false
-          var time
+          const tmp = client.info.bind(client)
+          const end = helper.callFuncAfter(done, 3)
+          let delayed = false
+          let time
           // Mock original function and pretent redis is still loading
           client.info = function (cb) {
-            tmp(function (err, res) {
+            tmp((err, res) => {
               if (!delayed) {
                 assert(!err)
                 // Try reconnecting after one second even if redis tells us the time needed is above one second
@@ -565,11 +557,11 @@ describe('connection tests', function () {
               cb(err, res)
             })
           }
-          client.on('ready', function () {
-            var rest = Date.now() - time
-            assert(rest >= 998, '`rest` should be equal or above 1000 ms but is: ' + rest) // setTimeout might trigger early
+          client.on('ready', () => {
+            const rest = Date.now() - time
+            assert(rest >= 998, `\`rest\` should be equal or above 1000 ms but is: ${rest}`) // setTimeout might trigger early
             // Be on the safe side and accept 200ms above the original value
-            assert(rest - 250 < 1000, '`rest` - 250 should be below 1000 ms but is: ' + (rest - 250))
+            assert(rest - 250 < 1000, `\`rest\` - 250 should be below 1000 ms but is: ${rest - 250}`)
             assert(delayed)
             end()
           })

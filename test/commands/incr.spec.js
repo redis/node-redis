@@ -1,18 +1,18 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'incr\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      describe('when connected and a value in Redis', function () {
-        var client
-        var key = 'ABOVE_SAFE_JAVASCRIPT_INTEGER'
+describe('The \'incr\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      describe('when connected and a value in Redis', () => {
+        let client
+        const key = 'ABOVE_SAFE_JAVASCRIPT_INTEGER'
 
-        afterEach(function () {
+        afterEach(() => {
           client.end(true)
         })
 
@@ -27,7 +27,7 @@ describe('The \'incr\' method', function () {
                     9007199254740997 -> 9007199254740996
                     ...
                 */
-        it('count above the safe integers as numbers', function (done) {
+        it('count above the safe integers as numbers', (done) => {
           client = redis.createClient.apply(null, args)
           // Set a value to the maximum safe allowed javascript number (2^53) - 1
           client.set(key, Number.MAX_SAFE_INTEGER, helper.isNotError())
@@ -36,7 +36,7 @@ describe('The \'incr\' method', function () {
           client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 3))
           client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 4))
           client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 5))
-          client.incr(key, function (err, res) {
+          client.incr(key, (err, res) => {
             helper.isNumber(Number.MAX_SAFE_INTEGER + 6)(err, res)
             assert.strictEqual(typeof res, 'number')
           })
@@ -46,7 +46,7 @@ describe('The \'incr\' method', function () {
           client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 10, done))
         })
 
-        it('count above the safe integers as strings', function (done) {
+        it('count above the safe integers as strings', (done) => {
           args[2].stringNumbers = true
           client = redis.createClient.apply(null, args)
           // Set a value to the maximum safe allowed javascript number (2^53)
@@ -56,7 +56,7 @@ describe('The \'incr\' method', function () {
           client.incr(key, helper.isString('9007199254740994'))
           client.incr(key, helper.isString('9007199254740995'))
           client.incr(key, helper.isString('9007199254740996'))
-          client.incr(key, function (err, res) {
+          client.incr(key, (err, res) => {
             helper.isString('9007199254740997')(err, res)
             assert.strictEqual(typeof res, 'string')
           })

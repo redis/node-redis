@@ -1,51 +1,51 @@
 'use strict'
 
-var Buffer = require('safe-buffer').Buffer
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const Buffer = require('safe-buffer').Buffer
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'client\' method', function () {
-  helper.allTests(function (ip, args) {
-    var pattern = /addr=/
+describe('The \'client\' method', () => {
+  helper.allTests((ip, args) => {
+    const pattern = /addr=/
 
-    describe('using ' + ip, function () {
-      var client
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
 
-      describe('list', function () {
-        it('lists connected clients', function (done) {
+      describe('list', () => {
+        it('lists connected clients', (done) => {
           client.client('LIST', helper.match(pattern, done))
         })
 
-        it('lists connected clients when invoked with multi\'s chaining syntax', function (done) {
+        it('lists connected clients when invoked with multi\'s chaining syntax', (done) => {
           client.multi().client('list', helper.isType.string()).exec(helper.match(pattern, done))
         })
 
-        it('lists connected clients when invoked with array syntax on client', function (done) {
+        it('lists connected clients when invoked with array syntax on client', (done) => {
           client.multi().client(['list']).exec(helper.match(pattern, done))
         })
 
-        it('lists connected clients when invoked with multi\'s array syntax', function (done) {
+        it('lists connected clients when invoked with multi\'s array syntax', (done) => {
           client.multi([
             ['client', 'list']
           ]).exec(helper.match(pattern, done))
         })
       })
 
-      describe('reply', function () {
-        describe('as normal command', function () {
+      describe('reply', () => {
+        describe('as normal command', () => {
           it('on', function (done) {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
             assert.strictEqual(client.reply, 'ON')
@@ -72,15 +72,15 @@ describe('The \'client\' method', function () {
           })
         })
 
-        describe('in a batch context', function () {
+        describe('in a batch context', () => {
           it('on', function (done) {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-            var batch = client.batch()
+            const batch = client.batch()
             assert.strictEqual(client.reply, 'ON')
             batch.client('reply', 'on', helper.isString('OK'))
             assert.strictEqual(client.reply, 'ON')
             batch.set('foo', 'bar')
-            batch.exec(function (err, res) {
+            batch.exec((err, res) => {
               assert.deepEqual(res, ['OK', 'OK'])
               done(err)
             })
@@ -88,12 +88,12 @@ describe('The \'client\' method', function () {
 
           it('off', function (done) {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-            var batch = client.batch()
+            const batch = client.batch()
             assert.strictEqual(client.reply, 'ON')
             batch.set('hello', 'world')
             batch.client(Buffer.from('REPLY'), Buffer.from('OFF'), helper.isUndefined())
             batch.set('foo', 'bar', helper.isUndefined())
-            batch.exec(function (err, res) {
+            batch.exec((err, res) => {
               assert.strictEqual(client.reply, 'OFF')
               assert.deepEqual(res, ['OK', undefined, undefined])
               done(err)
@@ -108,7 +108,7 @@ describe('The \'client\' method', function () {
               .client('REPLY', 'SKIP', helper.isUndefined())
               .set('foo', 'bar', helper.isUndefined())
               .get('foo')
-              .exec(function (err, res) {
+              .exec((err, res) => {
                 assert.strictEqual(client.reply, 'ON')
                 assert.deepEqual(res, ['OK', undefined, undefined, 'bar'])
                 done(err)
@@ -117,24 +117,24 @@ describe('The \'client\' method', function () {
         })
       })
 
-      describe('setname / getname', function () {
-        var client2
+      describe('setname / getname', () => {
+        let client2
 
-        beforeEach(function (done) {
+        beforeEach((done) => {
           client2 = redis.createClient.apply(null, args)
-          client2.once('ready', function () {
+          client2.once('ready', () => {
             done()
           })
         })
 
-        afterEach(function () {
+        afterEach(() => {
           client2.end(true)
         })
 
-        it('sets the name', function (done) {
+        it('sets the name', (done) => {
           // The querys are auto pipelined and the response is a response to all querys of one client
           // per chunk. So the execution order is only guaranteed on each client
-          var end = helper.callFuncAfter(done, 2)
+          const end = helper.callFuncAfter(done, 2)
 
           client.client('setname', 'RUTH')
           client2.client('setname', ['RENEE'], helper.isString('OK'))

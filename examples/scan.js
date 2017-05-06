@@ -1,22 +1,22 @@
 'use strict'
 
-var redis = require('redis')
-var client = redis.createClient()
+const redis = require('redis')
+const client = redis.createClient()
 
-var cursor = '0'
+let cursor = '0'
 
 function scan () {
   client.scan(
     cursor,
     'MATCH', 'q:job:*',
     'COUNT', '10',
-    function (err, res) {
+    (err, res) => {
       if (err) throw err
 
       // Update the cursor position for the next scan
       cursor = res[0]
       // get the SCAN result for this iteration
-      var keys = res[1]
+      const keys = res[1]
 
       // Remember: more or less than COUNT or no keys may be returned
       // See http://redis.io/commands/scan#the-count-option

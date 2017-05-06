@@ -1,7 +1,7 @@
 'use strict'
 
-var redis = require('redis')
-var client = redis.createClient()
+const redis = require('redis')
+const client = redis.createClient()
 
 client.sadd('mylist', 1)
 client.sadd('mylist', 2)

@@ -1,18 +1,18 @@
 'use strict'
 
-var config = require('../lib/config')
-var helper = require('../helper')
-var assert = require('assert')
-var redis = config.redis
+const config = require('../lib/config')
+const helper = require('../helper')
+const assert = require('assert')
+const redis = config.redis
 
-describe('The \'zadd\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'zadd\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
@@ -29,7 +29,7 @@ describe('The \'zadd\' method', function () {
         client.zadd('infinity', ['inf', 'should be also be inf'], helper.isNumber(1))
         client.zadd('infinity', -Infinity, 'should be negative inf', helper.isNumber(1))
         client.zadd('infinity', [99999999999999999999999, 'should not be inf'], helper.isNumber(1))
-        client.zrange('infinity', 0, -1, 'WITHSCORES', function (err, res) {
+        client.zrange('infinity', 0, -1, 'WITHSCORES', (err, res) => {
           assert.strictEqual(err, null)
           assert.strictEqual(res[5], 'inf')
           assert.strictEqual(res[1], '-inf')
@@ -38,7 +38,7 @@ describe('The \'zadd\' method', function () {
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

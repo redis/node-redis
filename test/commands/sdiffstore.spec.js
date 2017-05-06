@@ -1,23 +1,23 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'sdiffstore\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'sdiffstore\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('calculates set difference ands stores it in a key', function (done) {
+      it('calculates set difference ands stores it in a key', (done) => {
         client.sadd('foo', 'x', helper.isNumber(1))
         client.sadd('foo', 'a', helper.isNumber(1))
         client.sadd('foo', 'b', helper.isNumber(1))
@@ -30,14 +30,14 @@ describe('The \'sdiffstore\' method', function () {
 
         client.sdiffstore('quux', 'foo', 'bar', 'baz', helper.isNumber(2))
 
-        client.smembers('quux', function (err, values) {
-          var members = values.sort()
+        client.smembers('quux', (err, values) => {
+          const members = values.sort()
           assert.deepEqual(members, [ 'b', 'x' ])
           return done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

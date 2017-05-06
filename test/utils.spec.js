@@ -1,35 +1,35 @@
 'use strict'
 
-var assert = require('assert')
-var Queue = require('double-ended-queue')
-var utils = require('../lib/utils')
+const assert = require('assert')
+const Queue = require('double-ended-queue')
+const utils = require('../lib/utils')
 
-describe('utils.js', function () {
-  describe('clone', function () {
-    it('ignore the object prototype and clone a nested array / object', function () {
-      var obj = {
+describe('utils.js', () => {
+  describe('clone', () => {
+    it('ignore the object prototype and clone a nested array / object', () => {
+      const obj = {
         a: [null, 'foo', ['bar'], {
           'i\'m special': true
         }],
         number: 5,
         fn: function noop () {}
       }
-      var clone = utils.clone(obj)
+      const clone = utils.clone(obj)
       assert.deepEqual(clone, obj)
       assert.strictEqual(obj.fn, clone.fn)
       assert(typeof clone.fn === 'function')
     })
 
-    it('replace falsy values with an empty object as return value', function () {
-      var a = utils.clone()
-      var b = utils.clone(null)
+    it('replace falsy values with an empty object as return value', () => {
+      const a = utils.clone()
+      const b = utils.clone(null)
       assert.strictEqual(Object.keys(a).length, 0)
       assert.strictEqual(Object.keys(b).length, 0)
     })
 
-    it('throws on circular data', function () {
+    it('throws on circular data', () => {
       try {
-        var a = {}
+        const a = {}
         a.b = a
         utils.clone(a)
         throw new Error('failed')
@@ -39,25 +39,25 @@ describe('utils.js', function () {
     })
   })
 
-  describe('replyInOrder', function () {
-    var errCount = 0
-    var resCount = 0
-    var emitted = false
-    var clientMock = {
-      emit: function () { emitted = true },
+  describe('replyInOrder', () => {
+    let errCount = 0
+    let resCount = 0
+    let emitted = false
+    const clientMock = {
+      emit () { emitted = true },
       offlineQueue: new Queue(),
       commandQueue: new Queue()
     }
-    var createCommandObj = function () {
+    const createCommandObj = function () {
       return {
-        callback: function (err, res) {
+        callback (err, res) {
           if (err) errCount++
           else resCount++
         }
       }
     }
 
-    beforeEach(function () {
+    beforeEach(() => {
       clientMock.offlineQueue.clear()
       clientMock.commandQueue.clear()
       errCount = 0
@@ -65,28 +65,28 @@ describe('utils.js', function () {
       emitted = false
     })
 
-    it('no elements in either queue. Reply in the next tick with callback', function (done) {
-      var called = false
-      utils.replyInOrder(clientMock, function () {
+    it('no elements in either queue. Reply in the next tick with callback', (done) => {
+      let called = false
+      utils.replyInOrder(clientMock, () => {
         called = true
         done()
       }, null, null)
       assert(!called)
     })
 
-    it('no elements in either queue. Reply in the next tick without callback', function (done) {
+    it('no elements in either queue. Reply in the next tick without callback', (done) => {
       assert(!emitted)
       utils.replyInOrder(clientMock, null, new Error('tada'))
       assert(!emitted)
-      setTimeout(function () {
+      setTimeout(() => {
         assert(emitted)
         done()
       }, 1)
     })
 
-    it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj callback', function (done) {
+    it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj callback', (done) => {
       clientMock.offlineQueue.push(createCommandObj(), createCommandObj())
-      utils.replyInOrder(clientMock, function () {
+      utils.replyInOrder(clientMock, () => {
         assert.strictEqual(clientMock.offlineQueue.length, 0)
         assert.strictEqual(resCount, 2)
         done()
@@ -94,9 +94,9 @@ describe('utils.js', function () {
       while (clientMock.offlineQueue.length) clientMock.offlineQueue.shift().callback(null, 'foo')
     })
 
-    it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj error emit', function (done) {
+    it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj error emit', (done) => {
       clientMock.commandQueue.push({}, createCommandObj(), {})
-      utils.replyInOrder(clientMock, function () {
+      utils.replyInOrder(clientMock, () => {
         assert.strictEqual(clientMock.commandQueue.length, 0)
         assert(emitted)
         assert.strictEqual(errCount, 1)
@@ -104,17 +104,17 @@ describe('utils.js', function () {
         done()
       }, null, null)
       while (clientMock.commandQueue.length) {
-        var commandObj = clientMock.commandQueue.shift()
+        const commandObj = clientMock.commandQueue.shift()
         if (commandObj.callback) {
           commandObj.callback(new Error('tada'))
         }
       }
     })
 
-    it('elements in the offline queue and the commandQueue. Reply all other commands got handled respect the commandObj', function (done) {
+    it('elements in the offline queue and the commandQueue. Reply all other commands got handled respect the commandObj', (done) => {
       clientMock.commandQueue.push(createCommandObj(), createCommandObj())
       clientMock.offlineQueue.push(createCommandObj(), {})
-      utils.replyInOrder(clientMock, function (err, res) {
+      utils.replyInOrder(clientMock, (err, res) => {
         if (err) throw err
         assert.strictEqual(clientMock.commandQueue.length, 0)
         assert.strictEqual(clientMock.offlineQueue.length, 0)

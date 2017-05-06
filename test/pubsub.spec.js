@@ -1,49 +1,49 @@
 'use strict'
 
-var Buffer = require('safe-buffer').Buffer
-var assert = require('assert')
-var config = require('./lib/config')
-var helper = require('./helper')
-var redis = config.redis
+const Buffer = require('safe-buffer').Buffer
+const assert = require('assert')
+const config = require('./lib/config')
+const helper = require('./helper')
+const redis = config.redis
 
-describe('publish/subscribe', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var pub = null
-      var sub = null
-      var channel = 'test channel'
-      var channel2 = 'test channel 2'
-      var message = 'test message'
+describe('publish/subscribe', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let pub = null
+      let sub = null
+      const channel = 'test channel'
+      const channel2 = 'test channel 2'
+      const message = 'test message'
 
-      beforeEach(function (done) {
-        var end = helper.callFuncAfter(done, 2)
+      beforeEach((done) => {
+        const end = helper.callFuncAfter(done, 2)
 
         pub = redis.createClient.apply(null, args)
         sub = redis.createClient.apply(null, args)
-        pub.once('connect', function () {
-          pub.flushdb(function () {
+        pub.once('connect', () => {
+          pub.flushdb(() => {
             end()
           })
         })
-        sub.once('connect', function () {
+        sub.once('connect', () => {
           end()
         })
       })
 
-      describe('disable resubscribe', function () {
-        beforeEach(function (done) {
+      describe('disable resubscribe', () => {
+        beforeEach((done) => {
           sub.end(false)
           sub = redis.createClient({
             disableResubscribing: true
           })
-          sub.once('connect', function () {
+          sub.once('connect', () => {
             done()
           })
         })
 
-        it('does not fire subscribe events after reconnecting', function (done) {
-          var a = false
-          sub.on('subscribe', function (chnl, count) {
+        it('does not fire subscribe events after reconnecting', (done) => {
+          let a = false
+          sub.on('subscribe', (chnl, count) => {
             if (chnl === channel2) {
               if (a) {
                 return done(new Error('Test failed'))
@@ -53,9 +53,9 @@ describe('publish/subscribe', function () {
             }
           })
 
-          sub.on('reconnecting', function () {
+          sub.on('reconnecting', () => {
             a = true
-            sub.on('ready', function () {
+            sub.on('ready', () => {
               assert.strictEqual(sub.commandQueue.length, 0)
               done()
             })
@@ -65,30 +65,30 @@ describe('publish/subscribe', function () {
         })
       })
 
-      describe('stringNumbers and pub sub', function () {
-        beforeEach(function (done) {
+      describe('stringNumbers and pub sub', () => {
+        beforeEach((done) => {
           sub.end(false)
           sub = redis.createClient({
             stringNumbers: true
           })
-          sub.once('connect', function () {
+          sub.once('connect', () => {
             done()
           })
         })
 
-        it('does not fire subscribe events after reconnecting', function (done) {
-          var i = 0
-          var end = helper.callFuncAfter(done, 2)
-          sub.on('subscribe', function (chnl, count) {
+        it('does not fire subscribe events after reconnecting', (done) => {
+          let i = 0
+          const end = helper.callFuncAfter(done, 2)
+          sub.on('subscribe', (chnl, count) => {
             assert.strictEqual(typeof count, 'number')
             assert.strictEqual(++i, count)
           })
-          sub.on('unsubscribe', function (chnl, count) {
+          sub.on('unsubscribe', (chnl, count) => {
             assert.strictEqual(typeof count, 'number')
             assert.strictEqual(--i, count)
           })
           sub.subscribe(channel, channel2)
-          sub.unsubscribe(function (err, res) { // Do not pass a channel here!
+          sub.unsubscribe((err, res) => { // Do not pass a channel here!
             if (err) throw err
             assert.strictEqual(sub.pubSubMode, 2)
             assert.deepEqual(sub.subscriptionSet, {})
@@ -99,10 +99,10 @@ describe('publish/subscribe', function () {
         })
       })
 
-      describe('subscribe', function () {
-        it('fires a subscribe event for each channel subscribed to even after reconnecting', function (done) {
-          var a = false
-          sub.on('subscribe', function (chnl, count) {
+      describe('subscribe', () => {
+        it('fires a subscribe event for each channel subscribed to even after reconnecting', (done) => {
+          let a = false
+          sub.on('subscribe', (chnl, count) => {
             if (chnl === channel2) {
               assert.strictEqual(2, count)
               if (a) return done()
@@ -110,20 +110,20 @@ describe('publish/subscribe', function () {
             }
           })
 
-          sub.on('reconnecting', function () {
+          sub.on('reconnecting', () => {
             a = true
           })
 
           sub.subscribe(channel, channel2)
         })
 
-        it('fires a subscribe event for each channel as buffer subscribed to even after reconnecting', function (done) {
-          var a = false
+        it('fires a subscribe event for each channel as buffer subscribed to even after reconnecting', (done) => {
+          let a = false
           sub.end(true)
           sub = redis.createClient({
             detectBuffers: true
           })
-          sub.on('subscribe', function (chnl, count) {
+          sub.on('subscribe', (chnl, count) => {
             if (chnl.inspect() === Buffer.from([0xAA, 0xBB, 0x00, 0xF0]).inspect()) {
               assert.strictEqual(1, count)
               if (a) {
@@ -133,23 +133,23 @@ describe('publish/subscribe', function () {
             }
           })
 
-          sub.on('reconnecting', function () {
+          sub.on('reconnecting', () => {
             a = true
           })
 
           sub.subscribe(Buffer.from([0xAA, 0xBB, 0x00, 0xF0]), channel2)
         })
 
-        it('receives messages on subscribed channel', function (done) {
-          var end = helper.callFuncAfter(done, 2)
-          sub.on('subscribe', function (chnl, count) {
-            pub.publish(channel, message, function (err, res) {
+        it('receives messages on subscribed channel', (done) => {
+          const end = helper.callFuncAfter(done, 2)
+          sub.on('subscribe', (chnl, count) => {
+            pub.publish(channel, message, (err, res) => {
               helper.isNumber(1)(err, res)
               end()
             })
           })
 
-          sub.on('message', function (chnl, msg) {
+          sub.on('message', (chnl, msg) => {
             assert.strictEqual(chnl, channel)
             assert.strictEqual(msg, message)
             end()
@@ -158,16 +158,16 @@ describe('publish/subscribe', function () {
           sub.subscribe(channel)
         })
 
-        it('receives messages if subscribe is called after unsubscribe', function (done) {
-          var end = helper.callFuncAfter(done, 2)
-          sub.once('subscribe', function (chnl, count) {
-            pub.publish(channel, message, function (err, res) {
+        it('receives messages if subscribe is called after unsubscribe', (done) => {
+          const end = helper.callFuncAfter(done, 2)
+          sub.once('subscribe', (chnl, count) => {
+            pub.publish(channel, message, (err, res) => {
               helper.isNumber(1)(err, res)
               end()
             })
           })
 
-          sub.on('message', function (chnl, msg) {
+          sub.on('message', (chnl, msg) => {
             assert.strictEqual(chnl, channel)
             assert.strictEqual(msg, message)
             end()
@@ -178,7 +178,7 @@ describe('publish/subscribe', function () {
           sub.subscribe(channel)
         })
 
-        it('handles SUB UNSUB MSG SUB', function (done) {
+        it('handles SUB UNSUB MSG SUB', (done) => {
           sub.subscribe('chan8')
           sub.subscribe('chan9')
           sub.unsubscribe('chan9')
@@ -186,7 +186,7 @@ describe('publish/subscribe', function () {
           sub.subscribe('chan9', done)
         })
 
-        it('handles SUB UNSUB MSG SUB 2', function (done) {
+        it('handles SUB UNSUB MSG SUB 2', (done) => {
           sub.psubscribe('abc*', helper.isDeepEqual([1, ['abc*']]))
           sub.subscribe('xyz')
           sub.unsubscribe('xyz')
@@ -194,21 +194,21 @@ describe('publish/subscribe', function () {
           sub.subscribe('xyz', done)
         })
 
-        it('emits end event if quit is called from within subscribe', function (done) {
+        it('emits end event if quit is called from within subscribe', (done) => {
           sub.on('end', done)
-          sub.on('subscribe', function (chnl, count) {
+          sub.on('subscribe', (chnl, count) => {
             sub.quit()
           })
           sub.subscribe(channel)
         })
 
-        it('subscribe; close; resubscribe with prototype inherited property names', function (done) {
-          var count = 0
-          var channels = ['channel 1', 'channel 2']
-          var msg = ['hi from channel 1', 'hi from channel 2']
+        it('subscribe; close; resubscribe with prototype inherited property names', (done) => {
+          let count = 0
+          const channels = ['channel 1', 'channel 2']
+          const msg = ['hi from channel 1', 'hi from channel 2']
 
-          sub.on('message', function (channel, message) {
-            var n = Math.max(count - 1, 0)
+          sub.on('message', (channel, message) => {
+            const n = Math.max(count - 1, 0)
             assert.strictEqual(channel, channels[n])
             assert.strictEqual(message, msg[n])
             if (count === 2) return done()
@@ -218,7 +218,7 @@ describe('publish/subscribe', function () {
           sub.select(3)
           sub.subscribe(channels)
 
-          sub.on('ready', function (err, results) {
+          sub.on('ready', (err, results) => {
             if (err) throw err
             pub.publish(channels[count], msg[count])
             count++
@@ -228,28 +228,28 @@ describe('publish/subscribe', function () {
         })
       })
 
-      describe('multiple subscribe / unsubscribe commands', function () {
-        it('reconnects properly with pub sub and select command', function (done) {
-          var end = helper.callFuncAfter(done, 2)
+      describe('multiple subscribe / unsubscribe commands', () => {
+        it('reconnects properly with pub sub and select command', (done) => {
+          const end = helper.callFuncAfter(done, 2)
           sub.select(3)
           sub.set('foo', 'bar')
           sub.set('failure', helper.isError()) // Triggering a warning while subscribing should work
           sub.mget('foo', 'bar', 'baz', 'hello', 'world', helper.isDeepEqual(['bar', null, null, null, null]))
-          sub.subscribe('somechannel', 'another channel', function (err, res) {
+          sub.subscribe('somechannel', 'another channel', (err, res) => {
             if (err) throw err
             end()
             sub.stream.destroy()
           })
           assert(sub.ready)
-          sub.on('ready', function () {
+          sub.on('ready', () => {
             sub.unsubscribe()
             sub.del('foo')
             sub.info(end)
           })
         })
 
-        it('should not go into pubsub mode with unsubscribe commands', function (done) {
-          sub.on('unsubscribe', function (msg) {
+        it('should not go into pubsub mode with unsubscribe commands', (done) => {
+          sub.on('unsubscribe', (msg) => {
             // The unsubscribe should not be triggered, as there was no corresponding channel
             throw new Error('Test failed')
           })
@@ -258,12 +258,12 @@ describe('publish/subscribe', function () {
           sub.del('foo', done)
         })
 
-        it('handles multiple channels with the same channel name properly, even with buffers', function (done) {
-          var channels = ['a', 'b', 'a', Buffer.from('a'), 'c', 'b']
-          var subscribedChannels = [1, 2, 2, 2, 3, 3]
-          var i = 0
+        it('handles multiple channels with the same channel name properly, even with buffers', (done) => {
+          const channels = ['a', 'b', 'a', Buffer.from('a'), 'c', 'b']
+          const subscribedChannels = [1, 2, 2, 2, 3, 3]
+          let i = 0
           sub.subscribe(channels)
-          sub.on('subscribe', function (channel, count) {
+          sub.on('subscribe', (channel, count) => {
             if (Buffer.isBuffer(channel)) {
               assert.strictEqual(channel.inspect(), Buffer.from(channels[i]).inspect())
             } else {
@@ -276,13 +276,13 @@ describe('publish/subscribe', function () {
           sub.get('foo', done)
         })
 
-        it('should only resubscribe to channels not unsubscribed earlier on a reconnect', function (done) {
+        it('should only resubscribe to channels not unsubscribed earlier on a reconnect', (done) => {
           sub.subscribe('/foo', '/bar')
-          sub.batch().unsubscribe(['/bar'], function () {
-            pub.pubsub('channels', helper.isDeepEqual(['/foo'], function () {
+          sub.batch().unsubscribe(['/bar'], () => {
+            pub.pubsub('channels', helper.isDeepEqual(['/foo'], () => {
               sub.stream.destroy()
-              sub.once('ready', function () {
-                pub.pubsub('channels', helper.isDeepEqual(['/foo'], function () {
+              sub.once('ready', () => {
+                pub.pubsub('channels', helper.isDeepEqual(['/foo'], () => {
                   sub.unsubscribe('/foo', done)
                 }))
               })
@@ -290,22 +290,22 @@ describe('publish/subscribe', function () {
           }).exec()
         })
 
-        it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Withouth callbacks', function (done) {
+        it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Withouth callbacks', (done) => {
           function subscribe (channels) {
             sub.unsubscribe(helper.isNull)
             sub.subscribe(channels, helper.isNull)
           }
-          var all = false
-          var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
-          sub.on('subscribe', function (msg, count) {
+          let all = false
+          const subscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
+          sub.on('subscribe', (msg, count) => {
             subscribeMsg.splice(subscribeMsg.indexOf(msg), 1)
             if (subscribeMsg.length === 0 && all) {
               assert.strictEqual(count, 3)
               done()
             }
           })
-          var unsubscribeMsg = ['1', '3', '2']
-          sub.on('unsubscribe', function (msg, count) {
+          const unsubscribeMsg = ['1', '3', '2']
+          sub.on('unsubscribe', (msg, count) => {
             unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1)
             if (unsubscribeMsg.length === 0) {
               assert.strictEqual(count, 0)
@@ -318,22 +318,22 @@ describe('publish/subscribe', function () {
           subscribe(['5', 'test', 'bla'])
         })
 
-        it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callbacks', function (done) {
+        it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callbacks', (done) => {
           function subscribe (channels) {
             sub.unsubscribe()
             sub.subscribe(channels)
           }
-          var all = false
-          var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
-          sub.on('subscribe', function (msg, count) {
+          let all = false
+          const subscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
+          sub.on('subscribe', (msg, count) => {
             subscribeMsg.splice(subscribeMsg.indexOf(msg), 1)
             if (subscribeMsg.length === 0 && all) {
               assert.strictEqual(count, 3)
               done()
             }
           })
-          var unsubscribeMsg = ['1', '3', '2']
-          sub.on('unsubscribe', function (msg, count) {
+          const unsubscribeMsg = ['1', '3', '2']
+          sub.on('unsubscribe', (msg, count) => {
             unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1)
             if (unsubscribeMsg.length === 0) {
               assert.strictEqual(count, 0)
@@ -346,24 +346,24 @@ describe('publish/subscribe', function () {
           subscribe(['5', 'test', 'bla'])
         })
 
-        it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callback and concret channels', function (done) {
+        it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without callback and concret channels', (done) => {
           function subscribe (channels) {
             sub.unsubscribe(channels)
             sub.unsubscribe(channels)
             sub.subscribe(channels)
           }
-          var all = false
-          var subscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
-          sub.on('subscribe', function (msg, count) {
+          let all = false
+          const subscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
+          sub.on('subscribe', (msg, count) => {
             subscribeMsg.splice(subscribeMsg.indexOf(msg), 1)
             if (subscribeMsg.length === 0 && all) {
               assert.strictEqual(count, 6)
               done()
             }
           })
-          var unsubscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
-          sub.on('unsubscribe', function (msg, count) {
-            var pos = unsubscribeMsg.indexOf(msg)
+          const unsubscribeMsg = ['1', '3', '2', '5', 'test', 'bla']
+          sub.on('unsubscribe', (msg, count) => {
+            const pos = unsubscribeMsg.indexOf(msg)
             if (pos !== -1) { unsubscribeMsg.splice(pos, 1) }
             if (unsubscribeMsg.length === 0) {
               all = true
@@ -375,27 +375,27 @@ describe('publish/subscribe', function () {
           subscribe(['5', 'test', 'bla'])
         })
 
-        it('unsubscribes, subscribes, unsubscribes... with pattern matching', function (done) {
+        it('unsubscribes, subscribes, unsubscribes... with pattern matching', (done) => {
           function subscribe (channels, callback) {
             sub.punsubscribe('prefix:*', helper.isNull)
-            sub.psubscribe(channels, function (err, res) {
+            sub.psubscribe(channels, (err, res) => {
               helper.isNull(err)
               if (callback) callback(err, res)
             })
           }
-          var all = false
-          var end = helper.callFuncAfter(done, 8)
-          var subscribeMsg = ['prefix:*', 'prefix:3', 'prefix:2', '5', 'test:a', 'bla']
-          sub.on('psubscribe', function (msg, count) {
+          let all = false
+          const end = helper.callFuncAfter(done, 8)
+          const subscribeMsg = ['prefix:*', 'prefix:3', 'prefix:2', '5', 'test:a', 'bla']
+          sub.on('psubscribe', (msg, count) => {
             subscribeMsg.splice(subscribeMsg.indexOf(msg), 1)
             if (subscribeMsg.length === 0) {
               assert.strictEqual(count, 5)
               all = true
             }
           })
-          var rest = 1
-          var unsubscribeMsg = ['prefix:*', 'prefix:*', 'prefix:*', '*']
-          sub.on('punsubscribe', function (msg, count) {
+          let rest = 1
+          const unsubscribeMsg = ['prefix:*', 'prefix:*', 'prefix:*', '*']
+          sub.on('punsubscribe', (msg, count) => {
             unsubscribeMsg.splice(unsubscribeMsg.indexOf(msg), 1)
             if (all) {
               assert.strictEqual(unsubscribeMsg.length, 0)
@@ -406,20 +406,20 @@ describe('publish/subscribe', function () {
               assert.strictEqual(count, rest++ - 1)
             }
           })
-          sub.on('pmessage', function (pattern, channel, msg) {
+          sub.on('pmessage', (pattern, channel, msg) => {
             assert.strictEqual(msg, 'test')
             assert.strictEqual(pattern, 'prefix:*')
             assert.strictEqual(channel, 'prefix:1')
             end()
           })
 
-          subscribe(['prefix:*', 'prefix:3'], function () {
-            pub.publish('prefix:1', Buffer.from('test'), function () {
+          subscribe(['prefix:*', 'prefix:3'], () => {
+            pub.publish('prefix:1', Buffer.from('test'), () => {
               subscribe(['prefix:2'])
-              subscribe(['5', 'test:a', 'bla'], function () {
+              subscribe(['5', 'test:a', 'bla'], () => {
                 assert(all)
               })
-              sub.punsubscribe(function (err, res) {
+              sub.punsubscribe((err, res) => {
                 assert(!err)
                 assert.deepStrictEqual(res, [0, ['prefix:3', 'prefix:2', '5', 'test:a', 'bla']])
                 assert(all)
@@ -432,57 +432,57 @@ describe('publish/subscribe', function () {
         })
       })
 
-      describe('unsubscribe', function () {
-        it('fires an unsubscribe event', function (done) {
-          sub.on('subscribe', function (chnl, count) {
+      describe('unsubscribe', () => {
+        it('fires an unsubscribe event', (done) => {
+          sub.on('subscribe', (chnl, count) => {
             sub.unsubscribe(channel)
           })
 
           sub.subscribe(channel)
 
-          sub.on('unsubscribe', function (chnl, count) {
+          sub.on('unsubscribe', (chnl, count) => {
             assert.strictEqual(chnl, channel)
             assert.strictEqual(count, 0)
             return done()
           })
         })
 
-        it('puts client back into write mode', function (done) {
-          sub.on('subscribe', function (chnl, count) {
+        it('puts client back into write mode', (done) => {
+          sub.on('subscribe', (chnl, count) => {
             sub.unsubscribe(channel)
           })
 
           sub.subscribe(channel)
 
-          sub.on('unsubscribe', function (chnl, count) {
+          sub.on('unsubscribe', (chnl, count) => {
             pub.incr('foo', helper.isNumber(1, done))
           })
         })
 
-        it('sub executes callback when unsubscribe is called and there are no subscriptions', function (done) {
+        it('sub executes callback when unsubscribe is called and there are no subscriptions', (done) => {
           sub.unsubscribe(helper.isDeepEqual([0, []], done))
         })
 
-        it('pub executes callback when unsubscribe is called and there are no subscriptions', function (done) {
+        it('pub executes callback when unsubscribe is called and there are no subscriptions', (done) => {
           pub.unsubscribe(helper.isDeepEqual([0, []]))
           pub.get('foo', done)
         })
       })
 
-      describe('psubscribe', function () {
-        it('allows all channels to be subscribed to using a * pattern', function (done) {
-          var sub2 = redis.createClient({
+      describe('psubscribe', () => {
+        it('allows all channels to be subscribed to using a * pattern', (done) => {
+          const sub2 = redis.createClient({
             returnBuffers: true
           })
-          sub.subscribe('/foo', function () {
-            sub2.on('ready', function () {
+          sub.subscribe('/foo', () => {
+            sub2.on('ready', () => {
               sub2.batch().psubscribe('*', helper.isDeepEqual([1, ['*']])).exec()
-              sub2.subscribe('/foo', function () {
+              sub2.subscribe('/foo', () => {
                 pub.pubsub('numsub', '/foo', helper.isDeepEqual(['/foo', 2]))
                 // sub2 is counted twice as it subscribed with psubscribe and subscribe
                 pub.publish('/foo', 'hello world', helper.isNumber(3))
               })
-              sub2.on('pmessage', function (pattern, channel, message) {
+              sub2.on('pmessage', (pattern, channel, message) => {
                 assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
                 assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect())
                 assert.strictEqual(message.inspect(), Buffer.from('hello world').inspect())
@@ -492,28 +492,28 @@ describe('publish/subscribe', function () {
           })
         })
 
-        it('allows to listen to pmessageBuffer and pmessage', function (done) {
-          var end = helper.callFuncAfter(done, 6)
-          var data = Array(10000).join('äüs^öéÉÉ`e')
-          sub.set('foo', data, function () {
+        it('allows to listen to pmessageBuffer and pmessage', (done) => {
+          const end = helper.callFuncAfter(done, 6)
+          const data = Array(10000).join('äüs^öéÉÉ`e')
+          sub.set('foo', data, () => {
             sub.get('foo')
-            sub.stream.once('data', function () {
+            sub.stream.once('data', () => {
               assert.strictEqual(sub.messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
-              sub.on('pmessageBuffer', function (pattern, channel, message) {
+              sub.on('pmessageBuffer', (pattern, channel, message) => {
                 assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
                 assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect())
                 sub.quit(end)
               })
               assert.notStrictEqual(sub.messageBuffers, sub.buffers)
             })
-            var batch = sub.batch()
+            const batch = sub.batch()
             batch.psubscribe('*')
             batch.subscribe('/foo')
             batch.unsubscribe('/foo')
             batch.unsubscribe(helper.isDeepEqual([1, []]))
             batch.subscribe(['/foo'], helper.isDeepEqual([2, ['/foo']]))
-            batch.exec(function () {
+            batch.exec(() => {
               // There's one subscriber to this channel
               pub.pubsub('numsub', '/foo', helper.isDeepEqual(['/foo', 1], end))
               // There's exactly one channel that is listened too
@@ -523,13 +523,13 @@ describe('publish/subscribe', function () {
               pub.publish('/foo', 'hello world', helper.isNumber(2))
             })
             // Either messageBuffers or buffers has to be true, but not both at the same time
-            sub.on('pmessage', function (pattern, channel, message) {
+            sub.on('pmessage', (pattern, channel, message) => {
               assert.strictEqual(pattern, '*')
               assert.strictEqual(channel, '/foo')
               assert.strictEqual(message, 'hello world')
               end()
             })
-            sub.on('message', function (channel, message) {
+            sub.on('message', (channel, message) => {
               assert.strictEqual(channel, '/foo')
               assert.strictEqual(message, 'hello world')
               end()
@@ -538,26 +538,26 @@ describe('publish/subscribe', function () {
         })
       })
 
-      describe('punsubscribe', function () {
-        it('does not complain when punsubscribe is called and there are no subscriptions', function () {
+      describe('punsubscribe', () => {
+        it('does not complain when punsubscribe is called and there are no subscriptions', () => {
           sub.punsubscribe()
         })
 
-        it('executes callback when punsubscribe is called and there are no subscriptions', function (done) {
+        it('executes callback when punsubscribe is called and there are no subscriptions', (done) => {
           pub.batch().punsubscribe(helper.isDeepEqual([0, []])).exec(done)
         })
       })
 
-      describe('fail for other commands while in pub sub mode', function () {
-        it('return error if only pub sub commands are allowed', function (done) {
+      describe('fail for other commands while in pub sub mode', () => {
+        it('return error if only pub sub commands are allowed', (done) => {
           sub.subscribe('channel')
           // Ping is allowed even if not listed as such!
-          sub.ping(function (err, res) {
+          sub.ping((err, res) => {
             assert.strictEqual(err, null)
             assert.strictEqual(res[0], 'pong')
           })
           // Get is forbidden
-          sub.get('foo', function (err, res) {
+          sub.get('foo', (err, res) => {
             assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message))
             assert.strictEqual(err.command, 'GET')
           })
@@ -565,9 +565,9 @@ describe('publish/subscribe', function () {
           sub.quit(done)
         })
 
-        it('emit error if only pub sub commands are allowed without callback', function (done) {
+        it('emit error if only pub sub commands are allowed without callback', (done) => {
           sub.subscribe('channel')
-          sub.on('error', function (err) {
+          sub.on('error', (err) => {
             assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message))
             assert.strictEqual(err.command, 'GET')
             done()
@@ -576,23 +576,23 @@ describe('publish/subscribe', function () {
         })
       })
 
-      it('should not publish a message multiple times per command', function (done) {
-        var published = {}
+      it('should not publish a message multiple times per command', (done) => {
+        const published = {}
 
         function subscribe (message) {
           sub.removeAllListeners('subscribe')
           sub.removeAllListeners('message')
           sub.removeAllListeners('unsubscribe')
-          sub.on('subscribe', function () {
+          sub.on('subscribe', () => {
             pub.publish('/foo', message)
           })
-          sub.on('message', function (channel, message) {
+          sub.on('message', (channel, message) => {
             if (published[message]) {
               done(new Error('Message published more than once.'))
             }
             published[message] = true
           })
-          sub.on('unsubscribe', function (channel, count) {
+          sub.on('unsubscribe', (channel, count) => {
             assert.strictEqual(count, 0)
           })
           sub.subscribe('/foo')
@@ -600,38 +600,38 @@ describe('publish/subscribe', function () {
 
         subscribe('hello')
 
-        setTimeout(function () {
+        setTimeout(() => {
           sub.unsubscribe()
-          setTimeout(function () {
+          setTimeout(() => {
             subscribe('world')
             setTimeout(done, 50)
           }, 40)
         }, 40)
       })
 
-      it('should not publish a message without any publish command', function (done) {
+      it('should not publish a message without any publish command', (done) => {
         pub.set('foo', 'message')
         pub.set('bar', 'hello')
         pub.mget('foo', 'bar')
-        pub.subscribe('channel', function () {
+        pub.subscribe('channel', () => {
           setTimeout(done, 50)
         })
-        pub.on('message', function (msg) {
-          done(new Error('This message should not have been published: ' + msg))
+        pub.on('message', (msg) => {
+          done(new Error(`This message should not have been published: ${msg}`))
         })
       })
 
-      it('arguments variants', function (done) {
+      it('arguments variants', (done) => {
         sub.batch()
           .info(['stats'])
           .info()
           .client('KILL', ['type', 'pubsub'])
-          .client('KILL', ['type', 'pubsub'], function () {})
+          .client('KILL', ['type', 'pubsub'], () => {})
           .unsubscribe()
           .psubscribe(['pattern:*'])
           .punsubscribe('unknown*')
           .punsubscribe(['pattern:*'])
-          .exec(function (err, res) {
+          .exec((err, res) => {
             if (err) throw err
             sub.client('kill', ['type', 'pubsub'])
             sub.psubscribe('*')
@@ -640,7 +640,7 @@ describe('publish/subscribe', function () {
           })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         // Explicitly ignore still running commands
         pub.end(false)
         sub.end(false)

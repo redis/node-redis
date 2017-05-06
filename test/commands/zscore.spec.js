@@ -1,27 +1,27 @@
 'use strict'
 
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'zscore\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'zscore\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('should return the score of member in the sorted set at key', function (done) {
+      it('should return the score of member in the sorted set at key', (done) => {
         client.zadd('myzset', 1, 'one')
         client.zscore('myzset', 'one', helper.isString('1', done))
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

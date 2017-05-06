@@ -1,23 +1,23 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'sinterstore\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'sinterstore\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('calculates set intersection and stores it in a key', function (done) {
+      it('calculates set intersection and stores it in a key', (done) => {
         client.sadd('sa', 'a', helper.isNumber(1))
         client.sadd('sa', 'b', helper.isNumber(1))
         client.sadd('sa', 'c', helper.isNumber(1))
@@ -32,13 +32,13 @@ describe('The \'sinterstore\' method', function () {
 
         client.sinterstore('foo', 'sa', 'sb', 'sc', helper.isNumber(1))
 
-        client.smembers('foo', function (err, members) {
+        client.smembers('foo', (err, members) => {
           assert.deepEqual(members, [ 'c' ])
           return done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

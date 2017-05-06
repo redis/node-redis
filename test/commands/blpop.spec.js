@@ -1,29 +1,29 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
-var intercept = require('intercept-stdout')
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
+const intercept = require('intercept-stdout')
 
-describe('The \'blpop\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
-      var bclient
+describe('The \'blpop\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
+      let bclient
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('pops value immediately if list contains values', function (done) {
+      it('pops value immediately if list contains values', (done) => {
         bclient = redis.createClient.apply(null, args)
         redis.debugMode = true
-        var text = ''
-        var unhookIntercept = intercept(function (data) {
+        let text = ''
+        const unhookIntercept = intercept((data) => {
           text += data
           return ''
         })
@@ -31,26 +31,26 @@ describe('The \'blpop\' method', function () {
         unhookIntercept()
         assert(/^Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n$/.test(text))
         redis.debugMode = false
-        bclient.blpop('blocking list', 0, function (err, value) {
+        bclient.blpop('blocking list', 0, (err, value) => {
           assert.strictEqual(value[0], 'blocking list')
           assert.strictEqual(value[1], 'initial value')
           return done(err)
         })
       })
 
-      it('pops value immediately if list contains values using array notation', function (done) {
+      it('pops value immediately if list contains values using array notation', (done) => {
         bclient = redis.createClient.apply(null, args)
         client.rpush(['blocking list', 'initial value'], helper.isNumber(1))
-        bclient.blpop(['blocking list', 0], function (err, value) {
+        bclient.blpop(['blocking list', 0], (err, value) => {
           assert.strictEqual(value[0], 'blocking list')
           assert.strictEqual(value[1], 'initial value')
           return done(err)
         })
       })
 
-      it('waits for value if list is not yet populated', function (done) {
+      it('waits for value if list is not yet populated', (done) => {
         bclient = redis.createClient.apply(null, args)
-        bclient.blpop('blocking list 2', 5, function (err, value) {
+        bclient.blpop('blocking list 2', 5, (err, value) => {
           assert.strictEqual(value[0], 'blocking list 2')
           assert.strictEqual(value[1], 'initial value')
           return done(err)
@@ -58,15 +58,15 @@ describe('The \'blpop\' method', function () {
         client.rpush('blocking list 2', 'initial value', helper.isNumber(1))
       })
 
-      it('times out after specified time', function (done) {
+      it('times out after specified time', (done) => {
         bclient = redis.createClient.apply(null, args)
-        bclient.blpop('blocking list', 1, function (err, res) {
+        bclient.blpop('blocking list', 1, (err, res) => {
           assert.strictEqual(res, null)
           return done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
         bclient.end(true)
       })

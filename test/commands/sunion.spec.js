@@ -1,23 +1,23 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'sunion\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'sunion\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('returns the union of a group of sets', function (done) {
+      it('returns the union of a group of sets', (done) => {
         client.sadd('sa', 'a', helper.isNumber(1))
         client.sadd('sa', 'b', helper.isNumber(1))
         client.sadd('sa', 'c', helper.isNumber(1))
@@ -30,13 +30,13 @@ describe('The \'sunion\' method', function () {
         client.sadd('sc', 'd', helper.isNumber(1))
         client.sadd('sc', 'e', helper.isNumber(1))
 
-        client.sunion('sa', 'sb', 'sc', function (err, union) {
+        client.sunion('sa', 'sb', 'sc', (err, union) => {
           assert.deepEqual(union.sort(), ['a', 'b', 'c', 'd', 'e'])
           return done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

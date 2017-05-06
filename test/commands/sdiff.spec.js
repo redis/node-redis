@@ -1,23 +1,23 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'sdiff\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'sdiff\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('returns set difference', function (done) {
+      it('returns set difference', (done) => {
         client.sadd('foo', 'x', helper.isNumber(1))
         client.sadd('foo', ['a'], helper.isNumber(1))
         client.sadd('foo', 'b', helper.isNumber(1))
@@ -28,7 +28,7 @@ describe('The \'sdiff\' method', function () {
         client.sadd('baz', 'a', helper.isNumber(1))
         client.sadd('baz', 'd', helper.isNumber(1))
 
-        client.sdiff('foo', 'bar', 'baz', function (err, values) {
+        client.sdiff('foo', 'bar', 'baz', (err, values) => {
           values.sort()
           assert.strictEqual(values.length, 2)
           assert.strictEqual(values[0], 'b')
@@ -37,7 +37,7 @@ describe('The \'sdiff\' method', function () {
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

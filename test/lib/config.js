@@ -2,22 +2,22 @@
 
 // helpers for configuring a redis client in
 // its various modes, ipV6, ipV4, socket.
-var redis = require('../../index')
-var bluebird = require('bluebird')
+const redis = require('../../index')
+const bluebird = require('bluebird')
 
 // Promisify everything
 bluebird.promisifyAll(redis.RedisClient.prototype)
 bluebird.promisifyAll(redis.Multi.prototype)
 
-var config = {
-  redis: redis,
+const config = {
+  redis,
   PORT: 6379,
   HOST: {
     IPv4: '127.0.0.1',
     IPv6: '::1'
   },
-  configureClient: function (ip, opts) {
-    var args = []
+  configureClient (ip, opts) {
+    const args = []
     // Do not manipulate the opts => copy them each time
     opts = opts ? JSON.parse(JSON.stringify(opts)) : {}
 

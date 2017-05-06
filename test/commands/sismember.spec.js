@@ -1,31 +1,31 @@
 'use strict'
 
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'sismember\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'sismember\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('returns 0 if the value is not in the set', function (done) {
+      it('returns 0 if the value is not in the set', (done) => {
         client.sismember('foo', 'banana', helper.isNumber(0, done))
       })
 
-      it('returns 1 if the value is in the set', function (done) {
+      it('returns 1 if the value is in the set', (done) => {
         client.sadd('foo', 'banana', helper.isNumber(1))
         client.sismember('foo', 'banana', helper.isNumber(1, done))
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

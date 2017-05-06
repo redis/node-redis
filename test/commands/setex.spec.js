@@ -1,34 +1,33 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'setex\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'setex\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('sets a key with an expiry', function (done) {
+      it('sets a key with an expiry', (done) => {
         client.setex(['setex key', '100', 'setex val'], helper.isString('OK'))
-        var buffering = client.exists(['setex key'], helper.isNumber(1))
-        assert(typeof buffering === 'boolean')
-        client.ttl(['setex key'], function (err, ttl) {
+        client.exists(['setex key'], helper.isNumber(1))
+        client.ttl(['setex key'], (err, ttl) => {
           assert.strictEqual(err, null)
           assert(ttl > 0)
           return done()
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

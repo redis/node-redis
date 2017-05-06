@@ -1,13 +1,13 @@
 'use strict'
 
-var client = require('../index').createClient()
-var util = require('util')
+const client = require('../index').createClient()
+const util = require('util')
 
-client.monitor(function (err, res) {
+client.monitor((err, res) => {
   if (err) throw err
   console.log('Entering monitoring mode.')
 })
 
-client.on('monitor', function (time, args) {
-  console.log(time + ': ' + util.inspect(args))
+client.on('monitor', (time, args) => {
+  console.log(`${time  }: ${util.inspect(args)}`)
 })

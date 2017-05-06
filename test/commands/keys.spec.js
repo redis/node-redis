@@ -1,26 +1,26 @@
 'use strict'
 
-var assert = require('assert')
-var config = require('../lib/config')
-var crypto = require('crypto')
-var helper = require('../helper')
-var redis = config.redis
+const assert = require('assert')
+const config = require('../lib/config')
+const crypto = require('crypto')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'keys\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'keys\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushall(done)
         })
       })
 
-      it('returns matching keys', function (done) {
+      it('returns matching keys', (done) => {
         client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'))
-        client.keys('test keys*', function (err, results) {
+        client.keys('test keys*', (err, results) => {
           assert.strictEqual(2, results.length)
           assert.ok(~results.indexOf('test keys 1'))
           assert.ok(~results.indexOf('test keys 2'))
@@ -28,38 +28,38 @@ describe('The \'keys\' method', function () {
         })
       })
 
-      it('handles a large packet size', function (done) {
-        var keysValues = []
+      it('handles a large packet size', (done) => {
+        const keysValues = []
 
-        for (var i = 0; i < 200; i++) {
-          var keyValue = [
-            'multibulk:' + crypto.randomBytes(256).toString('hex'), // use long strings as keys to ensure generation of large packet
-            'test val ' + i
+        for (let i = 0; i < 200; i++) {
+          const keyValue = [
+            `multibulk:${crypto.randomBytes(256).toString('hex')}`, // use long strings as keys to ensure generation of large packet
+            `test val ${i}`
           ]
           keysValues.push(keyValue)
         }
 
-        client.mset(keysValues.reduce(function (a, b) {
+        client.mset(keysValues.reduce((a, b) => {
           return a.concat(b)
         }), helper.isString('OK'))
 
-        client.keys('multibulk:*', function (err, results) {
-          assert.deepEqual(keysValues.map(function (val) {
+        client.keys('multibulk:*', (err, results) => {
+          assert.deepEqual(keysValues.map((val) => {
             return val[0]
           }).sort(), results.sort())
           return done(err)
         })
       })
 
-      it('handles an empty response', function (done) {
-        client.keys(['users:*'], function (err, results) {
+      it('handles an empty response', (done) => {
+        client.keys(['users:*'], (err, results) => {
           assert.strictEqual(results.length, 0)
           assert.ok(Array.isArray(results))
           return done(err)
         })
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })

@@ -1,35 +1,35 @@
 'use strict'
 
-var Buffer = require('safe-buffer').Buffer
-var config = require('../lib/config')
-var helper = require('../helper')
-var redis = config.redis
+const Buffer = require('safe-buffer').Buffer
+const config = require('../lib/config')
+const helper = require('../helper')
+const redis = config.redis
 
-describe('The \'hlen\' method', function () {
-  helper.allTests(function (ip, args) {
-    describe('using ' + ip, function () {
-      var client
+describe('The \'hlen\' method', () => {
+  helper.allTests((ip, args) => {
+    describe(`using ${ip}`, () => {
+      let client
 
-      beforeEach(function (done) {
+      beforeEach((done) => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', function () {
+        client.once('ready', () => {
           client.flushdb(done)
         })
       })
 
-      it('reports the count of keys', function (done) {
-        var hash = 'test hash'
-        var field1 = Buffer.from('0123456789')
-        var value1 = Buffer.from('abcdefghij')
-        var field2 = Buffer.from('')
-        var value2 = Buffer.from('')
+      it('reports the count of keys', (done) => {
+        const hash = 'test hash'
+        const field1 = Buffer.from('0123456789')
+        const value1 = Buffer.from('abcdefghij')
+        const field2 = Buffer.from('')
+        const value2 = Buffer.from('')
 
         client.hset(hash, field1, value1, helper.isNumber(1))
         client.hset(hash, field2, value2, helper.isNumber(1))
         client.hlen(hash, helper.isNumber(2, done))
       })
 
-      afterEach(function () {
+      afterEach(() => {
         client.end(true)
       })
     })
