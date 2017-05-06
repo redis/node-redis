@@ -1,5 +1,26 @@
 # Changelog
 
+## v.3.0.0-alpha1 - XX XXX, 2017
+
+Breaking Changes
+
+- Dropped support for `UPPER_CASE` commands
+- Dropped support for `snake_case`
+- Dropped support for Node.js < 4
+- Removed `drain` event
+- Removed `idle` event
+- Removed `parser` option
+- Removed `retryMaxDelay` (max_delay) option
+- Removed `maxAttempts` (max_attempts) option
+- Removed `socketNoDelay` (socket_no_delay) option
+- Removed `Redis.print` helper function
+- Changed return value of `(p)(un)subscribe`
+  - Return an array with the number of current subscribed channels and an array with all affected channels
+- Changed `connectTimeout` (connect_timeout) option
+  - This timeout does not limit the total retry time anymore
+  - From now on this will only set the stream timeout to connect to the host
+- Only emit ready when all commands were truly send to Redis
+
 ## v.2.7.2 - 14 Mar, 2017
 
 Bugfixes

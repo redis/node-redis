@@ -18,7 +18,7 @@ describe('The nodeRedis client', function () {
         fs.readFile(path.resolve(__dirname, '../lib/individualCommands.js'), 'utf8', function (err, data) {
             var clientPrototype = data.match(/(\n| = )RedisClient\.prototype.[a-zA-Z_]+/g);
             var multiPrototype = data.match(/(\n| = )Multi\.prototype\.[a-zA-Z_]+/g);
-            // Check that every entry RedisClient entry has a correspondend Multi entry
+            // Check that every entry RedisClient entry has a correspondent Multi entry
             assert.strictEqual(clientPrototype.filter(function (entry) {
                 return multiPrototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1;
             }).length, 3); // multi and batch are included too
