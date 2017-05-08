@@ -2,6 +2,7 @@
   "name": "redis",
   "version": "2.7.1",
   "description": "Redis client library",
+  "license": "MIT",
   "keywords": [
     "database",
     "redis",
