@@ -19,18 +19,14 @@ describe('The \'dbsize\' method', () => {
       describe('when not connected', () => {
         let client
 
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.quit()
-          })
-          client.on('end', done)
+          return client.quit()
         })
 
-        it('reports an error', (done) => {
-          client.dbsize([], (err, res) => {
+        it('reports an error', () => {
+          return client.dbsize([]).then(helper.fail).catch((err) => {
             assert(err.message.match(/The connection is already closed/))
-            done()
           })
         })
       })
@@ -38,52 +34,34 @@ describe('The \'dbsize\' method', () => {
       describe('when connected', () => {
         let client
 
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.flushdb((err, res) => {
-              helper.isString('OK')(err, res)
-              done()
-            })
-          })
+          return client.flushdb().then(helper.isString('OK'))
         })
 
         afterEach(() => {
           client.end(true)
         })
 
-        it('returns a zero db size', (done) => {
-          client.dbsize([], (err, res) => {
-            helper.isNotError()(err, res)
-            helper.isType.number()(err, res)
-            assert.strictEqual(res, 0, 'Initial db size should be 0')
-            done()
-          })
+        it('returns a zero db size', () => {
+          return client.dbsize([]).then(helper.isNumber(0))
         })
 
         describe('when more data is added to Redis', () => {
           let oldSize
 
-          beforeEach((done) => {
-            client.dbsize((err, res) => {
-              helper.isType.number()(err, res)
-              assert.strictEqual(res, 0, 'Initial db size should be 0')
-
+          beforeEach(() => {
+            return client.dbsize().then((res) => {
+              helper.isNumber(0)(res)
               oldSize = res
-
-              client.set(key, value, (err, res) => {
-                helper.isNotError()(err, res)
-                done()
-              })
+              return client.set(key, value).then(helper.isString('OK'))
             })
           })
 
-          it('returns a larger db size', (done) => {
-            client.dbsize([], (err, res) => {
-              helper.isNotError()(err, res)
-              helper.isType.positiveNumber()(err, res)
+          it('returns a larger db size', () => {
+            return client.dbsize([]).then((res) => {
+              assert.strictEqual(typeof res, 'number')
               assert.strictEqual(true, (oldSize < res), 'Adding data should increase db size.')
-              done()
             })
           })
         })

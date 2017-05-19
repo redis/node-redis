@@ -12,37 +12,34 @@ describe('The \'watch\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
       afterEach(() => {
         client.end(true)
       })
 
-      it('does not execute transaction if watched key was modified prior to execution', (done) => {
+      it('does not execute transaction if watched key was modified prior to execution', () => {
         client.watch(watched)
         client.incr(watched)
         const multi = client.multi()
         multi.incr(watched)
-        multi.exec(helper.isNull(done))
+        return multi.exec().then(helper.isNull())
       })
 
-      it('successfully modifies other keys independently of transaction', (done) => {
+      it('successfully modifies other keys independently of transaction', () => {
         client.set('unwatched', 200)
 
         client.set(watched, 0)
         client.watch(watched)
         client.incr(watched)
 
-        client.multi().incr(watched).exec((err, replies) => {
-          assert.strictEqual(err, null)
+        return client.multi().incr(watched).exec().then((replies) => {
           assert.strictEqual(replies, null, 'Aborted transaction multi-bulk reply should be null.')
 
-          client.get('unwatched', helper.isString('200', done))
+          return client.get('unwatched').then(helper.isString('200'))
         })
       })
     })

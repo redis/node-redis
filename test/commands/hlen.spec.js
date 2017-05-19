@@ -10,23 +10,21 @@ describe('The \'hlen\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('reports the count of keys', (done) => {
+      it('reports the count of keys', () => {
         const hash = 'test hash'
         const field1 = Buffer.from('0123456789')
         const value1 = Buffer.from('abcdefghij')
         const field2 = Buffer.from('')
         const value2 = Buffer.from('')
 
-        client.hset(hash, field1, value1, helper.isNumber(1))
-        client.hset(hash, field2, value2, helper.isNumber(1))
-        client.hlen(hash, helper.isNumber(2, done))
+        client.hset(hash, field1, value1).then(helper.isNumber(1))
+        client.hset(hash, field2, value2).then(helper.isNumber(1))
+        return client.hlen(hash).then(helper.isNumber(2))
       })
 
       afterEach(() => {

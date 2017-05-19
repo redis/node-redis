@@ -86,7 +86,7 @@ describe.skip('TLS connection tests', () => {
   })
 
   describe('when not connected', () => {
-    it('connect with host and port provided in the tls object', function (done) {
+    it('connect with host and port provided in the tls object', function () {
       if (skip) this.skip()
       const tls = utils.clone(tlsOptions)
       tls.port = tlsPort
@@ -103,10 +103,10 @@ describe.skip('TLS connection tests', () => {
       assert(client.stream.encrypted)
 
       client.set('foo', 'bar')
-      client.get('foo', helper.isString('bar', done))
+      return client.get('foo').then(helper.isString('bar'))
     })
 
-    it('fails to connect because the cert is not correct', function (done) {
+    it('fails to connect because the cert is not correct', function () {
       if (skip) this.skip()
       const faultyCert = utils.clone(tlsOptions)
       faultyCert.ca = [ String(fs.readFileSync(path.resolve(__dirname, './conf/faulty.cert'))) ]
@@ -121,7 +121,7 @@ describe.skip('TLS connection tests', () => {
         assert(/DEPTH_ZERO_SELF_SIGNED_CERT/.test(err.code || err.message), err)
         client.end(true)
       })
-      client.set('foo', 'bar', helper.isError(done))
+      return client.set('foo', 'bar').then(helper.isError())
     })
   })
 })

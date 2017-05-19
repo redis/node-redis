@@ -12,14 +12,12 @@ describe('The \'blpop\' method', () => {
       let client
       let bclient
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('pops value immediately if list contains values', (done) => {
+      it('pops value immediately if list contains values', () => {
         bclient = redis.createClient.apply(null, args)
         redis.debugMode = true
         let text = ''
@@ -27,43 +25,42 @@ describe('The \'blpop\' method', () => {
           text += data
           return ''
         })
-        client.rpush('blocking list', 'initial value', helper.isNumber(1))
+        const values = ['blocking list', 'initial value']
+        const promise = client.rpush(values).then(helper.isNumber(1))
         unhookIntercept()
-        assert(/^Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n$/.test(text))
+        assert(/Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n/.test(text), text)
         redis.debugMode = false
-        bclient.blpop('blocking list', 0, (err, value) => {
-          assert.strictEqual(value[0], 'blocking list')
-          assert.strictEqual(value[1], 'initial value')
-          return done(err)
-        })
+        return promise
+          .then(() => bclient.blpop(values[0], 0))
+          .then(helper.isDeepEqual(values))
       })
 
-      it('pops value immediately if list contains values using array notation', (done) => {
+      it('pops value immediately if list contains values using array notation', () => {
         bclient = redis.createClient.apply(null, args)
-        client.rpush(['blocking list', 'initial value'], helper.isNumber(1))
-        bclient.blpop(['blocking list', 0], (err, value) => {
-          assert.strictEqual(value[0], 'blocking list')
-          assert.strictEqual(value[1], 'initial value')
-          return done(err)
-        })
+        return client.rpush(['blocking list', 'initial value'])
+          .then(helper.isNumber(1))
+          .then(() => bclient.blpop(['blocking list', 0]))
+          .then(helper.isDeepEqual(['blocking list', 'initial value']))
       })
 
-      it('waits for value if list is not yet populated', (done) => {
+      it('waits for value if list is not yet populated', () => {
         bclient = redis.createClient.apply(null, args)
-        bclient.blpop('blocking list 2', 5, (err, value) => {
-          assert.strictEqual(value[0], 'blocking list 2')
-          assert.strictEqual(value[1], 'initial value')
-          return done(err)
-        })
-        client.rpush('blocking list 2', 'initial value', helper.isNumber(1))
+        const promises = [
+          bclient.blpop('blocking list 2', 5).then(helper.isDeepEqual(['blocking list 2', 'initial value']))
+        ]
+        promises.push(new Promise((resolve, reject) => {
+          setTimeout(() => {
+            resolve(client.rpush('blocking list 2', 'initial value').then(helper.isNumber(1)))
+          }, 100)
+        }))
+        return Promise.all(promises)
       })
 
-      it('times out after specified time', (done) => {
+      it('times out after specified time', () => {
         bclient = redis.createClient.apply(null, args)
-        bclient.blpop('blocking list', 1, (err, res) => {
-          assert.strictEqual(res, null)
-          return done(err)
-        })
+        return bclient.blpop('blocking list', 1)
+          .then(helper.fail)
+          .catch(helper.isError())
       })
 
       afterEach(() => {

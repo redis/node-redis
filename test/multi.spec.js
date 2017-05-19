@@ -73,13 +73,7 @@ describe('The \'multi\' method', () => {
           for (i = 0; i < 100; i++) {
             multi.hset('SOME_KEY', `SOME_FIELD${i}`, buffer)
           }
-          multi.exec((err, res) => {
-            if (err) {
-              done(err)
-              return
-            }
-            run()
-          })
+          multi.exec().then(run)
         })
       }
       run()
@@ -87,7 +81,7 @@ describe('The \'multi\' method', () => {
   })
 
   describe('pipeline limit', () => {
-    it('do not exceed maximum string size', function (done) {
+    it('do not exceed maximum string size', function () {
       this.timeout(process.platform !== 'win32' ? 10000 : 35000) // Windows tests are horribly slow
       // Triggers a RangeError: Invalid string length if not handled properly
       client = redis.createClient()
@@ -97,40 +91,24 @@ describe('The \'multi\' method', () => {
         i -= 10230
         multi.set(`foo${i}`, `bar${new Array(1024).join('1234567890')}`)
       }
-      client.on('ready', () => {
-        multi.exec((err, res) => {
-          assert.strictEqual(err, null)
-          assert.strictEqual(res.length, 26241)
-        })
-        client.flushdb(done)
+      multi.exec().then((res) => {
+        assert.strictEqual(res.length, 26241)
       })
+      return client.flushdb()
     })
   })
 
   helper.allTests((ip, args) => {
     describe(`using ${ip}`, () => {
       describe('when not connected', () => {
-        beforeEach((done) => {
-          const end = helper.callFuncAfter(done, 2)
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.quit(end)
-          })
-          client.once('end', end)
+          return client.quit()
         })
 
-        it('reports an error', (done) => {
+        it('reports an error', () => {
           const multi = client.multi()
-          multi.exec((err, res) => {
-            assert(err.message.match(/The connection is already closed/))
-            done()
-          })
-        })
-
-        it('reports an error if promisified', () => {
-          return client.multi().execAsync().catch((err) => {
-            assert(err.message.match(/The connection is already closed/))
-          })
+          return multi.exec().then(helper.fail, helper.isError(/The connection is already closed/))
         })
       })
 
@@ -140,26 +118,23 @@ describe('The \'multi\' method', () => {
         })
 
         describe('monitor and transactions do not work together', () => {
-          it('results in a execabort', (done) => {
+          it('results in a execabort', () => {
             // Check that transactions in combination with monitor result in an error
-            client.monitor((e) => {
-              client.on('error', (err) => {
-                assert.strictEqual(err.code, 'EXECABORT')
-                client.end(false)
-                done()
-              })
+            return client.monitor().then(() => {
               const multi = client.multi()
               multi.set('hello', 'world')
-              multi.exec()
+              return multi.exec().then(assert, (err) => {
+                assert.strictEqual(err.code, 'EXECABORT')
+                client.end(false)
+              })
             })
           })
 
-          it('results in a execabort #2', (done) => {
+          it('results in a execabort #2', () => {
             // Check that using monitor with a transactions results in an error
-            client.multi().set('foo', 'bar').monitor().exec((err, res) => {
+            return client.multi().set('foo', 'bar').monitor().exec().then(assert, (err) => {
               assert.strictEqual(err.code, 'EXECABORT')
               client.end(false)
-              done()
             })
           })
 
@@ -176,24 +151,24 @@ describe('The \'multi\' method', () => {
             client.sendCommand('multi')
             client.sendCommand('set', ['foo', 'bar'])
             client.sendCommand('get', ['foo'])
-            client.sendCommand('exec', (err, res) => {
-              assert.strictEqual(err, null)
+            client.sendCommand('exec').then((res) => {
               // res[0] is going to be the monitor result of set
               // res[1] is going to be the result of the set command
               assert(utils.monitorRegex.test(res[0]))
-              assert.strictEqual(res[1], 'OK')
+              assert.strictEqual(res[1].toString(), 'OK')
               assert.strictEqual(res.length, 2)
               client.end(false)
             })
           })
         })
 
-        it('executes a pipelined multi properly in combination with the offline queue', (done) => {
+        it('executes a pipelined multi properly in combination with the offline queue', () => {
           const multi1 = client.multi()
           multi1.set('m1', '123')
           multi1.get('m1')
-          multi1.exec(done)
+          const promise = multi1.exec()
           assert.strictEqual(client.offlineQueue.length, 4)
+          return promise
         })
 
         it('executes a pipelined multi properly after a reconnect in combination with the offline queue', (done) => {
@@ -203,17 +178,13 @@ describe('The \'multi\' method', () => {
             const multi1 = client.multi()
             multi1.set('m1', '123')
             multi1.get('m1')
-            multi1.exec((err, res) => {
-              assert(!err)
-              called = true
-            })
+            multi1.exec().then(() => (called = true))
             client.once('ready', () => {
               const multi1 = client.multi()
               multi1.set('m2', '456')
               multi1.get('m2')
-              multi1.exec((err, res) => {
+              multi1.exec().then((res) => {
                 assert(called)
-                assert(!err)
                 assert.strictEqual(res[1], '456')
                 done()
               })
@@ -223,7 +194,7 @@ describe('The \'multi\' method', () => {
       })
 
       describe('when connection is broken', () => {
-        it.skip('return an error even if connection is in broken mode if callback is present', (done) => {
+        it.skip('return an error even if connection is in broken mode', (done) => {
           client = redis.createClient({
             host: 'somewhere',
             port: 6379,
@@ -236,59 +207,32 @@ describe('The \'multi\' method', () => {
             }
           })
 
-          client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec((err, res) => {
+          client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec().catch((err) => {
             // assert(/Redis connection in broken state/.test(err.message));
             assert.strictEqual(err.errors.length, 2)
             assert.strictEqual(err.errors[0].args.length, 2)
           })
         })
-
-        it.skip('does not emit an error twice if connection is in broken mode with no callback', (done) => {
-          client = redis.createClient({
-            host: 'somewhere',
-            port: 6379,
-            retryStrategy () {}
-          })
-
-          client.on('error', (err) => {
-            // Results in multiple done calls if test fails
-            if (/Redis connection in broken state/.test(err.message)) {
-              done()
-            }
-          })
-
-          client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec()
-        })
       })
 
       describe('when ready', () => {
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.flushdb((err) => {
-              return done(err)
-            })
-          })
+          return client.flushdb()
         })
 
-        it('returns an empty result array', (done) => {
+        it('returns an empty result array', () => {
           const multi = client.multi()
-          multi.exec((err, res) => {
-            assert.strictEqual(err, null)
-            assert.strictEqual(res.length, 0)
-            done()
-          })
+          return multi.exec().then(helper.isDeepEqual([]))
         })
 
-        it('runs normal calls in-between multis', (done) => {
+        it('runs normal calls in-between multis', () => {
           const multi1 = client.multi()
           multi1.set('m1', '123')
-          client.set('m2', '456', done)
+          return client.set('m2', '456')
         })
 
-        it('runs simultaneous multis with the same client', (done) => {
-          const end = helper.callFuncAfter(done, 2)
-
+        it('runs simultaneous multis with the same client', () => {
           const multi1 = client.multi()
           multi1.set('m1', '123')
           multi1.get('m1')
@@ -297,12 +241,13 @@ describe('The \'multi\' method', () => {
           multi2.set('m2', '456')
           multi2.get('m2')
 
-          multi1.exec(end)
-          multi2.exec(helper.isDeepEqual(['OK', '456'], end))
+          return Promise.all([
+            multi1.exec(),
+            multi2.exec().then(helper.isDeepEqual(['OK', '456']))
+          ])
         })
 
-        it('runs simultaneous multis with the same client version 2', (done) => {
-          const end = helper.callFuncAfter(done, 2)
+        it('runs simultaneous multis with the same client version 2', () => {
           const multi2 = client.multi()
           const multi1 = client.multi()
 
@@ -312,46 +257,44 @@ describe('The \'multi\' method', () => {
           multi2.get('m1')
           multi2.ping()
 
-          multi1.exec(end)
-          multi2.exec(helper.isDeepEqual(['OK', '123', 'PONG'], end))
+          return Promise.all([
+            multi1.exec(),
+            multi2.exec().then(helper.isDeepEqual(['OK', '123', 'PONG']))
+          ])
         })
 
-        it('roles back a transaction when one command in a sequence of commands fails', (done) => {
+        it('roles back a transaction when one command in a sequence of commands fails', () => {
           // Provoke an error at queue time
           const multi1 = client.multi()
-          multi1.mset('multifoo', '10', 'multibar', '20', helper.isString('OK'))
+          multi1.mset('multifoo', '10', 'multibar', '20')
 
-          multi1.set('foo2', helper.isError())
+          multi1.set('foo2')
           multi1.incr('multifoo')
           multi1.incr('multibar')
-          multi1.exec(() => {
+          return multi1.exec().then(helper.fail, () => {
             // Redis 2.6.5+ will abort transactions with errors
             // see: http://redis.io/topics/transactions
-            const multibarExpected = 1
-            const multifooExpected = 1
             // Confirm that the previous command, while containing an error, still worked.
             const multi2 = client.multi()
-            multi2.incr('multibar', helper.isNumber(multibarExpected))
-            multi2.incr('multifoo', helper.isNumber(multifooExpected))
-            multi2.exec(helper.isDeepEqual([multibarExpected, multibarExpected], done))
+            multi2.incr('multibar')
+            multi2.incr('multifoo')
+            return multi2.exec().then(helper.isDeepEqual([1, 1]))
           })
         })
 
-        it('roles back a transaction when one command in an array of commands fails', (done) => {
+        it('roles back a transaction when one command in an array of commands fails', () => {
           // test nested multi-bulk replies
-          client.multi([
-            ['mget', 'multifoo', 'multibar', helper.isDeepEqual([null, null])],
-            ['set', 'foo2', helper.isError()],
+          return client.multi([
+            ['mget', 'multifoo', 'multibar'],
+            ['set', 'foo2'],
             ['incr', 'multifoo'],
             ['incr', 'multibar']
-          ]).exec((err, replies) => {
+          ]).exec().then(assert, (err) => {
             assert.notEqual(err, null)
-            assert.strictEqual(replies, undefined)
-            return done()
           })
         })
 
-        it('handles multiple operations being applied to a set', (done) => {
+        it('handles multiple operations being applied to a set', () => {
           client.sadd('some set', 'mem 1')
           client.sadd(['some set', 'mem 2'])
           client.sadd('some set', 'mem 3')
@@ -359,60 +302,50 @@ describe('The \'multi\' method', () => {
 
           // make sure empty mb reply works
           client.del('some missing set')
-          client.smembers('some missing set', helper.isDeepEqual([]))
+          client.smembers('some missing set').then(helper.isDeepEqual([]))
 
           // test nested multi-bulk replies with empty mb elements.
-          client.multi([
+          return client.multi([
             ['smembers', ['some set']],
             ['del', 'some set'],
             ['smembers', 'some set']
           ])
             .scard('some set')
-            .exec((err, res) => {
-              assert.strictEqual(err, null)
+            .exec().then((res) => {
               assert.strictEqual(res[0].length, 4)
               assert.strictEqual(res[1], 1)
               assert.deepStrictEqual(res[2], [])
               assert.strictEqual(res[3], 0)
-              done()
             })
         })
 
-        it('allows multiple operations to be performed using constructor with all kinds of syntax', (done) => {
+        it('allows multiple operations to be performed using constructor with all kinds of syntax', () => {
           const now = Date.now()
           const arr = ['multihmset', 'multibar', 'multibaz']
           const arr2 = ['some manner of key', 'otherTypes']
           const arr3 = [5768, 'multibarx', 'multifoox']
-          const arr4 = ['mset', [578, 'multibar'], helper.isString('OK')]
-          let called = false
-          client.multi([
+          const arr4 = ['mset', [578, 'multibar']]
+          return client.multi([
             arr4,
-            [['mset', 'multifoo2', 'multibar2', 'multifoo3', 'multibar3'], helper.isString('OK')],
+            [['mset', 'multifoo2', 'multibar2', 'multifoo3', 'multibar3']],
             ['hmset', arr],
-            [['hmset', 'multihmset2', 'multibar2', 'multifoo3', 'multibar3', 'test'], helper.isString('OK')],
-            ['hmset', ['multihmset', 'multibar', 'multifoo'], helper.isString('OK')],
-            ['hmset', arr3, helper.isString('OK')],
+            [['hmset', 'multihmset2', 'multibar2', 'multifoo3', 'multibar3', 'test']],
+            ['hmset', ['multihmset', 'multibar', 'multifoo']],
+            ['hmset', arr3],
             ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
-            ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}, helper.isString('OK')],
-            ['hmset', 'multihmset', ['multibar', 'multibaz'], undefined], // undefined is used as a explicit not set callback variable
-            ['hmset', 'multihmset', ['multibar', 'multibaz'], helper.isString('OK')]
+            ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}],
+            ['hmset', 'multihmset', ['multibar', 'multibaz']],
+            ['hmset', 'multihmset', ['multibar', 'multibaz']]
           ])
             .hmget(now, 123456789, 'otherTypes')
-            .hmget('key2', arr2, () => {})
+            .hmget('key2', arr2)
             .hmget(['multihmset2', 'some manner of key', 'multibar3'])
-            .mget('multifoo2', ['multifoo3', 'multifoo'], (err, res) => {
-              assert.strictEqual(err, null)
-              assert(res[0], 'multifoo3')
-              assert(res[1], 'multifoo')
-              called = true
-            })
-            .exec((err, replies) => {
-              assert(called)
+            .mget('multifoo2', ['multifoo3', 'multifoo'])
+            .exec().then((replies) => {
               assert.strictEqual(arr.length, 3)
               assert.strictEqual(arr2.length, 2)
               assert.strictEqual(arr3.length, 3)
-              assert.strictEqual(arr4.length, 3)
-              assert.strictEqual(null, err)
+              assert.strictEqual(arr4.length, 2)
               assert.strictEqual(replies[10][1], '555')
               assert.strictEqual(replies[11][0], 'a type of value')
               assert.strictEqual(replies[12][0], null)
@@ -420,164 +353,79 @@ describe('The \'multi\' method', () => {
               assert.strictEqual(replies[13][0], 'multibar2')
               assert.strictEqual(replies[13].length, 3)
               assert.strictEqual(replies.length, 14)
-              return done()
             })
         })
 
-        it('converts a non string key to a string', (done) => {
+        it('converts a non string key to a string', () => {
           // TODO: Converting the key might change soon again.
-          client.multi().hmset(true, {
+          return client.multi().hmset(true, {
             test: 123,
             bar: 'baz'
-          }).exec(done)
+          }).exec()
         })
 
-        it('runs a multi without any further commands', (done) => {
-          client.multi().exec((err, res) => {
-            assert.strictEqual(err, null)
-            assert.strictEqual(res.length, 0)
-            done()
-          })
+        it('runs a multi without any further commands', () => {
+          return client.multi().exec().then(helper.isDeepEqual([]))
         })
 
-        it('allows multiple operations to be performed using a chaining API', (done) => {
-          client.multi()
+        it('allows multiple operations to be performed using a chaining API', () => {
+          return client.multi()
             .mset('some', '10', 'keys', '20')
             .incr('some')
             .incr('keys')
             .mget('some', ['keys'])
-            .exec(helper.isDeepEqual(['OK', 11, 21, ['11', '21']], done))
+            .exec().then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
         })
 
-        it('allows multiple commands to work the same as normal to be performed using a chaining API', (done) => {
-          client.multi()
-            .mset(['some', '10', 'keys', '20'])
-            .incr('some', helper.isNumber(11))
-            .incr(['keys'], helper.isNumber(21))
-            .mget('some', 'keys')
-            .exec(helper.isDeepEqual(['OK', 11, 21, ['11', '21']], done))
-        })
-
-        it('allows multiple commands to work the same as normal to be performed using a chaining API promisified', () => {
-          return client.multi()
-            .mset(['some', '10', 'keys', '20'])
-            .incr('some', helper.isNumber(11))
-            .incr(['keys'], helper.isNumber(21))
-            .mget('some', 'keys')
-            .execAsync()
-            .then((replies) => {
-              assert.strictEqual('OK', replies[0])
-              assert.strictEqual(11, replies[1])
-              assert.strictEqual(21, replies[2])
-              assert.strictEqual('11', replies[3][0].toString())
-              assert.strictEqual('21', replies[3][1].toString())
-            })
-        })
-
-        it('allows an array to be provided indicating multiple operations to perform', (done) => {
+        it('allows an array to be provided indicating multiple operations to perform', () => {
           // test nested multi-bulk replies with nulls.
-          client.multi([
+          return client.multi([
             ['mget', ['multifoo', 'some', 'random value', 'keys']],
             ['incr', 'multifoo']
-          ]).exec(helper.isDeepEqual([[null, null, null, null], 1], done))
+          ]).exec().then(helper.isDeepEqual([[null, null, null, null], 1]))
         })
 
-        it('allows multiple operations to be performed on a hash', (done) => {
-          client.multi()
+        it('allows multiple operations to be performed on a hash', () => {
+          return client.multi()
             .hmset('multihash', 'a', 'foo', 'b', 1)
             .hmset('multihash', {
               extra: 'fancy',
               things: 'here'
             })
             .hgetall('multihash')
-            .exec((err, replies) => {
-              assert.strictEqual(null, err)
+            .exec().then((replies) => {
               assert.strictEqual('OK', replies[0])
               assert.strictEqual(Object.keys(replies[2]).length, 4)
               assert.strictEqual('foo', replies[2].a)
               assert.strictEqual('1', replies[2].b)
               assert.strictEqual('fancy', replies[2].extra)
               assert.strictEqual('here', replies[2].things)
-              return done()
             })
         })
 
-        it('reports EXECABORT exceptions when they occur (while queueing)', (done) => {
-          client.multi().config('bar').set('foo').set('bar').exec((err, reply) => {
+        it('reports EXECABORT exceptions when they occur (while queueing)', () => {
+          return client.multi().config('bar').set('foo').set('bar').exec().then(assert, (err) => {
             assert.strictEqual(err.code, 'EXECABORT')
-            assert.strictEqual(reply, undefined, 'The reply should have been discarded')
             assert(err.message.match(/^EXECABORT/), 'Error message should begin with EXECABORT')
             assert.strictEqual(err.errors.length, 2, 'err.errors should have 2 items')
             assert.strictEqual(err.errors[0].command, 'SET')
             assert.strictEqual(err.errors[0].code, 'ERR')
             assert.strictEqual(err.errors[0].position, 1)
-            assert(/^ERR/.test(err.errors[0].message), 'Actuall error message should begin with ERR')
-            return done()
+            assert(/^ERR/.test(err.errors[0].message), 'Actual error message should begin with ERR')
           })
         })
 
-        it('reports multiple exceptions when they occur (while EXEC is running)', (done) => {
-          client.multi().config('bar').debug('foo').eval('return {err=\'this is an error\'}', 0).exec((err, reply) => {
-            assert.strictEqual(err, null)
-            assert.strictEqual(reply.length, 3)
-            assert.strictEqual(reply[0].code, 'ERR')
-            assert.strictEqual(reply[0].command, 'CONFIG')
-            assert.strictEqual(reply[2].code, undefined)
-            assert.strictEqual(reply[2].command, 'EVAL')
-            assert(/^this is an error/.test(reply[2].message))
-            assert(/^ERR/.test(reply[0].message), 'Error message should begin with ERR')
-            assert(/^ERR/.test(reply[1].message), 'Error message should begin with ERR')
-            return done()
+        it('reports multiple exceptions when they occur (while EXEC is running)', () => {
+          return client.multi().config('bar').debug('foo').eval('return {err=\'this is an error\'}', 0).exec().then(assert, (err) => {
+            assert.strictEqual(err.replies.length, 3)
+            assert.strictEqual(err.replies[0].code, 'ERR')
+            assert.strictEqual(err.replies[0].command, 'CONFIG')
+            assert.strictEqual(err.replies[2].code, undefined)
+            assert.strictEqual(err.replies[2].command, 'EVAL')
+            assert(/^this is an error/.test(err.replies[2].message))
+            assert(/^ERR/.test(err.replies[0].message), 'Error message should begin with ERR')
+            assert(/^ERR/.test(err.replies[1].message), 'Error message should begin with ERR')
           })
-        })
-
-        it('reports multiple exceptions when they occur (while EXEC is running) promisified', () => {
-          return client.multi().config('bar').debug('foo').eval('return {err=\'this is an error\'}', 0).execAsync().then((reply) => {
-            assert.strictEqual(reply.length, 3)
-            assert.strictEqual(reply[0].code, 'ERR')
-            assert.strictEqual(reply[0].command, 'CONFIG')
-            assert.strictEqual(reply[2].code, undefined)
-            assert.strictEqual(reply[2].command, 'EVAL')
-            assert(/^this is an error/.test(reply[2].message))
-            assert(/^ERR/.test(reply[0].message), 'Error message should begin with ERR')
-            assert(/^ERR/.test(reply[1].message), 'Error message should begin with ERR')
-          })
-        })
-
-        it('reports multiple exceptions when they occur (while EXEC is running) and calls cb', (done) => {
-          const multi = client.multi()
-          multi.config('bar', helper.isError())
-          multi.set('foo', 'bar', helper.isString('OK'))
-          multi.debug('foo').exec((err, reply) => {
-            assert.strictEqual(err, null)
-            assert.strictEqual(reply.length, 3)
-            assert.strictEqual(reply[0].code, 'ERR')
-            assert(/^ERR/.test(reply[0].message), 'Error message should begin with ERR')
-            assert(/^ERR/.test(reply[2].message), 'Error message should begin with ERR')
-            assert.strictEqual(reply[1], 'OK')
-            client.get('foo', helper.isString('bar', done))
-          })
-        })
-
-        it('emits an error if no callback has been provided and execabort error occured', (done) => {
-          const multi = client.multi()
-          multi.config('bar')
-          multi.set('foo')
-          multi.exec()
-
-          client.on('error', (err) => {
-            assert.strictEqual(err.code, 'EXECABORT')
-            done()
-          })
-        })
-
-        it('should work without any callback', (done) => {
-          const multi = client.multi()
-          multi.set('baz', 'binary')
-          multi.set('foo', 'bar')
-          multi.exec()
-
-          client.get('foo', helper.isString('bar', done))
         })
 
         it('should not use a transaction with execAtomic if no command is used', () => {
@@ -601,7 +449,7 @@ describe('The \'multi\' method', () => {
           assert(test)
         })
 
-        it('should use transaction with execAtomic and more than one command used', (done) => {
+        it('should use transaction with execAtomic and more than one command used', () => {
           const multi = client.multi()
           let test = false
           multi.execBatch = function () {
@@ -609,18 +457,17 @@ describe('The \'multi\' method', () => {
           }
           multi.set('baz', 'binary')
           multi.get('baz')
-          multi.execAtomic(done)
+          const promise = multi.execAtomic()
           assert(!test)
+          return promise
         })
 
-        it('do not mutate arguments in the multi constructor', (done) => {
+        it('do not mutate arguments in the multi constructor', () => {
           const input = [['set', 'foo', 'bar'], ['get', 'foo']]
-          client.multi(input).exec((err, res) => {
-            assert.strictEqual(err, null)
+          return client.multi(input).exec().then((res) => {
             assert.strictEqual(input.length, 2)
             assert.strictEqual(input[0].length, 3)
             assert.strictEqual(input[1].length, 2)
-            done()
           })
         })
 
@@ -630,29 +477,14 @@ describe('The \'multi\' method', () => {
             assert.strictEqual(err.code, 'ECONNREFUSED')
           })
           client.on('ready', () => {
-            client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec((err, res) => {
-              assert(!err)
+            client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec().then((res) => {
               assert.strictEqual(res[1], 'bar')
               done()
             })
           })
         })
 
-        it('emits error once if reconnecting after multi has been executed but not yet returned without callback', (done) => {
-          // NOTE: If uncork is called async by postponing it to the next tick, this behavior is going to change.
-          // The command won't be processed anymore two errors are returned instead of one
-          client.on('error', (err) => {
-            assert.strictEqual(err.code, 'UNCERTAIN_STATE')
-            client.get('foo', helper.isString('bar', done))
-          })
-
-          // The commands should still be fired, no matter that the socket is destroyed on the same tick
-          client.multi().set('foo', 'bar').get('foo').exec()
-          // Abort connection before the value returned
-          client.stream.destroy()
-        })
-
-        it('indivdual commands work properly with multi', (done) => {
+        it('indivdual commands work properly with multi', () => {
           // Neither of the following work properly in a transactions:
           // (This is due to Redis not returning the reply as expected / resulting in undefined behavior)
           // (Likely there are more commands that do not work with a transaction)
@@ -666,31 +498,23 @@ describe('The \'multi\' method', () => {
           //
 
           // Make sure sendCommand is not called
-          client.sendCommand = function () {
+          client.sendCommand = () => {
             throw new Error('failed')
           }
 
           assert.strictEqual(client.selectedDb, undefined)
           const multi = client.multi()
-          multi.select(5, (err, res) => {
-            assert.strictEqual(err, null)
-            assert.strictEqual(client.selectedDb, 5)
-            assert.strictEqual(res, 'OK')
-            assert.notDeepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 })
-          })
-          // multi.client('reply', 'on', helper.isString('OK')); // Redis v.3.2
-          multi.set('foo', 'bar', helper.isString('OK'))
-          multi.info((err, res) => {
-            assert.strictEqual(err, null)
-            assert.strictEqual(res.indexOf('# Server\r\nredis_version:'), 0)
-            assert.deepEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 })
-          })
-          multi.get('foo', helper.isString('bar'))
-          multi.exec((err, res) => {
-            assert.strictEqual(err, null)
+          multi.select(5)
+          // multi.client('reply', 'on') // Redis v.3.2
+          multi.set('foo', 'bar')
+          multi.info()
+          multi.get('foo')
+          return multi.exec().then((res) => {
             res[2] = res[2].substr(0, 10)
-            assert.deepEqual(res, ['OK', 'OK', '# Server\r\n', 'bar'])
-            client.flushdb(done)
+            assert.strictEqual(client.selectedDb, 5)
+            assert.deepStrictEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 })
+            assert.deepStrictEqual(res, ['OK', 'OK', '# Server\r\n', 'bar'])
+            return client.flushdb()
           })
         })
       })

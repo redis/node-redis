@@ -9,16 +9,14 @@ describe('The \'scard\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns the number of values in a set', (done) => {
-        client.sadd('foo', [1, 2, 3], helper.isNumber(3))
-        client.scard('foo', helper.isNumber(3, done))
+      it('returns the number of values in a set', () => {
+        client.sadd('foo', [1, 2, 3]).then(helper.isNumber(3))
+        return client.scard('foo').then(helper.isNumber(3))
       })
 
       afterEach(() => {

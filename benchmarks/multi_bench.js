@@ -119,7 +119,7 @@ Test.prototype.newClient = function (id) {
 Test.prototype.onClientsReady = function () {
   process.stdout.write(`${lpad(this.args.descr, 13)  }, ${this.args.batch ? lpad(`batch ${this.args.batch}`, 9) : lpad(this.args.pipeline, 9)  }/${this.clientsReady} `)
   this.testStart = Date.now()
-  this.fillPipeline()
+  return this.fillPipeline()
 }
 
 Test.prototype.fillPipeline = function () {
@@ -131,19 +131,19 @@ Test.prototype.fillPipeline = function () {
     }
     this.ended = true
     this.printStats()
-    this.stopClients()
-    return
+    return this.stopClients()
   }
 
   if (this.batchPipeline) {
-    this.batch()
-  } else {
-    while (pipeline < this.maxPipeline) {
-      this.commandsSent++
-      pipeline++
-      this.sendNext()
-    }
+    return this.batch()
   }
+  const promises = []
+  while (pipeline < this.maxPipeline) {
+    this.commandsSent++
+    pipeline++
+    promises.push(this.sendNext())
+  }
+  return Promise.all(promises)
 }
 
 Test.prototype.batch = function () {
@@ -158,29 +158,24 @@ Test.prototype.batch = function () {
     batch[this.args.command](this.args.args)
   }
 
-  batch.exec((err, res) => {
-    if (err) {
-      throw err
-    }
+  batch.exec().then((res) => {
     self.commandsCompleted += res.length
     self.commandLatency.update(process.hrtime(start)[1])
-    self.fillPipeline()
+    return self.fillPipeline()
   })
 }
 
 Test.prototype.stopClients = function () {
   const self = this
 
-  this.clients.forEach((client, pos) => {
+  return Promise.all(this.clients.map((client, pos) => {
     if (pos === self.clients.length - 1) {
-      client.quit((err, res) => {
-        if (err) throw err
+      return client.quit().then((res) => {
         self.callback()
       })
-    } else {
-      client.quit()
     }
-  })
+    return client.quit()
+  }))
 }
 
 Test.prototype.sendNext = function () {
@@ -188,13 +183,10 @@ Test.prototype.sendNext = function () {
   const curClient = this.commandsSent % this.clients.length
   const start = process.hrtime()
 
-  this.clients[curClient][this.args.command](this.args.args, (err, res) => {
-    if (err) {
-      throw err
-    }
+  this.clients[curClient][this.args.command](this.args.args).then((res) => {
     self.commandsCompleted++
     self.commandLatency.update(process.hrtime(start)[1])
-    self.fillPipeline()
+    return self.fillPipeline()
   })
 }
 
@@ -280,7 +272,7 @@ function next () {
       next()
     })
   } else if (rp) {
-        // Stop the redis process if started by the benchmark
+    // Stop the redis process if started by the benchmark
     rp.stop(() => {
       rp = undefined
       next()

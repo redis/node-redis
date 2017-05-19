@@ -30,13 +30,13 @@ describe('The nodeRedis client', () => {
     })
   })
 
-  it('convert minus to underscore in Redis function names', (done) => {
+  it('convert minus to underscore in Redis function names', () => {
     const names = Object.keys(redis.RedisClient.prototype)
     client = redis.createClient()
     for (let i = 0; i < names.length; i++) {
       assert(/^([a-zA-Z_][a-zA-Z_0-9]*)?$/.test(client[names[i]].name))
     }
-    client.quit(done)
+    return client.quit()
   })
 
   it('reset the parser while reconnecting (See #1190)', (done) => {
@@ -64,11 +64,9 @@ describe('The nodeRedis client', () => {
       })
 
       describe('when connected', () => {
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('connect', () => {
-            client.flushdb(done)
-          })
+          return client.flushdb()
         })
 
         describe('duplicate', () => {
@@ -122,7 +120,7 @@ describe('The nodeRedis client', () => {
             client.duplicate((err, client) => {
               assert(!err)
               assert.strictEqual(client.ready, true)
-              client.quit(done)
+              client.quit().then(() => done())
             })
           })
 
@@ -134,35 +132,20 @@ describe('The nodeRedis client', () => {
               done(client)
             })
           })
-
-          it('works with a promises', () => {
-            return client.duplicateAsync().then((client) => {
-              assert.strictEqual(client.ready, true)
-              return client.quitAsync()
-            })
-          })
-
-          it('works with a promises and errors', () => {
-            return client.duplicateAsync({
-              port: 9999
-            }).catch((err) => {
-              assert.strictEqual(err.code, 'ECONNREFUSED')
-            })
-          })
         })
 
         describe('big data', () => {
           // Check if the fast mode for big strings is working correct
-          it('safe strings that are bigger than 30000 characters', (done) => {
+          it('safe strings that are bigger than 30000 characters', () => {
             let str = 'foo ಠ_ಠ bar '
             while (str.length < 111111) {
               str += str
             }
             client.set('foo', str)
-            client.get('foo', helper.isString(str, done))
+            return client.get('foo').then(helper.isString(str))
           })
 
-          it('safe strings that are bigger than 30000 characters with multi', (done) => {
+          it('safe strings that are bigger than 30000 characters with multi', () => {
             let str = 'foo ಠ_ಠ bar '
             while (str.length < 111111) {
               str += str
@@ -176,102 +159,68 @@ describe('The nodeRedis client', () => {
               assert(!client.fireStrings)
               temp(data)
             }
-            client.multi().set('foo', str).get('foo', helper.isString(str)).exec((err, res) => {
-              assert.strictEqual(err, null)
+            const promise = client.multi().set('foo', str).get('foo').exec().then((res) => {
               assert.strictEqual(called, true)
               assert.strictEqual(res[1], str)
-              done()
             })
             assert(client.fireStrings)
+            return promise
           })
         })
 
         describe('sendCommand', () => {
-          it('omitting args should be fine', (done) => {
+          it('omitting args should be fine', () => {
             client.serverInfo = {}
             client.sendCommand('info')
-            client.sendCommand('ping', (err, res) => {
-              assert.strictEqual(err, null)
+            return client.sendCommand('ping').then((res) => {
               assert.strictEqual(res, 'PONG')
               // Check if the previous info command used the internal individual info command
               assert.notDeepEqual(client.serverInfo, {})
               client.serverInfo = {}
-            })
-            client.sendCommand('info', null, undefined)
-            client.sendCommand('ping', null, (err, res) => {
-              assert.strictEqual(err, null)
-              assert.strictEqual(res, 'PONG')
-              // Check if the previous info command used the internal individual info command
-              assert.notDeepEqual(client.serverInfo, {})
-              client.serverInfo = {}
-            })
-            client.sendCommand('info', undefined, undefined)
-            client.sendCommand('ping', (err, res) => {
-              assert.strictEqual(err, null)
-              assert.strictEqual(res, 'PONG')
-              // Check if the previous info command used the internal individual info command
-              assert.notDeepEqual(client.serverInfo, {})
-              client.serverInfo = {}
-            })
-            client.sendCommand('info', undefined, (err, res) => {
-              assert.strictEqual(err, null)
-              assert(/redis_version/.test(res))
-              // The individual info command should also be called by using sendCommand
-              assert.notDeepEqual(client.serverInfo, {})
-              done()
+              client.sendCommand('ping', null).then(helper.isString('PONG'))
+              return client.sendCommand('info').then((res) => {
+                assert(/redis_version/.test(res))
+                // The individual info command should also be called by using sendCommand
+                assert.notDeepEqual(client.serverInfo, {})
+              })
             })
           })
 
-          it('using multi with sendCommand should work as individual command instead of using the internal multi', (done) => {
+          it('using multi with sendCommand should work as individual command instead of using the internal multi', () => {
             // This is necessary to keep backwards compatibility and it is the only way to handle multis as you want in nodeRedis
             client.sendCommand('multi')
-            client.sendCommand('set', ['foo', 'bar'], helper.isString('QUEUED'))
+            client.sendCommand('set', ['foo', 'bar']).then(helper.isString('QUEUED'))
             client.get('foo')
             // exec is not manipulated if not fired by the individual multi command
             // As the multi command is handled individually by the user he also has to handle the return value
-            client.exec(helper.isDeepEqual(['OK', 'bar'], done))
+            return client.exec().then(helper.isDeepEqual(['OK', 'bar']))
           })
 
-          it('multi should be handled special', (done) => {
-            client.sendCommand('multi', undefined, helper.isString('OK'))
+          it('multi should be handled special', () => {
+            client.sendCommand('multi', undefined).then(helper.isString('OK'))
             const args = ['test', 'bla']
-            client.sendCommand('set', args, helper.isString('QUEUED'))
-            assert.deepEqual(args, ['test', 'bla']) // Check args manipulation
-            client.get('test', helper.isString('QUEUED'))
+            client.sendCommand('set', args).then(helper.isString('QUEUED'))
+            assert.deepStrictEqual(args, ['test', 'bla']) // Check args manipulation
+            client.get('test').then(helper.isString('QUEUED'))
             // As the multi command is handled individually by the user he also has to handle the return value
-            client.exec(helper.isDeepEqual(['OK', 'bla'], done))
-          })
-
-          it('using another type as cb should throw', () => {
-            try {
-              client.sendCommand('set', ['test', 'bla'], [true])
-              throw new Error('failed')
-            } catch (err) {
-              assert.strictEqual(err.message, 'Wrong input type "Array" for callback function')
-            }
-            try {
-              client.sendCommand('set', ['test', 'bla'], null)
-              throw new Error('failed')
-            } catch (err) {
-              assert.strictEqual(err.message, 'Wrong input type "null" for callback function')
-            }
+            return client.exec().then(helper.isDeepEqual(['OK', 'bla']))
           })
 
           it('command argument has to be of type string', () => {
             try {
-              client.sendCommand(true, ['test', 'bla'], () => {})
+              client.sendCommand(true, ['test', 'bla'])
               throw new Error('failed')
             } catch (err) {
               assert.strictEqual(err.message, 'Wrong input type "Boolean" for command name')
             }
             try {
-              client.sendCommand(undefined, ['test', 'bla'], () => {})
+              client.sendCommand(undefined, ['test', 'bla'])
               throw new Error('failed')
             } catch (err) {
               assert.strictEqual(err.message, 'Wrong input type "undefined" for command name')
             }
             try {
-              client.sendCommand(null, ['test', 'bla'], () => {})
+              client.sendCommand(null, ['test', 'bla'])
               throw new Error('failed')
             } catch (err) {
               assert.strictEqual(err.message, 'Wrong input type "null" for command name')
@@ -287,56 +236,44 @@ describe('The nodeRedis client', () => {
             }
           })
 
-          it('passing a callback as args and as callback should throw', () => {
-            try {
-              client.sendCommand('info', () => {}, () => {})
-              throw new Error('failed')
-            } catch (err) {
-              assert.strictEqual(err.message, 'Wrong input type "Function" for args')
-            }
-          })
-
-          it('multi should be handled special', (done) => {
-            client.sendCommand('multi', undefined, helper.isString('OK'))
+          it('multi should be handled special', () => {
+            client.sendCommand('multi', undefined).then(helper.isString('OK'))
             const args = ['test', 'bla']
-            client.sendCommand('set', args, helper.isString('QUEUED'))
-            assert.deepEqual(args, ['test', 'bla']) // Check args manipulation
-            client.get('test', helper.isString('QUEUED'))
+            client.sendCommand('set', args).then(helper.isString('QUEUED'))
+            assert.deepStrictEqual(args, ['test', 'bla']) // Check args manipulation
+            client.get('test').then(helper.isString('QUEUED'))
             // As the multi command is handled individually by the user he also has to handle the return value
-            client.exec(helper.isDeepEqual(['OK', 'bla'], done))
+            return client.exec().then(helper.isDeepEqual(['OK', 'bla']))
           })
 
-          it('the args array may contain a arbitrary number of arguments', (done) => {
-            client.sendCommand('mset', ['foo', 1, 'bar', 2, 'baz', 3], helper.isString('OK'))
+          it('the args array may contain a arbitrary number of arguments', () => {
+            client.sendCommand('mset', ['foo', 1, 'bar', 2, 'baz', 3]).then(helper.isString('OK'))
             // As the multi command is handled individually by the user he also has to handle the return value
-            client.mget(['foo', 'bar', 'baz'], helper.isDeepEqual(['1', '2', '3'], done))
+            return client.mget(['foo', 'bar', 'baz']).then(helper.isDeepEqual(['1', '2', '3']))
           })
 
-          it('sendCommand with callback as args', (done) => {
-            client.sendCommand('abcdef', (err, res) => {
-              assert.strictEqual(err.message, 'ERR unknown command \'abcdef\'')
-              done()
-            })
+          it('sendCommand with callback as args', () => {
+            return client.sendCommand('abcdef').then(assert, helper.isError(/ERR unknown command 'abcdef'/))
           })
         })
 
         describe('retryUnfulfilledCommands', () => {
-          it('should retry all commands instead of returning an error if a command did not yet return after a connection loss', (done) => {
+          it('should retry all commands instead of returning an error if a command did not yet return after a connection loss', () => {
             const bclient = redis.createClient({
               retryUnfulfilledCommands: true
             })
-            bclient.blpop('blocking list 2', 5, (err, value) => {
+            const promise = bclient.blpop('blocking list 2', 5).then((value) => {
               assert.strictEqual(value[0], 'blocking list 2')
               assert.strictEqual(value[1], 'initial value')
               bclient.end(true)
-              done(err)
             })
             bclient.once('ready', () => {
               setTimeout(() => {
                 bclient.stream.destroy()
-                client.rpush('blocking list 2', 'initial value', helper.isNumber(1))
+                client.rpush('blocking list 2', 'initial value').then(helper.isNumber(1))
               }, 100)
             })
+            return promise
           })
 
           it('should retry all commands even if the offline queue is disabled', (done) => {
@@ -345,15 +282,15 @@ describe('The nodeRedis client', () => {
               retryUnfulfilledCommands: true
             })
             bclient.once('ready', () => {
-              bclient.blpop('blocking list 2', 5, (err, value) => {
+              bclient.blpop('blocking list 2', 5).then((value) => {
                 assert.strictEqual(value[0], 'blocking list 2')
                 assert.strictEqual(value[1], 'initial value')
                 bclient.end(true)
-                done(err)
+                done()
               })
               setTimeout(() => {
                 bclient.stream.destroy()
-                client.rpush('blocking list 2', 'initial value', helper.isNumber(1))
+                client.rpush('blocking list 2', 'initial value').then(helper.isNumber(1))
               }, 100)
             })
           })
@@ -367,7 +304,7 @@ describe('The nodeRedis client', () => {
                 done(new Error('failed'))
               }
             }, 20)
-            const cb = function (err, res) {
+            const cb = function (err) {
               assert(/Connection forcefully ended|The connection is already closed./.test(err.message))
               assert.strictEqual(err.code, 'NR_CLOSED')
               end()
@@ -376,7 +313,7 @@ describe('The nodeRedis client', () => {
               if (i === 10) {
                 client.end()
               }
-              client.set('foo', 'bar', cb)
+              client.set('foo', 'bar').then(assert, cb)
             }
             client.on('warning', () => {}) // Ignore deprecation message
             setTimeout(() => {
@@ -386,10 +323,8 @@ describe('The nodeRedis client', () => {
           })
 
           it('used with flush set to true', (done) => {
-            const end = helper.callFuncAfter(() => {
-              done()
-            }, 20)
-            const cb = function (err, res) {
+            const end = helper.callFuncAfter(done, 20)
+            const cb = function (err) {
               assert(/Connection forcefully ended|The connection is already closed./.test(err.message))
               end()
             }
@@ -398,106 +333,21 @@ describe('The nodeRedis client', () => {
                 client.end(true)
                 client.stream.write('foo') // Trigger an error on the closed stream that we ignore
               }
-              client.set('foo', 'bar', cb)
+              client.set('foo', 'bar').then(assert, cb)
             }
-          })
-
-          it('emits an aggregate error if no callback was present for multiple commands in debugMode', (done) => {
-            redis.debugMode = true
-            const unhookIntercept = intercept((data) => {
-              return '' // Don't print the debug messages
-            })
-            client.set('foo', 'bar')
-            client.set('baz', 'hello world')
-            client.on('error', (err) => {
-              assert(err instanceof Error)
-              assert(err instanceof redis.AbortError)
-              assert(err instanceof redis.AggregateError)
-              assert.strictEqual(err.name, 'AggregateError')
-              assert.strictEqual(err.errors.length, 2)
-              assert.strictEqual(err.message, 'Connection forcefully ended and commands aborted.')
-              assert.strictEqual(err.code, 'NR_CLOSED')
-              assert.strictEqual(err.errors[0].message, 'Connection forcefully ended and command aborted. It might have been processed.')
-              assert.strictEqual(err.errors[0].command, 'SET')
-              assert.strictEqual(err.errors[0].code, 'NR_CLOSED')
-              assert.deepEqual(err.errors[0].args, ['foo', 'bar'])
-              done()
-            })
-            client.end(true)
-            unhookIntercept()
-            redis.debugMode = false
-          })
-
-          it('emits an abort error if no callback was present for a single commands', (done) => {
-            redis.debugMode = true
-            const unhookIntercept = intercept((data) => {
-              return '' // Don't print the debug messages
-            })
-            client.set('foo', 'bar')
-            client.on('error', (err) => {
-              assert(err instanceof Error)
-              assert(err instanceof redis.AbortError)
-              assert(!(err instanceof redis.AggregateError))
-              assert.strictEqual(err.message, 'Connection forcefully ended and command aborted. It might have been processed.')
-              assert.strictEqual(err.command, 'SET')
-              assert.strictEqual(err.code, 'NR_CLOSED')
-              assert.deepEqual(err.args, ['foo', 'bar'])
-              done()
-            })
-            client.end(true)
-            unhookIntercept()
-            redis.debugMode = false
-          })
-
-          it('does not emit abort errors if no callback was present while not being in debugMode ', (done) => {
-            client.set('foo', 'bar')
-            client.end(true)
-            setTimeout(done, 100)
           })
         })
 
         describe('commands after using .quit should fail', () => {
-          it('return an error in the callback', function (done) {
-            if (helper.redisProcess().spawnFailed()) this.skip()
-
-            // TODO: Investigate why this test is failing hard and killing mocha if using '/tmp/redis.sock'.
-            // Seems like something is wrong with nyc while passing a socket connection to create client!
-            client = redis.createClient()
-            client.quit(() => {
-              client.get('foo', (err, res) => {
-                assert.strictEqual(err.message, 'Stream connection ended and command aborted. It might have been processed.')
-                assert.strictEqual(client.offlineQueue.length, 0)
-                done()
-              })
-            })
-          })
-
-          it('return an error in the callback version two', function (done) {
+          it('return an error in the callback version two', function () {
             if (helper.redisProcess().spawnFailed()) this.skip()
 
             client.quit()
-            setTimeout(() => {
-              client.get('foo', (err, res) => {
-                assert.strictEqual(err.message, 'GET can\'t be processed. The connection is already closed.')
-                assert.strictEqual(err.command, 'GET')
-                assert.strictEqual(client.offlineQueue.length, 0)
-                done()
-              })
-            }, 50)
-          })
-
-          it('emit an error', function (done) {
-            if (helper.redisProcess().spawnFailed()) this.skip()
-            client.quit()
-            client.on('error', (err) => {
-              assert.strictEqual(err.message, 'SET can\'t be processed. The connection is already closed.')
-              assert.strictEqual(err.command, 'SET')
+            return client.get('foo').then(assert, (err) => {
+              assert.strictEqual(err.message, 'GET can\'t be processed. The connection is already closed.')
+              assert.strictEqual(err.command, 'GET')
               assert.strictEqual(client.offlineQueue.length, 0)
-              done()
             })
-            setTimeout(() => {
-              client.set('foo', 'bar')
-            }, 50)
           })
         })
 
@@ -512,16 +362,15 @@ describe('The nodeRedis client', () => {
                   assert.strictEqual(Object.keys(client.serverInfo.db0).length, 3)
                   done()
                 }, 4)
-                client.get('recon 1', helper.isString('one', end))
-                client.get('recon 1', helper.isString('one', end))
-                client.get('recon 2', helper.isString('two', end))
-                client.get('recon 2', helper.isString('two', end))
+                client.get('recon 1').then(helper.isString('one')).then(end)
+                client.get('recon 1').then(helper.isString('one')).then(end)
+                client.get('recon 2').then(helper.isString('two')).then(end)
+                client.get('recon 2').then(helper.isString('two')).then(end)
               })
             })
 
             client.set('recon 1', 'one')
-            client.set('recon 2', 'two', (err, res) => {
-              assert.strictEqual(err, null)
+            client.set('recon 2', 'two').then((res) => {
               // Do not do this in normal programs. This is to simulate the server closing on us.
               // For orderly shutdown in normal programs, do client.quit()
               client.stream.destroy()
@@ -540,11 +389,9 @@ describe('The nodeRedis client', () => {
 
             assert.strictEqual(client.monitoring, false, 'monitoring off at start')
             client.set('recon 1', 'one')
-            client.monitor((err, res) => {
-              assert.strictEqual(err, null)
+            client.monitor().then((res) => {
               assert.strictEqual(client.monitoring, true, 'monitoring on after monitor()')
-              client.set('recon 2', 'two', (err, res) => {
-                assert.strictEqual(err, null)
+              client.set('recon 2', 'two').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()
                 client.stream.destroy()
@@ -556,19 +403,18 @@ describe('The nodeRedis client', () => {
             // "Connection in subscriber mode, only subscriber commands may be used"
             it('reconnects, unsubscribes, and can retrieve the pre-existing data', (done) => {
               client.on('ready', () => {
-                client.unsubscribe(helper.isNotError())
+                client.unsubscribe()
 
                 client.on('unsubscribe', (channel, count) => {
                   // we should now be out of subscriber mode.
                   assert.strictEqual(channel, 'recon channel')
                   assert.strictEqual(count, 0)
-                  client.set('foo', 'bar', helper.isString('OK', done))
+                  client.set('foo', 'bar').then(helper.isString('OK')).then(done)
                 })
               })
 
               client.set('recon 1', 'one')
-              client.subscribe('recon channel', (err, res) => {
-                assert.strictEqual(err, null)
+              client.subscribe('recon channel').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()
                 client.stream.destroy()
@@ -577,89 +423,31 @@ describe('The nodeRedis client', () => {
 
             it('reconnects, unsubscribes, and can retrieve the pre-existing data of a explicit channel', (done) => {
               client.on('ready', () => {
-                client.unsubscribe('recon channel', helper.isNotError())
+                client.unsubscribe('recon channel').then(helper.isDeepEqual([0, ['recon channel']]))
 
                 client.on('unsubscribe', (channel, count) => {
                   // we should now be out of subscriber mode.
                   assert.strictEqual(channel, 'recon channel')
                   assert.strictEqual(count, 0)
-                  client.set('foo', 'bar', helper.isString('OK', done))
+                  client.set('foo', 'bar').then(helper.isString('OK')).then(done)
                 })
               })
 
               client.set('recon 1', 'one')
-              client.subscribe('recon channel', (err, res) => {
-                assert.strictEqual(err, null)
+              client.subscribe('recon channel').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()
                 client.stream.destroy()
               })
             })
           })
-
-          describe('domain', () => {
-            it('allows client to be executed from within domain', (done) => {
-              // eslint-disable-next-line
-              var domain = require('domain').create()
-
-              domain.run(() => {
-                client.set('domain', 'value', (err, res) => {
-                  assert.strictEqual(err, null)
-                  assert.ok(process.domain)
-                  throw new Error('ohhhh noooo')
-                })
-              })
-
-              // this is the expected and desired behavior
-              domain.on('error', (err) => {
-                assert.strictEqual(err.message, 'ohhhh noooo')
-                domain.exit()
-                done()
-              })
-            })
-
-            it('keeps the same domain by using the offline queue', (done) => {
-              client.end(true)
-              client = redis.createClient()
-              // eslint-disable-next-line
-              var testDomain = require('domain').create()
-              testDomain.run(() => {
-                client.set('FOOBAR', 'def', () => {
-                  assert.strictEqual(process.domain, testDomain)
-                  done()
-                })
-              })
-              // eslint-disable-next-line
-              require('domain').create()
-            })
-
-            it('catches all errors from within the domain', (done) => {
-              // eslint-disable-next-line
-              var domain = require('domain').create()
-
-              domain.run(() => {
-                // Trigger an error within the domain
-                client.end(true)
-                client.set('domain', 'value')
-              })
-
-              domain.on('error', (err) => {
-                assert.strictEqual(err.message, 'SET can\'t be processed. The connection is already closed.')
-                domain.exit()
-                done()
-              })
-            })
-          })
         })
 
         describe('utf8', () => {
-          it('handles utf-8 keys', (done) => {
+          it('handles utf-8 keys', () => {
             const utf8Sample = 'ಠ_ಠ'
-            client.set(['utf8test', utf8Sample], helper.isString('OK'))
-            client.get(['utf8test'], (err, obj) => {
-              assert.strictEqual(utf8Sample, obj)
-              done(err)
-            })
+            client.set(['utf8test', utf8Sample]).then(helper.isString('OK'))
+            return client.get(['utf8test']).then(helper.isString(utf8Sample))
           })
         })
       })
@@ -687,13 +475,11 @@ describe('The nodeRedis client', () => {
         it('keep execution order for commands that may fire while redis is still loading', (done) => {
           client = redis.createClient.apply(null, args)
           let fired = false
-          client.set('foo', 'bar', (err, res) => {
-            assert.strictEqual(err, null)
+          client.set('foo', 'bar').then((res) => {
             assert.strictEqual(fired, false)
             done()
           })
-          client.info((err, res) => {
-            assert.strictEqual(err, null)
+          client.info().then(() => {
             fired = true
           })
         })
@@ -730,10 +516,10 @@ describe('The nodeRedis client', () => {
             assert.strictEqual(err, error)
             assert(err instanceof redis.ParserError)
             // After the hard failure work properly again. The set should have been processed properly too
-            client.get('foo', helper.isString('bar', done))
+            client.get('foo').then(helper.isString('bar')).then(done)
           })
           client.once('ready', () => {
-            client.set('foo', 'bar', (err, res) => {
+            client.set('foo', 'bar').then(assert, (err) => {
               assert.strictEqual(err.message, 'Fatal error encountered. Command aborted. It might have been processed.')
               assert.strictEqual(err.code, 'NR_FATAL')
               assert(err instanceof redis.AbortError)
@@ -759,7 +545,7 @@ describe('The nodeRedis client', () => {
             })
 
             setTimeout(() => {
-              client.set('foo', 'bar', (err, result) => {
+              client.set('foo', 'bar').then(helper.fail, (err) => {
                 if (!finished) done(err)
                 assert.strictEqual(err.message, 'Connection forcefully ended and command aborted.')
               })
@@ -772,17 +558,19 @@ describe('The nodeRedis client', () => {
             }, 50)
           })
 
+          // TODO: Fix this by adding the CONNECTION_BROKEN back in
           it.skip('enqueues operation and keep the queue while trying to reconnect', (done) => {
             client = redis.createClient(9999, null, {
               retryStrategy (options) {
                 if (options.attempt < 4) {
-                  return 200
+                  return 50
                 }
               }
             })
             let i = 0
 
             client.on('error', (err) => {
+              console.log(err)
               if (err.code === 'CONNECTION_BROKEN') {
                 assert(i, 3)
                 assert.strictEqual(client.offlineQueue.length, 0)
@@ -805,12 +593,10 @@ describe('The nodeRedis client', () => {
               assert.strictEqual(params.timesConnected, 0)
               assert(params.error instanceof Error)
               assert(typeof params.totalRetryTime === 'number')
-              assert.strictEqual(client.offlineQueue.length, 2)
+              assert.strictEqual(client.offlineQueue.length, 1)
             })
 
-            // Should work with either a callback or without
-            client.set('baz', 13)
-            client.set('foo', 'bar', (err, result) => {
+            client.set('foo', 'bar').then(assert, (err) => {
               assert(i, 3)
               assert(err)
               assert.strictEqual(client.offlineQueue.length, 0)
@@ -823,39 +609,28 @@ describe('The nodeRedis client', () => {
             client.once('ready', () => {
               const multi = client.multi()
               multi.config('bar')
-              const cb = function (err, reply) {
-                assert.strictEqual(err.code, 'UNCERTAIN_STATE')
-              }
               for (let i = 0; i < 12; i += 3) {
-                client.set(`foo${i}`, `bar${i}`)
-                multi.set(`foo${i + 1}`, `bar${i + 1}`, cb)
+                client.set(`foo${i}`, `bar${i}`).then(helper.fail, helper.isError)
+                multi.set(`foo${i + 1}`, `bar${i + 1}`)
                 multi.set(`foo${i + 2}`, `bar${i + 2}`)
               }
-              multi.exec()
+              multi.exec().then(helper.fail, (err) => {
+                assert.strictEqual(client.commandQueue.length, 0)
+                assert.strictEqual(err.errors.length, 9)
+                assert.strictEqual(err.errors[1].command, 'SET')
+                assert.deepStrictEqual(err.errors[1].args, ['foo1', 'bar1'])
+                end()
+              })
               assert.strictEqual(client.commandQueue.length, 15)
               helper.killConnection(client)
             })
 
-            const end = helper.callFuncAfter(done, 3)
+            const end = helper.callFuncAfter(done, 2)
             client.on('error', (err) => {
-              if (err.command === 'EXEC') {
-                assert.strictEqual(client.commandQueue.length, 0)
-                assert.strictEqual(err.errors.length, 9)
-                assert.strictEqual(err.errors[1].command, 'SET')
-                assert.deepEqual(err.errors[1].args, ['foo1', 'bar1'])
-                end()
-              } else if (err.code === 'UNCERTAIN_STATE') {
-                assert.strictEqual(client.commandQueue.length, 0)
-                assert.strictEqual(err.errors.length, 4)
-                assert.strictEqual(err.errors[0].command, 'SET')
-                assert.deepEqual(err.errors[0].args, ['foo0', 'bar0'])
-                end()
-              } else {
-                assert.strictEqual(err.code, 'ECONNREFUSED')
-                assert.strictEqual(err.errno, 'ECONNREFUSED')
-                assert.strictEqual(err.syscall, 'connect')
-                end()
-              }
+              assert.strictEqual(err.code, 'ECONNREFUSED')
+              assert.strictEqual(err.errno, 'ECONNREFUSED')
+              assert.strictEqual(err.syscall, 'connect')
+              end()
             })
           })
         })
@@ -867,7 +642,7 @@ describe('The nodeRedis client', () => {
             })
             client.on('ready', () => {
               client.stream.destroy()
-              client.set('foo', 'bar', (err, res) => {
+              client.set('foo', 'bar').then(assert, (err) => {
                 assert.strictEqual(err.message, 'SET can\'t be processed. Stream not writeable.')
                 done()
               })
@@ -881,65 +656,23 @@ describe('The nodeRedis client', () => {
             const end = helper.callFuncAfter(done, 3)
 
             client.on('error', (err) => {
-              assert(/offline queue is deactivated|ECONNREFUSED/.test(err.message))
+              assert(/ECONNREFUSED/.test(err.message))
               assert.strictEqual(client.commandQueue.length, 0)
               end()
             })
 
-            client.set('foo', 'bar')
+            client.set('foo', 'bar').then(helper.fail, (err) => {
+              assert(/offline queue is deactivated/.test(err.message))
+              assert.strictEqual(client.commandQueue.length, 0)
+              end()
+            })
 
             assert.doesNotThrow(() => {
-              client.set('foo', 'bar', (err) => {
+              client.set('foo', 'bar').then(assert, (err) => {
                 // should callback with an error
                 assert.ok(err)
                 setTimeout(end, 50)
               })
-            })
-          })
-
-          it('flushes the command queue if connection is lost', (done) => {
-            client = redis.createClient({
-              enableOfflineQueue: false
-            })
-
-            redis.debugMode = true
-            const unhookIntercept = intercept(() => {
-              return ''
-            })
-            client.once('ready', () => {
-              const multi = client.multi()
-              multi.config('bar')
-              const cb = function (err, reply) {
-                assert.strictEqual(err.code, 'UNCERTAIN_STATE')
-              }
-              for (let i = 0; i < 12; i += 3) {
-                client.set(`foo${i}`, `bar${i}`)
-                multi.set(`foo${i + 1}`, `bar${i + 1}`, cb)
-                multi.set(`foo${i + 2}`, `bar${i + 2}`)
-              }
-              multi.exec()
-              assert.strictEqual(client.commandQueue.length, 15)
-              helper.killConnection(client)
-            })
-
-            const end = helper.callFuncAfter(done, 3)
-            client.on('error', (err) => {
-              assert.strictEqual(client.commandQueue.length, 0)
-              if (err.command === 'EXEC') {
-                assert.strictEqual(err.errors.length, 9)
-                end()
-              } else if (err.code === 'UNCERTAIN_STATE') {
-                assert.strictEqual(err.errors.length, 4)
-                end()
-              } else {
-                assert.strictEqual(err.code, 'ECONNREFUSED')
-                assert.strictEqual(err.errno, 'ECONNREFUSED')
-                assert.strictEqual(err.syscall, 'connect')
-                redis.debugMode = false
-                client.end(true)
-                unhookIntercept()
-                end()
-              }
             })
           })
         })

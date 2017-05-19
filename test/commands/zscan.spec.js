@@ -10,14 +10,12 @@ describe('The \'zscan\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('return values', function (done) {
+      it('return values', function () {
         if (helper.redisProcess().spawnFailed()) this.skip()
         helper.serverVersionAtLeast.call(this, client, [2, 8, 0])
         const hash = {}
@@ -31,11 +29,9 @@ describe('The \'zscan\' method', () => {
         client.hmset('hash:1', hash)
         client.sadd('set:1', set)
         client.zadd(zset)
-        client.zscan('zset:1', 0, 'MATCH', '*', 'COUNT', 500, (err, res) => {
-          assert(!err)
+        return client.zscan('zset:1', 0, 'MATCH', '*', 'COUNT', 500).then((res) => {
           assert.strictEqual(res.length, 2)
           assert.strictEqual(res[1].length, 1000)
-          done()
         })
       })
 

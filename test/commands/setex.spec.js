@@ -10,21 +10,15 @@ describe('The \'setex\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('sets a key with an expiry', (done) => {
-        client.setex(['setex key', '100', 'setex val'], helper.isString('OK'))
-        client.exists(['setex key'], helper.isNumber(1))
-        client.ttl(['setex key'], (err, ttl) => {
-          assert.strictEqual(err, null)
-          assert(ttl > 0)
-          return done()
-        })
+      it('sets a key with an expiry', () => {
+        client.setex(['setex key', '100', 'setex val']).then(helper.isString('OK'))
+        client.exists(['setex key']).then(helper.isNumber(1))
+        return client.ttl(['setex key']).then(assert)
       })
 
       afterEach(() => {

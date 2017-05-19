@@ -11,24 +11,21 @@ describe('The \'keys\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushall(done)
-        })
+        return client.flushall()
       })
 
-      it('returns matching keys', (done) => {
-        client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'))
-        client.keys('test keys*', (err, results) => {
+      it('returns matching keys', () => {
+        client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2']).then(helper.isString('OK'))
+        return client.keys('test keys*').then((results) => {
           assert.strictEqual(2, results.length)
           assert.ok(~results.indexOf('test keys 1'))
           assert.ok(~results.indexOf('test keys 2'))
-          return done(err)
         })
       })
 
-      it('handles a large packet size', (done) => {
+      it('handles a large packet size', () => {
         const keysValues = []
 
         for (let i = 0; i < 200; i++) {
@@ -39,24 +36,15 @@ describe('The \'keys\' method', () => {
           keysValues.push(keyValue)
         }
 
-        client.mset(keysValues.reduce((a, b) => {
-          return a.concat(b)
-        }), helper.isString('OK'))
+        client.mset(keysValues.reduce((a, b) => a.concat(b))).then(helper.isString('OK'))
 
-        client.keys('multibulk:*', (err, results) => {
-          assert.deepEqual(keysValues.map((val) => {
-            return val[0]
-          }).sort(), results.sort())
-          return done(err)
+        return client.keys('multibulk:*').then((results) => {
+          assert.deepStrictEqual(keysValues.map((val) => val[0]).sort(), results.sort())
         })
       })
 
-      it('handles an empty response', (done) => {
-        client.keys(['users:*'], (err, results) => {
-          assert.strictEqual(results.length, 0)
-          assert.ok(Array.isArray(results))
-          return done(err)
-        })
+      it('handles an empty response', () => {
+        return client.keys(['users:*']).then(helper.isDeepEqual([]))
       })
 
       afterEach(() => {

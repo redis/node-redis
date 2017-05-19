@@ -1,6 +1,5 @@
 'use strict'
 
-const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
 const redis = config.redis
@@ -11,54 +10,36 @@ describe('The \'hmget\' method', () => {
       let client
       const hash = 'test hash'
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('error', done)
-        client.once('ready', () => {
-          client.flushdb()
-          client.hmset(hash, {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value'}, helper.isString('OK', done))
-        })
+        client.flushdb()
+        return client.hmset(hash, {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value'})
+          .then(helper.isString('OK'))
       })
 
-      it('allows keys to be specified using multiple arguments', (done) => {
-        client.hmget(hash, '0123456789', 'some manner of key', (err, reply) => {
-          assert.strictEqual('abcdefghij', reply[0].toString())
-          assert.strictEqual('a type of value', reply[1].toString())
-          return done(err)
-        })
+      it('allows keys to be specified using multiple arguments', () => {
+        return client.hmget(hash, '0123456789', 'some manner of key')
+          .then(helper.isDeepEqual(['abcdefghij', 'a type of value']))
       })
 
-      it('allows keys to be specified by passing an array without manipulating the array', (done) => {
+      it('allows keys to be specified by passing an array without manipulating the array', () => {
         const data = ['0123456789', 'some manner of key']
-        client.hmget(hash, data, (err, reply) => {
-          assert.strictEqual(data.length, 2)
-          assert.strictEqual('abcdefghij', reply[0].toString())
-          assert.strictEqual('a type of value', reply[1].toString())
-          return done(err)
-        })
+        return client.hmget(hash, data)
+          .then(helper.isDeepEqual(['abcdefghij', 'a type of value']))
       })
 
-      it('allows keys to be specified by passing an array as first argument', (done) => {
-        client.hmget([hash, '0123456789', 'some manner of key'], (err, reply) => {
-          assert.strictEqual('abcdefghij', reply[0].toString())
-          assert.strictEqual('a type of value', reply[1].toString())
-          return done(err)
-        })
+      it('allows keys to be specified by passing an array as first argument', () => {
+        return client.hmget([hash, '0123456789', 'some manner of key'])
+          .then(helper.isDeepEqual(['abcdefghij', 'a type of value']))
       })
 
-      it('allows a single key to be specified in an array', (done) => {
-        client.hmget(hash, ['0123456789'], (err, reply) => {
-          assert.strictEqual('abcdefghij', reply[0].toString())
-          return done(err)
-        })
+      it('allows a single key to be specified in an array', () => {
+        return client.hmget(hash, ['0123456789']).then(helper.isDeepEqual(['abcdefghij']))
       })
 
-      it('allows keys to be specified that have not yet been set', (done) => {
-        client.hmget(hash, 'missing thing', 'another missing thing', (err, reply) => {
-          assert.strictEqual(null, reply[0])
-          assert.strictEqual(null, reply[1])
-          return done(err)
-        })
+      it('allows keys to be specified that have not yet been set', () => {
+        return client.hmget(hash, 'missing thing', 'another missing thing')
+          .then(helper.isDeepEqual([null, null]))
       })
 
       afterEach(() => {

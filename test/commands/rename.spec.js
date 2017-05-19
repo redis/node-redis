@@ -9,23 +9,21 @@ describe('The \'rename\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('populates the new key', (done) => {
-        client.set(['foo', 'bar'], helper.isString('OK'))
-        client.rename(['foo', 'new foo'], helper.isString('OK'))
-        client.exists(['new foo'], helper.isNumber(1, done))
+      it('populates the new key', () => {
+        client.set(['foo', 'bar']).then(helper.isString('OK'))
+        client.rename(['foo', 'new foo']).then(helper.isString('OK'))
+        return client.exists(['new foo']).then(helper.isNumber(1))
       })
 
-      it('removes the old key', (done) => {
-        client.set(['foo', 'bar'], helper.isString('OK'))
-        client.rename(['foo', 'new foo'], helper.isString('OK'))
-        client.exists(['foo'], helper.isNumber(0, done))
+      it('removes the old key', () => {
+        client.set(['foo', 'bar']).then(helper.isString('OK'))
+        client.rename(['foo', 'new foo']).then(helper.isString('OK'))
+        return client.exists(['foo']).then(helper.isNumber(0))
       })
 
       afterEach(() => {

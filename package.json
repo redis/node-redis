@@ -23,7 +23,7 @@
     "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000",
     "posttest": "npm run coverage",
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt",
-    "lint": "standard --fix"
+    "lint": "eslint . --fix"
   },
   "dependencies": {
     "double-ended-queue": "^2.1.0-0",
@@ -35,7 +35,6 @@
     "node": ">=6"
   },
   "devDependencies": {
-    "bluebird": "^3.0.2",
     "coveralls": "^2.11.2",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.9",

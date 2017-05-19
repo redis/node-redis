@@ -10,46 +10,42 @@ describe('The \'sinter\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('handles two sets being intersected', (done) => {
-        client.sadd('sa', 'a', helper.isNumber(1))
-        client.sadd('sa', 'b', helper.isNumber(1))
-        client.sadd('sa', 'c', helper.isNumber(1))
+      it('handles two sets being intersected', () => {
+        client.sadd('sa', 'a').then(helper.isNumber(1))
+        client.sadd('sa', 'b').then(helper.isNumber(1))
+        client.sadd('sa', 'c').then(helper.isNumber(1))
 
-        client.sadd('sb', 'b', helper.isNumber(1))
-        client.sadd('sb', 'c', helper.isNumber(1))
-        client.sadd('sb', 'd', helper.isNumber(1))
+        client.sadd('sb', 'b').then(helper.isNumber(1))
+        client.sadd('sb', 'c').then(helper.isNumber(1))
+        client.sadd('sb', 'd').then(helper.isNumber(1))
 
-        client.sinter('sa', 'sb', (err, intersection) => {
+        return client.sinter('sa', 'sb').then((intersection) => {
           assert.strictEqual(intersection.length, 2)
-          assert.deepEqual(intersection.sort(), [ 'b', 'c' ])
-          return done(err)
+          assert.deepStrictEqual(intersection.sort(), [ 'b', 'c' ])
         })
       })
 
-      it('handles three sets being intersected', (done) => {
-        client.sadd('sa', 'a', helper.isNumber(1))
-        client.sadd('sa', 'b', helper.isNumber(1))
-        client.sadd('sa', 'c', helper.isNumber(1))
+      it('handles three sets being intersected', () => {
+        client.sadd('sa', 'a').then(helper.isNumber(1))
+        client.sadd('sa', 'b').then(helper.isNumber(1))
+        client.sadd('sa', 'c').then(helper.isNumber(1))
 
-        client.sadd('sb', 'b', helper.isNumber(1))
-        client.sadd('sb', 'c', helper.isNumber(1))
-        client.sadd('sb', 'd', helper.isNumber(1))
+        client.sadd('sb', 'b').then(helper.isNumber(1))
+        client.sadd('sb', 'c').then(helper.isNumber(1))
+        client.sadd('sb', 'd').then(helper.isNumber(1))
 
-        client.sadd('sc', 'c', helper.isNumber(1))
-        client.sadd('sc', 'd', helper.isNumber(1))
-        client.sadd('sc', 'e', helper.isNumber(1))
+        client.sadd('sc', 'c').then(helper.isNumber(1))
+        client.sadd('sc', 'd').then(helper.isNumber(1))
+        client.sadd('sc', 'e').then(helper.isNumber(1))
 
-        client.sinter('sa', 'sb', 'sc', (err, intersection) => {
+        return client.sinter('sa', 'sb', 'sc').then((intersection) => {
           assert.strictEqual(intersection.length, 1)
           assert.strictEqual(intersection[0], 'c')
-          return done(err)
         })
       })
 

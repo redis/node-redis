@@ -9,23 +9,21 @@ describe('The \'msetnx\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('if any keys exist entire operation fails', (done) => {
-        client.mset(['mset1', 'val1', 'mset2', 'val2', 'mset3', 'val3'], helper.isString('OK'))
-        client.msetnx(['mset3', 'val3', 'mset4', 'val4'], helper.isNumber(0))
-        client.exists(['mset4'], helper.isNumber(0, done))
+      it('if any keys exist entire operation fails', () => {
+        client.mset(['mset1', 'val1', 'mset2', 'val2', 'mset3', 'val3']).then(helper.isString('OK'))
+        client.msetnx(['mset3', 'val3', 'mset4', 'val4']).then(helper.isNumber(0))
+        return client.exists(['mset4']).then(helper.isNumber(0))
       })
 
-      it('sets multiple keys if all keys are not set', (done) => {
-        client.msetnx(['mset3', 'val3', 'mset4', 'val4'], helper.isNumber(1))
-        client.exists(['mset3'], helper.isNumber(1))
-        client.exists(['mset3'], helper.isNumber(1, done))
+      it('sets multiple keys if all keys are not set', () => {
+        client.msetnx(['mset3', 'val3', 'mset4', 'val4']).then(helper.isNumber(1))
+        client.exists(['mset3']).then(helper.isNumber(1))
+        return client.exists(['mset3']).then(helper.isNumber(1))
       })
 
       afterEach(() => {

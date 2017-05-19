@@ -21,19 +21,14 @@ describe('The \'mset\' method', () => {
       describe('when not connected', () => {
         let client
 
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.quit()
-          })
-          client.on('end', done)
+          return client.quit()
         })
 
-        it('reports an error', (done) => {
-          client.mset(key, value, key2, value2, (err, res) => {
-            assert(err.message.match(/The connection is already closed/))
-            done()
-          })
+        it('reports an error', () => {
+          return client.mset(key, value, key2, value2)
+            .then(assert, helper.isError(/The connection is already closed/))
         })
       })
 
@@ -42,63 +37,18 @@ describe('The \'mset\' method', () => {
 
         beforeEach((done) => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            done()
-          })
+          client.once('ready', done)
         })
 
         afterEach(() => {
           client.end(true)
         })
 
-        describe('and a callback is specified', () => {
-          describe('with valid parameters', () => {
-            it('sets the value correctly', (done) => {
-              client.mset(key, value, key2, value2, (err) => {
-                if (err) {
-                  return done(err)
-                }
-                client.get(key, helper.isString(value))
-                client.get(key2, helper.isString(value2, done))
-              })
-            })
-          })
-
-          describe('with undefined \'key\' parameter and missing \'value\' parameter', () => {
-            it('reports an error', (done) => {
-              client.mset(undefined, (err, res) => {
-                helper.isError()(err, null)
-                done()
-              })
-            })
-          })
-        })
-
-        describe('and no callback is specified', () => {
-          describe('with valid parameters', () => {
-            it('sets the value correctly', (done) => {
-              client.mset(key, value2, key2, value)
-              client.get(key, helper.isString(value2))
-              client.get(key2, helper.isString(value, done))
-            })
-
-            it('sets the value correctly with array syntax', (done) => {
-              client.mset([key, value2, key2, value])
-              client.get(key, helper.isString(value2))
-              client.get(key2, helper.isString(value, done))
-            })
-          })
-
-          describe('with undefined \'key\' and missing \'value\'  parameter', () => {
-            // this behavior is different from the 'set' behavior.
-            it('emits an error', (done) => {
-              client.on('error', (err) => {
-                assert.strictEqual(err.message, 'ERR wrong number of arguments for \'mset\' command')
-                assert.strictEqual(err.name, 'ReplyError')
-                done()
-              })
-
-              client.mset()
+        describe('with valid parameters', () => {
+          it('sets the value correctly', () => {
+            return client.mset(key, value, key2, value2).then(() => {
+              client.get(key).then(helper.isString(value))
+              return client.get(key2).then(helper.isString(value2))
             })
           })
         })

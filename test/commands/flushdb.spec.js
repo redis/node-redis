@@ -1,6 +1,5 @@
 'use strict'
 
-const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
 const redis = config.redis
@@ -19,19 +18,15 @@ describe('The \'flushdb\' method', () => {
       describe('when not connected', () => {
         let client
 
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.quit()
-          })
-          client.on('end', done)
+          return client.quit()
         })
 
-        it('reports an error', (done) => {
-          client.flushdb((err, res) => {
-            assert(err.message.match(/The connection is already closed/))
-            done()
-          })
+        it('reports an error', () => {
+          return client.flushdb()
+            .then(helper.fail)
+            .catch(helper.isError(/The connection is already closed/))
         })
       })
 
@@ -40,9 +35,7 @@ describe('The \'flushdb\' method', () => {
 
         beforeEach((done) => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            done()
-          })
+          client.once('ready', done)
         })
 
         afterEach(() => {
@@ -50,42 +43,25 @@ describe('The \'flushdb\' method', () => {
         })
 
         describe('when there is data in Redis', () => {
-          beforeEach((done) => {
-            client.mset(key, uuid.v4(), key2, uuid.v4(), helper.isNotError())
-            client.dbsize([], (err, res) => {
-              helper.isType.positiveNumber()(err, res)
-              assert.strictEqual(res, 2, 'Two keys should have been inserted')
-              done()
-            })
+          beforeEach(() => {
+            return Promise.all([
+              client.mset(key, uuid.v4(), key2, uuid.v4()).then(helper.isString('OK')),
+              client.dbsize([]).then(helper.isNumber(2))
+            ])
           })
 
-          it('deletes all the keys', (done) => {
-            client.flushdb((err, res) => {
-              assert.strictEqual(err, null)
-              assert.strictEqual(res, 'OK')
-              client.mget(key, key2, (err, res) => {
-                assert.strictEqual(null, err, 'Unexpected error returned')
-                assert.strictEqual(true, Array.isArray(res), 'Results object should be an array.')
-                assert.strictEqual(2, res.length, 'Results array should have length 2.')
-                assert.strictEqual(null, res[0], 'Redis key should have been flushed.')
-                assert.strictEqual(null, res[1], 'Redis key should have been flushed.')
-                done(err)
-              })
-            })
+          it('deletes all the keys', () => {
+            return Promise.all([
+              client.flushdb().then(helper.isString('OK')),
+              client.mget(key, key2).then(helper.isDeepEqual([null, null]))
+            ])
           })
 
-          it('results in a db size of zero', (done) => {
-            client.flushdb((err, res) => {
-              assert.strictEqual(err, null)
-              client.dbsize([], helper.isNumber(0, done))
-            })
-          })
-
-          it('results in a db size of zero without a callback', (done) => {
-            client.flushdb()
-            setTimeout(() => {
-              client.dbsize(helper.isNumber(0, done))
-            }, 25)
+          it('results in a db size of zero', () => {
+            return Promise.all([
+              client.flushdb(),
+              client.dbsize([]).then(helper.isNumber(0))
+            ])
           })
         })
       })

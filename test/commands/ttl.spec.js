@@ -10,20 +10,17 @@ describe('The \'ttl\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns the current ttl on a key', (done) => {
-        client.set(['ttl key', 'ttl val'], helper.isString('OK'))
-        client.expire(['ttl key', '100'], helper.isNumber(1))
-        client.ttl(['ttl key'], (err, ttl) => {
+      it('returns the current ttl on a key', () => {
+        client.set(['ttl key', 'ttl val']).then(helper.isString('OK'))
+        client.expire(['ttl key', '100']).then(helper.isNumber(1))
+        return client.ttl(['ttl key']).then((ttl) => {
           assert(ttl >= 99)
           assert(ttl <= 100)
-          done(err)
         })
       })
 

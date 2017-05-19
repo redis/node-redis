@@ -9,20 +9,14 @@ describe('The \'geoadd\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns 1 if the key exists', function (done) {
+      it('returns 1 if the key exists', function () {
         helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-        client.geoadd('mycity:21:0:location', '13.361389', '38.115556', 'COR', (err, res) => {
-          console.log(err, res)
-          // geoadd is still in the unstable branch. As soon as it reaches the stable one, activate this test
-          done()
-        })
+        return client.geoadd('mycity:21:0:location', '13.361389', '38.115556', 'COR')
       })
 
       afterEach(() => {

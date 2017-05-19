@@ -9,25 +9,23 @@ describe('The \'smove\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('moves a value to a set that does not yet exist', (done) => {
-        client.sadd('foo', 'x', helper.isNumber(1))
-        client.smove('foo', 'bar', 'x', helper.isNumber(1))
-        client.sismember('foo', 'x', helper.isNumber(0))
-        client.sismember('bar', 'x', helper.isNumber(1, done))
+      it('moves a value to a set that does not yet exist', () => {
+        client.sadd('foo', 'x').then(helper.isNumber(1))
+        client.smove('foo', 'bar', 'x').then(helper.isNumber(1))
+        client.sismember('foo', 'x').then(helper.isNumber(0))
+        return client.sismember('bar', 'x').then(helper.isNumber(1))
       })
 
-      it('does not move a value if it does not exist in the first set', (done) => {
-        client.sadd('foo', 'x', helper.isNumber(1))
-        client.smove('foo', 'bar', 'y', helper.isNumber(0))
-        client.sismember('foo', 'y', helper.isNumber(0))
-        client.sismember('bar', 'y', helper.isNumber(0, done))
+      it('does not move a value if it does not exist in the first set', () => {
+        client.sadd('foo', 'x').then(helper.isNumber(1))
+        client.smove('foo', 'bar', 'y').then(helper.isNumber(0))
+        client.sismember('foo', 'y').then(helper.isNumber(0))
+        return client.sismember('bar', 'y').then(helper.isNumber(0))
       })
 
       afterEach(() => {

@@ -9,22 +9,20 @@ describe('The \'setnx\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('sets key if it does not have a value', (done) => {
-        client.setnx('foo', 'banana', helper.isNumber(1))
-        client.get('foo', helper.isString('banana', done))
+      it('sets key if it does not have a value', () => {
+        client.setnx('foo', 'banana').then(helper.isNumber(1))
+        return client.get('foo').then(helper.isString('banana'))
       })
 
-      it('does not set key if it already has a value', (done) => {
-        client.set('foo', 'bar', helper.isString('OK'))
-        client.setnx('foo', 'banana', helper.isNumber(0))
-        client.get('foo', helper.isString('bar', done))
+      it('does not set key if it already has a value', () => {
+        client.set('foo', 'bar').then(helper.isString('OK'))
+        client.setnx('foo', 'banana').then(helper.isNumber(0))
+        return client.get('foo').then(helper.isString('bar'))
       })
 
       afterEach(() => {

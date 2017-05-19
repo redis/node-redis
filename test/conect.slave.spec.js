@@ -20,8 +20,8 @@ if (process.platform !== 'win32') {
       })
     })
 
-    before((done) => {
-      if (helper.redisProcess().spawnFailed()) return done()
+    before(() => {
+      if (helper.redisProcess().spawnFailed()) return
       master = redis.createClient({
         password: 'porkchopsandwiches'
       })
@@ -32,7 +32,7 @@ if (process.platform !== 'win32') {
       // Write some data in the redis instance, so there's something to sync
         multi.set(`foo${i}`, `bar${new Array(500).join(Math.random())}`)
       }
-      multi.exec(done)
+      return multi.exec()
     })
 
     it('sync process and no master should delay ready being emitted for slaves', function (done) {
@@ -50,12 +50,13 @@ if (process.platform !== 'win32') {
 
       const tmp = slave.info.bind(slave)
       let i = 0
-      slave.info = function (err, res) {
+      slave.info = function () {
         i++
-        tmp(err, res)
+        const promise = tmp()
         if (!firstInfo || Object.keys(firstInfo).length === 0) {
           firstInfo = slave.serverInfo
         }
+        return promise
       }
 
       slave.on('connect', () => {
@@ -68,9 +69,9 @@ if (process.platform !== 'win32') {
         assert.strictEqual(this.serverInfo.master_link_status, 'up')
         assert.strictEqual(firstInfo.master_link_status, 'down')
         assert(i > 1)
-        this.get('foo300', (err, res) => {
+        this.get('foo300').then((res) => {
           assert.strictEqual(res.substr(0, 3), 'bar')
-          end(err)
+          end()
         })
       })
 
@@ -85,10 +86,10 @@ if (process.platform !== 'win32') {
       const end = helper.callFuncAfter(done, 3)
       rp.stop(end)
       slave.end(true)
-      master.flushdb((err) => {
-        end(err)
+      master.flushdb().then(() => {
+        end()
         master.end(true)
-      })
+      }).catch(done)
       helper.stopRedis(() => {
         helper.startRedis('./conf/redis.conf', end)
       })

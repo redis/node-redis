@@ -2,10 +2,24 @@
 
 ## v.3.0.0-alpha1 - XX XXX, 2017
 
+Version three is mainly a release to remove a lot of old cruft and open the doors for new features again.
+It became a hassle to implement new things while supporting all the old and deprecated features.
+
+Therefore this is going to a big breaking change. For most of these there's likely not much to change,
+but some of the changes are significant like dropping support for callbacks! To mitigate this breakage
+there's a migration library you can include. It restores e.g. support for callbacks and some of the dropped
+options and it will warn you in case you use any removed feature or option.
+
+It will not restore the support for old Node.js versions, the return value of (p)(un)subscribe calls,
+the backpressure indicator and the changed connectTimeout behavior. It will also only partially restore
+snake_case support and maybe more.
+
 Breaking Changes
 
 - Dropped support for `UPPER_CASE` commands
 - Dropped support for `snake_case`
+- Dropped support for domains
+- Dropped support for Redis 2.4
 - Dropped support for Node.js < 4
 - Removed `drain` event
 - Removed `idle` event
@@ -13,6 +27,7 @@ Breaking Changes
 - Removed `retryMaxDelay` (max_delay) option
 - Removed `maxAttempts` (max_attempts) option
 - Removed `socketNoDelay` (socket_no_delay) option
+- Removed `authPass` (auth_pass) option. Please use `password` instead
 - Removed `Redis.print` helper function
 - Removed backpressure indicator from function return value
 - Changed return value of `(p)(un)subscribe`
@@ -20,6 +35,9 @@ Breaking Changes
 - Changed `connectTimeout` (connect_timeout) option
   - This timeout does not limit the total retry time anymore
   - From now on this will only set the stream timeout to connect to the host
+- Changed return value for `multi` and `batch` in case of an error
+  - If an error occurs for one of the calls, the result is from now on always going to be an error
+  - The result of all queries can be inspected on the error through the `result` attribute
 - Only emit ready when all commands were truly send to Redis
 
 ## v.2.7.2 - 14 Mar, 2017

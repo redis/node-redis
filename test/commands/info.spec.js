@@ -10,68 +10,50 @@ describe('The \'info\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushall(done)
-        })
+        return client.flushall()
       })
 
       afterEach(() => {
         client.end(true)
       })
 
-      it('update serverInfo after a info command', (done) => {
+      it('update serverInfo after a info command', () => {
         client.set('foo', 'bar')
-        client.info()
-        client.select(2, () => {
+        return client.info().then(() => {
           assert.strictEqual(client.serverInfo.db2, undefined)
+          client.select(2)
+          client.set('foo', 'bar')
+          return client.info().then(() => {
+            assert.strictEqual(typeof client.serverInfo.db2, 'object')
+          })
         })
-        client.set('foo', 'bar')
-        client.info()
-        setTimeout(() => {
-          assert.strictEqual(typeof client.serverInfo.db2, 'object')
-          done()
-        }, 30)
       })
 
-      it('works with optional section provided with and without callback', (done) => {
+      it('works with optional section provided', () => {
         client.set('foo', 'bar')
         client.info('keyspace')
-        client.select(2, () => {
+        return client.select(2).then(() => {
           assert.strictEqual(Object.keys(client.serverInfo).length, 2, 'Key length should be three')
           assert.strictEqual(typeof client.serverInfo.db0, 'object', 'db0 keyspace should be an object')
-        })
-        client.info(['keyspace'])
-        client.set('foo', 'bar')
-        client.info('all', (err, res) => {
-          assert.strictEqual(err, null)
-          assert(Object.keys(client.serverInfo).length > 3, 'Key length should be way above three')
-          assert.strictEqual(typeof client.serverInfo.redis_version, 'string')
-          assert.strictEqual(typeof client.serverInfo.db2, 'object')
-          done()
+          client.info(['keyspace'])
+          client.set('foo', 'bar')
+          return client.info('all').then((res) => {
+            assert(Object.keys(client.serverInfo).length > 3, 'Key length should be way above three')
+            assert.strictEqual(typeof client.serverInfo.redis_version, 'string')
+            assert.strictEqual(typeof client.serverInfo.db2, 'object')
+          })
         })
       })
 
-      it('check redis v.2.4 support', (done) => {
-        const end = helper.callFuncAfter(done, 2)
-        client.internalSendCommand = function (commandObj) {
-          assert.strictEqual(commandObj.args.length, 0)
-          assert.strictEqual(commandObj.command, 'info')
-          end()
-        }
-        client.info()
-        client.info(() => {})
-      })
-
-      it('emit error after a failure', (done) => {
-        client.info()
-        client.once('error', (err) => {
+      it('return error after a failure', () => {
+        const promise = client.info().then(helper.fail).catch((err) => {
           assert.strictEqual(err.code, 'UNCERTAIN_STATE')
           assert.strictEqual(err.command, 'INFO')
-          done()
         })
         client.stream.destroy()
+        return promise
       })
     })
   })

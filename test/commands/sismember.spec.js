@@ -9,20 +9,18 @@ describe('The \'sismember\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns 0 if the value is not in the set', (done) => {
-        client.sismember('foo', 'banana', helper.isNumber(0, done))
+      it('returns 0 if the value is not in the set', () => {
+        return client.sismember('foo', 'banana').then(helper.isNumber(0))
       })
 
-      it('returns 1 if the value is in the set', (done) => {
-        client.sadd('foo', 'banana', helper.isNumber(1))
-        client.sismember('foo', 'banana', helper.isNumber(1, done))
+      it('returns 1 if the value is in the set', () => {
+        client.sadd('foo', 'banana').then(helper.isNumber(1))
+        return client.sismember('foo', 'banana').then(helper.isNumber(1))
       })
 
       afterEach(() => {

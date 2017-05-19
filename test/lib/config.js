@@ -3,11 +3,6 @@
 // helpers for configuring a redis client in
 // its various modes, ipV6, ipV4, socket.
 const redis = require('../../index')
-const bluebird = require('bluebird')
-
-// Promisify everything
-bluebird.promisifyAll(redis.RedisClient.prototype)
-bluebird.promisifyAll(redis.Multi.prototype)
 
 const config = {
   redis,

@@ -1,6 +1,5 @@
 'use strict'
 
-const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
 const redis = config.redis
@@ -17,53 +16,47 @@ describe('The \'incr\' method', () => {
         })
 
         /*
-                    Number.MAX_SAFE_INTEGER === Math.pow(2, 53) - 1 === 9007199254740991
+          Number.MAX_SAFE_INTEGER === Math.pow(2, 53) - 1 === 9007199254740991
 
-                    9007199254740992 -> 9007199254740992
-                    9007199254740993 -> 9007199254740992
-                    9007199254740994 -> 9007199254740994
-                    9007199254740995 -> 9007199254740996
-                    9007199254740996 -> 9007199254740996
-                    9007199254740997 -> 9007199254740996
-                    ...
-                */
-        it('count above the safe integers as numbers', (done) => {
+          9007199254740992 -> 9007199254740992
+          9007199254740993 -> 9007199254740992
+          9007199254740994 -> 9007199254740994
+          9007199254740995 -> 9007199254740996
+          9007199254740996 -> 9007199254740996
+          9007199254740997 -> 9007199254740996
+          ...
+        */
+        it('count above the safe integers as numbers', () => {
           client = redis.createClient.apply(null, args)
           // Set a value to the maximum safe allowed javascript number (2^53) - 1
-          client.set(key, Number.MAX_SAFE_INTEGER, helper.isNotError())
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 1))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 2))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 3))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 4))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 5))
-          client.incr(key, (err, res) => {
-            helper.isNumber(Number.MAX_SAFE_INTEGER + 6)(err, res)
-            assert.strictEqual(typeof res, 'number')
-          })
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 7))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 8))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 9))
-          client.incr(key, helper.isNumber(Number.MAX_SAFE_INTEGER + 10, done))
+          client.set(key, Number.MAX_SAFE_INTEGER).then(helper.isString('OK'))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 1))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 2))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 3))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 4))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 5))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 6))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 7))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 8))
+          client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 9))
+          return client.incr(key).then(helper.isNumber(Number.MAX_SAFE_INTEGER + 10))
         })
 
-        it('count above the safe integers as strings', (done) => {
+        it('count above the safe integers as strings', () => {
           args[2].stringNumbers = true
           client = redis.createClient.apply(null, args)
           // Set a value to the maximum safe allowed javascript number (2^53)
-          client.set(key, Number.MAX_SAFE_INTEGER, helper.isNotError())
-          client.incr(key, helper.isString('9007199254740992'))
-          client.incr(key, helper.isString('9007199254740993'))
-          client.incr(key, helper.isString('9007199254740994'))
-          client.incr(key, helper.isString('9007199254740995'))
-          client.incr(key, helper.isString('9007199254740996'))
-          client.incr(key, (err, res) => {
-            helper.isString('9007199254740997')(err, res)
-            assert.strictEqual(typeof res, 'string')
-          })
-          client.incr(key, helper.isString('9007199254740998'))
-          client.incr(key, helper.isString('9007199254740999'))
-          client.incr(key, helper.isString('9007199254741000'))
-          client.incr(key, helper.isString('9007199254741001', done))
+          client.set(key, Number.MAX_SAFE_INTEGER).then(helper.isString('OK'))
+          client.incr(key).then(helper.isString('9007199254740992'))
+          client.incr(key).then(helper.isString('9007199254740993'))
+          client.incr(key).then(helper.isString('9007199254740994'))
+          client.incr(key).then(helper.isString('9007199254740995'))
+          client.incr(key).then(helper.isString('9007199254740996'))
+          client.incr(key).then(helper.isString('9007199254740997'))
+          client.incr(key).then(helper.isString('9007199254740998'))
+          client.incr(key).then(helper.isString('9007199254740999'))
+          client.incr(key).then(helper.isString('9007199254741000'))
+          return client.incr(key).then(helper.isString('9007199254741001'))
         })
       })
     })

@@ -1,6 +1,5 @@
 'use strict'
 
-const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
 const redis = config.redis
@@ -19,25 +18,15 @@ describe('The \'get\' method', () => {
       describe('when not connected', () => {
         let client
 
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.quit()
-          })
-          client.on('end', done)
+          return client.quit()
         })
 
-        it('reports an error', (done) => {
-          client.get(key, (err, res) => {
-            assert(err.message.match(/The connection is already closed/))
-            done()
-          })
-        })
-
-        it('reports an error promisified', () => {
-          return client.getAsync(key).then(assert, (err) => {
-            assert(err.message.match(/The connection is already closed/))
-          })
+        it('reports an error', () => {
+          return client.get(key)
+            .then(helper.fail)
+            .catch(helper.isError(/The connection is already closed/))
         })
       })
 
@@ -46,9 +35,7 @@ describe('The \'get\' method', () => {
 
         beforeEach((done) => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            done()
-          })
+          client.once('ready', done)
         })
 
         afterEach(() => {
@@ -56,35 +43,18 @@ describe('The \'get\' method', () => {
         })
 
         describe('when the key exists in Redis', () => {
-          beforeEach((done) => {
-            client.set(key, value, (err, res) => {
-              helper.isNotError()(err, res)
-              done()
-            })
+          beforeEach(() => {
+            return client.set(key, value).then(helper.isString('OK'))
           })
 
-          it('gets the value correctly', (done) => {
-            client.get(key, (err, res) => {
-              helper.isString(value)(err, res)
-              done(err)
-            })
-          })
-
-          it('should not throw on a get without callback (even if it\'s not useful)', (done) => {
-            client.get(key)
-            client.on('error', (err) => {
-              throw err
-            })
-            setTimeout(done, 25)
+          it('gets the value correctly', () => {
+            return client.get(key).then(helper.isString(value))
           })
         })
 
         describe('when the key does not exist in Redis', () => {
-          it('gets a null value', (done) => {
-            client.get(key, (err, res) => {
-              helper.isNull()(err, res)
-              done(err)
-            })
+          it('gets a null value', () => {
+            return client.get(key).then(helper.isNull())
           })
         })
       })

@@ -8,6 +8,14 @@ const StunnelProcess = require('./lib/stunnel-process')
 let rp
 let stunnelProcess
 
+process.on('unhandledRejection', (err, promise) => {
+  console.log(err)
+  rp.stop(() => {
+    console.log('PROCESS ENDING DUE TO AN UNHANDLED REJECTION')
+    process.exit(1)
+  })
+})
+
 function startRedis (conf, done, port) {
   RedisProcess.start((err, _rp) => {
     rp = _rp
@@ -45,6 +53,10 @@ function toString (res) {
   if (Array.isArray(res)) {
     return res.map(toString)
   }
+  // Stringify all values as well
+  if (typeof res === 'object' && res !== null) {
+    Object.keys(res).map((key) => (res[key] = toString(res[key])))
+  }
   return res
 }
 
@@ -69,91 +81,57 @@ module.exports = {
       return done(err)
     }, path.resolve(__dirname, './conf'))
   },
-  isNumber (expected, done) {
-    return function (err, results) {
-      assert.strictEqual(err, null, `expected ${expected}, got error: ${err}`)
+  isNumber (expected) {
+    return function (results) {
       results = arrayHelper(results)
-      assert.strictEqual(results, expected, `${expected  } !== ${results}`)
+      assert.strictEqual(results, expected, `${expected} !== ${results}`)
       assert.strictEqual(typeof results, 'number', `expected a number, got ${typeof results}`)
-      if (done) done()
     }
   },
-  isString (str, done) {
+  isString (str) {
     str = `${str}` // Make sure it's a string
-    return function (err, results) {
-      assert.strictEqual(err, null, `expected string '${str}', got error: ${err}`)
+    return function (results) {
       results = arrayHelper(results)
       results = toString(results)
-      assert.strictEqual(results, str, `${str  } does not match ${results}`)
-      if (done) done()
+      assert.strictEqual(results, str, `${str} does not match ${results}`)
     }
   },
-  isNull (done) {
-    return function (err, results) {
-      assert.strictEqual(err, null, `expected null, got error: ${err}`)
+  isNull () {
+    return function (results) {
       results = arrayHelper(results)
-      assert.strictEqual(results, null, `${results  } is not null`)
-      if (done) done()
+      assert.strictEqual(results, null, `${results} is not null`)
     }
   },
-  isUndefined (done) {
-    return function (err, results) {
-      assert.strictEqual(err, null, `expected null, got error: ${err}`)
+  isUndefined () {
+    return function (results) {
       results = arrayHelper(results)
-      assert.strictEqual(results, undefined, `${results  } is not undefined`)
-      if (done) done()
+      assert.strictEqual(results, undefined, `${results} is not undefined`)
     }
   },
-  isError (done) {
-    return function (err, results) {
-      assert(err instanceof Error, 'err is not instance of \'Error\', but an error is expected here.')
-      if (done) done()
-    }
-  },
-  isNotError (done) {
-    return function (err, results) {
-      assert.strictEqual(err, null, `expected success, got an error: ${err}`)
-      if (done) done()
-    }
-  },
-  isDeepEqual (args, done) {
+  isError (regex) {
     return function (err, res) {
-      assert.strictEqual(err, null, `expected null, got error: ${err}`)
+      assert.strictEqual(res, undefined, 'There should be an error, no result!')
+      assert(err instanceof Error, 'err is not instance of \'Error\', but an error is expected here.')
+      if (regex) assert(regex.test(err.message))
+    }
+  },
+  isDeepEqual (args) {
+    return function (res) {
       res = toString(res)
       assert.deepStrictEqual(res, args)
-      if (done) done()
     }
   },
-  isType: {
-    number (done) {
-      return function (err, results) {
-        assert.strictEqual(err, null, `expected any number, got error: ${err}`)
-        assert.strictEqual(typeof results, 'number', `${results  } is not a number`)
-        if (done) done()
-      }
-    },
-    string (done) {
-      return function (err, results) {
-        assert.strictEqual(err, null, `expected any string, got error: ${err}`)
-        assert.strictEqual(typeof results, 'string', `${results  } is not a string`)
-        if (done) done()
-      }
-    },
-    positiveNumber (done) {
-      return function (err, results) {
-        assert.strictEqual(err, null, `expected positive number, got error: ${err}`)
-        assert(results > 0, `${results  } is not a positive number`)
-        if (done) done()
-      }
-    }
-  },
-  match (pattern, done) {
-    return function (err, results) {
-      assert.strictEqual(err, null, `expected ${pattern.toString()}, got error: ${err}`)
+  match (pattern) {
+    return function (results) {
       results = arrayHelper(results)
       assert(pattern.test(results), `expected string '${results}' to match ${pattern.toString()}`)
-      if (done) done()
     }
+  },
+  fail (err) {
+    err = err instanceof Error
+      ? err
+      : new Error('This should not be reachable')
+    throw err
   },
   serverVersionAtLeast (connection, desiredVersion) {
     // Wait until a connection has established (otherwise a timeout is going to be triggered at some point)
@@ -212,10 +190,7 @@ module.exports = {
   },
   callFuncAfter (func, max) {
     let i = 0
-    return function (err) {
-      if (err) {
-        throw err
-      }
+    return function () {
       i++
       if (i >= max) {
         func()

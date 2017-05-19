@@ -10,21 +10,18 @@ describe('The \'smembers\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns all values in a set', (done) => {
-        client.sadd('foo', 'x', helper.isNumber(1))
-        client.sadd('foo', 'y', helper.isNumber(1))
-        client.smembers('foo', (err, values) => {
+      it('returns all values in a set', () => {
+        client.sadd('foo', 'x').then(helper.isNumber(1))
+        client.sadd('foo', 'y').then(helper.isNumber(1))
+        return client.smembers('foo').then((values) => {
           assert.strictEqual(values.length, 2)
           const members = values.sort()
-          assert.deepEqual(members, [ 'x', 'y' ])
-          return done(err)
+          assert.deepStrictEqual(members, [ 'x', 'y' ])
         })
       })
 

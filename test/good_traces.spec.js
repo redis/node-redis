@@ -2,6 +2,7 @@
 
 const assert = require('assert')
 const config = require('./lib/config')
+const helper = require('./helper')
 const fork = require('child_process').fork
 const redis = config.redis
 
@@ -46,13 +47,13 @@ describe('stack traces', () => {
   })
 
   // This is always going to return good stack traces
-  it('should always return good stack traces for rejected offline commands', (done) => {
+  it('should always return good stack traces for rejected offline commands', () => {
     const client = redis.createClient({
       enableOfflineQueue: false
     })
-    client.set('foo', (err, res) => {
+    return client.set('foo').then(helper.fail).catch((err) => {
       assert(/good_traces.spec.js/.test(err.stack))
-      client.quit(done)
+      return client.quit()
     })
   })
 })

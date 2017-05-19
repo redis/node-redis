@@ -6,7 +6,6 @@ const fs = require('fs')
 const path = require('path')
 const spawn = require('win-spawn')
 const tcpPortUsed = require('tcp-port-used')
-const bluebird = require('bluebird')
 
 // wait for redis to be listening in
 // all three modes (ipv4, ipv6, socket).
@@ -24,26 +23,28 @@ function waitForRedis (available, cb, port) {
   const id = setInterval(() => {
     if (running) return
     running = true
-    bluebird.join(
+    Promise.all([
       tcpPortUsed.check(port, '127.0.0.1'),
-      tcpPortUsed.check(port, '::1'),
-      (ipV4, ipV6) => {
-        if (ipV6 === available && ipV4 === available) {
-          if (fs.existsSync(socket) === available) {
-            clearInterval(id)
-            return cb()
-          }
-          // The same message applies for can't stop but we ignore that case
-          throw new Error(`Port ${port} is already in use. Tests can't start.\n`)
+      tcpPortUsed.check(port, '::1')
+    ]).then((ip) => {
+      const ipV4 = ip[0]
+      const ipV6 = ip[1]
+      if (ipV6 === available && ipV4 === available) {
+        if (fs.existsSync(socket) === available) {
+          clearInterval(id)
+          return cb()
         }
-        if (Date.now() - time > 6000) {
-          throw new Error(`Redis could not start on port ${port || config.PORT}\n`)
-        }
-        running = false
-      }).catch((err) => {
-        console.error(`\x1b[31m${err.stack}\x1b[0m\n`)
-        process.exit(1)
-      })
+        // The same message applies for can't stop but we ignore that case
+        throw new Error(`Port ${port} is already in use. Tests can't start.\n`)
+      }
+      if (Date.now() - time > 6000) {
+        throw new Error(`Redis could not start on port ${port || config.PORT}\n`)
+      }
+      running = false
+    }).catch((err) => {
+      console.error(`\x1b[31m${err.stack}\x1b[0m\n`)
+      process.exit(1)
+    })
   }, 100)
 }
 

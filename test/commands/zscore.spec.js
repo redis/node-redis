@@ -9,16 +9,14 @@ describe('The \'zscore\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('should return the score of member in the sorted set at key', (done) => {
+      it('should return the score of member in the sorted set at key', () => {
         client.zadd('myzset', 1, 'one')
-        client.zscore('myzset', 'one', helper.isString('1', done))
+        return client.zscore('myzset', 'one').then(helper.isString('1'))
       })
 
       afterEach(() => {

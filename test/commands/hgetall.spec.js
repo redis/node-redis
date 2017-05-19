@@ -8,69 +8,62 @@ const redis = config.redis
 
 describe('The \'hgetall\' method', () => {
   helper.allTests((ip, args) => {
+    let client
+
     describe(`using ${ip}`, () => {
-      let client
-
       describe('regular client', () => {
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.flushdb(done)
-          })
+          return client.flushdb()
         })
 
-        it('handles simple keys and values', (done) => {
-          client.hmset(['hosts', 'hasOwnProperty', '1', 'another', '23', 'home', '1234'], helper.isString('OK'))
-          client.hgetall(['hosts'], (err, obj) => {
-            assert.strictEqual(3, Object.keys(obj).length)
-            assert.strictEqual('1', obj.hasOwnProperty.toString())
-            assert.strictEqual('23', obj.another.toString())
-            assert.strictEqual('1234', obj.home.toString())
-            done(err)
-          })
+        it('handles simple keys and values', () => {
+          return Promise.all([
+            client.hmset(['hosts', 'hasOwnProperty', '1', 'another', '23', 'home', '1234']).then(helper.isString('OK')),
+            client.hgetall(['hosts']).then(helper.isDeepEqual({
+              hasOwnProperty: '1',
+              another: '23',
+              home: '1234'
+            }))
+          ])
         })
 
-        it('handles fetching keys set using an object', (done) => {
-          client.batch().hmset('msgTest', { message: 'hello' }, undefined).exec()
-          client.hgetall('msgTest', (err, obj) => {
-            assert.strictEqual(1, Object.keys(obj).length)
-            assert.strictEqual(obj.message, 'hello')
-            done(err)
-          })
+        it('handles fetching keys set using an object', () => {
+          return Promise.all([
+            client.batch().hmset('msgTest', { message: 'hello' }).exec(),
+            client.hgetall('msgTest').then(helper.isDeepEqual({ message: 'hello' }))
+          ])
         })
 
-        it('handles fetching a messing key', (done) => {
-          client.hgetall('missing', (err, obj) => {
-            assert.strictEqual(null, obj)
-            done(err)
-          })
+        it('handles fetching a messing key', () => {
+          return client.hgetall('missing').then(helper.isNull())
         })
       })
 
       describe('binary client', () => {
-        let client
         const args = config.configureClient(ip, {
           returnBuffers: true
         })
 
-        beforeEach((done) => {
+        beforeEach(() => {
           client = redis.createClient.apply(null, args)
-          client.once('ready', () => {
-            client.flushdb(done)
-          })
+          return client.flushdb()
         })
 
-        it('returns binary results', (done) => {
-          client.hmset(['bhosts', 'mjr', '1', 'another', '23', 'home', '1234', Buffer.from([0xAA, 0xBB, 0x00, 0xF0]), Buffer.from([0xCC, 0xDD, 0x00, 0xF0])], helper.isString('OK'))
-          client.hgetall('bhosts', (err, obj) => {
-            assert.strictEqual(4, Object.keys(obj).length)
-            assert.strictEqual('1', obj.mjr.toString())
-            assert.strictEqual('23', obj.another.toString())
-            assert.strictEqual('1234', obj.home.toString())
-            assert.strictEqual((Buffer.from([0xAA, 0xBB, 0x00, 0xF0])).toString('binary'), Object.keys(obj)[3])
-            assert.strictEqual((Buffer.from([0xCC, 0xDD, 0x00, 0xF0])).toString('binary'), obj[(Buffer.from([0xAA, 0xBB, 0x00, 0xF0])).toString('binary')].toString('binary'))
-            return done(err)
-          })
+        it('returns binary results', () => {
+          const weirdKey = Buffer.from([0xAA, 0xBB, 0x00, 0xF0])
+          const weirdValue = Buffer.from([0xCC, 0xDD, 0x00, 0xF0])
+          return Promise.all([
+            client.hmset(['bhosts', 'mjr', '1', 'another', '23', 'home', '1234', weirdKey, weirdValue]).then(helper.isString('OK')),
+            client.hgetall('bhosts').then((obj) => {
+              assert.strictEqual(4, Object.keys(obj).length)
+              assert.strictEqual('1', obj.mjr.toString())
+              assert.strictEqual('23', obj.another.toString())
+              assert.strictEqual('1234', obj.home.toString())
+              assert.strictEqual(weirdKey.toString('binary'), Object.keys(obj)[3])
+              assert.strictEqual(weirdValue.toString('binary'), obj[weirdKey.toString('binary')].toString('binary'))
+            })
+          ])
         })
       })
 

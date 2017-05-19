@@ -15,11 +15,9 @@ describe('The \'monitor\' method', () => {
       client.end(true)
     })
 
-    beforeEach((done) => {
+    beforeEach(() => {
       client = redis.createClient.apply(null, args)
-      client.once('connect', () => {
-        client.flushdb(done)
-      })
+      return client.flushdb()
     })
 
     it('monitors commands on all redis clients and works in the correct order', (done) => {
@@ -38,8 +36,7 @@ describe('The \'monitor\' method', () => {
 
       monitorClient.set('foo', 'bar')
       monitorClient.flushdb()
-      monitorClient.monitor((err, res) => {
-        assert.strictEqual(err, null)
+      monitorClient.monitor().then((res) => {
         assert.strictEqual(res, 'OK')
         client.mget('some', 'keys', 'foo', 'bar')
         client.set('json', JSON.stringify({
@@ -48,33 +45,28 @@ describe('The \'monitor\' method', () => {
           another: false
         }))
         client.eval('return redis.call(\'set\', \'sha\', \'test\')', 0)
-        monitorClient.get('baz', (err, res) => {
+        monitorClient.get('baz').then((res) => {
           assert.strictEqual(res, null)
-          end(err)
+          end()
         })
-        monitorClient.set('foo', 'bar" "s are " " good!"', (err, res) => {
+        monitorClient.set('foo', 'bar" "s are " " good!"').then((res) => {
           assert.strictEqual(res, 'OK')
-          end(err)
+          end()
         })
-        monitorClient.mget('foo', 'baz', (err, res) => {
+        monitorClient.mget('foo', 'baz').then((res) => {
           assert.strictEqual(res[0], 'bar" "s are " " good!"')
           assert.strictEqual(res[1], null)
-          end(err)
+          end()
         })
-        monitorClient.subscribe('foo', 'baz', (err, res) => {
-          // The return value might change in v.3
-          // assert.strictEqual(res, 'baz');
-          // TODO: Fix the return value of subscribe calls
-          end(err)
-        })
+        monitorClient.subscribe('foo', 'baz').then(() => end())
       })
 
       monitorClient.on('monitor', (time, args, rawOutput) => {
         assert.strictEqual(monitorClient.monitoring, true)
-        assert.deepEqual(args, responses.shift())
+        assert.deepStrictEqual(args, responses.shift())
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
         if (responses.length === 0) {
-          monitorClient.quit(end)
+          monitorClient.quit().then(() => end())
         }
       })
     })
@@ -88,8 +80,7 @@ describe('The \'monitor\' method', () => {
         path: '/tmp/redis.sock'
       })
 
-      monitorClient.monitor((err, res) => {
-        assert.strictEqual(err, null)
+      monitorClient.monitor().then((res) => {
         assert.strictEqual(monitorClient.monitoring, true)
         assert.strictEqual(res.inspect(), Buffer.from('OK').inspect())
         monitorClient.mget('hello', Buffer.from('world'))
@@ -98,20 +89,20 @@ describe('The \'monitor\' method', () => {
       monitorClient.on('monitor', (time, args, rawOutput) => {
         assert.strictEqual(typeof rawOutput, 'string')
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
-        assert.deepEqual(args, ['mget', 'hello', 'world'])
+        assert.deepStrictEqual(args, ['mget', 'hello', 'world'])
         // Quit immediately ends monitoring mode and therefore does not stream back the quit command
-        monitorClient.quit(done)
+        monitorClient.quit().then(() => done())
       })
     })
 
     it('monitors reconnects properly and works with the offline queue', (done) => {
       let called = false
-      client.monitor(helper.isString('OK'))
+      client.monitor().then(helper.isString('OK'))
       client.mget('hello', 'world')
       client.on('monitor', (time, args, rawOutput) => {
         assert.strictEqual(client.monitoring, true)
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
-        assert.deepEqual(args, ['mget', 'hello', 'world'])
+        assert.deepStrictEqual(args, ['mget', 'hello', 'world'])
         if (called) {
           // End after a reconnect
           return done()
@@ -125,13 +116,13 @@ describe('The \'monitor\' method', () => {
     it('monitors reconnects properly and works with the offline queue in a batch statement', (done) => {
       let called = false
       const multi = client.batch()
-      multi.monitor(helper.isString('OK'))
+      multi.monitor()
       multi.mget('hello', 'world')
-      multi.exec(helper.isDeepEqual(['OK', [null, null]]))
+      multi.exec().then(helper.isDeepEqual(['OK', [null, null]]))
       client.on('monitor', (time, args, rawOutput) => {
         assert.strictEqual(client.monitoring, true)
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
-        assert.deepEqual(args, ['mget', 'hello', 'world'])
+        assert.deepStrictEqual(args, ['mget', 'hello', 'world'])
         if (called) {
           // End after a reconnect
           return done()
@@ -143,7 +134,7 @@ describe('The \'monitor\' method', () => {
     })
 
     it('monitor activates even if the command could not be processed properly after a reconnect', (done) => {
-      client.monitor((err, res) => {
+      client.monitor().then(assert, (err) => {
         assert.strictEqual(err.code, 'UNCERTAIN_STATE')
       })
       client.on('error', () => {}) // Ignore error here
@@ -154,8 +145,7 @@ describe('The \'monitor\' method', () => {
         end()
       })
       client.on('reconnecting', () => {
-        client.get('foo', (err, res) => {
-          assert(!err)
+        client.get('foo').then((res) => {
           assert.strictEqual(client.monitoring, true)
           end()
         })
@@ -174,10 +164,9 @@ describe('The \'monitor\' method', () => {
       ]
       const pub = redis.createClient()
       pub.on('ready', () => {
-        client.monitor((err, res) => {
-          assert.strictEqual(err, null)
+        client.monitor().then((res) => {
           assert.strictEqual(res, 'OK')
-          pub.get('foo', helper.isNull())
+          pub.get('foo').then(helper.isNull())
         })
         client.subscribe('/foo', '/bar')
         client.unsubscribe('/bar')
@@ -186,21 +175,22 @@ describe('The \'monitor\' method', () => {
           client.once('ready', () => {
             pub.publish('/foo', 'hello world')
           })
-          client.set('foo', 'bar', helper.isError())
+          client.set('foo', 'bar')
+            .then(assert, helper.isError(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/))
           client.subscribe('baz')
           client.unsubscribe('baz')
         }, 150)
         let called = false
         client.on('monitor', (time, args, rawOutput) => {
-          assert.deepEqual(args, responses.shift())
+          assert.deepStrictEqual(args, responses.shift())
           assert(utils.monitorRegex.test(rawOutput), rawOutput)
           if (responses.length === 0) {
             // The publish is called right after the reconnect and the monitor is called before the message is emitted.
             // Therefore we have to wait till the next tick
             process.nextTick(() => {
               assert(called)
-              client.quit(done)
               pub.end(false)
+              client.quit().then(() => done())
             })
           }
         })

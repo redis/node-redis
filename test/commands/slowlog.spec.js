@@ -10,24 +10,21 @@ describe('The \'slowlog\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('logs operations in slowlog', (done) => {
-        client.config('set', 'slowlog-log-slower-than', 0, helper.isString('OK'))
-        client.slowlog('reset', helper.isString('OK'))
-        client.set('foo', 'bar', helper.isString('OK'))
-        client.get('foo', helper.isString('bar'))
-        client.slowlog('get', (err, res) => {
+      it('logs operations in slowlog', () => {
+        client.config('set', 'slowlog-log-slower-than', 0).then(helper.isString('OK'))
+        client.slowlog('reset').then(helper.isString('OK'))
+        client.set('foo', 'bar').then(helper.isString('OK'))
+        client.get('foo').then(helper.isString('bar'))
+        return client.slowlog('get').then((res) => {
           assert.strictEqual(res.length, 3)
           assert.strictEqual(res[0][3].length, 2)
-          assert.deepEqual(res[1][3], ['set', 'foo', 'bar'])
-          assert.deepEqual(res[2][3], ['slowlog', 'reset'])
-          return done(err)
+          assert.deepStrictEqual(res[1][3], ['set', 'foo', 'bar'])
+          assert.deepStrictEqual(res[2][3], ['slowlog', 'reset'])
         })
       })
 

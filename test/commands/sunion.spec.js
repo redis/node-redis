@@ -10,29 +10,26 @@ describe('The \'sunion\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns the union of a group of sets', (done) => {
-        client.sadd('sa', 'a', helper.isNumber(1))
-        client.sadd('sa', 'b', helper.isNumber(1))
-        client.sadd('sa', 'c', helper.isNumber(1))
+      it('returns the union of a group of sets', () => {
+        client.sadd('sa', 'a').then(helper.isNumber(1))
+        client.sadd('sa', 'b').then(helper.isNumber(1))
+        client.sadd('sa', 'c').then(helper.isNumber(1))
 
-        client.sadd('sb', 'b', helper.isNumber(1))
-        client.sadd('sb', 'c', helper.isNumber(1))
-        client.sadd('sb', 'd', helper.isNumber(1))
+        client.sadd('sb', 'b').then(helper.isNumber(1))
+        client.sadd('sb', 'c').then(helper.isNumber(1))
+        client.sadd('sb', 'd').then(helper.isNumber(1))
 
-        client.sadd('sc', 'c', helper.isNumber(1))
-        client.sadd('sc', 'd', helper.isNumber(1))
-        client.sadd('sc', 'e', helper.isNumber(1))
+        client.sadd('sc', 'c').then(helper.isNumber(1))
+        client.sadd('sc', 'd').then(helper.isNumber(1))
+        client.sadd('sc', 'e').then(helper.isNumber(1))
 
-        client.sunion('sa', 'sb', 'sc', (err, union) => {
-          assert.deepEqual(union.sort(), ['a', 'b', 'c', 'd', 'e'])
-          return done(err)
+        return client.sunion('sa', 'sb', 'sc').then((union) => {
+          assert.deepStrictEqual(union.sort(), ['a', 'b', 'c', 'd', 'e'])
         })
       })
 

@@ -12,66 +12,51 @@ describe('The \'hset\' method', () => {
       let client
       const hash = 'test hash'
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('allows a value to be set in a hash', (done) => {
+      it('allows a value to be set in a hash', () => {
         const field = Buffer.from('0123456789')
         const value = Buffer.from('abcdefghij')
 
-        client.hset(hash, field, value, helper.isNumber(1))
-        client.hget(hash, field, helper.isString(value.toString(), done))
+        client.hset(hash, field, value).then(helper.isNumber(1))
+        return client.hget(hash, field).then(helper.isString(value.toString()))
       })
 
-      it('handles an empty value', (done) => {
+      it('handles an empty value', () => {
         const field = Buffer.from('0123456789')
         const value = Buffer.from('')
 
-        client.hset(hash, field, value, helper.isNumber(1))
-        client.hget([hash, field], helper.isString('', done))
+        client.hset(hash, field, value).then(helper.isNumber(1))
+        return client.hget([hash, field]).then(helper.isString(''))
       })
 
-      it('handles empty key and value', (done) => {
+      it('handles empty key and value', () => {
         const field = Buffer.from('')
         const value = Buffer.from('')
-        client.hset([hash, field, value], (err, res) => {
-          assert.strictEqual(err, null)
-          assert.strictEqual(res, 1)
-          client.hset(hash, field, value, helper.isNumber(0, done))
-        })
+        client.hset([hash, field, value]).then(helper.isNumber(1))
+        return client.hset(hash, field, value).then(helper.isNumber(0))
       })
 
-      it('warns if someone passed a array either as field or as value', (done) => {
+      it('warns if someone passed a array either as field or as value', () => {
         const hash = 'test hash'
         const field = 'array'
         // This would be converted to "array contents" but if you use more than one entry,
         // it'll result in e.g. "array contents,second content" and this is not supported and considered harmful
         const value = ['array contents']
-        client.hmset(hash, field, value, helper.isError(done))
+        return client.hmset(hash, field, value).then(assert, helper.isError())
       })
 
-      it('does not error when a buffer and date are set as values on the same hash', (done) => {
-        const hash = 'test hash'
-        const field1 = 'buffer'
-        const value1 = Buffer.from('abcdefghij')
-        const field2 = 'date'
-        const value2 = new Date()
-
-        client.hmset(hash, field1, value1, field2, value2, helper.isString('OK', done))
+      it('does not error when a buffer and date are set as values on the same hash', () => {
+        return client.hmset('test hash', 'buffer', Buffer.from('abcdefghij'), 'data', new Date())
+          .then(helper.isString('OK'))
       })
 
-      it('does not error when a buffer and date are set as fields on the same hash', (done) => {
-        const hash = 'test hash'
-        const value1 = 'buffer'
-        const field1 = Buffer.from('abcdefghij')
-        const value2 = 'date'
-        const field2 = new Date()
-
-        client.hmset(hash, field1, value1, field2, value2, helper.isString('OK', done))
+      it('does not error when a buffer and date are set as fields on the same hash', () => {
+        return client.hmset('test hash', Buffer.from('abcdefghij'), 'buffer', new Date(), 'date')
+          .then(helper.isString('OK'))
       })
 
       afterEach(() => {

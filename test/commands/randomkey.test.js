@@ -10,18 +10,15 @@ describe('The \'randomkey\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('returns a random key', (done) => {
-        client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], helper.isString('OK'))
-        client.randomkey([], (err, results) => {
+      it('returns a random key', () => {
+        client.mset(['test keys 1', 'test val 1', 'test keys 2', 'test val 2']).then(helper.isString('OK'))
+        return client.randomkey([]).then((results) => {
           assert.strictEqual(true, /test keys.+/.test(results))
-          return done(err)
         })
       })
 

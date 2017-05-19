@@ -1,11 +1,10 @@
 'use strict'
 
-const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
 const redis = config.redis
 
-function setupData (client, done) {
+function setupData (client) {
   client.rpush('y', 'd')
   client.rpush('y', 'b')
   client.rpush('y', 'a')
@@ -29,7 +28,7 @@ function setupData (client, done) {
   client.set('p2', 'qux')
   client.set('p3', 'bux')
   client.set('p4', 'lux')
-  client.set('p9', 'tux', done)
+  return client.set('p9', 'tux')
 }
 
 describe('The \'sort\' method', () => {
@@ -37,85 +36,57 @@ describe('The \'sort\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('error', done)
-        client.once('connect', () => {
-          client.flushdb()
-          setupData(client, done)
-        })
+        client.flushdb()
+        return setupData(client)
       })
 
       describe('alphabetical', () => {
-        it('sorts in ascending alphabetical order', (done) => {
-          client.sort('y', 'asc', 'alpha', (err, sorted) => {
-            assert.deepEqual(sorted, ['a', 'b', 'c', 'd'])
-            return done(err)
-          })
+        it('sorts in ascending alphabetical order', () => {
+          return client.sort('y', 'asc', 'alpha').then(helper.isDeepEqual(['a', 'b', 'c', 'd']))
         })
 
-        it('sorts in descending alphabetical order', (done) => {
-          client.sort('y', 'desc', 'alpha', (err, sorted) => {
-            assert.deepEqual(sorted, ['d', 'c', 'b', 'a'])
-            return done(err)
-          })
+        it('sorts in descending alphabetical order', () => {
+          return client.sort('y', 'desc', 'alpha').then(helper.isDeepEqual(['d', 'c', 'b', 'a']))
         })
       })
 
       describe('numeric', () => {
-        it('sorts in ascending numeric order', (done) => {
-          client.sort('x', 'asc', (err, sorted) => {
-            assert.deepEqual(sorted, [2, 3, 4, 9])
-            return done(err)
-          })
+        it('sorts in ascending numeric order', () => {
+          return client.sort('x', 'asc').then(helper.isDeepEqual(['2', '3', '4', '9']))
         })
 
-        it('sorts in descending numeric order', (done) => {
-          client.sort('x', 'desc', (err, sorted) => {
-            assert.deepEqual(sorted, [9, 4, 3, 2])
-            return done(err)
-          })
+        it('sorts in descending numeric order', () => {
+          return client.sort('x', 'desc').then(helper.isDeepEqual(['9', '4', '3', '2']))
         })
       })
 
       describe('pattern', () => {
-        it('handles sorting with a pattern', (done) => {
-          client.sort('x', 'by', 'w*', 'asc', (err, sorted) => {
-            assert.deepEqual(sorted, [3, 9, 4, 2])
-            return done(err)
-          })
+        it('handles sorting with a pattern', () => {
+          return client.sort('x', 'by', 'w*', 'asc').then(helper.isDeepEqual(['3', '9', '4', '2']))
         })
 
-        it('handles sorting with a \'by\' pattern and 1 \'get\' pattern', (done) => {
-          client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', (err, sorted) => {
-            assert.deepEqual(sorted, ['foo', 'bar', 'baz', 'buz'])
-            return done(err)
-          })
+        it('handles sorting with a \'by\' pattern and 1 \'get\' pattern', () => {
+          return client.sort('x', 'by', 'w*', 'asc', 'get', 'o*')
+            .then(helper.isDeepEqual(['foo', 'bar', 'baz', 'buz']))
         })
 
-        it('handles sorting with a \'by\' pattern and 2 \'get\' patterns', (done) => {
-          client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*', (err, sorted) => {
-            assert.deepEqual(sorted, ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'])
-            return done(err)
-          })
+        it('handles sorting with a \'by\' pattern and 2 \'get\' patterns', () => {
+          return client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*')
+            .then(helper.isDeepEqual(['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux']))
         })
 
-        it('handles sorting with a \'by\' pattern and 2 \'get\' patterns with the array syntax', (done) => {
-          client.sort(['x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*'], (err, sorted) => {
-            assert.deepEqual(sorted, ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'])
-            return done(err)
-          })
+        it('handles sorting with a \'by\' pattern and 2 \'get\' patterns with the array syntax', () => {
+          return client.sort(['x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*'])
+            .then(helper.isDeepEqual(['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux']))
         })
 
-        it('sorting with a \'by\' pattern and 2 \'get\' patterns and stores results', (done) => {
-          client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*', 'store', 'bacon', (err) => {
-            if (err) return done(err)
-          })
+        it('sorting with a \'by\' pattern and 2 \'get\' patterns and stores results', () => {
+          client.sort('x', 'by', 'w*', 'asc', 'get', 'o*', 'get', 'p*', 'store', 'bacon')
 
-          client.lrange('bacon', 0, -1, (err, values) => {
-            assert.deepEqual(values, ['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux'])
-            return done(err)
-          })
+          return client.lrange('bacon', 0, -1)
+            .then(helper.isDeepEqual(['foo', 'bux', 'bar', 'tux', 'baz', 'lux', 'buz', 'qux']))
         })
       })
 

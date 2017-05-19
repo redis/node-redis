@@ -9,27 +9,33 @@ describe('The \'expire\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('expires key after timeout', (done) => {
-        client.set(['expiry key', 'bar'], helper.isString('OK'))
-        client.expire('expiry key', '1', helper.isNumber(1))
-        setTimeout(() => {
-          client.exists(['expiry key'], helper.isNumber(0, done))
-        }, 1050)
+      it('expires key after timeout', () => {
+        return Promise.all([
+          client.set(['expiry key', 'bar']).then(helper.isString('OK')),
+          client.expire('expiry key', '1').then(helper.isNumber(1)),
+          new Promise((resolve, reject) => {
+            setTimeout(() => {
+              resolve(client.exists(['expiry key']).then(helper.isNumber(0)))
+            }, 1050)
+          })
+        ])
       })
 
-      it('expires key after timeout with array syntax', (done) => {
-        client.set(['expiry key', 'bar'], helper.isString('OK'))
-        client.expire(['expiry key', '1'], helper.isNumber(1))
-        setTimeout(() => {
-          client.exists(['expiry key'], helper.isNumber(0, done))
-        }, 1050)
+      it('expires key after timeout with array syntax', () => {
+        return Promise.all([
+          client.set(['expiry key', 'bar']).then(helper.isString('OK')),
+          client.expire(['expiry key', '1']).then(helper.isNumber(1)),
+          new Promise((resolve, reject) => {
+            setTimeout(() => {
+              resolve(client.exists(['expiry key']).then(helper.isNumber(0)))
+            }, 1050)
+          })
+        ])
       })
 
       afterEach(() => {

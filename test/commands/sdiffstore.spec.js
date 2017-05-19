@@ -10,30 +10,25 @@ describe('The \'sdiffstore\' method', () => {
     describe(`using ${ip}`, () => {
       let client
 
-      beforeEach((done) => {
+      beforeEach(() => {
         client = redis.createClient.apply(null, args)
-        client.once('ready', () => {
-          client.flushdb(done)
-        })
+        return client.flushdb()
       })
 
-      it('calculates set difference ands stores it in a key', (done) => {
-        client.sadd('foo', 'x', helper.isNumber(1))
-        client.sadd('foo', 'a', helper.isNumber(1))
-        client.sadd('foo', 'b', helper.isNumber(1))
-        client.sadd('foo', 'c', helper.isNumber(1))
+      it('calculates set difference ands stores it in a key', () => {
+        client.sadd('foo', 'x').then(helper.isNumber(1))
+        client.sadd('foo', 'a').then(helper.isNumber(1))
+        client.sadd('foo', 'b').then(helper.isNumber(1))
+        client.sadd('foo', 'c').then(helper.isNumber(1))
+        client.sadd('bar', 'c').then(helper.isNumber(1))
+        client.sadd('baz', 'a').then(helper.isNumber(1))
+        client.sadd('baz', 'd').then(helper.isNumber(1))
 
-        client.sadd('bar', 'c', helper.isNumber(1))
+        client.sdiffstore('quux', 'foo', 'bar', 'baz').then(helper.isNumber(2))
 
-        client.sadd('baz', 'a', helper.isNumber(1))
-        client.sadd('baz', 'd', helper.isNumber(1))
-
-        client.sdiffstore('quux', 'foo', 'bar', 'baz', helper.isNumber(2))
-
-        client.smembers('quux', (err, values) => {
+        return client.smembers('quux').then((values) => {
           const members = values.sort()
-          assert.deepEqual(members, [ 'b', 'x' ])
-          return done(err)
+          assert.deepStrictEqual(members, [ 'b', 'x' ])
         })
       })
 
