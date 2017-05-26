@@ -296,7 +296,7 @@ RedisClient.prototype.warn = function (msg) {
 RedisClient.prototype.flushAndError = function (errorAttributes, options) {
   options = options || {}
   const queueNames = options.queues || ['commandQueue', 'offlineQueue'] // Flush the commandQueue first to keep the order intact
-  for (let i = 0; i < queueNames.length; i++) {
+  for (var i = 0; i < queueNames.length; i++) {
     // If the command was fired it might have been processed so far
     if (queueNames[i] === 'commandQueue') {
       errorAttributes.message += ' It might have been processed.'
@@ -304,7 +304,7 @@ RedisClient.prototype.flushAndError = function (errorAttributes, options) {
       errorAttributes.message = errorAttributes.message.replace(' It might have been processed.', '')
     }
     // Don't flush everything from the queue
-    for (let commandObj = this[queueNames[i]].shift(); commandObj; commandObj = this[queueNames[i]].shift()) {
+    for (var commandObj = this[queueNames[i]].shift(); commandObj; commandObj = this[queueNames[i]].shift()) {
       const err = new errorClasses.AbortError(errorAttributes)
       if (commandObj.error) {
         err.stack = err.stack + commandObj.error.stack.replace(/^Error.*?\n/, '\n')
@@ -456,7 +456,7 @@ RedisClient.prototype.onInfoCmd = function (res) {
     }
   }
 
-  let retryTime = +this.serverInfo.loading_eta_seconds * 1000
+  var retryTime = +this.serverInfo.loading_eta_seconds * 1000
   if (retryTime > 1000) {
     retryTime = 1000
   }
@@ -477,7 +477,7 @@ RedisClient.prototype.readyCheck = function () {
 }
 
 RedisClient.prototype.sendOfflineQueue = function () {
-  for (let commandObj = this.offlineQueue.shift(); commandObj; commandObj = this.offlineQueue.shift()) {
+  for (var commandObj = this.offlineQueue.shift(); commandObj; commandObj = this.offlineQueue.shift()) {
     debug('Sending offline command: %s', commandObj.command)
     this.internalSendCommand(commandObj)
   }
@@ -648,8 +648,8 @@ function subscribeUnsubscribe (self, reply, type) {
 
   if (commandObj.argsLength === 1 || self.subCommandsLeft === 1 || commandObj.argsLength === 0 && (count === 0 || channel === null)) {
     if (count === 0) { // unsubscribed from all channels
-      let runningCommand
-      let i = 1
+      var runningCommand
+      var i = 1
       self.pubSubMode = 0 // Deactivating pub sub mode
       // This should be a rare case and therefore handling it this way should be good performance wise for the general case
       for (runningCommand = self.commandQueue.get(i); runningCommand !== undefined; runningCommand = self.commandQueue.get(i)) {
@@ -699,7 +699,7 @@ RedisClient.prototype.returnReply = function (reply) {
   // As this is not the average use case and monitor is expensive anyway, let's change the code here, to improve
   // the average performance of all other commands in case of no monitor mode
   if (this.monitoring) {
-    let replyStr
+    var replyStr
     if (this.buffers && Buffer.isBuffer(reply)) {
       replyStr = reply.toString()
     } else {
@@ -731,8 +731,8 @@ RedisClient.prototype.returnReply = function (reply) {
 }
 
 function handleOfflineCommand (self, commandObj) {
-  let command = commandObj.command
-  let err, msg
+  var command = commandObj.command
+  var err, msg
   if (self.closing || !self.enableOfflineQueue) {
     command = command.toUpperCase()
     if (!self.closing) {
@@ -793,8 +793,8 @@ RedisClient.prototype.internalSendCommand = function (commandObj) {
 }
 
 RedisClient.prototype.writeStrings = function () {
-  let str = ''
-  for (let command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
+  var str = ''
+  for (var command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
     // Write to stream if the string is bigger than 4mb. The biggest string may be Math.pow(2, 28) - 15 chars long
     if (str.length + command.length > 4 * 1024 * 1024) {
       this.shouldBuffer = !this.stream.write(str)
@@ -808,7 +808,7 @@ RedisClient.prototype.writeStrings = function () {
 }
 
 RedisClient.prototype.writeBuffers = function () {
-  for (let command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
+  for (var command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
     this.shouldBuffer = !this.stream.write(command)
   }
 }
