@@ -40,10 +40,12 @@ function RedisClient (options, stream) {
   const cnxOptions = {}
   /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
   for (const tlsOption in options.tls) {
-    cnxOptions[tlsOption] = options.tls[tlsOption]
-    // Copy the tls options into the general options to make sure the address is set right
-    if (tlsOption === 'port' || tlsOption === 'host' || tlsOption === 'path' || tlsOption === 'family') {
-      options[tlsOption] = options.tls[tlsOption]
+    if (options.tls.hasOwnProperty(tlsOption)) {
+      cnxOptions[tlsOption] = options.tls[tlsOption]
+      // Copy the tls options into the general options to make sure the address is set right
+      if (tlsOption === 'port' || tlsOption === 'host' || tlsOption === 'path' || tlsOption === 'family') {
+        options[tlsOption] = options.tls[tlsOption]
+      }
     }
   }
   if (stream) {
@@ -69,7 +71,9 @@ function RedisClient (options, stream) {
     options.socketKeepalive = true
   }
   for (const command in options.renameCommands) {
-    options.renameCommands[command.toLowerCase()] = options.renameCommands[command]
+    if (options.renameCommands.hasOwnProperty(command)) {
+      options.renameCommands[command.toLowerCase()] = options.renameCommands[command]
+    }
   }
   options.returnBuffers = !!options.returnBuffers
   options.detectBuffers = !!options.detectBuffers
