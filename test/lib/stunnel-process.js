@@ -21,7 +21,7 @@ function StunnelProcess (confDir) {
 
   // Set up an stunnel to redis; edit the conf file to include required absolute paths
   const confFile = path.resolve(confDir, 'stunnel.conf')
-  const confText = fs.readFileSync(`${confFile}.template`).toString().replace(/__dirname,/g, confDir)
+  const confText = fs.readFileSync(`${confFile}.template`).toString().replace(/__dirname/g, confDir)
 
   fs.writeFileSync(confFile, confText)
   const stunnel = this.stunnel = spawn('stunnel', [confFile])

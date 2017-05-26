@@ -21,7 +21,7 @@ let skip = false
 // Wait until stunnel4 is in the travis whitelist
 // Check: https://github.com/travis-ci/apt-package-whitelist/issues/403
 // If this is merged, remove the travis env checks
-describe.skip('TLS connection tests', () => {
+describe('TLS connection tests', () => {
   before((done) => {
     // Print the warning when the tests run instead of while starting mocha
     if (process.platform === 'win32') {
@@ -121,7 +121,7 @@ describe.skip('TLS connection tests', () => {
         assert(/DEPTH_ZERO_SELF_SIGNED_CERT/.test(err.code || err.message), err)
         client.end(true)
       })
-      return client.set('foo', 'bar').then(helper.isError())
+      return client.set('foo', 'bar').catch(helper.isError())
     })
   })
 })
