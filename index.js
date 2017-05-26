@@ -182,6 +182,7 @@ function createParser (self) {
 
 // Attention: the function name "createStream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.createStream = function () {
+  // TODO: Remove self and use array functions instead
   const self = this
 
   // Init parser
@@ -226,7 +227,7 @@ RedisClient.prototype.createStream = function () {
 
   this.stream.on('data', (bufferFromSocket) => {
     // The bufferFromSocket.toString() has a significant impact on big chunks and therefore this should only be used if necessary
-    debug(`Net read ${self.address} id ${self.connectionId}`) // + ': ' + bufferFromSocket.toString());
+    debug('Net read %s id %s', self.address, self.connectionId) // + ': ' + bufferFromSocket.toString());
     self.replyParser.execute(bufferFromSocket)
   })
 
@@ -343,7 +344,7 @@ RedisClient.prototype.onError = function (err) {
 }
 
 RedisClient.prototype.onConnect = function () {
-  debug(`Stream connected ${this.address} id ${this.connectionId}`)
+  debug('Stream connected %s id %s', this.address, this.connectionId)
 
   this.connected = true
   this.ready = false
@@ -364,7 +365,7 @@ RedisClient.prototype.onConnect = function () {
 RedisClient.prototype.onReady = function () {
   const self = this
 
-  debug(`onReady called ${this.address} id ${this.connectionId}`)
+  debug('onReady called %s id %s', this.address, this.connectionId)
   this.ready = true
 
   this.cork = function () {
@@ -464,7 +465,7 @@ RedisClient.prototype.onInfoCmd = function (res) {
   if (retryTime > 1000) {
     retryTime = 1000
   }
-  debug(`Redis server still loading, trying again in ${retryTime}`)
+  debug('Redis server still loading, trying again in %s', retryTime)
   return new Promise((resolve) => {
     setTimeout((self) => resolve(self.readyCheck()), retryTime, this)
   })
@@ -482,7 +483,7 @@ RedisClient.prototype.readyCheck = function () {
 
 RedisClient.prototype.sendOfflineQueue = function () {
   for (let commandObj = this.offlineQueue.shift(); commandObj; commandObj = this.offlineQueue.shift()) {
-    debug(`Sending offline command: ${commandObj.command}`)
+    debug('Sending offline command: %s', commandObj.command)
     this.internalSendCommand(commandObj)
   }
 }
@@ -512,7 +513,7 @@ RedisClient.prototype.connectionGone = function (why, error) {
   }
   error = error || null
 
-  debug(`Redis connection is gone from ${why} event.`)
+  debug('Redis connection is gone from %s event.', why)
   this.connected = false
   this.ready = false
   // Deactivate cork to work with the offline queue
@@ -592,7 +593,7 @@ RedisClient.prototype.connectionGone = function (why, error) {
     })
   }
 
-  debug(`Retry connection in ${this.retryDelay} ms`)
+  debug('Retry connection in %s ms', this.retryDelay)
 
   this.retryTimer = setTimeout(retryConnection, this.retryDelay, this, error)
 }
@@ -758,7 +759,7 @@ function handleOfflineCommand (self, commandObj) {
     }
     utils.replyInOrder(self, commandObj.callback, err)
   } else {
-    debug(`Queueing ${command} for next server connection.`)
+    debug('Queueing %s for next server connection.', command)
     self.offlineQueue.push(commandObj)
   }
   self.shouldBuffer = true
@@ -904,6 +905,10 @@ RedisClient.prototype.writeBuffers = function () {
   }
 }
 
+// TODO: This can be significantly improved!
+// We can concat the string instead of using the queue
+// in most cases. This improves the performance.
+// This can only be used for strings only though.
 RedisClient.prototype.write = function (data) {
   if (this.pipeline === false) {
     this.shouldBuffer = !this.stream.write(data)
