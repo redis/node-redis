@@ -119,6 +119,7 @@ function RedisClient (options, stream) {
   this.timesConnected = 0
   this.buffers = options.returnBuffers || options.detectBuffers
   this.options = options
+  this._multi = false
   this.reply = 'ON' // Returning replies is the default
   this.retryStrategy = options.retryStrategy || function (options) {
     if (options.attempt > 100) {
@@ -619,7 +620,7 @@ RedisClient.prototype.returnError = function (err) {
 
 function normalReply (self, reply) {
   const commandObj = self.commandQueue.shift()
-  if (commandObj.command !== 'exec') {
+  if (self._multi === false) {
     reply = self.handleReply(reply, commandObj.command, commandObj.bufferArgs)
   }
   commandObj.callback(null, reply)
