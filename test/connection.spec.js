@@ -2,6 +2,7 @@
 
 const assert = require('assert')
 const config = require('./lib/config')
+const connect = require('../lib/connect')
 const helper = require('./helper')
 const redis = config.redis
 const intercept = require('intercept-stdout')
@@ -16,7 +17,7 @@ describe('connection tests', () => {
     client.end(true)
   })
 
-  it('unofficially support for a private stream', () => {
+  it('support for a private stream', () => {
     // While using a private stream, reconnecting and other features are not going to work properly.
     // Besides that some functions also have to be monkey patched to be safe from errors in this case.
     // Therefore this is not officially supported!
@@ -24,13 +25,13 @@ describe('connection tests', () => {
     client = new redis.RedisClient({
       prefix: 'test'
     }, socket)
-    assert.strictEqual(client.stream, socket)
-    assert.strictEqual(client.stream.listeners('error').length, 1)
+    assert.strictEqual(client._stream, socket)
+    assert.strictEqual(client._stream.listeners('error').length, 1)
     assert.strictEqual(client.address, '"Private stream"')
     // Pretend a reconnect event
-    client.createStream()
-    assert.strictEqual(client.stream, socket)
-    assert.strictEqual(client.stream.listeners('error').length, 1)
+    connect(client)
+    assert.strictEqual(client._stream, socket)
+    assert.strictEqual(client._stream.listeners('error').length, 1)
   })
 
   describe('quit on lost connections', () => {
@@ -127,7 +128,7 @@ describe('connection tests', () => {
         client.set('foo', 'bar').catch(helper.isError())
         client.quit().then(() => done())
         process.nextTick(() => {
-          client.stream.destroy()
+          client._stream.destroy()
         })
       })
     })
@@ -228,7 +229,7 @@ describe('connection tests', () => {
             }
           })
           setTimeout(() => {
-            client.stream.destroy()
+            client._stream.destroy()
           }, 50)
         })
       })
@@ -245,7 +246,7 @@ describe('connection tests', () => {
               return 5000
             }
           })
-          process.nextTick(() => assert.strictEqual(client.stream.listeners('timeout').length, 1))
+          process.nextTick(() => assert.strictEqual(client._stream.listeners('timeout').length, 1))
           assert.strictEqual(client.address, '10.255.255.1:6379')
           assert.strictEqual(client.connectionOptions.family, 4)
 
@@ -277,7 +278,7 @@ describe('connection tests', () => {
           assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379')
           assert.strictEqual(client.connectionOptions.family, 6)
           process.nextTick(() => {
-            assert.strictEqual(client.stream.listeners('timeout').length, 0)
+            assert.strictEqual(client._stream.listeners('timeout').length, 0)
             done()
           })
           client.end(true)
@@ -288,11 +289,11 @@ describe('connection tests', () => {
             connectTimeout: 1000
           })
           process.nextTick(() => {
-            assert.strictEqual(client.stream._idleTimeout, 1000)
+            assert.strictEqual(client._stream._idleTimeout, 1000)
           })
           client.on('connect', () => {
-            assert.strictEqual(client.stream._idleTimeout, -1)
-            assert.strictEqual(client.stream.listeners('timeout').length, 0)
+            assert.strictEqual(client._stream._idleTimeout, -1)
+            assert.strictEqual(client._stream.listeners('timeout').length, 0)
             client.on('ready', done)
           })
         })
@@ -413,24 +414,6 @@ describe('connection tests', () => {
             assert.strictEqual(Object.keys(client.serverInfo).length, 0)
             end()
           })
-        })
-
-        it('fake the stream to mock redis', () => {
-          // This is needed for libraries that want to mock the stream like fakeredis
-          const temp = redis.RedisClient.prototype.createStream
-          const createStreamString = String(temp)
-          redis.RedisClient.prototype.createStream = function () {
-            this.connected = true
-            this.ready = true
-          }
-          client = new redis.RedisClient()
-          assert.strictEqual(client.stream, undefined)
-          assert.strictEqual(client.ready, true)
-          assert.strictEqual(client.connected, true)
-          client.end = function () {}
-          assert(createStreamString !== String(redis.RedisClient.prototype.createStream))
-          redis.RedisClient.prototype.createStream = temp
-          assert(createStreamString === String(redis.RedisClient.prototype.createStream))
         })
 
         if (ip === 'IPv4') {

@@ -207,6 +207,6 @@ module.exports = {
       family: 4
     }
     client.address = '127.0.0.1:65535'
-    client.stream.destroy()
+    client._stream.destroy()
   }
 }

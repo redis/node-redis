@@ -64,7 +64,7 @@ describe('The \'select\' method', () => {
           it('selects the appropriate database after a reconnect', (done) => {
             assert.strictEqual(client.selectedDb, undefined, 'default db should be undefined')
             client.select(3)
-            client.set('foo', 'bar').then(() => client.stream.destroy())
+            client.set('foo', 'bar').then(() => client._stream.destroy())
             client.once('ready', () => {
               assert.strictEqual(client.selectedDb, 3)
               assert(typeof client.serverInfo.db3 === 'object')

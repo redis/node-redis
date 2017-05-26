@@ -173,7 +173,7 @@ describe('The \'multi\' method', () => {
 
         it('executes a pipelined multi properly after a reconnect in combination with the offline queue', (done) => {
           client.once('ready', () => {
-            client.stream.destroy()
+            client._stream.destroy()
             let called = false
             const multi1 = client.multi()
             multi1.set('m1', '123')
@@ -472,7 +472,7 @@ describe('The \'multi\' method', () => {
         })
 
         it('works properly after a reconnect. issue #897', (done) => {
-          client.stream.destroy()
+          client._stream.destroy()
           client.on('error', (err) => {
             assert.strictEqual(err.code, 'ECONNREFUSED')
           })

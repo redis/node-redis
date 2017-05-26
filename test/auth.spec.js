@@ -134,7 +134,7 @@ if (process.platform !== 'win32') {
                 }
                 clearInterval(interval)
                 interval = null
-                client.stream.destroy()
+                client._stream.destroy()
                 client.set('foo', 'bar').catch(done)
                 client.get('foo').catch(done)
                 assert.strictEqual(client.offlineQueue.length, 2)
@@ -220,7 +220,7 @@ if (process.platform !== 'win32') {
             // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
             assert.strictEqual(client.pubSubMode, 2)
             client.ping().then(() => { // Make sure all commands were properly processed already
-              client.stream.destroy()
+              client._stream.destroy()
             })
           })
         })

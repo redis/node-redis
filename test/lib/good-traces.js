@@ -15,6 +15,6 @@ client.set('foo').catch((err) => {
     })
   })
   process.nextTick(() => {
-    client.stream.destroy()
+    client._stream.destroy()
   })
 })

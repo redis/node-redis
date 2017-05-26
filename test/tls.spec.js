@@ -100,7 +100,7 @@ describe('TLS connection tests', () => {
       assert.strictEqual(client.connectionOptions.host, 'localhost')
       assert.strictEqual(client.connectionOptions.port, tlsPort)
       assert.strictEqual(client.address, `localhost:${tlsPort}`)
-      assert(client.stream.encrypted)
+      assert(client._stream.encrypted)
 
       client.set('foo', 'bar')
       return client.get('foo').then(helper.isString('bar'))

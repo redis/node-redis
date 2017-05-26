@@ -107,7 +107,7 @@ describe('The \'monitor\' method', () => {
           // End after a reconnect
           return done()
         }
-        client.stream.destroy()
+        client._stream.destroy()
         client.mget('hello', 'world')
         called = true
       })
@@ -127,7 +127,7 @@ describe('The \'monitor\' method', () => {
           // End after a reconnect
           return done()
         }
-        client.stream.destroy()
+        client._stream.destroy()
         client.mget('hello', 'world')
         called = true
       })
@@ -138,7 +138,7 @@ describe('The \'monitor\' method', () => {
         assert.strictEqual(err.code, 'UNCERTAIN_STATE')
       })
       client.on('error', () => {}) // Ignore error here
-      client.stream.destroy()
+      client._stream.destroy()
       const end = helper.callFuncAfter(done, 2)
       client.on('monitor', (time, args, rawOutput) => {
         assert.strictEqual(client.monitoring, true)
@@ -171,7 +171,7 @@ describe('The \'monitor\' method', () => {
         client.subscribe('/foo', '/bar')
         client.unsubscribe('/bar')
         setTimeout(() => {
-          client.stream.destroy()
+          client._stream.destroy()
           client.once('ready', () => {
             pub.publish('/foo', 'hello world')
           })

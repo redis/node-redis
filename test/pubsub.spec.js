@@ -41,7 +41,7 @@ describe('publish/subscribe', () => {
                 return done(new Error('Test failed'))
               }
               assert.strictEqual(2, count)
-              sub.stream.destroy()
+              sub._stream.destroy()
             }
           })
 
@@ -95,7 +95,7 @@ describe('publish/subscribe', () => {
             if (chnl === channel2) {
               assert.strictEqual(2, count)
               if (a) return done()
-              sub.stream.destroy()
+              sub._stream.destroy()
             }
           })
 
@@ -118,7 +118,7 @@ describe('publish/subscribe', () => {
               if (a) {
                 return done()
               }
-              sub.stream.destroy()
+              sub._stream.destroy()
             }
           })
 
@@ -205,7 +205,7 @@ describe('publish/subscribe', () => {
             assert.strictEqual(channel, channels[n])
             assert.strictEqual(message, msg[n])
             if (count === 2) return done()
-            sub.stream.end()
+            sub._stream.end()
           })
 
           sub.select(3)
@@ -229,7 +229,7 @@ describe('publish/subscribe', () => {
           sub.mget('foo', 'bar', 'baz', 'hello', 'world').then(helper.isDeepEqual(['bar', null, null, null, null]))
           sub.subscribe('somechannel', 'another channel').then((res) => {
             end()
-            sub.stream.destroy()
+            sub._stream.destroy()
           })
           assert(sub.ready)
           sub.on('ready', () => {
@@ -273,7 +273,7 @@ describe('publish/subscribe', () => {
           sub.batch().unsubscribe(['/bar']).exec().then(() => {
             pub.pubsub('channels').then((res) => {
               helper.isDeepEqual(['/foo'])(res)
-              sub.stream.destroy()
+              sub._stream.destroy()
               sub.once('ready', () => {
                 pub.pubsub('channels').then((res) => {
                   helper.isDeepEqual(['/foo'])(res)
@@ -459,7 +459,7 @@ describe('publish/subscribe', () => {
           const data = Array(10000).join('äüs^öéÉÉ`e')
           sub.set('foo', data).then(() => {
             sub.get('foo')
-            sub.stream.once('data', () => {
+            sub._stream.once('data', () => {
               assert.strictEqual(sub.messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
               sub.on('pmessageBuffer', (pattern, channel, message) => {

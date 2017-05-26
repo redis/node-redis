@@ -8,7 +8,7 @@ const intercept = require('intercept-stdout')
 
 describe('The \'blpop\' method', () => {
   helper.allTests((ip, args) => {
-    describe(`using ${ip}`, () => {
+    describe.only(`using ${ip}`, () => {
       let client
       let bclient
 

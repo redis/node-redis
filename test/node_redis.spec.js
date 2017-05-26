@@ -21,8 +21,8 @@ describe('The nodeRedis client', () => {
       // Check that every entry RedisClient entry has a correspondent Multi entry
       assert.strictEqual(clientPrototype.filter((entry) => {
         return !multiPrototype.includes(entry.replace('RedisClient', 'Multi'))
-      }).length, 2) // multi and batch are included too
-      assert.strictEqual(clientPrototype.length, multiPrototype.length + 2)
+      }).length, 0)
+      assert.strictEqual(clientPrototype.length, multiPrototype.length)
       // Check that all entries exist only in lowercase variants
       assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-z][a-zA-Z_]+/g).length, clientPrototype.length)
       done()
@@ -46,14 +46,14 @@ describe('The nodeRedis client', () => {
     })
     client.once('reconnecting', () => {
       process.nextTick(() => {
-        assert.strictEqual(client.replyParser.buffer, null)
+        assert.strictEqual(client._replyParser.buffer, null)
         done()
       })
     })
     const partialInput = Buffer.from('$100\r\nabcdef')
-    client.replyParser.execute(partialInput)
-    assert.strictEqual(client.replyParser.buffer.inspect(), partialInput.inspect())
-    client.stream.destroy()
+    client._replyParser.execute(partialInput)
+    assert.strictEqual(client._replyParser.buffer.inspect(), partialInput.inspect())
+    client._stream.destroy()
   })
 
   helper.allTests((ip, args) => {
@@ -260,7 +260,7 @@ describe('The nodeRedis client', () => {
             })
             bclient.once('ready', () => {
               setTimeout(() => {
-                bclient.stream.destroy()
+                bclient._stream.destroy()
                 client.rpush('blocking list 2', 'initial value').then(helper.isNumber(1))
               }, 100)
             })
@@ -280,7 +280,7 @@ describe('The nodeRedis client', () => {
                 done()
               })
               setTimeout(() => {
-                bclient.stream.destroy()
+                bclient._stream.destroy()
                 client.rpush('blocking list 2', 'initial value').then(helper.isNumber(1))
               }, 100)
             })
@@ -288,29 +288,13 @@ describe('The nodeRedis client', () => {
         })
 
         describe('.end', () => {
-          it('used without flush / flush set to false', (done) => {
-            let finished = false
-            const end = helper.callFuncAfter(() => {
-              if (!finished) {
-                done(new Error('failed'))
-              }
-            }, 20)
-            const cb = function (err) {
-              assert(/Connection forcefully ended|The connection is already closed./.test(err.message))
-              assert.strictEqual(err.code, 'NR_CLOSED')
-              end()
+          it('used without flush / flush set to false', () => {
+            try {
+              client.end()
+              throw new Error('failed')
+            } catch (e) {
+              assert(e instanceof TypeError)
             }
-            for (let i = 0; i < 20; i++) {
-              if (i === 10) {
-                client.end()
-              }
-              client.set('foo', 'bar').then(assert, cb)
-            }
-            client.on('warning', () => {}) // Ignore deprecation message
-            setTimeout(() => {
-              finished = true
-              done()
-            }, 25)
           })
 
           it('used with flush set to true', (done) => {
@@ -322,7 +306,7 @@ describe('The nodeRedis client', () => {
             for (let i = 0; i < 20; i++) {
               if (i === 10) {
                 client.end(true)
-                client.stream.write('foo') // Trigger an error on the closed stream that we ignore
+                client._stream.write('foo') // Trigger an error on the closed stream that we ignore
               }
               client.set('foo', 'bar').then(assert, cb)
             }
@@ -364,7 +348,7 @@ describe('The nodeRedis client', () => {
             client.set('recon 2', 'two').then((res) => {
               // Do not do this in normal programs. This is to simulate the server closing on us.
               // For orderly shutdown in normal programs, do client.quit()
-              client.stream.destroy()
+              client._stream.destroy()
             })
           })
 
@@ -385,7 +369,7 @@ describe('The nodeRedis client', () => {
               client.set('recon 2', 'two').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()
-                client.stream.destroy()
+                client._stream.destroy()
               })
             })
           })
@@ -408,7 +392,7 @@ describe('The nodeRedis client', () => {
               client.subscribe('recon channel').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()
-                client.stream.destroy()
+                client._stream.destroy()
               })
             })
 
@@ -428,7 +412,7 @@ describe('The nodeRedis client', () => {
               client.subscribe('recon channel').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()
-                client.stream.destroy()
+                client._stream.destroy()
               })
             })
           })
@@ -510,7 +494,7 @@ describe('The nodeRedis client', () => {
             client.get('foo').then(helper.isString('bar')).then(done)
           })
           client.once('ready', () => {
-            client.set('foo', 'bar').then(assert, (err) => {
+            client.set('foo', 'bar').then(helper.fail, (err) => {
               assert.strictEqual(err.message, 'Fatal error encountered. Command aborted. It might have been processed.')
               assert.strictEqual(err.code, 'NR_FATAL')
               assert(err instanceof redis.AbortError)
@@ -520,7 +504,7 @@ describe('The nodeRedis client', () => {
             // ready is called in a reply
             process.nextTick(() => {
               // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
-              client.replyParser.execute(Buffer.from('a*1\r*1\r$1`zasd\r\na'))
+              client._replyParser.execute(Buffer.from('a*1\r*1\r$1`zasd\r\na'))
             })
           })
         })
@@ -632,7 +616,7 @@ describe('The nodeRedis client', () => {
               enableOfflineQueue: false
             })
             client.on('ready', () => {
-              client.stream.destroy()
+              client._stream.destroy()
               client.set('foo', 'bar').then(assert, (err) => {
                 assert.strictEqual(err.message, 'SET can\'t be processed. Stream not writeable.')
                 done()

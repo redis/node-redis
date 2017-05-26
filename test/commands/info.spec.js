@@ -52,7 +52,7 @@ describe('The \'info\' method', () => {
           assert.strictEqual(err.code, 'UNCERTAIN_STATE')
           assert.strictEqual(err.command, 'INFO')
         })
-        client.stream.destroy()
+        client._stream.destroy()
         return promise
       })
     })
