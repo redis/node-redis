@@ -1,6 +1,6 @@
 'use strict'
 
-// helper to start and stop the stunnel process.
+// Helper to start and stop the stunnel process.
 const spawn = require('child_process').spawn
 const EventEmitter = require('events')
 const fs = require('fs')
@@ -19,38 +19,37 @@ function once (cb) {
 function StunnelProcess (confDir) {
   EventEmitter.call(this)
 
-  // set up an stunnel to redis; edit the conf file to include required absolute paths
+  // Set up an stunnel to redis; edit the conf file to include required absolute paths
   const confFile = path.resolve(confDir, 'stunnel.conf')
-  const confText = fs.readFileSync(`${confFile  }.template`).toString().replace(/__dirname,/g, confDir)
+  const confText = fs.readFileSync(`${confFile}.template`).toString().replace(/__dirname,/g, confDir)
 
   fs.writeFileSync(confFile, confText)
   const stunnel = this.stunnel = spawn('stunnel', [confFile])
 
-  // handle child process events, and failure to set up tunnel
-  const self = this
+  // Handle child process events, and failure to set up tunnel
   this.timer = setTimeout(() => {
-    self.emit('error', new Error('Timeout waiting for stunnel to start'))
+    this.emit('error', new Error('Timeout waiting for stunnel to start'))
   }, 8000)
 
   stunnel.on('error', (err) => {
-    self.clear()
-    self.emit('error', err)
+    this.clear()
+    this.emit('error', err)
   })
 
   stunnel.on('exit', (code) => {
-    self.clear()
+    this.clear()
     if (code === 0) {
-      self.emit('stopped')
+      this.emit('stopped')
     } else {
-      self.emit('error', new Error(`Stunnel exited unexpectedly; code = ${code}`))
+      this.emit('error', new Error(`Stunnel exited unexpectedly; code = ${code}`))
     }
   })
 
-  // wait to stunnel to start
-  stunnel.stderr.on('data', function (data) {
+  // Wait to stunnel to start
+  stunnel.stderr.on('data', (data) => {
     if (data.toString().match(/Service.+redis.+bound/)) {
       clearTimeout(this.timer)
-      self.emit('started')
+      this.emit('started')
     }
   })
 }

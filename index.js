@@ -51,7 +51,6 @@ function RedisClient (options, stream) {
   options = utils.clone(options)
   EventEmitter.call(this)
   const cnxOptions = {}
-  const self = this
   /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
   for (const tlsOption in options.tls) {
     cnxOptions[tlsOption] = options.tls[tlsOption]
@@ -89,7 +88,7 @@ function RedisClient (options, stream) {
   options.detectBuffers = !!options.detectBuffers
   // Override the detectBuffers setting if returnBuffers is active and print a warning
   if (options.returnBuffers && options.detectBuffers) {
-    self.warn('WARNING: You activated returnBuffers and detectBuffers at the same time. The return value is always going to be a buffer.')
+    this.warn('WARNING: You activated returnBuffers and detectBuffers at the same time. The return value is always going to be a buffer.')
     options.detectBuffers = false
   }
   if (options.detectBuffers) {
@@ -184,9 +183,6 @@ function createParser (self) {
 
 // Attention: the function name "createStream" should not be changed, as other libraries need this to mock the stream (e.g. fakeredis)
 RedisClient.prototype.createStream = function () {
-  // TODO: Remove self and use array functions instead
-  const self = this
-
   // Init parser
   this.replyParser = createParser(this)
 
@@ -215,7 +211,7 @@ RedisClient.prototype.createStream = function () {
     // TODO: Investigate why this is not properly triggered
     this.stream.setTimeout(this.connectTimeout, () => {
       // Note: This is only tested if a internet connection is established
-      self.connectionGone('timeout')
+      this.connectionGone('timeout')
     })
   }
 
@@ -223,32 +219,32 @@ RedisClient.prototype.createStream = function () {
   const connectEvent = this.options.tls ? 'secureConnect' : 'connect'
   this.stream.once(connectEvent, () => {
     this.stream.removeAllListeners('timeout')
-    self.timesConnected++
-    self.onConnect()
+    this.timesConnected++
+    this.onConnect()
   })
 
   this.stream.on('data', (bufferFromSocket) => {
     // The bufferFromSocket.toString() has a significant impact on big chunks and therefore this should only be used if necessary
-    debug('Net read %s id %s', self.address, self.connectionId) // + ': ' + bufferFromSocket.toString());
-    self.replyParser.execute(bufferFromSocket)
+    debug('Net read %s id %s', this.address, this.connectionId) // + ': ' + bufferFromSocket.toString());
+    this.replyParser.execute(bufferFromSocket)
   })
 
   this.stream.on('error', (err) => {
-    self.onError(err)
+    this.onError(err)
   })
 
   /* istanbul ignore next: difficult to test and not important as long as we keep this listener */
   this.stream.on('clientError', (err) => {
     debug('clientError occurred')
-    self.onError(err)
+    this.onError(err)
   })
 
   this.stream.once('close', (hadError) => {
-    self.connectionGone('close')
+    this.connectionGone('close')
   })
 
   this.stream.once('end', () => {
-    self.connectionGone('end')
+    this.connectionGone('end')
   })
 
   this.stream.setNoDelay()
@@ -285,12 +281,11 @@ RedisClient.prototype.initializeRetryVars = function () {
 }
 
 RedisClient.prototype.warn = function (msg) {
-  const self = this
   // Warn on the next tick. Otherwise no event listener can be added
   // for warnings that are emitted in the redis client constructor
   process.nextTick(() => {
-    if (self.listeners('warning').length !== 0) {
-      self.emit('warning', msg)
+    if (this.listeners('warning').length !== 0) {
+      this.emit('warning', msg)
     } else {
       console.warn('nodeRedis:', msg)
     }
@@ -365,25 +360,23 @@ RedisClient.prototype.onConnect = function () {
 }
 
 RedisClient.prototype.onReady = function () {
-  const self = this
-
   debug('onReady called %s id %s', this.address, this.connectionId)
   this.ready = true
 
-  this.cork = function () {
-    self.pipeline = true
-    self.stream.cork()
+  this.cork = () => {
+    this.pipeline = true
+    this.stream.cork()
   }
-  this.uncork = function () {
-    if (self.fireStrings) {
-      self.writeStrings()
+  this.uncork = () => {
+    if (this.fireStrings) {
+      this.writeStrings()
     } else {
-      self.writeBuffers()
+      this.writeBuffers()
     }
-    self.pipeline = false
-    self.fireStrings = true
+    this.pipeline = false
+    this.fireStrings = true
     // TODO: Consider using next tick here. See https://github.com/NodeRedis/nodeRedis/issues/1033
-    self.stream.uncork()
+    this.stream.uncork()
   }
 
   // Restore modal commands from previous connection. The order of the commands is important

@@ -70,12 +70,11 @@ Test.prototype.run = function (callback) {
 }
 
 Test.prototype.newClient = function (id) {
-  const self = this
   const newClient = redis.createClient(this.clientOptions)
   newClient.createTime = Date.now()
 
   newClient.on('connect', () => {
-    self.connectLatency.update(Date.now() - newClient.createTime)
+    this.connectLatency.update(Date.now() - newClient.createTime)
   })
 
   newClient.on('ready', () => {
@@ -88,10 +87,10 @@ Test.prototype.newClient = function (id) {
       ].join(', '))
       versionsLogged = true
     }
-    self.readyLatency.update(Date.now() - newClient.createTime)
-    self.clientsReady++
-    if (self.clientsReady === self.clients.length) {
-      self.onClientsReady()
+    this.readyLatency.update(Date.now() - newClient.createTime)
+    this.clientsReady++
+    if (this.clientsReady === this.clients.length) {
+      this.onClientsReady()
     }
   })
 
@@ -113,7 +112,7 @@ Test.prototype.newClient = function (id) {
     }, path.resolve(__dirname, conf))
   })
 
-  self.clients[id] = newClient
+  this.clients[id] = newClient
 }
 
 Test.prototype.onClientsReady = function () {
@@ -147,7 +146,6 @@ Test.prototype.fillPipeline = function () {
 }
 
 Test.prototype.batch = function () {
-  const self = this
   const curClient = clientNr++ % this.clients.length
   const start = process.hrtime()
   let i = 0
@@ -159,19 +157,17 @@ Test.prototype.batch = function () {
   }
 
   batch.exec().then((res) => {
-    self.commandsCompleted += res.length
-    self.commandLatency.update(process.hrtime(start)[1])
-    return self.fillPipeline()
+    this.commandsCompleted += res.length
+    this.commandLatency.update(process.hrtime(start)[1])
+    return this.fillPipeline()
   })
 }
 
 Test.prototype.stopClients = function () {
-  const self = this
-
   return Promise.all(this.clients.map((client, pos) => {
-    if (pos === self.clients.length - 1) {
+    if (pos === this.clients.length - 1) {
       return client.quit().then((res) => {
-        self.callback()
+        this.callback()
       })
     }
     return client.quit()
@@ -179,14 +175,13 @@ Test.prototype.stopClients = function () {
 }
 
 Test.prototype.sendNext = function () {
-  const self = this
   const curClient = this.commandsSent % this.clients.length
   const start = process.hrtime()
 
   this.clients[curClient][this.args.command](this.args.args).then((res) => {
-    self.commandsCompleted++
-    self.commandLatency.update(process.hrtime(start)[1])
-    return self.fillPipeline()
+    this.commandsCompleted++
+    this.commandLatency.update(process.hrtime(start)[1])
+    return this.fillPipeline()
   })
 }
 
