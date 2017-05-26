@@ -209,15 +209,17 @@ if (process.platform !== 'win32') {
           client.set('foo', 'bar')
           client.subscribe('somechannel', 'another channel').then(() => {
             assert.strictEqual(client.pubSubMode, 1)
-            client.get('foo').catch((err) => {
-              assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message))
-              done()
+            client.once('ready', () => {
+              client.get('foo').catch((err) => {
+                assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message))
+                done()
+              })
             })
           })
           client.once('ready', () => {
-          // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
+            // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
             assert.strictEqual(client.pubSubMode, 2)
-            client.ping(() => { // Make sure all commands were properly processed already
+            client.ping().then(() => { // Make sure all commands were properly processed already
               client.stream.destroy()
             })
           })

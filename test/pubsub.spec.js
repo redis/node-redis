@@ -506,7 +506,7 @@ describe('publish/subscribe', () => {
         })
 
         it('executes when punsubscribe is called and there are no subscriptions', () => {
-          return pub.batch().punsubscribe(helper.isDeepEqual([0, []])).exec()
+          return pub.batch().punsubscribe().exec().then(helper.isDeepEqual([[0, []]]))
         })
       })
 

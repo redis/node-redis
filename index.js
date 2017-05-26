@@ -19,6 +19,7 @@ const Parser = require('redis-parser')
 const Errors = require('redis-errors')
 const debug = require('./lib/debug')
 const unifyOptions = require('./lib/createClient')
+const normalizeAndWriteCommand = require('./lib/writeCommands')
 const SUBSCRIBE_COMMANDS = {
   subscribe: true,
   unsubscribe: true,
@@ -115,6 +116,7 @@ function RedisClient (options, stream) {
   this.fireStrings = true // Determine if strings or buffers should be written to the stream
   this.pipeline = false
   this.subCommandsLeft = 0
+  this.renameCommands = options.renameCommands || {}
   this.timesConnected = 0
   this.buffers = options.returnBuffers || options.detectBuffers
   this.options = options
@@ -651,7 +653,7 @@ function subscribeUnsubscribe (self, reply, type) {
     self.subscribeChannels.push(channel)
   }
 
-  if (commandObj.args.length === 1 || self.subCommandsLeft === 1 || commandObj.args.length === 0 && (count === 0 || channel === null)) {
+  if (commandObj.argsLength === 1 || self.subCommandsLeft === 1 || commandObj.argsLength === 0 && (count === 0 || channel === null)) {
     if (count === 0) { // unsubscribed from all channels
       let runningCommand
       let i = 1
@@ -673,7 +675,7 @@ function subscribeUnsubscribe (self, reply, type) {
     if (self.subCommandsLeft !== 0) {
       self.subCommandsLeft--
     } else {
-      self.subCommandsLeft = commandObj.args.length ? commandObj.args.length - 1 : count
+      self.subCommandsLeft = commandObj.argsLength ? commandObj.argsLength - 1 : count
     }
   }
 }
@@ -768,101 +770,14 @@ function handleOfflineCommand (self, commandObj) {
 // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
 // e.g. monitor / info does not work with internalSendCommand only
 RedisClient.prototype.internalSendCommand = function (commandObj) {
-  let arg, prefixKeys
-  let i = 0
-  let commandStr = ''
-  const args = commandObj.args
-  let command = commandObj.command
-  const len = args.length
-  let bigData = false
-  const argsCopy = new Array(len)
-
   if (this.ready === false || this.stream.writable === false) {
     // Handle offline commands right away
     handleOfflineCommand(this, commandObj)
     return commandObj.promise
   }
 
-  // TODO: Refactor this to also accept SET, MAP and ArrayBuffer
-  // TODO: Add a utility function to create errors with all necessary params
-  for (i = 0; i < len; i += 1) {
-    if (typeof args[i] === 'string') {
-      // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
-      if (args[i].length > 30000) {
-        bigData = true
-        argsCopy[i] = Buffer.from(args[i])
-      } else {
-        argsCopy[i] = args[i]
-      }
-    } else if (typeof args[i] === 'object') { // Checking for object instead of Buffer.isBuffer helps us finding data types that we can't handle properly
-      if (args[i] instanceof Date) { // Accept dates as valid input
-        argsCopy[i] = args[i].toString()
-      } else if (args[i] === null) {
-        const err = new TypeError('The command contains a "null" argument but NodeRedis can only handle strings, numbers and buffers.')
-        err.command = command.toUpperCase()
-        err.args = args
-        utils.replyInOrder(this, commandObj.callback, err, undefined, this.commandQueue)
-        return commandObj.promise
-      } else if (Buffer.isBuffer(args[i])) {
-        argsCopy[i] = args[i]
-        commandObj.bufferArgs = true
-        bigData = true
-      } else {
-        const err = new TypeError('The command contains a argument of type "' + args[i].constructor.name + '" but NodeRedis can only handle strings, numbers, and buffers.')
-        err.command = command.toUpperCase()
-        err.args = args
-        utils.replyInOrder(this, commandObj.callback, err, undefined, this.commandQueue)
-        return commandObj.promise
-      }
-    } else if (typeof args[i] === 'undefined') {
-      const err = new TypeError('The command contains a "undefined" argument but NodeRedis can only handle strings, numbers and buffers.')
-      err.command = command.toUpperCase()
-      err.args = args
-      utils.replyInOrder(this, commandObj.callback, err, undefined, this.commandQueue)
-      return commandObj.promise
-    } else {
-      // Seems like numbers are converted fast using string concatenation
-      argsCopy[i] = `${args[i]}`
-    }
-  }
+  normalizeAndWriteCommand(this, commandObj)
 
-  if (this.options.prefix) {
-    prefixKeys = commands.getKeyIndexes(command, argsCopy)
-    for (i = prefixKeys.pop(); i !== undefined; i = prefixKeys.pop()) {
-      argsCopy[i] = this.options.prefix + argsCopy[i]
-    }
-  }
-  if (this.options.renameCommands !== undefined && this.options.renameCommands[command]) {
-    command = this.options.renameCommands[command]
-  }
-  // Always use 'Multi bulk commands', but if passed any Buffer args, then do multiple writes, one for each arg.
-  // This means that using Buffers in commands is going to be slower, so use Strings if you don't already have a Buffer.
-  commandStr = `*${len + 1}\r\n$${command.length}\r\n${command}\r\n`
-
-  if (bigData === false) { // Build up a string and send entire command in one write
-    for (i = 0; i < len; i += 1) {
-      arg = argsCopy[i]
-      commandStr += `$${Buffer.byteLength(arg)}\r\n${arg}\r\n`
-    }
-    debug(`Send ${this.address} id ${this.connectionId}: ${commandStr}`)
-    this.write(commandStr)
-  } else {
-    debug(`Send command (${commandStr}) has Buffer arguments`)
-    this.fireStrings = false
-    this.write(commandStr)
-
-    for (i = 0; i < len; i += 1) {
-      arg = argsCopy[i]
-      if (typeof arg === 'string') {
-        this.write(`$${Buffer.byteLength(arg)}\r\n${arg}\r\n`)
-      } else { // buffer
-        this.write(`$${arg.length}\r\n`)
-        this.write(arg)
-        this.write('\r\n')
-      }
-      debug(`sendCommand: buffer send ${arg.length} bytes`)
-    }
-  }
   if (commandObj.callOnWrite) {
     commandObj.callOnWrite()
   }

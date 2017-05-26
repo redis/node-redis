@@ -152,12 +152,12 @@ describe('The \'batch\' method', () => {
             ['hmset', arr3],
             ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
             ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}],
-            ['hmset', 'batchhmset', ['batchbar', 'batchbaz']],
-            ['hmset', 'batchhmset', ['batchbar', 'batchbaz']]
+            ['hmset', new Set(['batchhmset', ['batchbar', 'batchbaz']])],
+            ['hmset', ['batchhmset'], new Map([['batchbar', 'batchbaz']])]
           ])
-            .hmget(now, 123456789, 'otherTypes')
+            .hmget(now, 123456789, ['otherTypes'])
             .hmget('key2', arr2)
-            .hmget(['batchhmset2', 'some manner of key', 'batchbar3'])
+            .hmget(['batchhmset2', ['some manner of key', 'batchbar3']])
             .mget('batchfoo2', ['batchfoo3', 'batchfoo'])
             .exec().then((replies) => {
               assert.strictEqual(arr.length, 3)

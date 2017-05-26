@@ -16,15 +16,15 @@ describe('The nodeRedis client', () => {
     // Therefor individual commands always have to be handled in both cases
     fs.readFile(path.resolve(__dirname, '../lib/individualCommands.js'), 'utf8', (err, data) => {
       assert.strictEqual(err, null)
-      const clientPrototype = data.match(/(\n| = )RedisClient\.prototype.[a-zA-Z_]+/g)
-      const multiPrototype = data.match(/(\n| = )Multi\.prototype\.[a-zA-Z_]+/g)
+      const clientPrototype = data.match(/(\n| = )RedisClient\.prototype.[a-z][a-zA-Z_]+/g)
+      const multiPrototype = data.match(/(\n| = )Multi\.prototype\.[a-z][a-zA-Z_]+/g)
       // Check that every entry RedisClient entry has a correspondent Multi entry
       assert.strictEqual(clientPrototype.filter((entry) => {
-        return multiPrototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1
-      }).length, 3) // multi and batch are included too
-      assert.strictEqual(clientPrototype.length, multiPrototype.length + 3)
+        return !multiPrototype.includes(entry.replace('RedisClient', 'Multi'))
+      }).length, 2) // multi and batch are included too
+      assert.strictEqual(clientPrototype.length, multiPrototype.length + 2)
       // Check that all entries exist only in lowercase variants
-      assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-zA-Z_]+/g).length, clientPrototype.length)
+      assert.strictEqual(data.match(/(\n| = )RedisClient\.prototype.[a-z][a-zA-Z_]+/g).length, clientPrototype.length)
       done()
     })
   })
@@ -135,16 +135,8 @@ describe('The nodeRedis client', () => {
 
         describe('big data', () => {
           // Check if the fast mode for big strings is working correct
-          it('safe strings that are bigger than 30000 characters', () => {
-            let str = 'foo ಠ_ಠ bar '
-            while (str.length < 111111) {
-              str += str
-            }
-            client.set('foo', str)
-            return client.get('foo').then(helper.isString(str))
-          })
-
-          it('safe strings that are bigger than 30000 characters with multi', () => {
+          // TODO: Evaluate if this is still necessary after the refactoring
+          it.skip('safe strings that are bigger than 30000 characters with multi', () => {
             let str = 'foo ಠ_ಠ bar '
             while (str.length < 111111) {
               str += str
