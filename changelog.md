@@ -44,6 +44,10 @@ Breaking Changes
     going to be an error
   - The result of all queries can be inspected on the error through the `result`
     attribute
+- Changed the name of two functions
+  - `restore-asking` is now `restore_asking_`
+  - `host:` is now `host`
+- Using `.end` without the flush parameter is now going to throw an TypeError
 - Only emit ready when all commands were truly send to Redis
 
 ## v.2.7.2 - 14 Mar, 2017
