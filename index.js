@@ -10,7 +10,7 @@ const Buffer = require('buffer').Buffer
 const net = require('net')
 const util = require('util')
 const utils = require('./lib/utils')
-const Command = require('./lib/command')
+const reconnect = require('./lib/reconnect')
 const Queue = require('denque')
 const errorClasses = require('./lib/customErrors')
 const EventEmitter = require('events')
@@ -30,19 +30,6 @@ const SUBSCRIBE_COMMANDS = {
 }
 
 function noop () {}
-
-function handleDetectBuffersReply (reply, command, bufferArgs) {
-  if (bufferArgs === false || this.messageBuffers) {
-    // If detectBuffers option was specified, then the reply from the parser will be a buffer.
-    // If this command did not use Buffer arguments, then convert the reply to Strings here.
-    reply = utils.replyToStrings(reply)
-  }
-
-  if (command === 'hgetall') {
-    reply = utils.replyToObject(reply)
-  }
-  return reply
-}
 
 // Attention: The second parameter might be removed at will and is not officially supported.
 // Do not rely on this
@@ -93,10 +80,6 @@ function RedisClient (options, stream) {
     )
     options.detectBuffers = false
   }
-  if (options.detectBuffers) {
-    // We only need to look at the arguments if we do not know what we have to return
-    this.handleReply = handleDetectBuffersReply
-  }
   this.shouldBuffer = false
   this.commandQueue = new Queue() // Holds sent commands to de-pipeline them
   this.offlineQueue = new Queue() // Holds commands issued but not able to be sent
@@ -137,7 +120,6 @@ function RedisClient (options, stream) {
   this.on('newListener', function (event) {
     if ((event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.messageBuffers) {
       this.messageBuffers = true
-      this.handleReply = handleDetectBuffersReply
       this._replyParser.setReturnBuffers(true)
     }
   })
@@ -153,13 +135,6 @@ RedisClient.connectionId = 0
     functions in nodeRedis v.3
 
 ******************************************************************************/
-
-RedisClient.prototype.handleReply = function (reply, command) {
-  if (command === 'hgetall') {
-    reply = utils.replyToObject(reply)
-  }
-  return reply
-}
 
 RedisClient.prototype.cork = noop
 RedisClient.prototype.uncork = noop
@@ -216,143 +191,7 @@ RedisClient.prototype.onError = function (err) {
   }
   // 'error' events get turned into exceptions if they aren't listened for. If the user handled this error
   // then we should try to reconnect.
-  this.connectionGone('error', err)
-}
-
-RedisClient.prototype.onConnect = function () {
-  debug('Stream connected %s id %s', this.address, this.connectionId)
-
-  this.connected = true
-  this.ready = false
-  this.emittedEnd = false
-  this._stream.setKeepAlive(this.options.socketKeepalive)
-  this._stream.setTimeout(0)
-
-  this.emit('connect')
-  this.initializeRetryVars()
-
-  if (this.options.noReadyCheck) {
-    this.onReady()
-  } else {
-    this.readyCheck()
-  }
-}
-
-RedisClient.prototype.onReady = function () {
-  debug('onReady called %s id %s', this.address, this.connectionId)
-  this.ready = true
-
-  this.cork = () => {
-    this.pipeline = true
-    this._stream.cork()
-  }
-  this.uncork = () => {
-    if (this.fireStrings) {
-      this.writeStrings()
-    } else {
-      this.writeBuffers()
-    }
-    this.pipeline = false
-    this.fireStrings = true
-    // TODO: Consider using next tick here. See https://github.com/NodeRedis/nodeRedis/issues/1033
-    this._stream.uncork()
-  }
-
-  // Restore modal commands from previous connection. The order of the commands is important
-  if (this.selectedDb !== undefined) {
-    this.internalSendCommand(new Command('select', [this.selectedDb])).catch((err) => {
-      if (!this.closing) {
-        // TODO: These internal things should be wrapped in a
-        // special error that describes what is happening
-        process.nextTick(() => this.emit('error', err))
-      }
-    })
-  }
-  if (this.monitoring) { // Monitor has to be fired before pub sub commands
-    this.internalSendCommand(new Command('monitor', [])).catch((err) => {
-      if (!this.closing) {
-        process.nextTick(() => this.emit('error', err))
-      }
-    })
-  }
-  const callbackCount = Object.keys(this.subscriptionSet).length
-  // TODO: Replace the disableResubscribing by a individual function that may be called
-  // Add HOOKS!!!
-  // Replace the disableResubscribing by:
-  // resubmit: {
-  //   select: true,
-  //   monitor: true,
-  //   subscriptions: true,
-  //   // individual: function noop () {}
-  // }
-  if (!this.options.disableResubscribing && callbackCount) {
-    debug('Sending pub/sub onReady commands')
-    for (const key in this.subscriptionSet) {
-      const command = key.slice(0, key.indexOf('_'))
-      const args = this.subscriptionSet[key]
-      this[command]([args]).catch((err) => {
-        if (!this.closing) {
-          process.nextTick(() => this.emit('error', err))
-        }
-      })
-    }
-  }
-  this.sendOfflineQueue()
-  this.emit('ready')
-}
-
-RedisClient.prototype.onInfoFail = function (err) {
-  if (this.closing) {
-    return
-  }
-
-  if (err.message === "ERR unknown command 'info'") {
-    this.onReady()
-    return
-  }
-  err.message = `Ready check failed: ${err.message}`
-  this.emit('error', err)
-  return
-}
-
-RedisClient.prototype.onInfoCmd = function (res) {
-  /* istanbul ignore if: some servers might not respond with any info data. This is just a safety check that is difficult to test */
-  if (!res) {
-    debug('The info command returned without any data.')
-    this.onReady()
-    return
-  }
-
-  if (!this.serverInfo.loading || this.serverInfo.loading === '0') {
-    // If the master_link_status exists but the link is not up, try again after 50 ms
-    if (this.serverInfo.master_link_status && this.serverInfo.master_link_status !== 'up') {
-      this.serverInfo.loading_eta_seconds = 0.05
-    } else {
-      // Eta loading should change
-      debug('Redis server ready.')
-      this.onReady()
-      return
-    }
-  }
-
-  var retryTime = +this.serverInfo.loading_eta_seconds * 1000
-  if (retryTime > 1000) {
-    retryTime = 1000
-  }
-  debug('Redis server still loading, trying again in %s', retryTime)
-  return new Promise((resolve) => {
-    setTimeout((self) => resolve(self.readyCheck()), retryTime, this)
-  })
-}
-
-RedisClient.prototype.readyCheck = function () {
-  debug('Checking server ready state...')
-  // Always fire this info command as first command even if other commands are already queued up
-  this.ready = true
-  this.info()
-    .then((res) => this.onInfoCmd(res))
-    .catch((err) => this.onInfoFail(err))
-  this.ready = false
+  reconnect(this, 'error', err)
 }
 
 RedisClient.prototype.sendOfflineQueue = function () {
@@ -360,116 +199,6 @@ RedisClient.prototype.sendOfflineQueue = function () {
     debug('Sending offline command: %s', commandObj.command)
     this.internalSendCommand(commandObj)
   }
-}
-
-const retryConnection = function (self, error) {
-  debug('Retrying connection...')
-
-  const reconnectParams = {
-    delay: self.retryDelay,
-    attempt: self.attempts,
-    error,
-    totalRetryTime: self.retryTotaltime,
-    timesConnected: self.timesConnected
-  }
-  self.emit('reconnecting', reconnectParams)
-
-  self.retryTotaltime += self.retryDelay
-  self.attempts += 1
-  connect(self)
-  self.retryTimer = null
-}
-
-RedisClient.prototype.connectionGone = function (why, error) {
-  // If a retry is already in progress, just let that happen
-  if (this.retryTimer) {
-    return
-  }
-  error = error || null
-
-  debug('Redis connection is gone from %s event.', why)
-  this.connected = false
-  this.ready = false
-  // Deactivate cork to work with the offline queue
-  this.cork = noop
-  this.uncork = noop
-  this.pipeline = false
-  this.pubSubMode = 0
-
-  // since we are collapsing end and close, users don't expect to be called twice
-  if (!this.emittedEnd) {
-    this.emit('end')
-    this.emittedEnd = true
-  }
-
-  if (why === 'timeout') {
-    var message = 'Redis connection in broken state: connection timeout exceeded.'
-    const err = new Error(message)
-    // TODO: Find better error codes...
-    err.code = 'CONNECTION_BROKEN'
-    this.flushAndError({
-      message: message,
-      code: 'CONNECTION_BROKEN'
-    })
-    this.emit('error', err)
-    this.end(false)
-    return
-  }
-
-  // If this is a requested shutdown, then don't retry
-  if (this.closing) {
-    debug('Connection ended by quit / end command, not retrying.')
-    this.flushAndError({
-      message: 'Stream connection ended and command aborted.',
-      code: 'NR_CLOSED'
-    }, {
-      error
-    })
-    return
-  }
-
-  this.retryDelay = this.retryStrategy({
-    attempt: this.attempts,
-    error,
-    totalRetryTime: this.retryTotaltime,
-    timesConnected: this.timesConnected
-  })
-  if (typeof this.retryDelay !== 'number') {
-    // Pass individual error through
-    if (this.retryDelay instanceof Error) {
-      error = this.retryDelay
-    }
-    this.flushAndError({
-      message: 'Stream connection ended and command aborted.',
-      code: 'NR_CLOSED'
-    }, {
-      error
-    })
-    // TODO: Check if this is so smart
-    if (error) {
-      this.emit('error', error)
-    }
-    this.end(false)
-    return
-  }
-
-  // Retry commands after a reconnect instead of throwing an error. Use this with caution
-  if (this.options.retryUnfulfilledCommands) {
-    this.offlineQueue.unshift.apply(this.offlineQueue, this.commandQueue.toArray())
-    this.commandQueue.clear()
-  } else if (this.commandQueue.length !== 0) {
-    this.flushAndError({
-      message: 'Redis connection lost and command aborted.',
-      code: 'UNCERTAIN_STATE'
-    }, {
-      error,
-      queues: ['commandQueue']
-    })
-  }
-
-  debug('Retry connection in %s ms', this.retryDelay)
-
-  this.retryTimer = setTimeout(retryConnection, this.retryDelay, this, error)
 }
 
 RedisClient.prototype.returnError = function (err) {
@@ -496,12 +225,12 @@ RedisClient.prototype.returnError = function (err) {
   commandObj.callback(err)
 }
 
-function normalReply (self, reply) {
-  const commandObj = self.commandQueue.shift()
-  if (self._multi === false) {
-    reply = self.handleReply(reply, commandObj.command, commandObj.bufferArgs)
+function normalReply (client, reply) {
+  const command = client.commandQueue.shift()
+  if (client._multi === false) {
+    reply = utils.handleReply(client, reply, command)
   }
-  commandObj.callback(null, reply)
+  command.callback(null, reply)
 }
 
 function subscribeUnsubscribe (self, reply, type) {
