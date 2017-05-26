@@ -32,7 +32,7 @@
     "redis-parser": "^3.0.0"
   },
   "engines": {
-    "node": ">=6"
+    "node": ">=4"
   },
   "devDependencies": {
     "coveralls": "^2.11.2",
