@@ -26,24 +26,24 @@
     "lint": "eslint . --fix"
   },
   "dependencies": {
-    "double-ended-queue": "^2.1.0-0",
+    "denque": "^1.1.1",
     "redis-commands": "^1.2.0",
-    "redis-parser": "^2.6.0",
-    "safe-buffer": "^5.0.1"
+    "redis-errors": "^1.0.0",
+    "redis-parser": "^3.0.0"
   },
   "engines": {
     "node": ">=6"
   },
   "devDependencies": {
     "coveralls": "^2.11.2",
+    "cross-spawn": "^5.1.0",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.9",
     "mocha": "^3.2.0",
     "nyc": "^8.3.0",
     "standard": "^10.0.2",
     "tcp-port-used": "^0.1.2",
-    "uuid": "^2.0.1",
-    "win-spawn": "^2.0.0"
+    "uuid": "^2.0.1"
   },
   "repository": {
     "type": "git",

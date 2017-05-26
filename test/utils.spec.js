@@ -1,7 +1,7 @@
 'use strict'
 
 const assert = require('assert')
-const Queue = require('double-ended-queue')
+const Queue = require('denque')
 const utils = require('../lib/utils')
 
 describe('utils.js', () => {
@@ -72,7 +72,8 @@ describe('utils.js', () => {
     })
 
     it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj callback', (done) => {
-      clientMock.offlineQueue.push(createCommandObj(), createCommandObj())
+      clientMock.offlineQueue.push(createCommandObj())
+      clientMock.offlineQueue.push(createCommandObj())
       utils.replyInOrder(clientMock, () => {
         assert.strictEqual(clientMock.offlineQueue.length, 0)
         assert.strictEqual(resCount, 2)
@@ -82,7 +83,9 @@ describe('utils.js', () => {
     })
 
     it('elements in the offline queue. Reply after the offline queue is empty and respect the commandObj error emit', (done) => {
-      clientMock.commandQueue.push(createCommandObj(), createCommandObj(), createCommandObj())
+      clientMock.commandQueue.push(createCommandObj())
+      clientMock.commandQueue.push(createCommandObj())
+      clientMock.commandQueue.push(createCommandObj())
       utils.replyInOrder(clientMock, () => {
         assert.strictEqual(clientMock.commandQueue.length, 0)
         assert.strictEqual(errCount, 3)
@@ -98,8 +101,10 @@ describe('utils.js', () => {
     })
 
     it('elements in the offline queue and the commandQueue. Reply all other commands got handled respect the commandObj', (done) => {
-      clientMock.commandQueue.push(createCommandObj(), createCommandObj())
-      clientMock.offlineQueue.push(createCommandObj(), createCommandObj())
+      clientMock.commandQueue.push(createCommandObj())
+      clientMock.commandQueue.push(createCommandObj())
+      clientMock.offlineQueue.push(createCommandObj())
+      clientMock.offlineQueue.push(createCommandObj())
       utils.replyInOrder(clientMock, (err, res) => {
         if (err) throw err
         assert.strictEqual(clientMock.commandQueue.length, 0)

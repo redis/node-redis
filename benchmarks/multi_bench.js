@@ -1,6 +1,6 @@
 'use strict'
 
-const Buffer = require('safe-buffer').Buffer
+const Buffer = require('buffer').Buffer
 const path = require('path')
 const RedisProcess = require('../test/lib/redis-process')
 let rp

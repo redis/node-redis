@@ -1,17 +1,22 @@
 'use strict'
 
 // TODO: Replace all for in loops!
-const Buffer = require('safe-buffer').Buffer
+// TODO: Replace all `Error` with `RedisError` and improve errors in general
+// We have to replace the error codes and make them coherent.
+// We also have to use InterruptError s instead of AbortError s.
+// The Error messages might be improved as well.
+// TODO: Rewrite this to classes
+const Buffer = require('buffer').Buffer
 const net = require('net')
 const tls = require('tls')
 const util = require('util')
 const utils = require('./lib/utils')
 const Command = require('./lib/command')
-const Queue = require('double-ended-queue')
+const Queue = require('denque')
 const errorClasses = require('./lib/customErrors')
 const EventEmitter = require('events')
 const Parser = require('redis-parser')
-const commands = require('redis-commands')
+const Errors = require('redis-errors')
 const debug = require('./lib/debug')
 const unifyOptions = require('./lib/createClient')
 const SUBSCRIBE_COMMANDS = {
@@ -913,9 +918,10 @@ exports.createClient = function () {
 exports.RedisClient = RedisClient
 exports.Multi = require('./lib/multi')
 exports.AbortError = errorClasses.AbortError
-exports.RedisError = Parser.RedisError
-exports.ParserError = Parser.ParserError
-exports.ReplyError = Parser.ReplyError
+exports.RedisError = Errors.RedisError
+exports.ParserError = Errors.ParserError
+exports.ReplyError = Errors.ReplyError
+exports.InterruptError = Errors.InterruptError
 
 // Add all redis commands / nodeRedis api to the client
 require('./lib/individualCommands')

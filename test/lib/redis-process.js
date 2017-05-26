@@ -4,7 +4,7 @@
 const config = require('./config')
 const fs = require('fs')
 const path = require('path')
-const spawn = require('win-spawn')
+const spawn = require('cross-spawn')
 const tcpPortUsed = require('tcp-port-used')
 
 // wait for redis to be listening in

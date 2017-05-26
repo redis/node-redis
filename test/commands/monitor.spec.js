@@ -1,6 +1,6 @@
 'use strict'
 
-const Buffer = require('safe-buffer').Buffer
+const Buffer = require('buffer').Buffer
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')

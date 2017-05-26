@@ -1,10 +1,9 @@
 'use strict'
 
-const Buffer = require('safe-buffer').Buffer
+const Buffer = require('buffer').Buffer
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
-const intercept = require('intercept-stdout')
 const config = require('./lib/config')
 const helper = require('./helper')
 const fork = require('child_process').fork
