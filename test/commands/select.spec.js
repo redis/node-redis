@@ -67,7 +67,7 @@ describe('The \'select\' method', () => {
             client.set('foo', 'bar').then(() => client._stream.destroy())
             client.once('ready', () => {
               assert.strictEqual(client.selectedDb, 3)
-              assert(typeof client.serverInfo.db3 === 'object')
+              assert(typeof client.serverInfo.keyspace.db3 === 'object')
               done()
             })
           })

@@ -7,6 +7,7 @@ const path = require('path')
 const config = require('./lib/config')
 const helper = require('./helper')
 const fork = require('child_process').fork
+const Errors = require('redis-errors')
 const redis = config.redis
 let client
 
@@ -20,7 +21,7 @@ describe('The nodeRedis client', () => {
       const multiPrototype = data.match(/(\n| = )Multi\.prototype\.[a-z][a-zA-Z_]+/g)
       // Check that every entry RedisClient entry has a correspondent Multi entry
       assert.strictEqual(clientPrototype.filter((entry) => {
-        return !multiPrototype.includes(entry.replace('RedisClient', 'Multi'))
+        return multiPrototype.indexOf(entry.replace('RedisClient', 'Multi')) === -1
       }).length, 0)
       assert.strictEqual(clientPrototype.length, multiPrototype.length)
       // Check that all entries exist only in lowercase variants
@@ -82,10 +83,11 @@ describe('The nodeRedis client', () => {
               }
             }
             client2.on('error', (err) => {
-              assert.strictEqual(err.message, 'Connection forcefully ended and command aborted. It might have been processed.')
+              assert.strictEqual(err.message, 'Connection forcefully ended and command aborted.')
               assert.strictEqual(err.command, 'SELECT')
-              assert(err instanceof Error)
-              assert.strictEqual(err.name, 'AbortError')
+              assert(err instanceof Errors.AbortError)
+              assert(err instanceof Errors.InterruptError)
+              assert.strictEqual(err.name, 'InterruptError')
             })
             client2.on('ready', () => {
               client2.end(true)
@@ -178,7 +180,7 @@ describe('The nodeRedis client', () => {
           })
 
           it('using multi with sendCommand should work as individual command instead of using the internal multi', () => {
-            // This is necessary to keep backwards compatibility and it is the only way to handle multis as you want in nodeRedis
+            // This is necessary to keep backwards compatibility and it is the only way to handle multi as you want in nodeRedis
             client.sendCommand('multi')
             client.sendCommand('set', ['foo', 'bar']).then(helper.isString('QUEUED'))
             client.get('foo')
@@ -333,8 +335,8 @@ describe('The nodeRedis client', () => {
                 const end = helper.callFuncAfter(() => {
                   client.removeListener('connect', onConnect)
                   client.removeListener('reconnecting', onRecon)
-                  assert.strictEqual(client.serverInfo.db0.keys, 2)
-                  assert.strictEqual(Object.keys(client.serverInfo.db0).length, 3)
+                  assert.strictEqual(client.serverInfo.keyspace.db0.keys, 2)
+                  assert.strictEqual(Object.keys(client.serverInfo.keyspace.db0).length, 3)
                   done()
                 }, 4)
                 client.get('recon 1').then(helper.isString('one')).then(end)
@@ -495,9 +497,9 @@ describe('The nodeRedis client', () => {
           })
           client.once('ready', () => {
             client.set('foo', 'bar').then(helper.fail, (err) => {
-              assert.strictEqual(err.message, 'Fatal error encountered. Command aborted. It might have been processed.')
+              assert.strictEqual(err.message, 'Fatal error encountered. Command aborted.')
               assert.strictEqual(err.code, 'NR_FATAL')
-              assert(err instanceof redis.AbortError)
+              assert(err instanceof redis.InterruptError)
               error = err.origin
             })
             // Make sure we call execute out of the reply

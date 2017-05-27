@@ -47,6 +47,8 @@ Breaking Changes
 - Changed the name of two functions
   - `restore-asking` is now `restore_asking_`
   - `host:` is now `host`
+- Changed the `serverInfo` into a nested object and to parse numbers
+- Changed the `serverInfo.versions` to `serverInfo.version`
 - Using `.end` without the flush parameter is now going to throw an TypeError
 - Only emit ready when all commands were truly send to Redis
 

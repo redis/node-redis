@@ -80,10 +80,11 @@ if (process.platform !== 'win32') {
               // Set a key so the used database is returned in the info command
               promises.push(client.set('foo', 'bar'))
               promises.push(client.get('foo'))
-              assert.strictEqual(client.serverInfo.db2, undefined)
+              const space = client.serverInfo.keyspace
+              assert.strictEqual(space && space.db2, undefined)
               // Using the info command should update the serverInfo
               promises.push(client.info().then(() => {
-                assert(typeof client.serverInfo.db2 === 'object')
+                assert.strictEqual(typeof client.serverInfo.keyspace.db2, 'object')
               }))
               promises.push(client.flushdb())
               return Promise.all(promises).then(() => done())

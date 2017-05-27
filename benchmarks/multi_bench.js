@@ -82,7 +82,7 @@ Test.prototype.newClient = function (id) {
       console.log([
         `clients: ${numClients}`,
         `NodeJS: ${process.versions.node}`,
-        `Redis: ${newClient.serverInfo.redis_version}`,
+        `Redis: ${newClient.serverInfo.server.redis_version}`,
         `connected by: ${clientOptions.path ? 'socket' : 'tcp'}`
       ].join(', '))
       versionsLogged = true

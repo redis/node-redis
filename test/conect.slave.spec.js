@@ -66,8 +66,8 @@ if (process.platform !== 'win32') {
       const end = helper.callFuncAfter(done, 2)
 
       slave.on('ready', function () {
-        assert.strictEqual(this.serverInfo.master_link_status, 'up')
-        assert.strictEqual(firstInfo.master_link_status, 'down')
+        assert.strictEqual(this.serverInfo.replication.master_link_status, 'up')
+        assert.strictEqual(firstInfo.replication.master_link_status, 'down')
         assert(i > 1)
         this.get('foo300').then((res) => {
           assert.strictEqual(res.substr(0, 3), 'bar')

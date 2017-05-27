@@ -1,6 +1,6 @@
 'use strict'
 
-// TODO: Replace all `Error` with `RedisError` and improve errors in general
+// TODO: Improve errors in general
 // We have to replace the error codes and make them coherent.
 // We also have to use InterruptError s instead of AbortError s.
 // The Error messages might be improved as well.

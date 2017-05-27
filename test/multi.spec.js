@@ -15,7 +15,7 @@ describe('The \'multi\' method', () => {
   })
 
   describe('regression test', () => {
-    it('saved buffers with charsets different than utf-8 (issue #913)', function (done) {
+    it('saved buffers with a charset different than utf-8 (issue #913)', function (done) {
       this.timeout(12000) // Windows tests on 0.10 are slow
       client = redis.createClient()
 
@@ -226,13 +226,13 @@ describe('The \'multi\' method', () => {
           return multi.exec().then(helper.isDeepEqual([]))
         })
 
-        it('runs normal calls in-between multis', () => {
+        it('runs normal calls in-between multi commands', () => {
           const multi1 = client.multi()
           multi1.set('m1', '123')
           return client.set('m2', '456')
         })
 
-        it('runs simultaneous multis with the same client', () => {
+        it('runs simultaneous multi commands with the same client', () => {
           const multi1 = client.multi()
           multi1.set('m1', '123')
           multi1.get('m1')
@@ -247,7 +247,7 @@ describe('The \'multi\' method', () => {
           ])
         })
 
-        it('runs simultaneous multis with the same client version 2', () => {
+        it('runs simultaneous multi commands with the same client version 2', () => {
           const multi2 = client.multi()
           const multi1 = client.multi()
 
@@ -512,7 +512,7 @@ describe('The \'multi\' method', () => {
           return multi.exec().then((res) => {
             res[2] = res[2].substr(0, 10)
             assert.strictEqual(client.selectedDb, 5)
-            assert.deepStrictEqual(client.serverInfo.db5, { avg_ttl: 0, expires: 0, keys: 1 })
+            assert.deepStrictEqual(client.serverInfo.keyspace.db5, { avg_ttl: 0, expires: 0, keys: 1 })
             assert.deepStrictEqual(res, ['OK', 'OK', '# Server\r\n', 'bar'])
             return client.flushdb()
           })

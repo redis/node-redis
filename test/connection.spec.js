@@ -479,8 +479,8 @@ describe('connection tests', () => {
           client.info = function () {
             return tmp().then((res) => {
               if (!delayed) {
-                client.serverInfo.loading = 1
-                client.serverInfo.loading_eta_seconds = 0.5
+                client.serverInfo.persistence.loading = 1
+                client.serverInfo.persistence.loading_eta_seconds = 0.5
                 delayed = true
                 time = Date.now()
               }
@@ -509,8 +509,8 @@ describe('connection tests', () => {
             return tmp().then((res) => {
               if (!delayed) {
                 // Try reconnecting after one second even if redis tells us the time needed is above one second
-                client.serverInfo.loading = 1
-                client.serverInfo.loading_eta_seconds = 2.5
+                client.serverInfo.persistence.loading = 1
+                client.serverInfo.persistence.loading_eta_seconds = 2.5
                 delayed = true
                 time = Date.now()
               }

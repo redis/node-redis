@@ -139,7 +139,7 @@ module.exports = {
       throw new Error('Version check not possible as the client is not yet ready or did not expose the version')
     }
     // Return true if the server version >= desiredVersion
-    const version = connection.serverInfo.versions
+    const version = connection.serverInfo.server.version
     for (let i = 0; i < 3; i++) {
       if (version[i] > desiredVersion[i]) {
         return true
