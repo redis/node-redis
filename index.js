@@ -1,12 +1,10 @@
 'use strict'
 
-// TODO: Replace all for in loops!
 // TODO: Replace all `Error` with `RedisError` and improve errors in general
 // We have to replace the error codes and make them coherent.
 // We also have to use InterruptError s instead of AbortError s.
 // The Error messages might be improved as well.
 // TODO: Rewrite this to classes
-const Buffer = require('buffer').Buffer
 const net = require('net')
 const util = require('util')
 const utils = require('./lib/utils')
@@ -22,12 +20,7 @@ const addCommand = require('./lib/commands')
 const unifyOptions = require('./lib/createClient')
 const Multi = require('./lib/multi')
 const normalizeAndWriteCommand = require('./lib/writeCommands')
-const SUBSCRIBE_COMMANDS = {
-  subscribe: true,
-  unsubscribe: true,
-  psubscribe: true,
-  punsubscribe: true
-}
+const offlineCommand = require('./lib/offlineCommand')
 
 function noop () {}
 
@@ -198,186 +191,12 @@ RedisClient.prototype.onError = function (err) {
   reconnect(this, 'error', err)
 }
 
-RedisClient.prototype.sendOfflineQueue = function () {
-  for (var commandObj = this.offlineQueue.shift(); commandObj; commandObj = this.offlineQueue.shift()) {
-    debug('Sending offline command: %s', commandObj.command)
-    this.internalSendCommand(commandObj)
-  }
-}
-
-RedisClient.prototype.returnError = function (err) {
-  const commandObj = this.commandQueue.shift()
-  if (commandObj.error) {
-    err.stack = commandObj.error.stack.replace(/^Error.*?\n/, `ReplyError: ${err.message}\n`)
-  }
-  err.command = commandObj.command.toUpperCase()
-  if (commandObj.args && commandObj.args.length) {
-    err.args = commandObj.args
-  }
-
-  // Count down pub sub mode if in entering modus
-  if (this.pubSubMode > 1) {
-    this.pubSubMode--
-  }
-
-  const match = err.message.match(utils.errCode)
-  // LUA script could return user errors that don't behave like all other errors!
-  if (match) {
-    err.code = match[1]
-  }
-
-  commandObj.callback(err)
-}
-
-function normalReply (client, reply) {
-  const command = client.commandQueue.shift()
-  if (client._multi === false) {
-    reply = utils.handleReply(client, reply, command)
-  }
-  command.callback(null, reply)
-}
-
-function subscribeUnsubscribe (self, reply, type) {
-    // Subscribe commands take an optional callback and also emit an event, but only the Last_ response is included in the callback
-    // The pub sub commands return each argument in a separate return value and have to be handled that way
-  const commandObj = self.commandQueue.get(0)
-  const buffer = self.options.returnBuffers || self.options.detectBuffers && commandObj.bufferArgs
-  const channel = (buffer || reply[1] === null) ? reply[1] : reply[1].toString()
-  const count = +reply[2] // Return the channel counter as number no matter if `stringNumbers` is activated or not
-  debug(type, channel)
-
-  // Emit first, then return the callback
-  if (channel !== null) { // Do not emit or "unsubscribe" something if there was no channel to unsubscribe from
-    if (type === 'subscribe' || type === 'psubscribe') {
-      self.subscriptionSet[`${type}_${channel}`] = channel
-    } else {
-      const innerType = type === 'unsubscribe' ? 'subscribe' : 'psubscribe' // Make types consistent
-      delete self.subscriptionSet[`${innerType}_${channel}`]
-    }
-    self.emit(type, channel, count)
-    self.subscribeChannels.push(channel)
-  }
-
-  if (commandObj.argsLength === 1 || self.subCommandsLeft === 1 || commandObj.argsLength === 0 && (count === 0 || channel === null)) {
-    if (count === 0) { // unsubscribed from all channels
-      var runningCommand
-      var i = 1
-      self.pubSubMode = 0 // Deactivating pub sub mode
-      // This should be a rare case and therefore handling it this way should be good performance wise for the general case
-      for (runningCommand = self.commandQueue.get(i); runningCommand !== undefined; runningCommand = self.commandQueue.get(i)) {
-        if (SUBSCRIBE_COMMANDS[runningCommand.command]) {
-          self.pubSubMode = i // Entering pub sub mode again
-          break
-        }
-        i++
-      }
-    }
-    self.commandQueue.shift()
-    commandObj.callback(null, [count, self.subscribeChannels])
-    self.subscribeChannels = []
-    self.subCommandsLeft = 0
-  } else {
-    if (self.subCommandsLeft !== 0) {
-      self.subCommandsLeft--
-    } else {
-      self.subCommandsLeft = commandObj.argsLength ? commandObj.argsLength - 1 : count
-    }
-  }
-}
-
-function returnPubSub (self, reply) {
-  const type = reply[0].toString()
-  if (type === 'message') { // channel, message
-    if (!self.options.returnBuffers || self.messageBuffers) { // backwards compatible. Refactor this in v.3 to always return a string on the normal emitter
-      self.emit('message', reply[1].toString(), reply[2].toString())
-      self.emit('messageBuffer', reply[1], reply[2])
-    } else {
-      self.emit('message', reply[1], reply[2])
-    }
-  } else if (type === 'pmessage') { // pattern, channel, message
-    if (!self.options.returnBuffers || self.messageBuffers) { // backwards compatible. Refactor this in v.3 to always return a string on the normal emitter
-      self.emit('pmessage', reply[1].toString(), reply[2].toString(), reply[3].toString())
-      self.emit('pmessageBuffer', reply[1], reply[2], reply[3])
-    } else {
-      self.emit('pmessage', reply[1], reply[2], reply[3])
-    }
-  } else {
-    subscribeUnsubscribe(self, reply, type)
-  }
-}
-
-RedisClient.prototype.returnReply = function (reply) {
-  // If in monitor mode, all normal commands are still working and we only want to emit the streamlined commands
-  // As this is not the average use case and monitor is expensive anyway, let's change the code here, to improve
-  // the average performance of all other commands in case of no monitor mode
-  if (this.monitoring) {
-    var replyStr
-    if (this.buffers && Buffer.isBuffer(reply)) {
-      replyStr = reply.toString()
-    } else {
-      replyStr = reply
-    }
-    // While reconnecting the redis server does not recognize the client as in monitor mode anymore
-    // Therefore the monitor command has to finish before it catches further commands
-    if (typeof replyStr === 'string' && utils.monitorRegex.test(replyStr)) {
-      const timestamp = replyStr.slice(0, replyStr.indexOf(' '))
-      const args = replyStr.slice(replyStr.indexOf('"') + 1, -1).split('" "').map((elem) => {
-        return elem.replace(/\\"/g, '"')
-      })
-      this.emit('monitor', timestamp, args, replyStr)
-      return
-    }
-  }
-  if (this.pubSubMode === 0) {
-    normalReply(this, reply)
-  } else if (this.pubSubMode !== 1) {
-    this.pubSubMode--
-    normalReply(this, reply)
-  } else if (!(reply instanceof Array) || reply.length <= 2) {
-    // Only PING and QUIT are allowed in this context besides the pub sub commands
-    // Ping replies with ['pong', null|value] and quit with 'OK'
-    normalReply(this, reply)
-  } else {
-    returnPubSub(this, reply)
-  }
-}
-
-function handleOfflineCommand (self, commandObj) {
-  var command = commandObj.command
-  var err, msg
-  if (self.closing || !self.enableOfflineQueue) {
-    command = command.toUpperCase()
-    if (!self.closing) {
-      if (self._stream.writable) {
-        msg = 'The connection is not yet established and the offline queue is deactivated.'
-      } else {
-        msg = 'Stream not writeable.'
-      }
-    } else {
-      msg = 'The connection is already closed.'
-    }
-    err = new errorClasses.AbortError({
-      message: `${command} can't be processed. ${msg}`,
-      code: 'NR_CLOSED',
-      command
-    })
-    if (commandObj.args.length) {
-      err.args = commandObj.args
-    }
-    utils.replyInOrder(self, commandObj.callback, err)
-  } else {
-    debug('Queueing %s for next server connection.', command)
-    self.offlineQueue.push(commandObj)
-  }
-  self.shouldBuffer = true
-}
-
 // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
 // e.g. monitor / info does not work with internalSendCommand only
 RedisClient.prototype.internalSendCommand = function (commandObj) {
   if (this.ready === false || this._stream.writable === false) {
     // Handle offline commands right away
-    handleOfflineCommand(this, commandObj)
+    offlineCommand(this, commandObj)
     return commandObj.promise
   }
 

@@ -460,6 +460,7 @@ describe('publish/subscribe', () => {
           sub.set('foo', data).then(() => {
             sub.get('foo')
             sub._stream.once('data', () => {
+              // TODO: Improve this test to test if a buffer is returned for any call
               assert.strictEqual(sub.messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
               sub.on('pmessageBuffer', (pattern, channel, message) => {
