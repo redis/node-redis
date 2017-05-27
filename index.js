@@ -144,30 +144,28 @@ RedisClient.prototype.initializeRetryVars = function () {
 }
 
 // Flush provided queues, erroring any items with a callback first
-RedisClient.prototype.flushAndError = function (errorAttributes, options) {
+RedisClient.prototype.flushAndError = function (message, code, options) {
   options = options || {}
   const queueNames = options.queues || ['commandQueue', 'offlineQueue'] // Flush the commandQueue first to keep the order intact
   for (var i = 0; i < queueNames.length; i++) {
     // If the command was fired it might have been processed so far
-    if (queueNames[i] === 'commandQueue') {
-      errorAttributes.message += ' It might have been processed.'
-    } else { // As the commandQueue is flushed first, remove this for the offline queue
-      errorAttributes.message = errorAttributes.message.replace(' It might have been processed.', '')
-    }
-    // Don't flush everything from the queue
-    for (var commandObj = this[queueNames[i]].shift(); commandObj; commandObj = this[queueNames[i]].shift()) {
-      const err = new errorClasses.AbortError(errorAttributes)
-      if (commandObj.error) {
-        err.stack = err.stack + commandObj.error.stack.replace(/^Error.*?\n/, '\n')
-      }
-      err.command = commandObj.command.toUpperCase()
-      if (commandObj.args && commandObj.args.length) {
-        err.args = commandObj.args
+    const ErrorClass = queueNames[i] === 'commandQueue'
+      ? Errors.InterruptError
+      : Errors.AbortError
+
+    while (this[queueNames[i]].length) {
+      const command = this[queueNames[i]].shift()
+      const err = new ErrorClass(message)
+      err.code = code
+      err.command = command.command.toUpperCase()
+      err.args = command.args
+      if (command.error) {
+        err.stack = err.stack + command.error.stack.replace(/^Error.*?\n/, '\n')
       }
       if (options.error) {
         err.origin = options.error
       }
-      commandObj.callback(err)
+      command.callback(err)
     }
   }
 }
