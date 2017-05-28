@@ -239,9 +239,9 @@ describe('returnBuffers', () => {
             pub.publish(channel, message)
           })
 
-          sub.on('message', (chnl, msg) => {
-            assert.strictEqual(true, Buffer.isBuffer(msg))
-            assert.strictEqual('<Buffer 74 65 73 74 20 6d 65 73 73 61 67 65>', msg.inspect())
+          sub.on('messageBuffer', (chnl, msg) => {
+            assert.strictEqual(Buffer.isBuffer(msg), true)
+            assert.strictEqual(msg.inspect(), '<Buffer 74 65 73 74 20 6d 65 73 73 61 67 65>')
             done()
           })
 

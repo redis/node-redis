@@ -369,7 +369,7 @@ describe('publish/subscribe', () => {
               assert.strictEqual(count, rest++ - 1)
             }
           })
-          sub.on('pmessage', (pattern, channel, msg) => {
+          sub.on('message', (channel, msg, pattern) => {
             assert.strictEqual(msg, 'test')
             assert.strictEqual(pattern, 'prefix:*')
             assert.strictEqual(channel, 'prefix:1')
@@ -436,6 +436,7 @@ describe('publish/subscribe', () => {
           const sub2 = redis.createClient({
             returnBuffers: true
           })
+          const end = helper.callFuncAfter(() => sub2.quit().then(() => done()), 2)
           sub.subscribe('/foo').then(() => {
             sub2.on('ready', () => {
               sub2.batch().psubscribe('*').exec().then(helper.isDeepEqual([[1, ['*']]]))
@@ -444,28 +445,32 @@ describe('publish/subscribe', () => {
                 // sub2 is counted twice as it subscribed with psubscribe and subscribe
                 pub.publish('/foo', 'hello world').then(helper.isNumber(3))
               })
-              sub2.on('pmessageBuffer', (pattern, channel, message) => {
-                assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
+              sub2.on('messageBuffer', (channel, message, pattern) => {
+                if (pattern) {
+                  assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
+                }
                 assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect())
                 assert.strictEqual(message.inspect(), Buffer.from('hello world').inspect())
-                sub2.quit().then(() => done())
+                end()
               })
             })
           })
         })
 
         it('allows to listen to pmessageBuffer and pmessage', (done) => {
-          const end = helper.callFuncAfter(done, 3)
+          const end = helper.callFuncAfter(done, 4)
           const data = Array(10000).join('äüs^öéÉÉ`e')
           sub.set('foo', data).then(() => {
             sub.get('foo').then((res) => assert.strictEqual(typeof res, 'string'))
             sub._stream.once('data', () => {
               assert.strictEqual(sub.messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
-              sub.on('pmessageBuffer', (pattern, channel, message) => {
-                assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
+              sub.on('messageBuffer', (channel, message, pattern) => {
+                if (pattern) {
+                  assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
+                }
                 assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect())
-                sub.quit().then(end)
+                end()
               })
               assert.notStrictEqual(sub.messageBuffers, sub.buffers)
             })
@@ -485,13 +490,10 @@ describe('publish/subscribe', () => {
               pub.publish('/foo', 'hello world').then(helper.isNumber(2))
             })
             // Either messageBuffers or buffers has to be true, but not both at the same time
-            sub.on('pmessage', (pattern, channel, message) => {
-              assert.strictEqual(pattern, '*')
-              assert.strictEqual(channel, '/foo')
-              assert.strictEqual(message, 'hello world')
-              end()
-            })
-            sub.on('message', (channel, message) => {
+            sub.on('message', (channel, message, pattern) => {
+              if (pattern) {
+                assert.strictEqual(pattern, '*')
+              }
               assert.strictEqual(channel, '/foo')
               assert.strictEqual(message, 'hello world')
               end()

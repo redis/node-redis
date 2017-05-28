@@ -41,7 +41,10 @@ Breaking Changes
 - Removed `Redis.print` helper function
 - Removed backpressure indicator from function return value
 - Removed the `stream` parameter from the RedisClient constructor.
-    Please set the stream in the options instead
+  - Please set the stream in the options instead
+- Removed `pmessage` and `pmessageBuffer` emitters
+  - From now on `message` and `messageBuffer` receive a third argument `pattern`
+    in case the message type is a pattern.
 - Changed return value of `(p)(un)subscribe`
   - Return an array with the number of current subscribed channels and an array
     with all affected channels
@@ -59,7 +62,7 @@ Breaking Changes
 - Changed the `serverInfo` into a nested object and to parse numbers
 - Changed the `serverInfo.versions` to `serverInfo.version`
 - Changed the `message` and `pmessage` listener to always return a string
-    If you want to receive a buffer, please listen to the `messageBuffer` or `pmessageBuffer`
+  - If you want to receive a buffer, please listen to the `messageBuffer` or `pmessageBuffer`
 - Using `.end` without the flush parameter is now going to throw an TypeError
 - Only emit ready when all commands were truly send to Redis
 
