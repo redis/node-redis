@@ -77,9 +77,9 @@ describe('The nodeRedis client', () => {
             assert.strictEqual(client2.selectedDb, 2)
             assert(client.connected)
             assert(!client2.connected)
-            for (const elem in client.options) {
-              if (client.options.hasOwnProperty(elem)) {
-                assert.strictEqual(client2.options[elem], client.options[elem])
+            for (const elem in client._options) {
+              if (client._options.hasOwnProperty(elem)) {
+                assert.strictEqual(client2._options[elem], client._options[elem])
               }
             }
             client2.on('error', (err) => {
@@ -101,13 +101,13 @@ describe('The nodeRedis client', () => {
             })
             assert(client.connected)
             assert(!client2.connected)
-            assert.strictEqual(client.options.noReadyCheck, undefined)
-            assert.strictEqual(client2.options.noReadyCheck, true)
-            assert.notDeepEqual(client.options, client2.options)
-            for (const elem in client.options) {
-              if (client.options.hasOwnProperty(elem)) {
+            assert.strictEqual(client._options.noReadyCheck, undefined)
+            assert.strictEqual(client2._options.noReadyCheck, true)
+            assert.notDeepEqual(client._options, client2._options)
+            for (const elem in client._options) {
+              if (client._options.hasOwnProperty(elem)) {
                 if (elem !== 'noReadyCheck') {
-                  assert.strictEqual(client2.options[elem], client.options[elem])
+                  assert.strictEqual(client2._options[elem], client._options[elem])
                 }
               }
             }
@@ -331,17 +331,17 @@ describe('The nodeRedis client', () => {
           it('reconnects properly when monitoring', (done) => {
             client.on('reconnecting', function onRecon (params) {
               client.on('ready', function onReady () {
-                assert.strictEqual(client.monitoring, true, 'monitoring after reconnect')
+                assert.strictEqual(client._monitoring, true, 'monitoring after reconnect')
                 client.removeListener('ready', onReady)
                 client.removeListener('reconnecting', onRecon)
                 done()
               })
             })
 
-            assert.strictEqual(client.monitoring, false, 'monitoring off at start')
+            assert.strictEqual(client._monitoring, false, 'monitoring off at start')
             client.set('recon 1', 'one')
             client.monitor().then((res) => {
-              assert.strictEqual(client.monitoring, true, 'monitoring on after monitor()')
+              assert.strictEqual(client._monitoring, true, 'monitoring on after monitor()')
               client.set('recon 2', 'two').then((res) => {
                 // Do not do this in normal programs. This is to simulate the server closing on us.
                 // For orderly shutdown in normal programs, do client.quit()

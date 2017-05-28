@@ -17,6 +17,9 @@ It will not restore the support for old Node.js versions, the return value of
 connectTimeout behavior. It will also only partially restore snake_case support
 and maybe more.
 
+Bugfixes
+- Fixed auth in batch not saving the password
+
 Features
 - Native promise support
 - Auto pipelining

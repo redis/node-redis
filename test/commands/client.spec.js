@@ -46,27 +46,27 @@ describe('The \'client\' method', () => {
         describe('as normal command', () => {
           it('on', function () {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             const promises = [client.client('reply', 'on').then(helper.isString('OK'))]
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             promises.push(client.set('foo', 'bar'))
             return Promise.all(promises)
           })
 
           it('off', function () {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             const promises = [client.client(Buffer.from('REPLY'), 'OFF').then(helper.isUndefined())]
-            assert.strictEqual(client.reply, 'OFF')
+            assert.strictEqual(client._reply, 'OFF')
             promises.push(client.set('foo', 'bar').then(helper.isUndefined()))
             return Promise.all(promises)
           })
 
           it('skip', function () {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             const promises = [client.client('REPLY', Buffer.from('SKIP')).then(helper.isUndefined())]
-            assert.strictEqual(client.reply, 'SKIP_ONE_MORE')
+            assert.strictEqual(client._reply, 'SKIP_ONE_MORE')
             promises.push(client.set('foo', 'bar').then(helper.isUndefined()))
             promises.push(client.get('foo').then(helper.isString('bar')))
             return Promise.all(promises)
@@ -77,9 +77,9 @@ describe('The \'client\' method', () => {
           it('on', function () {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
             const batch = client.batch()
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             batch.client('reply', 'on')
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             batch.set('foo', 'bar')
             return batch.exec().then(helper.isDeepEqual(['OK', 'OK']))
           })
@@ -87,20 +87,20 @@ describe('The \'client\' method', () => {
           it('off', function () {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
             const batch = client.batch()
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             batch.set('hello', 'world')
             batch.client(Buffer.from('REPLY'), Buffer.from('OFF'))
             batch.get('hello')
             batch.get('hello')
             return batch.exec().then((res) => {
-              assert.strictEqual(client.reply, 'OFF')
+              assert.strictEqual(client._reply, 'OFF')
               assert.deepStrictEqual(res, ['OK', undefined, undefined, undefined])
             })
           })
 
           it('skip', function () {
             helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
-            assert.strictEqual(client.reply, 'ON')
+            assert.strictEqual(client._reply, 'ON')
             return client.batch()
               .set('hello', 'world')
               .client('REPLY', 'SKIP')
@@ -108,7 +108,7 @@ describe('The \'client\' method', () => {
               .get('foo')
               .exec()
               .then((res) => {
-                assert.strictEqual(client.reply, 'ON')
+                assert.strictEqual(client._reply, 'ON')
                 assert.deepStrictEqual(res, ['OK', undefined, undefined, 'bar'])
               })
           })

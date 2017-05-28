@@ -76,7 +76,7 @@ describe('TLS connection tests', () => {
             assert.strictEqual(client.emittedEnd, true)
             assert.strictEqual(client.connected, false)
             assert.strictEqual(client.ready, false)
-            assert.strictEqual(client.closing, true)
+            assert.strictEqual(client._closing, true)
             assert.strictEqual(time, connectTimeout)
             done()
           })
@@ -97,8 +97,8 @@ describe('TLS connection tests', () => {
       })
 
       // verify connection is using TCP, not UNIX socket
-      assert.strictEqual(client.connectionOptions.host, 'localhost')
-      assert.strictEqual(client.connectionOptions.port, tlsPort)
+      assert.strictEqual(client._connectionOptions.host, 'localhost')
+      assert.strictEqual(client._connectionOptions.port, tlsPort)
       assert.strictEqual(client.address, `localhost:${tlsPort}`)
       assert(client._stream.encrypted)
 

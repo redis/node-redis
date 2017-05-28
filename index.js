@@ -59,9 +59,16 @@ class RedisClient extends EventEmitter {
       this.address = `${cnxOptions.host}:${cnxOptions.port}`
     }
 
-    this.connectionOptions = cnxOptions
-    this.connectionId = RedisClient.connectionId++
+    // Public Variables
     this.connected = false
+    this.shouldBuffer = false
+    this.commandQueue = new Queue() // Holds sent commands to de-pipeline them
+    this.offlineQueue = new Queue() // Holds commands issued but not able to be sent
+    this.serverInfo = {}
+
+    // Private Variables
+    this._connectionOptions = cnxOptions
+    this.connectionId = RedisClient.connectionId++
     if (options.socketKeepalive === undefined) {
       options.socketKeepalive = true
     }
@@ -72,6 +79,14 @@ class RedisClient extends EventEmitter {
     }
     options.returnBuffers = !!options.returnBuffers
     options.detectBuffers = !!options.detectBuffers
+    if (typeof options.enableOfflineQueue !== 'boolean') {
+      if (options.enableOfflineQueue !== undefined) {
+        throw new TypeError('enableOfflineQueue must be a boolean')
+      }
+      options.enableOfflineQueue = true
+    }
+    // Only used as timeout until redis has to be connected to redis until throwing an connection error
+    options.connectTimeout = +options.connectTimeout || 60000 // 60 * 1000 ms
     // Override the detectBuffers setting if returnBuffers is active and print a warning
     if (options.returnBuffers && options.detectBuffers) {
       process.nextTick(
@@ -81,31 +96,27 @@ class RedisClient extends EventEmitter {
       )
       options.detectBuffers = false
     }
-    this.shouldBuffer = false
-    this.commandQueue = new Queue() // Holds sent commands to de-pipeline them
-    this.offlineQueue = new Queue() // Holds commands issued but not able to be sent
     this._pipelineQueue = new Queue() // Holds all pipelined commands
-    // Only used as timeout until redis has to be connected to redis until throwing an connection error
-    this.connectTimeout = +options.connectTimeout || 60000 // 60 * 1000 ms
-    this.enableOfflineQueue = options.enableOfflineQueue !== false
-    this.pubSubMode = 0
-    this.subscriptionSet = {}
-    this.monitoring = false
+    this._pubSubMode = 0
+    this._subscriptionSet = {}
+    this._monitoring = false
     this.messageBuffers = false
-    this.closing = false
-    this.serverInfo = {}
-    this.authPass = options.authPass || options.password
+    this._closing = false
+    if (options.authPass) {
+      if (options.password) {
+        throw new TypeError('The "password" and "authPass" option may not both be set at the same time.')
+      }
+      options.password = options.authPass
+    }
     this.selectedDb = options.db // Save the selected db here, used when reconnecting
-    this.oldState = null
     this._strCache = ''
     this._pipeline = false
-    this.subCommandsLeft = 0
-    this.renameCommands = options.renameCommands || {}
+    this._subCommandsLeft = 0
     this.timesConnected = 0
     this.buffers = options.returnBuffers || options.detectBuffers
-    this.options = options
+    this._options = options
     this._multi = false
-    this.reply = 'ON' // Returning replies is the default
+    this._reply = 'ON' // Returning replies is the default
     this.retryStrategy = options.retryStrategy || function (options) {
       if (options.attempt > 100) {
         return
@@ -113,8 +124,8 @@ class RedisClient extends EventEmitter {
       // reconnect after
       return Math.min(options.attempt * 100, 3000)
     }
-    this.retryStrategyProvided = !!options.retryStrategy
-    this.subscribeChannels = []
+    this._retryStrategyProvided = !!options.retryStrategy
+    this._subscribeChannels = []
     utils.setReconnectDefaults(this)
     // Init parser and connect
     connect(this)
@@ -128,6 +139,7 @@ class RedisClient extends EventEmitter {
 
   // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
   // e.g. monitor / info does not work with internalSendCommand only
+  // TODO: Move this function out of the client as a private function
   internalSendCommand (commandObj) {
     if (this.ready === false || this._stream.writable === false) {
       // Handle offline commands right away
@@ -143,16 +155,16 @@ class RedisClient extends EventEmitter {
     // Handle `CLIENT REPLY ON|OFF|SKIP`
     // This has to be checked after callOnWrite
     /* istanbul ignore else: TODO: Remove this as soon as we test Redis 3.2 on travis */
-    if (this.reply === 'ON') {
+    if (this._reply === 'ON') {
       this.commandQueue.push(commandObj)
     } else {
       // Do not expect a reply
       // Does this work in combination with the pub sub mode?
       utils.replyInOrder(this, commandObj.callback, null, undefined, this.commandQueue)
-      if (this.reply === 'SKIP') {
-        this.reply = 'SKIP_ONE_MORE'
-      } else if (this.reply === 'SKIP_ONE_MORE') {
-        this.reply = 'ON'
+      if (this._reply === 'SKIP') {
+        this._reply = 'SKIP_ONE_MORE'
+      } else if (this._reply === 'SKIP_ONE_MORE') {
+        this._reply = 'ON'
       }
     }
     return commandObj.promise
@@ -202,7 +214,7 @@ class RedisClient extends EventEmitter {
     this._stream.on('error', noop)
     this.connected = false
     this.ready = false
-    this.closing = true
+    this._closing = true
     return this._stream.destroySoon()
   }
 
@@ -212,9 +224,7 @@ class RedisClient extends EventEmitter {
       this._stream.unref()
     } else {
       debug('Not connected yet, will unref later')
-      this.once('connect', function () {
-        this.unref()
-      })
+      this.once('connect', () => this._stream.unref())
     }
   }
 
@@ -224,7 +234,7 @@ class RedisClient extends EventEmitter {
       callback = options
       options = null
     }
-    const existingOptions = utils.clone(this.options)
+    const existingOptions = utils.clone(this._options)
     options = utils.clone(options)
     for (const elem in options) {
       if (options.hasOwnProperty(elem)) {
@@ -234,11 +244,11 @@ class RedisClient extends EventEmitter {
     const client = new RedisClient(existingOptions)
     client.selectedDb = this.selectedDb
     if (typeof callback === 'function') {
-      const errorListener = function (err) {
+      const errorListener = (err) => {
         callback(err)
         client.end(true)
       }
-      const readyListener = function () {
+      const readyListener = () => {
         callback(null, client)
         client.removeAllListeners(errorListener)
       }

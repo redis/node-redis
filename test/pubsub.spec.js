@@ -77,7 +77,7 @@ describe('publish/subscribe', () => {
             assert.strictEqual(typeof count, 'number')
             assert.strictEqual(--i, count)
             if (count === 0) {
-              assert.deepStrictEqual(sub.subscriptionSet, {})
+              assert.deepStrictEqual(sub._subscriptionSet, {})
               end()
             }
           })

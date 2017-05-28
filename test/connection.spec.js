@@ -23,8 +23,9 @@ describe('connection tests', () => {
     // Therefore this is not officially supported!
     const socket = new net.Socket()
     client = new redis.RedisClient({
-      prefix: 'test'
-    }, socket)
+      prefix: 'test',
+      stream: socket
+    })
     assert.strictEqual(client._stream, socket)
     assert.strictEqual(client._stream.listeners('error').length, 1)
     assert.strictEqual(client.address, '"Private stream"')
@@ -160,7 +161,7 @@ describe('connection tests', () => {
             retryStrategy () {}
           }
           client = redis.createClient(options)
-          assert.strictEqual(client.connectionOptions.family, ip === 'IPv6' ? 6 : 4)
+          assert.strictEqual(client._connectionOptions.family, ip === 'IPv6' ? 6 : 4)
           assert.strictEqual(Object.keys(options).length, 4)
           const end = helper.callFuncAfter(done, 2)
 
@@ -246,7 +247,7 @@ describe('connection tests', () => {
           })
           process.nextTick(() => assert.strictEqual(client._stream.listeners('timeout').length, 1))
           assert.strictEqual(client.address, '10.255.255.1:6379')
-          assert.strictEqual(client.connectionOptions.family, 4)
+          assert.strictEqual(client._connectionOptions.family, 4)
 
           client.on('reconnecting', () => {
             throw new Error('No reconnect, since no connection was ever established')
@@ -274,7 +275,7 @@ describe('connection tests', () => {
             host: '2001:db8::ff00:42:8329' // auto detect ip v6
           })
           assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379')
-          assert.strictEqual(client.connectionOptions.family, 6)
+          assert.strictEqual(client._connectionOptions.family, 6)
           process.nextTick(() => {
             assert.strictEqual(client._stream.listeners('timeout').length, 0)
             done()
@@ -337,7 +338,7 @@ describe('connection tests', () => {
 
         it('connects with a port only', (done) => {
           client = redis.createClient(6379)
-          assert.strictEqual(client.connectionOptions.family, 4)
+          assert.strictEqual(client._connectionOptions.family, 4)
           client.on('error', done)
 
           client.once('ready', () => {
@@ -433,7 +434,7 @@ describe('connection tests', () => {
             client = redis.createClient('//127.0.0.1', {
               connectTimeout: 1000
             })
-            assert.strictEqual(client.options.connectTimeout, 1000)
+            assert.strictEqual(client._options.connectTimeout, 1000)
             client.on('ready', done)
           })
 
@@ -441,10 +442,10 @@ describe('connection tests', () => {
             client = redis.createClient({
               url: `http://foo:porkchopsandwiches@${config.HOST[ip]}/3`
             })
-            assert.strictEqual(client.authPass, 'porkchopsandwiches')
+            assert.strictEqual(client._options.password, 'porkchopsandwiches')
             assert.strictEqual(+client.selectedDb, 3)
-            assert(!client.options.port)
-            assert.strictEqual(client.options.host, config.HOST[ip])
+            assert(!client._options.port)
+            assert.strictEqual(client._options.host, config.HOST[ip])
             client.on('ready', done)
           })
 

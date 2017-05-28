@@ -62,7 +62,7 @@ describe('The \'monitor\' method', () => {
       })
 
       monitorClient.on('monitor', (time, args, rawOutput) => {
-        assert.strictEqual(monitorClient.monitoring, true)
+        assert.strictEqual(monitorClient._monitoring, true)
         assert.deepStrictEqual(args, responses.shift())
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
         if (responses.length === 0) {
@@ -81,7 +81,7 @@ describe('The \'monitor\' method', () => {
       })
 
       monitorClient.monitor().then((res) => {
-        assert.strictEqual(monitorClient.monitoring, true)
+        assert.strictEqual(monitorClient._monitoring, true)
         assert.strictEqual(res.inspect(), Buffer.from('OK').inspect())
         monitorClient.mget('hello', Buffer.from('world'))
       })
@@ -100,7 +100,7 @@ describe('The \'monitor\' method', () => {
       client.monitor().then(helper.isString('OK'))
       client.mget('hello', 'world')
       client.on('monitor', (time, args, rawOutput) => {
-        assert.strictEqual(client.monitoring, true)
+        assert.strictEqual(client._monitoring, true)
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
         assert.deepStrictEqual(args, ['mget', 'hello', 'world'])
         if (called) {
@@ -120,7 +120,7 @@ describe('The \'monitor\' method', () => {
       multi.mget('hello', 'world')
       multi.exec().then(helper.isDeepEqual(['OK', [null, null]]))
       client.on('monitor', (time, args, rawOutput) => {
-        assert.strictEqual(client.monitoring, true)
+        assert.strictEqual(client._monitoring, true)
         assert(utils.monitorRegex.test(rawOutput), rawOutput)
         assert.deepStrictEqual(args, ['mget', 'hello', 'world'])
         if (called) {
@@ -141,12 +141,12 @@ describe('The \'monitor\' method', () => {
       client._stream.destroy()
       const end = helper.callFuncAfter(done, 2)
       client.on('monitor', (time, args, rawOutput) => {
-        assert.strictEqual(client.monitoring, true)
+        assert.strictEqual(client._monitoring, true)
         end()
       })
       client.on('reconnecting', () => {
         client.get('foo').then((res) => {
-          assert.strictEqual(client.monitoring, true)
+          assert.strictEqual(client._monitoring, true)
           end()
         })
       })

@@ -72,9 +72,8 @@ if (process.platform !== 'win32') {
             if (helper.redisProcess().spawnFailed()) this.skip()
 
             client = redis.createClient(`redis://${config.HOST[ip]}:${config.PORT}?db=2&password=${auth}`)
-            assert.strictEqual(client.options.db, '2')
-            assert.strictEqual(client.options.password, auth)
-            assert.strictEqual(client.authPass, auth)
+            assert.strictEqual(client._options.db, '2')
+            assert.strictEqual(client._options.password, auth)
             client.on('ready', () => {
               const promises = []
               // Set a key so the used database is returned in the info command
@@ -209,7 +208,7 @@ if (process.platform !== 'win32') {
           client = redis.createClient.apply(null, args)
           client.set('foo', 'bar')
           client.subscribe('somechannel', 'another channel').then(() => {
-            assert.strictEqual(client.pubSubMode, 1)
+            assert.strictEqual(client._pubSubMode, 1)
             client.once('ready', () => {
               client.get('foo').catch((err) => {
                 assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message))
@@ -219,7 +218,7 @@ if (process.platform !== 'win32') {
           })
           client.once('ready', () => {
             // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
-            assert.strictEqual(client.pubSubMode, 2)
+            assert.strictEqual(client._pubSubMode, 2)
             client.ping().then(() => { // Make sure all commands were properly processed already
               client._stream.destroy()
             })

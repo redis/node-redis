@@ -20,7 +20,7 @@ describe('returnBuffers', () => {
         let i = 1
         if (args[2].detectBuffers) {
           // Test if detectBuffer option was deactivated
-          assert.strictEqual(client.options.detectBuffers, false)
+          assert.strictEqual(client._options.detectBuffers, false)
           args[2].detectBuffers = false
           i++
         }
