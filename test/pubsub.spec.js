@@ -444,7 +444,7 @@ describe('publish/subscribe', () => {
                 // sub2 is counted twice as it subscribed with psubscribe and subscribe
                 pub.publish('/foo', 'hello world').then(helper.isNumber(3))
               })
-              sub2.on('pmessage', (pattern, channel, message) => {
+              sub2.on('pmessageBuffer', (pattern, channel, message) => {
                 assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
                 assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect())
                 assert.strictEqual(message.inspect(), Buffer.from('hello world').inspect())

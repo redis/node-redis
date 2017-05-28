@@ -58,6 +58,8 @@ Breaking Changes
   - `host:` is now `host`
 - Changed the `serverInfo` into a nested object and to parse numbers
 - Changed the `serverInfo.versions` to `serverInfo.version`
+- Changed the `message` and `pmessage` listener to always return a string
+    If you want to receive a buffer, please listen to the `messageBuffer` or `pmessageBuffer`
 - Using `.end` without the flush parameter is now going to throw an TypeError
 - Only emit ready when all commands were truly send to Redis
 
