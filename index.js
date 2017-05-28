@@ -54,7 +54,6 @@ function RedisClient (options, stream) {
   this.connectionOptions = cnxOptions
   this.connectionId = RedisClient.connectionId++
   this.connected = false
-  this.ready = false
   if (options.socketKeepalive === undefined) {
     options.socketKeepalive = true
   }
@@ -81,7 +80,6 @@ function RedisClient (options, stream) {
   // Only used as timeout until redis has to be connected to redis until throwing an connection error
   this.connectTimeout = +options.connectTimeout || 60000 // 60 * 1000 ms
   this.enableOfflineQueue = options.enableOfflineQueue !== false
-  this.initializeRetryVars()
   this.pubSubMode = 0
   this.subscriptionSet = {}
   this.monitoring = false
@@ -109,6 +107,7 @@ function RedisClient (options, stream) {
   }
   this.retryStrategyProvided = !!options.retryStrategy
   this.subscribeChannels = []
+  utils.setReconnectDefaults(this)
   // Init parser and connect
   connect(this)
   this.on('newListener', function (event) {
@@ -121,40 +120,6 @@ function RedisClient (options, stream) {
 util.inherits(RedisClient, EventEmitter)
 
 RedisClient.connectionId = 0
-
-RedisClient.prototype.initializeRetryVars = function () {
-  this.retryTimer = null
-  this.retryTotaltime = 0
-  this.retryDelay = 100
-  this.attempts = 1
-}
-
-// Flush provided queues, erroring any items with a callback first
-RedisClient.prototype.flushAndError = function (message, code, options) {
-  options = options || {}
-  const queueNames = options.queues || ['commandQueue', 'offlineQueue'] // Flush the commandQueue first to keep the order intact
-  for (var i = 0; i < queueNames.length; i++) {
-    // If the command was fired it might have been processed so far
-    const ErrorClass = queueNames[i] === 'commandQueue'
-      ? Errors.InterruptError
-      : Errors.AbortError
-
-    while (this[queueNames[i]].length) {
-      const command = this[queueNames[i]].shift()
-      const err = new ErrorClass(message)
-      err.code = code
-      err.command = command.command.toUpperCase()
-      err.args = command.args
-      if (command.error) {
-        err.stack = err.stack + command.error.stack.replace(/^Error.*?\n/, '\n')
-      }
-      if (options.error) {
-        err.origin = options.error
-      }
-      command.callback(err)
-    }
-  }
-}
 
 // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
 // e.g. monitor / info does not work with internalSendCommand only
