@@ -458,9 +458,8 @@ describe('publish/subscribe', () => {
           const end = helper.callFuncAfter(done, 3)
           const data = Array(10000).join('äüs^öéÉÉ`e')
           sub.set('foo', data).then(() => {
-            sub.get('foo')
+            sub.get('foo').then((res) => assert.strictEqual(typeof res, 'string'))
             sub._stream.once('data', () => {
-              // TODO: Improve this test to test if a buffer is returned for any call
               assert.strictEqual(sub.messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
               sub.on('pmessageBuffer', (pattern, channel, message) => {
