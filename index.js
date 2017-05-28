@@ -156,25 +156,6 @@ RedisClient.prototype.flushAndError = function (message, code, options) {
   }
 }
 
-RedisClient.prototype.onError = function (err) {
-  if (this.closing) {
-    return
-  }
-
-  err.message = `Redis connection to ${this.address} failed - ${err.message}`
-  debug(err.message)
-  this.connected = false
-  this.ready = false
-
-  // Only emit the error if the retryStrategy option is not set
-  if (this.retryStrategyProvided === false) {
-    this.emit('error', err)
-  }
-  // 'error' events get turned into exceptions if they aren't listened for. If the user handled this error
-  // then we should try to reconnect.
-  reconnect(this, 'error', err)
-}
-
 // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
 // e.g. monitor / info does not work with internalSendCommand only
 RedisClient.prototype.internalSendCommand = function (commandObj) {
@@ -213,7 +194,7 @@ module.exports = {
   debugMode: /\bredis\b/i.test(process.env.NODE_DEBUG),
   RedisClient,
   Multi,
-  AbortError: errorClasses.AbortError,
+  AbortError: Errors.AbortError,
   ParserError: Errors.ParserError,
   RedisError: Errors.RedisError,
   ReplyError: Errors.ReplyError,
