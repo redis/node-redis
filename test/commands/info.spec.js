@@ -49,6 +49,7 @@ describe('The \'info\' method', () => {
       })
 
       it('return error after a failure', () => {
+        client.on('error', helper.isError(/This socket is closed/))
         const promise = client.info().then(helper.fail).catch((err) => {
           assert.strictEqual(err.code, 'UNCERTAIN_STATE')
           assert.strictEqual(err.command, 'INFO')

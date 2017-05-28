@@ -8,12 +8,9 @@
 const net = require('net')
 const util = require('util')
 const utils = require('./lib/utils')
-const reconnect = require('./lib/reconnect')
 const Queue = require('denque')
-const errorClasses = require('./lib/customErrors')
 const EventEmitter = require('events')
 const Errors = require('redis-errors')
-const debug = require('./lib/debug')
 const connect = require('./lib/connect')
 const Commands = require('redis-commands')
 const addCommand = require('./lib/commands')
@@ -21,8 +18,6 @@ const unifyOptions = require('./lib/createClient')
 const Multi = require('./lib/multi')
 const normalizeAndWriteCommand = require('./lib/writeCommands')
 const offlineCommand = require('./lib/offlineCommand')
-
-function noop () {}
 
 // Attention: The second parameter might be removed at will and is not officially supported.
 // Do not rely on this
@@ -80,7 +75,7 @@ function RedisClient (options, stream) {
   this.shouldBuffer = false
   this.commandQueue = new Queue() // Holds sent commands to de-pipeline them
   this.offlineQueue = new Queue() // Holds commands issued but not able to be sent
-  this.pipelineQueue = new Queue() // Holds all pipelined commands
+  this._pipelineQueue = new Queue() // Holds all pipelined commands
   // Only used as timeout until redis has to be connected to redis until throwing an connection error
   this.connectTimeout = +options.connectTimeout || 60000 // 60 * 1000 ms
   this.enableOfflineQueue = options.enableOfflineQueue !== false
@@ -94,8 +89,8 @@ function RedisClient (options, stream) {
   this.authPass = options.authPass || options.password
   this.selectedDb = options.db // Save the selected db here, used when reconnecting
   this.oldState = null
-  this.fireStrings = true // Determine if strings or buffers should be written to the stream
-  this.pipeline = false
+  this._strCache = ''
+  this._pipeline = false
   this.subCommandsLeft = 0
   this.renameCommands = options.renameCommands || {}
   this.timesConnected = 0
@@ -124,17 +119,6 @@ function RedisClient (options, stream) {
 util.inherits(RedisClient, EventEmitter)
 
 RedisClient.connectionId = 0
-
-/******************************************************************************
-
-    All functions in here are internal besides the RedisClient constructor
-    and the exported functions. Don't rely on them as they will be private
-    functions in nodeRedis v.3
-
-******************************************************************************/
-
-RedisClient.prototype.cork = noop
-RedisClient.prototype.uncork = noop
 
 RedisClient.prototype.initializeRetryVars = function () {
   this.retryTimer = null
@@ -219,39 +203,6 @@ RedisClient.prototype.internalSendCommand = function (commandObj) {
     }
   }
   return commandObj.promise
-}
-
-RedisClient.prototype.writeStrings = function () {
-  var str = ''
-  for (var command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
-    // Write to stream if the string is bigger than 4mb. The biggest string may be Math.pow(2, 28) - 15 chars long
-    if (str.length + command.length > 4 * 1024 * 1024) {
-      this.shouldBuffer = !this._stream.write(str)
-      str = ''
-    }
-    str += command
-  }
-  if (str !== '') {
-    this.shouldBuffer = !this._stream.write(str)
-  }
-}
-
-RedisClient.prototype.writeBuffers = function () {
-  for (var command = this.pipelineQueue.shift(); command; command = this.pipelineQueue.shift()) {
-    this.shouldBuffer = !this._stream.write(command)
-  }
-}
-
-// TODO: This can be significantly improved!
-// We can concat the string instead of using the queue
-// in most cases. This improves the performance.
-// This can only be used for strings only though.
-RedisClient.prototype.write = function (data) {
-  if (this.pipeline === false) {
-    this.shouldBuffer = !this._stream.write(data)
-    return
-  }
-  this.pipelineQueue.push(data)
 }
 
 Commands.list.forEach((name) => addCommand(RedisClient.prototype, Multi.prototype, name))

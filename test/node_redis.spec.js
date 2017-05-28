@@ -135,32 +135,6 @@ describe('The nodeRedis client', () => {
           })
         })
 
-        describe('big data', () => {
-          // Check if the fast mode for big strings is working correct
-          // TODO: Evaluate if this is still necessary after the refactoring
-          it.skip('safe strings that are bigger than 30000 characters with multi', () => {
-            let str = 'foo ಠ_ಠ bar '
-            while (str.length < 111111) {
-              str += str
-            }
-            let called = false
-            const temp = client.writeBuffers.bind(client)
-            assert(client.fireStrings)
-            client.writeBuffers = function (data) {
-              called = true
-              // To increase write performance for strings the value is converted to a buffer
-              assert(!client.fireStrings)
-              temp(data)
-            }
-            const promise = client.multi().set('foo', str).get('foo').exec().then((res) => {
-              assert.strictEqual(called, true)
-              assert.strictEqual(res[1], str)
-            })
-            assert(client.fireStrings)
-            return promise
-          })
-        })
-
         describe('sendCommand', () => {
           it('omitting args should be fine', () => {
             client.serverInfo = {}

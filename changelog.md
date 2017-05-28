@@ -17,6 +17,10 @@ It will not restore the support for old Node.js versions, the return value of
 connectTimeout behavior. It will also only partially restore snake_case support
 and maybe more.
 
+Features
+- Native promise support
+- Auto pipelining
+
 Breaking Changes
 
 - Dropped support for `UPPER_CASE` commands
