@@ -67,8 +67,10 @@ function RedisClient (options, stream) {
   options.detectBuffers = !!options.detectBuffers
   // Override the detectBuffers setting if returnBuffers is active and print a warning
   if (options.returnBuffers && options.detectBuffers) {
-    process.nextTick(() =>
-      utils.warn(this, 'WARNING: You activated returnBuffers and detectBuffers at the same time. The return value is always going to be a buffer.')
+    process.nextTick(
+      utils.warn,
+      this,
+      'WARNING: You activated returnBuffers and detectBuffers at the same time. The return value is always going to be a buffer.'
     )
     options.detectBuffers = false
   }

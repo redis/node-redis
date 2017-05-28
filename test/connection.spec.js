@@ -127,9 +127,7 @@ describe('connection tests', () => {
       client.once('ready', () => {
         client.set('foo', 'bar').catch(helper.isError())
         client.quit().then(() => done())
-        process.nextTick(() => {
-          client._stream.destroy()
-        })
+        process.nextTick(() => client._stream.destroy())
       })
     })
   })
@@ -288,9 +286,7 @@ describe('connection tests', () => {
           client = redis.createClient({
             connectTimeout: 1000
           })
-          process.nextTick(() => {
-            assert.strictEqual(client._stream._idleTimeout, 1000)
-          })
+          process.nextTick(assert.strictEqual, client._stream._idleTimeout, 1000)
           client.on('connect', () => {
             assert.strictEqual(client._stream._idleTimeout, -1)
             assert.strictEqual(client._stream.listeners('timeout').length, 0)

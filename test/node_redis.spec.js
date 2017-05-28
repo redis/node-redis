@@ -476,12 +476,10 @@ describe('The nodeRedis client', () => {
               assert(err instanceof redis.InterruptError)
               error = err.origin
             })
-            // Make sure we call execute out of the reply
-            // ready is called in a reply
-            process.nextTick(() => {
-              // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
-              client._replyParser.execute(Buffer.from('a*1\r*1\r$1`zasd\r\na'))
-            })
+            // Make sure we call execute out of the reply.
+            // Ready is called in a reply.
+            // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
+            process.nextTick(() => client._replyParser.execute(Buffer.from('a*1\r*1\r$1`zasd\r\na')))
           })
         })
       })

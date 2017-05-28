@@ -10,11 +10,7 @@ client.set('foo').catch((err) => {
   assert(/good-traces.js:9:8/.test(err.stack))
   client.set('foo', 'bar').catch((err) => {
     assert(/good-traces.js:11:10/.test(err.stack))
-    client.quit(() => {
-      process.exit(0)
-    })
+    client.quit(() => process.exit(0))
   })
-  process.nextTick(() => {
-    client._stream.destroy()
-  })
+  process.nextTick(() => client._stream.destroy())
 })
