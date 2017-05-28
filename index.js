@@ -27,11 +27,10 @@ class RedisClient extends EventEmitter {
   /**
    * Creates an instance of RedisClient.
    * @param {object} options
-   * @param {any} [stream]
    *
    * @memberof RedisClient
    */
-  constructor (options, stream) {
+  constructor (options) {
     super()
     // Copy the options so they are not mutated
     options = utils.clone(options)
@@ -46,10 +45,9 @@ class RedisClient extends EventEmitter {
         }
       }
     }
-    if (stream) {
+    if (options.stream) {
       // The stream from the outside is used so no connection from this side is triggered but from the server this client should talk to
       // Reconnect etc won't work with this. This requires monkey patching to work, so it is not officially supported
-      options.stream = stream
       this.address = '"Private stream"'
     } else if (options.path) {
       cnxOptions.path = options.path

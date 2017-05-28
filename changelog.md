@@ -37,6 +37,8 @@ Breaking Changes
 - Removed `authPass` (auth_pass) option. Please use `password` instead
 - Removed `Redis.print` helper function
 - Removed backpressure indicator from function return value
+- Removed the `stream` parameter from the RedisClient constructor.
+    Please set the stream in the options instead
 - Changed return value of `(p)(un)subscribe`
   - Return an array with the number of current subscribed channels and an array
     with all affected channels
