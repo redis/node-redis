@@ -78,8 +78,6 @@ class RedisClient extends EventEmitter {
         options.renameCommands[command.toLowerCase()] = options.renameCommands[command]
       }
     }
-    options.returnBuffers = !!options.returnBuffers
-    options.detectBuffers = !!options.detectBuffers
     if (typeof options.enableOfflineQueue !== 'boolean') {
       if (options.enableOfflineQueue !== undefined) {
         throw new TypeError('enableOfflineQueue must be a boolean')
@@ -109,6 +107,8 @@ class RedisClient extends EventEmitter {
       }
       options.password = options.authPass
     }
+    options.returnBuffers = !!options.returnBuffers
+    options.detectBuffers = !!options.detectBuffers
     this.selectedDb = options.db // Save the selected db here, used when reconnecting
     this._strCache = ''
     this._pipeline = false
@@ -131,9 +131,12 @@ class RedisClient extends EventEmitter {
     // Init parser and connect
     connect(this)
     this.on('newListener', function (event) {
-      if ((event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.messageBuffers) {
-        this.messageBuffers = true
-        this._replyParser.setReturnBuffers(true)
+      if ((event === 'messageBuffer' || event === 'pmessageBuffer') && this._messageBuffers === false) {
+        this._messageBuffers = true
+        if (this._parserReturningBuffers === false) {
+          this._parserReturningBuffers = true
+          this._replyParser.setReturnBuffers(true)
+        }
       }
     })
   }

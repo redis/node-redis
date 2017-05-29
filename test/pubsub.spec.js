@@ -458,21 +458,25 @@ describe('publish/subscribe', () => {
         })
 
         it('allows to listen to pmessageBuffer and pmessage', (done) => {
-          const end = helper.callFuncAfter(done, 4)
+          const end = helper.callFuncAfter(done, 5)
           const data = Array(10000).join('äüs^öéÉÉ`e')
           sub.set('foo', data).then(() => {
             sub.get('foo').then((res) => assert.strictEqual(typeof res, 'string'))
             sub._stream.once('data', () => {
-              assert.strictEqual(sub.messageBuffers, false)
+              assert.strictEqual(sub._messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
+              assert.strictEqual(args[2].detectBuffers, sub._parserReturningBuffers)
+              assert.strictEqual(sub._messageBuffers, false)
               sub.on('messageBuffer', (channel, message, pattern) => {
                 if (pattern) {
                   assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect())
+                  end()
                 }
                 assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect())
                 end()
               })
-              assert.notStrictEqual(sub.messageBuffers, sub.buffers)
+              assert.strictEqual(sub._messageBuffers, sub._parserReturningBuffers)
+              assert.strictEqual(sub._messageBuffers, true)
             })
             const batch = sub.batch()
             batch.psubscribe('*')

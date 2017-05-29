@@ -520,7 +520,7 @@ describe('The nodeRedis client', () => {
 
             client.on('error', (err) => {
               console.log(err)
-              if (err.code === 'CONNECTION_BROKEN') {
+              if (err.code === 'NR_CLOSED') {
                 assert(i, 3)
                 assert.strictEqual(client.offlineQueue.length, 0)
                 assert.strictEqual(err.origin.code, 'ECONNREFUSED')
