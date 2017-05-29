@@ -20,6 +20,7 @@ const offlineCommand = require('./lib/offlineCommand')
 const utils = require('./lib/utils')
 const normalizeAndWriteCommand = require('./lib/writeCommands')
 const noop = function () {}
+var connectionId = 0
 
 // Attention: The second parameter might be removed at will and is not officially supported.
 // Do not rely on this
@@ -34,8 +35,8 @@ class RedisClient extends EventEmitter {
     super()
     // Copy the options so they are not mutated
     options = utils.clone(options)
+    // TODO: Add a more restrictive options validation
     const cnxOptions = {}
-    /* istanbul ignore next: travis does not work with stunnel atm. Therefore the tls tests are skipped on travis */
     for (const tlsOption in options.tls) {
       if (options.tls.hasOwnProperty(tlsOption)) {
         cnxOptions[tlsOption] = options.tls[tlsOption]
@@ -140,6 +141,8 @@ class RedisClient extends EventEmitter {
   // Do not call internalSendCommand directly, if you are not absolutely certain it handles everything properly
   // e.g. monitor / info does not work with internalSendCommand only
   // TODO: Move this function out of the client as a private function
+  // TODO: Check how others can intercept (monkey patch) essential parts (e.g. opbeat)
+  // after making this private.
   internalSendCommand (commandObj) {
     if (this.ready === false || this._stream.writable === false) {
       // Handle offline commands right away
@@ -154,7 +157,6 @@ class RedisClient extends EventEmitter {
     }
     // Handle `CLIENT REPLY ON|OFF|SKIP`
     // This has to be checked after callOnWrite
-    /* istanbul ignore else: TODO: Remove this as soon as we test Redis 3.2 on travis */
     if (this._reply === 'ON') {
       this.commandQueue.push(commandObj)
     } else {
@@ -229,6 +231,10 @@ class RedisClient extends EventEmitter {
   }
 
   // TODO: promisify this
+  // This can not be done without removing support to return the client sync.
+  // This would be another BC and it should be fine to return the client sync.
+  // Therefore a option could be to accept a resolved promise instead of a callback
+  // to return a promise.
   duplicate (options, callback) {
     if (typeof options === 'function') {
       callback = options
@@ -261,33 +267,31 @@ class RedisClient extends EventEmitter {
 
   // Note: this overrides a native function!
   multi (args) {
-    return new Multi(this, 'multi', args)
+    return new Multi(this, args, 'multi')
   }
 
-  // Note: This is not a native function but is still handled as a individual command as it behaves just the same as multi
   batch (args) {
-    return new Multi(this, 'batch', args)
+    return new Multi(this, args, 'batch')
   }
 
 }
 
-RedisClient.connectionId = 0
+RedisClient.debugMode = /\bredis\b/i.test(process.env.NODE_DEBUG)
+RedisClient.RedisClient = RedisClient
+RedisClient.Multi = Multi
+RedisClient.AbortError = Errors.AbortError
+RedisClient.ParserError = Errors.ParserError
+RedisClient.RedisError = Errors.RedisError
+RedisClient.ReplyError = Errors.ReplyError
+RedisClient.InterruptError = Errors.InterruptError
+RedisClient.print = utils.print
+RedisClient.createClient = function () {
+  return new RedisClient(unifyOptions.apply(null, arguments))
+}
 
 Commands.list.forEach((name) => addCommand(RedisClient.prototype, Multi.prototype, name))
 
-module.exports = {
-  debugMode: /\bredis\b/i.test(process.env.NODE_DEBUG),
-  RedisClient,
-  Multi,
-  AbortError: Errors.AbortError,
-  ParserError: Errors.ParserError,
-  RedisError: Errors.RedisError,
-  ReplyError: Errors.ReplyError,
-  InterruptError: Errors.InterruptError,
-  createClient () {
-    return new RedisClient(unifyOptions.apply(null, arguments))
-  }
-}
+module.exports = RedisClient
 
 // Add all redis commands / nodeRedis api to the client
 // TODO: Change the way this is included...

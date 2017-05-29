@@ -19,14 +19,18 @@ and maybe more.
 
 Bugfixes
 - Fixed auth in batch not saving the password
+- Fixed catch tls handshake failures with newer Node.js versions
+- Fixed stream option being copied
+- Fixed pub sub activated, listening to a `(p)messageBuffer`, no Buffer returns
+    and monitoring resulting in a crash.
 
 Features
 - Native promise support
 - Auto pipelining
+- The client is now exported directly and be instantiated directly
 
 Breaking Changes
 
-- Dropped support for `UPPER_CASE` commands
 - Dropped support for `snake_case`
 - Dropped support for domains
 - Dropped support for Redis 2.4
@@ -36,9 +40,7 @@ Breaking Changes
 - Removed `parser` option
 - Removed `retryMaxDelay` (max_delay) option
 - Removed `maxAttempts` (max_attempts) option
-- Removed `socketNoDelay` (socket_no_delay) option
-- Removed `authPass` (auth_pass) option. Please use `password` instead
-- Removed `Redis.print` helper function
+- Removed `socketNoDelay` (socket\_no_delay) option
 - Removed backpressure indicator from function return value
 - Removed the `stream` parameter from the RedisClient constructor.
   - Please set the stream in the options instead
@@ -60,11 +62,12 @@ Breaking Changes
   - `restore-asking` is now `restore_asking_`
   - `host:` is now `host`
 - Changed the `serverInfo` into a nested object and to parse numbers
-- Changed the `serverInfo.versions` to `serverInfo.version`
+- Changed the `serverInfo.versions` to `serverInfo.server.version`
 - Changed the `message` and `pmessage` listener to always return a string
   - If you want to receive a buffer, please listen to the `messageBuffer` or `pmessageBuffer`
 - Using `.end` without the flush parameter is now going to throw an TypeError
 - Only emit ready when all commands were truly send to Redis
+- `UPPER_CASE` commands are not enumerated anymore
 
 ## v.2.7.2 - 14 Mar, 2017
 

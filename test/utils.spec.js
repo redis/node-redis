@@ -2,9 +2,34 @@
 
 const assert = require('assert')
 const Queue = require('denque')
+const intercept = require('intercept-stdout')
 const utils = require('../lib/utils')
 
 describe('utils.js', () => {
+  describe('print helper', function () {
+    it('callback with reply', function () {
+      var text = ''
+      const unhookIntercept = intercept(function (data) {
+        text += data
+        return ''
+      })
+      utils.print(null, 'abc')
+      unhookIntercept()
+      assert.strictEqual(text, 'Reply: abc\n')
+    })
+
+    it('callback with error', function () {
+      var text = ''
+      const unhookIntercept = intercept(function (data) {
+        text += data
+        return ''
+      })
+      utils.print(new Error('Wonderful exception'))
+      unhookIntercept()
+      assert.strictEqual(text, 'Error: Wonderful exception\n')
+    })
+  })
+
   describe('clone', () => {
     it('ignore the object prototype and clone a nested array / object', () => {
       const obj = {

@@ -170,7 +170,7 @@ module.exports = {
       let key
       for (key in options) {
         if (options.hasOwnProperty(key)) {
-          strOptions += `${key  }: ${options[key]}; `
+          strOptions += `${key}: ${options[key]}; `
         }
       }
       describe(`using options: ${strOptions}`, () => {

@@ -14,9 +14,7 @@ if (process.platform !== 'win32') {
       })
     })
 
-    helper.allTests({
-      allConnections: true
-    }, (ip, args) => {
+    helper.allTests((ip, args) => {
       describe(`using ${ip}`, () => {
         const auth = 'porkchopsandwiches'
         let client = null
