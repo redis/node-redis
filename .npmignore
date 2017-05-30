@@ -8,3 +8,8 @@ coverage/
 *.rdb
 *.out
 *.yml
+.idea
+.vscode
+.env
+.DS_STORE
+dump.rdb

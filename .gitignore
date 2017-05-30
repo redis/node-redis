@@ -7,3 +7,8 @@ coverage
 stunnel.conf
 stunnel.pid
 *.out
+.idea
+.vscode
+.env
+.DS_STORE
+dump.rdb
