@@ -507,6 +507,15 @@ describe('connection tests', () => {
             assert(delayed)
             end()
           })
+          // Cover info parts with no value
+          setImmediate(() => {
+            const command = client.commandQueue.peekAt(0)
+            const callback = command.callback
+            command.callback = (err, res) => {
+              res += 'added:\r\n'
+              callback(err, res)
+            }
+          })
         })
 
         it('redis still loading > 1000ms', (done) => {
