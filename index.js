@@ -59,17 +59,7 @@ class RedisClient extends EventEmitter {
       cnxOptions.family = (!options.family && net.isIP(cnxOptions.host)) || (options.family === 'IPv6' ? 6 : 4)
       this.address = `${cnxOptions.host}:${cnxOptions.port}`
     }
-
-    // Public Variables
-    this.connected = false
-    this.shouldBuffer = false
-    this.commandQueue = new Queue() // Holds sent commands to de-pipeline them
-    this.offlineQueue = new Queue() // Holds commands issued but not able to be sent
-    this.serverInfo = {}
-
-    // Private Variables
-    this._connectionOptions = cnxOptions
-    this.connectionId = RedisClient.connectionId++
+    // TODO: Properly fix typo
     if (options.socketKeepalive === undefined) {
       options.socketKeepalive = true
     }
@@ -109,6 +99,14 @@ class RedisClient extends EventEmitter {
     }
     options.returnBuffers = !!options.returnBuffers
     options.detectBuffers = !!options.detectBuffers
+
+    // Public Variables
+    this.connected = false
+    this.shouldBuffer = false
+    this.commandQueue = new Queue() // Holds sent commands
+    this.offlineQueue = new Queue() // Holds commands issued but not able to be sent yet
+    this.serverInfo = {}
+    this.connectionId = connectionId++
     this.selectedDb = options.db // Save the selected db here, used when reconnecting
     this._strCache = ''
     this._pipeline = false
@@ -251,7 +249,12 @@ class RedisClient extends EventEmitter {
       }
     }
     const client = new RedisClient(existingOptions)
+    // Return to the same state as the other client
+    // by also selecting the db / returning to pub sub
+    // mode or into monitor mode.
     client.selectedDb = this.selectedDb
+    client._subscriptionSet = this._subscriptionSet
+    client._monitoring = this._monitoring
     if (typeof callback === 'function') {
       const errorListener = (err) => {
         callback(err)

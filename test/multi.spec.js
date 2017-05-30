@@ -194,7 +194,7 @@ describe('The \'multi\' method', () => {
       })
 
       describe('when connection is broken', () => {
-        it.skip('return an error even if connection is in broken mode', (done) => {
+        it('return an error even if connection is in broken mode', (done) => {
           client = redis.createClient({
             host: 'somewhere',
             port: 6379,
@@ -202,13 +202,12 @@ describe('The \'multi\' method', () => {
           })
 
           client.on('error', (err) => {
-            if (/Redis connection in broken state/.test(err.message)) {
-              done()
-            }
+            assert.strictEqual(err.code, 'NR_CLOSED')
+            done()
           })
 
           client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec().catch((err) => {
-            // assert(/Redis connection in broken state/.test(err.message));
+            assert(/Stream connection ended and command aborted/.test(err.message))
             assert.strictEqual(err.errors.length, 2)
             assert.strictEqual(err.errors[0].args.length, 2)
           })

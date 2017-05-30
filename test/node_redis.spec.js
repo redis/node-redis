@@ -507,8 +507,7 @@ describe('The nodeRedis client', () => {
             }, 50)
           })
 
-          // TODO: Fix this by adding the CONNECTION_BROKEN back in
-          it.skip('enqueues operation and keep the queue while trying to reconnect', (done) => {
+          it('enqueues operation and keep the queue while trying to reconnect', (done) => {
             client = redis.createClient(9999, null, {
               retryStrategy (options) {
                 if (options.attempt < 4) {
@@ -519,7 +518,6 @@ describe('The nodeRedis client', () => {
             let i = 0
 
             client.on('error', (err) => {
-              console.log(err)
               if (err.code === 'NR_CLOSED') {
                 assert(i, 3)
                 assert.strictEqual(client.offlineQueue.length, 0)

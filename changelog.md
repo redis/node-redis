@@ -28,6 +28,7 @@ Features
 - Native promise support
 - Auto pipelining
 - The client is now exported directly and be instantiated directly
+- `client.duplicate` will now also transition into pub sub or monitor mode
 
 Breaking Changes
 

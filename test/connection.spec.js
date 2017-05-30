@@ -153,7 +153,7 @@ describe('connection tests', () => {
           })
         })
 
-        it.skip('can not connect with wrong host / port in the options object', (done) => {
+        it('can not connect with wrong host / port in the options object', (done) => {
           const options = {
             host: 'somewhere',
             port: 6379,
@@ -163,11 +163,10 @@ describe('connection tests', () => {
           client = Redis.createClient(options)
           assert.strictEqual(client._connectionOptions.family, ip === 'IPv6' ? 6 : 4)
           assert.strictEqual(Object.keys(options).length, 4)
-          const end = helper.callFuncAfter(done, 2)
 
           client.on('error', (err) => {
-            assert(/CONNECTION_BROKEN|ENOTFOUND|EAI_AGAIN/.test(err.code))
-            end()
+            assert(/NR_CLOSED/.test(err.code))
+            done()
           })
         })
 
@@ -206,7 +205,7 @@ describe('connection tests', () => {
             },
             port: 9999
           })
-          client.on('error', helper.isError(/Redis connection to 127\.0\.0\.1:9999 failed/))
+          client.on('error', helper.isError(/Redis connection ended/))
         })
 
         it('retryStrategy used to reconnect with defaults', (done) => {
@@ -230,6 +229,7 @@ describe('connection tests', () => {
           setTimeout(() => {
             client._stream.destroy()
           }, 50)
+          client.on('error', helper.isError(/Redis connection ended/))
         })
       })
 
