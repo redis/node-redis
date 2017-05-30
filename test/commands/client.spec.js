@@ -71,6 +71,14 @@ describe('The \'client\' method', () => {
             promises.push(client.get('foo').then(helper.isString('bar')))
             return Promise.all(promises)
           })
+
+          it('weird', function () {
+            helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
+            assert.strictEqual(client._reply, 'ON')
+            const promise = client.client('REPLY', 'WEIRD').then(helper.fail, helper.isError())
+            assert.strictEqual(client._reply, 'ON')
+            return promise
+          })
         })
 
         describe('in a batch context', () => {
@@ -111,6 +119,14 @@ describe('The \'client\' method', () => {
                 assert.strictEqual(client._reply, 'ON')
                 assert.deepStrictEqual(res, ['OK', undefined, undefined, 'bar'])
               })
+          })
+
+          it('weird', function () {
+            helper.serverVersionAtLeast.call(this, client, [3, 2, 0])
+            assert.strictEqual(client._reply, 'ON')
+            const promise = client.batch().client('REPLY', 'WEIRD').exec().then(helper.fail, helper.isError())
+            assert.strictEqual(client._reply, 'ON')
+            return promise
           })
         })
       })

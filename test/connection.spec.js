@@ -413,6 +413,20 @@ describe('connection tests', () => {
           })
         })
 
+        it('connects correctly even if the info command returns a empty string', (done) => {
+          client = Redis.createClient.apply(null, args)
+          const end = helper.callFuncAfter(done, 2)
+          client.info = function () {
+            // Mock the result
+            end()
+            return Promise.resolve('')
+          }
+          client.once('ready', () => {
+            assert.strictEqual(Object.keys(client.serverInfo).length, 0)
+            end()
+          })
+        })
+
         if (ip === 'IPv4') {
           it('allows connecting with the redis url to the default host and port, select db 3 and warn about duplicate db option', (done) => {
             client = Redis.createClient('redis:///3?db=3')

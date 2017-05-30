@@ -38,6 +38,7 @@ class RedisClient extends EventEmitter {
     // TODO: Add a more restrictive options validation
     const cnxOptions = {}
     for (const tlsOption in options.tls) {
+      /* istanbul ignore else */
       if (options.tls.hasOwnProperty(tlsOption)) {
         cnxOptions[tlsOption] = options.tls[tlsOption]
         // Copy the tls options into the general options to make sure the address is set right
@@ -56,7 +57,7 @@ class RedisClient extends EventEmitter {
     } else {
       cnxOptions.port = +options.port || 6379
       cnxOptions.host = options.host || '127.0.0.1'
-      cnxOptions.family = (!options.family && net.isIP(cnxOptions.host)) || (options.family === 'IPv6' ? 6 : 4)
+      cnxOptions.family = (!options.family && net.isIP(cnxOptions.host)) || (options.host && options.family === 'IPv6' ? 6 : 4)
       this.address = `${cnxOptions.host}:${cnxOptions.port}`
     }
     // TODO: Properly fix typo
@@ -64,6 +65,7 @@ class RedisClient extends EventEmitter {
       options.socketKeepalive = true
     }
     for (const command in options.renameCommands) {
+      /* istanbul ignore else */
       if (options.renameCommands.hasOwnProperty(command)) {
         options.renameCommands[command.toLowerCase()] = options.renameCommands[command]
       }
@@ -234,7 +236,7 @@ class RedisClient extends EventEmitter {
       this._stream.unref()
     } else {
       debug('Not connected yet, will unref later')
-      this.once('connect', () => this._stream.unref())
+      this.once('connect', () => this.unref())
     }
   }
 
@@ -251,6 +253,7 @@ class RedisClient extends EventEmitter {
     const existingOptions = utils.clone(this._options)
     options = utils.clone(options)
     for (const elem in options) {
+      /* istanbul ignore else */
       if (options.hasOwnProperty(elem)) {
         existingOptions[elem] = options[elem]
       }
@@ -280,11 +283,11 @@ class RedisClient extends EventEmitter {
 
   // Note: this overrides a native function!
   multi (args) {
-    return new Multi(this, args, 'multi')
+    return new Multi(this, 'multi', args)
   }
 
   batch (args) {
-    return new Multi(this, args, 'batch')
+    return new Multi(this, 'batch', args)
   }
 
 }

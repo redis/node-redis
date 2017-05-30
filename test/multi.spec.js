@@ -198,8 +198,11 @@ describe('The \'multi\' method', () => {
           client = redis.createClient({
             host: 'somewhere',
             port: 6379,
+            family: 'IPv6',
             retryStrategy () {}
           })
+
+          assert.strictEqual(client._connectionOptions.family, 6)
 
           client.on('error', (err) => {
             assert.strictEqual(err.code, 'NR_CLOSED')

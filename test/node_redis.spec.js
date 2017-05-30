@@ -57,6 +57,26 @@ describe('The nodeRedis client', () => {
     client._stream.destroy()
   })
 
+  describe('arguments validation', () => {
+    it('no boolean for enableOfflineQueue', () => {
+      try {
+        redis.createClient({ enableOfflineQueue: 'test' })
+        throw new Error('failed')
+      } catch (err) {
+        assert.strictEqual(err.name, 'TypeError')
+      }
+    })
+
+    it('no boolean for enableOfflineQueue', () => {
+      try {
+        redis.createClient({ password: 'test', authPass: 'foobar' })
+        throw new Error('failed')
+      } catch (err) {
+        assert.strictEqual(err.name, 'TypeError')
+      }
+    })
+  })
+
   helper.allTests((ip, args) => {
     describe(`using ${ip}`, () => {
       afterEach(() => {
@@ -67,6 +87,22 @@ describe('The nodeRedis client', () => {
         beforeEach(() => {
           client = redis.createClient.apply(null, args)
           return client.flushdb()
+        })
+
+        describe('argument errors', () => {
+          it('should return an error in case of "null" argument', () => {
+            return client.set('foo', null).then(helper.fail, (err) => {
+              assert.deepStrictEqual(err.issues, [null])
+            })
+          })
+
+          it('should return an error in case of unknown types', () => {
+            class Foo {}
+            const tmp = new Foo()
+            return client.set(tmp, undefined).then(helper.fail, (err) => {
+              assert.deepStrictEqual(err.issues, [tmp, undefined])
+            })
+          })
         })
 
         describe('duplicate', () => {
