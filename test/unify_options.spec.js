@@ -1,7 +1,7 @@
 'use strict'
 
 const assert = require('assert')
-const unifyOptions = require('../lib/createClient')
+const unifyOptions = require('../lib/unifyOptions')
 const intercept = require('intercept-stdout')
 
 describe('createClient options', () => {

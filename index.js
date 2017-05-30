@@ -2,11 +2,13 @@
 
 const Commands = require('redis-commands')
 const Errors = require('redis-errors')
+const addCommand = require('./lib/addCommand')
 const RedisClient = require('./lib/client')
-const addCommand = require('./lib/commands')
-const unifyOptions = require('./lib/createClient')
 const Multi = require('./lib/multi')
+const unifyOptions = require('./lib/unifyOptions')
 const utils = require('./lib/utils')
+
+require('./lib/individualCommands')
 
 RedisClient.debugMode = /\bredis\b/i.test(process.env.NODE_DEBUG)
 RedisClient.RedisClient = RedisClient
@@ -24,7 +26,3 @@ RedisClient.createClient = function () {
 Commands.list.forEach((name) => addCommand(RedisClient.prototype, Multi.prototype, name))
 
 module.exports = RedisClient
-
-// Add all redis commands / nodeRedis api to the client
-// TODO: Change the way this is included...
-require('./lib/individualCommands')
