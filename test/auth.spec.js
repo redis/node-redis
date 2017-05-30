@@ -125,7 +125,7 @@ if (process.platform !== 'win32') {
           client = redis.createClient.apply(null, args)
           client.auth(auth).catch(done)
           client.on('ready', function () {
-            if (this.timesConnected < 3) {
+            if (this._timesConnected < 3) {
               let interval = setInterval(() => {
                 if (client.commandQueue.length !== 0) {
                   return

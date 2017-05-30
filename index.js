@@ -74,8 +74,6 @@ class RedisClient extends EventEmitter {
       }
       options.enableOfflineQueue = true
     }
-    // Only used as timeout until redis has to be connected to redis until throwing an connection error
-    options.connectTimeout = +options.connectTimeout || 60000 // 60 * 1000 ms
     // Override the detectBuffers setting if returnBuffers is active and print a warning
     if (options.returnBuffers && options.detectBuffers) {
       process.nextTick(
@@ -85,12 +83,6 @@ class RedisClient extends EventEmitter {
       )
       options.detectBuffers = false
     }
-    this._pipelineQueue = new Queue() // Holds all pipelined commands
-    this._pubSubMode = 0
-    this._subscriptionSet = {}
-    this._monitoring = false
-    this.messageBuffers = false
-    this._closing = false
     if (options.authPass) {
       if (options.password) {
         throw new TypeError('The "password" and "authPass" option may not both be set at the same time.')
@@ -108,23 +100,38 @@ class RedisClient extends EventEmitter {
     this.serverInfo = {}
     this.connectionId = connectionId++
     this.selectedDb = options.db // Save the selected db here, used when reconnecting
-    this._strCache = ''
+
+    // Private Variables
+    // Pipelining
     this._pipeline = false
+    this._strCache = ''
+    this._pipelineQueue = new Queue()
+    // Pub sub mode
     this._subCommandsLeft = 0
-    this.timesConnected = 0
-    this.buffers = options.returnBuffers || options.detectBuffers
-    this._options = options
+    this._pubSubMode = 0
+    this._subscriptionSet = {}
+    this._subscribeChannels = []
+    this._messageBuffers = false
+    // Others
     this._multi = false
-    this._reply = 'ON' // Returning replies is the default
-    this.retryStrategy = options.retryStrategy || function (options) {
+    this._monitoring = false
+    this._parserReturningBuffers = options.returnBuffers || options.detectBuffers
+    this._options = options
+    this._reply = 'ON'
+    this._retryStrategyProvided = !!options.retryStrategy
+    this._closing = false
+    this._timesConnected = 0
+    this._connectionOptions = cnxOptions
+    // Only used as timeout until redis has to be connected to redis until throwing an connection error
+    this._connectTimeout = +options.connectTimeout || 60 * 1000 // ms
+    this._retryStrategy = options.retryStrategy || function (options) {
+      // TODO: Find better defaults
       if (options.attempt > 100) {
         return
       }
       // reconnect after
       return Math.min(options.attempt * 100, 3000)
     }
-    this._retryStrategyProvided = !!options.retryStrategy
-    this._subscribeChannels = []
     utils.setReconnectDefaults(this)
     // Init parser and connect
     connect(this)
