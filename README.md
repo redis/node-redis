@@ -120,7 +120,7 @@ This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands).
 Example setting key to auto expire using [SET command](https://redis.io/commands/set)
 
 ```js
-// this key will expires after 10 seconds
+// this key will expire after 10 seconds
 client.set('key', 'value!', 'EX', 10);
 ```
 
