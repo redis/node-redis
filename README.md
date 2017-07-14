@@ -330,7 +330,7 @@ client.on('error', function (err) {
     assert.strictEqual(err.errors.length, 2); // The set and get got aggregated in here
     assert.strictEqual(err.code, 'NR_CLOSED');
 });
-client.set('foo', 123, 'bar', function (err, res) { // To many arguments
+client.set('foo', 123, 'bar', function (err, res) { // Too many arguments
     assert(err instanceof redis.ReplyError); // => true
     assert.strictEqual(err.command, 'SET');
     assert.deepStrictEqual(err.args, ['foo', 123, 'bar']);
