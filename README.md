@@ -274,7 +274,7 @@ In combination this can be used to implement backpressure by checking the buffer
 ## client.quit()
 
 This sends the quit command to the redis server and ends cleanly right after all running commands were properly handled.
-If this is called while reconnecting (and therefor no connection to the redis server exists) it is going to end the connection right away instead of
+If this is called while reconnecting (and therefore no connection to the redis server exists) it is going to end the connection right away instead of
 resulting in further reconnections! All offline commands are going to be flushed with an error in that case.
 
 ## client.end(flush)
