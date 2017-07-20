@@ -705,7 +705,6 @@ accessed via the redis SELECT command.  Each DB could use its own connection.
 
 All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
 you can use `send_command()` to send arbitrary commands to Redis.
-The command_name has to be lower case.
 
 All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
 

@@ -1,6 +1,10 @@
 # Changelog
 
-## v.2.7.2 - 14 Mar, 2017
+## v.2.8.0 - 20 Jul, 2017
+
+Features
+
+- Accept UPPER_CASE commands in send_command
 
 Bugfixes
 
