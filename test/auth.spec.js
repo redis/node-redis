@@ -260,9 +260,10 @@ describe('client authentication', function () {
                     password: 'wrong_password',
                     parser: parser
                 });
-                client.once('error', function (err) {
+                client.on('error', function (err) {
                     assert.strictEqual(err.message, 'ERR invalid password');
-                    done();
+                    // Make sure no other errors are reported
+                    setTimeout(done, 50);
                 });
             });
 

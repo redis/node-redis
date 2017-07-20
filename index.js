@@ -228,6 +228,8 @@ function create_parser (self) {
 RedisClient.prototype.create_stream = function () {
     var self = this;
 
+    var first_attempt = !this.stream;
+
     // Init parser
     this.reply_parser = create_parser(this);
 
@@ -304,7 +306,13 @@ RedisClient.prototype.create_stream = function () {
     // Fire the command before redis is connected to be sure it's the first fired command
     if (this.auth_pass !== undefined) {
         this.ready = true;
-        this.auth(this.auth_pass);
+        // Fail silently as we might not be able to connect
+        this.auth(this.auth_pass, function (err) {
+            if (err && first_attempt) {
+                self.command_queue.get(0).callback = noop;
+                self.emit('error', err);
+            }
+        });
         this.ready = false;
     }
 };

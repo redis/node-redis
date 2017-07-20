@@ -9,6 +9,7 @@ Features
 Bugfixes
 
 - Fixed not always copying subscribe unsubscribe arguments
+- Fixed emitting internal errors while reconnecting with auth
 
 ## v.2.7.1 - 14 Mar, 2017
 
