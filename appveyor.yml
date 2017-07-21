@@ -7,6 +7,7 @@ environment:
     - nodejs_version: "0.12"
     - nodejs_version: "4"
     - nodejs_version: "6"
+    - nodejs_version: "8"
 
 pull_requests:
   do_not_increment_build_number: true
