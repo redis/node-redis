@@ -4,7 +4,7 @@
 var config = require('./config');
 var fs = require('fs');
 var path = require('path');
-var spawn = require('cross-spawn');
+var spawn = require('win-spawn');
 var tcpPortUsed = require('tcp-port-used');
 var bluebird = require('bluebird');
 
