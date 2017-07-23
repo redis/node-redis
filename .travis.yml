@@ -13,6 +13,5 @@ node_js:
   - "0.12"
   - "4"
   - "6"
-  - "7"
   - "8"
 after_success: npm run coveralls
