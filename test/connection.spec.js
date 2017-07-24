@@ -303,6 +303,26 @@ describe('connection tests', function () {
                     });
                 });
 
+                it('retry_strategy used to reconnect with object', function (done) {
+                    client = redis.createClient({
+                        retry_strategy: function (options) {
+                            if (options.total_retry_time > 150) {
+                                client.set('foo', 'bar', function (err, res) {
+                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
+                                    assert.strictEqual(err.code, 'NR_CLOSED');
+                                    assert.strictEqual(err.origin.code, 'ECONNREFUSED');
+                                    done();
+                                });
+                            }
+                            return {
+                                retry_delay: Math.min(options.attempt * 25, 200),
+                                error: options.error
+                            };
+                        },
+                        port: 9999
+                    });
+                });
+
                 it('retry_strategy used to reconnect', function (done) {
                     client = redis.createClient({
                         retry_strategy: function (options) {

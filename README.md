@@ -211,7 +211,7 @@ __Tip:__ If the Redis server runs on the same machine as the client consider usi
 | rename_commands | null | Passing an object with renamed commands to use instead of the original functions. For example, if you renamed the command KEYS to "DO-NOT-USE" then the rename_commands object would be: `{ KEYS : "DO-NOT-USE" }` . See the [Redis security topics](http://redis.io/topics/security) for more info. |
 | tls | null | An object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback) to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel). |
 | prefix | null | A string used to prefix all used keys (e.g. `namespace:test`). Please be aware that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed. |
-| retry_strategy | function | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
+| retry_strategy | function | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Return a object with an error and retry_delay for the commands to be flushed and connection retry to be attempted after `retry_delay`. Examples below. |
 
 ```js
 var redis = require("redis");
@@ -231,7 +231,8 @@ client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
 client.quit();
 ```
 
-retry_strategy example
+####retry_strategy example
+
 ```js
 var client = redis.createClient({
     retry_strategy: function (options) {
@@ -249,6 +250,26 @@ var client = redis.createClient({
         }
         // reconnect after
         return Math.min(options.attempt * 100, 3000);
+    }
+});
+```
+
+```js
+var client = redis.createClient({
+    retry_strategy: function (options) {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+            // End reconnecting on a specific error and flush all commands with a individual error
+            return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+            // End reconnecting after a specific timeout and flush all commands with a individual error
+            return new Error('Retry time exhausted');
+        }
+        // attempt reconnect after retry_delay, and flush any pending commands
+        return {
+            retry_delay: Math.min(options.attempt * 100, 3000),
+            error: new Error('Your custom error.');
+        }
     }
 });
 ```
