@@ -1,15 +1,17 @@
 # Changelog
 
-## v.2.8.0 - 20 Jul, 2017
+## v.2.8.0 - 31 Jul, 2017
 
 Features
 
 - Accept UPPER_CASE commands in send_command
+- Add arbitrary commands to the prototype by using `Redis.addCommand(name)`
 
 Bugfixes
 
 - Fixed not always copying subscribe unsubscribe arguments
 - Fixed emitting internal errors while reconnecting with auth
+- Fixed crashing with invalid url option
 
 ## v.2.7.1 - 14 Mar, 2017
 

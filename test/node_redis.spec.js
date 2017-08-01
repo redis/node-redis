@@ -12,6 +12,24 @@ var client;
 
 describe('The node_redis client', function () {
 
+    describe.only("The 'add_command' method", function () {
+
+        it('camel case and snakeCase version exists', function () {
+            assert.strictEqual(typeof redis.addCommand, 'function');
+            assert.strictEqual(typeof redis.add_command, 'function');
+        });
+
+        it('converts special characters in functions names to lowercase', function () {
+            var command = 'really-new.command';
+            assert.strictEqual(redis.prototype[command], undefined);
+            redis.addCommand(command);
+            assert.strictEqual(redis.prototype[command].name, 'really_new_command');
+            assert.strictEqual(redis.prototype[command.toUpperCase()].name, 'really_new_command');
+            assert.strictEqual(redis.prototype.really_new_command.name, 'really_new_command');
+            assert.strictEqual(redis.prototype.REALLY_NEW_COMMAND.name, 'really_new_command');
+        });
+    });
+
     it('individual commands sanity check', function (done) {
         // All commands should work the same in multi context or without
         // Therefor individual commands always have to be handled in both cases
