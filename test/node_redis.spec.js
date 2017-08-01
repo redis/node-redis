@@ -12,7 +12,9 @@ var client;
 
 describe('The node_redis client', function () {
 
-    describe.only("The 'add_command' method", function () {
+    describe("The 'add_command' method", function () {
+
+        var Redis = redis.RedisClient;
 
         it('camel case and snakeCase version exists', function () {
             assert.strictEqual(typeof redis.addCommand, 'function');
@@ -21,12 +23,12 @@ describe('The node_redis client', function () {
 
         it('converts special characters in functions names to lowercase', function () {
             var command = 'really-new.command';
-            assert.strictEqual(redis.prototype[command], undefined);
+            assert.strictEqual(Redis.prototype[command], undefined);
             redis.addCommand(command);
-            assert.strictEqual(redis.prototype[command].name, 'really_new_command');
-            assert.strictEqual(redis.prototype[command.toUpperCase()].name, 'really_new_command');
-            assert.strictEqual(redis.prototype.really_new_command.name, 'really_new_command');
-            assert.strictEqual(redis.prototype.REALLY_NEW_COMMAND.name, 'really_new_command');
+            assert.strictEqual(Redis.prototype[command].name, 'really_new_command');
+            assert.strictEqual(Redis.prototype[command.toUpperCase()].name, 'really_new_command');
+            assert.strictEqual(Redis.prototype.really_new_command.name, 'really_new_command');
+            assert.strictEqual(Redis.prototype.REALLY_NEW_COMMAND.name, 'really_new_command');
         });
     });
 
