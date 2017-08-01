@@ -25,10 +25,12 @@ describe('The node_redis client', function () {
             var command = 'really-new.command';
             assert.strictEqual(Redis.prototype[command], undefined);
             redis.addCommand(command);
-            assert.strictEqual(Redis.prototype[command].name, 'really_new_command');
-            assert.strictEqual(Redis.prototype[command.toUpperCase()].name, 'really_new_command');
-            assert.strictEqual(Redis.prototype.really_new_command.name, 'really_new_command');
-            assert.strictEqual(Redis.prototype.REALLY_NEW_COMMAND.name, 'really_new_command');
+            if (Redis.prototype[command].name !== '') {
+                assert.strictEqual(Redis.prototype[command].name, 'really_new_command');
+                assert.strictEqual(Redis.prototype[command.toUpperCase()].name, 'really_new_command');
+                assert.strictEqual(Redis.prototype.really_new_command.name, 'really_new_command');
+                assert.strictEqual(Redis.prototype.REALLY_NEW_COMMAND.name, 'really_new_command');
+            }
         });
     });
 
