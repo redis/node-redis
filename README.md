@@ -6,7 +6,8 @@ redis - a node.js redis client
 [![Windows Tests](https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/NodeRedis/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-This is a complete and feature rich Redis client for node.js. __It supports all Redis commands__ and focuses on high performance.
+This is a complete and feature rich Redis client for node.js. __It supports all
+Redis commands__ and focuses on high performance.
 
 Install with:
 
@@ -48,13 +49,16 @@ This will display:
         1: hashtest 2
     mjr:~/work/node_redis (master)$
 
-Note that the API is entirely asynchronous. To get data back from the server, you'll need to use a callback.
-From v.2.6 on the API supports camelCase and snake_case and all options / variables / events etc. can be used either way.
-It is recommended to use camelCase as this is the default for the Node.js landscape.
+Note that the API is entirely asynchronous. To get data back from the server,
+you'll need to use a callback. From v.2.6 on the API supports camelCase and
+snake_case and all options / variables / events etc. can be used either way. It
+is recommended to use camelCase as this is the default for the Node.js
+landscape.
 
 ### Promises
 
-You can also use node_redis with promises by promisifying node_redis with [bluebird](https://github.com/petkaantonov/bluebird) as in:
+You can also use node_redis with promises by promisifying node_redis with
+[bluebird](https://github.com/petkaantonov/bluebird) as in:
 
 ```js
 var redis = require('redis');
@@ -100,7 +104,8 @@ client.set("some key", "some val");
 client.set(["some other key", "some val"]);
 ```
 
-If the key is missing, reply will be null. Only if the [Redis Command Reference](http://redis.io/commands) states something else it will not be null.
+If the key is missing, reply will be null. Only if the [Redis Command
+Reference](http://redis.io/commands) states something else it will not be null.
 
 ```js
 client.get("missingkey", function(err, reply) {
@@ -111,11 +116,17 @@ client.get("missingkey", function(err, reply) {
 
 For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
 
-Minimal parsing is done on the replies. Commands that return a integer return JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object keyed by the hash keys. All strings will either be returned as string or as buffer depending on your setting.
-Please be aware that sending null, undefined and Boolean values will result in the value coerced to a string!
+Minimal parsing is done on the replies. Commands that return a integer return
+JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object
+keyed by the hash keys. All strings will either be returned as string or as
+buffer depending on your setting. Please be aware that sending null, undefined
+and Boolean values will result in the value coerced to a string!
 
 # Redis Commands
-This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands). It is not a cache library so please refer to Redis commands page for full usage details.
+
+This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands).
+It is not a cache library so please refer to Redis commands page for full usage
+details.
 
 Example setting key to auto expire using [SET command](https://redis.io/commands/set)
 
@@ -123,7 +134,6 @@ Example setting key to auto expire using [SET command](https://redis.io/commands
 // this key will expire after 10 seconds
 client.set('key', 'value!', 'EX', 10);
 ```
-
 
 # API
 
@@ -133,8 +143,9 @@ client.set('key', 'value!', 'EX', 10);
 
 ### "ready"
 
-`client` will emit `ready` once a connection is established. Commands issued before the `ready` event are queued,
-then replayed just before this event is emitted.
+`client` will emit `ready` once a connection is established. Commands issued
+before the `ready` event are queued, then replayed just before this event is
+emitted.
 
 ### "connect"
 
@@ -142,13 +153,16 @@ then replayed just before this event is emitted.
 
 ### "reconnecting"
 
-`client` will emit `reconnecting` when trying to reconnect to the Redis server after losing the connection. Listeners
-are passed an object containing `delay` (in ms) and `attempt` (the attempt #) attributes.
+`client` will emit `reconnecting` when trying to reconnect to the Redis server
+after losing the connection. Listeners are passed an object containing `delay`
+(in ms) and `attempt` (the attempt #) attributes.
 
 ### "error"
 
-`client` will emit `error` when encountering an error connecting to the Redis server or when any other in node_redis occurs.
-If you use a command without callback and encounter a ReplyError it is going to be emitted to the error listener.
+`client` will emit `error` when encountering an error connecting to the Redis
+server or when any other in node_redis occurs. If you use a command without
+callback and encounter a ReplyError it is going to be emitted to the error
+listener.
 
 So please attach the error listener to node_redis.
 
@@ -158,33 +172,41 @@ So please attach the error listener to node_redis.
 
 ### "drain" (deprecated)
 
-`client` will emit `drain` when the TCP connection to the Redis server has been buffering, but is now
-writable. This event can be used to stream commands in to Redis and adapt to backpressure.
+`client` will emit `drain` when the TCP connection to the Redis server has been
+buffering, but is now writable. This event can be used to stream commands in to
+Redis and adapt to backpressure.
 
-If the stream is buffering `client.should_buffer` is set to true. Otherwise the variable is always set to false.
-That way you can decide when to reduce your send rate and resume sending commands when you get `drain`.
+If the stream is buffering `client.should_buffer` is set to true. Otherwise the
+variable is always set to false. That way you can decide when to reduce your
+send rate and resume sending commands when you get `drain`.
 
-You can also check the return value of each command as it will also return the backpressure indicator (deprecated).
-If false is returned the stream had to buffer.
+You can also check the return value of each command as it will also return the
+backpressure indicator (deprecated). If false is returned the stream had to
+buffer.
 
 ### "warning"
 
-`client` will emit `warning` when password was set but none is needed and if a deprecated option / function / similar is used.
+`client` will emit `warning` when password was set but none is needed and if a
+deprecated option / function / similar is used.
 
 ### "idle" (deprecated)
 
-`client` will emit `idle` when there are no outstanding commands that are awaiting a response.
+`client` will emit `idle` when there are no outstanding commands that are
+awaiting a response.
 
 ## redis.createClient()
-If you have `redis-server` running on the same machine as node, then the defaults for
-port and host are probably fine and you don't need to supply any arguments. `createClient()` returns a `RedisClient` object. Otherwise, `createClient()` accepts these arguments:
+If you have `redis-server` running on the same machine as node, then the
+defaults for port and host are probably fine and you don't need to supply any
+arguments. `createClient()` returns a `RedisClient` object. Otherwise,
+`createClient()` accepts these arguments:
 
 * `redis.createClient([options])`
 * `redis.createClient(unix_socket[, options])`
 * `redis.createClient(redis_url[, options])`
 * `redis.createClient(port[, host][, options])`
 
-__Tip:__ If the Redis server runs on the same machine as the client consider using unix sockets if possible to increase throughput.
+__Tip:__ If the Redis server runs on the same machine as the client consider
+using unix sockets if possible to increase throughput.
 
 #### `options` object properties
 | Property  | Default   | Description |
@@ -232,15 +254,18 @@ client.quit();
 ```
 
 retry_strategy example
+
 ```js
 var client = redis.createClient({
     retry_strategy: function (options) {
         if (options.error && options.error.code === 'ECONNREFUSED') {
-            // End reconnecting on a specific error and flush all commands with a individual error
+            // End reconnecting on a specific error and flush all commands with
+            // a individual error
             return new Error('The server refused the connection');
         }
         if (options.total_retry_time > 1000 * 60 * 60) {
-            // End reconnecting after a specific timeout and flush all commands with a individual error
+            // End reconnecting after a specific timeout and flush all commands
+            // with a individual error
             return new Error('Retry time exhausted');
         }
         if (options.attempt > 10) {
@@ -255,11 +280,12 @@ var client = redis.createClient({
 
 ## client.auth(password[, callback])
 
-When connecting to a Redis server that requires authentication, the `AUTH` command must be sent as the
-first command after connecting. This can be tricky to coordinate with reconnections, the ready check,
-etc. To make this easier, `client.auth()` stashes `password` and will send it after each connection,
-including reconnections. `callback` is invoked only once, after the response to the very first
-`AUTH` command sent.
+When connecting to a Redis server that requires authentication, the `AUTH`
+command must be sent as the first command after connecting. This can be tricky
+to coordinate with reconnections, the ready check, etc. To make this easier,
+`client.auth()` stashes `password` and will send it after each connection,
+including reconnections. `callback` is invoked only once, after the response to
+the very first `AUTH` command sent.
 NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
@@ -268,25 +294,34 @@ something like this `Error: Ready check failed: ERR operation not permitted`.
 
 ### stream
 
-The client exposed the used [stream](https://nodejs.org/api/stream.html) in `client.stream` and if the stream or client had to [buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback) the command in `client.should_buffer`.
-In combination this can be used to implement backpressure by checking the buffer state before sending a command and listening to the stream [drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
+The client exposed the used [stream](https://nodejs.org/api/stream.html) in
+`client.stream` and if the stream or client had to
+[buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback)
+the command in `client.should_buffer`. In combination this can be used to
+implement backpressure by checking the buffer state before sending a command and
+listening to the stream
+[drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
 
 ## client.quit()
 
-This sends the quit command to the redis server and ends cleanly right after all running commands were properly handled.
-If this is called while reconnecting (and therefore no connection to the redis server exists) it is going to end the connection right away instead of
-resulting in further reconnections! All offline commands are going to be flushed with an error in that case.
+This sends the quit command to the redis server and ends cleanly right after all
+running commands were properly handled. If this is called while reconnecting
+(and therefore no connection to the redis server exists) it is going to end the
+connection right away instead of resulting in further reconnections! All offline
+commands are going to be flushed with an error in that case.
 
 ## client.end(flush)
 
-Forcibly close the connection to the Redis server. Note that this does not wait until all replies have been parsed.
-If you want to exit cleanly, call `client.quit()` as mentioned above.
+Forcibly close the connection to the Redis server. Note that this does not wait
+until all replies have been parsed. If you want to exit cleanly, call
+`client.quit()` as mentioned above.
 
-You should set flush to true, if you are not absolutely sure you do not care about any other commands.
-If you set flush to false all still running commands will silently fail.
+You should set flush to true, if you are not absolutely sure you do not care
+about any other commands. If you set flush to false all still running commands
+will silently fail.
 
-This example closes the connection to the Redis server before the replies have been read. You probably don't
-want to do this:
+This example closes the connection to the Redis server before the replies have
+been read. You probably don't want to do this:
 
 ```js
 var redis = require("redis"),
@@ -311,9 +346,13 @@ Currently the following error subclasses exist:
 
 * `RedisError`: _All errors_ returned by the client
 * `ReplyError` subclass of `RedisError`: All errors returned by __Redis__ itself
-* `AbortError` subclass of `RedisError`: All commands that could not finish due to what ever reason
-* `ParserError` subclass of `RedisError`: Returned in case of a parser error (this should not happen)
-* `AggregateError` subclass of `AbortError`: Emitted in case multiple unresolved commands without callback got rejected in debug_mode instead of lots of `AbortError`s.
+* `AbortError` subclass of `RedisError`: All commands that could not finish due
+  to what ever reason
+* `ParserError` subclass of `RedisError`: Returned in case of a parser error
+  (this should not happen)
+* `AggregateError` subclass of `AbortError`: Emitted in case multiple unresolved
+  commands without callback got rejected in debug_mode instead of lots of
+  `AbortError`s.
 
 All error classes are exported by the module.
 
@@ -327,7 +366,8 @@ client.on('error', function (err) {
     assert(err instanceof Error);
     assert(err instanceof redis.AbortError);
     assert(err instanceof redis.AggregateError);
-    assert.strictEqual(err.errors.length, 2); // The set and get got aggregated in here
+    // The set and get get aggregated in here
+    assert.strictEqual(err.errors.length, 2);
     assert.strictEqual(err.code, 'NR_CLOSED');
 });
 client.set('foo', 123, 'bar', function (err, res) { // Too many arguments
@@ -339,7 +379,8 @@ client.set('foo', 123, 'bar', function (err, res) { // Too many arguments
     client.set('foo', 'bar');
     client.get('foo');
     process.nextTick(function () {
-        client.end(true); // Force closing the connection while the command did not yet return
+        // Force closing the connection while the command did not yet return
+        client.end(true);
         redis.debug_mode = false;
     });
 });
@@ -348,25 +389,33 @@ client.set('foo', 123, 'bar', function (err, res) { // Too many arguments
 
 Every `ReplyError` contains the `command` name in all-caps and the arguments (`args`).
 
-If node_redis emits a library error because of another error, the triggering error is added to the returned error as `origin` attribute.
+If node_redis emits a library error because of another error, the triggering
+error is added to the returned error as `origin` attribute.
 
 ___Error codes___
 
-node_redis returns a `NR_CLOSED` error code if the clients connection dropped. If a command unresolved command got rejected a `UNCERTAIN_STATE` code is returned.
-A `CONNECTION_BROKEN` error code is used in case node_redis gives up to reconnect.
+node_redis returns a `NR_CLOSED` error code if the clients connection dropped.
+If a command unresolved command got rejected a `UNCERTAIN_STATE` code is
+returned. A `CONNECTION_BROKEN` error code is used in case node_redis gives up
+to reconnect.
 
 ## client.unref()
 
-Call `unref()` on the underlying socket connection to the Redis server, allowing the program to exit once no more commands are pending.
+Call `unref()` on the underlying socket connection to the Redis server, allowing
+the program to exit once no more commands are pending.
 
-This is an **experimental** feature, and only supports a subset of the Redis protocol. Any commands where client state is saved on the Redis server, e.g. `*SUBSCRIBE` or the blocking `BL*` commands will *NOT* work with `.unref()`.
+This is an **experimental** feature, and only supports a subset of the Redis
+protocol. Any commands where client state is saved on the Redis server, e.g.
+`*SUBSCRIBE` or the blocking `BL*` commands will *NOT* work with `.unref()`.
 
 ```js
 var redis = require("redis")
 var client = redis.createClient()
 
 /*
-    Calling unref() will allow this program to exit immediately after the get command finishes. Otherwise the client would hang as long as the client-server connection is alive.
+    Calling unref() will allow this program to exit immediately after the get
+    command finishes. Otherwise the client would hang as long as the
+    client-server connection is alive.
 */
 client.unref()
 client.get("foo", function (err, value){
@@ -377,13 +426,15 @@ client.get("foo", function (err, value){
 
 ## Friendlier hash commands
 
-Most Redis commands take a single String or an Array of Strings as arguments, and replies are sent back as a single String or an Array of Strings.
-When dealing with hash values, there are a couple of useful exceptions to this.
+Most Redis commands take a single String or an Array of Strings as arguments,
+and replies are sent back as a single String or an Array of Strings. When
+dealing with hash values, there are a couple of useful exceptions to this.
 
 ### client.hgetall(hash, callback)
 
-The reply from an HGETALL command will be converted into a JavaScript Object by `node_redis`. That way you can interact
-with the responses using JavaScript syntax.
+The reply from an HGETALL command will be converted into a JavaScript Object by
+`node_redis`. That way you can interact with the responses using JavaScript
+syntax.
 
 Example:
 
@@ -411,7 +462,8 @@ client.HMSET(key2, {
 });
 ```
 
-The properties and values of this Object will be set as keys and values in the Redis hash.
+The properties and values of this Object will be set as keys and values in the
+Redis hash.
 
 ### client.hmset(hash, key1, val1, ... keyn, valn, [callback])
 
@@ -451,11 +503,13 @@ sub.on("message", function (channel, message) {
 sub.subscribe("a nice channel");
 ```
 
-When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into a "subscriber" mode.
-At that point, only commands that modify the subscription set are valid and quit (and depending on the redis version ping as well). When the subscription
-set is empty, the connection is put back into regular mode.
+When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into
+a "subscriber" mode. At that point, only commands that modify the subscription
+set are valid and quit (and depending on the redis version ping as well). When
+the subscription set is empty, the connection is put back into regular mode.
 
-If you need to send regular commands to Redis while in subscriber mode, just open another connection with a new client (hint: use `client.duplicate()`).
+If you need to send regular commands to Redis while in subscriber mode, just
+open another connection with a new client (hint: use `client.duplicate()`).
 
 ## Subscriber Events
 
@@ -468,47 +522,57 @@ Listeners are passed the channel name as `channel` and the message as `message`.
 
 ### "pmessage" (pattern, channel, message)
 
-Client will emit `pmessage` for every message received that matches an active subscription pattern.
-Listeners are passed the original pattern used with `PSUBSCRIBE` as `pattern`, the sending channel
-name as `channel`, and the message as `message`.
+Client will emit `pmessage` for every message received that matches an active
+subscription pattern. Listeners are passed the original pattern used with
+`PSUBSCRIBE` as `pattern`, the sending channel name as `channel`, and the
+message as `message`.
 
 ### "message_buffer" (channel, message)
 
-This is the same as the `message` event with the exception, that it is always going to emit a buffer.
-If you listen to the `message` event at the same time as the `message_buffer`, it is always going to emit a string.
+This is the same as the `message` event with the exception, that it is always
+going to emit a buffer. If you listen to the `message` event at the same time as
+the `message_buffer`, it is always going to emit a string.
 
 ### "pmessage_buffer" (pattern, channel, message)
 
-This is the same as the `pmessage` event with the exception, that it is always going to emit a buffer.
-If you listen to the `pmessage` event at the same time as the `pmessage_buffer`, it is always going to emit a string.
+This is the same as the `pmessage` event with the exception, that it is always
+going to emit a buffer. If you listen to the `pmessage` event at the same time
+as the `pmessage_buffer`, it is always going to emit a string.
 
 ### "subscribe" (channel, count)
 
-Client will emit `subscribe` in response to a `SUBSCRIBE` command. Listeners are passed the
-channel name as `channel` and the new count of subscriptions for this client as `count`.
+Client will emit `subscribe` in response to a `SUBSCRIBE` command. Listeners are
+passed the channel name as `channel` and the new count of subscriptions for this
+client as `count`.
 
 ### "psubscribe" (pattern, count)
 
-Client will emit `psubscribe` in response to a `PSUBSCRIBE` command. Listeners are passed the
-original pattern as `pattern`, and the new count of subscriptions for this client as `count`.
+Client will emit `psubscribe` in response to a `PSUBSCRIBE` command. Listeners
+are passed the original pattern as `pattern`, and the new count of subscriptions
+for this client as `count`.
 
 ### "unsubscribe" (channel, count)
 
-Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command. Listeners are passed the
-channel name as `channel` and the new count of subscriptions for this client as `count`. When
-`count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
+Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command. Listeners
+are passed the channel name as `channel` and the new count of subscriptions for
+this client as `count`. When `count` is 0, this client has left subscriber mode
+and no more subscriber events will be emitted.
 
 ### "punsubscribe" (pattern, count)
 
-Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command. Listeners are passed the
-channel name as `channel` and the new count of subscriptions for this client as `count`. When
-`count` is 0, this client has left subscriber mode and no more subscriber events will be emitted.
+Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.
+Listeners are passed the channel name as `channel` and the new count of
+subscriptions for this client as `count`. When `count` is 0, this client has
+left subscriber mode and no more subscriber events will be emitted.
 
 ## client.multi([commands])
 
-`MULTI` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
-Redis. The interface in `node_redis` is to return an individual `Multi` object by calling `client.multi()`.
-If any command fails to queue, all commands are rolled back and none is going to be executed (For further information look at [transactions](http://redis.io/topics/transactions)).
+`MULTI` commands are queued up until an `EXEC` is issued, and then all commands
+are run atomically by Redis. The interface in `node_redis` is to return an
+individual `Multi` object by calling `client.multi()`. If any command fails to
+queue, all commands are rolled back and none is going to be executed (For
+further information look at
+[transactions](http://redis.io/topics/transactions)).
 
 ```js
 var redis  = require("./index"),
@@ -542,15 +606,20 @@ client.multi()
 
 ### Multi.exec([callback])
 
-`client.multi()` is a constructor that returns a `Multi` object. `Multi` objects share all of the
-same command methods as `client` objects do. Commands are queued up inside the `Multi` object
-until `Multi.exec()` is invoked.
+`client.multi()` is a constructor that returns a `Multi` object. `Multi` objects
+share all of the same command methods as `client` objects do. Commands are
+queued up inside the `Multi` object until `Multi.exec()` is invoked.
 
-If your code contains an syntax error an EXECABORT error is going to be thrown and all commands are going to be aborted. That error contains a `.errors` property that contains the concret errors.
-If all commands were queued successfully and an error is thrown by redis while processing the commands that error is going to be returned in the result array! No other command is going to be aborted though than the onces failing.
+If your code contains an syntax error an EXECABORT error is going to be thrown
+and all commands are going to be aborted. That error contains a `.errors`
+property that contains the concrete errors.
+If all commands were queued successfully and an error is thrown by redis while
+processing the commands that error is going to be returned in the result array!
+No other command is going to be aborted though than the onces failing.
 
-You can either chain together `MULTI` commands as in the above example, or you can queue individual
-commands while still sending regular client command as in this example:
+You can either chain together `MULTI` commands as in the above example, or you
+can queue individual commands while still sending regular client command as in
+this example:
 
 ```js
 var redis  = require("redis"),
@@ -570,8 +639,8 @@ multi.exec(function (err, replies) {
 });
 ```
 
-In addition to adding commands to the `MULTI` queue individually, you can also pass an array
-of commands and arguments to the constructor:
+In addition to adding commands to the `MULTI` queue individually, you can also
+pass an array of commands and arguments to the constructor:
 
 ```js
 var redis  = require("redis"),
@@ -588,26 +657,36 @@ client.multi([
 
 ### Multi.exec_atomic([callback])
 
-Identical to Multi.exec but with the difference that executing a single command will not use transactions.
+Identical to Multi.exec but with the difference that executing a single command
+will not use transactions.
 
 ## client.batch([commands])
 
-Identical to .multi without transactions. This is recommended if you want to execute many commands at once but don't have to rely on transactions.
+Identical to .multi without transactions. This is recommended if you want to
+execute many commands at once but don't have to rely on transactions.
 
-`BATCH` commands are queued up until an `EXEC` is issued, and then all commands are run atomically by
-Redis. The interface in `node_redis` is to return an individual `Batch` object by calling `client.batch()`.
-The only difference between .batch and .multi is that no transaction is going to be used.
-Be aware that the errors are - just like in multi statements - in the result. Otherwise both, errors and results could be returned at the same time.
+`BATCH` commands are queued up until an `EXEC` is issued, and then all commands
+are run atomically by Redis. The interface in `node_redis` is to return an
+individual `Batch` object by calling `client.batch()`. The only difference
+between .batch and .multi is that no transaction is going to be used.
+Be aware that the errors are - just like in multi statements - in the result.
+Otherwise both, errors and results could be returned at the same time.
 
-If you fire many commands at once this is going to boost the execution speed significantly compared to firing the same commands in a loop without waiting for the result! See the benchmarks for further comparison. Please remember that all commands are kept in memory until they are fired.
+If you fire many commands at once this is going to boost the execution speed
+significantly compared to firing the same commands in a loop without waiting for
+the result! See the benchmarks for further comparison. Please remember that all
+commands are kept in memory until they are fired.
 
 ## Monitor mode
 
-Redis supports the `MONITOR` command, which lets you see all commands received by the Redis server
-across all client connections, including from other client libraries and other computers.
+Redis supports the `MONITOR` command, which lets you see all commands received
+by the Redis server across all client connections, including from other client
+libraries and other computers.
 
-A `monitor` event is going to be emitted for every command fired from any client connected to the server including the monitoring client itself.
-The callback for the `monitor` event takes a timestamp from the Redis server, an array of command arguments and the raw monitoring string.
+A `monitor` event is going to be emitted for every command fired from any client
+connected to the server including the monitoring client itself. The callback for
+the `monitor` event takes a timestamp from the Redis server, an array of command
+arguments and the raw monitoring string.
 
 Example:
 
@@ -629,10 +708,11 @@ Some other things you might like to know about.
 
 ## client.server_info
 
-After the ready probe completes, the results from the INFO command are saved in the `client.server_info`
-object.
+After the ready probe completes, the results from the INFO command are saved in
+the `client.server_info` object.
 
-The `versions` key contains an array of the elements of the version string for easy comparison.
+The `versions` key contains an array of the elements of the version string for
+easy comparison.
 
     > client.server_info.redis_version
     '2.3.0'
@@ -671,8 +751,11 @@ the second word as first parameter:
 
 ## client.duplicate([options][, callback])
 
-Duplicate all current options and return a new redisClient instance. All options passed to the duplicate function are going to replace the original option.
-If you pass a callback, duplicate is going to wait until the client is ready and returns it in the callback. If an error occurs in the meanwhile, that is going to return an error instead in the callback.
+Duplicate all current options and return a new redisClient instance. All options
+passed to the duplicate function are going to replace the original option. If
+you pass a callback, duplicate is going to wait until the client is ready and
+returns it in the callback. If an error occurs in the meanwhile, that is going
+to return an error instead in the callback.
 
 One example of when to use duplicate() would be to accommodate the connection-
 blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
@@ -703,10 +786,13 @@ accessed via the redis SELECT command.  Each DB could use its own connection.
 
 ## client.send_command(command_name[, [args][, callback]])
 
-All Redis commands have been added to the `client` object. However, if new commands are introduced before this library is updated,
-you can use `send_command()` to send arbitrary commands to Redis.
+All Redis commands have been added to the `client` object. However, if new
+commands are introduced before this library is updated or if you want to add
+individual commands you can use `send_command()` to send arbitrary commands to
+Redis.
 
-All commands are sent as multi-bulk commands. `args` can either be an Array of arguments, or omitted / set to undefined.
+All commands are sent as multi-bulk commands. `args` can either be an Array of
+arguments, or omitted / set to undefined.
 
 ## client.add_command(command_name)
 
@@ -720,19 +806,23 @@ Boolean tracking the state of the connection to the Redis server.
 
 ## client.command_queue_length
 
-The number of commands that have been sent to the Redis server but not yet replied to. You can use this to
-enforce some kind of maximum queue depth for commands while connected.
+The number of commands that have been sent to the Redis server but not yet
+replied to. You can use this to enforce some kind of maximum queue depth for
+commands while connected.
 
 ## client.offline_queue_length
 
-The number of commands that have been queued up for a future connection. You can use this to enforce
-some kind of maximum queue depth for pre-connection commands.
+The number of commands that have been queued up for a future connection. You can
+use this to enforce some kind of maximum queue depth for pre-connection
+commands.
 
 ### Commands with Optional and Keyword arguments
 
-This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset count]` in the [redis.io/commands](http://redis.io/commands) documentation.
+This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset
+count]` in the [redis.io/commands](http://redis.io/commands) documentation.
 
 Example:
+
 ```js
 var args = [ 'myzset', 1, 'one', 2, 'two', 3, 'three', 99, 'ninety-nine' ];
 client.zadd(args, function (err, response) {
@@ -805,10 +895,13 @@ clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, parser: javascript, connected by: tcp
 
 To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
 
-This is also going to result in good stack traces opposed to useless ones otherwise for any async operation.
-If you only want to have good stack traces but not the debug output run your application in development mode instead (`NODE_ENV=development`).
+This is also going to result in good stack traces opposed to useless ones
+otherwise for any async operation.
+If you only want to have good stack traces but not the debug output run your
+application in development mode instead (`NODE_ENV=development`).
 
-Good stack traces are only activated in development and debug mode as this results in a significant performance penalty.
+Good stack traces are only activated in development and debug mode as this
+results in a significant performance penalty.
 
 ___Comparison___:
 Useless stack trace:
@@ -844,7 +937,8 @@ The original author of node_redis is [Matthew Ranney](https://github.com/mranney
 
 The current lead maintainer is [Ruben Bridgewater](https://github.com/BridgeAR)
 
-Many [others](https://github.com/NodeRedis/node_redis/graphs/contributors) contributed to `node_redis` too. Thanks to all of them!
+Many [others](https://github.com/NodeRedis/node_redis/graphs/contributors)
+contributed to `node_redis` too. Thanks to all of them!
 
 ## License
 
@@ -852,10 +946,20 @@ Many [others](https://github.com/NodeRedis/node_redis/graphs/contributors) contr
 
 ### Consolidation: It's time for celebration
 
-Right now there are two great redis clients around and both have some advantages above each other. We speak about ioredis and node_redis. So after talking to each other about how we could improve in working together we (that is @luin and @BridgeAR) decided to work towards a single library on the long run. But step by step.
+Right now there are two great redis clients around and both have some advantages
+above each other. We speak about ioredis and node_redis. So after talking to
+each other about how we could improve in working together we (that is @luin and
+@BridgeAR) decided to work towards a single library on the long run. But step by
+step.
 
-First of all, we want to split small parts of our libraries into others so that we're both able to use the same code. Those libraries are going to be maintained under the NodeRedis organization. This is going to reduce the maintenance overhead, allows others to use the very same code, if they need it and it's way easyer for others to contribute to both libraries.
+First of all, we want to split small parts of our libraries into others so that
+we're both able to use the same code. Those libraries are going to be maintained
+under the NodeRedis organization. This is going to reduce the maintenance
+overhead, allows others to use the very same code, if they need it and it's way
+easyer for others to contribute to both libraries.
 
-We're very happy about this step towards working together as we both want to give you the best redis experience possible.
+We're very happy about this step towards working together as we both want to
+give you the best redis experience possible.
 
-If you want to join our cause by help maintaining something, please don't hesitate to contact either one of us.
+If you want to join our cause by help maintaining something, please don't
+hesitate to contact either one of us.
