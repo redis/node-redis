@@ -97,6 +97,8 @@ client.hmset("key", ["test keys 1", "test val 1", "test keys 2", "test val 2"], 
 client.hmset("key", "test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
 ```
 
+Care should be taken with user input if arrays are possible (via body-parser, query string or other method), as single arguments could be unintentionally interpreted as multiple args.
+
 Note that in either form the `callback` is optional:
 
 ```js
