@@ -646,7 +646,7 @@ pass an array of commands and arguments to the constructor:
 
 ```js
 var redis  = require("redis"),
-    client = redis.createClient(), multi;
+    client = redis.createClient();
 
 client.multi([
     ["mget", "multifoo", "multibar", redis.print],
