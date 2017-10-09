@@ -786,19 +786,19 @@ non-blocking ones may be queued up until after the blocking ones finish.
 Another reason to use duplicate() is when multiple DBs on the same server are
 accessed via the redis SELECT command.  Each DB could use its own connection.
 
-## client.send_command(command_name[, [args][, callback]])
+## client.sendCommand(command_name[, [args][, callback]])
 
 All Redis commands have been added to the `client` object. However, if new
 commands are introduced before this library is updated or if you want to add
-individual commands you can use `send_command()` to send arbitrary commands to
+individual commands you can use `sendCommand()` to send arbitrary commands to
 Redis.
 
 All commands are sent as multi-bulk commands. `args` can either be an Array of
 arguments, or omitted / set to undefined.
 
-## client.add_command(command_name)
+## client.addCommand(command_name)
 
-Calling add_command will add a new command to the prototype. The exact command
+Calling addCommand will add a new command to the prototype. The exact command
 name will be used when calling using this new command. Using arbitrary arguments
 is possible as with any other command.
 
