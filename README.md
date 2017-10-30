@@ -82,6 +82,15 @@ return client.multi().get('foo').execAsync().then(function(res) {
 });
 ```
 
+Starting from node@8 you can promisify node_redis methods with util.promisify():
+
+```js
+const {promisify} = require('util');
+
+const get = promisify(client.get).bind(client);
+const res = await get('foo'); // => 'bar'
+```
+
 ### Sending Commands
 
 Each Redis command is exposed as a function on the `client` object.
