@@ -57,11 +57,27 @@ landscape.
 
 ### Promises
 
+#### Native Promises
+If you are using node v8 or higher, you can promisify node_redis with [util.promisify](https://nodejs.org/api/util.html#util_util_promisify_original) as in:
+```js
+const {promisify} = require('util');
+const getAsync = promisify(client.get).bind(client);
+```
+now *getAsync* is a promisified version of *client.get*:
+```js
+// We expect a value 'foo': 'bar' to be present
+// So instead of writing client.get('foo', cb); you have to write:
+return getAsync('foo').then(function(res) {
+    console.log(res); // => 'bar'
+});
+```
+
+#### Bluebird Promises
 You can also use node_redis with promises by promisifying node_redis with
 [bluebird](https://github.com/petkaantonov/bluebird) as in:
 
 ```js
-var redis = require('redis');
+const redis = require('redis');
 bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);
 ```
