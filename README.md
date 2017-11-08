@@ -70,8 +70,10 @@ now *getAsync* is a promisified version of *client.get*:
 return getAsync('foo').then(function(res) {
     console.log(res); // => 'bar'
 });
+```
 
-// or using [async await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function)
+or using [async await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function):
+```js
 async myFunc() {
     const res = await getAsync('foo');
     console.log(res);
