@@ -1,10 +1,11 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('publish/subscribe', () => {
   helper.allTests((ip, args) => {
@@ -285,7 +286,7 @@ describe('publish/subscribe', () => {
         })
 
         it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed', (done) => {
-          function subscribe (channels) {
+          function subscribe(channels) {
             sub.unsubscribe().then(helper.isNull)
             sub.subscribe(channels).then(helper.isNull)
           }
@@ -313,7 +314,7 @@ describe('publish/subscribe', () => {
         })
 
         it('unsubscribes, subscribes, unsubscribes... single and multiple entries mixed. Without concrete channels', (done) => {
-          function subscribe (channels) {
+          function subscribe(channels) {
             sub.unsubscribe(channels)
             sub.unsubscribe(channels)
             sub.subscribe(channels)
@@ -342,7 +343,7 @@ describe('publish/subscribe', () => {
         })
 
         it('unsubscribes, subscribes, unsubscribes... with pattern matching', (done) => {
-          function subscribe (channels, callback) {
+          function subscribe(channels, callback) {
             sub.punsubscribe('prefix:*').then(helper.isNull)
             sub.psubscribe(channels).then(callback)
           }
@@ -461,7 +462,7 @@ describe('publish/subscribe', () => {
           const end = helper.callFuncAfter(done, 5)
           const data = Array(10000).join('äüs^öéÉÉ`e')
           sub.set('foo', data).then(() => {
-            sub.get('foo').then((res) => assert.strictEqual(typeof res, 'string'))
+            sub.get('foo').then(res => assert.strictEqual(typeof res, 'string'))
             sub._stream.once('data', () => {
               assert.strictEqual(sub._messageBuffers, false)
               assert.strictEqual(sub.shouldBuffer, false)
@@ -536,7 +537,7 @@ describe('publish/subscribe', () => {
       it('should not publish a message multiple times per command', (done) => {
         const published = {}
 
-        function subscribe (message) {
+        function subscribe(message) {
           sub.removeAllListeners('subscribe')
           sub.removeAllListeners('message')
           sub.removeAllListeners('unsubscribe')
@@ -586,7 +587,8 @@ describe('publish/subscribe', () => {
           .psubscribe(['pattern:*'])
           .punsubscribe('unknown*')
           .punsubscribe(['pattern:*'])
-          .exec().then(() => Promise.all([
+          .exec()
+          .then(() => Promise.all([
             sub.client('kill', ['type', 'pubsub']),
             sub.psubscribe('*'),
             sub.punsubscribe('pa*'),

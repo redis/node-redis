@@ -3,9 +3,10 @@
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
-const redis = config.redis
 
-  // TODO: Fix redis process spawn on windows
+const { redis } = config
+
+// TODO: Fix redis process spawn on windows
 if (process.platform !== 'win32') {
   describe('rename commands', () => {
     before((done) => {

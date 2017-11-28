@@ -1,10 +1,11 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'hgetall\' method', () => {
   helper.allTests((ip, args) => {

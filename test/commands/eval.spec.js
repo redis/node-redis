@@ -4,7 +4,8 @@ const assert = require('assert')
 const config = require('../lib/config')
 const crypto = require('crypto')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'eval\' method', () => {
   helper.allTests((ip, args) => {
@@ -121,7 +122,8 @@ describe('The \'eval\' method', () => {
           .rpush('mylist', 'a')
           .rpush('mylist', 'b')
           .rpush('mylist', 'c')
-          .exec().then((replies) => {
+          .exec()
+          .then((replies) => {
             return client.eval('local foo = redis.call(\'lrange\',\'mylist\',0,-1); return {type(foo),foo[1],foo[2],foo[3],# foo}', 0).then((res) => {
               assert.strictEqual(5, res.length)
               assert.strictEqual('table', res[0])

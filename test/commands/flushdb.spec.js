@@ -2,13 +2,15 @@
 
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 const uuid = require('uuid')
 
 describe('The \'flushdb\' method', () => {
   helper.allTests((ip, args) => {
     describe(`using ${ip}`, () => {
-      let key, key2
+      let key
+      let key2
 
       beforeEach(() => {
         key = uuid.v4()

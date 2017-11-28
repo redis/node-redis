@@ -14,12 +14,12 @@ Object.assign(RedisClient, Errors, {
   RedisClient,
   Multi,
   print: utils.print,
-  createClient() {
-    return new RedisClient(unifyOptions.apply(null, arguments))
+  createClient(...args) {
+    return new RedisClient(unifyOptions.apply(null, args))
   },
-  debugMode = /\bredis\b/i.test(process.env.NODE_DEBUG)
+  debugMode: /\bredis\b/i.test(process.env.NODE_DEBUG)
 })
 
-Commands.list.forEach((name) => addCommand(RedisClient.prototype, Multi.prototype, name))
+Commands.list.forEach(name => addCommand(RedisClient.prototype, Multi.prototype, name))
 
 module.exports = RedisClient

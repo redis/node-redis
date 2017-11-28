@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'batch\' method', () => {
   helper.allTests((ip, args) => {
@@ -101,7 +102,7 @@ describe('The \'batch\' method', () => {
             ['incr', 'batchfoo'],
             ['incr', 'batchbar']
           ]).exec().then(helper.fail).catch((err) => {
-            const replies = err.replies
+            const { replies } = err
             assert.strictEqual(2, replies[0].length)
             assert.strictEqual(null, replies[0][0])
             assert.strictEqual(null, replies[0][1])
@@ -150,8 +151,8 @@ describe('The \'batch\' method', () => {
             [['hmset', 'batchhmset2', 'batchbar2', 'batchfoo3', 'batchbar3', 'test']],
             ['hmset', ['batchhmset', 'batchbar', 'batchfoo']],
             ['hmset', arr3],
-            ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
-            ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}],
+            ['hmset', now, { 123456789: 'abcdefghij', 'some manner of key': 'a type of value', otherTypes: 555 }],
+            ['hmset', 'key2', { '0123456789': 'abcdefghij', 'some manner of key': 'a type of value', otherTypes: 999 }],
             ['hmset', new Set(['batchhmset', ['batchbar', 'batchbaz']])],
             ['hmset', ['batchhmset'], new Map([['batchbar', 'batchbaz']])]
           ])
@@ -159,7 +160,8 @@ describe('The \'batch\' method', () => {
             .hmget('key2', arr2)
             .hmget(['batchhmset2', ['some manner of key', 'batchbar3']])
             .mget('batchfoo2', ['batchfoo3', 'batchfoo'])
-            .exec().then((replies) => {
+            .exec()
+            .then((replies) => {
               assert.strictEqual(arr.length, 3)
               assert.strictEqual(arr2.length, 2)
               assert.strictEqual(arr3.length, 3)
@@ -194,7 +196,8 @@ describe('The \'batch\' method', () => {
             .incr('some')
             .incr('keys')
             .mget('some', 'keys')
-            .exec().then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
+            .exec()
+            .then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
         })
 
         it('allows multiple commands to work the same as normal to be performed using a chaining API', () => {
@@ -203,7 +206,8 @@ describe('The \'batch\' method', () => {
             .incr('some')
             .incr(['keys'])
             .mget('some', 'keys')
-            .exec().then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
+            .exec()
+            .then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
         })
 
         it('allows an array to be provided indicating multiple operations to perform', () => {

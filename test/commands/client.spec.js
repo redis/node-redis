@@ -1,10 +1,11 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'client\' method', () => {
   helper.allTests((ip, args) => {
@@ -144,8 +145,9 @@ describe('The \'client\' method', () => {
         })
 
         it('sets the name', () => {
-          // The querys are auto pipelined and the response is a response to all querys of one client
-          // per chunk. So the execution order is only guaranteed on each client
+          // The querys are auto pipelined and the response is a response to all
+          // querys of one client per chunk. So the execution order is only
+          // guaranteed on each client
           return Promise.all([
             client.client('setname', 'RUTH'),
             client2.client('setname', ['RENEE']).then(helper.isString('OK')),

@@ -1,10 +1,11 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('returnBuffers', () => {
   helper.allTests((ip, basicArgs) => {
@@ -64,7 +65,8 @@ describe('returnBuffers', () => {
             .hget(Buffer.from('hash key 2'), 'key 1')
             .hget('hash key 2', Buffer.from('key 2'))
             .hget('hash key 2', 'key 2')
-            .exec().then((reply) => {
+            .exec()
+            .then((reply) => {
               assert.strictEqual(4, reply.length)
               assert.strictEqual('<Buffer 76 61 6c 20 31>', reply[0].inspect())
               assert.strictEqual(true, Buffer.isBuffer(reply[1]))
@@ -84,7 +86,8 @@ describe('returnBuffers', () => {
             .hget(Buffer.from('hash key 2'), 'key 1')
             .hget('hash key 2', Buffer.from('key 2'))
             .hget('hash key 2', 'key 2')
-            .exec().then((reply) => {
+            .exec()
+            .then((reply) => {
               assert.strictEqual(4, reply.length)
               assert.strictEqual('<Buffer 76 61 6c 20 31>', reply[0].inspect())
               assert.strictEqual(true, Buffer.isBuffer(reply[1]))

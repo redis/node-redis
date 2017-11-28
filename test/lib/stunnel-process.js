@@ -1,22 +1,22 @@
 'use strict'
 
 // Helper to start and stop the stunnel process.
-const spawn = require('child_process').spawn
+const { spawn } = require('child_process')
 const EventEmitter = require('events')
 const fs = require('fs')
 const path = require('path')
 const util = require('util')
 
-function once (cb) {
+function once(cb) {
   let called = false
-  return function () {
+  return function (...args) {
     if (called) return
     called = true
-    cb.apply(this, arguments)
+    cb.apply(this, args)
   }
 }
 
-function StunnelProcess (confDir) {
+function StunnelProcess(confDir) {
   EventEmitter.call(this)
 
   // Set up an stunnel to redis; edit the conf file to include required absolute paths
@@ -24,7 +24,8 @@ function StunnelProcess (confDir) {
   const confText = fs.readFileSync(`${confFile}.template`).toString().replace(/__dirname/g, confDir)
 
   fs.writeFileSync(confFile, confText)
-  const stunnel = this.stunnel = spawn('stunnel', [confFile])
+  this.stunnel = spawn('stunnel', [confFile])
+  const { stunnel } = this
 
   // Handle child process events, and failure to set up tunnel
   this.timer = setTimeout(() => {
@@ -67,13 +68,13 @@ StunnelProcess.prototype.stop = function (done) {
 }
 
 module.exports = {
-  start (done, confDir) {
-    done = once(done)
+  start(doneOrig, confDir) {
+    const done = once(doneOrig)
     const stunnel = new StunnelProcess(confDir)
     stunnel.once('error', done.bind(done))
     stunnel.once('started', done.bind(done, null, stunnel))
   },
-  stop (stunnel, done) {
+  stop(stunnel, done) {
     stunnel.removeAllListeners()
     stunnel.stop()
     stunnel.once('error', done.bind(done))

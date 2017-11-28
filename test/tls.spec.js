@@ -5,13 +5,14 @@ const config = require('./lib/config')
 const fs = require('fs')
 const helper = require('./helper')
 const path = require('path')
-const redis = config.redis
+
+const { redis } = config
 const utils = require('../lib/utils')
 
 const tlsOptions = {
   servername: 'redis.js.org',
   rejectUnauthorized: true,
-  ca: [ String(fs.readFileSync(path.resolve(__dirname, './conf/redis.js.org.cert'))) ]
+  ca: [String(fs.readFileSync(path.resolve(__dirname, './conf/redis.js.org.cert')))]
 }
 
 const tlsPort = 6380
@@ -109,7 +110,7 @@ describe('TLS connection tests', () => {
     it('fails to connect because the cert is not correct', function () {
       if (skip) this.skip()
       const faultyCert = utils.clone(tlsOptions)
-      faultyCert.ca = [ String(fs.readFileSync(path.resolve(__dirname, './conf/faulty.cert'))) ]
+      faultyCert.ca = [String(fs.readFileSync(path.resolve(__dirname, './conf/faulty.cert')))]
       client = redis.createClient({
         host: 'localhost',
         connectTimeout: 1000,

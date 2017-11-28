@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'smembers\' method', () => {
   helper.allTests((ip, args) => {
@@ -21,7 +22,7 @@ describe('The \'smembers\' method', () => {
         return client.smembers('foo').then((values) => {
           assert.strictEqual(values.length, 2)
           const members = values.sort()
-          assert.deepStrictEqual(members, [ 'x', 'y' ])
+          assert.deepStrictEqual(members, ['x', 'y'])
         })
       })
 

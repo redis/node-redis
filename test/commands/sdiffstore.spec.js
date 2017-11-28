@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'sdiffstore\' method', () => {
   helper.allTests((ip, args) => {
@@ -28,7 +29,7 @@ describe('The \'sdiffstore\' method', () => {
 
         return client.smembers('quux').then((values) => {
           const members = values.sort()
-          assert.deepStrictEqual(members, [ 'b', 'x' ])
+          assert.deepStrictEqual(members, ['b', 'x'])
         })
       })
 

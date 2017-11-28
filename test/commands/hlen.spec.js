@@ -1,9 +1,10 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'hlen\' method', () => {
   helper.allTests((ip, args) => {

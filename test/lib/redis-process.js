@@ -9,7 +9,7 @@ const tcpPortUsed = require('tcp-port-used')
 
 // wait for redis to be listening in
 // all three modes (ipv4, ipv6, socket).
-function waitForRedis (available, cb, port) {
+function waitForRedis(available, cb, port) {
   if (process.platform === 'win32') return cb()
 
   const time = Date.now()
@@ -49,7 +49,7 @@ function waitForRedis (available, cb, port) {
 }
 
 module.exports = {
-  start (done, conf, port) {
+  start(done, conf, port) {
     let spawnFailed = false
     // spawn redis with our testing configuration.
     const confFile = conf || path.resolve(__dirname, '../conf/redis.conf')
@@ -67,10 +67,10 @@ module.exports = {
       // return an object that can be used in
       // an after() block to shutdown redis.
       return done(null, {
-        spawnFailed () {
+        spawnFailed() {
           return spawnFailed
         },
-        stop (done) {
+        stop(done) {
           if (spawnFailed) return done()
           rp.once('exit', (code) => {
             let error = null

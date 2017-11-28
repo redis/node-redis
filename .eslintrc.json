@@ -1,0 +1,29 @@
+{
+  "extends": "airbnb-base",
+  // Override airbnb defaults
+  "parserOptions": {
+    "ecmaVersion": 6,
+    "sourceType": "script"
+  },
+  "rules": {
+      "semi": ["error", "never"],
+      "strict": ["error", "global"],
+      "comma-dangle": "off",
+      "no-plusplus": "off",
+      "func-names": "off",
+      "arrow-body-style": "off",
+      "no-underscore-dangle": "off",
+      "consistent-return": "off",
+      "no-unused-vars": ["error", { "vars": "all", "args": "none" }],
+      "no-shadow": "off",
+      "no-console": "off",
+      "no-restricted-properties": "off",
+      "no-param-reassign": "off",
+      "vars-on-top": "off",
+      "no-mixed-operators": "off",
+      "prefer-spread": "off"
+  },
+  "env": {
+    "mocha": 2
+  }
+}

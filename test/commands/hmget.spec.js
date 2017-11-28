@@ -2,7 +2,8 @@
 
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'hmget\' method', () => {
   helper.allTests((ip, args) => {
@@ -13,7 +14,7 @@ describe('The \'hmget\' method', () => {
       beforeEach(() => {
         client = redis.createClient.apply(null, args)
         client.flushdb()
-        return client.hmset(hash, {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value'})
+        return client.hmset(hash, { '0123456789': 'abcdefghij', 'some manner of key': 'a type of value' })
           .then(helper.isString('OK'))
       })
 

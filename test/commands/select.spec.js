@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'select\' method', () => {
   helper.allTests((ip, args) => {

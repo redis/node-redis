@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 const intercept = require('intercept-stdout')
 
 describe('The \'blpop\' method', () => {

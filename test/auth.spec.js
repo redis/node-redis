@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
-const redis = config.redis
+
+const { redis } = config
 
 // TODO: Fix redis process spawn on windows
 if (process.platform !== 'win32') {
@@ -215,7 +216,8 @@ if (process.platform !== 'win32') {
             })
           })
           client.once('ready', () => {
-            // Coherent behavior with all other offline commands fires commands before emitting but does not wait till they return
+            // Coherent behavior with all other offline commands fires commands
+            // before emitting but does not wait till they return
             assert.strictEqual(client._pubSubMode, 2)
             client.ping().then(() => { // Make sure all commands were properly processed already
               client._stream.destroy()
@@ -224,11 +226,15 @@ if (process.platform !== 'win32') {
         })
 
         it('individual commands work properly with batch', (done) => {
-        // quit => might return an error instead of "OK" in the exec callback... (if not connected)
-        // auth => might return an error instead of "OK" in the exec callback... (if no password is required / still loading on Redis <= 2.4)
-        // This could be fixed by checking the return value of the callback in the exec callback and
-        // returning the manipulated [error, result] from the callback.
-        // There should be a better solution though
+        // quit => might return an error instead of "OK" in the exec callback...
+        // (if not connected)
+        //
+        // auth => might return an error instead of "OK" in the exec callback...
+        // (if no password is required / still loading on Redis <= 2.4)
+        //
+        // This could be fixed by checking the return value of the callback in
+        // the exec callback and returning the manipulated [error, result] from
+        // the callback. There should be a better solution though
 
           const args = config.configureClient('localhost', {
             noReadyCheck: true
@@ -240,25 +246,26 @@ if (process.platform !== 'win32') {
             end() // Should be called for each command after monitor
           })
           client.batch()
-          .auth(auth)
-          .select(5)
-          .monitor()
-          .set('foo', 'bar')
-          .info('stats')
-          .get('foo')
-          .subscribe(['foo', 'bar', 'foo'])
-          .unsubscribe('foo')
-          .subscribe('/foo')
-          .psubscribe('*')
-          .quit()
-          .exec().then((res) => {
-            res[4] = res[4].substr(0, 9)
-            assert.deepStrictEqual(
-              res,
-              ['OK', 'OK', 'OK', 'OK', '# Stats\r\n', 'bar', [2, ['foo', 'bar', 'foo']], [1, ['foo']], [2, ['/foo']], [3, ['*']], 'OK']
-            )
-            end()
-          })
+            .auth(auth)
+            .select(5)
+            .monitor()
+            .set('foo', 'bar')
+            .info('stats')
+            .get('foo')
+            .subscribe(['foo', 'bar', 'foo'])
+            .unsubscribe('foo')
+            .subscribe('/foo')
+            .psubscribe('*')
+            .quit()
+            .exec()
+            .then((res) => {
+              res[4] = res[4].substr(0, 9)
+              assert.deepStrictEqual(
+                res,
+                ['OK', 'OK', 'OK', 'OK', '# Stats\r\n', 'bar', [2, ['foo', 'bar', 'foo']], [1, ['foo']], [2, ['/foo']], [3, ['*']], 'OK']
+              )
+              end()
+            })
         })
       })
     })

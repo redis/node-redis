@@ -3,8 +3,9 @@
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
-const fork = require('child_process').fork
-const redis = config.redis
+const { fork } = require('child_process')
+
+const { redis } = config
 
 describe('stack traces', () => {
   it('should return good traces with NODE_ENV=development set', (done) => {

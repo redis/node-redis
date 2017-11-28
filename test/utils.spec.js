@@ -6,10 +6,10 @@ const intercept = require('intercept-stdout')
 const utils = require('../lib/utils')
 
 describe('utils.js', () => {
-  describe('print helper', function () {
-    it('callback with reply', function () {
-      var text = ''
-      const unhookIntercept = intercept(function (data) {
+  describe('print helper', () => {
+    it('callback with reply', () => {
+      let text = ''
+      const unhookIntercept = intercept((data) => {
         text += data
         return ''
       })
@@ -18,9 +18,9 @@ describe('utils.js', () => {
       assert.strictEqual(text, 'Reply: abc\n')
     })
 
-    it('callback with error', function () {
-      var text = ''
-      const unhookIntercept = intercept(function (data) {
+    it('callback with error', () => {
+      let text = ''
+      const unhookIntercept = intercept((data) => {
         text += data
         return ''
       })
@@ -37,7 +37,7 @@ describe('utils.js', () => {
           'i\'m special': true
         }],
         number: 5,
-        fn: function noop () {}
+        fn: function noop() {}
       }
       const clone = utils.clone(obj)
       assert.deepStrictEqual(clone, obj)
@@ -73,7 +73,7 @@ describe('utils.js', () => {
     }
     const createCommandObj = function () {
       return {
-        callback (err, res) {
+        callback(err, res) {
           if (err) errCount++
           else resCount++
         }

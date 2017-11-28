@@ -4,9 +4,11 @@ const assert = require('assert')
 const config = require('./lib/config')
 const connect = require('../lib/connect')
 const helper = require('./helper')
-const Redis = config.redis
+
+const { Redis } = config
 const intercept = require('intercept-stdout')
 const net = require('net')
+
 let client
 
 describe('connection tests', () => {
@@ -18,9 +20,10 @@ describe('connection tests', () => {
   })
 
   it('support for a private stream', () => {
-    // While using a private stream, reconnecting and other features are not going to work properly.
-    // Besides that some functions also have to be monkey patched to be safe from errors in this case.
-    // Therefore this is not officially supported!
+    // While using a private stream, reconnecting and other features are not
+    // going to work properly. Besides that some functions also have to be
+    // monkey patched to be safe from errors in this case. Therefore this is not
+    // officially supported!
     const socket = new net.Socket()
     client = new Redis({
       prefix: 'test',
@@ -41,7 +44,7 @@ describe('connection tests', () => {
       client = Redis.createClient({
         connectTimeout: 5,
         port: 9999,
-        retryStrategy (options) {
+        retryStrategy(options) {
           client.quit().then((res) => {
             assert.strictEqual(res, 'OK')
             assert.strictEqual(called++, -1)
@@ -158,7 +161,7 @@ describe('connection tests', () => {
             host: 'somewhere',
             port: 6379,
             family: ip,
-            retryStrategy () {}
+            retryStrategy() {}
           }
           client = Redis.createClient(options)
           assert.strictEqual(client._connectionOptions.family, ip === 'IPv6' ? 6 : 4)
@@ -172,7 +175,7 @@ describe('connection tests', () => {
 
         it('retryStrategy used to reconnect with individual error', (done) => {
           client = Redis.createClient({
-            retryStrategy (options) {
+            retryStrategy(options) {
               if (options.totalRetryTime > 150) {
                 client.set('foo', 'bar').then(assert, (err) => {
                   assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
@@ -191,7 +194,7 @@ describe('connection tests', () => {
 
         it('retryStrategy used to reconnect', (done) => {
           client = Redis.createClient({
-            retryStrategy (options) {
+            retryStrategy(options) {
               if (options.totalRetryTime > 150) {
                 client.set('foo', 'bar').catch((err) => {
                   assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
@@ -214,7 +217,7 @@ describe('connection tests', () => {
           })
           Redis.debugMode = true
           client = Redis.createClient({
-            retryStrategy (options) {
+            retryStrategy(options) {
               client.set('foo', 'bar').catch((err) => {
                 assert.strictEqual(err.code, 'NR_CLOSED')
                 assert.strictEqual(err.message, 'Stream connection ended and command aborted.')
@@ -241,7 +244,7 @@ describe('connection tests', () => {
             // Auto detect ipv4 and use non routeable ip to trigger the timeout
             host: '10.255.255.1',
             connectTimeout,
-            retryStrategy () {
+            retryStrategy() {
               return 5000
             }
           })
@@ -510,7 +513,7 @@ describe('connection tests', () => {
           // Cover info parts with no value
           setImmediate(() => {
             const command = client.commandQueue.peekAt(0)
-            const callback = command.callback
+            const { callback } = command
             command.callback = (err, res) => {
               res += 'added:\r\n'
               callback(err, res)
@@ -528,7 +531,8 @@ describe('connection tests', () => {
           client.info = function () {
             return tmp().then((res) => {
               if (!delayed) {
-                // Try reconnecting after one second even if redis tells us the time needed is above one second
+                // Try reconnecting after one second even if redis tells us the
+                // time needed is above one second
                 client.serverInfo.persistence.loading = 1
                 client.serverInfo.persistence.loading_eta_seconds = 2.5
                 delayed = true

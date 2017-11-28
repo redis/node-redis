@@ -11,7 +11,7 @@ const config = {
     IPv4: '127.0.0.1',
     IPv6: '::1'
   },
-  configureClient (ip, opts) {
+  configureClient(ip, opts) {
     const args = []
     // Do not manipulate the opts => copy them each time
     opts = opts ? JSON.parse(JSON.stringify(opts)) : {}

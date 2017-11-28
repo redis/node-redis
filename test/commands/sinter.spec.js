@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'sinter\' method', () => {
   helper.allTests((ip, args) => {
@@ -26,7 +27,7 @@ describe('The \'sinter\' method', () => {
 
         return client.sinter('sa', 'sb').then((intersection) => {
           assert.strictEqual(intersection.length, 2)
-          assert.deepStrictEqual(intersection.sort(), [ 'b', 'c' ])
+          assert.deepStrictEqual(intersection.sort(), ['b', 'c'])
         })
       })
 

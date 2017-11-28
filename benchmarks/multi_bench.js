@@ -1,16 +1,20 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const path = require('path')
 const RedisProcess = require('../test/lib/redis-process')
+
 let rp
 let clientNr = 0
 const redis = require('../index')
+
 let totalTime = 0
+// eslint-disable-next-line
 const metrics = require('metrics')
+
 const tests = []
 
-function returnArg (name, def) {
+function returnArg(name, def) {
   const matches = process.argv.filter((entry) => {
     return entry.indexOf(`${name}=`) === 0
   })
@@ -27,7 +31,7 @@ const clientOptions = {
   path: returnArg('socket') // '/tmp/redis.sock'
 }
 
-function lpad (input, len, chr) {
+function lpad(input, len, chr) {
   let str = input.toString()
   chr = chr || ' '
   while (str.length < len) {
@@ -41,7 +45,7 @@ metrics.Histogram.prototype.printLine = function () {
   return `${lpad((obj.mean / 1e6).toFixed(2), 6)}/${lpad((obj.max / 1e6).toFixed(2), 6)}`
 }
 
-function Test (args) {
+function Test(args) {
   this.args = args
   this.args.pipeline = +pipeline
   this.callback = null
@@ -116,7 +120,7 @@ Test.prototype.newClient = function (id) {
 }
 
 Test.prototype.onClientsReady = function () {
-  process.stdout.write(`${lpad(this.args.descr, 13)  }, ${this.args.batch ? lpad(`batch ${this.args.batch}`, 9) : lpad(this.args.pipeline, 9)  }/${this.clientsReady} `)
+  process.stdout.write(`${lpad(this.args.descr, 13)}, ${this.args.batch ? lpad(`batch ${this.args.batch}`, 9) : lpad(this.args.pipeline, 9)}/${this.clientsReady} `)
   this.testStart = Date.now()
   return this.fillPipeline()
 }
@@ -203,64 +207,110 @@ const veryLargeStr = (new Array((4 * 1024 * 1024) + 1).join('-'))
 const veryLargeBuf = Buffer.from(veryLargeStr)
 const mgetArray = (new Array(1025)).join('fooRand000000000001;').split(';')
 
-tests.push(new Test({descr: 'PING', command: 'ping', args: []}))
-tests.push(new Test({descr: 'PING', command: 'ping', args: [], batch: 50}))
+tests.push(new Test({ descr: 'PING', command: 'ping', args: [] }))
+tests.push(new Test({
+  descr: 'PING', command: 'ping', args: [], batch: 50
+}))
 
-tests.push(new Test({descr: 'SET 4B str', command: 'set', args: ['fooRand000000000000', smallStr]}))
-tests.push(new Test({descr: 'SET 4B str', command: 'set', args: ['fooRand000000000000', smallStr], batch: 50}))
+tests.push(new Test({ descr: 'SET 4B str', command: 'set', args: ['fooRand000000000000', smallStr] }))
+tests.push(new Test({
+  descr: 'SET 4B str', command: 'set', args: ['fooRand000000000000', smallStr], batch: 50
+}))
 
-tests.push(new Test({descr: 'SET 4B buf', command: 'set', args: ['fooRand000000000000', smallBuf]}))
-tests.push(new Test({descr: 'SET 4B buf', command: 'set', args: ['fooRand000000000000', smallBuf], batch: 50}))
+tests.push(new Test({ descr: 'SET 4B buf', command: 'set', args: ['fooRand000000000000', smallBuf] }))
+tests.push(new Test({
+  descr: 'SET 4B buf', command: 'set', args: ['fooRand000000000000', smallBuf], batch: 50
+}))
 
-tests.push(new Test({descr: 'GET 4B str', command: 'get', args: ['fooRand000000000000']}))
-tests.push(new Test({descr: 'GET 4B str', command: 'get', args: ['fooRand000000000000'], batch: 50}))
+tests.push(new Test({ descr: 'GET 4B str', command: 'get', args: ['fooRand000000000000'] }))
+tests.push(new Test({
+  descr: 'GET 4B str', command: 'get', args: ['fooRand000000000000'], batch: 50
+}))
 
-tests.push(new Test({descr: 'GET 4B buf', command: 'get', args: ['fooRand000000000000'], clientOptions: {returnBuffers: true}}))
-tests.push(new Test({descr: 'GET 4B buf', command: 'get', args: ['fooRand000000000000'], batch: 50, clientOptions: {returnBuffers: true}}))
+tests.push(new Test({
+  descr: 'GET 4B buf', command: 'get', args: ['fooRand000000000000'], clientOptions: { returnBuffers: true }
+}))
+tests.push(new Test({
+  descr: 'GET 4B buf', command: 'get', args: ['fooRand000000000000'], batch: 50, clientOptions: { returnBuffers: true }
+}))
 
-tests.push(new Test({descr: 'SET 4KiB str', command: 'set', args: ['fooRand000000000001', largeStr]}))
-tests.push(new Test({descr: 'SET 4KiB str', command: 'set', args: ['fooRand000000000001', largeStr], batch: 50}))
+tests.push(new Test({ descr: 'SET 4KiB str', command: 'set', args: ['fooRand000000000001', largeStr] }))
+tests.push(new Test({
+  descr: 'SET 4KiB str', command: 'set', args: ['fooRand000000000001', largeStr], batch: 50
+}))
 
-tests.push(new Test({descr: 'SET 4KiB buf', command: 'set', args: ['fooRand000000000001', largeBuf]}))
-tests.push(new Test({descr: 'SET 4KiB buf', command: 'set', args: ['fooRand000000000001', largeBuf], batch: 50}))
+tests.push(new Test({ descr: 'SET 4KiB buf', command: 'set', args: ['fooRand000000000001', largeBuf] }))
+tests.push(new Test({
+  descr: 'SET 4KiB buf', command: 'set', args: ['fooRand000000000001', largeBuf], batch: 50
+}))
 
-tests.push(new Test({descr: 'GET 4KiB str', command: 'get', args: ['fooRand000000000001']}))
-tests.push(new Test({descr: 'GET 4KiB str', command: 'get', args: ['fooRand000000000001'], batch: 50}))
+tests.push(new Test({ descr: 'GET 4KiB str', command: 'get', args: ['fooRand000000000001'] }))
+tests.push(new Test({
+  descr: 'GET 4KiB str', command: 'get', args: ['fooRand000000000001'], batch: 50
+}))
 
-tests.push(new Test({descr: 'GET 4KiB buf', command: 'get', args: ['fooRand000000000001'], clientOptions: {returnBuffers: true}}))
-tests.push(new Test({descr: 'GET 4KiB buf', command: 'get', args: ['fooRand000000000001'], batch: 50, clientOptions: {returnBuffers: true}}))
+tests.push(new Test({
+  descr: 'GET 4KiB buf', command: 'get', args: ['fooRand000000000001'], clientOptions: { returnBuffers: true }
+}))
+tests.push(new Test({
+  descr: 'GET 4KiB buf', command: 'get', args: ['fooRand000000000001'], batch: 50, clientOptions: { returnBuffers: true }
+}))
 
-tests.push(new Test({descr: 'INCR', command: 'incr', args: ['counterRand000000000000']}))
-tests.push(new Test({descr: 'INCR', command: 'incr', args: ['counterRand000000000000'], batch: 50}))
+tests.push(new Test({ descr: 'INCR', command: 'incr', args: ['counterRand000000000000'] }))
+tests.push(new Test({
+  descr: 'INCR', command: 'incr', args: ['counterRand000000000000'], batch: 50
+}))
 
-tests.push(new Test({descr: 'LPUSH', command: 'lpush', args: ['mylist', smallStr]}))
-tests.push(new Test({descr: 'LPUSH', command: 'lpush', args: ['mylist', smallStr], batch: 50}))
+tests.push(new Test({ descr: 'LPUSH', command: 'lpush', args: ['mylist', smallStr] }))
+tests.push(new Test({
+  descr: 'LPUSH', command: 'lpush', args: ['mylist', smallStr], batch: 50
+}))
 
-tests.push(new Test({descr: 'LRANGE 10', command: 'lrange', args: ['mylist', '0', '9']}))
-tests.push(new Test({descr: 'LRANGE 10', command: 'lrange', args: ['mylist', '0', '9'], batch: 50}))
+tests.push(new Test({ descr: 'LRANGE 10', command: 'lrange', args: ['mylist', '0', '9'] }))
+tests.push(new Test({
+  descr: 'LRANGE 10', command: 'lrange', args: ['mylist', '0', '9'], batch: 50
+}))
 
-tests.push(new Test({descr: 'LRANGE 100', command: 'lrange', args: ['mylist', '0', '99']}))
-tests.push(new Test({descr: 'LRANGE 100', command: 'lrange', args: ['mylist', '0', '99'], batch: 50}))
+tests.push(new Test({ descr: 'LRANGE 100', command: 'lrange', args: ['mylist', '0', '99'] }))
+tests.push(new Test({
+  descr: 'LRANGE 100', command: 'lrange', args: ['mylist', '0', '99'], batch: 50
+}))
 
-tests.push(new Test({descr: 'SET 4MiB str', command: 'set', args: ['fooRand000000000002', veryLargeStr]}))
-tests.push(new Test({descr: 'SET 4MiB str', command: 'set', args: ['fooRand000000000002', veryLargeStr], batch: 20}))
+tests.push(new Test({ descr: 'SET 4MiB str', command: 'set', args: ['fooRand000000000002', veryLargeStr] }))
+tests.push(new Test({
+  descr: 'SET 4MiB str', command: 'set', args: ['fooRand000000000002', veryLargeStr], batch: 20
+}))
 
-tests.push(new Test({descr: 'SET 4MiB buf', command: 'set', args: ['fooRand000000000002', veryLargeBuf]}))
-tests.push(new Test({descr: 'SET 4MiB buf', command: 'set', args: ['fooRand000000000002', veryLargeBuf], batch: 20}))
+tests.push(new Test({ descr: 'SET 4MiB buf', command: 'set', args: ['fooRand000000000002', veryLargeBuf] }))
+tests.push(new Test({
+  descr: 'SET 4MiB buf', command: 'set', args: ['fooRand000000000002', veryLargeBuf], batch: 20
+}))
 
-tests.push(new Test({descr: 'GET 4MiB str', command: 'get', args: ['fooRand000000000002']}))
-tests.push(new Test({descr: 'GET 4MiB str', command: 'get', args: ['fooRand000000000002'], batch: 20}))
+tests.push(new Test({ descr: 'GET 4MiB str', command: 'get', args: ['fooRand000000000002'] }))
+tests.push(new Test({
+  descr: 'GET 4MiB str', command: 'get', args: ['fooRand000000000002'], batch: 20
+}))
 
-tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['fooRand000000000002'], clientOptions: {returnBuffers: true}}))
-tests.push(new Test({descr: 'GET 4MiB buf', command: 'get', args: ['fooRand000000000002'], batch: 20, clientOptions: {returnBuffers: true}}))
+tests.push(new Test({
+  descr: 'GET 4MiB buf', command: 'get', args: ['fooRand000000000002'], clientOptions: { returnBuffers: true }
+}))
+tests.push(new Test({
+  descr: 'GET 4MiB buf', command: 'get', args: ['fooRand000000000002'], batch: 20, clientOptions: { returnBuffers: true }
+}))
 
-tests.push(new Test({descr: 'MGET 4MiB str', command: 'mget', args: mgetArray}))
-tests.push(new Test({descr: 'MGET 4MiB str', command: 'mget', args: mgetArray, batch: 20}))
+tests.push(new Test({ descr: 'MGET 4MiB str', command: 'mget', args: mgetArray }))
+tests.push(new Test({
+  descr: 'MGET 4MiB str', command: 'mget', args: mgetArray, batch: 20
+}))
 
-tests.push(new Test({descr: 'MGET 4MiB buf', command: 'mget', args: mgetArray, clientOptions: {returnBuffers: true}}))
-tests.push(new Test({descr: 'MGET 4MiB buf', command: 'mget', args: mgetArray, batch: 20, clientOptions: {returnBuffers: true}}))
+tests.push(new Test({
+  descr: 'MGET 4MiB buf', command: 'mget', args: mgetArray, clientOptions: { returnBuffers: true }
+}))
+tests.push(new Test({
+  descr: 'MGET 4MiB buf', command: 'mget', args: mgetArray, batch: 20, clientOptions: { returnBuffers: true }
+}))
 
-function next () {
+function next() {
   const test = tests.shift()
   if (test) {
     test.run(() => {

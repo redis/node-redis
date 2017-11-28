@@ -3,7 +3,8 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'srem\' method', () => {
   helper.allTests((ip, args) => {
@@ -30,7 +31,7 @@ describe('The \'srem\' method', () => {
         client.srem('set0', ['member1', 'member2']).then(helper.isNumber(2))
         return client.smembers('set0').then((res) => {
           assert.strictEqual(res.length, 1)
-          assert.ok(~res.indexOf('member0'))
+          assert.notStrictEqual(res.indexOf('member0'), -1)
         })
       })
 
@@ -39,7 +40,7 @@ describe('The \'srem\' method', () => {
         client.sendCommand('srem', ['set0', 'member1', 'member2']).then(helper.isNumber(2))
         return client.smembers('set0').then((res) => {
           assert.strictEqual(res.length, 1)
-          assert.ok(~res.indexOf('member0'))
+          assert.notStrictEqual(res.indexOf('member0'), -1)
         })
       })
 
@@ -48,9 +49,9 @@ describe('The \'srem\' method', () => {
         client.srem(['set0', 'member3', 'member4']).then(helper.isNumber(0))
         return client.smembers('set0').then((res) => {
           assert.strictEqual(res.length, 3)
-          assert.ok(~res.indexOf('member0'))
-          assert.ok(~res.indexOf('member1'))
-          assert.ok(~res.indexOf('member2'))
+          assert.notStrictEqual(res.indexOf('member0'), -1)
+          assert.notStrictEqual(res.indexOf('member1'), -1)
+          assert.notStrictEqual(res.indexOf('member2'), -1)
         })
       })
 

@@ -2,13 +2,16 @@
 
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 const uuid = require('uuid')
 
 describe('The \'getset\' method', () => {
   helper.allTests((ip, args) => {
     describe(`using ${ip}`, () => {
-      let key, value, value2
+      let key
+      let value
+      let value2
 
       beforeEach(() => {
         key = uuid.v4()

@@ -3,13 +3,15 @@
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 const uuid = require('uuid')
 
 describe('The \'set\' method', () => {
   helper.allTests((ip, args) => {
     describe(`using ${ip}`, () => {
-      let key, value
+      let key
+      let value
 
       beforeEach(() => {
         key = uuid.v4()

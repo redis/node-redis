@@ -1,11 +1,12 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
 const utils = require('../../lib/utils')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'monitor\' method', () => {
   helper.allTests((parser, ip, args) => {
@@ -185,8 +186,9 @@ describe('The \'monitor\' method', () => {
           assert.deepStrictEqual(args, responses.shift())
           assert(utils.monitorRegex.test(rawOutput), rawOutput)
           if (responses.length === 0) {
-            // The publish is called right after the reconnect and the monitor is called before the message is emitted.
-            // Therefore we have to wait till the next tick
+            // The publish is called right after the reconnect and the monitor
+            // is called before the message is emitted. Therefore we have to
+            // wait till the next tick
             process.nextTick(() => {
               assert(called)
               pub.end(false)

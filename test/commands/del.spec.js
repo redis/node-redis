@@ -2,7 +2,8 @@
 
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'del\' method', () => {
   helper.allTests((ip, args) => {

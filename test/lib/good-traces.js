@@ -1,8 +1,10 @@
 // Spawned by the goodStacks.spec.js tests
+
 'use strict'
 
 const assert = require('assert')
 const redis = require('../../index')
+
 const client = redis.createClient()
 
 // Both error cases would normally return bad stack traces

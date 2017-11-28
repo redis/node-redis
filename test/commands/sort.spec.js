@@ -2,9 +2,10 @@
 
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
 
-function setupData (client) {
+const { redis } = config
+
+function setupData(client) {
   client.rpush('y', 'd')
   client.rpush('y', 'b')
   client.rpush('y', 'a')

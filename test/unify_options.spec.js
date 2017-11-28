@@ -9,7 +9,7 @@ describe('createClient options', () => {
     it('pass the options in the second parameter after a port', () => {
       const options = unifyOptions(1234, {
         option1: true,
-        option2 () {}
+        option2() {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -21,7 +21,7 @@ describe('createClient options', () => {
     it('pass the options in the third parameter after a port and host being set to null', () => {
       const options = unifyOptions(1234, null, {
         option1: true,
-        option2 () {}
+        option2() {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -33,7 +33,7 @@ describe('createClient options', () => {
     it('pass the options in the third parameter after a port and host being set to undefined', () => {
       const options = unifyOptions(1234, undefined, {
         option1: true,
-        option2 () {}
+        option2() {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -45,7 +45,7 @@ describe('createClient options', () => {
     it('pass the options in the third parameter after a port and host', () => {
       const options = unifyOptions('1234', 'localhost', {
         option1: true,
-        option2 () {}
+        option2() {}
       })
       assert.strictEqual(Object.keys(options).length, 4)
       assert(options.option1)
@@ -68,7 +68,7 @@ describe('createClient options', () => {
     it('pass the options in the second parameter after a port', () => {
       const options = unifyOptions('/tmp/redis.sock', {
         option1: true,
-        option2 () {},
+        option2() {},
         option3: [1, 2, 3]
       })
       assert.strictEqual(Object.keys(options).length, 4)
@@ -81,7 +81,7 @@ describe('createClient options', () => {
     it('pass the options in the third parameter after a port and host being set to null', () => {
       const options = unifyOptions('/tmp/redis.sock', null, {
         option1: true,
-        option2 () {}
+        option2() {}
       })
       assert.strictEqual(Object.keys(options).length, 3)
       assert(options.option1)
@@ -120,7 +120,8 @@ describe('createClient options', () => {
         option: [1, 2, 3]
       })
       unhookIntercept()
-      assert.strictEqual(text,
+      assert.strictEqual(
+        text,
         'nodeRedis: WARNING: You passed the db option twice!\n' +
                 'nodeRedis: WARNING: You passed the port option twice!\n' +
                 'nodeRedis: WARNING: You passed the password option twice!\n'

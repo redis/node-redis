@@ -2,7 +2,8 @@
 
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'hmset\' method', () => {
   helper.allTests((ip, args) => {
@@ -20,25 +21,25 @@ describe('The \'hmset\' method', () => {
         return client.hgetall(hash).then(helper.isDeepEqual({
           '0123456789': 'abcdefghij',
           'some manner of key': 'a type of value',
-          'otherTypes': '555'
+          otherTypes: '555'
         }))
       })
 
       it('handles object-style syntax', () => {
-        client.hmset(hash, {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}).then(helper.isString('OK'))
+        client.hmset(hash, { '0123456789': 'abcdefghij', 'some manner of key': 'a type of value', otherTypes: 555 }).then(helper.isString('OK'))
         return client.hgetall(hash).then(helper.isDeepEqual({
           '0123456789': 'abcdefghij',
           'some manner of key': 'a type of value',
-          'otherTypes': '555'
+          otherTypes: '555'
         }))
       })
 
       it('handles object-style syntax and the key being a number', () => {
-        client.hmset(231232, {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555})
+        client.hmset(231232, { '0123456789': 'abcdefghij', 'some manner of key': 'a type of value', otherTypes: 555 })
         return client.hgetall(231232).then(helper.isDeepEqual({
           '0123456789': 'abcdefghij',
           'some manner of key': 'a type of value',
-          'otherTypes': '555'
+          otherTypes: '555'
         }))
       })
 

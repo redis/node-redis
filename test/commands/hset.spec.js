@@ -1,10 +1,11 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('../lib/config')
 const helper = require('../helper')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'hset\' method', () => {
   helper.allTests((ip, args) => {
@@ -43,8 +44,9 @@ describe('The \'hset\' method', () => {
       it('warns if someone passed a array either as field or as value', () => {
         const hash = 'test hash'
         const field = 'array'
-        // This would be converted to "array contents" but if you use more than one entry,
-        // it'll result in e.g. "array contents,second content" and this is not supported and considered harmful
+        // This would be converted to "array contents" but if you use more than
+        // one entry, it'll result in e.g. "array contents,second content" and
+        // this is not supported and considered harmful
         const value = ['array contents']
         return client.hmset(hash, field, value).then(assert, helper.isError())
       })

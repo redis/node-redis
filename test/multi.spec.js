@@ -1,12 +1,14 @@
 'use strict'
 
-const Buffer = require('buffer').Buffer
+const { Buffer } = require('buffer')
 const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
 const utils = require('../lib/utils')
-const redis = config.redis
+
+const { redis } = config
 const zlib = require('zlib')
+
 let client
 
 describe('The \'multi\' method', () => {
@@ -23,32 +25,32 @@ describe('The \'multi\' method', () => {
 
       // Some random object created from http://beta.json-generator.com/
       const testObj = {
-        'Id': '5642c4c33d4667c4a1fefd99',
-        'index': 0,
-        'guid': '5baf1f1c-7621-41e7-ae7a-f8c6f3199b0f',
-        'isActive': true,
-        'balance': '$1,028.63',
-        'picture': 'http://placehold.it/32x32',
-        'age': 31,
-        'eyeColor': 'green',
-        'name': {'first': 'Shana', 'last': 'Long'},
-        'company': 'MANGLO',
-        'email': 'shana.long@manglo.us',
-        'phone': '+1 (926) 405-3105',
-        'address': '747 Dank Court, Norfolk, Ohio, 1112',
-        'about': 'Eu pariatur in nisi occaecat enim qui consequat nostrud cupidatat id. ' +
+        Id: '5642c4c33d4667c4a1fefd99',
+        index: 0,
+        guid: '5baf1f1c-7621-41e7-ae7a-f8c6f3199b0f',
+        isActive: true,
+        balance: '$1,028.63',
+        picture: 'http://placehold.it/32x32',
+        age: 31,
+        eyeColor: 'green',
+        name: { first: 'Shana', last: 'Long' },
+        company: 'MANGLO',
+        email: 'shana.long@manglo.us',
+        phone: '+1 (926) 405-3105',
+        address: '747 Dank Court, Norfolk, Ohio, 1112',
+        about: 'Eu pariatur in nisi occaecat enim qui consequat nostrud cupidatat id. ' +
                     'Commodo commodo dolore esse irure minim quis deserunt anim laborum aute deserunt et est. Quis nisi laborum deserunt nisi quis.',
-        'registered': 'Friday, April 18, 2014 9:56 AM',
-        'latitude': '74.566613',
-        'longitude': '-11.660432',
-        'tags': [7, 'excepteur'],
-        'range': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-        'friends': [3, {'id': 1, 'name': 'Schultz Dyer'}],
-        'greeting': 'Hello, Shana! You have 5 unread messages.',
-        'favoriteFruit': 'strawberry'
+        registered: 'Friday, April 18, 2014 9:56 AM',
+        latitude: '74.566613',
+        longitude: '-11.660432',
+        tags: [7, 'excepteur'],
+        range: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        friends: [3, { id: 1, name: 'Schultz Dyer' }],
+        greeting: 'Hello, Shana! You have 5 unread messages.',
+        favoriteFruit: 'strawberry'
       }
 
-      function run () {
+      function run() {
         if (end() === true) {
           return
         }
@@ -132,10 +134,11 @@ describe('The \'multi\' method', () => {
 
           it('results in a execabort #2', () => {
             // Check that using monitor with a transactions results in an error
-            return client.multi().set('foo', 'bar').monitor().exec().then(assert, (err) => {
-              assert.strictEqual(err.code, 'EXECABORT')
-              client.end(false)
-            })
+            return client.multi().set('foo', 'bar').monitor().exec()
+              .then(assert, (err) => {
+                assert.strictEqual(err.code, 'EXECABORT')
+                client.end(false)
+              })
           })
 
           it('sanity check', (done) => {
@@ -178,7 +181,7 @@ describe('The \'multi\' method', () => {
             const multi1 = client.multi()
             multi1.set('m1', '123')
             multi1.get('m1')
-            multi1.exec().then(() => (called = true))
+            multi1.exec().then(() => { called = true })
             client.once('ready', () => {
               const multi1 = client.multi()
               multi1.set('m2', '456')
@@ -199,7 +202,7 @@ describe('The \'multi\' method', () => {
             host: 'somewhere',
             port: 6379,
             family: 'IPv6',
-            retryStrategy () {}
+            retryStrategy() {}
           })
 
           assert.strictEqual(client._connectionOptions.family, 6)
@@ -334,8 +337,8 @@ describe('The \'multi\' method', () => {
             [['hmset', 'multihmset2', 'multibar2', 'multifoo3', 'multibar3', 'test']],
             ['hmset', ['multihmset', 'multibar', 'multifoo']],
             ['hmset', arr3],
-            ['hmset', now, {123456789: 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 555}],
-            ['hmset', 'key2', {'0123456789': 'abcdefghij', 'some manner of key': 'a type of value', 'otherTypes': 999}],
+            ['hmset', now, { 123456789: 'abcdefghij', 'some manner of key': 'a type of value', otherTypes: 555 }],
+            ['hmset', 'key2', { '0123456789': 'abcdefghij', 'some manner of key': 'a type of value', otherTypes: 999 }],
             ['hmset', 'multihmset', ['multibar', 'multibaz']],
             ['hmset', 'multihmset', ['multibar', 'multibaz']]
           ])
@@ -343,7 +346,8 @@ describe('The \'multi\' method', () => {
             .hmget('key2', arr2)
             .hmget(['multihmset2', 'some manner of key', 'multibar3'])
             .mget('multifoo2', ['multifoo3', 'multifoo'])
-            .exec().then((replies) => {
+            .exec()
+            .then((replies) => {
               assert.strictEqual(arr.length, 3)
               assert.strictEqual(arr2.length, 2)
               assert.strictEqual(arr3.length, 3)
@@ -376,7 +380,8 @@ describe('The \'multi\' method', () => {
             .incr('some')
             .incr('keys')
             .mget('some', ['keys'])
-            .exec().then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
+            .exec()
+            .then(helper.isDeepEqual(['OK', 11, 21, ['11', '21']]))
         })
 
         it('allows an array to be provided indicating multiple operations to perform', () => {
@@ -395,7 +400,8 @@ describe('The \'multi\' method', () => {
               things: 'here'
             })
             .hgetall('multihash')
-            .exec().then((replies) => {
+            .exec()
+            .then((replies) => {
               assert.strictEqual('OK', replies[0])
               assert.strictEqual(Object.keys(replies[2]).length, 4)
               assert.strictEqual('foo', replies[2].a)
@@ -406,28 +412,32 @@ describe('The \'multi\' method', () => {
         })
 
         it('reports EXECABORT exceptions when they occur (while queueing)', () => {
-          return client.multi().config('bar').set('foo').set('bar').exec().then(assert, (err) => {
-            assert.strictEqual(err.code, 'EXECABORT')
-            assert(err.message.match(/^EXECABORT/), 'Error message should begin with EXECABORT')
-            assert.strictEqual(err.errors.length, 2, 'err.errors should have 2 items')
-            assert.strictEqual(err.errors[0].command, 'SET')
-            assert.strictEqual(err.errors[0].code, 'ERR')
-            assert.strictEqual(err.errors[0].position, 1)
-            assert(/^ERR/.test(err.errors[0].message), 'Actual error message should begin with ERR')
-          })
+          return client.multi().config('bar').set('foo').set('bar')
+            .exec()
+            .then(assert, (err) => {
+              assert.strictEqual(err.code, 'EXECABORT')
+              assert(err.message.match(/^EXECABORT/), 'Error message should begin with EXECABORT')
+              assert.strictEqual(err.errors.length, 2, 'err.errors should have 2 items')
+              assert.strictEqual(err.errors[0].command, 'SET')
+              assert.strictEqual(err.errors[0].code, 'ERR')
+              assert.strictEqual(err.errors[0].position, 1)
+              assert(/^ERR/.test(err.errors[0].message), 'Actual error message should begin with ERR')
+            })
         })
 
         it('reports multiple exceptions when they occur (while EXEC is running)', () => {
-          return client.multi().config('bar').debug('foo').eval('return {err=\'this is an error\'}', 0).exec().then(assert, (err) => {
-            assert.strictEqual(err.replies.length, 3)
-            assert.strictEqual(err.replies[0].code, 'ERR')
-            assert.strictEqual(err.replies[0].command, 'CONFIG')
-            assert.strictEqual(err.replies[2].code, undefined)
-            assert.strictEqual(err.replies[2].command, 'EVAL')
-            assert(/^this is an error/.test(err.replies[2].message))
-            assert(/^ERR/.test(err.replies[0].message), 'Error message should begin with ERR')
-            assert(/^ERR/.test(err.replies[1].message), 'Error message should begin with ERR')
-          })
+          return client.multi().config('bar').debug('foo').eval('return {err=\'this is an error\'}', 0)
+            .exec()
+            .then(assert, (err) => {
+              assert.strictEqual(err.replies.length, 3)
+              assert.strictEqual(err.replies[0].code, 'ERR')
+              assert.strictEqual(err.replies[0].command, 'CONFIG')
+              assert.strictEqual(err.replies[2].code, undefined)
+              assert.strictEqual(err.replies[2].command, 'EVAL')
+              assert(/^this is an error/.test(err.replies[2].message))
+              assert(/^ERR/.test(err.replies[0].message), 'Error message should begin with ERR')
+              assert(/^ERR/.test(err.replies[1].message), 'Error message should begin with ERR')
+            })
         })
 
         it('should not use a transaction with execAtomic if no command is used', () => {
@@ -487,16 +497,19 @@ describe('The \'multi\' method', () => {
         })
 
         it('indivdual commands work properly with multi', () => {
-          // Neither of the following work properly in a transactions:
-          // (This is due to Redis not returning the reply as expected / resulting in undefined behavior)
-          // (Likely there are more commands that do not work with a transaction)
+          // Neither of the following work properly in a transactions: (This is
+          // due to Redis not returning the reply as expected / resulting in
+          // undefined behavior) (Likely there are more commands that do not
+          // work with a transaction)
           //
-          // auth => can't be called after a multi command
-          // monitor => results in faulty return values e.g. multi().monitor().set('foo', 'bar').get('foo')
-          //            returns ['OK, 'OK', 'monitor reply'] instead of ['OK', 'OK', 'bar']
-          // quit => ends the connection before the exec
-          // client reply skip|off => results in weird return values. Not sure what exactly happens
-          // subscribe => enters subscribe mode and this does not work in combination with exec (the same for psubscribe, unsubscribe...)
+          // auth => can't be called after a multi command monitor => results in
+          // faulty return values e.g. multi().monitor().set('foo',
+          // 'bar').get('foo') returns ['OK, 'OK', 'monitor reply'] instead of
+          // ['OK', 'OK', 'bar'] quit => ends the connection before the exec
+          // client reply skip|off => results in weird return values. Not sure
+          // what exactly happens subscribe => enters subscribe mode and this
+          // does not work in combination with exec (the same for psubscribe,
+          // unsubscribe...)
           //
 
           // Make sure sendCommand is not called
@@ -514,7 +527,10 @@ describe('The \'multi\' method', () => {
           return multi.exec().then((res) => {
             res[2] = res[2].substr(0, 10)
             assert.strictEqual(client.selectedDb, 5)
-            assert.deepStrictEqual(client.serverInfo.keyspace.db5, { avg_ttl: 0, expires: 0, keys: 1 })
+            assert.deepStrictEqual(
+              client.serverInfo.keyspace.db5,
+              { avg_ttl: 0, expires: 0, keys: 1 }
+            )
             assert.deepStrictEqual(res, ['OK', 'OK', '# Server\r\n', 'bar'])
             return client.flushdb()
           })

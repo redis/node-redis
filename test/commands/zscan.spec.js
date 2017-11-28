@@ -3,7 +3,8 @@
 const config = require('../lib/config')
 const helper = require('../helper')
 const assert = require('assert')
-const redis = config.redis
+
+const { redis } = config
 
 describe('The \'zscan\' method', () => {
   helper.allTests((ip, args) => {

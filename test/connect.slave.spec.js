@@ -4,11 +4,13 @@ const assert = require('assert')
 const config = require('./lib/config')
 const helper = require('./helper')
 const RedisProcess = require('./lib/redis-process')
+
 let rp
 const path = require('path')
-const redis = config.redis
 
-  // TODO: Fix redis process spawn on windows
+const { redis } = config
+
+// TODO: Fix redis process spawn on windows
 if (process.platform !== 'win32') {
   describe('master slave sync', () => {
     let master = null
@@ -29,7 +31,7 @@ if (process.platform !== 'win32') {
       let i = 0
       while (i < 1000) {
         i++
-      // Write some data in the redis instance, so there's something to sync
+        // Write some data in the redis instance, so there's something to sync
         multi.set(`foo${i}`, `bar${new Array(500).join(Math.random())}`)
       }
       return multi.exec()
@@ -42,8 +44,9 @@ if (process.platform !== 'win32') {
       let firstInfo
       slave = redis.createClient({
         port,
-        retryStrategy (options) {
-        // Try to reconnect in very small intervals to catch the master_link_status down before the sync completes
+        retryStrategy(options) {
+        // Try to reconnect in very small intervals to catch the
+        // master_link_status down before the sync completes
           return 10
         }
       })
