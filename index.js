@@ -10,18 +10,15 @@ const utils = require('./lib/utils')
 
 require('./lib/individualCommands')
 
-RedisClient.debugMode = /\bredis\b/i.test(process.env.NODE_DEBUG)
-RedisClient.RedisClient = RedisClient
-RedisClient.Multi = Multi
-RedisClient.AbortError = Errors.AbortError
-RedisClient.ParserError = Errors.ParserError
-RedisClient.RedisError = Errors.RedisError
-RedisClient.ReplyError = Errors.ReplyError
-RedisClient.InterruptError = Errors.InterruptError
-RedisClient.print = utils.print
-RedisClient.createClient = function () {
-  return new RedisClient(unifyOptions.apply(null, arguments))
-}
+Object.assign(RedisClient, Errors, {
+  RedisClient,
+  Multi,
+  print: utils.print,
+  createClient() {
+    return new RedisClient(unifyOptions.apply(null, arguments))
+  },
+  debugMode = /\bredis\b/i.test(process.env.NODE_DEBUG)
+})
 
 Commands.list.forEach((name) => addCommand(RedisClient.prototype, Multi.prototype, name))
 
