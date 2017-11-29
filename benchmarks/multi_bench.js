@@ -120,7 +120,11 @@ Test.prototype.newClient = function (id) {
 }
 
 Test.prototype.onClientsReady = function () {
-  process.stdout.write(`${lpad(this.args.descr, 13)}, ${this.args.batch ? lpad(`batch ${this.args.batch}`, 9) : lpad(this.args.pipeline, 9)}/${this.clientsReady} `)
+  process.stdout.write(
+    `${lpad(this.args.descr, 13)}, ` +
+    `${this.args.batch ? lpad(`batch ${this.args.batch}`, 9) : lpad(this.args.pipeline, 9)}/` +
+    `${this.clientsReady} `
+  )
   this.testStart = Date.now()
   return this.fillPipeline()
 }
@@ -140,20 +144,18 @@ Test.prototype.fillPipeline = function () {
   if (this.batchPipeline) {
     return this.batch()
   }
-  const promises = []
   while (pipeline < this.maxPipeline) {
     this.commandsSent++
     pipeline++
-    promises.push(this.sendNext())
+    this.sendNext()
   }
-  return Promise.all(promises)
 }
 
 Test.prototype.batch = function () {
   const curClient = clientNr++ % this.clients.length
   const start = process.hrtime()
   let i = 0
-  const batch = this.clients[curClient].batch()
+  const batch = this.clients[curClient].multi()
 
   while (i++ < this.batchPipeline) {
     this.commandsSent++

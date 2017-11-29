@@ -27,7 +27,7 @@ Bugfixes
 Features
 - Native promise support
 - Auto pipelining
-- The client is now exported directly and be instantiated directly
+- The client is now exported directly and can be instantiated directly
 - `client.duplicate` will now also transition into pub sub or monitor mode
 
 Breaking Changes
@@ -35,7 +35,7 @@ Breaking Changes
 - Dropped support for `snake_case`
 - Dropped support for domains
 - Dropped support for Redis 2.4
-- Dropped support for Node.js < 4
+- Dropped support for Node.js < 6
 - Removed `drain` event
 - Removed `idle` event
 - Removed `parser` option

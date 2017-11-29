@@ -21,7 +21,8 @@
       "no-param-reassign": "off",
       "vars-on-top": "off",
       "no-mixed-operators": "off",
-      "prefer-spread": "off"
+      "prefer-spread": "off",
+      "function-paren-newline": "off"
   },
   "env": {
     "mocha": 2
