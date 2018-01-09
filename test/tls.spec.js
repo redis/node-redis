@@ -7,6 +7,7 @@ var helper = require('./helper');
 var path = require('path');
 var redis = config.redis;
 var utils = require('../lib/utils');
+var tls = require('tls');
 
 var tls_options = {
     servername: 'redis.js.org',
@@ -90,12 +91,12 @@ describe('TLS connection tests', function () {
 
         it('connect with host and port provided in the tls object', function (done) {
             if (skip) this.skip();
-            var tls = utils.clone(tls_options);
-            tls.port = tls_port;
-            tls.host = 'localhost';
+            var tls_opts = utils.clone(tls_options);
+            tls_opts.port = tls_port;
+            tls_opts.host = 'localhost';
             client = redis.createClient({
                 connect_timeout: 1000,
-                tls: tls
+                tls: tls_opts
             });
 
             // verify connection is using TCP, not UNIX socket
@@ -109,17 +110,16 @@ describe('TLS connection tests', function () {
         });
 
         describe('using rediss as url protocol', function (done) {
-            var tls = require('tls')
-            var tlsConnect = tls.connect
+            var tls_connect = tls.connect
             beforeEach(function () {
                 tls.connect = function (options) {
                     options = utils.clone(options)
                     options.ca = tls_options.ca;
-                    return tlsConnect.call(tls, options);
+                    return tls_connect.call(tls, options);
                 }
             })
             afterEach(function () {
-                tls.connect = tlsConnect;
+                tls.connect = tls_connect;
             })
             it('connect with tls when rediss is used as the protocol', function (done) {
                 if (skip) this.skip();
