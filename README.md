@@ -234,13 +234,15 @@ arguments. `createClient()` returns a `RedisClient` object. Otherwise,
 __Tip:__ If the Redis server runs on the same machine as the client consider
 using unix sockets if possible to increase throughput.
 
+__Note:__ Using `'rediss://...` for the protocol in a `redis_url` will enable a TLS socket connection. However, additional TLS options will need to be passed in `options`, if required.
+
 #### `options` object properties
 | Property  | Default   | Description |
 |-----------|-----------|-------------|
 | host      | 127.0.0.1 | IP address of the Redis server |
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
-| url       | null      | The URL of the Redis server. Format: `[redis:][rediss:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
+| url       | null      | The URL of the Redis server. Format: `[redis[s]:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
 | parser    | javascript | __Deprecated__ Use either the built-in JS parser [`javascript`]() or the native [`hiredis`]() parser. __Note__ `node_redis` < 2.6 uses hiredis as default if installed. This changed in v.2.6.0. |
 | string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
 | return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
