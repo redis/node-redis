@@ -437,19 +437,19 @@ protocol. Any commands where client state is saved on the Redis server, e.g.
 `*SUBSCRIBE` or the blocking `BL*` commands will *NOT* work with `.unref()`.
 
 ```js
-var redis = require("redis")
-var client = redis.createClient()
+var redis = require("redis");
+var client = redis.createClient();
 
 /*
     Calling unref() will allow this program to exit immediately after the get
     command finishes. Otherwise the client would hang as long as the
     client-server connection is alive.
 */
-client.unref()
-client.get("foo", function (err, value){
-    if (err) throw(err)
-    console.log(value)
-})
+client.unref();
+client.get("foo", function (err, value) {
+    if (err) throw(err);
+    console.log(value);
+});
 ```
 
 ## Friendlier hash commands
