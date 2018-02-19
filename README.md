@@ -961,7 +961,7 @@ ReplyError: ERR wrong number of arguments for 'set' command
 
 ## How to Contribute
 - Open a pull request or an issue about what you want to implement / change. We're glad for any help!
- - Please be aware that we'll only accept fully tested code.
+- Please be aware that we'll only accept fully tested code.
 
 ## Contributors
 
