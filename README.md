@@ -437,19 +437,19 @@ protocol. Any commands where client state is saved on the Redis server, e.g.
 `*SUBSCRIBE` or the blocking `BL*` commands will *NOT* work with `.unref()`.
 
 ```js
-var redis = require("redis")
-var client = redis.createClient()
+var redis = require("redis");
+var client = redis.createClient();
 
 /*
     Calling unref() will allow this program to exit immediately after the get
     command finishes. Otherwise the client would hang as long as the
     client-server connection is alive.
 */
-client.unref()
-client.get("foo", function (err, value){
-    if (err) throw(err)
-    console.log(value)
-})
+client.unref();
+client.get("foo", function (err, value) {
+    if (err) throw(err);
+    console.log(value);
+});
 ```
 
 ## Friendlier hash commands
@@ -773,9 +773,11 @@ Note that this program will not exit cleanly because the client is still connect
 To execute redis multi-word commands like `SCRIPT LOAD` or `CLIENT LIST` pass
 the second word as first parameter:
 
-    client.script('load', 'return 1');
-    client.multi().script('load', 'return 1').exec(...);
-    client.multi([['script', 'load', 'return 1']]).exec(...);
+```js
+client.script('load', 'return 1');
+client.multi().script('load', 'return 1').exec(...);
+client.multi([['script', 'load', 'return 1']]).exec(...);
+```
 
 ## client.duplicate([options][, callback])
 
@@ -790,24 +792,26 @@ blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
 are used on the same redisClient instance as non-blocking commands, the
 non-blocking ones may be queued up until after the blocking ones finish.
 
-    var Redis=require('redis');
-    var client = Redis.createClient();
-    var clientBlocking = client.duplicate();
+```js
+var Redis=require('redis');
+var client = Redis.createClient();
+var clientBlocking = client.duplicate();
 
-    var get = function() {
-        console.log("get called");
-        client.get("any_key",function() { console.log("get returned"); });
-        setTimeout( get, 1000 );
-    };
-    var brpop = function() {
-        console.log("brpop called");
-        clientBlocking.brpop("nonexistent", 5, function() {
-            console.log("brpop return");
-            setTimeout( brpop, 1000 );
-        });
-    };
-    get();
-    brpop();
+var get = function() {
+    console.log("get called");
+    client.get("any_key",function() { console.log("get returned"); });
+    setTimeout( get, 1000 );
+};
+var brpop = function() {
+    console.log("brpop called");
+    clientBlocking.brpop("nonexistent", 5, function() {
+        console.log("brpop return");
+        setTimeout( brpop, 1000 );
+    });
+};
+get();
+brpop();
+```
 
 Another reason to use duplicate() is when multiple DBs on the same server are
 accessed via the redis SELECT command.  Each DB could use its own connection.
@@ -957,7 +961,7 @@ ReplyError: ERR wrong number of arguments for 'set' command
 
 ## How to Contribute
 - Open a pull request or an issue about what you want to implement / change. We're glad for any help!
- - Please be aware that we'll only accept fully tested code.
+- Please be aware that we'll only accept fully tested code.
 
 ## Contributors
 
