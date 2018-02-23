@@ -120,11 +120,14 @@ describe('The node_redis client', function () {
                     });
 
                     it('check if all new options replaced the old ones', function (done) {
+                        client.selected_db = 1;
                         var client2 = client.duplicate({
+                            db: 2, 
                             no_ready_check: true
                         });
                         assert(client.connected);
                         assert(!client2.connected);
+                        assert.notEqual(client.selected_db, client2.selected_db);
                         assert.strictEqual(client.options.no_ready_check, undefined);
                         assert.strictEqual(client2.options.no_ready_check, true);
                         assert.notDeepEqual(client.options, client2.options);
