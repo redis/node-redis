@@ -826,7 +826,7 @@ Redis.
 All commands are sent as multi-bulk commands. `args` can either be an Array of
 arguments, or omitted / set to undefined.
 
-## client.add_command(command_name)
+## redis.add_command(command_name)
 
 Calling add_command will add a new command to the prototype. The exact command
 name will be used when calling using this new command. Using arbitrary arguments
