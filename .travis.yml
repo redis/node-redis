@@ -1,5 +1,5 @@
 language: node_js
-sudo: false
+sudo: required
 env:
   - CXX=g++-4.8 TRAVIS=true
 addons:
@@ -15,3 +15,9 @@ node_js:
   - "6"
   - "8"
 after_success: npm run coveralls
+before_script:
+  # Add an IPv6 config - see the corresponding Travis issue
+  # https://github.com/travis-ci/travis-ci/issues/8361
+  - if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
+      sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
+    fi
