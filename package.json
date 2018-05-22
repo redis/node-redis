@@ -25,7 +25,7 @@
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
-    "double-ended-queue": "^2.1.0-0",
+    "denque": "^1.2.3",
     "redis-commands": "^1.2.0",
     "redis-parser": "^2.6.0"
   },

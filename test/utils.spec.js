@@ -1,7 +1,7 @@
 'use strict';
 
 var assert = require('assert');
-var Queue = require('double-ended-queue');
+var Queue = require('denque');
 var utils = require('../lib/utils');
 var intercept = require('intercept-stdout');
 
