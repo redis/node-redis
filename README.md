@@ -86,8 +86,7 @@ You can also use node_redis with promises by promisifying node_redis with
 
 ```js
 const redis = require('redis');
-bluebird.promisifyAll(redis.RedisClient.prototype);
-bluebird.promisifyAll(redis.Multi.prototype);
+bluebird.promisifyAll(redis);
 ```
 
 It'll add a *Async* to all node_redis functions (e.g. return client.getAsync().then())
