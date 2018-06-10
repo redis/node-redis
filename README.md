@@ -715,7 +715,7 @@ command, which is meant to be used with MULTI:
 
 ```js
 var redis  = require("redis"),
-    client = redis.createClient();
+    client = redis.createClient({ ... });
 
 client.watch("foo", function( err ){
     if(err) throw err;
@@ -793,9 +793,38 @@ clients.watcher.watch('foo',function(err) {
 });
 ```
 
-**NOTE**: Redis WATCH does not work on fields of hashes and other objects. You can watch a hash
-to see if anything inside it was modified, but you cannot watch a specific hash field for a 
-modification.
+### WATCH limitations
+
+Redis WATCH works only on *whole* key values. For example, with WATCH you can 
+watch a hash for modifications, but you cannot watch a specific field of a hash.
+
+The following example would watch the keys `foo` and `hello`, not the field `hello`
+of hash `foo`:
+
+```js
+var redis  = require("redis"),
+    client = redis.createClient({ ... });
+
+client.hget( "foo", "hello", function(err, result){
+
+    //Do some processing with the value from this field and watch it after
+    
+    client.watch("foo", "hello", function( err ){
+        if(err) throw err;
+
+         /**
+         * WRONG: This is now watching the keys 'foo' and 'hello'. It is not
+         * watching the field 'hello' of hash 'foo'. Because the key 'foo'
+         * refers to a hash, this command is now watching the entire hash 
+         * for modifications.  
+         */ 
+    });
+} )
+
+```
+
+This limitation also applies to sets ( cannot watch individual set members ) 
+and any other collections.
 
 ## Monitor mode
 
