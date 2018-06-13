@@ -704,6 +704,128 @@ significantly compared to firing the same commands in a loop without waiting for
 the result! See the benchmarks for further comparison. Please remember that all
 commands are kept in memory until they are fired.
 
+## Optimistic Locks
+
+Using `multi` you can make sure your modifications run as a transaction, but you 
+can't be sure you got there first. What if another client modified a key while 
+you were working with it's data?
+
+To solve this, Redis supports the [WATCH](https://redis.io/topics/transactions) 
+command, which is meant to be used with MULTI:
+
+```js
+var redis  = require("redis"),
+    client = redis.createClient({ ... });
+
+client.watch("foo", function( err ){
+    if(err) throw err;
+
+    client.get("foo", function(err, result) {
+        if(err) throw err;
+  
+        // Process result
+        // Heavy and time consuming operation here
+
+        client.multi()
+            .set("foo", "some heavy computation")
+            .exec(function(err, results) {
+                
+                /**
+                 * If err is null, it means Redis successfully attempted 
+                 * the operation.
+                 */ 
+                if(err) throw err;
+                
+                /**
+                 * If results === null, it means that a concurrent client
+                 * changed the key while we were processing it and thus 
+                 * the execution of the MULTI command was not performed.
+                 * 
+                 * NOTICE: Failing an execution of MULTI is not considered
+                 * an error. So you will have err === null and results === null
+                 */
+
+            });
+    });
+});
+```
+
+The above snippet shows the correct usage of `watch` with `multi`. Every time a
+watched key is changed before the execution of a `multi` command, the execution
+will return `null`. On a normal situation, the execution will return an array of 
+values with the results of the operations. 
+
+As stated in the snippet, failing the execution of a `multi` command being watched
+is not considered an error. The execution may return an error if, for example, the 
+client cannot connect to Redis.
+
+An example where we can see the execution of a `multi` command fail is as follows:
+
+```js
+let clients = {};
+clients.watcher = redis.createClient({ ... } );
+clients.alterer = clients.watcher.duplicate();
+
+clients.watcher.watch('foo',function(err) {
+  if (err) { throw err; }
+  //if you comment out the next line, the transaction will work
+  clients.alterer.set('foo',Math.random(), (err) => {if (err) { throw err; }})
+  
+  //using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
+  //Normally, you would use a callback to ensure order, but I want the above SET command
+  //to be easily comment-out-able.
+  setTimeout(function() {
+    clients.watcher
+      .multi()
+      .set('foo','abc')
+      .set('bar','1234')
+      .exec((err,results) => {
+        if (err) { throw err; } 
+        if (results === null) {
+          console.log('transaction aborted because results were null');
+        } else {
+          console.log('transaction worked and returned',results)
+        }
+        clients.watcher.quit();
+        clients.alterer.quit();
+      });
+  },1000);
+});
+```
+
+### WATCH limitations
+
+Redis WATCH works only on *whole* key values. For example, with WATCH you can 
+watch a hash for modifications, but you cannot watch a specific field of a hash.
+
+The following example would watch the keys `foo` and `hello`, not the field `hello`
+of hash `foo`:
+
+```js
+var redis  = require("redis"),
+    client = redis.createClient({ ... });
+
+client.hget( "foo", "hello", function(err, result){
+
+    //Do some processing with the value from this field and watch it after
+    
+    client.watch("foo", "hello", function( err ){
+        if(err) throw err;
+
+         /**
+         * WRONG: This is now watching the keys 'foo' and 'hello'. It is not
+         * watching the field 'hello' of hash 'foo'. Because the key 'foo'
+         * refers to a hash, this command is now watching the entire hash 
+         * for modifications.  
+         */ 
+    });
+} )
+
+```
+
+This limitation also applies to sets ( cannot watch individual set members ) 
+and any other collections.
+
 ## Monitor mode
 
 Redis supports the `MONITOR` command, which lets you see all commands received
