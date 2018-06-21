@@ -180,7 +180,7 @@ emitted.
 
 `client` will emit `reconnecting` when trying to reconnect to the Redis server
 after losing the connection. Listeners are passed an object containing `delay`
-(in ms) and `attempt` (the attempt #) attributes.
+(in ms from the previous try) and `attempt` (the attempt #) attributes.
 
 ### "error"
 
