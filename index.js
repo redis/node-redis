@@ -283,12 +283,6 @@ RedisClient.prototype.create_stream = function () {
         self.on_error(err);
     });
 
-    /* istanbul ignore next: difficult to test and not important as long as we keep this listener */
-    this.stream.on('clientError', function (err) {
-        debug('clientError occured');
-        self.on_error(err);
-    });
-
     this.stream.once('close', function (hadError) {
         self.connection_gone('close');
     });
