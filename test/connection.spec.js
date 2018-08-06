@@ -376,7 +376,7 @@ describe('connection tests', function () {
                         var add = process.platform !== 'win32' ? 15 : 200;
                         var now = Date.now();
                         assert(now - time < connect_timeout + add, 'The real timeout time should be below ' + (connect_timeout + add) + 'ms but is: ' + (now - time));
-                         // Timers sometimes trigger early (e.g. 1ms to early)
+                        // Timers sometimes trigger early (e.g. 1ms to early)
                         assert(now - time >= connect_timeout - 5, 'The real timeout time should be above ' + connect_timeout + 'ms, but it is: ' + (now - time));
                         done();
                     });

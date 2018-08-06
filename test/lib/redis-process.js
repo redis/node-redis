@@ -27,20 +27,21 @@ function waitForRedis (available, cb, port) {
         bluebird.join(
             tcpPortUsed.check(port, '127.0.0.1'),
             tcpPortUsed.check(port, '::1'),
-        function (ipV4, ipV6) {
-            if (ipV6 === available && ipV4 === available) {
-                if (fs.existsSync(socket) === available) {
-                    clearInterval(id);
-                    return cb();
+            function (ipV4, ipV6) {
+                if (ipV6 === available && ipV4 === available) {
+                    if (fs.existsSync(socket) === available) {
+                        clearInterval(id);
+                        return cb();
+                    }
+                    // The same message applies for can't stop but we ignore that case
+                    throw new Error('Port ' + port + ' is already in use. Tests can\'t start.\n');
                 }
-                // The same message applies for can't stop but we ignore that case
-                throw new Error('Port ' + port + ' is already in use. Tests can\'t start.\n');
+                if (Date.now() - time > 6000) {
+                    throw new Error('Redis could not start on port ' + (port || config.PORT) + '\n');
+                }
+                running = false;
             }
-            if (Date.now() - time > 6000) {
-                throw new Error('Redis could not start on port ' + (port || config.PORT) + '\n');
-            }
-            running = false;
-        }).catch(function (err) {
+        ).catch(function (err) {
             console.error('\x1b[31m' + err.stack + '\x1b[0m\n');
             process.exit(1);
         });
