@@ -329,7 +329,7 @@ implement backpressure by checking the buffer state before sending a command and
 listening to the stream
 [drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
 
-## client.quit()
+## client.quit(callback)
 
 This sends the quit command to the redis server and ends cleanly right after all
 running commands were properly handled. If this is called while reconnecting
