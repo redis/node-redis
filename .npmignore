@@ -3,6 +3,9 @@ benchmarks/
 test/
 .nyc_output/
 coverage/
+.github/
+.eslintignore
+.eslintrc
 .tern-port
 *.log
 *.rdb
