@@ -153,11 +153,15 @@ This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands).
 It is not a cache library so please refer to Redis commands page for full usage
 details.
 
-Example setting key to auto expire using [SET command](https://redis.io/commands/set)
+# TTL / Expiration
 
+This can be set on the client object when declaring the client, by passing the `expire` value in the client constructor as follows:
 ```js
-// this key will expire after 10 seconds
-client.set('key', 'value!', 'EX', 10);
+let xmlCache = require("redis").createClient( { 
+    host: process.env.REDIS_PORT_6379_TCP_ADDR,
+    port: process.env.REDIS_PORT_6379_TCP_PORT,
+    expire: process.env.REDIS_EXPIRE_SECONDS
+});
 ```
 
 # API
