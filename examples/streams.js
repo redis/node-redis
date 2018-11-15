@@ -15,7 +15,7 @@ client1.xadd('mystream', '*', 'field1', 'm1',  function (err) {
 		}
 	});
 	
-	client2.xreadgroup('GROUP', 'mygroup', 'consumer', 'Block', 1000, 
+	client2.xreadgroup('GROUP', 'mygroup', 'consumer', 'Block', 1000, 'NOACK',
 			'STREAMS', 'mystream', '>',  function (err, stream) {
 		if(err){
 		    return console.error(err);	
@@ -23,7 +23,7 @@ client1.xadd('mystream', '*', 'field1', 'm1',  function (err) {
 	    console.log('client2 ' + stream);
 	});
 	
-	client3.xreadgroup('GROUP', 'mygroup', 'consumer', 'Block', 1000, 
+	client3.xreadgroup('GROUP', 'mygroup', 'consumer', 'Block', 1000, 'NOACK',
 			'STREAMS', 'mystream', '>',  function (err, stream) {
 		if(err){
 		    return console.error(err);	
