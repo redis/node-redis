@@ -101,6 +101,10 @@ function RedisClient (options, stream) {
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
     }
+    if (options.socket_initialdelay === undefined) {
+        options.socket_initialdelay = 0;
+        // set default to 0, which is aligned to https://nodejs.org/api/net.html#net_socket_setkeepalive_enable_initialdelay
+    }
     for (var command in options.rename_commands) {
         options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
     }
@@ -416,7 +420,7 @@ RedisClient.prototype.on_connect = function () {
     this.connected = true;
     this.ready = false;
     this.emitted_end = false;
-    this.stream.setKeepAlive(this.options.socket_keepalive);
+    this.stream.setKeepAlive(this.options.socket_keepalive, this.options.socket_initialdelay);
     this.stream.setTimeout(0);
 
     this.emit('connect');
