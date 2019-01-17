@@ -209,7 +209,7 @@ describe('createClient options', function () {
                 }, undefined);
                 throw new Error('failed');
             } catch (err) {
-                assert.strictEqual(err.message, 'To many arguments passed to createClient. Please only pass the options object');
+                assert.strictEqual(err.message, 'Too many arguments passed to createClient. Please only pass the options object');
             }
         });
 
