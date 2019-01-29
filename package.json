@@ -22,7 +22,8 @@
     "benchmark": "node benchmarks/multi_bench.js",
     "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000",
     "lint": "eslint . --fix && npm run coverage",
-    "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
+    "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt",
+    "generate-cmds": "node tools/generate-commands"
   },
   "dependencies": {
     "denque": "^1.2.3",
