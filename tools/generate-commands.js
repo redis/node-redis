@@ -8,12 +8,10 @@ var README_PATH = './README.md';
 var DOC_BEFORE = '| Command  | Supported | Notes |\n|----------|-----------|-------|';
 var DOC_AFTER = '## Contributors';
 
-// Create comma-separated list of links with commands:
-// [set](https://redis.io/commands/set), [xxx](https://redis.io.commands/xxx)
+// Create table rows for each supported command + notes if any
 var commandsList = commands.list
     .map(function (cmd) {
         return [cmd, ':white_check_mark:', commandNotes[cmd] || ' '].join(' | ');
-//        return '[' + cmd + '](https://redis.io/commands/' + cmd + ')';
     })
     .join('\n');
 
