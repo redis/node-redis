@@ -904,7 +904,7 @@ describe('The node_redis client', function () {
                     });
                     client.once('ready', function () {
                         client.set('foo', 'bar', function (err, res) {
-                            assert.strictEqual(err.message, 'Fatal error encountert. Command aborted. It might have been processed.');
+                            assert.strictEqual(err.message, 'Fatal error encountered. Command aborted. It might have been processed.');
                             assert.strictEqual(err.code, 'NR_FATAL');
                             assert(err instanceof redis.AbortError);
                             error = err.origin;
