@@ -205,7 +205,7 @@ function create_parser (self) {
             err.message += '. Please report this.';
             self.ready = false;
             self.flush_and_error({
-                message: 'Fatal error encountert. Command aborted.',
+                message: 'Fatal error encountered. Command aborted.',
                 code: 'NR_FATAL'
             }, {
                 error: err,
