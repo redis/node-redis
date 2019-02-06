@@ -110,17 +110,17 @@ describe('TLS connection tests', function () {
         });
 
         describe('using rediss as url protocol', function (done) {
-            var tls_connect = tls.connect
+            var tls_connect = tls.connect;
             beforeEach(function () {
                 tls.connect = function (options) {
-                    options = utils.clone(options)
+                    options = utils.clone(options);
                     options.ca = tls_options.ca;
                     return tls_connect.call(tls, options);
-                }
-            })
+                };
+            });
             afterEach(function () {
                 tls.connect = tls_connect;
-            })
+            });
             it('connect with tls when rediss is used as the protocol', function (done) {
                 if (skip) this.skip();
                 client = redis.createClient('rediss://localhost:' + tls_port);
@@ -129,7 +129,7 @@ describe('TLS connection tests', function () {
                 client.set('foo', 'bar');
                 client.get('foo', helper.isString('bar', done));
             });
-        })
+        });
 
         it('fails to connect because the cert is not correct', function (done) {
             if (skip) this.skip();

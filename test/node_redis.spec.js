@@ -122,7 +122,7 @@ describe('The node_redis client', function () {
                     it('check if all new options replaced the old ones', function (done) {
                         client.selected_db = 1;
                         var client2 = client.duplicate({
-                            db: 2, 
+                            db: 2,
                             no_ready_check: true
                         });
                         assert(client.connected);
