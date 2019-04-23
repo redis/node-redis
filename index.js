@@ -79,6 +79,9 @@ function RedisClient (options, stream) {
         options.socket_initial_delay = 0;
         // set default to 0, which is aligned to https://nodejs.org/api/net.html#net_socket_setkeepalive_enable_initialdelay
     }
+    if (options.socket_timeout === undefined) {
+        options.socket_timeout = 0;
+    }
     for (var command in options.rename_commands) {
         options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
     }
@@ -353,7 +356,14 @@ RedisClient.prototype.on_connect = function () {
     this.ready = false;
     this.emitted_end = false;
     this.stream.setKeepAlive(this.options.socket_keepalive, this.options.socket_initial_delay);
-    this.stream.setTimeout(0);
+    this.stream.setKeepAlive(this.options.socket_keepalive, this.options.socket_initialdelay);
+    if (this.options.socket_timeout === 0) {
+        this.stream.setTimeout(0);
+    } else {
+        this.stream.setTimeout(this.options.socket_timeout, function() {
+            this.connection_gone('timeout');
+        });
+    }
 
     this.emit('connect');
     this.initialize_retry_vars();
