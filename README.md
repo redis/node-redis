@@ -233,7 +233,7 @@ arguments. `createClient()` returns a `RedisClient` object. Otherwise,
 __Tip:__ If the Redis server runs on the same machine as the client consider
 using unix sockets if possible to increase throughput.
 
-__Note:__ Using `'rediss://...` for the protocol in a `redis_url` will enable a TLS socket connection. However, additional TLS options will need to be passed in `options`, if required.
+__Note:__ Using `'redis://...` for the protocol in a `redis_url` will enable a TLS socket connection. However, additional TLS options will need to be passed in `options`, if required.
 
 #### `options` object properties
 | Property  | Default   | Description |
