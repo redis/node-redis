@@ -4,9 +4,8 @@ var fs = require('fs');
 var commands = require('redis-commands');
 var commandNotes = require('./commandNotes.json');
 
-var README_PATH = './README.md';
+var DOCUMENT_PATH = './COMMANDS.md';
 var DOC_BEFORE = '| Command  | Supported | Notes |\n|----------|-----------|-------|';
-var DOC_AFTER = '## Contributors';
 
 // Create table rows for each supported command + notes if any
 var commandsList = commands.list
@@ -16,9 +15,8 @@ var commandsList = commands.list
     .join('\n');
 
 // Replace old commands list in README and write to disk
-var readme = fs.readFileSync(README_PATH, 'utf8');
+var readme = fs.readFileSync(DOCUMENT_PATH, 'utf8');
 var readmeBefore = readme.substr(0, readme.indexOf(DOC_BEFORE) + DOC_BEFORE.length);
-var readmeAfter = readme.substr(readme.indexOf(DOC_AFTER));
-fs.writeFileSync(README_PATH, readmeBefore + '\n' + commandsList + '\n\n' + readmeAfter, 'utf8');
+fs.writeFileSync(DOCUMENT_PATH, readmeBefore + '\n' + commandsList, 'utf8');
 
 console.log('Done!');

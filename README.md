@@ -707,11 +707,11 @@ commands are kept in memory until they are fired.
 
 ## Optimistic Locks
 
-Using `multi` you can make sure your modifications run as a transaction, but you 
-can't be sure you got there first. What if another client modified a key while 
+Using `multi` you can make sure your modifications run as a transaction, but you
+can't be sure you got there first. What if another client modified a key while
 you were working with it's data?
 
-To solve this, Redis supports the [WATCH](https://redis.io/topics/transactions) 
+To solve this, Redis supports the [WATCH](https://redis.io/topics/transactions)
 command, which is meant to be used with MULTI:
 
 ```js
@@ -723,25 +723,25 @@ client.watch("foo", function( err ){
 
     client.get("foo", function(err, result) {
         if(err) throw err;
-  
+
         // Process result
         // Heavy and time consuming operation here
 
         client.multi()
             .set("foo", "some heavy computation")
             .exec(function(err, results) {
-                
+
                 /**
-                 * If err is null, it means Redis successfully attempted 
+                 * If err is null, it means Redis successfully attempted
                  * the operation.
-                 */ 
+                 */
                 if(err) throw err;
-                
+
                 /**
                  * If results === null, it means that a concurrent client
-                 * changed the key while we were processing it and thus 
+                 * changed the key while we were processing it and thus
                  * the execution of the MULTI command was not performed.
-                 * 
+                 *
                  * NOTICE: Failing an execution of MULTI is not considered
                  * an error. So you will have err === null and results === null
                  */
@@ -753,11 +753,11 @@ client.watch("foo", function( err ){
 
 The above snippet shows the correct usage of `watch` with `multi`. Every time a
 watched key is changed before the execution of a `multi` command, the execution
-will return `null`. On a normal situation, the execution will return an array of 
-values with the results of the operations. 
+will return `null`. On a normal situation, the execution will return an array of
+values with the results of the operations.
 
 As stated in the snippet, failing the execution of a `multi` command being watched
-is not considered an error. The execution may return an error if, for example, the 
+is not considered an error. The execution may return an error if, for example, the
 client cannot connect to Redis.
 
 An example where we can see the execution of a `multi` command fail is as follows:
@@ -771,7 +771,7 @@ clients.watcher.watch('foo',function(err) {
   if (err) { throw err; }
   //if you comment out the next line, the transaction will work
   clients.alterer.set('foo',Math.random(), (err) => {if (err) { throw err; }})
-  
+
   //using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
   //Normally, you would use a callback to ensure order, but I want the above SET command
   //to be easily comment-out-able.
@@ -781,7 +781,7 @@ clients.watcher.watch('foo',function(err) {
       .set('foo','abc')
       .set('bar','1234')
       .exec((err,results) => {
-        if (err) { throw err; } 
+        if (err) { throw err; }
         if (results === null) {
           console.log('transaction aborted because results were null');
         } else {
@@ -796,7 +796,7 @@ clients.watcher.watch('foo',function(err) {
 
 ### WATCH limitations
 
-Redis WATCH works only on *whole* key values. For example, with WATCH you can 
+Redis WATCH works only on *whole* key values. For example, with WATCH you can
 watch a hash for modifications, but you cannot watch a specific field of a hash.
 
 The following example would watch the keys `foo` and `hello`, not the field `hello`
@@ -809,22 +809,22 @@ var redis  = require("redis"),
 client.hget( "foo", "hello", function(err, result){
 
     //Do some processing with the value from this field and watch it after
-    
+
     client.watch("foo", "hello", function( err ){
         if(err) throw err;
 
          /**
          * WRONG: This is now watching the keys 'foo' and 'hello'. It is not
          * watching the field 'hello' of hash 'foo'. Because the key 'foo'
-         * refers to a hash, this command is now watching the entire hash 
+         * refers to a hash, this command is now watching the entire hash
          * for modifications.  
-         */ 
+         */
     });
 } )
 
 ```
 
-This limitation also applies to sets ( cannot watch individual set members ) 
+This limitation also applies to sets ( cannot watch individual set members )
 and any other collections.
 
 ## Monitor mode
@@ -1087,206 +1087,8 @@ ReplyError: ERR wrong number of arguments for 'set' command
 
 ## List of Supported Commands
 
-| Command  | Supported | Notes |
-|----------|-----------|-------|
-append | :white_check_mark: |  
-asking | :white_check_mark: |  
-auth | :white_check_mark: | Use [`client.auth`](#clientauthpassword-callback) as a convenient way to authenticate
-bgrewriteaof | :white_check_mark: |  
-bgsave | :white_check_mark: |  
-bitcount | :white_check_mark: |  
-bitfield | :white_check_mark: |  
-bitop | :white_check_mark: |  
-bitpos | :white_check_mark: |  
-blpop | :white_check_mark: |  
-brpop | :white_check_mark: |  
-brpoplpush | :white_check_mark: |  
-bzpopmax | :white_check_mark: |  
-bzpopmin | :white_check_mark: |  
-client | :white_check_mark: |  
-cluster | :white_check_mark: |  
-command | :white_check_mark: |  
-config | :white_check_mark: |  
-dbsize | :white_check_mark: |  
-debug | :white_check_mark: |  
-decr | :white_check_mark: |  
-decrby | :white_check_mark: |  
-del | :white_check_mark: |  
-discard | :white_check_mark: |  
-dump | :white_check_mark: |  
-echo | :white_check_mark: |  
-eval | :white_check_mark: |  
-evalsha | :white_check_mark: |  
-exec | :white_check_mark: |  
-exists | :white_check_mark: |  
-expire | :white_check_mark: |  
-expireat | :white_check_mark: |  
-flushall | :white_check_mark: |  
-flushdb | :white_check_mark: |  
-geoadd | :white_check_mark: |  
-geodist | :white_check_mark: |  
-geohash | :white_check_mark: |  
-geopos | :white_check_mark: |  
-georadius | :white_check_mark: |  
-georadius_ro | :white_check_mark: |  
-georadiusbymember | :white_check_mark: |  
-georadiusbymember_ro | :white_check_mark: |  
-get | :white_check_mark: |  
-getbit | :white_check_mark: |  
-getrange | :white_check_mark: |  
-getset | :white_check_mark: |  
-hdel | :white_check_mark: |  
-hexists | :white_check_mark: |  
-hget | :white_check_mark: |  
-hgetall | :white_check_mark: | Replies will be automatically converted into a [JavaScript Object](#clienthgetallhash-callback)
-hincrby | :white_check_mark: |  
-hincrbyfloat | :white_check_mark: |  
-hkeys | :white_check_mark: |  
-hlen | :white_check_mark: |  
-hmget | :white_check_mark: |  
-hmset | :white_check_mark: | Multiple values in a hash can be set by supplying an [object or list](#clienthmsethash-obj-callback)
-host: | :white_check_mark: |  
-hscan | :white_check_mark: |  
-hset | :white_check_mark: |  
-hsetnx | :white_check_mark: |  
-hstrlen | :white_check_mark: |  
-hvals | :white_check_mark: |  
-incr | :white_check_mark: |  
-incrby | :white_check_mark: |  
-incrbyfloat | :white_check_mark: |  
-info | :white_check_mark: |  
-keys | :white_check_mark: |  
-lastsave | :white_check_mark: |  
-latency | :white_check_mark: |  
-lindex | :white_check_mark: |  
-linsert | :white_check_mark: |  
-llen | :white_check_mark: |  
-lpop | :white_check_mark: |  
-lpush | :white_check_mark: |  
-lpushx | :white_check_mark: |  
-lrange | :white_check_mark: |  
-lrem | :white_check_mark: |  
-lset | :white_check_mark: |  
-ltrim | :white_check_mark: |  
-memory | :white_check_mark: |  
-mget | :white_check_mark: |  
-migrate | :white_check_mark: |  
-module | :white_check_mark: |  
-monitor | :white_check_mark: |  
-move | :white_check_mark: |  
-mset | :white_check_mark: |  
-msetnx | :white_check_mark: |  
-multi | :white_check_mark: | Calling `multi` will return a [Multi object](#clientmulticommands)
-object | :white_check_mark: |  
-persist | :white_check_mark: |  
-pexpire | :white_check_mark: |  
-pexpireat | :white_check_mark: |  
-pfadd | :white_check_mark: |  
-pfcount | :white_check_mark: |  
-pfdebug | :white_check_mark: |  
-pfmerge | :white_check_mark: |  
-pfselftest | :white_check_mark: |  
-ping | :white_check_mark: |  
-post | :white_check_mark: |  
-psetex | :white_check_mark: |  
-psubscribe | :white_check_mark: |  
-psync | :white_check_mark: |  
-pttl | :white_check_mark: |  
-publish | :white_check_mark: |  
-pubsub | :white_check_mark: |  
-punsubscribe | :white_check_mark: |  
-quit | :white_check_mark: |  
-randomkey | :white_check_mark: |  
-readonly | :white_check_mark: |  
-readwrite | :white_check_mark: |  
-rename | :white_check_mark: |  
-renamenx | :white_check_mark: |  
-replconf | :white_check_mark: |  
-restore | :white_check_mark: |  
-restore-asking | :white_check_mark: |  
-role | :white_check_mark: |  
-rpop | :white_check_mark: |  
-rpoplpush | :white_check_mark: |  
-rpush | :white_check_mark: |  
-rpushx | :white_check_mark: |  
-sadd | :white_check_mark: |  
-save | :white_check_mark: |  
-scan | :white_check_mark: |  
-scard | :white_check_mark: |  
-script | :white_check_mark: |  
-sdiff | :white_check_mark: |  
-sdiffstore | :white_check_mark: |  
-select | :white_check_mark: |  
-set | :white_check_mark: |  
-setbit | :white_check_mark: |  
-setex | :white_check_mark: |  
-setnx | :white_check_mark: |  
-setrange | :white_check_mark: |  
-shutdown | :white_check_mark: |  
-sinter | :white_check_mark: |  
-sinterstore | :white_check_mark: |  
-sismember | :white_check_mark: |  
-slaveof | :white_check_mark: |  
-slowlog | :white_check_mark: |  
-smembers | :white_check_mark: |  
-smove | :white_check_mark: |  
-sort | :white_check_mark: |  
-spop | :white_check_mark: |  
-srandmember | :white_check_mark: |  
-srem | :white_check_mark: |  
-sscan | :white_check_mark: |  
-strlen | :white_check_mark: |  
-subscribe | :white_check_mark: |  
-substr | :white_check_mark: |  
-sunion | :white_check_mark: |  
-sunionstore | :white_check_mark: |  
-swapdb | :white_check_mark: |  
-sync | :white_check_mark: |  
-time | :white_check_mark: |  
-touch | :white_check_mark: |  
-ttl | :white_check_mark: |  
-type | :white_check_mark: |  
-unlink | :white_check_mark: |  
-unsubscribe | :white_check_mark: |  
-unwatch | :white_check_mark: |  
-wait | :white_check_mark: |  
-watch | :white_check_mark: | Using the `watch` command has some [limitations](#watch-limitations)
-xack | :white_check_mark: |  
-xadd | :white_check_mark: |  
-xclaim | :white_check_mark: |  
-xdel | :white_check_mark: |  
-xgroup | :white_check_mark: |  
-xinfo | :white_check_mark: |  
-xlen | :white_check_mark: |  
-xpending | :white_check_mark: |  
-xrange | :white_check_mark: |  
-xread | :white_check_mark: |  
-xreadgroup | :white_check_mark: |  
-xrevrange | :white_check_mark: |  
-xtrim | :white_check_mark: |  
-zadd | :white_check_mark: |  
-zcard | :white_check_mark: |  
-zcount | :white_check_mark: |  
-zincrby | :white_check_mark: |  
-zinterstore | :white_check_mark: |  
-zlexcount | :white_check_mark: |  
-zpopmax | :white_check_mark: |  
-zpopmin | :white_check_mark: |  
-zrange | :white_check_mark: |  
-zrangebylex | :white_check_mark: |  
-zrangebyscore | :white_check_mark: |  
-zrank | :white_check_mark: |  
-zrem | :white_check_mark: |  
-zremrangebylex | :white_check_mark: |  
-zremrangebyrank | :white_check_mark: |  
-zremrangebyscore | :white_check_mark: |  
-zrevrange | :white_check_mark: |  
-zrevrangebylex | :white_check_mark: |  
-zrevrangebyscore | :white_check_mark: |  
-zrevrank | :white_check_mark: |  
-zscan | :white_check_mark: |  
-zscore | :white_check_mark: |  
-zunionstore | :white_check_mark: |  
+Always use the latest version of this library to ensure that new Redis commands are supported.
+List of [supported commands](COMMANDS.md)
 
 ## Contributors
 
