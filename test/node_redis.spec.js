@@ -122,7 +122,7 @@ describe('The node_redis client', function () {
                     it('check if all new options replaced the old ones', function (done) {
                         client.selected_db = 1;
                         var client2 = client.duplicate({
-                            db: 2, 
+                            db: 2,
                             no_ready_check: true
                         });
                         assert(client.connected);
@@ -904,7 +904,7 @@ describe('The node_redis client', function () {
                     });
                     client.once('ready', function () {
                         client.set('foo', 'bar', function (err, res) {
-                            assert.strictEqual(err.message, 'Fatal error encountert. Command aborted. It might have been processed.');
+                            assert.strictEqual(err.message, 'Fatal error encountered. Command aborted. It might have been processed.');
                             assert.strictEqual(err.code, 'NR_FATAL');
                             assert(err instanceof redis.AbortError);
                             error = err.origin;

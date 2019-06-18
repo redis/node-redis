@@ -187,12 +187,12 @@ describe("The 'batch' method", function () {
                         ['del', 'some set'],
                         ['smembers', 'some set', undefined] // The explicit undefined is handled as a callback that is undefined
                     ])
-                    .scard('some set')
-                    .exec(function (err, replies) {
-                        assert.strictEqual(4, replies[0].length);
-                        assert.strictEqual(0, replies[2].length);
-                        return done();
-                    });
+                        .scard('some set')
+                        .exec(function (err, replies) {
+                            assert.strictEqual(4, replies[0].length);
+                            assert.strictEqual(0, replies[2].length);
+                            return done();
+                        });
                 });
 
                 it('allows multiple operations to be performed using constructor with all kinds of syntax', function (done) {
@@ -213,29 +213,29 @@ describe("The 'batch' method", function () {
                         ['HMSET', 'batchhmset', ['batchbar', 'batchbaz']],
                         ['hmset', 'batchhmset', ['batchbar', 'batchbaz'], helper.isString('OK')],
                     ])
-                    .hmget(now, 123456789, 'otherTypes')
-                    .hmget('key2', arr2, function noop () {})
-                    .hmget(['batchhmset2', 'some manner of key', 'batchbar3'])
-                    .mget('batchfoo2', ['batchfoo3', 'batchfoo'], function (err, res) {
-                        assert.strictEqual(res[0], 'batchbar2');
-                        assert.strictEqual(res[1], 'batchbar3');
-                        assert.strictEqual(res[2], null);
-                    })
-                    .exec(function (err, replies) {
-                        assert.equal(arr.length, 3);
-                        assert.equal(arr2.length, 2);
-                        assert.equal(arr3.length, 3);
-                        assert.equal(arr4.length, 3);
-                        assert.strictEqual(null, err);
-                        assert.equal(replies[10][1], '555');
-                        assert.equal(replies[11][0], 'a type of value');
-                        assert.strictEqual(replies[12][0], null);
-                        assert.equal(replies[12][1], 'test');
-                        assert.equal(replies[13][0], 'batchbar2');
-                        assert.equal(replies[13].length, 3);
-                        assert.equal(replies.length, 14);
-                        return done();
-                    });
+                        .hmget(now, 123456789, 'otherTypes')
+                        .hmget('key2', arr2, function noop () {})
+                        .hmget(['batchhmset2', 'some manner of key', 'batchbar3'])
+                        .mget('batchfoo2', ['batchfoo3', 'batchfoo'], function (err, res) {
+                            assert.strictEqual(res[0], 'batchbar2');
+                            assert.strictEqual(res[1], 'batchbar3');
+                            assert.strictEqual(res[2], null);
+                        })
+                        .exec(function (err, replies) {
+                            assert.equal(arr.length, 3);
+                            assert.equal(arr2.length, 2);
+                            assert.equal(arr3.length, 3);
+                            assert.equal(arr4.length, 3);
+                            assert.strictEqual(null, err);
+                            assert.equal(replies[10][1], '555');
+                            assert.equal(replies[11][0], 'a type of value');
+                            assert.strictEqual(replies[12][0], null);
+                            assert.equal(replies[12][1], 'test');
+                            assert.equal(replies[13][0], 'batchbar2');
+                            assert.equal(replies[13].length, 3);
+                            assert.equal(replies.length, 14);
+                            return done();
+                        });
                 });
 
                 it('converts a non string key to a string', function (done) {
@@ -316,11 +316,11 @@ describe("The 'batch' method", function () {
                         ['mget', ['batchfoo', 'some', 'random value', 'keys']],
                         ['incr', 'batchfoo']
                     ])
-                    .exec(function (err, replies) {
-                        assert.strictEqual(replies.length, 2);
-                        assert.strictEqual(replies[0].length, 4);
-                        return done();
-                    });
+                        .exec(function (err, replies) {
+                            assert.strictEqual(replies.length, 2);
+                            assert.strictEqual(replies[0].length, 4);
+                            return done();
+                        });
                 });
 
                 it('allows multiple operations to be performed on a hash', function (done) {

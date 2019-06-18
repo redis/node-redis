@@ -205,7 +205,7 @@ function create_parser (self) {
             err.message += '. Please report this.';
             self.ready = false;
             self.flush_and_error({
-                message: 'Fatal error encountert. Command aborted.',
+                message: 'Fatal error encountered. Command aborted.',
                 code: 'NR_FATAL'
             }, {
                 error: err,
@@ -280,12 +280,6 @@ RedisClient.prototype.create_stream = function () {
     });
 
     this.stream.on('error', function (err) {
-        self.on_error(err);
-    });
-
-    /* istanbul ignore next: difficult to test and not important as long as we keep this listener */
-    this.stream.on('clientError', function (err) {
-        debug('clientError occured');
         self.on_error(err);
     });
 
