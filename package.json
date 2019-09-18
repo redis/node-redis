@@ -1,6 +1,6 @@
 {
   "name": "redis",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "Redis client library",
   "keywords": [
     "database",
@@ -25,9 +25,9 @@
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
-    "denque": "^1.2.3",
-    "redis-commands": "^1.4.0",
-    "redis-parser": "^2.6.0"
+    "denque": "^1.4.1",
+    "redis-commands": "^1.5.0",
+    "redis-parser": "^3.0.0"
   },
   "engines": {
     "node": ">=0.10.0"
