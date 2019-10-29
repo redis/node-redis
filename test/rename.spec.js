@@ -50,7 +50,7 @@ describe('rename commands', function () {
                 });
 
                 client.get('key', function (err, reply) {
-                    assert.strictEqual(err.message, "ERR unknown command 'get'");
+                    assert.strictEqual(err.message, 'ERR unknown command `get`, with args beginning with: `key`, ');
                     assert.strictEqual(err.command, 'GET');
                     assert.strictEqual(reply, undefined);
                 });
@@ -108,7 +108,7 @@ describe('rename commands', function () {
                 multi.exec(function (err, res) {
                     assert(err);
                     assert.strictEqual(err.message, 'EXECABORT Transaction discarded because of previous errors.');
-                    assert.strictEqual(err.errors[0].message, "ERR unknown command 'get'");
+                    assert.strictEqual(err.errors[0].message, 'ERR unknown command `get`, with args beginning with: `key`, ');
                     assert.strictEqual(err.errors[0].command, 'GET');
                     assert.strictEqual(err.code, 'EXECABORT');
                     assert.strictEqual(err.errors[0].code, 'ERR');
