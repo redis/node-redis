@@ -74,7 +74,7 @@ return getAsync('foo').then(function(res) {
 
 or using [async await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function):
 ```js
-async myFunc() {
+async function myFunc() {
     const res = await getAsync('foo');
     console.log(res);
 }
