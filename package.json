@@ -27,7 +27,8 @@
   "dependencies": {
     "denque": "^1.2.3",
     "redis-commands": "^1.4.0",
-    "redis-parser": "^2.6.0"
+    "redis-errors": "^1.2.0",
+    "redis-parser": "^3.0.0"
   },
   "engines": {
     "node": ">=0.10.0"

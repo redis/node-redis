@@ -2,7 +2,7 @@
 
 var fs = require('fs');
 var metrics = require('metrics');
-    // `node diff_multi_bench_output.js beforeBench.txt afterBench.txt`
+// `node diff_multi_bench_output.js beforeBench.txt afterBench.txt`
 var file1 = process.argv[2];
 var file2 = process.argv[3];
 
