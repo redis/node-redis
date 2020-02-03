@@ -14,6 +14,7 @@ node_js:
   - "4"
   - "6"
   - "8"
+  - "12"
 after_success: npm run coveralls
 before_script:
   # Add an IPv6 config - see the corresponding Travis issue

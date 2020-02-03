@@ -9,6 +9,7 @@ var Queue = require('denque');
 var errorClasses = require('./lib/customErrors');
 var EventEmitter = require('events');
 var Parser = require('redis-parser');
+var RedisErrors = require('redis-errors');
 var commands = require('redis-commands');
 var debug = require('./lib/debug');
 var unifyOptions = require('./lib/createClient');
@@ -1090,9 +1091,9 @@ exports.RedisClient = RedisClient;
 exports.print = utils.print;
 exports.Multi = require('./lib/multi');
 exports.AbortError = errorClasses.AbortError;
-exports.RedisError = Parser.RedisError;
-exports.ParserError = Parser.ParserError;
-exports.ReplyError = Parser.ReplyError;
+exports.RedisError = RedisErrors.RedisError;
+exports.ParserError = RedisErrors.ParserError;
+exports.ReplyError = RedisErrors.ReplyError;
 exports.AggregateError = errorClasses.AggregateError;
 
 // Add all redis commands / node_redis api to the client
