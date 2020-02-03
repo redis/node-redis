@@ -532,8 +532,8 @@ sub.subscribe("a nice channel");
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into
-a "subscriber" mode. At that point, only commands that modify the subscription
-set are valid and quit (and depending on the redis version ping as well). When
+a "subscriber" mode. At that point, the only valid commands are those that modify the subscription
+set, and quit (also ping on some redis versions). When
 the subscription set is empty, the connection is put back into regular mode.
 
 If you need to send regular commands to Redis while in subscriber mode, just
