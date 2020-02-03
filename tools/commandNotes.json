@@ -1,0 +1,7 @@
+{
+    "auth": "Use [`client.auth`](README.md#clientauthpassword-callback) as a convenient way to authenticate",
+    "hgetall": "Replies will be automatically converted into a [JavaScript Object](README.md#clienthgetallhash-callback)",
+    "hmset": "Multiple values in a hash can be set by supplying an [object or list](README.md#clienthmsethash-obj-callback)",
+    "multi": "Calling `multi` will return a [Multi object](README.md#clientmulticommands)",
+    "watch": "Using the `watch` command has some [limitations](README.md#watch-limitations)"
+}
