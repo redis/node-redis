@@ -7,3 +7,14 @@ coverage
 stunnel.conf
 stunnel.pid
 *.out
+package-lock.json
+
+# IntelliJ IDEs
+.idea
+
+# VisualStudioCode IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
