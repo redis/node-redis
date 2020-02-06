@@ -515,8 +515,8 @@ describe('publish/subscribe', function () {
                         sub.stream.once('data', function () {
                             assert.strictEqual(sub.message_buffers, false);
                             assert.strictEqual(sub.shouldBuffer, false);
-                            sub.on('pmessageBuffer', function (pattern, channel, message) {
-                                if (parser !== 'javascript' && typeof pattern === 'string') {
+                            sub.on('pmessageBuffer', function (pattern, channel) {
+                                if (typeof pattern === 'string') {
                                     pattern = new Buffer(pattern);
                                     channel = new Buffer(channel);
                                 }
@@ -524,10 +524,6 @@ describe('publish/subscribe', function () {
                                 assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
                                 sub.quit(end);
                             });
-                            if (parser === 'javascript') {
-                                assert.notStrictEqual(sub.message_buffers, sub.buffers);
-                            }
-
                         });
                         var batch = sub.batch();
                         batch.psubscribe('*');

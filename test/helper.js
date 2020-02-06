@@ -163,11 +163,6 @@ module.exports = {
         }
         var parsers = ['javascript'];
         var protocols = ['IPv4'];
-        // The js parser works the same as the hiredis parser, just activate this if you want to be on the safe side
-        // try {
-        //     require('hiredis');
-        //     parsers.push('hiredis');
-        // } catch (e) {/* ignore eslint */}
         if (process.platform !== 'win32') {
             protocols.push('IPv6', '/tmp/redis.sock');
         }
