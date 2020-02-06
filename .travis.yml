@@ -9,12 +9,18 @@ addons:
     packages:
     - g++-4.8
 node_js:
-  - "0.10"
-  - "0.12"
   - "4"
   - "6"
   - "8"
   - "12"
+  - "13"
+
+before_install:
+  - if [[ ! -f downloads/stunnel-5.54.tar.gz ]]; then wget -O downloads/stunnel-5.54.tar.gz ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-5.54.tar.gz; fi
+  - if [[ ! -f ./stunnel-5.54/configure ]]; then tar -xzf downloads/stunnel-5.54.tar.gz; fi
+  - if [[ ! -f ./stunnel-5.54/src/stunnel ]]; then cd ./stunnel-5.54; ./configure; make; cd ..; fi
+  - export PATH="$PATH:$(pwd)/stunnel-5.54/src"
+
 after_success: npm run coveralls
 before_script:
   # Add an IPv6 config - see the corresponding Travis issue
