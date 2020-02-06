@@ -19,9 +19,6 @@ var tls_port = 6380;
 // Use skip instead of returning to indicate what tests really got skipped
 var skip = false;
 
-// Wait until stunnel4 is in the travis whitelist
-// Check: https://github.com/travis-ci/apt-package-whitelist/issues/403
-// If this is merged, remove the travis env checks
 describe('TLS connection tests', function () {
 
     before(function (done) {
@@ -29,9 +26,6 @@ describe('TLS connection tests', function () {
         if (process.platform === 'win32') {
             skip = true;
             console.warn('\nStunnel tests do not work on windows atm. If you think you can fix that, it would be warmly welcome.\n');
-        } else if (process.env.TRAVIS === 'true') {
-            skip = true;
-            console.warn('\nTravis does not support stunnel right now. Skipping tests.\nCheck: https://github.com/travis-ci/apt-package-whitelist/issues/403\n');
         }
         if (skip) return done();
         helper.stopStunnel(function () {
@@ -58,7 +52,7 @@ describe('TLS connection tests', function () {
             client = redis.createClient({
                 connect_timeout: connect_timeout,
                 port: tls_port,
-                tls: tls_options
+                tls: utils.clone(tls_options)
             });
             var time = 0;
             assert.strictEqual(client.address, '127.0.0.1:' + tls_port);
@@ -109,12 +103,14 @@ describe('TLS connection tests', function () {
             client.get('foo', helper.isString('bar', done));
         });
 
-        describe('using rediss as url protocol', function (done) {
+        describe('using rediss as url protocol', function () {
             var tls_connect = tls.connect;
             beforeEach(function () {
                 tls.connect = function (options) {
                     options = utils.clone(options);
                     options.ca = tls_options.ca;
+                    options.servername = 'redis.js.org';
+                    options.rejectUnauthorized = true;
                     return tls_connect.call(tls, options);
                 };
             });
