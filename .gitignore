@@ -11,10 +11,6 @@ package-lock.json
 
 # IntelliJ IDEs
 .idea
-
 # VisualStudioCode IDEs
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode
+.vs
