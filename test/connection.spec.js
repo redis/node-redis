@@ -401,10 +401,10 @@ describe('connection tests', function () {
                         connect_timeout: 1000
                     });
                     process.nextTick(function () {
-                        assert.strictEqual(client.stream._idleTimeout, 1000);
+                        assert.strictEqual(client.stream.timeout, 1000);
                     });
                     client.on('connect', function () {
-                        assert.strictEqual(client.stream._idleTimeout, -1);
+                        assert.strictEqual(client.stream.timeout, 0);
                         assert.strictEqual(client.stream.listeners('timeout').length, 0);
                         client.on('ready', done);
                     });
