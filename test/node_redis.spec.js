@@ -986,7 +986,14 @@ describe('The node_redis client', function () {
                                 }
                             } else {
                                 assert.equal(err.code, 'ECONNREFUSED');
-                                assert.equal(err.errno, 'ECONNREFUSED');
+
+                                if (typeof err.errno === 'number') {
+                                    // >= Node 13
+                                    assert.equal(err.errno, -61);
+                                } else {
+                                    // < Node 13
+                                    assert.equal(err.errno, 'ECONNREFUSED');
+                                }
                                 assert.equal(err.syscall, 'connect');
                             }
                         });
