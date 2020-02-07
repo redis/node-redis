@@ -10,5 +10,7 @@ addons:
     - g++-4.8
 node_js:
   - "6"
-  - "7"
+  - "8"
+  - "10"
+  - "12"
 after_success: npm run coveralls
