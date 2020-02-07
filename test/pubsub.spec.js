@@ -524,6 +524,8 @@ describe('publish/subscribe', function () {
                                 assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
                                 sub.quit(end);
                             });
+                            // Either message_buffers or buffers has to be true, but not both at the same time
+                            assert.notStrictEqual(sub.message_buffers, sub.buffers);
                         });
                         var batch = sub.batch();
                         batch.psubscribe('*');
