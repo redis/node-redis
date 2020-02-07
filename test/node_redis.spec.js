@@ -360,7 +360,11 @@ describe('The node_redis client', function () {
 
                     it('send_command with callback as args', function (done) {
                         client.send_command('abcdef', function (err, res) {
-                            assert.strictEqual(err.message, 'ERR unknown command `abcdef`, with args beginning with: ');
+                            if (process.platform === 'win32') {
+                                assert.strictEqual(err.message, 'ERR unknown command `abcdef`');
+                            } else {
+                                assert.strictEqual(err.message, 'ERR unknown command `abcdef`, with args beginning with: ');
+                            }
                             done();
                         });
                     });
