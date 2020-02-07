@@ -2,6 +2,7 @@
 
 var assert = require('assert');
 var fs = require('fs');
+var util = require('util');
 var path = require('path');
 var intercept = require('intercept-stdout');
 var config = require('./lib/config');
@@ -995,7 +996,7 @@ describe('The node_redis client', function () {
 
                                 if (typeof err.errno === 'number') {
                                     // >= Node 13
-                                    assert.equal(err.errno, -61);
+                                    assert.equal(err.errno, util.getSystemErrorName(err.errno));
                                 } else {
                                     // < Node 13
                                     assert.equal(err.errno, 'ECONNREFUSED');
@@ -1061,7 +1062,7 @@ describe('The node_redis client', function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 if (typeof err.errno === 'number') {
                                     // >= Node 13
-                                    assert.equal(err.errno, -61);
+                                    assert.equal(err.errno, util.getSystemErrorName(err.errno));
                                 } else {
                                     // < Node 13
                                     assert.equal(err.errno, 'ECONNREFUSED');
@@ -1153,7 +1154,7 @@ describe('The node_redis client', function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 if (typeof err.errno === 'number') {
                                     // >= Node 13
-                                    assert.equal(err.errno, -61);
+                                    assert.equal(err.errno, util.getSystemErrorName(err.errno));
                                 } else {
                                     // < Node 13
                                     assert.equal(err.errno, 'ECONNREFUSED');

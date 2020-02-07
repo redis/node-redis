@@ -204,7 +204,6 @@ function create_parser (self) {
             self.create_stream();
         },
         returnBuffers: self.buffers || self.message_buffers,
-        name: self.options.parser || 'javascript',
         stringNumbers: self.options.string_numbers || false
     });
 }
