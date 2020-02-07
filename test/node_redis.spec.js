@@ -996,7 +996,7 @@ describe('The node_redis client', function () {
 
                                 if (typeof err.errno === 'number') {
                                     // >= Node 13
-                                    assert.equal(err.errno, util.getSystemErrorName(err.errno));
+                                    assert.equal(util.getSystemErrorName(err.errno), 'ECONNREFUSED');
                                 } else {
                                     // < Node 13
                                     assert.equal(err.errno, 'ECONNREFUSED');
@@ -1062,7 +1062,7 @@ describe('The node_redis client', function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 if (typeof err.errno === 'number') {
                                     // >= Node 13
-                                    assert.equal(err.errno, util.getSystemErrorName(err.errno));
+                                    assert.equal(util.getSystemErrorName(err.errno), 'ECONNREFUSED');
                                 } else {
                                     // < Node 13
                                     assert.equal(err.errno, 'ECONNREFUSED');
@@ -1154,7 +1154,7 @@ describe('The node_redis client', function () {
                                 assert.equal(err.code, 'ECONNREFUSED');
                                 if (typeof err.errno === 'number') {
                                     // >= Node 13
-                                    assert.equal(err.errno, util.getSystemErrorName(err.errno));
+                                    assert.equal(util.getSystemErrorName(err.errno), 'ECONNREFUSED');
                                 } else {
                                     // < Node 13
                                     assert.equal(err.errno, 'ECONNREFUSED');
