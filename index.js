@@ -20,11 +20,6 @@ var SUBSCRIBE_COMMANDS = {
     punsubscribe: true
 };
 
-// Newer Node.js versions > 0.10 return the EventEmitter right away and using .EventEmitter was deprecated
-if (typeof EventEmitter !== 'function') {
-    EventEmitter = EventEmitter.EventEmitter;
-}
-
 function noop () {}
 
 function handle_detect_buffers_reply (reply, command, buffer_args) {
@@ -153,7 +148,6 @@ function RedisClient (options, stream) {
     this.server_info = {};
     this.auth_pass = options.auth_pass || options.password;
     this.selected_db = options.db; // Save the selected db here, used when reconnecting
-    this.old_state = null;
     this.fire_strings = true; // Determine if strings or buffers should be written to the stream
     this.pipeline = false;
     this.sub_commands_left = 0;
@@ -175,12 +169,6 @@ function RedisClient (options, stream) {
                 'If you want to keep on listening to this event please listen to the stream drain event directly.'
             );
         } else if ((event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.message_buffers) {
-            if (this.reply_parser.name !== 'javascript') {
-                return this.warn(
-                    'You attached the "' + event + '" listener without the returnBuffers option set to true.\n' +
-                    'Please use the JavaScript parser or set the returnBuffers option to true to return buffers.'
-                );
-            }
             this.reply_parser.optionReturnBuffers = true;
             this.message_buffers = true;
             this.handle_reply = handle_detect_buffers_reply;
@@ -216,7 +204,6 @@ function create_parser (self) {
             self.create_stream();
         },
         returnBuffers: self.buffers || self.message_buffers,
-        name: self.options.parser || 'javascript',
         stringNumbers: self.options.string_numbers || false
     });
 }

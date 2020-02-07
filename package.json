@@ -25,13 +25,13 @@
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
-    "denque": "^1.2.3",
+    "denque": "^1.4.1",
     "redis-commands": "^1.5.0",
     "redis-errors": "^1.2.0",
     "redis-parser": "^3.0.0"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=4.0.0"
   },
   "devDependencies": {
     "bluebird": "^3.0.2",

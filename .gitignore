@@ -7,3 +7,10 @@ coverage
 stunnel.conf
 stunnel.pid
 *.out
+package-lock.json
+
+# IntelliJ IDEs
+.idea
+# VisualStudioCode IDEs
+.vscode
+.vs

@@ -401,10 +401,22 @@ describe('connection tests', function () {
                         connect_timeout: 1000
                     });
                     process.nextTick(function () {
-                        assert.strictEqual(client.stream._idleTimeout, 1000);
+                        // node > 4
+                        var timeout = client.stream.timeout;
+                        // node <= 4
+                        if (timeout === undefined) timeout = client.stream._idleTimeout;
+                        assert.strictEqual(timeout, 1000);
                     });
                     client.on('connect', function () {
-                        assert.strictEqual(client.stream._idleTimeout, -1);
+                        // node > 4
+                        var expected = 0;
+                        var timeout = client.stream.timeout;
+                        // node <= 4
+                        if (timeout === undefined) {
+                            timeout = client.stream._idleTimeout;
+                            expected = -1;
+                        }
+                        assert.strictEqual(timeout, expected);
                         assert.strictEqual(client.stream.listeners('timeout').length, 0);
                         client.on('ready', done);
                     });

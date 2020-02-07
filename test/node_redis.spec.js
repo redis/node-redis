@@ -2,6 +2,7 @@
 
 var assert = require('assert');
 var fs = require('fs');
+var util = require('util');
 var path = require('path');
 var intercept = require('intercept-stdout');
 var config = require('./lib/config');
@@ -359,7 +360,11 @@ describe('The node_redis client', function () {
 
                     it('send_command with callback as args', function (done) {
                         client.send_command('abcdef', function (err, res) {
-                            assert.strictEqual(err.message, 'ERR unknown command `abcdef`, with args beginning with: ');
+                            if (process.platform === 'win32') {
+                                assert.strictEqual(err.message, 'ERR unknown command `abcdef`');
+                            } else {
+                                assert.strictEqual(err.message, 'ERR unknown command `abcdef`, with args beginning with: ');
+                            }
                             done();
                         });
                     });
@@ -675,15 +680,21 @@ describe('The node_redis client', function () {
                                     done();
                                 });
                             });
-                            require('domain').create();
                         });
 
                         it('catches all errors from within the domain', function (done) {
                             var domain = require('domain').create();
 
                             domain.run(function () {
-                                // Trigger an error within the domain
+                                if (process.versions.node.split('.')[0] >= 13) {
+                                    // Node >= 13
+                                    // Recreate client in domain so error handlers run this domain
+                                    // Changed in: "error handler runs outside of its domain"
+                                    //              https://github.com/nodejs/node/pull/26211
+                                    client = redis.createClient();
+                                }
                                 client.end(true);
+                                // Trigger an error within the domain
                                 client.set('domain', 'value');
                             });
 
@@ -986,7 +997,14 @@ describe('The node_redis client', function () {
                                 }
                             } else {
                                 assert.equal(err.code, 'ECONNREFUSED');
-                                assert.equal(err.errno, 'ECONNREFUSED');
+
+                                if (typeof err.errno === 'number') {
+                                    // >= Node 13
+                                    assert.equal(util.getSystemErrorName(err.errno), 'ECONNREFUSED');
+                                } else {
+                                    // < Node 13
+                                    assert.equal(err.errno, 'ECONNREFUSED');
+                                }
                                 assert.equal(err.syscall, 'connect');
                             }
                         });
@@ -1046,7 +1064,13 @@ describe('The node_redis client', function () {
                                 end();
                             } else {
                                 assert.equal(err.code, 'ECONNREFUSED');
-                                assert.equal(err.errno, 'ECONNREFUSED');
+                                if (typeof err.errno === 'number') {
+                                    // >= Node 13
+                                    assert.equal(util.getSystemErrorName(err.errno), 'ECONNREFUSED');
+                                } else {
+                                    // < Node 13
+                                    assert.equal(err.errno, 'ECONNREFUSED');
+                                }
                                 assert.equal(err.syscall, 'connect');
                                 end();
                             }
@@ -1132,7 +1156,13 @@ describe('The node_redis client', function () {
                                 end();
                             } else {
                                 assert.equal(err.code, 'ECONNREFUSED');
-                                assert.equal(err.errno, 'ECONNREFUSED');
+                                if (typeof err.errno === 'number') {
+                                    // >= Node 13
+                                    assert.equal(util.getSystemErrorName(err.errno), 'ECONNREFUSED');
+                                } else {
+                                    // < Node 13
+                                    assert.equal(err.errno, 'ECONNREFUSED');
+                                }
                                 assert.equal(err.syscall, 'connect');
                                 redis.debug_mode = false;
                                 client.end(true);
