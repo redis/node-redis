@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://github.com/noderedis/node-redis/">
-        <img width="180px" src="https://static.invertase.io/assets/node_redis_logo.png" />
+        <img width="190px" src="https://static.invertase.io/assets/node_redis_logo.png" />
     </a>
     <h2 align="center">Node Redis</h2>
     <h4 align="center">A high performance Node.js Redis client.</h4>
@@ -12,15 +12,15 @@
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg?style=flat-square" alt="NPM downloads"></a>
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis.svg?style=flat-square" alt="NPM version"></a>
     <a href="https://travis-ci.org/NodeRedis/node_redis"><img src="https://travis-ci.org/NodeRedis/node_redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
-    <a href="https://coveralls.io/r/NodeRedis/node_redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
     <a href="https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master"><img src="https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?style=flat-square&label=Windows%20Tests" alt="Windows Tests" /></a>
+    <a href="https://coveralls.io/r/NodeRedis/node_redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
     <a href="https://twitter.com/NodeRedis"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
 </p>
 
 ---
 
-This is a complete and feature rich Redis client for Node.js. __It supports all
-Redis commands__ and focuses on high performance.
+This is a complete and feature rich Redis client for Node.js. **It supports all
+Redis commands** and focuses on high performance.
 
 Install with:
 
@@ -31,25 +31,25 @@ npm install redis
 ## Usage Example
 
 ```js
-const redis = require("redis");
+const redis = require('redis');
 const client = redis.createClient();
 
 // if you'd like to select database 3, instead of 0 (default), call
 // client.select(3, function() { /* ... */ });
 
-client.on("error", function (err) {
-    console.log("Error " + err);
+client.on('error', function(err) {
+  console.log('Error ' + err);
 });
 
-client.set("string key", "string val", redis.print);
-client.hset("hash key", "hashtest 1", "some value", redis.print);
-client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
-client.hkeys("hash key", function (err, replies) {
-    console.log(replies.length + " replies:");
-    replies.forEach(function (reply, i) {
-        console.log("    " + i + ": " + reply);
-    });
-    client.quit();
+client.set('string key', 'string val', redis.print);
+client.hset('hash key', 'hashtest 1', 'some value', redis.print);
+client.hset(['hash key', 'hashtest 2', 'some other value'], redis.print);
+client.hkeys('hash key', function(err, replies) {
+  console.log(replies.length + ' replies:');
+  replies.forEach(function(reply, i) {
+    console.log('    ' + i + ': ' + reply);
+  });
+  client.quit();
 });
 ```
 
@@ -75,24 +75,28 @@ landscape.
 #### Native Promises
 
 If you are using node v8 or higher, you can promisify node_redis with [util.promisify](https://nodejs.org/api/util.html#util_util_promisify_original) as in:
+
 ```js
-const {promisify} = require('util');
+const { promisify } = require('util');
 const getAsync = promisify(client.get).bind(client);
 ```
-now *getAsync* is a promisified version of *client.get*:
+
+now _getAsync_ is a promisified version of _client.get_:
+
 ```js
 // We expect a value 'foo': 'bar' to be present
 // So instead of writing client.get('foo', cb); you have to write:
 return getAsync('foo').then(function(res) {
-    console.log(res); // => 'bar'
+  console.log(res); // => 'bar'
 });
 ```
 
 or using [async await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function):
+
 ```js
 async function myFunc() {
-    const res = await getAsync('foo');
-    console.log(res);
+  const res = await getAsync('foo');
+  console.log(res);
 }
 ```
 
@@ -106,20 +110,24 @@ const redis = require('redis');
 bluebird.promisifyAll(redis);
 ```
 
-It'll add a *Async* to all node_redis functions (e.g. return client.getAsync().then())
+It'll add a _Async_ to all node_redis functions (e.g. return client.getAsync().then())
 
 ```js
 // We expect a value 'foo': 'bar' to be present
 // So instead of writing client.get('foo', cb); you have to write:
 return client.getAsync('foo').then(function(res) {
-    console.log(res); // => 'bar'
+  console.log(res); // => 'bar'
 });
 
 // Using multi with promises looks like:
 
-return client.multi().get('foo').execAsync().then(function(res) {
+return client
+  .multi()
+  .get('foo')
+  .execAsync()
+  .then(function(res) {
     console.log(res); // => 'bar'
-});
+  });
 ```
 
 ### Sending Commands
@@ -130,11 +138,18 @@ a variable number of individual arguments followed by an optional callback.
 Examples:
 
 ```js
-client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+client.hmset(['key', 'test keys 1', 'test val 1', 'test keys 2', 'test val 2'], function(
+  err,
+  res,
+) {});
 // Works the same as
-client.hmset("key", ["test keys 1", "test val 1", "test keys 2", "test val 2"], function (err, res) {});
+client.hmset('key', ['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], function(err, res) {
+  // ...
+});
 // Or
-client.hmset("key", "test keys 1", "test val 1", "test keys 2", "test val 2", function (err, res) {});
+client.hmset('key', 'test keys 1', 'test val 1', 'test keys 2', 'test val 2', function(err, res) {
+  // ...
+});
 ```
 
 Care should be taken with user input if arrays are possible (via body-parser, query string or other method), as single arguments could be unintentionally interpreted as multiple args.
@@ -142,17 +157,17 @@ Care should be taken with user input if arrays are possible (via body-parser, qu
 Note that in either form the `callback` is optional:
 
 ```js
-client.set("some key", "some val");
-client.set(["some other key", "some val"]);
+client.set('some key', 'some val');
+client.set(['some other key', 'some val']);
 ```
 
 If the key is missing, reply will be null. Only if the [Redis Command
 Reference](http://redis.io/commands) states something else it will not be null.
 
 ```js
-client.get("missingkey", function(err, reply) {
-    // reply is null when the key is missing
-    console.log(reply);
+client.get('missingkey', function(err, reply) {
+  // reply is null when the key is missing
+  console.log(reply);
 });
 ```
 
@@ -218,85 +233,87 @@ So please attach the error listener to node_redis.
 deprecated option / function / similar is used.
 
 ## redis.createClient()
+
 If you have `redis-server` running on the same machine as node, then the
 defaults for port and host are probably fine and you don't need to supply any
 arguments. `createClient()` returns a `RedisClient` object. Otherwise,
 `createClient()` accepts these arguments:
 
-* `redis.createClient([options])`
-* `redis.createClient(unix_socket[, options])`
-* `redis.createClient(redis_url[, options])`
-* `redis.createClient(port[, host][, options])`
+- `redis.createClient([options])`
+- `redis.createClient(unix_socket[, options])`
+- `redis.createClient(redis_url[, options])`
+- `redis.createClient(port[, host][, options])`
 
-__Tip:__ If the Redis server runs on the same machine as the client consider
+**Tip:** If the Redis server runs on the same machine as the client consider
 using unix sockets if possible to increase throughput.
 
-__Note:__ Using `'rediss://...` for the protocol in a `redis_url` will enable a TLS socket connection. However, additional TLS options will need to be passed in `options`, if required.
+**Note:** Using `'rediss://...` for the protocol in a `redis_url` will enable a TLS socket connection. However, additional TLS options will need to be passed in `options`, if required.
 
 #### `options` object properties
-| Property  | Default   | Description |
-|-----------|-----------|-------------|
-| host      | 127.0.0.1 | IP address of the Redis server |
-| port      | 6379      | Port of the Redis server |
-| path      | null      | The UNIX socket string of the Redis server |
-| url       | null      | The URL of the Redis server. Format: `[redis[s]:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
-| string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
-| return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
-| detect_buffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
-| socket_keepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket. |
-| socket_initial_delay | 0 | Initial Delay in milliseconds, and this will also behave the interval keep alive message sending to Redis. |
-| no_ready_check | false |  When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check. |
-| enable_offline_queue |  true | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enable_offline_queue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified. |
-| retry_unfulfilled_commands | false | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands. |
-| password | null | If set, client will run Redis auth command on connect. Alias `auth_pass` __Note__ `node_redis` < 2.5 must use `auth_pass` |
-| db | null | If set, client will run Redis `select` command on connect. |
-| family | IPv4 | You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules on how to use the family type. |
-| disable_resubscribing | false | If set to `true`, a client won't resubscribe after disconnecting. |
-| rename_commands | null | Passing an object with renamed commands to use instead of the original functions. For example, if you renamed the command KEYS to "DO-NOT-USE" then the rename_commands object would be: `{ KEYS : "DO-NOT-USE" }` . See the [Redis security topics](http://redis.io/topics/security) for more info. |
-| tls | null | An object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback) to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel). |
-| prefix | null | A string used to prefix all used keys (e.g. `namespace:test`). Please be aware that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed. |
-| retry_strategy | function | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
+
+| Property                   | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| host                       | 127.0.0.1 | IP address of the Redis server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| port                       | 6379      | Port of the Redis server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| path                       | null      | The UNIX socket string of the Redis server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| url                        | null      | The URL of the Redis server. Format: `[redis[s]:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)).                                                                                                                                                                                                                                                                                                                                       |
+| string_numbers             | null      | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option.                                                                                                                                                                                                       |
+| return_buffers             | false     | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| detect_buffers             | false     | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. **Note**: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers.                                                                                                                                                                                                                                   |
+| socket_keepalive           | true      | If set to `true`, the keep-alive functionality is enabled on the underlying socket.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| socket_initial_delay       | 0         | Initial Delay in milliseconds, and this will also behave the interval keep alive message sending to Redis.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| no_ready_check             | false     | When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check.                                                                                     |
+| enable_offline_queue       | true      | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enable_offline_queue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified.                                                                                                                                                                                                                          |
+| retry_unfulfilled_commands | false     | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands.                                                                                                                                                                                                                                                                                                |
+| password                   | null      | If set, client will run Redis auth command on connect. Alias `auth_pass` **Note** `node_redis` < 2.5 must use `auth_pass`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| db                         | null      | If set, client will run Redis `select` command on connect.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| family                     | IPv4      | You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules on how to use the family type.                                                                                                                                                                                                                                                                                                                                                                                 |
+| disable_resubscribing      | false     | If set to `true`, a client won't resubscribe after disconnecting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| rename_commands            | null      | Passing an object with renamed commands to use instead of the original functions. For example, if you renamed the command KEYS to "DO-NOT-USE" then the rename_commands object would be: `{ KEYS : "DO-NOT-USE" }` . See the [Redis security topics](http://redis.io/topics/security) for more info.                                                                                                                                                                                                                                                                          |
+| tls                        | null      | An object containing options to pass to [tls.connect](http://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback) to set up a TLS connection to Redis (if, for example, it is set up to be accessible via a tunnel).                                                                                                                                                                                                                                                                                                                                           |
+| prefix                     | null      | A string used to prefix all used keys (e.g. `namespace:test`). Please be aware that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed.                                                                                                                                                                                                                                                                                          |
+| retry_strategy             | function  | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
 
 ```js
-var redis = require("redis");
-var client = redis.createClient({detect_buffers: true});
+var redis = require('redis');
+var client = redis.createClient({ detect_buffers: true });
 
-client.set("foo_rand000000000000", "OK");
+client.set('foo_rand000000000000', 'OK');
 
 // This will return a JavaScript String
-client.get("foo_rand000000000000", function (err, reply) {
-    console.log(reply.toString()); // Will print `OK`
+client.get('foo_rand000000000000', function(err, reply) {
+  console.log(reply.toString()); // Will print `OK`
 });
 
 // This will return a Buffer since original key is specified as a Buffer
-client.get(new Buffer("foo_rand000000000000"), function (err, reply) {
-    console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
+client.get(new Buffer('foo_rand000000000000'), function(err, reply) {
+  console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
 });
 client.quit();
 ```
 
-retry_strategy example
+#### `retry_strategy` example
 
 ```js
 var client = redis.createClient({
-    retry_strategy: function (options) {
-        if (options.error && options.error.code === 'ECONNREFUSED') {
-            // End reconnecting on a specific error and flush all commands with
-            // a individual error
-            return new Error('The server refused the connection');
-        }
-        if (options.total_retry_time > 1000 * 60 * 60) {
-            // End reconnecting after a specific timeout and flush all commands
-            // with a individual error
-            return new Error('Retry time exhausted');
-        }
-        if (options.attempt > 10) {
-            // End reconnecting with built in error
-            return undefined;
-        }
-        // reconnect after
-        return Math.min(options.attempt * 100, 3000);
+  retry_strategy: function(options) {
+    if (options.error && options.error.code === 'ECONNREFUSED') {
+      // End reconnecting on a specific error and flush all commands with
+      // a individual error
+      return new Error('The server refused the connection');
     }
+    if (options.total_retry_time > 1000 * 60 * 60) {
+      // End reconnecting after a specific timeout and flush all commands
+      // with a individual error
+      return new Error('Retry time exhausted');
+    }
+    if (options.attempt > 10) {
+      // End reconnecting with built in error
+      return undefined;
+    }
+    // reconnect after
+    return Math.min(options.attempt * 100, 3000);
+  },
 });
 ```
 
@@ -346,17 +363,17 @@ This example closes the connection to the Redis server before the replies have
 been read. You probably don't want to do this:
 
 ```js
-var redis = require("redis"),
-    client = redis.createClient();
+var redis = require('redis'),
+  client = redis.createClient();
 
-client.set("foo_rand000000000000", "some fantastic value", function (err, reply) {
-    // This will either result in an error (flush parameter is set to true)
-    // or will silently fail and this callback will not be called at all (flush set to false)
-    console.log(err);
+client.set('foo_rand000000000000', 'some fantastic value', function(err, reply) {
+  // This will either result in an error (flush parameter is set to true)
+  // or will silently fail and this callback will not be called at all (flush set to false)
+  console.log(err);
 });
 client.end(true); // No further commands will be processed
-client.get("foo_rand000000000000", function (err, reply) {
-    console.log(err); // => 'The connection has already been closed.'
+client.get('foo_rand000000000000', function(err, reply) {
+  console.log(err); // => 'The connection has already been closed.'
 });
 ```
 
@@ -366,47 +383,48 @@ client.get("foo_rand000000000000", function (err, reply) {
 
 Currently the following error subclasses exist:
 
-* `RedisError`: _All errors_ returned by the client
-* `ReplyError` subclass of `RedisError`: All errors returned by __Redis__ itself
-* `AbortError` subclass of `RedisError`: All commands that could not finish due
+- `RedisError`: _All errors_ returned by the client
+- `ReplyError` subclass of `RedisError`: All errors returned by **Redis** itself
+- `AbortError` subclass of `RedisError`: All commands that could not finish due
   to what ever reason
-* `ParserError` subclass of `RedisError`: Returned in case of a parser error
+- `ParserError` subclass of `RedisError`: Returned in case of a parser error
   (this should not happen)
-* `AggregateError` subclass of `AbortError`: Emitted in case multiple unresolved
+- `AggregateError` subclass of `AbortError`: Emitted in case multiple unresolved
   commands without callback got rejected in debug_mode instead of lots of
   `AbortError`s.
 
 All error classes are exported by the module.
 
 Example:
+
 ```js
 var redis = require('./');
 var assert = require('assert');
 var client = redis.createClient();
 
-client.on('error', function (err) {
-    assert(err instanceof Error);
-    assert(err instanceof redis.AbortError);
-    assert(err instanceof redis.AggregateError);
-    // The set and get get aggregated in here
-    assert.strictEqual(err.errors.length, 2);
-    assert.strictEqual(err.code, 'NR_CLOSED');
+client.on('error', function(err) {
+  assert(err instanceof Error);
+  assert(err instanceof redis.AbortError);
+  assert(err instanceof redis.AggregateError);
+  // The set and get get aggregated in here
+  assert.strictEqual(err.errors.length, 2);
+  assert.strictEqual(err.code, 'NR_CLOSED');
 });
-client.set('foo', 123, 'bar', function (err, res) { // Too many arguments
-    assert(err instanceof redis.ReplyError); // => true
-    assert.strictEqual(err.command, 'SET');
-    assert.deepStrictEqual(err.args, ['foo', 123, 'bar']);
+client.set('foo', 123, 'bar', function(err, res) {
+  // Too many arguments
+  assert(err instanceof redis.ReplyError); // => true
+  assert.strictEqual(err.command, 'SET');
+  assert.deepStrictEqual(err.args, ['foo', 123, 'bar']);
 
-    redis.debug_mode = true;
-    client.set('foo', 'bar');
-    client.get('foo');
-    process.nextTick(function () {
-        // Force closing the connection while the command did not yet return
-        client.end(true);
-        redis.debug_mode = false;
-    });
+  redis.debug_mode = true;
+  client.set('foo', 'bar');
+  client.get('foo');
+  process.nextTick(function() {
+    // Force closing the connection while the command did not yet return
+    client.end(true);
+    redis.debug_mode = false;
+  });
 });
-
 ```
 
 Every `ReplyError` contains the `command` name in all-caps and the arguments (`args`).
@@ -414,7 +432,7 @@ Every `ReplyError` contains the `command` name in all-caps and the arguments (`a
 If node_redis emits a library error because of another error, the triggering
 error is added to the returned error as `origin` attribute.
 
-___Error codes___
+**_Error codes_**
 
 node_redis returns a `NR_CLOSED` error code if the clients connection dropped.
 If a command unresolved command got rejected a `UNCERTAIN_STATE` code is
@@ -428,10 +446,10 @@ the program to exit once no more commands are pending.
 
 This is an **experimental** feature, and only supports a subset of the Redis
 protocol. Any commands where client state is saved on the Redis server, e.g.
-`*SUBSCRIBE` or the blocking `BL*` commands will *NOT* work with `.unref()`.
+`*SUBSCRIBE` or the blocking `BL*` commands will _NOT_ work with `.unref()`.
 
 ```js
-var redis = require("redis");
+var redis = require('redis');
 var client = redis.createClient();
 
 /*
@@ -440,9 +458,9 @@ var client = redis.createClient();
     client-server connection is alive.
 */
 client.unref();
-client.get("foo", function (err, value) {
-    if (err) throw(err);
-    console.log(value);
+client.get('foo', function(err, value) {
+  if (err) throw err;
+  console.log(value);
 });
 ```
 
@@ -461,9 +479,9 @@ syntax.
 Example:
 
 ```js
-client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
-client.hgetall("hosts", function (err, obj) {
-    console.dir(obj);
+client.hmset('hosts', 'mjr', '1', 'another', '23', 'home', '1234');
+client.hgetall('hosts', function(err, obj) {
+  console.dir(obj);
 });
 ```
 
@@ -473,8 +491,8 @@ Multiple values in a hash can be set by supplying an object:
 
 ```js
 client.HMSET(key2, {
-    "0123456789": "abcdefghij", // NOTE: key and value will be coerced to strings
-    "some manner of key": "a type of value"
+  '0123456789': 'abcdefghij', // NOTE: key and value will be coerced to strings
+  'some manner of key': 'a type of value',
 });
 ```
 
@@ -486,7 +504,7 @@ Redis hash.
 Multiple values may also be set by supplying a list:
 
 ```js
-client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
+client.HMSET(key1, '0123456789', 'abcdefghij', 'some manner of key', 'a type of value');
 ```
 
 ## Publish / Subscribe
@@ -496,27 +514,28 @@ client connections, subscribes to a channel on one of them, and publishes to tha
 channel on the other:
 
 ```js
-var redis = require("redis");
-var sub = redis.createClient(), pub = redis.createClient();
+var redis = require('redis');
+var sub = redis.createClient(),
+  pub = redis.createClient();
 var msg_count = 0;
 
-sub.on("subscribe", function (channel, count) {
-    pub.publish("a nice channel", "I am sending a message.");
-    pub.publish("a nice channel", "I am sending a second message.");
-    pub.publish("a nice channel", "I am sending my last message.");
+sub.on('subscribe', function(channel, count) {
+  pub.publish('a nice channel', 'I am sending a message.');
+  pub.publish('a nice channel', 'I am sending a second message.');
+  pub.publish('a nice channel', 'I am sending my last message.');
 });
 
-sub.on("message", function (channel, message) {
-    console.log("sub channel " + channel + ": " + message);
-    msg_count += 1;
-    if (msg_count === 3) {
-        sub.unsubscribe();
-        sub.quit();
-        pub.quit();
-    }
+sub.on('message', function(channel, message) {
+  console.log('sub channel ' + channel + ': ' + message);
+  msg_count += 1;
+  if (msg_count === 3) {
+    sub.unsubscribe();
+    sub.quit();
+    pub.quit();
+  }
 });
 
-sub.subscribe("a nice channel");
+sub.subscribe('a nice channel');
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into
@@ -591,33 +610,35 @@ further information look at
 [transactions](http://redis.io/topics/transactions)).
 
 ```js
-var redis  = require("./index"),
-    client = redis.createClient(), set_size = 20;
+var redis = require('./index'),
+  client = redis.createClient(),
+  set_size = 20;
 
-client.sadd("bigset", "a member");
-client.sadd("bigset", "another member");
+client.sadd('bigset', 'a member');
+client.sadd('bigset', 'another member');
 
 while (set_size > 0) {
-    client.sadd("bigset", "member " + set_size);
-    set_size -= 1;
+  client.sadd('bigset', 'member ' + set_size);
+  set_size -= 1;
 }
 
 // multi chain with an individual callback
-client.multi()
-    .scard("bigset")
-    .smembers("bigset")
-    .keys("*", function (err, replies) {
-        // NOTE: code in this callback is NOT atomic
-        // this only happens after the the .exec call finishes.
-        client.mget(replies, redis.print);
-    })
-    .dbsize()
-    .exec(function (err, replies) {
-        console.log("MULTI got " + replies.length + " replies");
-        replies.forEach(function (reply, index) {
-            console.log("Reply " + index + ": " + reply.toString());
-        });
+client
+  .multi()
+  .scard('bigset')
+  .smembers('bigset')
+  .keys('*', function(err, replies) {
+    // NOTE: code in this callback is NOT atomic
+    // this only happens after the the .exec call finishes.
+    client.mget(replies, redis.print);
+  })
+  .dbsize()
+  .exec(function(err, replies) {
+    console.log('MULTI got ' + replies.length + ' replies');
+    replies.forEach(function(reply, index) {
+      console.log('Reply ' + index + ': ' + reply.toString());
     });
+  });
 ```
 
 ### Multi.exec([callback])
@@ -638,20 +659,21 @@ can queue individual commands while still sending regular client command as in
 this example:
 
 ```js
-var redis  = require("redis"),
-    client = redis.createClient(), multi;
+var redis = require('redis'),
+  client = redis.createClient(),
+  multi;
 
 // start a separate multi command queue
 multi = client.multi();
-multi.incr("incr thing", redis.print);
-multi.incr("incr other thing", redis.print);
+multi.incr('incr thing', redis.print);
+multi.incr('incr other thing', redis.print);
 
 // runs immediately
-client.mset("incr thing", 100, "incr other thing", 1, redis.print);
+client.mset('incr thing', 100, 'incr other thing', 1, redis.print);
 
 // drains multi queue and runs atomically
-multi.exec(function (err, replies) {
-    console.log(replies); // 101, 2
+multi.exec(function(err, replies) {
+  console.log(replies); // 101, 2
 });
 ```
 
@@ -659,16 +681,18 @@ In addition to adding commands to the `MULTI` queue individually, you can also
 pass an array of commands and arguments to the constructor:
 
 ```js
-var redis  = require("redis"),
-    client = redis.createClient();
+var redis = require('redis'),
+  client = redis.createClient();
 
-client.multi([
-    ["mget", "multifoo", "multibar", redis.print],
-    ["incr", "multifoo"],
-    ["incr", "multibar"]
-]).exec(function (err, replies) {
+client
+  .multi([
+    ['mget', 'multifoo', 'multibar', redis.print],
+    ['incr', 'multifoo'],
+    ['incr', 'multibar'],
+  ])
+  .exec(function(err, replies) {
     console.log(replies);
-});
+  });
 ```
 
 ### Multi.exec_atomic([callback])
@@ -695,11 +719,11 @@ commands are kept in memory until they are fired.
 
 ## Optimistic Locks
 
-Using `multi` you can make sure your modifications run as a transaction, but you 
-can't be sure you got there first. What if another client modified a key while 
+Using `multi` you can make sure your modifications run as a transaction, but you
+can't be sure you got there first. What if another client modified a key while
 you were working with it's data?
 
-To solve this, Redis supports the [WATCH](https://redis.io/topics/transactions) 
+To solve this, Redis supports the [WATCH](https://redis.io/topics/transactions)
 command, which is meant to be used with MULTI:
 
 ```js
@@ -711,25 +735,25 @@ client.watch("foo", function( err ){
 
     client.get("foo", function(err, result) {
         if(err) throw err;
-  
+
         // Process result
         // Heavy and time consuming operation here
 
         client.multi()
             .set("foo", "some heavy computation")
             .exec(function(err, results) {
-                
+
                 /**
-                 * If err is null, it means Redis successfully attempted 
+                 * If err is null, it means Redis successfully attempted
                  * the operation.
-                 */ 
+                 */
                 if(err) throw err;
-                
+
                 /**
                  * If results === null, it means that a concurrent client
-                 * changed the key while we were processing it and thus 
+                 * changed the key while we were processing it and thus
                  * the execution of the MULTI command was not performed.
-                 * 
+                 *
                  * NOTICE: Failing an execution of MULTI is not considered
                  * an error. So you will have err === null and results === null
                  */
@@ -741,11 +765,11 @@ client.watch("foo", function( err ){
 
 The above snippet shows the correct usage of `watch` with `multi`. Every time a
 watched key is changed before the execution of a `multi` command, the execution
-will return `null`. On a normal situation, the execution will return an array of 
-values with the results of the operations. 
+will return `null`. On a normal situation, the execution will return an array of
+values with the results of the operations.
 
 As stated in the snippet, failing the execution of a `multi` command being watched
-is not considered an error. The execution may return an error if, for example, the 
+is not considered an error. The execution may return an error if, for example, the
 client cannot connect to Redis.
 
 An example where we can see the execution of a `multi` command fail is as follows:
@@ -759,7 +783,7 @@ clients.watcher.watch('foo',function(err) {
   if (err) { throw err; }
   //if you comment out the next line, the transaction will work
   clients.alterer.set('foo',Math.random(), (err) => {if (err) { throw err; }});
-  
+
   //using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
   //Normally, you would use a callback to ensure order, but I want the above SET command
   //to be easily comment-out-able.
@@ -769,7 +793,7 @@ clients.watcher.watch('foo',function(err) {
       .set('foo','abc')
       .set('bar','1234')
       .exec((err,results) => {
-        if (err) { throw err; } 
+        if (err) { throw err; }
         if (results === null) {
           console.log('transaction aborted because results were null');
         } else {
@@ -784,7 +808,7 @@ clients.watcher.watch('foo',function(err) {
 
 ### WATCH limitations
 
-Redis WATCH works only on *whole* key values. For example, with WATCH you can 
+Redis WATCH works only on _whole_ key values. For example, with WATCH you can
 watch a hash for modifications, but you cannot watch a specific field of a hash.
 
 The following example would watch the keys `foo` and `hello`, not the field `hello`
@@ -797,22 +821,22 @@ var redis  = require("redis"),
 client.hget( "foo", "hello", function(err, result){
 
     //Do some processing with the value from this field and watch it after
-    
+
     client.watch("foo", "hello", function( err ){
         if(err) throw err;
 
          /**
          * WRONG: This is now watching the keys 'foo' and 'hello'. It is not
          * watching the field 'hello' of hash 'foo'. Because the key 'foo'
-         * refers to a hash, this command is now watching the entire hash 
-         * for modifications.  
-         */ 
+         * refers to a hash, this command is now watching the entire hash
+         * for modifications.
+         */
     });
 } )
 
 ```
 
-This limitation also applies to sets ( cannot watch individual set members ) 
+This limitation also applies to sets ( cannot watch individual set members )
 and any other collections.
 
 ## Monitor mode
@@ -829,14 +853,14 @@ arguments and the raw monitoring string.
 Example:
 
 ```js
-var client  = require("redis").createClient();
-client.monitor(function (err, res) {
-    console.log("Entering monitoring mode.");
+var client = require('redis').createClient();
+client.monitor(function(err, res) {
+  console.log('Entering monitoring mode.');
 });
 client.set('foo', 'bar');
 
-client.on("monitor", function (time, args, raw_reply) {
-    console.log(time + ": " + args); // 1458910076.446514:['set', 'foo', 'bar']
+client.on('monitor', function(time, args, raw_reply) {
+  console.log(time + ': ' + args); // 1458910076.446514:['set', 'foo', 'bar']
 });
 ```
 
@@ -862,12 +886,12 @@ easy comparison.
 A handy callback function for displaying return values when testing. Example:
 
 ```js
-var redis = require("redis"),
-    client = redis.createClient();
+var redis = require('redis'),
+  client = redis.createClient();
 
-client.on("connect", function () {
-    client.set("foo_rand000000000000", "some fantastic value", redis.print);
-    client.get("foo_rand000000000000", redis.print);
+client.on('connect', function() {
+  client.set('foo_rand000000000000', 'some fantastic value', redis.print);
+  client.get('foo_rand000000000000', redis.print);
 });
 ```
 
@@ -885,7 +909,10 @@ the second word as first parameter:
 
 ```js
 client.script('load', 'return 1');
-client.multi().script('load', 'return 1').exec();
+client
+  .multi()
+  .script('load', 'return 1')
+  .exec();
 client.multi([['script', 'load', 'return 1']]).exec();
 ```
 
@@ -898,33 +925,35 @@ returns it in the callback. If an error occurs in the meanwhile, that is going
 to return an error instead in the callback.
 
 One example of when to use duplicate() would be to accommodate the connection-
-blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH.  If these commands
+blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH. If these commands
 are used on the same redisClient instance as non-blocking commands, the
 non-blocking ones may be queued up until after the blocking ones finish.
 
 ```js
-var Redis=require('redis');
+var Redis = require('redis');
 var client = Redis.createClient();
 var clientBlocking = client.duplicate();
 
 var get = function() {
-    console.log("get called");
-    client.get("any_key",function() { console.log("get returned"); });
-    setTimeout( get, 1000 );
+  console.log('get called');
+  client.get('any_key', function() {
+    console.log('get returned');
+  });
+  setTimeout(get, 1000);
 };
 var brpop = function() {
-    console.log("brpop called");
-    clientBlocking.brpop("nonexistent", 5, function() {
-        console.log("brpop return");
-        setTimeout( brpop, 1000 );
-    });
+  console.log('brpop called');
+  clientBlocking.brpop('nonexistent', 5, function() {
+    console.log('brpop return');
+    setTimeout(brpop, 1000);
+  });
 };
 get();
 brpop();
 ```
 
 Another reason to use duplicate() is when multiple DBs on the same server are
-accessed via the redis SELECT command.  Each DB could use its own connection.
+accessed via the redis SELECT command. Each DB could use its own connection.
 
 ## client.send_command(command_name[, [args][, callback]])
 
@@ -960,32 +989,34 @@ commands.
 
 ### Commands with Optional and Keyword arguments
 
-This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset
-count]` in the [redis.io/commands](http://redis.io/commands) documentation.
+This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset count]` in the [redis.io/commands](http://redis.io/commands) documentation.
 
 Example:
 
 ```js
-var args = [ 'myzset', 1, 'one', 2, 'two', 3, 'three', 99, 'ninety-nine' ];
-client.zadd(args, function (err, response) {
+var args = ['myzset', 1, 'one', 2, 'two', 3, 'three', 99, 'ninety-nine'];
+client.zadd(args, function(err, response) {
+  if (err) throw err;
+  console.log('added ' + response + ' items.');
+
+  // -Infinity and +Infinity also work
+  var args1 = ['myzset', '+inf', '-inf'];
+  client.zrevrangebyscore(args1, function(err, response) {
     if (err) throw err;
-    console.log('added '+response+' items.');
+    console.log('example1', response);
+    // write your code here
+  });
 
-    // -Infinity and +Infinity also work
-    var args1 = [ 'myzset', '+inf', '-inf' ];
-    client.zrevrangebyscore(args1, function (err, response) {
-        if (err) throw err;
-        console.log('example1', response);
-        // write your code here
-    });
-
-    var max = 3, min = 1, offset = 1, count = 2;
-    var args2 = [ 'myzset', max, min, 'WITHSCORES', 'LIMIT', offset, count ];
-    client.zrevrangebyscore(args2, function (err, response) {
-        if (err) throw err;
-        console.log('example2', response);
-        // write your code here
-    });
+  var max = 3,
+    min = 1,
+    offset = 1,
+    count = 2;
+  var args2 = ['myzset', max, min, 'WITHSCORES', 'LIMIT', offset, count];
+  client.zrevrangebyscore(args2, function(err, response) {
+    if (err) throw err;
+    console.log('example2', response);
+    // write your code here
+  });
 });
 ```
 
@@ -1031,7 +1062,7 @@ clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, parser: javascript, connected by: tcp
  GET 4MiB str,  batch 20/1 avg/max: 101.61/118.11 2541ms total,     197 ops/sec
  GET 4MiB buf,         1/1 avg/max:   2.32/ 14.93 2502ms total,     430 ops/sec
  GET 4MiB buf,  batch 20/1 avg/max:  65.01/ 84.72 2536ms total,     308 ops/sec
- ```
+```
 
 ## Debugging
 
@@ -1045,14 +1076,17 @@ application in development mode instead (`NODE_ENV=development`).
 Good stack traces are only activated in development and debug mode as this
 results in a significant performance penalty.
 
-___Comparison___:
+**_Comparison_**:
 Useless stack trace:
+
 ```
 ReplyError: ERR wrong number of arguments for 'set' command
     at parseError (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:158:12)
     at parseType (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:219:14)
 ```
+
 Good stack trace:
+
 ```
 ReplyError: ERR wrong number of arguments for 'set' command
     at new Command (/home/ruben/repos/redis/lib/command.js:9:902)

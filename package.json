@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "denque": "^1.4.1",
+    "prettier": "^1.19.1",
     "redis-commands": "^1.5.0",
     "redis-errors": "^1.2.0",
     "redis-parser": "^3.0.0"
