@@ -1,7 +1,7 @@
 {
   "name": "redis",
-  "version": "2.8.0",
-  "description": "Redis client library",
+  "version": "3.0.0",
+  "description": "A high performance Redis client.",
   "keywords": [
     "database",
     "redis",
@@ -14,6 +14,16 @@
     "backpressure"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
+  "contributors": [
+    {
+      "name": "Mike Diarmid (Salakar)",
+      "url": "https://github.com/salakar"
+    },
+    {
+      "name": "Ruben Bridgewater (BridgeAR)",
+      "url": "https://github.com/BridgeAR"
+    }
+  ],
   "license": "MIT",
   "main": "./index.js",
   "scripts": {
@@ -26,35 +36,40 @@
   },
   "dependencies": {
     "denque": "^1.4.1",
+    "prettier": "^1.19.1",
     "redis-commands": "^1.5.0",
     "redis-errors": "^1.2.0",
     "redis-parser": "^3.0.0"
   },
   "engines": {
-    "node": ">=4.0.0"
+    "node": ">=6"
   },
   "devDependencies": {
-    "bluebird": "^3.0.2",
+    "bluebird": "^3.7.2",
     "coveralls": "^2.11.2",
-    "eslint": "^4.2.0",
+    "eslint": "^6.8.0",
     "intercept-stdout": "~0.1.2",
-    "metrics": "^0.1.9",
-    "mocha": "^3.1.2",
-    "nyc": "^10.0.0",
-    "tcp-port-used": "^0.1.2",
-    "uuid": "^2.0.1",
-    "win-spawn": "^2.0.0"
+    "metrics": "^0.1.21",
+    "mocha": "^4.1.0",
+    "nyc": "^14.1.1",
+    "tcp-port-used": "^1.0.1",
+    "uuid": "^3.4.0",
+    "cross-spawn": "^6.0.5"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/NodeRedis/node_redis.git"
+    "url": "git://github.com/NodeRedis/node-redis.git"
   },
   "bugs": {
-    "url": "https://github.com/NodeRedis/node_redis/issues"
+    "url": "https://github.com/NodeRedis/node-redis/issues"
   },
-  "homepage": "https://github.com/NodeRedis/node_redis",
+  "homepage": "https://github.com/NodeRedis/node-redis",
   "directories": {
     "example": "examples",
     "test": "test"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/node-redis"
   }
 }
