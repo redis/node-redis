@@ -1,10 +1,12 @@
 <p align="center">
     <a href="https://github.com/noderedis/node-redis/">
-        <img width="160px" src="https://static.invertase.io/assets/node_redis_logo.png" />
+        <img width="180px" src="https://static.invertase.io/assets/node_redis_logo.png" />
     </a>
     <h2 align="center">Node Redis</h2>
-    A high performance Node.js Redis client.
+    <h4 align="center">A high performance Node.js Redis client.</h4>
 </p>
+
+---
 
 <p align="center">
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg?style=flat-square" alt="NPM downloads"></a>
@@ -12,23 +14,25 @@
     <a href="https://travis-ci.org/NodeRedis/node_redis"><img src="https://travis-ci.org/NodeRedis/node_redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
     <a href="https://coveralls.io/r/NodeRedis/node_redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
     <a href="https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master"><img src="https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?style=flat-square&label=Windows%20Tests" alt="Windows Tests" /></a>
-    <a href="https://twitter.com/rnfirebase"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
+    <a href="https://twitter.com/NodeRedis"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
 </p>
 
 ---
 
-This is a complete and feature rich Redis client for node.js. __It supports all
+This is a complete and feature rich Redis client for Node.js. __It supports all
 Redis commands__ and focuses on high performance.
 
 Install with:
 
-    npm install redis
+```bash
+npm install redis
+```
 
 ## Usage Example
 
 ```js
-var redis = require("redis"),
-    client = redis.createClient();
+const redis = require("redis");
+const client = redis.createClient();
 
 // if you'd like to select database 3, instead of 0 (default), call
 // client.select(3, function() { /* ... */ });
@@ -69,6 +73,7 @@ landscape.
 ### Promises
 
 #### Native Promises
+
 If you are using node v8 or higher, you can promisify node_redis with [util.promisify](https://nodejs.org/api/util.html#util_util_promisify_original) as in:
 ```js
 const {promisify} = require('util');
@@ -92,6 +97,7 @@ async function myFunc() {
 ```
 
 #### Bluebird Promises
+
 You can also use node_redis with promises by promisifying node_redis with
 [bluebird](https://github.com/petkaantonov/bluebird) as in:
 
