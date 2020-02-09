@@ -210,7 +210,7 @@ client.get(new Buffer("foo_rand000000000000"), function(err, reply) {
 **`retry_strategy` example:**
 
 ```js
-var client = redis.createClient({
+const client = redis.createClient({
   retry_strategy: function(options) {
     if (options.error && options.error.code === "ECONNREFUSED") {
       // End reconnecting on a specific error and flush all commands with
@@ -678,9 +678,9 @@ clients.watcher.watch("foo", function(watchError) {
     if (setError) throw err;
   });
 
-  //using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
-  //Normally, you would use a callback to ensure order, but I want the above SET command
-  //to be easily comment-out-able.
+  // using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
+  // Normally, you would use a callback to ensure order, but I want the above SET command
+  // to be easily comment-out-able.
   setTimeout(function() {
     clients.watcher
       .multi()
@@ -840,7 +840,7 @@ returns it in the callback. If an error occurs in the meanwhile, that is going
 to return an error instead in the callback.
 
 One example of when to use duplicate() would be to accommodate the connection-
-blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH. If these commands
+blocking redis commands `BRPOP`, `BLPOP`, and `BRPOPLPUSH`. If these commands
 are used on the same Redis client instance as non-blocking commands, the
 non-blocking ones may be queued up until after the blocking ones finish.
 
