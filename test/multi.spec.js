@@ -219,17 +219,22 @@ describe("The 'multi' method", function () {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
-                        max_attempts: 1
+                        retry_strategy: function (options) {
+                            if (options.attempt > 1) {
+                                // End reconnecting with built in error
+                                return undefined;
+                            }
+                        }
                     });
 
                     client.on('error', function (err) {
-                        if (/Redis connection in broken state/.test(err.message)) {
+                        if (/Redis connection to somewhere:6379 failed/.test(err.origin.message)) {
                             done();
                         }
                     });
 
                     client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec(function (err, res) {
-                        assert(/Redis connection in broken state/.test(err.message));
+                        assert(/Redis connection in broken state: maximum connection attempts exceeded/.test(err.message));
                         assert.strictEqual(err.errors.length, 2);
                         assert.strictEqual(err.errors[0].args.length, 2);
                     });
@@ -239,12 +244,17 @@ describe("The 'multi' method", function () {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
-                        max_attempts: 1
+                        retry_strategy: function (options) {
+                            if (options.attempt > 1) {
+                                // End reconnecting with built in error
+                                return undefined;
+                            }
+                        }
                     });
 
                     client.on('error', function (err) {
                         // Results in multiple done calls if test fails
-                        if (/Redis connection in broken state/.test(err.message)) {
+                        if (/Redis connection to somewhere:6379 failed/.test(err.origin.message)) {
                             done();
                         }
                     });

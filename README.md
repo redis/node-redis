@@ -1,10 +1,21 @@
-redis - a node.js redis client
-===========================
+<p align="center">
+    <a href="https://github.com/noderedis/node-redis/">
+        <img width="160px" src="https://static.invertase.io/assets/node_redis_logo.png" />
+    </a>
+    <h2 align="center">Node Redis</h2>
+    A high performance Node.js Redis client.
+</p>
 
-[![Build Status](https://travis-ci.org/NodeRedis/node_redis.svg?branch=master)](https://travis-ci.org/NodeRedis/node_redis)
-[![Coverage Status](https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?branch=)](https://coveralls.io/r/NodeRedis/node_redis?branch=)
-[![Windows Tests](https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/NodeRedis/node_redis?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+<p align="center">
+    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg?style=flat-square" alt="NPM downloads"></a>
+    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis.svg?style=flat-square" alt="NPM version"></a>
+    <a href="https://travis-ci.org/NodeRedis/node_redis"><img src="https://travis-ci.org/NodeRedis/node_redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
+    <a href="https://coveralls.io/r/NodeRedis/node_redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
+    <a href="https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master"><img src="https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?style=flat-square&label=Windows%20Tests" alt="Windows Tests" /></a>
+    <a href="https://twitter.com/rnfirebase"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
+</p>
+
+---
 
 This is a complete and feature rich Redis client for node.js. __It supports all
 Redis commands__ and focuses on high performance.
@@ -195,29 +206,10 @@ So please attach the error listener to node_redis.
 
 `client` will emit `end` when an established Redis server connection has closed.
 
-### "drain" (deprecated)
-
-`client` will emit `drain` when the TCP connection to the Redis server has been
-buffering, but is now writable. This event can be used to stream commands in to
-Redis and adapt to backpressure.
-
-If the stream is buffering `client.should_buffer` is set to true. Otherwise the
-variable is always set to false. That way you can decide when to reduce your
-send rate and resume sending commands when you get `drain`.
-
-You can also check the return value of each command as it will also return the
-backpressure indicator (deprecated). If false is returned the stream had to
-buffer.
-
 ### "warning"
 
 `client` will emit `warning` when password was set but none is needed and if a
 deprecated option / function / similar is used.
-
-### "idle" (deprecated)
-
-`client` will emit `idle` when there are no outstanding commands that are
-awaiting a response.
 
 ## redis.createClient()
 If you have `redis-server` running on the same machine as node, then the
@@ -242,17 +234,13 @@ __Note:__ Using `'rediss://...` for the protocol in a `redis_url` will enable a 
 | port      | 6379      | Port of the Redis server |
 | path      | null      | The UNIX socket string of the Redis server |
 | url       | null      | The URL of the Redis server. Format: `[redis[s]:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)). |
-| parser    | javascript | __Deprecated__ Use either the built-in JS parser [`javascript`]() or the native [`hiredis`]() parser. __Note__ `node_redis` < 2.6 uses hiredis as default if installed. This changed in v.2.6.0. |
 | string_numbers | null | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option. |
 | return_buffers | false | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings. |
 | detect_buffers | false | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. __Note__: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers. |
 | socket_keepalive | true | If set to `true`, the keep-alive functionality is enabled on the underlying socket. |
-| socket_initialdelay | 0 | Initial Delay in milliseconds, and this will also behave the interval keep alive message sending to Redis. |
+| socket_initial_delay | 0 | Initial Delay in milliseconds, and this will also behave the interval keep alive message sending to Redis. |
 | no_ready_check | false |  When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check. |
 | enable_offline_queue |  true | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enable_offline_queue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified. |
-| retry_max_delay | null | __Deprecated__ _Please use `retry_strategy` instead._ By default, every time the client tries to connect and fails, the reconnection delay almost doubles. This delay normally grows infinitely, but setting `retry_max_delay` limits it to the maximum value provided in milliseconds. |
-| connect_timeout | 3600000 | __Deprecated__ _Please use `retry_strategy` instead._ Setting `connect_timeout` limits the total time for the client to connect and reconnect. The value is provided in milliseconds and is counted from the moment a new client is created or from the time the connection is lost. The last retry is going to happen exactly at the timeout time. Default is to try connecting until the default system socket timeout has been exceeded and to try reconnecting until 1h has elapsed. |
-| max_attempts | 0 | __Deprecated__ _Please use `retry_strategy` instead._ By default, a client will try reconnecting until connected. Setting `max_attempts` limits total amount of connection attempts. Setting this to 1 will prevent any reconnect attempt. |
 | retry_unfulfilled_commands | false | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands. |
 | password | null | If set, client will run Redis auth command on connect. Alias `auth_pass` __Note__ `node_redis` < 2.5 must use `auth_pass` |
 | db | null | If set, client will run Redis `select` command on connect. |
@@ -471,12 +459,6 @@ client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
 client.hgetall("hosts", function (err, obj) {
     console.dir(obj);
 });
-```
-
-Output:
-
-```js
-{ mjr: '1', another: '23', home: '1234' }
 ```
 
 ### client.hmset(hash, obj[, callback])
@@ -770,7 +752,7 @@ clients.alterer = clients.watcher.duplicate();
 clients.watcher.watch('foo',function(err) {
   if (err) { throw err; }
   //if you comment out the next line, the transaction will work
-  clients.alterer.set('foo',Math.random(), (err) => {if (err) { throw err; }})
+  clients.alterer.set('foo',Math.random(), (err) => {if (err) { throw err; }});
   
   //using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
   //Normally, you would use a callback to ensure order, but I want the above SET command
@@ -897,8 +879,8 @@ the second word as first parameter:
 
 ```js
 client.script('load', 'return 1');
-client.multi().script('load', 'return 1').exec(...);
-client.multi([['script', 'load', 'return 1']]).exec(...);
+client.multi().script('load', 'return 1').exec();
+client.multi([['script', 'load', 'return 1']]).exec();
 ```
 
 ## client.duplicate([options][, callback])
@@ -1082,6 +1064,7 @@ ReplyError: ERR wrong number of arguments for 'set' command
 ```
 
 ## How to Contribute
+
 - Open a pull request or an issue about what you want to implement / change. We're glad for any help!
 - Please be aware that we'll only accept fully tested code.
 
@@ -1097,23 +1080,3 @@ contributed to `node_redis` too. Thanks to all of them!
 ## License
 
 [MIT](LICENSE)
-
-### Consolidation: It's time for celebration
-
-Right now there are two great redis clients around and both have some advantages
-above each other. We speak about ioredis and node_redis. So after talking to
-each other about how we could improve in working together we (that is @luin and
-@BridgeAR) decided to work towards a single library on the long run. But step by
-step.
-
-First of all, we want to split small parts of our libraries into others so that
-we're both able to use the same code. Those libraries are going to be maintained
-under the NodeRedis organization. This is going to reduce the maintenance
-overhead, allows others to use the very same code, if they need it and it's way
-easyer for others to contribute to both libraries.
-
-We're very happy about this step towards working together as we both want to
-give you the best redis experience possible.
-
-If you want to join our cause by help maintaining something, please don't
-hesitate to contact either one of us.

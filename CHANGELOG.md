@@ -1,5 +1,34 @@
 # Changelog
 
+## v.3.0.0 - 09 Feb, 2020
+
+This version is mainly a release to distribute all the unreleased changes on master since 2017 and additionally removes 
+a lot of old deprecated features and old internals in preparation for an upcoming modernization refactor (v4).
+
+### Breaking Changes
+
+ - Dropped support for Node.js < 6
+ - Dropped support for `hiredis` (no longer required)
+ - Removed previously deprecated `drain` event
+ - Removed previously deprecated `idle` event
+ - Removed previously deprecated `parser` option
+ - Removed previously deprecated `max_delay` option
+ - Removed previously deprecated `max_attempts` option
+ - Removed previously deprecated `socket_no_delay` option
+
+### Bug Fixes
+
+ - Removed development files from published package (#1370)
+ - Duplicate function now allows db param to be passed (#1311)
+
+### Features
+
+ - Upgraded to latest `redis-commands` package
+ - Upgraded to latest `redis-parser` package, v3.0.0, which brings performance improvements
+ - Replaced `double-ended-queue` with `denque`, which brings performance improvements
+ - Add timestamps to debug traces
+ - Add `socket_initial_delay` option for `socket.setKeepAlive` (#1396)
+ 
 ## v.2.8.0 - 31 Jul, 2017
 
 Features
