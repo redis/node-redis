@@ -213,11 +213,11 @@ Test.prototype.print_stats = function () {
 };
 
 small_str = '1234';
-small_buf = new Buffer(small_str);
+small_buf = Buffer.from(small_str);
 large_str = (new Array(4096 + 1).join('-'));
-large_buf = new Buffer(large_str);
+large_buf = Buffer.from(large_str);
 very_large_str = (new Array((4 * 1024 * 1024) + 1).join('-'));
-very_large_buf = new Buffer(very_large_str);
+very_large_buf = Buffer.from(very_large_str);
 
 tests.push(new Test({descr: 'PING', command: 'ping', args: []}));
 tests.push(new Test({descr: 'PING', command: 'ping', args: [], batch: 50}));

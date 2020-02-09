@@ -829,7 +829,7 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
             // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
             if (args[i].length > 30000) {
                 big_data = true;
-                args_copy[i] = new Buffer(args[i], 'utf8');
+                args_copy[i] = Buffer.from(args[i], 'utf8');
             } else {
                 args_copy[i] = args[i];
             }
