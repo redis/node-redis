@@ -1,6 +1,10 @@
 language: node_js
 sudo: required
 
+os:
+  - windows
+  - linux
+
 env:
   - CXX=g++-4.8 TRAVIS=true
 
@@ -11,6 +15,7 @@ addons:
     packages:
       - g++-4.8
 
+
 node_js:
   - "6"
   - "8"
@@ -18,13 +23,30 @@ node_js:
   - "13"
 
 before_install:
-  - if [[ ! -f stunnel.tar.gz ]]; then wget -O stunnel.tar.gz ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-5.54.tar.gz; fi
-  - if [[ ! -f ./stunnel-5.54/configure ]]; then tar -xzf stunnel.tar.gz; fi
-  - if [[ ! -f ./stunnel-5.54/src/stunnel ]]; then cd ./stunnel-5.54; ./configure; make; cd ..; fi
-  - export PATH="$PATH:$(pwd)/stunnel-5.54/src"
+  - |-
+    case $TRAVIS_OS_NAME in
+      linux)
+        if [[ ! -f stunnel.tar.gz ]]; then wget -O stunnel.tar.gz ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-5.54.tar.gz; fi
+        if [[ ! -f ./stunnel-5.54/configure ]]; then tar -xzf stunnel.tar.gz; fi
+        if [[ ! -f ./stunnel-5.54/src/stunnel ]]; then cd ./stunnel-5.54; ./configure; make; cd ..; fi
+        export PATH="$PATH:$(pwd)/stunnel-5.54/src"
+    ;;
+    esac
+  - |-
+    case $TRAVIS_OS_NAME in
+      windows)
+        choco install redis-64
+        C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe --service-install
+        C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe --service-start
+        '@ECHO Redis Started'
+        node --version
+        npm --version
+    ;;
+    esac
 
 cache:
   directories:
+    - $HOME/AppData/Local/Temp/chocolatey
     - "$TRAVIS_BUILD_DIR/stunnel-5.54"
 
 after_success: npm run coveralls
