@@ -57,9 +57,9 @@ You can reach out to us directly via email (`redis[AT]invertase.io`) or direct m
 
 #### Project Maintainers
 
- - Mike Diarmid ([Salakar](https://github.com/Salakar)) @ [Invertase](https://invertase.io)
+ - Mike Diarmid ([Salakar](https://github.com/Salakar)) @ [Invertase](https://github.com/invertase)
    - Twitter: [@mikediarmid](https://twitter.com/mikediarmid)
- - Elliot Hesp ([Ehesp](https://github.com/Ehesp)) @ [Invertase](https://invertase.io)
+ - Elliot Hesp ([Ehesp](https://github.com/Ehesp)) @ [Invertase](https://github.com/invertase)
    - Twitter: [@elliothesp](https://twitter.com/elliothesp)
  - Ruben Bridgewater ([BridgeAR](https://github.com/BridgeAR))
    - Twitter: [@BridgeAR](https://twitter.com/BridgeAR) 
