@@ -19,115 +19,43 @@
 
 ---
 
-This is a complete and feature rich Redis client for Node.js. **It supports all
-Redis commands** and focuses on high performance.
-
-Install with:
+## Installation
 
 ```bash
 npm install redis
 ```
 
-## Usage Example
+## Usage
+
+#### Example
 
 ```js
-const redis = require('redis');
+const redis = require("redis");
 const client = redis.createClient();
 
-// if you'd like to select database 3, instead of 0 (default), call
-// client.select(3, function() { /* ... */ });
-
-client.on('error', function(err) {
-  console.log('Error ' + err);
+client.on("error", function(err) {
+  console.log("Error " + err);
 });
 
-client.set('string key', 'string val', redis.print);
-client.hset('hash key', 'hashtest 1', 'some value', redis.print);
-client.hset(['hash key', 'hashtest 2', 'some other value'], redis.print);
-client.hkeys('hash key', function(err, replies) {
-  console.log(replies.length + ' replies:');
-  replies.forEach(function(reply, i) {
-    console.log('    ' + i + ': ' + reply);
-  });
-  client.quit();
-});
+client.set("string key", "string val", redis.print);
+client.get("string key", redis.print);
 ```
 
-This will display:
-
-    mjr:~/work/node_redis (master)$ node example.js
-    Reply: OK
-    Reply: 0
-    Reply: 0
-    2 replies:
-        0: hashtest 1
-        1: hashtest 2
-    mjr:~/work/node_redis (master)$
-
 Note that the API is entirely asynchronous. To get data back from the server,
-you'll need to use a callback. From v.2.6 on the API supports camelCase and
-snake_case and all options / variables / events etc. can be used either way. It
-is recommended to use camelCase as this is the default for the Node.js
-landscape.
+you'll need to use a callback.
 
 ### Promises
 
-#### Native Promises
-
-If you are using node v8 or higher, you can promisify node_redis with [util.promisify](https://nodejs.org/api/util.html#util_util_promisify_original) as in:
+Node Redis currently doesn't natively support promises (this is coming in v4), however you can wrap the methods you
+want to use with promises using the built-in Node.js `util.promisify` method on Node.js >= v8; 
 
 ```js
-const { promisify } = require('util');
+const { promisify } = require("util");
 const getAsync = promisify(client.get).bind(client);
-```
 
-now _getAsync_ is a promisified version of _client.get_:
-
-```js
-// We expect a value 'foo': 'bar' to be present
-// So instead of writing client.get('foo', cb); you have to write:
-return getAsync('foo').then(function(res) {
-  console.log(res); // => 'bar'
-});
-```
-
-or using [async await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function):
-
-```js
-async function myFunc() {
-  const res = await getAsync('foo');
-  console.log(res);
-}
-```
-
-#### Bluebird Promises
-
-You can also use node_redis with promises by promisifying node_redis with
-[bluebird](https://github.com/petkaantonov/bluebird) as in:
-
-```js
-const redis = require('redis');
-bluebird.promisifyAll(redis);
-```
-
-It'll add a _Async_ to all node_redis functions (e.g. return client.getAsync().then())
-
-```js
-// We expect a value 'foo': 'bar' to be present
-// So instead of writing client.get('foo', cb); you have to write:
-return client.getAsync('foo').then(function(res) {
-  console.log(res); // => 'bar'
-});
-
-// Using multi with promises looks like:
-
-return client
-  .multi()
-  .get('foo')
-  .execAsync()
-  .then(function(res) {
-    console.log(res); // => 'bar'
-  });
+getAsync
+  .then(console.log)
+  .catch(console.error);
 ```
 
 ### Sending Commands
@@ -138,16 +66,15 @@ a variable number of individual arguments followed by an optional callback.
 Examples:
 
 ```js
-client.hmset(['key', 'test keys 1', 'test val 1', 'test keys 2', 'test val 2'], function(
-  err,
-  res,
-) {});
+client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function(err, res) {
+  // ...
+});
 // Works the same as
-client.hmset('key', ['test keys 1', 'test val 1', 'test keys 2', 'test val 2'], function(err, res) {
+client.hmset("key", ["test keys 1", "test val 1", "test keys 2", "test val 2"], function(err, res) {
   // ...
 });
 // Or
-client.hmset('key', 'test keys 1', 'test val 1', 'test keys 2', 'test val 2', function(err, res) {
+client.hmset("key", "test keys 1", "test val 1", "test keys 2", "test val 2", function(err, res) {
   // ...
 });
 ```
@@ -157,15 +84,15 @@ Care should be taken with user input if arrays are possible (via body-parser, qu
 Note that in either form the `callback` is optional:
 
 ```js
-client.set('some key', 'some val');
-client.set(['some other key', 'some val']);
+client.set("some key", "some val");
+client.set(["some other key", "some val"]);
 ```
 
 If the key is missing, reply will be null. Only if the [Redis Command
 Reference](http://redis.io/commands) states something else it will not be null.
 
 ```js
-client.get('missingkey', function(err, reply) {
+client.get("missingkey", function(err, reply) {
   // reply is null when the key is missing
   console.log(reply);
 });
@@ -189,7 +116,7 @@ Example setting key to auto expire using [SET command](https://redis.io/commands
 
 ```js
 // this key will expire after 10 seconds
-client.set('key', 'value!', 'EX', 10);
+client.set("key", "value!", "EX", 10);
 ```
 
 # API
@@ -275,18 +202,18 @@ using unix sockets if possible to increase throughput.
 | retry_strategy             | function  | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
 
 ```js
-var redis = require('redis');
+var redis = require("redis");
 var client = redis.createClient({ detect_buffers: true });
 
-client.set('foo_rand000000000000', 'OK');
+client.set("foo_rand000000000000", "OK");
 
 // This will return a JavaScript String
-client.get('foo_rand000000000000', function(err, reply) {
+client.get("foo_rand000000000000", function(err, reply) {
   console.log(reply.toString()); // Will print `OK`
 });
 
 // This will return a Buffer since original key is specified as a Buffer
-client.get(new Buffer('foo_rand000000000000'), function(err, reply) {
+client.get(new Buffer("foo_rand000000000000"), function(err, reply) {
   console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
 });
 client.quit();
@@ -297,15 +224,15 @@ client.quit();
 ```js
 var client = redis.createClient({
   retry_strategy: function(options) {
-    if (options.error && options.error.code === 'ECONNREFUSED') {
+    if (options.error && options.error.code === "ECONNREFUSED") {
       // End reconnecting on a specific error and flush all commands with
       // a individual error
-      return new Error('The server refused the connection');
+      return new Error("The server refused the connection");
     }
     if (options.total_retry_time > 1000 * 60 * 60) {
       // End reconnecting after a specific timeout and flush all commands
       // with a individual error
-      return new Error('Retry time exhausted');
+      return new Error("Retry time exhausted");
     }
     if (options.attempt > 10) {
       // End reconnecting with built in error
@@ -363,23 +290,23 @@ This example closes the connection to the Redis server before the replies have
 been read. You probably don't want to do this:
 
 ```js
-var redis = require('redis'),
+var redis = require("redis"),
   client = redis.createClient();
 
-client.set('foo_rand000000000000', 'some fantastic value', function(err, reply) {
+client.set("foo_rand000000000000", "some fantastic value", function(err, reply) {
   // This will either result in an error (flush parameter is set to true)
   // or will silently fail and this callback will not be called at all (flush set to false)
   console.log(err);
 });
 client.end(true); // No further commands will be processed
-client.get('foo_rand000000000000', function(err, reply) {
+client.get("foo_rand000000000000", function(err, reply) {
   console.log(err); // => 'The connection has already been closed.'
 });
 ```
 
 `client.end()` without the flush parameter set to true should NOT be used in production!
 
-## Error handling (>= v.2.6)
+## Error handling (>= v2.6)
 
 Currently the following error subclasses exist:
 
@@ -398,27 +325,27 @@ All error classes are exported by the module.
 Example:
 
 ```js
-var redis = require('./');
-var assert = require('assert');
+var redis = require("./");
+var assert = require("assert");
 var client = redis.createClient();
 
-client.on('error', function(err) {
+client.on("error", function(err) {
   assert(err instanceof Error);
   assert(err instanceof redis.AbortError);
   assert(err instanceof redis.AggregateError);
   // The set and get get aggregated in here
   assert.strictEqual(err.errors.length, 2);
-  assert.strictEqual(err.code, 'NR_CLOSED');
+  assert.strictEqual(err.code, "NR_CLOSED");
 });
-client.set('foo', 123, 'bar', function(err, res) {
+client.set("foo", 123, "bar", function(err, res) {
   // Too many arguments
   assert(err instanceof redis.ReplyError); // => true
-  assert.strictEqual(err.command, 'SET');
-  assert.deepStrictEqual(err.args, ['foo', 123, 'bar']);
+  assert.strictEqual(err.command, "SET");
+  assert.deepStrictEqual(err.args, ["foo", 123, "bar"]);
 
   redis.debug_mode = true;
-  client.set('foo', 'bar');
-  client.get('foo');
+  client.set("foo", "bar");
+  client.get("foo");
   process.nextTick(function() {
     // Force closing the connection while the command did not yet return
     client.end(true);
@@ -449,7 +376,7 @@ protocol. Any commands where client state is saved on the Redis server, e.g.
 `*SUBSCRIBE` or the blocking `BL*` commands will _NOT_ work with `.unref()`.
 
 ```js
-var redis = require('redis');
+var redis = require("redis");
 var client = redis.createClient();
 
 /*
@@ -458,7 +385,7 @@ var client = redis.createClient();
     client-server connection is alive.
 */
 client.unref();
-client.get('foo', function(err, value) {
+client.get("foo", function(err, value) {
   if (err) throw err;
   console.log(value);
 });
@@ -479,8 +406,8 @@ syntax.
 Example:
 
 ```js
-client.hmset('hosts', 'mjr', '1', 'another', '23', 'home', '1234');
-client.hgetall('hosts', function(err, obj) {
+client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
+client.hgetall("hosts", function(err, obj) {
   console.dir(obj);
 });
 ```
@@ -491,8 +418,8 @@ Multiple values in a hash can be set by supplying an object:
 
 ```js
 client.HMSET(key2, {
-  '0123456789': 'abcdefghij', // NOTE: key and value will be coerced to strings
-  'some manner of key': 'a type of value',
+  "0123456789": "abcdefghij", // NOTE: key and value will be coerced to strings
+  "some manner of key": "a type of value",
 });
 ```
 
@@ -504,7 +431,7 @@ Redis hash.
 Multiple values may also be set by supplying a list:
 
 ```js
-client.HMSET(key1, '0123456789', 'abcdefghij', 'some manner of key', 'a type of value');
+client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
 ```
 
 ## Publish / Subscribe
@@ -514,19 +441,19 @@ client connections, subscribes to a channel on one of them, and publishes to tha
 channel on the other:
 
 ```js
-var redis = require('redis');
+var redis = require("redis");
 var sub = redis.createClient(),
   pub = redis.createClient();
 var msg_count = 0;
 
-sub.on('subscribe', function(channel, count) {
-  pub.publish('a nice channel', 'I am sending a message.');
-  pub.publish('a nice channel', 'I am sending a second message.');
-  pub.publish('a nice channel', 'I am sending my last message.');
+sub.on("subscribe", function(channel, count) {
+  pub.publish("a nice channel", "I am sending a message.");
+  pub.publish("a nice channel", "I am sending a second message.");
+  pub.publish("a nice channel", "I am sending my last message.");
 });
 
-sub.on('message', function(channel, message) {
-  console.log('sub channel ' + channel + ': ' + message);
+sub.on("message", function(channel, message) {
+  console.log("sub channel " + channel + ": " + message);
   msg_count += 1;
   if (msg_count === 3) {
     sub.unsubscribe();
@@ -535,7 +462,7 @@ sub.on('message', function(channel, message) {
   }
 });
 
-sub.subscribe('a nice channel');
+sub.subscribe("a nice channel");
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into
@@ -610,33 +537,33 @@ further information look at
 [transactions](http://redis.io/topics/transactions)).
 
 ```js
-var redis = require('./index'),
+var redis = require("./index"),
   client = redis.createClient(),
   set_size = 20;
 
-client.sadd('bigset', 'a member');
-client.sadd('bigset', 'another member');
+client.sadd("bigset", "a member");
+client.sadd("bigset", "another member");
 
 while (set_size > 0) {
-  client.sadd('bigset', 'member ' + set_size);
+  client.sadd("bigset", "member " + set_size);
   set_size -= 1;
 }
 
 // multi chain with an individual callback
 client
   .multi()
-  .scard('bigset')
-  .smembers('bigset')
-  .keys('*', function(err, replies) {
+  .scard("bigset")
+  .smembers("bigset")
+  .keys("*", function(err, replies) {
     // NOTE: code in this callback is NOT atomic
     // this only happens after the the .exec call finishes.
     client.mget(replies, redis.print);
   })
   .dbsize()
   .exec(function(err, replies) {
-    console.log('MULTI got ' + replies.length + ' replies');
+    console.log("MULTI got " + replies.length + " replies");
     replies.forEach(function(reply, index) {
-      console.log('Reply ' + index + ': ' + reply.toString());
+      console.log("Reply " + index + ": " + reply.toString());
     });
   });
 ```
@@ -659,17 +586,17 @@ can queue individual commands while still sending regular client command as in
 this example:
 
 ```js
-var redis = require('redis'),
+var redis = require("redis"),
   client = redis.createClient(),
   multi;
 
 // start a separate multi command queue
 multi = client.multi();
-multi.incr('incr thing', redis.print);
-multi.incr('incr other thing', redis.print);
+multi.incr("incr thing", redis.print);
+multi.incr("incr other thing", redis.print);
 
 // runs immediately
-client.mset('incr thing', 100, 'incr other thing', 1, redis.print);
+client.mset("incr thing", 100, "incr other thing", 1, redis.print);
 
 // drains multi queue and runs atomically
 multi.exec(function(err, replies) {
@@ -681,14 +608,14 @@ In addition to adding commands to the `MULTI` queue individually, you can also
 pass an array of commands and arguments to the constructor:
 
 ```js
-var redis = require('redis'),
+var redis = require("redis"),
   client = redis.createClient();
 
 client
   .multi([
-    ['mget', 'multifoo', 'multibar', redis.print],
-    ['incr', 'multifoo'],
-    ['incr', 'multibar'],
+    ["mget", "multifoo", "multibar", redis.print],
+    ["incr", "multifoo"],
+    ["incr", "multibar"],
   ])
   .exec(function(err, replies) {
     console.log(replies);
@@ -853,14 +780,14 @@ arguments and the raw monitoring string.
 Example:
 
 ```js
-var client = require('redis').createClient();
+var client = require("redis").createClient();
 client.monitor(function(err, res) {
-  console.log('Entering monitoring mode.');
+  console.log("Entering monitoring mode.");
 });
-client.set('foo', 'bar');
+client.set("foo", "bar");
 
-client.on('monitor', function(time, args, raw_reply) {
-  console.log(time + ': ' + args); // 1458910076.446514:['set', 'foo', 'bar']
+client.on("monitor", function(time, args, raw_reply) {
+  console.log(time + ": " + args); // 1458910076.446514:['set', 'foo', 'bar']
 });
 ```
 
@@ -886,12 +813,12 @@ easy comparison.
 A handy callback function for displaying return values when testing. Example:
 
 ```js
-var redis = require('redis'),
+var redis = require("redis"),
   client = redis.createClient();
 
-client.on('connect', function() {
-  client.set('foo_rand000000000000', 'some fantastic value', redis.print);
-  client.get('foo_rand000000000000', redis.print);
+client.on("connect", function() {
+  client.set("foo_rand000000000000", "some fantastic value", redis.print);
+  client.get("foo_rand000000000000", redis.print);
 });
 ```
 
@@ -908,12 +835,12 @@ To execute redis multi-word commands like `SCRIPT LOAD` or `CLIENT LIST` pass
 the second word as first parameter:
 
 ```js
-client.script('load', 'return 1');
+client.script("load", "return 1");
 client
   .multi()
-  .script('load', 'return 1')
+  .script("load", "return 1")
   .exec();
-client.multi([['script', 'load', 'return 1']]).exec();
+client.multi([["script", "load", "return 1"]]).exec();
 ```
 
 ## client.duplicate([options][, callback])
@@ -930,21 +857,21 @@ are used on the same redisClient instance as non-blocking commands, the
 non-blocking ones may be queued up until after the blocking ones finish.
 
 ```js
-var Redis = require('redis');
+var Redis = require("redis");
 var client = Redis.createClient();
 var clientBlocking = client.duplicate();
 
 var get = function() {
-  console.log('get called');
-  client.get('any_key', function() {
-    console.log('get returned');
+  console.log("get called");
+  client.get("any_key", function() {
+    console.log("get returned");
   });
   setTimeout(get, 1000);
 };
 var brpop = function() {
-  console.log('brpop called');
-  clientBlocking.brpop('nonexistent', 5, function() {
-    console.log('brpop return');
+  console.log("brpop called");
+  clientBlocking.brpop("nonexistent", 5, function() {
+    console.log("brpop return");
     setTimeout(brpop, 1000);
   });
 };
@@ -994,16 +921,16 @@ This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset 
 Example:
 
 ```js
-var args = ['myzset', 1, 'one', 2, 'two', 3, 'three', 99, 'ninety-nine'];
+var args = ["myzset", 1, "one", 2, "two", 3, "three", 99, "ninety-nine"];
 client.zadd(args, function(err, response) {
   if (err) throw err;
-  console.log('added ' + response + ' items.');
+  console.log("added " + response + " items.");
 
   // -Infinity and +Infinity also work
-  var args1 = ['myzset', '+inf', '-inf'];
+  var args1 = ["myzset", "+inf", "-inf"];
   client.zrevrangebyscore(args1, function(err, response) {
     if (err) throw err;
-    console.log('example1', response);
+    console.log("example1", response);
     // write your code here
   });
 
@@ -1011,10 +938,10 @@ client.zadd(args, function(err, response) {
     min = 1,
     offset = 1,
     count = 2;
-  var args2 = ['myzset', max, min, 'WITHSCORES', 'LIMIT', offset, count];
+  var args2 = ["myzset", max, min, "WITHSCORES", "LIMIT", offset, count];
   client.zrevrangebyscore(args2, function(err, response) {
     if (err) throw err;
-    console.log('example2', response);
+    console.log("example2", response);
     // write your code here
   });
 });
