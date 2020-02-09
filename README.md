@@ -33,12 +33,12 @@ npm install redis
 const redis = require("redis");
 const client = redis.createClient();
 
-client.on("error", function(err) {
-  console.log("Error " + err);
+client.on("error", function(error) {
+  console.error(error);
 });
 
-client.set("string key", "string val", redis.print);
-client.get("string key", redis.print);
+client.set("key", "value", redis.print);
+client.get("key", redis.print);
 ```
 
 Note that the API is entirely asynchronous. To get data back from the server,
@@ -66,15 +66,17 @@ a variable number of individual arguments followed by an optional callback.
 Examples:
 
 ```js
-client.hmset(["key", "test keys 1", "test val 1", "test keys 2", "test val 2"], function(err, res) {
+client.hmset(["key", "foo", "bar"], function(err, res) {
   // ...
 });
+
 // Works the same as
-client.hmset("key", ["test keys 1", "test val 1", "test keys 2", "test val 2"], function(err, res) {
+client.hmset("key", ["foo", "bar"], function(err, res) {
   // ...
 });
+
 // Or
-client.hmset("key", "test keys 1", "test val 1", "test keys 2", "test val 2", function(err, res) {
+client.hmset("key", "foo", "bar", function(err, res) {
   // ...
 });
 ```
@@ -84,15 +86,15 @@ Care should be taken with user input if arrays are possible (via body-parser, qu
 Note that in either form the `callback` is optional:
 
 ```js
-client.set("some key", "some val");
-client.set(["some other key", "some val"]);
+client.set("foo", "bar");
+client.set(["hello", "world"]);
 ```
 
 If the key is missing, reply will be null. Only if the [Redis Command
 Reference](http://redis.io/commands) states something else it will not be null.
 
 ```js
-client.get("missingkey", function(err, reply) {
+client.get("missing_key", function(err, reply) {
   // reply is null when the key is missing
   console.log(reply);
 });
@@ -110,23 +112,23 @@ and Boolean values will result in the value coerced to a string!
 
 `client` will emit some events about the state of the connection to the Redis server.
 
-#### "ready"
+#### `"ready"`
 
 `client` will emit `ready` once a connection is established. Commands issued
 before the `ready` event are queued, then replayed just before this event is
 emitted.
 
-#### "connect"
+#### `"connect"`
 
 `client` will emit `connect` as soon as the stream is connected to the server.
 
-#### "reconnecting"
+#### `"reconnecting"`
 
 `client` will emit `reconnecting` when trying to reconnect to the Redis server
 after losing the connection. Listeners are passed an object containing `delay`
 (in ms from the previous try) and `attempt` (the attempt #) attributes.
 
-#### "error"
+#### `"error"`
 
 `client` will emit `error` when encountering an error connecting to the Redis
 server or when any other in node_redis occurs. If you use a command without
@@ -135,11 +137,11 @@ listener.
 
 So please attach the error listener to node_redis.
 
-#### "end"
+#### `"end"`
 
 `client` will emit `end` when an established Redis server connection has closed.
 
-#### "warning"
+#### `"warning"`
 
 `client` will emit `warning` when password was set but none is needed and if a
 deprecated option / function / similar is used.
@@ -390,27 +392,13 @@ syntax.
 **Example:**
 
 ```js
-client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
-client.hgetall("hosts", function(err, obj) {
-  console.dir(obj);
+client.hmset("key", "foo", "bar", "hello", "world");
+
+client.hgetall("hosts", function(err, value) {
+  console.log(value.foo); // > "bar"
+  console.log(value.hello); // > "world"
 });
 ```
-
-#### client.hmset(hash, obj[, callback])
-
-Multiple values in a hash can be set by supplying an object.
-
-**Example:**
-
-```js
-client.HMSET(key2, {
-  "0123456789": "abcdefghij", // NOTE: key and value will be coerced to strings
-  "some manner of key": "a type of value",
-});
-```
-
-The properties and values of this Object will be set as keys and values in the
-Redis hash.
 
 #### client.hmset(hash, key1, val1, ...keyN, valN, [callback])
 
@@ -419,155 +407,158 @@ Multiple values may also be set by supplying more arguments.
 **Example:**
 
 ```js
-client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
+//  key
+//    1) foo   => bar
+//    2) hello => world
+client.HMSET("key", "foo", "bar", "hello", "world");
 ```
 
-### Publish / Subscribe
+### PubSub
 
-Example of the publish / subscribe API. This program opens two
-client connections, subscribes to a channel on one of them, and publishes to that
-channel on the other:
+#### Example
+
+This example opens two client connections, subscribes to a channel on one of them, and publishes to that
+channel on the other.
 
 ```js
-var redis = require("redis");
-var sub = redis.createClient(),
-  pub = redis.createClient();
-var msg_count = 0;
+const redis = require("redis");
 
-sub.on("subscribe", function(channel, count) {
-  pub.publish("a nice channel", "I am sending a message.");
-  pub.publish("a nice channel", "I am sending a second message.");
-  pub.publish("a nice channel", "I am sending my last message.");
+const subscriber = redis.createClient();
+const publisher = redis.createClient();
+
+let messageCount = 0;
+
+subscriber.on("subscribe", function(channel, count) {
+  publisher.publish("a channel", "a message");
+  publisher.publish("a channel", "another message");
 });
 
-sub.on("message", function(channel, message) {
-  console.log("sub channel " + channel + ": " + message);
-  msg_count += 1;
-  if (msg_count === 3) {
-    sub.unsubscribe();
-    sub.quit();
-    pub.quit();
+subscriber.on("message", function(channel, message) {
+  messageCount += 1;
+
+  console.log("Subscriber received message in channel '" + channel + "': " + message);
+
+  if (messageCount === 2) {
+    subscriber.unsubscribe();
+    subscriber.quit();
+    publisher.quit();
   }
 });
 
-sub.subscribe("a nice channel");
+subscriber.subscribe("a channel");
 ```
 
 When a client issues a `SUBSCRIBE` or `PSUBSCRIBE`, that connection is put into
-a "subscriber" mode. At that point, the only valid commands are those that modify the subscription
+a `"subscriber"` mode. At that point, the only valid commands are those that modify the subscription
 set, and quit (also ping on some redis versions). When
 the subscription set is empty, the connection is put back into regular mode.
 
 If you need to send regular commands to Redis while in subscriber mode, just
-open another connection with a new client (hint: use `client.duplicate()`).
+open another connection with a new client (use `client.duplicate()` to quickly duplicate an existing client).
 
-## Subscriber Events
+#### Subscriber Events
 
 If a client has subscriptions active, it may emit these events:
 
-### "message" (channel, message)
+**"message" (channel, message)**:
 
 Client will emit `message` for every message received that matches an active subscription.
 Listeners are passed the channel name as `channel` and the message as `message`.
 
-### "pmessage" (pattern, channel, message)
+**"pmessage" (pattern, channel, message)**:
 
 Client will emit `pmessage` for every message received that matches an active
 subscription pattern. Listeners are passed the original pattern used with
 `PSUBSCRIBE` as `pattern`, the sending channel name as `channel`, and the
 message as `message`.
 
-### "message_buffer" (channel, message)
+**"message_buffer" (channel, message)**:
 
 This is the same as the `message` event with the exception, that it is always
 going to emit a buffer. If you listen to the `message` event at the same time as
 the `message_buffer`, it is always going to emit a string.
 
-### "pmessage_buffer" (pattern, channel, message)
+**"pmessage_buffer" (pattern, channel, message)**:
 
 This is the same as the `pmessage` event with the exception, that it is always
 going to emit a buffer. If you listen to the `pmessage` event at the same time
 as the `pmessage_buffer`, it is always going to emit a string.
 
-### "subscribe" (channel, count)
+**"subscribe" (channel, count)**:
 
 Client will emit `subscribe` in response to a `SUBSCRIBE` command. Listeners are
 passed the channel name as `channel` and the new count of subscriptions for this
 client as `count`.
 
-### "psubscribe" (pattern, count)
+**"psubscribe" (pattern, count)**:
 
 Client will emit `psubscribe` in response to a `PSUBSCRIBE` command. Listeners
 are passed the original pattern as `pattern`, and the new count of subscriptions
 for this client as `count`.
 
-### "unsubscribe" (channel, count)
+**"unsubscribe" (channel, count)**:
 
 Client will emit `unsubscribe` in response to a `UNSUBSCRIBE` command. Listeners
 are passed the channel name as `channel` and the new count of subscriptions for
 this client as `count`. When `count` is 0, this client has left subscriber mode
 and no more subscriber events will be emitted.
 
-### "punsubscribe" (pattern, count)
+**"punsubscribe" (pattern, count)**:
 
 Client will emit `punsubscribe` in response to a `PUNSUBSCRIBE` command.
 Listeners are passed the channel name as `channel` and the new count of
 subscriptions for this client as `count`. When `count` is 0, this client has
 left subscriber mode and no more subscriber events will be emitted.
 
-## client.multi([commands])
+### client.multi([commands])
 
 `MULTI` commands are queued up until an `EXEC` is issued, and then all commands
 are run atomically by Redis. The interface in `node_redis` is to return an
 individual `Multi` object by calling `client.multi()`. If any command fails to
 queue, all commands are rolled back and none is going to be executed (For
-further information look at
-[transactions](http://redis.io/topics/transactions)).
+further information see the [Redis transactions](http://redis.io/topics/transactions) documentation).
 
 ```js
-var redis = require("./index"),
-  client = redis.createClient(),
-  set_size = 20;
+const redis = require("redis");
+const client = redis.createClient();
 
-client.sadd("bigset", "a member");
-client.sadd("bigset", "another member");
+let setSize = 20;
 
-while (set_size > 0) {
-  client.sadd("bigset", "member " + set_size);
-  set_size -= 1;
+client.sadd("key", "member1");
+client.sadd("key", "member2");
+
+while (setSize > 0) {
+  client.sadd("key", "member" + setSize);
+  setSize -= 1;
 }
 
-// multi chain with an individual callback
+// chain commands
 client
   .multi()
-  .scard("bigset")
-  .smembers("bigset")
-  .keys("*", function(err, replies) {
-    // NOTE: code in this callback is NOT atomic
-    // this only happens after the the .exec call finishes.
-    client.mget(replies, redis.print);
-  })
+  .scard("key")
+  .smembers("key")
+  .keys("*")
   .dbsize()
   .exec(function(err, replies) {
     console.log("MULTI got " + replies.length + " replies");
     replies.forEach(function(reply, index) {
-      console.log("Reply " + index + ": " + reply.toString());
+      console.log("REPLY  @ index " + index + ": " + reply.toString());
     });
   });
 ```
 
-### Multi.exec([callback])
+#### Multi.exec([callback])
 
 `client.multi()` is a constructor that returns a `Multi` object. `Multi` objects
 share all of the same command methods as `client` objects do. Commands are
 queued up inside the `Multi` object until `Multi.exec()` is invoked.
 
-If your code contains an syntax error an EXECABORT error is going to be thrown
+If your code contains an syntax error an `EXECABORT` error is going to be thrown
 and all commands are going to be aborted. That error contains a `.errors`
 property that contains the concrete errors.
 If all commands were queued successfully and an error is thrown by redis while
 processing the commands that error is going to be returned in the result array!
-No other command is going to be aborted though than the onces failing.
+No other command is going to be aborted though than the ones failing.
 
 You can either chain together `MULTI` commands as in the above example, or you
 can queue individual commands while still sending regular client command as in
