@@ -239,7 +239,7 @@ describe('connection tests', function () {
                         retryStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
                                 client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Redis connection in broken state: maximum connection attempts exceeded.');
+                                    assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
                                     assert.strictEqual(err.origin.message, 'Connection timeout');
                                     done();
                                 });
@@ -257,7 +257,7 @@ describe('connection tests', function () {
                         retry_strategy: function (options) {
                             if (options.total_retry_time > 150) {
                                 client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Redis connection in broken state: maximum connection attempts exceeded.');
+                                    assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
                                     assert.strictEqual(err.code, 'CONNECTION_BROKEN');
                                     assert.strictEqual(err.origin.code, 'ECONNREFUSED');
                                     done();
@@ -287,7 +287,7 @@ describe('connection tests', function () {
                     }, 50);
                     client.on('error', function (err) {
                         if (err instanceof redis.AbortError) {
-                            assert.strictEqual(err.message, 'Redis connection in broken state: maximum connection attempts exceeded.');
+                            assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
                             assert.strictEqual(err.code, 'CONNECTION_BROKEN');
                             unhookIntercept();
                             redis.debugMode = false;

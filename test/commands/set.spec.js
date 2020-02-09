@@ -150,6 +150,10 @@ describe("The 'set' method", function () {
                         client.get('foo', helper.isNull(done));
                     });
 
+                    it('calls callback with error if null value is passed', function (done) {
+                        client.set('foo', null, helper.isError(done));
+                    });
+
                     it('emit an error with only the key set', function (done) {
                         client.on('error', function (err) {
                             assert.equal(err.message, "ERR wrong number of arguments for 'set' command");

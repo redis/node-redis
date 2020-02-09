@@ -234,7 +234,7 @@ describe("The 'multi' method", function () {
                     });
 
                     client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec(function (err, res) {
-                        assert(/Redis connection in broken state: maximum connection attempts exceeded/.test(err.message));
+                        assert(/Redis connection in broken state: retry aborted/.test(err.message));
                         assert.strictEqual(err.errors.length, 2);
                         assert.strictEqual(err.errors[0].args.length, 2);
                     });

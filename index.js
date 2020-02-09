@@ -556,12 +556,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
             if (this.retry_delay instanceof Error) {
                 error = this.retry_delay;
             }
-            var errorMessage = 'Redis connection in broken state: ';
-            if (this.retry_totaltime >= this.connect_timeout) {
-                errorMessage += 'connection timeout exceeded.';
-            } else {
-                errorMessage += 'maximum connection attempts exceeded.';
-            }
+
+            var errorMessage = 'Redis connection in broken state: retry aborted.';
 
             this.flush_and_error({
                 message: errorMessage,
@@ -581,13 +577,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
     }
 
     if (this.retry_totaltime >= this.connect_timeout) {
-        var message = 'Redis connection in broken state: ';
-        if (this.retry_totaltime >= this.connect_timeout) {
-            message += 'connection timeout exceeded.';
-        } else {
-            message += 'maximum connection attempts exceeded.';
-        }
-
+        var message = 'Redis connection in broken state: connection timeout exceeded.';
         this.flush_and_error({
             message: message,
             code: 'CONNECTION_BROKEN',
@@ -864,11 +854,9 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
             if (command_obj.args && command_obj.args.length) {
                 undefinedArgError.args = command_obj.args;
             }
-            if (command_obj.callback) {
-                command_obj.callback(undefinedArgError);
-                return false;
-            }
-            throw undefinedArgError;
+            // there is always a callback in this scenario
+            command_obj.callback(undefinedArgError);
+            return false;
         } else {
             // Seems like numbers are converted fast using string concatenation
             args_copy[i] = '' + args[i];
