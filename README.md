@@ -308,6 +308,7 @@ const assert = require("assert");
 
 const redis = require("redis");
 const { AbortError, AggregateError, ReplyError } = require("redis");
+
 const client = redis.createClient();
 
 client.on("error", function(err) {
@@ -565,21 +566,22 @@ can queue individual commands while still sending regular client command as in
 this example:
 
 ```js
-var redis = require("redis"),
-  client = redis.createClient(),
-  multi;
+const redis = require("redis");
+const client = redis.createClient();
 
 // start a separate multi command queue
-multi = client.multi();
-multi.incr("incr thing", redis.print);
-multi.incr("incr other thing", redis.print);
+const multi = client.multi();
 
-// runs immediately
-client.mset("incr thing", 100, "incr other thing", 1, redis.print);
+// add some commands to the queue
+multi.incr("count_cats", redis.print);
+multi.incr("count_dogs", redis.print);
 
-// drains multi queue and runs atomically
+// runs a command immediately outside of the `multi` instance
+client.mset("count_cats", 100, "count_dogs", 50, redis.print);
+
+// drains the multi queue and runs each command atomically
 multi.exec(function(err, replies) {
-  console.log(replies); // 101, 2
+  console.log(replies); // 101, 51
 });
 ```
 
@@ -587,43 +589,26 @@ In addition to adding commands to the `MULTI` queue individually, you can also
 pass an array of commands and arguments to the constructor:
 
 ```js
-var redis = require("redis"),
-  client = redis.createClient();
+const redis = require("redis");
+
+const client = redis.createClient();
 
 client
   .multi([
-    ["mget", "multifoo", "multibar", redis.print],
-    ["incr", "multifoo"],
-    ["incr", "multibar"],
+    ["mget", "foo", "bar", redis.print],
+    ["incr", "hello"],
   ])
   .exec(function(err, replies) {
     console.log(replies);
   });
 ```
 
-### Multi.exec_atomic([callback])
+#### Multi.exec_atomic([callback])
 
 Identical to Multi.exec but with the difference that executing a single command
 will not use transactions.
 
-## client.batch([commands])
-
-Identical to .multi without transactions. This is recommended if you want to
-execute many commands at once but don't have to rely on transactions.
-
-`BATCH` commands are queued up until an `EXEC` is issued, and then all commands
-are run atomically by Redis. The interface in `node_redis` is to return an
-individual `Batch` object by calling `client.batch()`. The only difference
-between .batch and .multi is that no transaction is going to be used.
-Be aware that the errors are - just like in multi statements - in the result.
-Otherwise both, errors and results could be returned at the same time.
-
-If you fire many commands at once this is going to boost the execution speed
-significantly compared to firing the same commands in a loop without waiting for
-the result! See the benchmarks for further comparison. Please remember that all
-commands are kept in memory until they are fired.
-
-## Optimistic Locks
+#### Optimistic Locks
 
 Using `multi` you can make sure your modifications run as a transaction, but you
 can't be sure you got there first. What if another client modified a key while
@@ -633,39 +618,39 @@ To solve this, Redis supports the [WATCH](https://redis.io/topics/transactions)
 command, which is meant to be used with MULTI:
 
 ```js
-var redis  = require("redis"),
-    client = redis.createClient({ ... });
+const redis = require("redis");
 
-client.watch("foo", function( err ){
-    if(err) throw err;
+const client = redis.createClient();
 
-    client.get("foo", function(err, result) {
-        if(err) throw err;
+client.watch("foo", function(watchError) {
+  if (watchError) throw watchError;
 
-        // Process result
-        // Heavy and time consuming operation here
+  client.get("foo", function(getError, result) {
+    if (getError) throw getError;
 
-        client.multi()
-            .set("foo", "some heavy computation")
-            .exec(function(err, results) {
+    // Process result
+    // Heavy and time consuming operation here to generate "bar"
 
-                /**
-                 * If err is null, it means Redis successfully attempted
-                 * the operation.
-                 */
-                if(err) throw err;
+    client
+      .multi()
+      .set("foo", "bar")
+      .exec(function(execError, results) {
+        /**
+         * If err is null, it means Redis successfully attempted
+         * the operation.
+         */
+        if (execError) throw err;
 
-                /**
-                 * If results === null, it means that a concurrent client
-                 * changed the key while we were processing it and thus
-                 * the execution of the MULTI command was not performed.
-                 *
-                 * NOTICE: Failing an execution of MULTI is not considered
-                 * an error. So you will have err === null and results === null
-                 */
-
-            });
-    });
+        /**
+         * If results === null, it means that a concurrent client
+         * changed the key while we were processing it and thus
+         * the execution of the MULTI command was not performed.
+         *
+         * NOTICE: Failing an execution of MULTI is not considered
+         * an error. So you will have err === null and results === null
+         */
+      });
+  });
 });
 ```
 
@@ -681,14 +666,18 @@ client cannot connect to Redis.
 An example where we can see the execution of a `multi` command fail is as follows:
 
 ```js
-let clients = {};
-clients.watcher = redis.createClient({ ... } );
-clients.alterer = clients.watcher.duplicate();
+const clients = {
+  watcher: redis.createClient(),
+  modifier: redis.createClient(),
+};
 
-clients.watcher.watch('foo',function(err) {
-  if (err) { throw err; }
-  //if you comment out the next line, the transaction will work
-  clients.alterer.set('foo',Math.random(), (err) => {if (err) { throw err; }});
+clients.watcher.watch("foo", function(watchError) {
+  if (watchError) throw watchError;
+
+  // if you comment out the next line, the transaction will work
+  clients.modifier.set("foo", Math.random(), setError => {
+    if (setError) throw err;
+  });
 
   //using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
   //Normally, you would use a callback to ensure order, but I want the above SET command
@@ -696,23 +685,25 @@ clients.watcher.watch('foo',function(err) {
   setTimeout(function() {
     clients.watcher
       .multi()
-      .set('foo','abc')
-      .set('bar','1234')
-      .exec((err,results) => {
-        if (err) { throw err; }
+      .set("foo", "bar")
+      .set("hello", "world")
+      .exec((multiExecError, results) => {
+        if (multiExecError) throw multiExecError;
+
         if (results === null) {
-          console.log('transaction aborted because results were null');
+          console.log("transaction aborted because results were null");
         } else {
-          console.log('transaction worked and returned',results)
+          console.log("transaction worked and returned", results);
         }
+
         clients.watcher.quit();
-        clients.alterer.quit();
+        clients.modifier.quit();
       });
-  },1000);
+  }, 1000);
 });
 ```
 
-### WATCH limitations
+#### `WATCH` limitations
 
 Redis WATCH works only on _whole_ key values. For example, with WATCH you can
 watch a hash for modifications, but you cannot watch a specific field of a hash.
@@ -721,31 +712,49 @@ The following example would watch the keys `foo` and `hello`, not the field `hel
 of hash `foo`:
 
 ```js
-var redis  = require("redis"),
-    client = redis.createClient({ ... });
+const redis = require("redis");
 
-client.hget( "foo", "hello", function(err, result){
+const client = redis.createClient();
 
-    //Do some processing with the value from this field and watch it after
+client.hget("foo", "hello", function(hashGetError, result) {
+  if (hashGetError) throw hashGetError;
 
-    client.watch("foo", "hello", function( err ){
-        if(err) throw err;
+  //Do some processing with the value from this field and watch it after
 
-         /**
-         * WRONG: This is now watching the keys 'foo' and 'hello'. It is not
-         * watching the field 'hello' of hash 'foo'. Because the key 'foo'
-         * refers to a hash, this command is now watching the entire hash
-         * for modifications.
-         */
-    });
-} )
+  client.watch("foo", "hello", function(watchError) {
+    if (watchError) throw watchError;
 
+    /**
+     * This is now watching the keys 'foo' and 'hello'. It is not
+     * watching the field 'hello' of hash 'foo'. Because the key 'foo'
+     * refers to a hash, this command is now watching the entire hash
+     * for modifications.
+     */
+  });
+});
 ```
 
-This limitation also applies to sets ( cannot watch individual set members )
+This limitation also applies to sets (you can not watch individual set members)
 and any other collections.
 
-## Monitor mode
+### client.batch([commands])
+
+Identical to `.multi()` without transactions. This is recommended if you want to
+execute many commands at once but don't need to rely on transactions.
+
+`BATCH` commands are queued up until an `EXEC` is issued, and then all commands
+are run atomically by Redis. The interface in `node_redis` is to return an
+individual `Batch` object by calling `client.batch()`. The only difference
+between .batch and .multi is that no transaction is going to be used.
+Be aware that the errors are - just like in multi statements - in the result.
+Otherwise both, errors and results could be returned at the same time.
+
+If you fire many commands at once this is going to boost the execution speed
+significantly compared to firing the same commands in a loop without waiting for
+the result! See the benchmarks for further comparison. Please remember that all
+commands are kept in memory until they are fired.
+
+### Monitor mode
 
 Redis supports the `MONITOR` command, which lets you see all commands received
 by the Redis server across all client connections, including from other client
@@ -756,25 +765,28 @@ connected to the server including the monitoring client itself. The callback for
 the `monitor` event takes a timestamp from the Redis server, an array of command
 arguments and the raw monitoring string.
 
-Example:
+#### Example:
 
 ```js
-var client = require("redis").createClient();
+const redis = require("redis");
+const client = redis.createClient();
+
 client.monitor(function(err, res) {
   console.log("Entering monitoring mode.");
 });
+
 client.set("foo", "bar");
 
-client.on("monitor", function(time, args, raw_reply) {
+client.on("monitor", function(time, args, rawReply) {
   console.log(time + ": " + args); // 1458910076.446514:['set', 'foo', 'bar']
 });
 ```
 
-# Extras
+## Extras
 
-Some other things you might like to know about.
+Some other things you might find useful.
 
-## client.server_info
+### `client.server_info`
 
 After the ready probe completes, the results from the INFO command are saved in
 the `client.server_info` object.
@@ -782,47 +794,45 @@ the `client.server_info` object.
 The `versions` key contains an array of the elements of the version string for
 easy comparison.
 
-    > client.server_info.redis_version
-    '2.3.0'
-    > client.server_info.versions
-    [ 2, 3, 0 ]
+```
+> client.server_info.redis_version
+'2.3.0'
+> client.server_info.versions
+[ 2, 3, 0 ]
+```
 
-## redis.print()
+### `redis.print()`
 
 A handy callback function for displaying return values when testing. Example:
 
 ```js
-var redis = require("redis"),
-  client = redis.createClient();
+const redis = require("redis");
+const client = redis.createClient();
 
 client.on("connect", function() {
-  client.set("foo_rand000000000000", "some fantastic value", redis.print);
-  client.get("foo_rand000000000000", redis.print);
+  client.set("foo", "bar", redis.print); // => "Reply: OK"
+  client.get("foo", redis.print); // => "Reply: bar"
+  client.quit();
 });
 ```
 
-This will print:
-
-    Reply: OK
-    Reply: some fantastic value
-
-Note that this program will not exit cleanly because the client is still connected.
-
-## Multi-word commands
+### Multi-word commands
 
 To execute redis multi-word commands like `SCRIPT LOAD` or `CLIENT LIST` pass
 the second word as first parameter:
 
 ```js
 client.script("load", "return 1");
+
 client
   .multi()
   .script("load", "return 1")
   .exec();
+
 client.multi([["script", "load", "return 1"]]).exec();
 ```
 
-## client.duplicate([options][, callback])
+### `client.duplicate([options][, callback])`
 
 Duplicate all current options and return a new redisClient instance. All options
 passed to the duplicate function are going to replace the original option. If
@@ -832,36 +842,13 @@ to return an error instead in the callback.
 
 One example of when to use duplicate() would be to accommodate the connection-
 blocking redis commands BRPOP, BLPOP, and BRPOPLPUSH. If these commands
-are used on the same redisClient instance as non-blocking commands, the
+are used on the same Redis client instance as non-blocking commands, the
 non-blocking ones may be queued up until after the blocking ones finish.
-
-```js
-var Redis = require("redis");
-var client = Redis.createClient();
-var clientBlocking = client.duplicate();
-
-var get = function() {
-  console.log("get called");
-  client.get("any_key", function() {
-    console.log("get returned");
-  });
-  setTimeout(get, 1000);
-};
-var brpop = function() {
-  console.log("brpop called");
-  clientBlocking.brpop("nonexistent", 5, function() {
-    console.log("brpop return");
-    setTimeout(brpop, 1000);
-  });
-};
-get();
-brpop();
-```
 
 Another reason to use duplicate() is when multiple DBs on the same server are
 accessed via the redis SELECT command. Each DB could use its own connection.
 
-## client.send_command(command_name[, [args][, callback]])
+### `client.send_command(command_name[, [args][, callback]])`
 
 All Redis commands have been added to the `client` object. However, if new
 commands are introduced before this library is updated or if you want to add
@@ -871,23 +858,23 @@ Redis.
 All commands are sent as multi-bulk commands. `args` can either be an Array of
 arguments, or omitted / set to undefined.
 
-## redis.add_command(command_name)
+### `redis.add_command(command_name)`
 
 Calling add_command will add a new command to the prototype. The exact command
 name will be used when calling using this new command. Using arbitrary arguments
 is possible as with any other command.
 
-## client.connected
+### `client.connected`
 
 Boolean tracking the state of the connection to the Redis server.
 
-## client.command_queue_length
+### `client.command_queue_length`
 
 The number of commands that have been sent to the Redis server but not yet
 replied to. You can use this to enforce some kind of maximum queue depth for
 commands while connected.
 
-## client.offline_queue_length
+### `client.offline_queue_length`
 
 The number of commands that have been queued up for a future connection. You can
 use this to enforce some kind of maximum queue depth for pre-connection
@@ -897,31 +884,32 @@ commands.
 
 This applies to anything that uses an optional `[WITHSCORES]` or `[LIMIT offset count]` in the [redis.io/commands](http://redis.io/commands) documentation.
 
-Example:
+#### Example
 
 ```js
-var args = ["myzset", 1, "one", 2, "two", 3, "three", 99, "ninety-nine"];
-client.zadd(args, function(err, response) {
-  if (err) throw err;
-  console.log("added " + response + " items.");
+const args = ["myzset", 1, "one", 2, "two", 3, "three", 99, "ninety-nine"];
+
+client.zadd(args, function(addError, addResponse) {
+  if (addError) throw addError;
+  console.log("added " + addResponse + " items.");
 
   // -Infinity and +Infinity also work
-  var args1 = ["myzset", "+inf", "-inf"];
-  client.zrevrangebyscore(args1, function(err, response) {
-    if (err) throw err;
-    console.log("example1", response);
-    // write your code here
+  const args1 = ["myzset", "+inf", "-inf"];
+  client.zrevrangebyscore(args1, function(rangeError, rangeResponse) {
+    if (rangeError) throw rangeError;
+    console.log("response1", rangeResponse);
+    // ...
   });
 
-  var max = 3,
-    min = 1,
-    offset = 1,
-    count = 2;
-  var args2 = ["myzset", max, min, "WITHSCORES", "LIMIT", offset, count];
-  client.zrevrangebyscore(args2, function(err, response) {
-    if (err) throw err;
-    console.log("example2", response);
-    // write your code here
+  const max = 3;
+  const min = 1;
+  const offset = 1;
+  const count = 2;
+  const args2 = ["myzset", max, min, "WITHSCORES", "LIMIT", offset, count];
+  client.zrevrangebyscore(args2, function(rangeError, rangeResponse) {
+    if (rangeError) throw rangeError;
+    console.log("response2", rangeResponse);
+    // ...
   });
 });
 ```
@@ -932,42 +920,42 @@ Much effort has been spent to make `node_redis` as fast as possible for common
 operations.
 
 ```
-Lenovo T450s, i7-5600U and 12gb memory
-clients: 1, NodeJS: 6.2.0, Redis: 3.2.0, parser: javascript, connected by: tcp
-         PING,         1/1 avg/max:   0.02/  5.26 2501ms total,   46916 ops/sec
-         PING,  batch 50/1 avg/max:   0.06/  4.35 2501ms total,  755178 ops/sec
-   SET 4B str,         1/1 avg/max:   0.02/  4.75 2501ms total,   40856 ops/sec
-   SET 4B str,  batch 50/1 avg/max:   0.11/  1.51 2501ms total,  432727 ops/sec
-   SET 4B buf,         1/1 avg/max:   0.05/  2.76 2501ms total,   20659 ops/sec
-   SET 4B buf,  batch 50/1 avg/max:   0.25/  1.76 2501ms total,  194962 ops/sec
-   GET 4B str,         1/1 avg/max:   0.02/  1.55 2501ms total,   45156 ops/sec
-   GET 4B str,  batch 50/1 avg/max:   0.09/  3.15 2501ms total,  524110 ops/sec
-   GET 4B buf,         1/1 avg/max:   0.02/  3.07 2501ms total,   44563 ops/sec
-   GET 4B buf,  batch 50/1 avg/max:   0.10/  3.18 2501ms total,  473171 ops/sec
- SET 4KiB str,         1/1 avg/max:   0.03/  1.54 2501ms total,   32627 ops/sec
- SET 4KiB str,  batch 50/1 avg/max:   0.34/  1.89 2501ms total,  146861 ops/sec
- SET 4KiB buf,         1/1 avg/max:   0.05/  2.85 2501ms total,   20688 ops/sec
- SET 4KiB buf,  batch 50/1 avg/max:   0.36/  1.83 2501ms total,  138165 ops/sec
- GET 4KiB str,         1/1 avg/max:   0.02/  1.37 2501ms total,   39389 ops/sec
- GET 4KiB str,  batch 50/1 avg/max:   0.24/  1.81 2501ms total,  208157 ops/sec
- GET 4KiB buf,         1/1 avg/max:   0.02/  2.63 2501ms total,   39918 ops/sec
- GET 4KiB buf,  batch 50/1 avg/max:   0.31/  8.56 2501ms total,  161575 ops/sec
-         INCR,         1/1 avg/max:   0.02/  4.69 2501ms total,   45685 ops/sec
-         INCR,  batch 50/1 avg/max:   0.09/  3.06 2501ms total,  539964 ops/sec
-        LPUSH,         1/1 avg/max:   0.02/  3.04 2501ms total,   41253 ops/sec
-        LPUSH,  batch 50/1 avg/max:   0.12/  1.94 2501ms total,  425090 ops/sec
-    LRANGE 10,         1/1 avg/max:   0.02/  2.28 2501ms total,   39850 ops/sec
-    LRANGE 10,  batch 50/1 avg/max:   0.25/  1.85 2501ms total,  194302 ops/sec
-   LRANGE 100,         1/1 avg/max:   0.05/  2.93 2501ms total,   21026 ops/sec
-   LRANGE 100,  batch 50/1 avg/max:   1.52/  2.89 2501ms total,   32767 ops/sec
- SET 4MiB str,         1/1 avg/max:   5.16/ 15.55 2502ms total,     193 ops/sec
- SET 4MiB str,  batch 20/1 avg/max:  89.73/ 99.96 2513ms total,     223 ops/sec
- SET 4MiB buf,         1/1 avg/max:   2.23/  8.35 2501ms total,     446 ops/sec
- SET 4MiB buf,  batch 20/1 avg/max:  41.47/ 50.91 2530ms total,     482 ops/sec
- GET 4MiB str,         1/1 avg/max:   2.79/ 10.91 2502ms total,     358 ops/sec
- GET 4MiB str,  batch 20/1 avg/max: 101.61/118.11 2541ms total,     197 ops/sec
- GET 4MiB buf,         1/1 avg/max:   2.32/ 14.93 2502ms total,     430 ops/sec
- GET 4MiB buf,  batch 20/1 avg/max:  65.01/ 84.72 2536ms total,     308 ops/sec
+Mac mini (2018), i7-3.2GHz and 32gb memory
+clients: 1, NodeJS: 12.15.0, Redis: 5.0.6, parser: javascript, connected by: tcp
+         PING,         1/1 avg/max:   0.03/  3.28 2501ms total,   31926 ops/sec
+         PING,  batch 50/1 avg/max:   0.08/  3.35 2501ms total,  599460 ops/sec
+   SET 4B str,         1/1 avg/max:   0.03/  3.54 2501ms total,   29483 ops/sec
+   SET 4B str,  batch 50/1 avg/max:   0.10/  1.39 2501ms total,  477689 ops/sec
+   SET 4B buf,         1/1 avg/max:   0.04/  1.52 2501ms total,   23449 ops/sec
+   SET 4B buf,  batch 50/1 avg/max:   0.20/  2.09 2501ms total,  244382 ops/sec
+   GET 4B str,         1/1 avg/max:   0.03/  1.35 2501ms total,   32205 ops/sec
+   GET 4B str,  batch 50/1 avg/max:   0.09/  2.02 2501ms total,  568992 ops/sec
+   GET 4B buf,         1/1 avg/max:   0.03/  2.93 2501ms total,   32802 ops/sec
+   GET 4B buf,  batch 50/1 avg/max:   0.08/  1.03 2501ms total,  592863 ops/sec
+ SET 4KiB str,         1/1 avg/max:   0.03/  0.76 2501ms total,   29287 ops/sec
+ SET 4KiB str,  batch 50/1 avg/max:   0.35/  2.97 2501ms total,  143163 ops/sec
+ SET 4KiB buf,         1/1 avg/max:   0.04/  1.21 2501ms total,   23070 ops/sec
+ SET 4KiB buf,  batch 50/1 avg/max:   0.28/  2.34 2501ms total,  176809 ops/sec
+ GET 4KiB str,         1/1 avg/max:   0.03/  1.54 2501ms total,   29555 ops/sec
+ GET 4KiB str,  batch 50/1 avg/max:   0.18/  1.59 2501ms total,  279188 ops/sec
+ GET 4KiB buf,         1/1 avg/max:   0.03/  1.80 2501ms total,   30681 ops/sec
+ GET 4KiB buf,  batch 50/1 avg/max:   0.17/  5.00 2501ms total,  285886 ops/sec
+         INCR,         1/1 avg/max:   0.03/  1.99 2501ms total,   32757 ops/sec
+         INCR,  batch 50/1 avg/max:   0.09/  2.54 2501ms total,  538964 ops/sec
+        LPUSH,         1/1 avg/max:   0.05/  4.85 2501ms total,   19482 ops/sec
+        LPUSH,  batch 50/1 avg/max:   0.12/  9.52 2501ms total,  395562 ops/sec
+    LRANGE 10,         1/1 avg/max:   0.06/  9.21 2501ms total,   17062 ops/sec
+    LRANGE 10,  batch 50/1 avg/max:   0.22/  1.03 2501ms total,  228269 ops/sec
+   LRANGE 100,         1/1 avg/max:   0.05/  1.44 2501ms total,   19051 ops/sec
+   LRANGE 100,  batch 50/1 avg/max:   0.99/  3.46 2501ms total,   50480 ops/sec
+ SET 4MiB str,         1/1 avg/max:   4.11/ 13.96 2501ms total,     243 ops/sec
+ SET 4MiB str,  batch 20/1 avg/max:  91.16/145.01 2553ms total,     219 ops/sec
+ SET 4MiB buf,         1/1 avg/max:   2.81/ 11.90 2502ms total,     354 ops/sec
+ SET 4MiB buf,  batch 20/1 avg/max:  36.21/ 70.96 2535ms total,     552 ops/sec
+ GET 4MiB str,         1/1 avg/max:   2.82/ 19.10 2503ms total,     354 ops/sec
+ GET 4MiB str,  batch 20/1 avg/max: 128.57/207.86 2572ms total,     156 ops/sec
+ GET 4MiB buf,         1/1 avg/max:   3.13/ 23.88 2501ms total,     318 ops/sec
+ GET 4MiB buf,  batch 20/1 avg/max:  65.91/ 87.59 2572ms total,     303 ops/sec
 ```
 
 ## Debugging
@@ -983,7 +971,8 @@ Good stack traces are only activated in development and debug mode as this
 results in a significant performance penalty.
 
 **_Comparison_**:
-Useless stack trace:
+ 
+Standard stack trace:
 
 ```
 ReplyError: ERR wrong number of arguments for 'set' command
@@ -991,7 +980,7 @@ ReplyError: ERR wrong number of arguments for 'set' command
     at parseType (/home/ruben/repos/redis/node_modules/redis-parser/lib/parser.js:219:14)
 ```
 
-Good stack trace:
+Debug stack trace:
 
 ```
 ReplyError: ERR wrong number of arguments for 'set' command
@@ -1009,20 +998,10 @@ ReplyError: ERR wrong number of arguments for 'set' command
     at processImmediate [as _immediateCallback] (timers.js:383:17)
 ```
 
-## How to Contribute
+## Contributing
 
-- Open a pull request or an issue about what you want to implement / change. We're glad for any help!
-- Please be aware that we'll only accept fully tested code.
-
-## Contributors
-
-The original author of node_redis is [Matthew Ranney](https://github.com/mranney)
-
-The current lead maintainer is [Ruben Bridgewater](https://github.com/BridgeAR)
-
-Many [others](https://github.com/NodeRedis/node_redis/graphs/contributors)
-contributed to `node_redis` too. Thanks to all of them!
+Please see the [contributing guide](CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE)
+This repository is licensed under the "MIT" license. See [LICENSE](LICENSE).
