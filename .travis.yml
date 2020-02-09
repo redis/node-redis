@@ -28,6 +28,7 @@ before_install:
         choco install redis-64
         redis-server --service-install
         redis-server --service-start
+        redis-cli config set stop-writes-on-bgsave-error no
     ;;
     esac
 
