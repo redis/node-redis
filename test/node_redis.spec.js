@@ -707,25 +707,6 @@ describe('The node_redis client', function () {
                     });
                 });
 
-                describe('idle', function () {
-                    it('emits idle as soon as there are no outstanding commands', function (done) {
-                        var end = helper.callFuncAfter(done, 2);
-                        client.on('warning', function (msg) {
-                            assert.strictEqual(
-                                msg,
-                                'The idle event listener is deprecated and will likely be removed in v.3.0.0.\n' +
-                                'If you rely on this feature please open a new ticket in node_redis with your use case'
-                            );
-                            end();
-                        });
-                        client.on('idle', function onIdle () {
-                            client.removeListener('idle', onIdle);
-                            client.get('foo', helper.isString('bar', end));
-                        });
-                        client.set('foo', 'bar');
-                    });
-                });
-
                 describe('utf8', function () {
                     it('handles utf-8 keys', function (done) {
                         var utf8_sample = 'ಠ_ಠ';
@@ -793,111 +774,6 @@ describe('The node_redis client', function () {
                 // });
             });
 
-            describe('socket_nodelay', function () {
-                describe('true', function () {
-                    var args = config.configureClient(parser, ip, {
-                        socket_nodelay: true
-                    });
-
-                    it("fires client.on('ready')", function (done) {
-                        client = redis.createClient.apply(null, args);
-                        client.on('ready', function () {
-                            assert.strictEqual(true, client.options.socket_nodelay);
-                            client.quit(done);
-                        });
-                    });
-
-                    it('client is functional', function (done) {
-                        client = redis.createClient.apply(null, args);
-                        client.on('ready', function () {
-                            assert.strictEqual(true, client.options.socket_nodelay);
-                            client.set(['set key 1', 'set val'], helper.isString('OK'));
-                            client.set(['set key 2', 'set val'], helper.isString('OK'));
-                            client.get(['set key 1'], helper.isString('set val'));
-                            client.get(['set key 2'], helper.isString('set val'));
-                            client.quit(done);
-                        });
-                    });
-                });
-
-                describe('false', function () {
-                    var args = config.configureClient(parser, ip, {
-                        socket_nodelay: false
-                    });
-
-                    it("fires client.on('ready')", function (done) {
-                        client = redis.createClient.apply(null, args);
-                        client.on('ready', function () {
-                            assert.strictEqual(false, client.options.socket_nodelay);
-                            client.quit(done);
-                        });
-                    });
-
-                    it('client is functional', function (done) {
-                        client = redis.createClient.apply(null, args);
-                        client.on('ready', function () {
-                            assert.strictEqual(false, client.options.socket_nodelay);
-                            client.set(['set key 1', 'set val'], helper.isString('OK'));
-                            client.set(['set key 2', 'set val'], helper.isString('OK'));
-                            client.get(['set key 1'], helper.isString('set val'));
-                            client.get(['set key 2'], helper.isString('set val'));
-                            client.quit(done);
-                        });
-                    });
-                });
-
-                describe('defaults to true', function () {
-
-                    it("fires client.on('ready')", function (done) {
-                        client = redis.createClient.apply(null, args);
-                        client.on('ready', function () {
-                            assert.strictEqual(true, client.options.socket_nodelay);
-                            client.quit(done);
-                        });
-                    });
-
-                    it('client is functional', function (done) {
-                        client = redis.createClient.apply(null, args);
-                        client.on('ready', function () {
-                            assert.strictEqual(true, client.options.socket_nodelay);
-                            client.set(['set key 1', 'set val'], helper.isString('OK'));
-                            client.set(['set key 2', 'set val'], helper.isString('OK'));
-                            client.get(['set key 1'], helper.isString('set val'));
-                            client.get(['set key 2'], helper.isString('set val'));
-                            client.quit(done);
-                        });
-                    });
-                });
-            });
-
-            describe('retry_max_delay', function () {
-                it('sets upper bound on how long client waits before reconnecting', function (done) {
-                    var time;
-                    var timeout = process.platform !== 'win32' ? 20 : 100;
-
-                    client = redis.createClient.apply(null, config.configureClient(parser, ip, {
-                        retry_max_delay: 1 // ms
-                    }));
-                    client.on('ready', function () {
-                        if (this.times_connected === 1) {
-                            this.stream.end();
-                            time = Date.now();
-                        } else {
-                            done();
-                        }
-                    });
-                    client.on('reconnecting', function () {
-                        time = Date.now() - time;
-                        assert(time < timeout, 'The reconnect should not have taken longer than ' + timeout + ' but it took ' + time);
-                    });
-                    client.on('error', function (err) {
-                        // This is rare but it might be triggered.
-                        // So let's have a robust test
-                        assert.strictEqual(err.code, 'ECONNRESET');
-                    });
-                });
-            });
-
             describe('protocol error', function () {
 
                 it('should gracefully recover and only fail on the already send commands', function (done) {
@@ -932,33 +808,9 @@ describe('The node_redis client', function () {
 
             describe('enable_offline_queue', function () {
                 describe('true', function () {
-                    it('should emit drain if offline queue is flushed and nothing to buffer', function (done) {
-                        client = redis.createClient({
-                            parser: parser,
-                            no_ready_check: true
-                        });
-                        var end = helper.callFuncAfter(done, 3);
-                        client.set('foo', 'bar');
-                        client.get('foo', end);
-                        client.on('warning', function (msg) {
-                            assert.strictEqual(
-                                msg,
-                                'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
-                                'If you want to keep on listening to this event please listen to the stream drain event directly.'
-                            );
-                            end();
-                        });
-                        client.on('drain', function () {
-                            assert(client.offline_queue.length === 0);
-                            end();
-                        });
-                    });
 
                     it('does not return an error and enqueues operation', function (done) {
-                        client = redis.createClient(9999, null, {
-                            max_attempts: 0,
-                            parser: parser
-                        });
+                        client = redis.createClient(9999, null);
                         var finished = false;
                         client.on('error', function (e) {
                             // ignore, b/c expecting a "can't connect" error
@@ -980,8 +832,12 @@ describe('The node_redis client', function () {
 
                     it('enqueues operation and keep the queue while trying to reconnect', function (done) {
                         client = redis.createClient(9999, null, {
-                            max_attempts: 4,
-                            parser: parser
+                            retry_strategy: function (options) {
+                                if (options.attempt > 4) {
+                                    return undefined;
+                                }
+                                return 100;
+                            },
                         });
                         var i = 0;
 
