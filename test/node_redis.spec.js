@@ -11,6 +11,22 @@ var fork = require('child_process').fork;
 var redis = config.redis;
 var client;
 
+// Currently Travis Windows builds hang after completing if any processes are still running,
+// we shutdown redis-server after all tests complete (can't do this in a
+// `after_script` Travis hook as it hangs before the `after` life cycles)
+// to workaround the issue.
+//
+// See: https://github.com/travis-ci/travis-ci/issues/8082
+after(function (done) {
+    if (process.platform !== 'win32' || !process.env.CI) {
+        return done();
+    }
+    process.nextTick(function () {
+        require('cross-spawn').sync('redis-server', ['--service-stop'], {});
+        done();
+    });
+});
+
 describe('The node_redis client', function () {
 
     describe("The 'add_command' method", function () {

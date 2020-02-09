@@ -12,7 +12,6 @@
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg?style=flat-square" alt="NPM downloads"></a>
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis.svg?style=flat-square" alt="NPM version"></a>
     <a href="https://travis-ci.org/NodeRedis/node-redis"><img src="https://travis-ci.org/NodeRedis/node-redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
-    <a href="https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master"><img src="https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?style=flat-square&label=Windows%20Tests" alt="Windows Tests" /></a>
     <a href="https://coveralls.io/r/NodeRedis/node-redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node-redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
     <a href="https://twitter.com/NodeRedis"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
 </p>
