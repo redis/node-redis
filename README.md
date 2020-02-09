@@ -11,9 +11,9 @@
 <p align="center">
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg?style=flat-square" alt="NPM downloads"></a>
     <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis.svg?style=flat-square" alt="NPM version"></a>
-    <a href="https://travis-ci.org/NodeRedis/node_redis"><img src="https://travis-ci.org/NodeRedis/node_redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
+    <a href="https://travis-ci.org/NodeRedis/node-redis"><img src="https://travis-ci.org/NodeRedis/node-redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
     <a href="https://ci.appveyor.com/project/BridgeAR/node-redis/branch/master"><img src="https://img.shields.io/appveyor/ci/BridgeAR/node-redis/master.svg?style=flat-square&label=Windows%20Tests" alt="Windows Tests" /></a>
-    <a href="https://coveralls.io/r/NodeRedis/node_redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node_redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
+    <a href="https://coveralls.io/r/NodeRedis/node-redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node-redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
     <a href="https://twitter.com/NodeRedis"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
 </p>
 
@@ -131,11 +131,11 @@ after losing the connection. Listeners are passed an object containing `delay`
 #### `"error"`
 
 `client` will emit `error` when encountering an error connecting to the Redis
-server or when any other in node_redis occurs. If you use a command without
+server or when any other in Node Redis occurs. If you use a command without
 callback and encounter a ReplyError it is going to be emitted to the error
 listener.
 
-So please attach the error listener to node_redis.
+So please attach the error listener to Node Redis.
 
 #### `"end"`
 
@@ -171,15 +171,15 @@ using unix sockets if possible to increase throughput.
 | port                       | 6379      | Port of the Redis server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | path                       | null      | The UNIX socket string of the Redis server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | url                        | null      | The URL of the Redis server. Format: `[redis[s]:]//[[user][:password@]][host][:port][/db-number][?db=db-number[&password=bar[&option=value]]]` (More info avaliable at [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)).                                                                                                                                                                                                                                                                                                                                       |
-| string_numbers             | null      | Set to `true`, `node_redis` will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option.                                                                                                                                                                                                       |
+| string_numbers             | null      | Set to `true`, Node Redis will return Redis number values as Strings instead of javascript Numbers. Useful if you need to handle big numbers (above `Number.MAX_SAFE_INTEGER === 2^53`). Hiredis is incapable of this behavior, so setting this option to `true` will result in the built-in javascript parser being used no matter the value of the `parser` option.                                                                                                                                                                                                       |
 | return_buffers             | false     | If set to `true`, then all replies will be sent to callbacks as Buffers instead of Strings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | detect_buffers             | false     | If set to `true`, then replies will be sent to callbacks as Buffers. This option lets you switch between Buffers and Strings on a per-command basis, whereas `return_buffers` applies to every command on a client. **Note**: This doesn't work properly with the pubsub mode. A subscriber has to either always return Strings or Buffers.                                                                                                                                                                                                                                   |
 | socket_keepalive           | true      | If set to `true`, the keep-alive functionality is enabled on the underlying socket.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | socket_initial_delay       | 0         | Initial Delay in milliseconds, and this will also behave the interval keep alive message sending to Redis.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| no_ready_check             | false     | When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, `node_redis` has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check.                                                                                     |
+| no_ready_check             | false     | When a connection is established to the Redis server, the server might still be loading the database from disk. While loading, the server will not respond to any commands. To work around this, Node Redis has a "ready check" which sends the `INFO` command to the server. The response from the `INFO` command indicates whether the server is ready for more commands. When ready, `node_redis` emits a `ready` event. Setting `no_ready_check` to `true` will inhibit this check.                                                                                     |
 | enable_offline_queue       | true      | By default, if there is no active connection to the Redis server, commands are added to a queue and are executed once the connection has been established. Setting `enable_offline_queue` to `false` will disable this feature and the callback will be executed immediately with an error, or an error will be emitted if no callback is specified.                                                                                                                                                                                                                          |
 | retry_unfulfilled_commands | false     | If set to `true`, all commands that were unfulfilled while the connection is lost will be retried after the connection has been reestablished. Use this with caution if you use state altering commands (e.g. `incr`). This is especially useful if you use blocking commands.                                                                                                                                                                                                                                                                                                |
-| password                   | null      | If set, client will run Redis auth command on connect. Alias `auth_pass` **Note** `node_redis` < 2.5 must use `auth_pass`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| password                   | null      | If set, client will run Redis auth command on connect. Alias `auth_pass` **Note** Node Redis < 2.5 must use `auth_pass`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | db                         | null      | If set, client will run Redis `select` command on connect.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | family                     | IPv4      | You can force using IPv6 if you set the family to 'IPv6'. See Node.js [net](https://nodejs.org/api/net.html) or [dns](https://nodejs.org/api/dns.html) modules on how to use the family type.                                                                                                                                                                                                                                                                                                                                                                                 |
 | disable_resubscribing      | false     | If set to `true`, a client won't resubscribe after disconnecting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -342,14 +342,14 @@ client.set("foo", "bar", "baz", function(err, res) {
 
 Every `ReplyError` contains the `command` name in all-caps and the arguments (`args`).
 
-If node_redis emits a library error because of another error, the triggering
+If Node Redis emits a library error because of another error, the triggering
 error is added to the returned error as `origin` attribute.
 
 **_Error codes_**
 
-node_redis returns a `NR_CLOSED` error code if the clients connection dropped.
+Node Redis returns a `NR_CLOSED` error code if the clients connection dropped.
 If a command unresolved command got rejected a `UNCERTAIN_STATE` code is
-returned. A `CONNECTION_BROKEN` error code is used in case node_redis gives up
+returned. A `CONNECTION_BROKEN` error code is used in case Node Redis gives up
 to reconnect.
 
 ### client.unref()
@@ -386,9 +386,8 @@ dealing with hash values, there are a couple of useful exceptions to this.
 
 #### client.hgetall(hash, callback)
 
-The reply from an `HGETALL` command will be converted into a JavaScript Object by
-`node_redis`. That way you can interact with the responses using JavaScript
-syntax.
+The reply from an `HGETALL` command will be converted into a JavaScript Object. That way you can interact with the 
+responses using JavaScript syntax.
 
 **Example:**
 
@@ -514,7 +513,7 @@ left subscriber mode and no more subscriber events will be emitted.
 ### client.multi([commands])
 
 `MULTI` commands are queued up until an `EXEC` is issued, and then all commands
-are run atomically by Redis. The interface in `node_redis` is to return an
+are run atomically by Redis. The interface returns an
 individual `Multi` object by calling `client.multi()`. If any command fails to
 queue, all commands are rolled back and none is going to be executed (For
 further information see the [Redis transactions](http://redis.io/topics/transactions) documentation).
@@ -743,7 +742,7 @@ Identical to `.multi()` without transactions. This is recommended if you want to
 execute many commands at once but don't need to rely on transactions.
 
 `BATCH` commands are queued up until an `EXEC` is issued, and then all commands
-are run atomically by Redis. The interface in `node_redis` is to return an
+are run atomically by Redis. The interface returns an
 individual `Batch` object by calling `client.batch()`. The only difference
 between .batch and .multi is that no transaction is going to be used.
 Be aware that the errors are - just like in multi statements - in the result.
@@ -916,8 +915,7 @@ client.zadd(args, function(addError, addResponse) {
 
 ## Performance
 
-Much effort has been spent to make `node_redis` as fast as possible for common
-operations.
+Much effort has been spent to make Node Redis as fast as possible for common operations.
 
 ```
 Mac mini (2018), i7-3.2GHz and 32gb memory
@@ -960,7 +958,7 @@ clients: 1, NodeJS: 12.15.0, Redis: 5.0.6, parser: javascript, connected by: tcp
 
 ## Debugging
 
-To get debug output run your `node_redis` application with `NODE_DEBUG=redis`.
+To get debug output run your Node Redis application with `NODE_DEBUG=redis`.
 
 This is also going to result in good stack traces opposed to useless ones
 otherwise for any async operation.
