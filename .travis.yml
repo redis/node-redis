@@ -19,6 +19,7 @@ addons:
 node_js:
   - "6"
   - "8"
+  - "10"
   - "12"
   - "13"
 
@@ -36,9 +37,8 @@ before_install:
     case $TRAVIS_OS_NAME in
       windows)
         choco install redis-64
-        C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe --service-install
-        C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe --service-start
-        '@ECHO Redis Started'
+        "C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe" --service-install
+        "C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe" --service-start
         node --version
         npm --version
     ;;
