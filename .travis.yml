@@ -5,17 +5,6 @@ os:
   - windows
   - linux
 
-env:
-  - CXX=g++-4.8 TRAVIS=true
-
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - g++-4.8
-
-
 node_js:
   - "6"
   - "8"
@@ -37,16 +26,14 @@ before_install:
     case $TRAVIS_OS_NAME in
       windows)
         choco install redis-64
-        "C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe" --service-install
-        "C:\ProgramData\chocolatey\lib\redis-64\tools\redis-server.exe" --service-start
-        node --version
-        npm --version
+        redis-server --service-install
+        redis-server --service-start
     ;;
     esac
 
 cache:
   directories:
-    - $HOME/AppData/Local/Temp/chocolatey
+    - "$HOME/AppData/Local/Temp/chocolatey"
     - "$TRAVIS_BUILD_DIR/stunnel-5.54"
 
 after_success: npm run coveralls
