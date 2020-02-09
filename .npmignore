@@ -17,3 +17,4 @@ CODE_OF_CONDUCT.md
 .travis.yml
 appveyor.yml
 package-lock.json
+.prettierrc

@@ -971,7 +971,7 @@ Good stack traces are only activated in development and debug mode as this
 results in a significant performance penalty.
 
 **_Comparison_**:
- 
+
 Standard stack trace:
 
 ```
