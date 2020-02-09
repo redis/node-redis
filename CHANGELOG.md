@@ -28,6 +28,7 @@ a lot of old deprecated features and old internals in preparation for an upcomin
 - Replaced `double-ended-queue` with `denque`, which brings performance improvements
 - Add timestamps to debug traces
 - Add `socket_initial_delay` option for `socket.setKeepAlive` (#1396)
+- Add support for `rediss` protocol in url (#1282)
 
 ## v2.8.0 - 31 Jul, 2017
 
