@@ -8,9 +8,9 @@ var uuid = require('uuid');
 
 describe("The 'getset' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var key, value, value2;
 
             beforeEach(function () {

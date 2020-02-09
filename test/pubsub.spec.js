@@ -7,9 +7,9 @@ var redis = config.redis;
 
 describe('publish/subscribe', function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var pub = null;
             var sub = null;
             var channel = 'test channel';

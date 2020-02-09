@@ -17,9 +17,9 @@ describe('rename commands', function () {
         });
     });
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client = null;
 
             beforeEach(function (done) {
@@ -29,7 +29,6 @@ describe('rename commands', function () {
                         set: '807081f5afa96845a02816a28b7258c3',
                         GETRANGE: '9e3102b15cf231c4e9e940f284744fe0'
                     },
-                    parser: parser
                 });
 
                 client.on('ready', function () {
@@ -124,7 +123,6 @@ describe('rename commands', function () {
                     rename_commands: {
                         set: '807081f5afa96845a02816a28b7258c3'
                     },
-                    parser: parser,
                     prefix: 'baz'
                 });
                 client.set('foo', 'bar');

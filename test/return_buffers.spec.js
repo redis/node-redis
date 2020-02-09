@@ -7,11 +7,11 @@ var redis = config.redis;
 
 describe('return_buffers', function () {
 
-    helper.allTests(function (parser, ip, basicArgs) {
+    helper.allTests(function (ip, basicArgs) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client;
-            var args = config.configureClient(parser, ip, {
+            var args = config.configureClient(ip, {
                 return_buffers: true,
                 detect_buffers: true
             });
@@ -243,7 +243,7 @@ describe('return_buffers', function () {
                 var channel = 'test channel';
                 var message = new Buffer('test message');
 
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     return_buffers: true
                 });
 

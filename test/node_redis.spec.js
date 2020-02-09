@@ -79,9 +79,9 @@ describe('The node_redis client', function () {
         client.stream.destroy();
     });
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
 
             afterEach(function () {
                 client.end(true);
@@ -375,7 +375,6 @@ describe('The node_redis client', function () {
 
                     it('should retry all commands instead of returning an error if a command did not yet return after a connection loss', function (done) {
                         var bclient = redis.createClient({
-                            parser: parser,
                             retry_unfulfilled_commands: true
                         });
                         bclient.blpop('blocking list 2', 5, function (err, value) {
@@ -394,7 +393,6 @@ describe('The node_redis client', function () {
 
                     it('should retry all commands even if the offline queue is disabled', function (done) {
                         var bclient = redis.createClient({
-                            parser: parser,
                             enableOfflineQueue: false,
                             retryUnfulfilledCommands: true
                         });
@@ -751,7 +749,7 @@ describe('The node_redis client', function () {
                     });
                 });
 
-                // TODO: consider allowing loading commands in v.3
+                // TODO: consider allowing loading commands in v.4
                 // it('should fire early', function (done) {
                 //     client = redis.createClient.apply(null, args);
                 //     var fired = false;
@@ -884,9 +882,7 @@ describe('The node_redis client', function () {
                     });
 
                     it('flushes the command queue if connection is lost', function (done) {
-                        client = redis.createClient({
-                            parser: parser
-                        });
+                        client = redis.createClient();
 
                         client.once('ready', function () {
                             var multi = client.multi();
@@ -938,7 +934,6 @@ describe('The node_redis client', function () {
 
                     it('stream not writable', function (done) {
                         client = redis.createClient({
-                            parser: parser,
                             enable_offline_queue: false
                         });
                         client.on('ready', function () {
@@ -952,7 +947,6 @@ describe('The node_redis client', function () {
 
                     it('emit an error and does not enqueues operation', function (done) {
                         client = redis.createClient(9999, null, {
-                            parser: parser,
                             max_attempts: 0,
                             enable_offline_queue: false
                         });
@@ -977,7 +971,6 @@ describe('The node_redis client', function () {
 
                     it('flushes the command queue if connection is lost', function (done) {
                         client = redis.createClient({
-                            parser: parser,
                             enable_offline_queue: false
                         });
 

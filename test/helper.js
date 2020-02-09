@@ -161,7 +161,6 @@ module.exports = {
             cb = opts;
             opts = {};
         }
-        var parsers = ['javascript'];
         var protocols = ['IPv4'];
         if (process.platform !== 'win32') {
             protocols.push('IPv6', '/tmp/redis.sock');
@@ -180,13 +179,11 @@ module.exports = {
                 }
             }
             describe('using options: ' + strOptions, function () {
-                parsers.forEach(function (parser) {
-                    protocols.forEach(function (ip, i) {
-                        if (i !== 0 && !opts.allConnections) {
-                            return;
-                        }
-                        cb(parser, ip, config.configureClient(parser, ip, options));
-                    });
+                protocols.forEach(function (ip, i) {
+                    if (i !== 0 && !opts.allConnections) {
+                        return;
+                    }
+                    cb(ip, config.configureClient(ip, options));
                 });
             });
         });
