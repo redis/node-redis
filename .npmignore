@@ -11,7 +11,8 @@ coverage/
 *.rdb
 *.out
 *.yml
-CHANGELOG.md
+.vscode
+.idea
 CONTRIBUTING.md
 CODE_OF_CONDUCT.md
 .travis.yml
