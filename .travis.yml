@@ -34,6 +34,7 @@ before_install:
 
 cache:
   directories:
+    - "$HOME/AppData/Local/Temp/chocolatey"
     - "$TRAVIS_BUILD_DIR/stunnel-5.54"
 
 before_script:
@@ -42,12 +43,5 @@ before_script:
   - if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
     sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
     fi
-after_script:
-  - |-
-    case $TRAVIS_OS_NAME in
-      windows)
-        redis-server --service-stop
-    ;;
-    esac
 
 after_success: npm run coveralls

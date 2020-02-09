@@ -11,6 +11,14 @@ var fork = require('child_process').fork;
 var redis = config.redis;
 var client;
 
+after(function (done) {
+    if (process.platform !== 'win32' || !process.env.CI) {
+        return done();
+    }
+    require('cross-spawn').sync('redis-server', ['--service-stop'], {});
+    done();
+});
+
 describe('The node_redis client', function () {
 
     describe("The 'add_command' method", function () {
