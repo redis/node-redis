@@ -2,8 +2,12 @@ language: node_js
 sudo: required
 
 os:
-  - windows
   - linux
+  - windows
+
+# fix travis windows hanging issue
+# https://travis-ci.community/t/build-doesnt-finish-after-completing-tests/288/25
+env: YARN_GPG=no
 
 node_js:
   - "6"
@@ -34,7 +38,6 @@ before_install:
 
 cache:
   directories:
-    - "$HOME/AppData/Local/Temp/chocolatey"
     - "$TRAVIS_BUILD_DIR/stunnel-5.54"
 
 after_success: npm run coveralls
