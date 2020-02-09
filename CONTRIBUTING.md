@@ -5,8 +5,8 @@ First, thank you for considering contributing to Node Redis! It's people like yo
 We welcome any type of contribution, not just code. You can help with;
 
 - **QA**: file bug reports, the more details you can give the better (e.g. platform versions, screenshots sdk versions & logs)
-- **Docs**: improve reference coverage, add more examples, fix typos or anything else you can spot. At the top of every page on our docs site you can click the `Edit` pencil to go to that pages markdown file, or view the [Docs Repo](https://github.com/invertase/react-native-firebase-docs) directly
-- **Code**: take a look at the open issues. Even if you can't write code, commenting on them, showing that you care about a given issue matters.
+- **Docs**: improve reference coverage, add more examples, fix typos or anything else you can spot.
+- **Code**: take a look at the open issues and help triage them.
 - **Donations**: we welcome financial contributions in full transparency on our [open collective](https://opencollective.com/node-redis).
 
 ---
