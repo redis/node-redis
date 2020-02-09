@@ -47,18 +47,18 @@ you'll need to use a callback.
 ### Promises
 
 Node Redis currently doesn't natively support promises (this is coming in v4), however you can wrap the methods you
-want to use with promises using the built-in Node.js `util.promisify` method on Node.js >= v8; 
+want to use with promises using the built-in Node.js `util.promisify` method on Node.js >= v8;
 
 ```js
 const { promisify } = require("util");
 const getAsync = promisify(client.get).bind(client);
 
-getAsync
-  .then(console.log)
-  .catch(console.error);
+getAsync.then(console.log).catch(console.error);
 ```
 
-### Sending Commands
+### Commands
+
+This library is a 1 to 1 mapping of the [Redis commands](https://redis.io/commands).
 
 Each Redis command is exposed as a function on the `client` object.
 All functions take either an `args` Array plus optional `callback` Function or
@@ -98,50 +98,35 @@ client.get("missingkey", function(err, reply) {
 });
 ```
 
-For a list of Redis commands, see [Redis Command Reference](http://redis.io/commands)
-
 Minimal parsing is done on the replies. Commands that return a integer return
 JavaScript Numbers, arrays return JavaScript Array. `HGETALL` returns an Object
 keyed by the hash keys. All strings will either be returned as string or as
 buffer depending on your setting. Please be aware that sending null, undefined
 and Boolean values will result in the value coerced to a string!
 
-# Redis Commands
+## API
 
-This library is a 1 to 1 mapping to [Redis commands](https://redis.io/commands).
-It is not a cache library so please refer to Redis commands page for full usage
-details.
-
-Example setting key to auto expire using [SET command](https://redis.io/commands/set)
-
-```js
-// this key will expire after 10 seconds
-client.set("key", "value!", "EX", 10);
-```
-
-# API
-
-## Connection and other Events
+### Connection and other Events
 
 `client` will emit some events about the state of the connection to the Redis server.
 
-### "ready"
+#### "ready"
 
 `client` will emit `ready` once a connection is established. Commands issued
 before the `ready` event are queued, then replayed just before this event is
 emitted.
 
-### "connect"
+#### "connect"
 
 `client` will emit `connect` as soon as the stream is connected to the server.
 
-### "reconnecting"
+#### "reconnecting"
 
 `client` will emit `reconnecting` when trying to reconnect to the Redis server
 after losing the connection. Listeners are passed an object containing `delay`
 (in ms from the previous try) and `attempt` (the attempt #) attributes.
 
-### "error"
+#### "error"
 
 `client` will emit `error` when encountering an error connecting to the Redis
 server or when any other in node_redis occurs. If you use a command without
@@ -150,16 +135,16 @@ listener.
 
 So please attach the error listener to node_redis.
 
-### "end"
+#### "end"
 
 `client` will emit `end` when an established Redis server connection has closed.
 
-### "warning"
+#### "warning"
 
 `client` will emit `warning` when password was set but none is needed and if a
 deprecated option / function / similar is used.
 
-## redis.createClient()
+### redis.createClient()
 
 If you have `redis-server` running on the same machine as node, then the
 defaults for port and host are probably fine and you don't need to supply any
@@ -201,9 +186,11 @@ using unix sockets if possible to increase throughput.
 | prefix                     | null      | A string used to prefix all used keys (e.g. `namespace:test`). Please be aware that the `keys` command will not be prefixed. The `keys` command has a "pattern" as argument and no key and it would be impossible to determine the existing keys in Redis if this would be prefixed.                                                                                                                                                                                                                                                                                          |
 | retry_strategy             | function  | A function that receives an options object as parameter including the retry `attempt`, the `total_retry_time` indicating how much time passed since the last time connected, the `error` why the connection was lost and the number of `times_connected` in total. If you return a number from this function, the retry will happen exactly after that time in milliseconds. If you return a non-number, no further retry will happen and all offline commands are flushed with errors. Return an error to return that specific error to all offline commands. Example below. |
 
+**`detect_buffers` example:**
+
 ```js
-var redis = require("redis");
-var client = redis.createClient({ detect_buffers: true });
+const redis = require("redis");
+const client = redis.createClient({ detect_buffers: true });
 
 client.set("foo_rand000000000000", "OK");
 
@@ -216,10 +203,9 @@ client.get("foo_rand000000000000", function(err, reply) {
 client.get(new Buffer("foo_rand000000000000"), function(err, reply) {
   console.log(reply.toString()); // Will print `<Buffer 4f 4b>`
 });
-client.quit();
 ```
 
-#### `retry_strategy` example
+**`retry_strategy` example:**
 
 ```js
 var client = redis.createClient({
@@ -244,7 +230,7 @@ var client = redis.createClient({
 });
 ```
 
-## client.auth(password[, callback])
+### client.auth(password[, callback])
 
 When connecting to a Redis server that requires authentication, the `AUTH`
 command must be sent as the first command after connecting. This can be tricky
@@ -256,19 +242,7 @@ NOTE: Your call to `client.auth()` should not be inside the ready handler. If
 you are doing this wrong, `client` will emit an error that looks
 something like this `Error: Ready check failed: ERR operation not permitted`.
 
-## backpressure
-
-### stream
-
-The client exposed the used [stream](https://nodejs.org/api/stream.html) in
-`client.stream` and if the stream or client had to
-[buffer](https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback)
-the command in `client.should_buffer`. In combination this can be used to
-implement backpressure by checking the buffer state before sending a command and
-listening to the stream
-[drain](https://nodejs.org/api/stream.html#stream_event_drain) event.
-
-## client.quit(callback)
+### client.quit(callback)
 
 This sends the quit command to the redis server and ends cleanly right after all
 running commands were properly handled. If this is called while reconnecting
@@ -276,7 +250,7 @@ running commands were properly handled. If this is called while reconnecting
 connection right away instead of resulting in further reconnections! All offline
 commands are going to be flushed with an error in that case.
 
-## client.end(flush)
+### client.end(flush)
 
 Forcibly close the connection to the Redis server. Note that this does not wait
 until all replies have been parsed. If you want to exit cleanly, call
@@ -290,25 +264,28 @@ This example closes the connection to the Redis server before the replies have
 been read. You probably don't want to do this:
 
 ```js
-var redis = require("redis"),
-  client = redis.createClient();
+const redis = require("redis");
+const client = redis.createClient();
 
-client.set("foo_rand000000000000", "some fantastic value", function(err, reply) {
+client.set("hello", "world", function(err) {
   // This will either result in an error (flush parameter is set to true)
   // or will silently fail and this callback will not be called at all (flush set to false)
-  console.log(err);
+  console.error(err);
 });
-client.end(true); // No further commands will be processed
-client.get("foo_rand000000000000", function(err, reply) {
-  console.log(err); // => 'The connection has already been closed.'
+
+// No further commands will be processed
+client.end(true);
+
+client.get("hello", function(err) {
+  console.error(err); // => 'The connection has already been closed.'
 });
 ```
 
 `client.end()` without the flush parameter set to true should NOT be used in production!
 
-## Error handling (>= v2.6)
+### Error Handling
 
-Currently the following error subclasses exist:
+Currently the following `Error` subclasses exist:
 
 - `RedisError`: _All errors_ returned by the client
 - `ReplyError` subclass of `RedisError`: All errors returned by **Redis** itself
@@ -322,30 +299,36 @@ Currently the following error subclasses exist:
 
 All error classes are exported by the module.
 
-Example:
+#### Example
 
 ```js
-var redis = require("./");
-var assert = require("assert");
-var client = redis.createClient();
+const assert = require("assert");
+
+const redis = require("redis");
+const { AbortError, AggregateError, ReplyError } = require("redis");
+const client = redis.createClient();
 
 client.on("error", function(err) {
   assert(err instanceof Error);
-  assert(err instanceof redis.AbortError);
-  assert(err instanceof redis.AggregateError);
-  // The set and get get aggregated in here
+  assert(err instanceof AbortError);
+  assert(err instanceof AggregateError);
+
+  // The set and get are aggregated in here
   assert.strictEqual(err.errors.length, 2);
   assert.strictEqual(err.code, "NR_CLOSED");
 });
-client.set("foo", 123, "bar", function(err, res) {
+
+client.set("foo", "bar", "baz", function(err, res) {
   // Too many arguments
-  assert(err instanceof redis.ReplyError); // => true
+  assert(err instanceof ReplyError); // => true
   assert.strictEqual(err.command, "SET");
   assert.deepStrictEqual(err.args, ["foo", 123, "bar"]);
 
   redis.debug_mode = true;
+
   client.set("foo", "bar");
   client.get("foo");
+
   process.nextTick(function() {
     // Force closing the connection while the command did not yet return
     client.end(true);
@@ -366,7 +349,7 @@ If a command unresolved command got rejected a `UNCERTAIN_STATE` code is
 returned. A `CONNECTION_BROKEN` error code is used in case node_redis gives up
 to reconnect.
 
-## client.unref()
+### client.unref()
 
 Call `unref()` on the underlying socket connection to the Redis server, allowing
 the program to exit once no more commands are pending.
@@ -376,34 +359,35 @@ protocol. Any commands where client state is saved on the Redis server, e.g.
 `*SUBSCRIBE` or the blocking `BL*` commands will _NOT_ work with `.unref()`.
 
 ```js
-var redis = require("redis");
-var client = redis.createClient();
+const redis = require("redis");
+const client = redis.createClient();
 
 /*
-    Calling unref() will allow this program to exit immediately after the get
-    command finishes. Otherwise the client would hang as long as the
-    client-server connection is alive.
-*/
+ * Calling unref() will allow this program to exit immediately after the get
+ * command finishes. Otherwise the client would hang as long as the
+ * client-server connection is alive.
+ */
 client.unref();
+
 client.get("foo", function(err, value) {
   if (err) throw err;
   console.log(value);
 });
 ```
 
-## Friendlier hash commands
+### Hash Commands
 
 Most Redis commands take a single String or an Array of Strings as arguments,
 and replies are sent back as a single String or an Array of Strings. When
 dealing with hash values, there are a couple of useful exceptions to this.
 
-### client.hgetall(hash, callback)
+#### client.hgetall(hash, callback)
 
-The reply from an HGETALL command will be converted into a JavaScript Object by
+The reply from an `HGETALL` command will be converted into a JavaScript Object by
 `node_redis`. That way you can interact with the responses using JavaScript
 syntax.
 
-Example:
+**Example:**
 
 ```js
 client.hmset("hosts", "mjr", "1", "another", "23", "home", "1234");
@@ -412,9 +396,11 @@ client.hgetall("hosts", function(err, obj) {
 });
 ```
 
-### client.hmset(hash, obj[, callback])
+#### client.hmset(hash, obj[, callback])
 
-Multiple values in a hash can be set by supplying an object:
+Multiple values in a hash can be set by supplying an object.
+
+**Example:**
 
 ```js
 client.HMSET(key2, {
@@ -426,15 +412,17 @@ client.HMSET(key2, {
 The properties and values of this Object will be set as keys and values in the
 Redis hash.
 
-### client.hmset(hash, key1, val1, ... keyn, valn, [callback])
+#### client.hmset(hash, key1, val1, ...keyN, valN, [callback])
 
-Multiple values may also be set by supplying a list:
+Multiple values may also be set by supplying more arguments.
+
+**Example:**
 
 ```js
 client.HMSET(key1, "0123456789", "abcdefghij", "some manner of key", "a type of value");
 ```
 
-## Publish / Subscribe
+### Publish / Subscribe
 
 Example of the publish / subscribe API. This program opens two
 client connections, subscribes to a channel on one of them, and publishes to that
