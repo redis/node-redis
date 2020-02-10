@@ -5,7 +5,7 @@ on: [pull_request]
 jobs:
   testing-windows:
     name: Test Windows
-    runs-on: windows
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
