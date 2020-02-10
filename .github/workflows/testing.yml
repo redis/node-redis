@@ -39,6 +39,8 @@ jobs:
 
       - name: Submit Coverage
         run: npm run coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v1
