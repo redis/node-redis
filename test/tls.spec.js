@@ -17,7 +17,7 @@ var tls_options = {
 
 var tls_port = 6380;
 // Use skip instead of returning to indicate what tests really got skipped
-var skip = true; // TODO just testing
+var skip = false;
 
 describe('TLS connection tests', function () {
 
