@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [6.x, 8.x, 10.x, 12.x, 13.x]
+        node-version: [6.x, 8.x, 10.x, 12.x]
         redis-version: [4.x, 5.x]
 
     steps:
