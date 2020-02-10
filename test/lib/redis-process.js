@@ -58,7 +58,10 @@ module.exports = {
         // capture a failure booting redis, and give
         // the user running the test some directions.
         rp.once('exit', function (code) {
-            if (code !== 0) spawnFailed = true;
+            if (code !== 0) {
+                spawnFailed = true;
+                throw new Error('TESTS: Redis Spawn Failed');
+            }
         });
 
         // wait for redis to become available, by

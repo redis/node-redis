@@ -18,7 +18,7 @@ var client;
 //
 // See: https://github.com/travis-ci/travis-ci/issues/8082
 after(function (done) {
-    if (process.platform !== 'win32' || !process.env.CI) {
+    if (process.platform !== 'win32' || !process.env.GITHUB_ACTION) {
         return done();
     }
     process.nextTick(function () {
