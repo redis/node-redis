@@ -565,7 +565,7 @@ RedisClient.prototype.connection_gone = function (why, error) {
             }, {
                 error: error
             });
-              var retryError = new Error(errorMessage);
+            var retryError = new Error(errorMessage);
             retryError.code = 'CONNECTION_BROKEN';
             if (error) {
                 retryError.origin = error;

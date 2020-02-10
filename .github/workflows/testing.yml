@@ -1,15 +1,15 @@
-name: Benchmarking
+name: Testing
 
 on: [pull_request]
 
 jobs:
-  benchmark:
-    name: Benchmark
+  testing:
+    name: Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [8.x, 10.x, 12.x, 13.x]
-        redis-version: [5]
+        node-version: [6.x, 8.x, 10.x, 12.x, 13.x]
+        redis-version: [3.x, 4.x, 5.x, 6.x]
 
     steps:
       - uses: actions/checkout@v1
@@ -27,11 +27,20 @@ jobs:
           redis-version: ${{ matrix.redis-version }}
           auto-start: "true"
 
-      - run: npm i --no-audit --prefer-offline
-      - name: Run Benchmark
-        run: npm run benchmark > benchmark-output.txt && cat benchmark-output.txt
-      - name: Upload Benchmark Result
+      - name: Setup Stunnel
+        run: sudo apt-get install stunnel4
+
+      - name: Install Packages
+        run: npm i --no-audit --prefer-offline
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Submit Coverage
+        run: npm run coveralls
+
+      - name: Upload Coverage Report
         uses: actions/upload-artifact@v1
         with:
-          name: benchmark-output.txt
-          path: benchmark-output.txt
+          name: coverage
+          path: coverage
