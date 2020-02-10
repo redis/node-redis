@@ -56,19 +56,7 @@ module.exports = {
                 return spawnFailed;
             },
             stop: function (done) {
-                if (spawnFailed) return done();
-                if (process.platform === 'win32') return done();
-                rp.once('exit', function (code) {
-                    var error = null;
-                    if (code !== null && code !== 0) {
-                        error = new Error('Redis shutdown failed with code ' + code);
-                    }
-                    waitForRedis(false, function () {
-                        return done(error);
-                    }, port);
-                });
-                rp.kill('SIGTERM');
-                require('cross-spawn').sync('killall', ['redis-server'], {});
+                return done();
             }
         });
         // spawn redis with our testing configuration.
@@ -105,6 +93,7 @@ module.exports = {
                         }, port);
                     });
                     rp.kill('SIGTERM');
+                    require('cross-spawn').sync('killall', ['redis-server'], {});
                 }
             });
         }, port);
