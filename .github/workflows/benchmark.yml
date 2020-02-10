@@ -21,10 +21,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Start Redis
-        uses: superchargejs/redis-github-action@v1
+      - name: Setup Redis
+        uses: shogo82148/actions-setup-redis@v1.0.1
         with:
           redis-version: ${{ matrix.redis-version }}
+          auto-start: "false"
 
       - run: npm i --no-audit --prefer-offline
       - run: npm benchmark | benchmark-output.txt
