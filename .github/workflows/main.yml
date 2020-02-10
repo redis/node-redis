@@ -8,19 +8,30 @@ jobs:
     name: ESLint
     runs-on: ubuntu-latest
     steps:
-    - name: ESLint Action
-      uses: hallee/eslint-action@1.0.1
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - run: npm ci --no-audit --prefer-offline
+      - uses: tinovyatkin/action-eslint@v1
+        with:
+          repo-token: ${{secrets.GITHUB_TOKEN}}
+          check-name: eslint
 
   benchmark:
+    name: Benchmark
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [8.x, 10.x, 12.x, 13.x]
-        redis-version: [3, 4, 5]
+        redis-version: [5]
 
     steps:
-    - name: Git checkout
-      uses: actions/checkout@v1
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
 
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
@@ -32,5 +43,5 @@ jobs:
       with:
         redis-version: ${{ matrix.redis-version }}
 
-    - run: npm install
+    - run: npm ci --no-audit --prefer-offline
     - run: npm benchmark
