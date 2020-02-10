@@ -21,6 +21,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install Redis
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install redis-64
+
+      - name: Start Redis
+        run: redis-server --service-install && redis-server --service-start && redis-cli config set stop-writes-on-bgsave-error no
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v1
         with:
