@@ -7,6 +7,7 @@ jobs:
     name: Benchmark
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node-version: [8.x, 10.x, 12.x, 13.x]
         redis-version: [5]
