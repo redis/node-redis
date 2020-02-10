@@ -28,6 +28,9 @@ jobs:
           redis-version: ${{ matrix.redis-version }}
           auto-start: "false"
 
+      - name: Disable IPv6
+        run: sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
+
       - name: Setup Stunnel
         run: sudo apt-get install stunnel4
 
