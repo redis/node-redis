@@ -10,7 +10,7 @@ if (process.platform === 'win32') {
     return;
 }
 
-describe('rename commands', function () {
+xdescribe('rename commands', function () {
     before(function (done) {
         helper.stopRedis(function () {
             helper.startRedis('./conf/rename.conf', done);

@@ -17,7 +17,7 @@ function waitForRedis (available, cb, port) {
     var running = false;
     var socket = '/tmp/redis.sock';
     if (port) {
-        // We have to distinguishe the redis sockets if we have more than a single redis instance running
+        // We have to distinguish the redis sockets if we have more than a single redis instance running
         socket = '/tmp/redis' + port + '.sock';
     }
     port = port || config.PORT;
