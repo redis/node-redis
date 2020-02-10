@@ -25,10 +25,10 @@ jobs:
         uses: shogo82148/actions-setup-redis@v1.0.1
         with:
           redis-version: ${{ matrix.redis-version }}
-          auto-start: "false"
+          auto-start: "true"
 
       - run: npm i --no-audit --prefer-offline
-      - run: npm benchmark | benchmark-output.txt
+      - run: npm benchmark > benchmark-output.txt
       - name: Upload Benchmark Result
         uses: actions/upload-artifact@v1
         with:
