@@ -12,20 +12,11 @@ if (process.platform === 'win32') {
 
 // TODO these tests are causing flakey tests - looks like redis-server is not
 //      being started with new configuration after or before these tests
-describe('rename commands', function () {
+xdescribe('rename commands', function () {
     before(function (done) {
         helper.stopRedis(function () {
             helper.startRedis('./conf/rename.conf', done);
         });
-    });
-
-    after(function (done) {
-        setTimeout(function () {
-            require('cross-spawn').sync('killall', ['redis-server'], {});
-            helper.stopRedis(function () {
-                helper.startRedis('./conf/redis.conf', done);
-            });
-        }, 2000);
     });
 
     helper.allTests(function (ip, args) {

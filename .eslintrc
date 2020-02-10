@@ -102,6 +102,7 @@ rules:
 globals:
   it: true
   describe: true
+  xdescribe: true
   before: true
   after: true
   beforeEach: true
