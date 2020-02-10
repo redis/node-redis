@@ -68,6 +68,7 @@ module.exports = {
                     }, port);
                 });
                 rp.kill('SIGTERM');
+                require('cross-spawn').sync('killall', ['redis-server'], {});
             }
         });
         // spawn redis with our testing configuration.
