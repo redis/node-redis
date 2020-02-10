@@ -51,7 +51,25 @@ function waitForRedis (available, cb, port) {
 module.exports = {
     start: function (done, conf, port) {
         var spawnFailed = false;
-        if (process.platform === 'win32') return done();
+        if (process.platform === 'win32') return done(null, {
+            spawnFailed: function () {
+                return spawnFailed;
+            },
+            stop: function (done) {
+                if (spawnFailed) return done();
+                if (process.platform === 'win32') return done();
+                rp.once('exit', function (code) {
+                    var error = null;
+                    if (code !== null && code !== 0) {
+                        error = new Error('Redis shutdown failed with code ' + code);
+                    }
+                    waitForRedis(false, function () {
+                        return done(error);
+                    }, port);
+                });
+                rp.kill('SIGTERM');
+            }
+        });
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
         var rp = spawn('redis-server', [confFile], {});
@@ -76,7 +94,6 @@ module.exports = {
                 },
                 stop: function (done) {
                     if (spawnFailed) return done();
-                    if (process.platform === 'win32') return done();
                     rp.once('exit', function (code) {
                         var error = null;
                         if (code !== null && code !== 0) {
