@@ -21,10 +21,10 @@ after(function (done) {
     if (process.platform !== 'win32' || !process.env.GITHUB_ACTION) {
         return done();
     }
-    process.nextTick(function () {
+    setTimeout(function () {
         require('cross-spawn').sync('redis-server', ['--service-stop'], {});
         done();
-    });
+    }, 2000);
 });
 
 describe('The node_redis client', function () {

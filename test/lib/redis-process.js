@@ -75,16 +75,18 @@ module.exports = {
                 },
                 stop: function (done) {
                     if (spawnFailed) return done();
-                    rp.once('exit', function (code) {
-                        var error = null;
-                        if (code !== null && code !== 0) {
-                            error = new Error('Redis shutdown failed with code ' + code);
-                        }
-                        waitForRedis(false, function () {
-                            return done(error);
-                        }, port);
-                    });
-                    rp.kill('SIGTERM');
+                    setTimeout(function () {
+                        rp.once('exit', function (code) {
+                            var error = null;
+                            if (code !== null && code !== 0) {
+                                error = new Error('Redis shutdown failed with code ' + code);
+                            }
+                            waitForRedis(false, function () {
+                                return done(error);
+                            }, port);
+                        });
+                        rp.kill('SIGTERM');
+                    }, 2000);
                 }
             });
         }, port);
