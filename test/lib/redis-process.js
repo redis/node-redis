@@ -50,6 +50,7 @@ function waitForRedis (available, cb, port) {
 
 module.exports = {
     start: function (done, conf, port) {
+        if (process.platform === 'win32') return done();
         var spawnFailed = false;
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
@@ -75,6 +76,7 @@ module.exports = {
                 },
                 stop: function (done) {
                     if (spawnFailed) return done();
+                    if (process.platform === 'win32') return done();
                     setTimeout(function () {
                         rp.once('exit', function (code) {
                             var error = null;
