@@ -18,7 +18,7 @@ jobs:
       - name: Install Redis
         uses: crazy-max/ghaction-chocolatey@v1
         with:
-          args: install redis-64
+          args: install redis-64 --no-progress
 
       - name: Start Redis
         run: |
