@@ -28,7 +28,7 @@ jobs:
           auto-start: "true"
 
       - run: npm i --no-audit --prefer-offline
-      - run: npm benchmark > benchmark-output.txt
+      - run: npm run benchmark > benchmark-output.txt
       - name: Upload Benchmark Result
         uses: actions/upload-artifact@v1
         with:
