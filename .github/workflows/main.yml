@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
    
@@ -15,10 +15,21 @@ jobs:
         with:
           node-version: 12
       - run: npm i --no-audit --prefer-offline
-      - uses: tinovyatkin/action-eslint@v1
+      - name: Test Code Linting
+        run: npm run lint
+      - name: Save Code Linting Report JSON
+        run: npm run lint:report
+        continue-on-error: true
+      - name: Annotate Code Linting Results
+        uses: ataylorme/eslint-annotate-action@1.0.4
         with:
-          repo-token: ${{secrets.GITHUB_TOKEN}}
-          check-name: eslint
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          report-json: "eslint-report.json"
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v1
+        with:
+          name: eslint-report.json
+          path: eslint-report.json
 
   benchmark:
     name: Benchmark
@@ -44,4 +55,9 @@ jobs:
         redis-version: ${{ matrix.redis-version }}
 
     - run: npm i --no-audit --prefer-offline
-    - run: npm benchmark
+    - run: npm benchmark | benchmark-output.txt
+    - name: Upload Benchmark Result
+      uses: actions/upload-artifact@v1
+      with:
+       name: benchmark-output.txt
+       path: benchmark-output.txt
