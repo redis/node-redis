@@ -9,10 +9,11 @@
 ---
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg?style=flat-square" alt="NPM downloads"></a>
-    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis.svg?style=flat-square" alt="NPM version"></a>
-    <a href="https://travis-ci.org/NodeRedis/node-redis"><img src="https://travis-ci.org/NodeRedis/node-redis.svg?style=flat-square&branch=master" alt="Build Status" /></a>
-    <a href="https://coveralls.io/r/NodeRedis/node-redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node-redis/badge.svg?style=flat-square&branch=" alt="Coverage Status" /></a>
+    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg" alt="NPM downloads"></a>
+    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis.svg" alt="NPM version"></a>
+    <a href="https://github.com/NodeRedis/node-redis/actions?query=workflow%3ATests"><img src="https://github.com/NodeRedis/node-redis/workflows/Tests/badge.svg" alt="Build Status" /></a>
+    <a href="https://github.com/NodeRedis/node-redis/actions?query=workflow%3A%22Tests+Windows%22"><img src="https://github.com/NodeRedis/node-redis/workflows/Tests%20Windows/badge.svg" alt="Windows Build Status" /></a>
+    <a href="https://coveralls.io/r/NodeRedis/node-redis?branch="><img src="https://coveralls.io/repos/NodeRedis/node-redis/badge.svg?branch=master" alt="Coverage Status" /></a>
     <a href="https://twitter.com/NodeRedis"><img src="https://img.shields.io/twitter/follow/NodeRedis.svg?style=flat-square&colorA=1da1f2&colorB=&label=Follow%20on%20Twitter" alt="Follow on Twitter"></a>
 </p>
 
