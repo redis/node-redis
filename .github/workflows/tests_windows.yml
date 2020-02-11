@@ -1,6 +1,6 @@
 name: Tests Windows
 
-on: [pull_request]
+on: [push]
 
 jobs:
   testing-windows:
