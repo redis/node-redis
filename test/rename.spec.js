@@ -10,7 +10,9 @@ if (process.platform === 'win32') {
     return;
 }
 
-describe('rename commands', function () {
+// TODO these tests are causing flakey tests - looks like redis-server is not
+//      being started with new configuration after or before these tests
+xdescribe('rename commands', function () {
     before(function (done) {
         helper.stopRedis(function () {
             helper.startRedis('./conf/rename.conf', done);

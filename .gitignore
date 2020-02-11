@@ -14,3 +14,4 @@ package-lock.json
 # VisualStudioCode IDEs
 .vscode
 .vs
+eslint-report.json

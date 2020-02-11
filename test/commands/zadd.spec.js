@@ -34,7 +34,11 @@ describe("The 'zadd' method", function () {
                 client.zrange('infinity', 0, -1, 'WITHSCORES', function (err, res) {
                     assert.equal(res[5], 'inf');
                     assert.equal(res[1], '-inf');
-                    assert.equal(res[3], '9.9999999999999992e+22');
+                    if (process.platform !== 'win32') {
+                        assert.equal(res[3], '9.9999999999999992e+22');
+                    } else {
+                        assert.equal(res[3], '9.9999999999999992e+022');
+                    }
                     done();
                 });
             });

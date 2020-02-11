@@ -1,0 +1,49 @@
+name: Tests Windows
+
+on: [pull_request]
+
+jobs:
+  testing-windows:
+    name: Test Windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [6.x, 8.x, 10.x, 12.x]
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - name: Install Redis
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install redis-64 --no-progress
+
+      - name: Start Redis
+        run: |
+          redis-server --service-install
+          redis-server --service-start
+          redis-cli config set stop-writes-on-bgsave-error no
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Packages
+        run: npm i --no-audit --prefer-offline
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Submit Coverage
+        run: npm run coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v1
+        with:
+          name: coverage
+          path: coverage

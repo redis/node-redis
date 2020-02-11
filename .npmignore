@@ -19,3 +19,4 @@ CODE_OF_CONDUCT.md
 appveyor.yml
 package-lock.json
 .prettierrc
+eslint-report.json

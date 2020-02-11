@@ -30,8 +30,10 @@
     "coveralls": "nyc report --reporter=text-lcov | coveralls",
     "coverage": "nyc report --reporter=html",
     "benchmark": "node benchmarks/multi_bench.js",
-    "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000",
-    "lint": "eslint . --fix && npm run coverage",
+    "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000 && npm run coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:report": "eslint --output-file=eslint-report.json --format=json  .",
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {

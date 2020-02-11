@@ -17,7 +17,7 @@ function waitForRedis (available, cb, port) {
     var running = false;
     var socket = '/tmp/redis.sock';
     if (port) {
-        // We have to distinguishe the redis sockets if we have more than a single redis instance running
+        // We have to distinguish the redis sockets if we have more than a single redis instance running
         socket = '/tmp/redis' + port + '.sock';
     }
     port = port || config.PORT;
@@ -51,6 +51,14 @@ function waitForRedis (available, cb, port) {
 module.exports = {
     start: function (done, conf, port) {
         var spawnFailed = false;
+        if (process.platform === 'win32') return done(null, {
+            spawnFailed: function () {
+                return spawnFailed;
+            },
+            stop: function (done) {
+                return done();
+            }
+        });
         // spawn redis with our testing configuration.
         var confFile = conf || path.resolve(__dirname, '../conf/redis.conf');
         var rp = spawn('redis-server', [confFile], {});
@@ -58,7 +66,10 @@ module.exports = {
         // capture a failure booting redis, and give
         // the user running the test some directions.
         rp.once('exit', function (code) {
-            if (code !== 0) spawnFailed = true;
+            if (code !== 0) {
+                spawnFailed = true;
+                throw new Error('TESTS: Redis Spawn Failed');
+            }
         });
 
         // wait for redis to become available, by

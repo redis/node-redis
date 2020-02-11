@@ -1,0 +1,38 @@
+name: Benchmarking
+
+on: [pull_request]
+
+jobs:
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [8.x, 10.x, 12.x]
+        redis-version: [5]
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Setup Redis
+        uses: shogo82148/actions-setup-redis@v1.0.1
+        with:
+          redis-version: ${{ matrix.redis-version }}
+          auto-start: "true"
+
+      - run: npm i --no-audit --prefer-offline
+      - name: Run Benchmark
+        run: npm run benchmark > benchmark-output.txt && cat benchmark-output.txt
+      - name: Upload Benchmark Result
+        uses: actions/upload-artifact@v1
+        with:
+          name: benchmark-output.txt
+          path: benchmark-output.txt
