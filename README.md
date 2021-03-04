@@ -394,7 +394,7 @@ responses using JavaScript syntax.
 ```js
 client.hmset("key", "foo", "bar", "hello", "world");
 
-client.hgetall("hosts", function(err, value) {
+client.hgetall("key", function(err, value) {
   console.log(value.foo); // > "bar"
   console.log(value.hello); // > "world"
 });
