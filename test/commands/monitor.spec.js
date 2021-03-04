@@ -8,7 +8,7 @@ var redis = config.redis;
 
 describe("The 'monitor' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
         var client;
 
@@ -62,7 +62,7 @@ describe("The 'monitor' method", function () {
                     end(err);
                 });
                 monitorClient.subscribe('foo', 'baz', function (err, res) {
-                    // The return value might change in v.3
+                    // The return value might change in v.4
                     // assert.strictEqual(res, 'baz');
                     // TODO: Fix the return value of subscribe calls
                     end(err);

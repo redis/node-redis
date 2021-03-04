@@ -5,10 +5,11 @@ var tls = require('tls');
 var util = require('util');
 var utils = require('./lib/utils');
 var Command = require('./lib/command');
-var Queue = require('double-ended-queue');
+var Queue = require('denque');
 var errorClasses = require('./lib/customErrors');
 var EventEmitter = require('events');
 var Parser = require('redis-parser');
+var RedisErrors = require('redis-errors');
 var commands = require('redis-commands');
 var debug = require('./lib/debug');
 var unifyOptions = require('./lib/createClient');
@@ -18,11 +19,6 @@ var SUBSCRIBE_COMMANDS = {
     psubscribe: true,
     punsubscribe: true
 };
-
-// Newer Node.js versions > 0.10 return the EventEmitter right away and using .EventEmitter was deprecated
-if (typeof EventEmitter !== 'function') {
-    EventEmitter = EventEmitter.EventEmitter;
-}
 
 function noop () {}
 
@@ -71,35 +67,17 @@ function RedisClient (options, stream) {
         cnx_options.family = (!options.family && net.isIP(cnx_options.host)) || (options.family === 'IPv6' ? 6 : 4);
         this.address = cnx_options.host + ':' + cnx_options.port;
     }
-    // Warn on misusing deprecated functions
-    if (typeof options.retry_strategy === 'function') {
-        if ('max_attempts' in options) {
-            self.warn('WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.');
-            // Do not print deprecation warnings twice
-            delete options.max_attempts;
-        }
-        if ('retry_max_delay' in options) {
-            self.warn('WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.');
-            // Do not print deprecation warnings twice
-            delete options.retry_max_delay;
-        }
-    }
 
     this.connection_options = cnx_options;
     this.connection_id = RedisClient.connection_id++;
     this.connected = false;
     this.ready = false;
-    if (options.socket_nodelay === undefined) {
-        options.socket_nodelay = true;
-    } else if (!options.socket_nodelay) { // Only warn users with this set to false
-        self.warn(
-            'socket_nodelay is deprecated and will be removed in v.3.0.0.\n' +
-            'Setting socket_nodelay to false likely results in a reduced throughput. Please use .batch for pipelining instead.\n' +
-            'If you are sure you rely on the NAGLE-algorithm you can activate it by calling client.stream.setNoDelay(false) instead.'
-        );
-    }
     if (options.socket_keepalive === undefined) {
         options.socket_keepalive = true;
+    }
+    if (options.socket_initial_delay === undefined) {
+        options.socket_initial_delay = 0;
+        // set default to 0, which is aligned to https://nodejs.org/api/net.html#net_socket_setkeepalive_enable_initialdelay
     }
     for (var command in options.rename_commands) {
         options.rename_commands[command.toLowerCase()] = options.rename_commands[command];
@@ -116,14 +94,6 @@ function RedisClient (options, stream) {
         this.handle_reply = handle_detect_buffers_reply;
     }
     this.should_buffer = false;
-    this.max_attempts = options.max_attempts | 0;
-    if ('max_attempts' in options) {
-        self.warn(
-            'max_attempts is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the number of options and to improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
-            'This replaces the max_attempts and retry_max_delay option.'
-        );
-    }
     this.command_queue = new Queue(); // Holds sent commands to de-pipeline them
     this.offline_queue = new Queue(); // Holds commands issued but not able to be sent
     this.pipeline_queue = new Queue(); // Holds all pipelined commands
@@ -131,14 +101,6 @@ function RedisClient (options, stream) {
     // This should be done by the retry_strategy. Instead it should only be the timeout for connecting to redis
     this.connect_timeout = +options.connect_timeout || 3600000; // 60 * 60 * 1000 ms
     this.enable_offline_queue = options.enable_offline_queue === false ? false : true;
-    this.retry_max_delay = +options.retry_max_delay || null;
-    if ('retry_max_delay' in options) {
-        self.warn(
-            'retry_max_delay is deprecated and will be removed in v.3.0.0.\n' +
-            'To reduce the amount of options and the improve the reconnection handling please use the new `retry_strategy` option instead.\n' +
-            'This replaces the max_attempts and retry_max_delay option.'
-        );
-    }
     this.initialize_retry_vars();
     this.pub_sub_mode = 0;
     this.subscription_set = {};
@@ -148,7 +110,6 @@ function RedisClient (options, stream) {
     this.server_info = {};
     this.auth_pass = options.auth_pass || options.password;
     this.selected_db = options.db; // Save the selected db here, used when reconnecting
-    this.old_state = null;
     this.fire_strings = true; // Determine if strings or buffers should be written to the stream
     this.pipeline = false;
     this.sub_commands_left = 0;
@@ -159,23 +120,7 @@ function RedisClient (options, stream) {
     this.create_stream();
     // The listeners will not be attached right away, so let's print the deprecation message while the listener is attached
     this.on('newListener', function (event) {
-        if (event === 'idle') {
-            this.warn(
-                'The idle event listener is deprecated and will likely be removed in v.3.0.0.\n' +
-                'If you rely on this feature please open a new ticket in node_redis with your use case'
-            );
-        } else if (event === 'drain') {
-            this.warn(
-                'The drain event listener is deprecated and will be removed in v.3.0.0.\n' +
-                'If you want to keep on listening to this event please listen to the stream drain event directly.'
-            );
-        } else if ((event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.message_buffers) {
-            if (this.reply_parser.name !== 'javascript') {
-                return this.warn(
-                    'You attached the "' + event + '" listener without the returnBuffers option set to true.\n' +
-                    'Please use the JavaScript parser or set the returnBuffers option to true to return buffers.'
-                );
-            }
+        if ((event === 'message_buffer' || event === 'pmessage_buffer' || event === 'messageBuffer' || event === 'pmessageBuffer') && !this.buffers && !this.message_buffers) {
             this.reply_parser.optionReturnBuffers = true;
             this.message_buffers = true;
             this.handle_reply = handle_detect_buffers_reply;
@@ -201,7 +146,7 @@ function create_parser (self) {
             err.message += '. Please report this.';
             self.ready = false;
             self.flush_and_error({
-                message: 'Fatal error encountert. Command aborted.',
+                message: 'Fatal error encountered. Command aborted.',
                 code: 'NR_FATAL'
             }, {
                 error: err,
@@ -211,7 +156,6 @@ function create_parser (self) {
             self.create_stream();
         },
         returnBuffers: self.buffers || self.message_buffers,
-        name: self.options.parser || 'javascript',
         stringNumbers: self.options.string_numbers || false
     });
 }
@@ -272,16 +216,9 @@ RedisClient.prototype.create_stream = function () {
         // The buffer_from_socket.toString() has a significant impact on big chunks and therefore this should only be used if necessary
         debug('Net read ' + self.address + ' id ' + self.connection_id); // + ': ' + buffer_from_socket.toString());
         self.reply_parser.execute(buffer_from_socket);
-        self.emit_idle();
     });
 
     this.stream.on('error', function (err) {
-        self.on_error(err);
-    });
-
-    /* istanbul ignore next: difficult to test and not important as long as we keep this listener */
-    this.stream.on('clientError', function (err) {
-        debug('clientError occured');
         self.on_error(err);
     });
 
@@ -297,9 +234,7 @@ RedisClient.prototype.create_stream = function () {
         self.drain();
     });
 
-    if (this.options.socket_nodelay) {
-        this.stream.setNoDelay();
-    }
+    this.stream.setNoDelay();
 
     // Fire the command before redis is connected to be sure it's the first fired command
     if (this.auth_pass !== undefined) {
@@ -401,7 +336,7 @@ RedisClient.prototype.on_error = function (err) {
     this.connected = false;
     this.ready = false;
 
-    // Only emit the error if the retry_stategy option is not set
+    // Only emit the error if the retry_strategy option is not set
     if (!this.options.retry_strategy) {
         this.emit('error', err);
     }
@@ -416,7 +351,7 @@ RedisClient.prototype.on_connect = function () {
     this.connected = true;
     this.ready = false;
     this.emitted_end = false;
-    this.stream.setKeepAlive(this.options.socket_keepalive);
+    this.stream.setKeepAlive(this.options.socket_keepalive, this.options.socket_initial_delay);
     this.stream.setTimeout(0);
 
     this.emit('connect');
@@ -621,25 +556,28 @@ RedisClient.prototype.connection_gone = function (why, error) {
             if (this.retry_delay instanceof Error) {
                 error = this.retry_delay;
             }
+
+            var errorMessage = 'Redis connection in broken state: retry aborted.';
+
             this.flush_and_error({
-                message: 'Stream connection ended and command aborted.',
-                code: 'NR_CLOSED'
+                message: errorMessage,
+                code: 'CONNECTION_BROKEN',
             }, {
                 error: error
             });
+            var retryError = new Error(errorMessage);
+            retryError.code = 'CONNECTION_BROKEN';
+            if (error) {
+                retryError.origin = error;
+            }
             this.end(false);
+            this.emit('error', retryError);
             return;
         }
     }
 
-    if (this.max_attempts !== 0 && this.attempts >= this.max_attempts || this.retry_totaltime >= this.connect_timeout) {
-        var message = 'Redis connection in broken state: ';
-        if (this.retry_totaltime >= this.connect_timeout) {
-            message += 'connection timeout exceeded.';
-        } else {
-            message += 'maximum connection attempts exceeded.';
-        }
-
+    if (this.retry_totaltime >= this.connect_timeout) {
+        var message = 'Redis connection in broken state: connection timeout exceeded.';
         this.flush_and_error({
             message: message,
             code: 'CONNECTION_BROKEN',
@@ -651,8 +589,8 @@ RedisClient.prototype.connection_gone = function (why, error) {
         if (error) {
             err.origin = error;
         }
-        this.emit('error', err);
         this.end(false);
+        this.emit('error', err);
         return;
     }
 
@@ -670,15 +608,12 @@ RedisClient.prototype.connection_gone = function (why, error) {
         });
     }
 
-    if (this.retry_max_delay !== null && this.retry_delay > this.retry_max_delay) {
-        this.retry_delay = this.retry_max_delay;
-    } else if (this.retry_totaltime + this.retry_delay > this.connect_timeout) {
+    if (this.retry_totaltime + this.retry_delay > this.connect_timeout) {
         // Do not exceed the maximum
         this.retry_delay = this.connect_timeout - this.retry_totaltime;
     }
 
     debug('Retry connection in ' + this.retry_delay + ' ms');
-
     this.retry_timer = setTimeout(retry_connection, this.retry_delay, this, error);
 };
 
@@ -707,14 +642,7 @@ RedisClient.prototype.return_error = function (err) {
 };
 
 RedisClient.prototype.drain = function () {
-    this.emit('drain');
     this.should_buffer = false;
-};
-
-RedisClient.prototype.emit_idle = function () {
-    if (this.command_queue.length === 0 && this.pub_sub_mode === 0) {
-        this.emit('idle');
-    }
 };
 
 function normal_reply (self, reply) {
@@ -766,7 +694,7 @@ function subscribe_unsubscribe (self, reply, type) {
         self.command_queue.shift();
         if (typeof command_obj.callback === 'function') {
             // TODO: The current return value is pretty useless.
-            // Evaluate to change this in v.3 to return all subscribed / unsubscribed channels in an array including the number of channels subscribed too
+            // Evaluate to change this in v.4 to return all subscribed / unsubscribed channels in an array including the number of channels subscribed too
             command_obj.callback(null, channel);
         }
         self.sub_commands_left = 0;
@@ -782,7 +710,7 @@ function subscribe_unsubscribe (self, reply, type) {
 function return_pub_sub (self, reply) {
     var type = reply[0].toString();
     if (type === 'message') { // channel, message
-        if (!self.options.return_buffers || self.message_buffers) { // backwards compatible. Refactor this in v.3 to always return a string on the normal emitter
+        if (!self.options.return_buffers || self.message_buffers) { // backwards compatible. Refactor this in v.4 to always return a string on the normal emitter
             self.emit('message', reply[1].toString(), reply[2].toString());
             self.emit('message_buffer', reply[1], reply[2]);
             self.emit('messageBuffer', reply[1], reply[2]);
@@ -790,7 +718,7 @@ function return_pub_sub (self, reply) {
             self.emit('message', reply[1], reply[2]);
         }
     } else if (type === 'pmessage') { // pattern, channel, message
-        if (!self.options.return_buffers || self.message_buffers) { // backwards compatible. Refactor this in v.3 to always return a string on the normal emitter
+        if (!self.options.return_buffers || self.message_buffers) { // backwards compatible. Refactor this in v.4 to always return a string on the normal emitter
             self.emit('pmessage', reply[1].toString(), reply[2].toString(), reply[3].toString());
             self.emit('pmessage_buffer', reply[1], reply[2], reply[3]);
             self.emit('pmessageBuffer', reply[1], reply[2], reply[3]);
@@ -891,39 +819,44 @@ RedisClient.prototype.internal_send_command = function (command_obj) {
             // 30000 seemed to be a good value to switch to buffers after testing and checking the pros and cons
             if (args[i].length > 30000) {
                 big_data = true;
-                args_copy[i] = new Buffer(args[i], 'utf8');
+                args_copy[i] = Buffer.from(args[i], 'utf8');
             } else {
                 args_copy[i] = args[i];
             }
         } else if (typeof args[i] === 'object') { // Checking for object instead of Buffer.isBuffer helps us finding data types that we can't handle properly
             if (args[i] instanceof Date) { // Accept dates as valid input
                 args_copy[i] = args[i].toString();
-            } else if (args[i] === null) {
-                this.warn(
-                    'Deprecated: The ' + command.toUpperCase() + ' command contains a "null" argument.\n' +
-                    'This is converted to a "null" string now and will return an error from v.3.0 on.\n' +
-                    'Please handle this in your code to make sure everything works as you intended it to.'
-                );
-                args_copy[i] = 'null'; // Backwards compatible :/
             } else if (Buffer.isBuffer(args[i])) {
                 args_copy[i] = args[i];
                 command_obj.buffer_args = true;
                 big_data = true;
             } else {
-                this.warn(
-                    'Deprecated: The ' + command.toUpperCase() + ' command contains a argument of type ' + args[i].constructor.name + '.\n' +
-                    'This is converted to "' + args[i].toString() + '" by using .toString() now and will return an error from v.3.0 on.\n' +
-                    'Please handle this in your code to make sure everything works as you intended it to.'
+                var invalidArgError = new Error(
+                    'node_redis: The ' + command.toUpperCase() + ' command contains a invalid argument type.\n' +
+                    'Only strings, dates and buffers are accepted. Please update your code to use valid argument types.'
                 );
-                args_copy[i] = args[i].toString(); // Backwards compatible :/
+                invalidArgError.command = command_obj.command.toUpperCase();
+                if (command_obj.args && command_obj.args.length) {
+                    invalidArgError.args = command_obj.args;
+                }
+                if (command_obj.callback) {
+                    command_obj.callback(invalidArgError);
+                    return false;
+                }
+                throw invalidArgError;
             }
         } else if (typeof args[i] === 'undefined') {
-            this.warn(
-                'Deprecated: The ' + command.toUpperCase() + ' command contains a "undefined" argument.\n' +
-                'This is converted to a "undefined" string now and will return an error from v.3.0 on.\n' +
-                'Please handle this in your code to make sure everything works as you intended it to.'
+            var undefinedArgError = new Error(
+                'node_redis: The ' + command.toUpperCase() + ' command contains a invalid argument type of "undefined".\n' +
+                'Only strings, dates and buffers are accepted. Please update your code to use valid argument types.'
             );
-            args_copy[i] = 'undefined'; // Backwards compatible :/
+            undefinedArgError.command = command_obj.command.toUpperCase();
+            if (command_obj.args && command_obj.args.length) {
+                undefinedArgError.args = command_obj.args;
+            }
+            // there is always a callback in this scenario
+            command_obj.callback(undefinedArgError);
+            return false;
         } else {
             // Seems like numbers are converted fast using string concatenation
             args_copy[i] = '' + args[i];
@@ -1092,9 +1025,9 @@ exports.RedisClient = RedisClient;
 exports.print = utils.print;
 exports.Multi = require('./lib/multi');
 exports.AbortError = errorClasses.AbortError;
-exports.RedisError = Parser.RedisError;
-exports.ParserError = Parser.ParserError;
-exports.ReplyError = Parser.ReplyError;
+exports.RedisError = RedisErrors.RedisError;
+exports.ParserError = RedisErrors.ParserError;
+exports.ReplyError = RedisErrors.ReplyError;
 exports.AggregateError = errorClasses.AggregateError;
 
 // Add all redis commands / node_redis api to the client

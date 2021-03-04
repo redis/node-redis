@@ -8,11 +8,11 @@ var redis = config.redis;
 
 describe("The 'script' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
         var command = 'return 99';
         var commandSha = crypto.createHash('sha1').update(command).digest('hex');
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client;
 
             beforeEach(function (done) {

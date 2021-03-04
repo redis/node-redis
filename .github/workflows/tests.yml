@@ -1,0 +1,52 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  testing:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [6.x, 8.x, 10.x, 12.x]
+        redis-version: [4.x, 5.x]
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Setup Redis
+        uses: shogo82148/actions-setup-redis@v1.0.1
+        with:
+          redis-version: ${{ matrix.redis-version }}
+          auto-start: "false"
+
+      - name: Disable IPv6
+        run: sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
+
+      - name: Setup Stunnel
+        run: sudo apt-get install stunnel4
+
+      - name: Install Packages
+        run: npm i --no-audit --prefer-offline
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Submit Coverage
+        run: npm run coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v1
+        with:
+          name: coverage
+          path: coverage

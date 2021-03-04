@@ -93,9 +93,9 @@ describe("The 'multi' method", function () {
 
     });
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
 
             describe('when not connected', function () {
 
@@ -219,17 +219,22 @@ describe("The 'multi' method", function () {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
-                        max_attempts: 1
+                        retry_strategy: function (options) {
+                            if (options.attempt > 1) {
+                                // End reconnecting with built in error
+                                return undefined;
+                            }
+                        }
                     });
 
                     client.on('error', function (err) {
-                        if (/Redis connection in broken state/.test(err.message)) {
+                        if (/Redis connection to somewhere:6379 failed/.test(err.origin.message)) {
                             done();
                         }
                     });
 
                     client.multi([['set', 'foo', 'bar'], ['get', 'foo']]).exec(function (err, res) {
-                        assert(/Redis connection in broken state/.test(err.message));
+                        assert(/Redis connection in broken state: retry aborted/.test(err.message));
                         assert.strictEqual(err.errors.length, 2);
                         assert.strictEqual(err.errors[0].args.length, 2);
                     });
@@ -239,12 +244,17 @@ describe("The 'multi' method", function () {
                     client = redis.createClient({
                         host: 'somewhere',
                         port: 6379,
-                        max_attempts: 1
+                        retry_strategy: function (options) {
+                            if (options.attempt > 1) {
+                                // End reconnecting with built in error
+                                return undefined;
+                            }
+                        }
                     });
 
                     client.on('error', function (err) {
                         // Results in multiple done calls if test fails
-                        if (/Redis connection in broken state/.test(err.message)) {
+                        if (/Redis connection to somewhere:6379 failed/.test(err.origin.message)) {
                             done();
                         }
                     });
@@ -379,12 +389,12 @@ describe("The 'multi' method", function () {
                         ['del', 'some set'],
                         ['smembers', 'some set']
                     ])
-                    .scard('some set')
-                    .exec(function (err, replies) {
-                        assert.strictEqual(4, replies[0].length);
-                        assert.strictEqual(0, replies[2].length);
-                        return done();
-                    });
+                        .scard('some set')
+                        .exec(function (err, replies) {
+                            assert.strictEqual(4, replies[0].length);
+                            assert.strictEqual(0, replies[2].length);
+                            return done();
+                        });
                 });
 
                 it('allows multiple operations to be performed using constructor with all kinds of syntax', function (done) {
@@ -406,30 +416,30 @@ describe("The 'multi' method", function () {
                         ['HMSET', 'multihmset', ['multibar', 'multibaz'], undefined], // undefined is used as a explicit not set callback variable
                         ['hmset', 'multihmset', ['multibar', 'multibaz'], helper.isString('OK')],
                     ])
-                    .hmget(now, 123456789, 'otherTypes')
-                    .hmget('key2', arr2, function noop () {})
-                    .hmget(['multihmset2', 'some manner of key', 'multibar3'])
-                    .mget('multifoo2', ['multifoo3', 'multifoo'], function (err, res) {
-                        assert(res[0], 'multifoo3');
-                        assert(res[1], 'multifoo');
-                        called = true;
-                    })
-                    .exec(function (err, replies) {
-                        assert(called);
-                        assert.equal(arr.length, 3);
-                        assert.equal(arr2.length, 2);
-                        assert.equal(arr3.length, 3);
-                        assert.equal(arr4.length, 3);
-                        assert.strictEqual(null, err);
-                        assert.equal(replies[10][1], '555');
-                        assert.equal(replies[11][0], 'a type of value');
-                        assert.strictEqual(replies[12][0], null);
-                        assert.equal(replies[12][1], 'test');
-                        assert.equal(replies[13][0], 'multibar2');
-                        assert.equal(replies[13].length, 3);
-                        assert.equal(replies.length, 14);
-                        return done();
-                    });
+                        .hmget(now, 123456789, 'otherTypes')
+                        .hmget('key2', arr2, function noop () {})
+                        .hmget(['multihmset2', 'some manner of key', 'multibar3'])
+                        .mget('multifoo2', ['multifoo3', 'multifoo'], function (err, res) {
+                            assert(res[0], 'multifoo3');
+                            assert(res[1], 'multifoo');
+                            called = true;
+                        })
+                        .exec(function (err, replies) {
+                            assert(called);
+                            assert.equal(arr.length, 3);
+                            assert.equal(arr2.length, 2);
+                            assert.equal(arr3.length, 3);
+                            assert.equal(arr4.length, 3);
+                            assert.strictEqual(null, err);
+                            assert.equal(replies[10][1], '555');
+                            assert.equal(replies[11][0], 'a type of value');
+                            assert.strictEqual(replies[12][0], null);
+                            assert.equal(replies[12][1], 'test');
+                            assert.equal(replies[13][0], 'multibar2');
+                            assert.equal(replies[13].length, 3);
+                            assert.equal(replies.length, 14);
+                            return done();
+                        });
                 });
 
                 it('converts a non string key to a string', function (done) {
@@ -505,11 +515,11 @@ describe("The 'multi' method", function () {
                         ['mget', ['multifoo', 'some', 'random value', 'keys']],
                         ['incr', 'multifoo']
                     ])
-                    .exec(function (err, replies) {
-                        assert.strictEqual(replies.length, 2);
-                        assert.strictEqual(replies[0].length, 4);
-                        return done();
-                    });
+                        .exec(function (err, replies) {
+                            assert.strictEqual(replies.length, 2);
+                            assert.strictEqual(replies[0].length, 4);
+                            return done();
+                        });
                 });
 
                 it('allows multiple operations to be performed on a hash', function (done) {

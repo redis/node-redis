@@ -7,9 +7,9 @@ var redis = config.redis;
 
 describe("The 'select' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             describe('when not connected', function () {
                 var client;
 
@@ -72,7 +72,7 @@ describe("The 'select' method", function () {
                             assert.strictEqual(client.selected_db, undefined, 'default db should be undefined');
                             client.select(9999, function (err) {
                                 assert.equal(err.code, 'ERR');
-                                assert.equal(err.message, 'ERR invalid DB index');
+                                assert((err.message === 'ERR DB index is out of range' || err.message === 'ERR invalid DB index'));
                                 done();
                             });
                         });
@@ -97,7 +97,7 @@ describe("The 'select' method", function () {
 
                             client.on('error', function (err) {
                                 assert.strictEqual(err.command, 'SELECT');
-                                assert.equal(err.message, 'ERR invalid DB index');
+                                assert((err.message === 'ERR DB index is out of range' || err.message === 'ERR invalid DB index'));
                                 done();
                             });
 

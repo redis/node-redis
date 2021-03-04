@@ -147,52 +147,17 @@ describe('connection tests', function () {
 
     });
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
 
             describe('on lost connection', function () {
-                it('emit an error after max retry attempts and do not try to reconnect afterwards', function (done) {
-                    var maxAttempts = 3;
-                    var options = {
-                        parser: parser,
-                        maxAttempts: maxAttempts
-                    };
-                    client = redis.createClient(options);
-                    assert.strictEqual(client.retryBackoff, 1.7);
-                    assert.strictEqual(client.retryDelay, 200);
-                    assert.strictEqual(Object.keys(options).length, 2);
-                    var calls = 0;
-
-                    client.once('ready', function () {
-                        helper.killConnection(client);
-                    });
-
-                    client.on('reconnecting', function (params) {
-                        calls++;
-                    });
-
-                    client.on('error', function (err) {
-                        if (/Redis connection in broken state: maximum connection attempts.*?exceeded./.test(err.message)) {
-                            process.nextTick(function () { // End is called after the error got emitted
-                                assert.strictEqual(calls, maxAttempts - 1);
-                                assert.strictEqual(client.emitted_end, true);
-                                assert.strictEqual(client.connected, false);
-                                assert.strictEqual(client.ready, false);
-                                assert.strictEqual(client.closing, true);
-                                done();
-                            });
-                        }
-                    });
-                });
-
                 it('emit an error after max retry timeout and do not try to reconnect afterwards', function (done) {
                     // TODO: Investigate why this test fails with windows. Reconnect is only triggered once
                     if (process.platform === 'win32') this.skip();
 
                     var connect_timeout = 600; // in ms
                     client = redis.createClient({
-                        parser: parser,
                         connect_timeout: connect_timeout
                     });
                     var time = 0;
@@ -223,7 +188,6 @@ describe('connection tests', function () {
                 it('end connection while retry is still ongoing', function (done) {
                     var connect_timeout = 1000; // in ms
                     client = redis.createClient({
-                        parser: parser,
                         connect_timeout: connect_timeout
                     });
 
@@ -271,16 +235,11 @@ describe('connection tests', function () {
                 });
 
                 it('retryStrategy used to reconnect with individual error', function (done) {
-                    var text = '';
-                    var unhookIntercept = intercept(function (data) {
-                        text += data;
-                        return '';
-                    });
                     client = redis.createClient({
                         retryStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
                                 client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
+                                    assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
                                     assert.strictEqual(err.origin.message, 'Connection timeout');
                                     done();
                                 });
@@ -289,17 +248,7 @@ describe('connection tests', function () {
                             }
                             return Math.min(options.attempt * 25, 200);
                         },
-                        maxAttempts: 5,
-                        retryMaxDelay: 123,
                         port: 9999
-                    });
-                    process.nextTick(function () {
-                        assert.strictEqual(
-                            text,
-                            'node_redis: WARNING: You activated the retry_strategy and max_attempts at the same time. This is not possible and max_attempts will be ignored.\n' +
-                            'node_redis: WARNING: You activated the retry_strategy and retry_max_delay at the same time. This is not possible and retry_max_delay will be ignored.\n'
-                        );
-                        unhookIntercept();
                     });
                 });
 
@@ -308,8 +257,8 @@ describe('connection tests', function () {
                         retry_strategy: function (options) {
                             if (options.total_retry_time > 150) {
                                 client.set('foo', 'bar', function (err, res) {
-                                    assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                                    assert.strictEqual(err.code, 'NR_CLOSED');
+                                    assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
+                                    assert.strictEqual(err.code, 'CONNECTION_BROKEN');
                                     assert.strictEqual(err.origin.code, 'ECONNREFUSED');
                                     done();
                                 });
@@ -337,11 +286,13 @@ describe('connection tests', function () {
                         client.stream.destroy();
                     }, 50);
                     client.on('error', function (err) {
-                        assert.strictEqual(err.code, 'NR_CLOSED');
-                        assert.strictEqual(err.message, 'Stream connection ended and command aborted.');
-                        unhookIntercept();
-                        redis.debugMode = false;
-                        done();
+                        if (err instanceof redis.AbortError) {
+                            assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
+                            assert.strictEqual(err.code, 'CONNECTION_BROKEN');
+                            unhookIntercept();
+                            redis.debugMode = false;
+                            done();
+                        }
                     });
                 });
             });
@@ -351,7 +302,6 @@ describe('connection tests', function () {
                 it('emit an error after the socket timeout exceeded the connect_timeout time', function (done) {
                     var connect_timeout = 500; // in ms
                     client = redis.createClient({
-                        parser: parser,
                         // Auto detect ipv4 and use non routable ip to trigger the timeout
                         host: '10.255.255.1',
                         connect_timeout: connect_timeout
@@ -376,7 +326,7 @@ describe('connection tests', function () {
                         var add = process.platform !== 'win32' ? 15 : 200;
                         var now = Date.now();
                         assert(now - time < connect_timeout + add, 'The real timeout time should be below ' + (connect_timeout + add) + 'ms but is: ' + (now - time));
-                         // Timers sometimes trigger early (e.g. 1ms to early)
+                        // Timers sometimes trigger early (e.g. 1ms to early)
                         assert(now - time >= connect_timeout - 5, 'The real timeout time should be above ' + connect_timeout + 'ms, but it is: ' + (now - time));
                         done();
                     });
@@ -384,7 +334,6 @@ describe('connection tests', function () {
 
                 it('use the system socket timeout if the connect_timeout has not been provided', function (done) {
                     client = redis.createClient({
-                        parser: parser,
                         host: '2001:db8::ff00:42:8329' // auto detect ip v6
                     });
                     assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
@@ -397,14 +346,25 @@ describe('connection tests', function () {
 
                 it('clears the socket timeout after a connection has been established', function (done) {
                     client = redis.createClient({
-                        parser: parser,
                         connect_timeout: 1000
                     });
                     process.nextTick(function () {
-                        assert.strictEqual(client.stream._idleTimeout, 1000);
+                        // node > 6
+                        var timeout = client.stream.timeout;
+                        // node <= 6
+                        if (timeout === undefined) timeout = client.stream._idleTimeout;
+                        assert.strictEqual(timeout, 1000);
                     });
                     client.on('connect', function () {
-                        assert.strictEqual(client.stream._idleTimeout, -1);
+                        // node > 6
+                        var expected = 0;
+                        var timeout = client.stream.timeout;
+                        // node <= 6
+                        if (timeout === undefined) {
+                            timeout = client.stream._idleTimeout;
+                            expected = -1;
+                        }
+                        assert.strictEqual(timeout, expected);
                         assert.strictEqual(client.stream.listeners('timeout').length, 0);
                         client.on('ready', done);
                     });
@@ -414,7 +374,6 @@ describe('connection tests', function () {
                     client = redis.createClient({
                         host: 'localhost',
                         port: '6379',
-                        parser: parser,
                         connect_timeout: 1000
                     });
 
@@ -427,7 +386,6 @@ describe('connection tests', function () {
                     }
                     client = redis.createClient({
                         path: '/tmp/redis.sock',
-                        parser: parser,
                         connect_timeout: 1000
                     });
 

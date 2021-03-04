@@ -7,14 +7,13 @@ var redis = config.redis;
 
 describe('prefix key names', function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client = null;
 
             beforeEach(function (done) {
                 client = redis.createClient({
-                    parser: parser,
                     prefix: 'test:prefix:'
                 });
                 client.on('ready', function () {

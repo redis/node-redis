@@ -8,7 +8,7 @@ var redis = config.redis;
 describe('detect_buffers', function () {
 
     var client;
-    var args = config.configureClient('javascript', 'localhost', {
+    var args = config.configureClient('localhost', {
         detect_buffers: true
     });
 

@@ -19,9 +19,9 @@ describe('client authentication', function () {
 
     helper.allTests({
         allConnections: true
-    }, function (parser, ip, args) {
+    }, function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var auth = 'porkchopsandwiches';
             var client = null;
 
@@ -133,7 +133,7 @@ describe('client authentication', function () {
             it('allows auth to be provided as config option for client', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     auth_pass: auth
                 });
                 client = redis.createClient.apply(null, args);
@@ -143,7 +143,7 @@ describe('client authentication', function () {
             it('allows auth and no_ready_check to be provided as config option for client', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     password: auth,
                     no_ready_check: true
                 });
@@ -154,7 +154,7 @@ describe('client authentication', function () {
             it('allows auth to be provided post-hoc with auth method', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var args = config.configureClient(parser, ip);
+                var args = config.configureClient(ip);
                 client = redis.createClient.apply(null, args);
                 client.auth(auth);
                 client.on('ready', done);
@@ -192,7 +192,7 @@ describe('client authentication', function () {
 
                 client = redis.createClient.apply(null, args);
                 var async = true;
-                client.auth(undefined, function (err, res) {
+                client.auth('undefined', function (err, res) {
                     assert.strictEqual(err.message, 'ERR invalid password');
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
@@ -217,7 +217,7 @@ describe('client authentication', function () {
             it('allows auth to be provided post-hoc with auth method again', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     auth_pass: auth
                 });
                 client = redis.createClient.apply(null, args);
@@ -229,7 +229,7 @@ describe('client authentication', function () {
             it('does not allow any commands to be processed if not authenticated using no_ready_check true', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     no_ready_check: true
                 });
                 client = redis.createClient.apply(null, args);
@@ -258,7 +258,6 @@ describe('client authentication', function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
                 client = redis.createClient({
                     password: 'wrong_password',
-                    parser: parser
                 });
                 client.once('error', function (err) {
                     assert.strictEqual(err.message, 'ERR invalid password');
@@ -269,7 +268,7 @@ describe('client authentication', function () {
             it('pubsub working with auth', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                var args = config.configureClient(parser, ip, {
+                var args = config.configureClient(ip, {
                     password: auth
                 });
                 client = redis.createClient.apply(null, args);
@@ -299,7 +298,7 @@ describe('client authentication', function () {
                 // returning the manipulated [error, result] from the callback.
                 // There should be a better solution though
 
-                var args = config.configureClient(parser, 'localhost', {
+                var args = config.configureClient('localhost', {
                     noReadyCheck: true
                 });
                 client = redis.createClient.apply(null, args);

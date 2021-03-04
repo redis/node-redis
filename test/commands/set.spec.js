@@ -8,9 +8,9 @@ var uuid = require('uuid');
 
 describe("The 'set' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var key, value;
 
             beforeEach(function () {
@@ -140,10 +140,18 @@ describe("The 'set' method", function () {
                         });
                     });
 
-                    // TODO: This test has to be refactored from v.3.0 on to expect an error instead
-                    it("converts null to 'null'", function (done) {
-                        client.set('foo', null);
-                        client.get('foo', helper.isString('null', done));
+                    it('errors if null value is passed', function (done) {
+                        try {
+                            client.set('foo', null);
+                            assert(false);
+                        } catch (error) {
+                            assert(/The SET command contains a invalid argument type./.test(error.message));
+                        }
+                        client.get('foo', helper.isNull(done));
+                    });
+
+                    it('calls callback with error if null value is passed', function (done) {
+                        client.set('foo', null, helper.isError(done));
                     });
 
                     it('emit an error with only the key set', function (done) {

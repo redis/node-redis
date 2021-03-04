@@ -8,9 +8,9 @@ var intercept = require('intercept-stdout');
 
 describe("The 'blpop' method", function () {
 
-    helper.allTests(function (parser, ip, args) {
+    helper.allTests(function (ip, args) {
 
-        describe('using ' + parser + ' and ' + ip, function () {
+        describe('using ' + ip, function () {
             var client;
             var bclient;
 
@@ -31,7 +31,7 @@ describe("The 'blpop' method", function () {
                 });
                 client.rpush('blocking list', 'initial value', helper.isNumber(1));
                 unhookIntercept();
-                assert(/^Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n$/.test(text));
+                assert(/Send 127\.0\.0\.1:6379 id [0-9]+: \*3\r\n\$5\r\nrpush\r\n\$13\r\nblocking list\r\n\$13\r\ninitial value\r\n\n$/.test(text));
                 redis.debug_mode = false;
                 bclient.blpop('blocking list', 0, function (err, value) {
                     assert.strictEqual(value[0], 'blocking list');
