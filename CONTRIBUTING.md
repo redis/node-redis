@@ -82,8 +82,12 @@ Working on your first Pull Request? You can learn how from this _free_ series,
 
 Node Redis has a full test suite with coverage setup.
 
-To run the tests use the `npm test` command. To check detailed coverage locally run the `npm run coverage` command after
+To run the tests, run `npm install` to install all dependencies, and then run `npm test`. To check detailed coverage locally run the `npm run coverage` command after
 testing and open the generated `./coverage/index.html` in your browser.
+
+Note that the test suite assumes that a few tools are installed in your environment, such as:
+- redis (make sure redis-server is not running when starting the tests, it's part of the test-suite to start it and you'll end up with a "port already in use" error)
+- stunnel (for TLS tests)
 
 ### Submitting code for review
 
