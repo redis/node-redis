@@ -75,7 +75,7 @@ describe('client authentication', function () {
 
                 client.once('error', function (err) {
                     assert.strictEqual(err.command, 'AUTH');
-                    assert.match(err.message, errors.invalidPassword);
+                    assert.ok(errors.invalidPassword.test(err.message));
                     return done();
                 });
 
@@ -89,7 +89,7 @@ describe('client authentication', function () {
 
                 client.auth('', function (err, res) {
                     assert.strictEqual(err.command, 'AUTH');
-                    assert.match(err.message, errors.invalidPassword);
+                    assert.ok(errors.invalidPassword.test(err.message));
                     done();
                 });
             });
@@ -194,7 +194,7 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 var async = true;
                 client.auth('undefined', function (err, res) {
-                    assert.match(err.message, errors.invalidPassword);
+                    assert.ok(errors.invaliodPassword.test(err.message));
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
                     async = false;
@@ -208,7 +208,7 @@ describe('client authentication', function () {
 
                 client = redis.createClient.apply(null, args);
                 client.on('error', function (err) {
-                    assert.match(err.message, errors.invalidPassword);
+                    assert.ok(errors.invalidPassword.test(err.message));
                     assert.strictEqual(err.command, 'AUTH');
                     done();
                 });
@@ -236,7 +236,7 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 client.on('ready', function () {
                     client.set('foo', 'bar', function (err, res) {
-                        assert.match(err.message, /^NOAUTH Authentication required\.(\r\n)?$/);
+                        assert.ok(/^NOAUTH Authentication required\.(\r\n)?$/.test(err.message));
                         assert.equal(err.code, 'NOAUTH');
                         assert.equal(err.command, 'SET');
                         done();
@@ -249,7 +249,7 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 client.on('error', function (err) {
                     assert.equal(err.code, 'NOAUTH');
-                    assert.match(err.message, /^Ready check failed: NOAUTH Authentication required\.(\r\n)?$/);
+                    assert.ok(/^Ready check failed: NOAUTH Authentication required\.(\r\n)?$/.test(err.message));
                     assert.equal(err.command, 'INFO');
                     done();
                 });
@@ -261,7 +261,7 @@ describe('client authentication', function () {
                     password: 'wrong_password',
                 });
                 client.once('error', function (err) {
-                    assert.match(err.message, errors.invalidPassword);
+                    assert.ok(errors.invalidPassword.test(err.message));
                     done();
                 });
             });
@@ -278,7 +278,7 @@ describe('client authentication', function () {
                     client.once('ready', function () {
                         assert.strictEqual(client.pub_sub_mode, 1);
                         client.get('foo', function (err, res) {
-                            assert.match(err.message, errors.subscribeUnsubscribeOnly);
+                            assert.ok(errors.subscribeUnsubscribeOnly.test(err.message));
                             done();
                         });
                     });

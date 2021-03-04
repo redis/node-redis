@@ -588,7 +588,7 @@ describe('publish/subscribe', function () {
                     });
                     // Get is forbidden
                     sub.get('foo', function (err, res) {
-                        assert.match(err.message, errors.subscribeUnsubscribeOnly);
+                        assert.ok(errors.subscribeUnsubscribeOnly.test(err.message));
                         assert.strictEqual(err.command, 'GET');
                     });
                     // Quit is allowed
@@ -598,7 +598,7 @@ describe('publish/subscribe', function () {
                 it('emit error if only pub sub commands are allowed without callback', function (done) {
                     sub.subscribe('channel');
                     sub.on('error', function (err) {
-                        assert.match(err.message, errors.subscribeUnsubscribeOnly);
+                        assert.ok(errors.subscribeUnsubscribeOnly.test(err.message));
                         assert.strictEqual(err.command, 'GET');
                         done();
                     });
