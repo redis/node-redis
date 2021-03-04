@@ -638,7 +638,7 @@ client.watch("foo", function(watchError) {
          * If err is null, it means Redis successfully attempted
          * the operation.
          */
-        if (execError) throw err;
+        if (execError) throw execError;
 
         /**
          * If results === null, it means that a concurrent client
@@ -675,7 +675,7 @@ clients.watcher.watch("foo", function(watchError) {
 
   // if you comment out the next line, the transaction will work
   clients.modifier.set("foo", Math.random(), setError => {
-    if (setError) throw err;
+    if (setError) throw setError;
   });
 
   // using a setTimeout here to ensure that the MULTI/EXEC will come after the SET.
