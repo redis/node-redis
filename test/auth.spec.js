@@ -194,7 +194,7 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 var async = true;
                 client.auth('undefined', function (err, res) {
-                    assert.ok(errors.invaliodPassword.test(err.message));
+                    assert.ok(errors.invalidPassword.test(err.message));
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
                     async = false;
