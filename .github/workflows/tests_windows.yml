@@ -27,7 +27,7 @@ jobs:
           redis-cli config set stop-writes-on-bgsave-error no
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2.1.15
+        uses: actions/setup-node@v2.1.5
         with:
           node-version: ${{ matrix.node-version }}
 
