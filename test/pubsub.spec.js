@@ -3,6 +3,7 @@
 var assert = require('assert');
 var config = require('./lib/config');
 var helper = require('./helper');
+var errors = require('./errors');
 var redis = config.redis;
 
 describe('publish/subscribe', function () {
@@ -587,7 +588,7 @@ describe('publish/subscribe', function () {
                     });
                     // Get is forbidden
                     sub.get('foo', function (err, res) {
-                        assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
+                        assert.match(err.message, errors.subscribeUnsubscribeOnly);
                         assert.strictEqual(err.command, 'GET');
                     });
                     // Quit is allowed
@@ -597,7 +598,7 @@ describe('publish/subscribe', function () {
                 it('emit error if only pub sub commands are allowed without callback', function (done) {
                     sub.subscribe('channel');
                     sub.on('error', function (err) {
-                        assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
+                        assert.match(err.message, errors.subscribeUnsubscribeOnly);
                         assert.strictEqual(err.command, 'GET');
                         done();
                     });
