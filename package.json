@@ -43,20 +43,20 @@
     "redis-parser": "^3.0.0"
   },
   "engines": {
-    "node": ">=6"
+    "node": ">=10"
   },
   "devDependencies": {
-    "prettier": "^1.19.1",
     "bluebird": "^3.7.2",
-    "coveralls": "^2.11.2",
-    "eslint": "^6.8.0",
+    "coveralls": "^3.1.0",
+    "cross-spawn": "^7.0.3",
+    "eslint": "^7.21.0",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.21",
-    "mocha": "^4.1.0",
-    "nyc": "^14.1.1",
+    "mocha": "^8.3.0",
+    "nyc": "^15.1.0",
+    "prettier": "^2.2.1",
     "tcp-port-used": "^1.0.1",
-    "uuid": "^3.4.0",
-    "cross-spawn": "^6.0.5"
+    "uuid": "^8.3.2"
   },
   "repository": {
     "type": "git",
