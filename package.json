@@ -37,8 +37,8 @@
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
-    "denque": "^1.4.1",
-    "redis-commands": "^1.5.0",
+    "denque": "^1.5.0",
+    "redis-commands": "^1.7.0",
     "redis-errors": "^1.2.0",
     "redis-parser": "^3.0.0"
   },
@@ -46,17 +46,17 @@
     "node": ">=6"
   },
   "devDependencies": {
-    "prettier": "^1.19.1",
     "bluebird": "^3.7.2",
-    "coveralls": "^2.11.2",
+    "coveralls": "^3.1.0",
+    "cross-spawn": "^6.0.5",
     "eslint": "^6.8.0",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.21",
-    "mocha": "^4.1.0",
+    "mocha": "^8.3.0",
     "nyc": "^14.1.1",
-    "tcp-port-used": "^1.0.1",
-    "uuid": "^3.4.0",
-    "cross-spawn": "^6.0.5"
+    "prettier": "^1.19.1",
+    "tcp-port-used": "^1.0.2",
+    "uuid": "^3.4.0"
   },
   "repository": {
     "type": "git",
