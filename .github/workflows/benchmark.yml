@@ -13,17 +13,17 @@ jobs:
         redis-version: [5]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
         with:
           fetch-depth: 1
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2.1.5
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1.0.1
+        uses: shogo82148/actions-setup-redis@v1.9.7
         with:
           redis-version: ${{ matrix.redis-version }}
           auto-start: "true"
@@ -32,7 +32,7 @@ jobs:
       - name: Run Benchmark
         run: npm run benchmark > benchmark-output.txt && cat benchmark-output.txt
       - name: Upload Benchmark Result
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2.2.2
         with:
           name: benchmark-output.txt
           path: benchmark-output.txt

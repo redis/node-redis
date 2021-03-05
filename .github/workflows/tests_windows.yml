@@ -11,14 +11,14 @@ jobs:
       matrix:
         node-version: [6.x, 8.x, 10.x, 12.x]
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
         with:
           fetch-depth: 1
 
       - name: Install Redis
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v1.4.0
         with:
-          args: install redis-64 --no-progress
+          args: install redis-64 --version=3.0.503 --no-progress
 
       - name: Start Redis
         run: |
@@ -27,7 +27,7 @@ jobs:
           redis-cli config set stop-writes-on-bgsave-error no
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2.1.5
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -43,7 +43,7 @@ jobs:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2.2.2
         with:
           name: coverage
           path: coverage
