@@ -52,7 +52,7 @@
     "eslint": "^7.21.0",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.21",
-    "mocha": "^8.3.0",
+    "mocha": "5.0.0",
     "nyc": "^15.1.0",
     "prettier": "^2.2.1",
     "tcp-port-used": "^1.0.1",
