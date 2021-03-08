@@ -90,8 +90,8 @@ describe("The 'monitor' method", function () {
 
             monitorClient.MONITOR(function (err, res) {
                 assert.strictEqual(monitorClient.monitoring, true);
-                assert.strictEqual(res.inspect(), new Buffer('OK').inspect());
-                monitorClient.mget('hello', new Buffer('world'));
+                assert.strictEqual(res.inspect(), Buffer.from('OK').inspect());
+                monitorClient.mget('hello', Buffer.from('world'));
             });
 
             monitorClient.on('monitor', function (time, args, rawOutput) {
