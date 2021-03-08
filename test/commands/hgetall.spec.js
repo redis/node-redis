@@ -50,7 +50,6 @@ describe("The 'hgetall' method", function () {
             });
 
             describe('binary client', function () {
-                var client;
                 var args = config.configureClient(ip, {
                     return_buffers: true
                 });

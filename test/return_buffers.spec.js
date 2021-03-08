@@ -40,6 +40,10 @@ describe('return_buffers', function () {
                 });
             });
 
+            afterEach(function () {
+                client.end(true);
+            });
+
             describe('get', function () {
                 describe('first argument is a string', function () {
                     it('returns a buffer', function (done) {

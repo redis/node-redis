@@ -83,6 +83,7 @@ describe('The node_redis client', function () {
         client.once('reconnecting', function () {
             process.nextTick(function () {
                 assert.strictEqual(client.reply_parser.buffer, null);
+                client.end(true);
                 done();
             });
         });
