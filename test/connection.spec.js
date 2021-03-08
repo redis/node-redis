@@ -14,6 +14,8 @@ describe('connection tests', function () {
         client = null;
     });
     afterEach(function () {
+        if (!client) return;
+
         client.end(true);
     });
 
