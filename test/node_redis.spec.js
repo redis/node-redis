@@ -532,11 +532,11 @@ describe('The node_redis client', function () {
 
                         // TODO: Investigate why this test is failing hard and killing mocha if using '/tmp/redis.sock'.
                         // Seems like something is wrong with nyc while passing a socket connection to create client!
-                        client = redis.createClient();
-                        client.quit(function () {
-                            client.get('foo', function (err, res) {
+                        var client2 = redis.createClient();
+                        client2.quit(function () {
+                            client2.get('foo', function (err, res) {
                                 assert.strictEqual(err.message, 'Stream connection ended and command aborted. It might have been processed.');
-                                assert.strictEqual(client.offline_queue.length, 0);
+                                assert.strictEqual(client2.offline_queue.length, 0);
                                 done();
                             });
                         });
@@ -703,6 +703,7 @@ describe('The node_redis client', function () {
                                     // Recreate client in domain so error handlers run this domain
                                     // Changed in: "error handler runs outside of its domain"
                                     //              https://github.com/nodejs/node/pull/26211
+                                    client.end(true); // make sure to close current client
                                     client = redis.createClient();
                                 }
                                 client.end(true);
