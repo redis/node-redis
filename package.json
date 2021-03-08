@@ -37,8 +37,8 @@
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
-    "denque": "^1.4.1",
-    "redis-commands": "^1.5.0",
+    "denque": "^1.5.0",
+    "redis-commands": "^1.7.0",
     "redis-errors": "^1.2.0",
     "redis-parser": "^3.0.0"
   },
