@@ -41,6 +41,7 @@ jobs:
         run: npm test
 
       - name: Submit Coverage
+        if: success() && github.ref == 'refs/heads/master'
         run: npm run coveralls
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
