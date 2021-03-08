@@ -30,15 +30,15 @@ describe("The 'hset' method", function () {
 
             it('handles an empty value', function (done) {
                 var field = Buffer.from('0123456789');
-                var value = Buffer.from(0);
+                var value = Buffer.alloc(0);
 
                 client.HSET(hash, field, value, helper.isNumber(1));
                 client.HGET([hash, field], helper.isString('', done));
             });
 
             it('handles empty key and value', function (done) {
-                var field = Buffer.from(0);
-                var value = Buffer.from(0);
+                var field = Buffer.alloc(0);
+                var value = Buffer.alloc(0);
                 client.HSET([hash, field, value], function (err, res) {
                     assert.strictEqual(res, 1);
                     client.HSET(hash, field, value, helper.isNumber(0, done));
