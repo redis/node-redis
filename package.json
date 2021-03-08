@@ -30,33 +30,33 @@
     "coveralls": "nyc report --reporter=text-lcov | coveralls",
     "coverage": "nyc report --reporter=html",
     "benchmark": "node benchmarks/multi_bench.js",
-    "test": "nyc --cache mocha ./test/*.js ./test/commands/*.js --timeout=8000 && npm run coverage",
+    "test": "nyc --cache mocha ./test/*.spec.js ./test/commands/*.spec.js --timeout=8000 && npm run coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:report": "eslint --output-file=eslint-report.json --format=json  .",
     "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
   },
   "dependencies": {
-    "denque": "^1.4.1",
-    "redis-commands": "^1.5.0",
+    "denque": "^1.5.0",
+    "redis-commands": "^1.7.0",
     "redis-errors": "^1.2.0",
     "redis-parser": "^3.0.0"
   },
   "engines": {
-    "node": ">=6"
+    "node": ">=10"
   },
   "devDependencies": {
-    "prettier": "^1.19.1",
     "bluebird": "^3.7.2",
-    "coveralls": "^2.11.2",
-    "eslint": "^6.8.0",
+    "coveralls": "^3.1.0",
+    "cross-spawn": "^7.0.3",
+    "eslint": "^7.21.0",
     "intercept-stdout": "~0.1.2",
     "metrics": "^0.1.21",
-    "mocha": "^4.1.0",
-    "nyc": "^14.1.1",
+    "mocha": "^8.3.0",
+    "nyc": "^15.1.0",
+    "prettier": "^2.2.1",
     "tcp-port-used": "^1.0.1",
-    "uuid": "^3.4.0",
-    "cross-spawn": "^6.0.5"
+    "uuid": "^8.3.2"
   },
   "repository": {
     "type": "git",

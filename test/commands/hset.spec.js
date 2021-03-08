@@ -21,24 +21,24 @@ describe("The 'hset' method", function () {
             });
 
             it('allows a value to be set in a hash', function (done) {
-                var field = new Buffer('0123456789');
-                var value = new Buffer('abcdefghij');
+                var field = Buffer.from('0123456789');
+                var value = Buffer.from('abcdefghij');
 
                 client.hset(hash, field, value, helper.isNumber(1));
                 client.HGET(hash, field, helper.isString(value.toString(), done));
             });
 
             it('handles an empty value', function (done) {
-                var field = new Buffer('0123456789');
-                var value = new Buffer(0);
+                var field = Buffer.from('0123456789');
+                var value = Buffer.alloc(0);
 
                 client.HSET(hash, field, value, helper.isNumber(1));
                 client.HGET([hash, field], helper.isString('', done));
             });
 
             it('handles empty key and value', function (done) {
-                var field = new Buffer(0);
-                var value = new Buffer(0);
+                var field = Buffer.alloc(0);
+                var value = Buffer.alloc(0);
                 client.HSET([hash, field, value], function (err, res) {
                     assert.strictEqual(res, 1);
                     client.HSET(hash, field, value, helper.isNumber(0, done));
@@ -60,7 +60,7 @@ describe("The 'hset' method", function () {
             it('does not error when a buffer and date are set as values on the same hash', function (done) {
                 var hash = 'test hash';
                 var field1 = 'buffer';
-                var value1 = new Buffer('abcdefghij');
+                var value1 = Buffer.from('abcdefghij');
                 var field2 = 'date';
                 var value2 = new Date();
 
@@ -70,7 +70,7 @@ describe("The 'hset' method", function () {
             it('does not error when a buffer and date are set as fields on the same hash', function (done) {
                 var hash = 'test hash';
                 var value1 = 'buffer';
-                var field1 = new Buffer('abcdefghij');
+                var field1 = Buffer.from('abcdefghij');
                 var value2 = 'date';
                 var field2 = new Date();
 

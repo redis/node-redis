@@ -14,6 +14,8 @@ describe('connection tests', function () {
         client = null;
     });
     afterEach(function () {
+        if (!client) return;
+
         client.end(true);
     });
 
@@ -238,7 +240,8 @@ describe('connection tests', function () {
                     client = redis.createClient({
                         retryStrategy: function (options) {
                             if (options.totalRetryTime > 150) {
-                                client.set('foo', 'bar', function (err, res) {
+                                client.set('foo', 'bar');
+                                client.once('error', function (err) {
                                     assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
                                     assert.strictEqual(err.origin.message, 'Connection timeout');
                                     done();
@@ -256,7 +259,8 @@ describe('connection tests', function () {
                     client = redis.createClient({
                         retry_strategy: function (options) {
                             if (options.total_retry_time > 150) {
-                                client.set('foo', 'bar', function (err, res) {
+                                client.set('foo', 'bar');
+                                client.once('error', function (err) {
                                     assert.strictEqual(err.message, 'Redis connection in broken state: retry aborted.');
                                     assert.strictEqual(err.code, 'CONNECTION_BROKEN');
                                     assert.strictEqual(err.origin.code, 'ECONNREFUSED');
@@ -334,9 +338,10 @@ describe('connection tests', function () {
 
                 it('use the system socket timeout if the connect_timeout has not been provided', function (done) {
                     client = redis.createClient({
-                        host: '2001:db8::ff00:42:8329' // auto detect ip v6
+                        host: '0:0:0:0:0:0:0:1', // auto detect ip v6
+                        no_ready_check: true
                     });
-                    assert.strictEqual(client.address, '2001:db8::ff00:42:8329:6379');
+                    assert.strictEqual(client.address, '0:0:0:0:0:0:0:1:6379');
                     assert.strictEqual(client.connection_options.family, 6);
                     process.nextTick(function () {
                         assert.strictEqual(client.stream.listeners('timeout').length, 0);

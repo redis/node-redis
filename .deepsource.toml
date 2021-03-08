@@ -1,0 +1,9 @@
+version = 1
+exclude_patterns = ["examples/**"]
+
+[[analyzers]]
+name = "javascript"
+enabled = true
+
+  [analyzers.meta]
+  environment = ["nodejs"]
