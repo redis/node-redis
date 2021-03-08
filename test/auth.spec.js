@@ -3,6 +3,7 @@
 var assert = require('assert');
 var config = require('./lib/config');
 var helper = require('./helper');
+var errors = require('./errors');
 var redis = config.redis;
 
 if (process.platform === 'win32') {
@@ -70,11 +71,13 @@ describe('client authentication', function () {
             it('emits error when auth is bad without callback', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                client = redis.createClient.apply(null, args);
+                client = redis.createClient.apply(null, config.configureClient(ip, {
+                    no_ready_check: true
+                }));
 
                 client.once('error', function (err) {
                     assert.strictEqual(err.command, 'AUTH');
-                    assert.ok(/ERR invalid password/.test(err.message));
+                    assert.ok(errors.invalidPassword.test(err.message));
                     return done();
                 });
 
@@ -84,11 +87,13 @@ describe('client authentication', function () {
             it('returns an error when auth is bad (empty string) with a callback', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                client = redis.createClient.apply(null, args);
+                client = redis.createClient.apply(null, config.configureClient(ip, {
+                    no_ready_check: true
+                }));
 
                 client.auth('', function (err, res) {
                     assert.strictEqual(err.command, 'AUTH');
-                    assert.ok(/ERR invalid password/.test(err.message));
+                    assert.ok(errors.invalidPassword.test(err.message));
                     done();
                 });
             });
@@ -190,10 +195,12 @@ describe('client authentication', function () {
             it('should return an error if the password is not correct and a callback has been provided', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                client = redis.createClient.apply(null, args);
+                client = redis.createClient.apply(null, config.configureClient(ip, {
+                    no_ready_check: true
+                }));
                 var async = true;
                 client.auth('undefined', function (err, res) {
-                    assert.strictEqual(err.message, 'ERR invalid password');
+                    assert.ok(errors.invalidPassword.test(err.message));
                     assert.strictEqual(err.command, 'AUTH');
                     assert.strictEqual(res, undefined);
                     async = false;
@@ -205,9 +212,11 @@ describe('client authentication', function () {
             it('should emit an error if the password is not correct and no callback has been provided', function (done) {
                 if (helper.redisProcess().spawnFailed()) this.skip();
 
-                client = redis.createClient.apply(null, args);
+                client = redis.createClient.apply(null, config.configureClient(ip, {
+                    no_ready_check: true
+                }));
                 client.on('error', function (err) {
-                    assert.strictEqual(err.message, 'ERR invalid password');
+                    assert.ok(errors.invalidPassword.test(err.message));
                     assert.strictEqual(err.command, 'AUTH');
                     done();
                 });
@@ -235,7 +244,7 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 client.on('ready', function () {
                     client.set('foo', 'bar', function (err, res) {
-                        assert.equal(err.message, 'NOAUTH Authentication required.');
+                        assert.ok(/^NOAUTH Authentication required\.(\r\n)?$/.test(err.message));
                         assert.equal(err.code, 'NOAUTH');
                         assert.equal(err.command, 'SET');
                         done();
@@ -248,7 +257,7 @@ describe('client authentication', function () {
                 client = redis.createClient.apply(null, args);
                 client.on('error', function (err) {
                     assert.equal(err.code, 'NOAUTH');
-                    assert.equal(err.message, 'Ready check failed: NOAUTH Authentication required.');
+                    assert.ok(/^Ready check failed: NOAUTH Authentication required\.(\r\n)?$/.test(err.message));
                     assert.equal(err.command, 'INFO');
                     done();
                 });
@@ -258,9 +267,10 @@ describe('client authentication', function () {
                 if (helper.redisProcess().spawnFailed()) this.skip();
                 client = redis.createClient({
                     password: 'wrong_password',
+                    no_ready_check: true
                 });
                 client.once('error', function (err) {
-                    assert.strictEqual(err.message, 'ERR invalid password');
+                    assert.ok(errors.invalidPassword.test(err.message));
                     done();
                 });
             });
@@ -277,7 +287,7 @@ describe('client authentication', function () {
                     client.once('ready', function () {
                         assert.strictEqual(client.pub_sub_mode, 1);
                         client.get('foo', function (err, res) {
-                            assert(/ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
+                            assert.ok(errors.subscribeUnsubscribeOnly.test(err.message));
                             done();
                         });
                     });
