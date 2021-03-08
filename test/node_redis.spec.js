@@ -87,7 +87,7 @@ describe('The node_redis client', function () {
                 done();
             });
         });
-        var partialInput = new Buffer('$100\r\nabcdef');
+        var partialInput = Buffer.from('$100\r\nabcdef');
         client.reply_parser.execute(partialInput);
         assert.strictEqual(client.reply_parser.buffer.inspect(), partialInput.inspect());
         client.stream.destroy();
@@ -813,7 +813,7 @@ describe('The node_redis client', function () {
                         // ready is called in a reply
                         process.nextTick(function () {
                             // Fail the set answer. Has no corresponding command obj and will therefore land in the error handler and set
-                            client.reply_parser.execute(new Buffer('a*1\r*1\r$1`zasd\r\na'));
+                            client.reply_parser.execute(Buffer.from('a*1\r*1\r$1`zasd\r\na'));
                         });
                     });
                 });

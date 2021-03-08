@@ -57,7 +57,7 @@ describe("The 'client' method", function () {
                     it('off', function (done) {
                         helper.serverVersionAtLeast.call(this, client, [3, 2, 0]);
                         assert.strictEqual(client.reply, 'ON');
-                        client.client(new Buffer('REPLY'), 'OFF', helper.isUndefined());
+                        client.client(Buffer.from('REPLY'), 'OFF', helper.isUndefined());
                         assert.strictEqual(client.reply, 'OFF');
                         client.set('foo', 'bar', helper.isUndefined(done));
                     });
@@ -65,7 +65,7 @@ describe("The 'client' method", function () {
                     it('skip', function (done) {
                         helper.serverVersionAtLeast.call(this, client, [3, 2, 0]);
                         assert.strictEqual(client.reply, 'ON');
-                        client.client('REPLY', new Buffer('SKIP'), helper.isUndefined());
+                        client.client('REPLY', Buffer.from('SKIP'), helper.isUndefined());
                         assert.strictEqual(client.reply, 'SKIP_ONE_MORE');
                         client.set('foo', 'bar', helper.isUndefined());
                         client.get('foo', helper.isString('bar', done));
@@ -91,7 +91,7 @@ describe("The 'client' method", function () {
                         var batch = client.batch();
                         assert.strictEqual(client.reply, 'ON');
                         batch.set('hello', 'world');
-                        batch.client(new Buffer('REPLY'), new Buffer('OFF'), helper.isUndefined());
+                        batch.client(Buffer.from('REPLY'), Buffer.from('OFF'), helper.isUndefined());
                         batch.set('foo', 'bar', helper.isUndefined());
                         batch.exec(function (err, res) {
                             assert.strictEqual(client.reply, 'OFF');
