@@ -3,6 +3,7 @@
 var assert = require('assert');
 var config = require('./lib/config');
 var helper = require('./helper');
+var errors = require('./errors');
 var redis = config.redis;
 
 describe('publish/subscribe', function () {
@@ -124,7 +125,7 @@ describe('publish/subscribe', function () {
                         detect_buffers: true
                     });
                     sub.on('subscribe', function (chnl, count) {
-                        if (chnl.inspect() === new Buffer([0xAA, 0xBB, 0x00, 0xF0]).inspect()) {
+                        if (chnl.inspect() === Buffer.from([0xAA, 0xBB, 0x00, 0xF0]).inspect()) {
                             assert.equal(1, count);
                             if (a) {
                                 return done();
@@ -137,7 +138,7 @@ describe('publish/subscribe', function () {
                         a = true;
                     });
 
-                    sub.subscribe(new Buffer([0xAA, 0xBB, 0x00, 0xF0]), channel2);
+                    sub.subscribe(Buffer.from([0xAA, 0xBB, 0x00, 0xF0]), channel2);
                 });
 
                 it('receives messages on subscribed channel', function (done) {
@@ -262,13 +263,13 @@ describe('publish/subscribe', function () {
                 });
 
                 it('handles multiple channels with the same channel name properly, even with buffers', function (done) {
-                    var channels = ['a', 'b', 'a', new Buffer('a'), 'c', 'b'];
+                    var channels = ['a', 'b', 'a', Buffer.from('a'), 'c', 'b'];
                     var subscribed_channels = [1, 2, 2, 2, 3, 3];
                     var i = 0;
                     sub.subscribe(channels);
                     sub.on('subscribe', function (channel, count) {
                         if (Buffer.isBuffer(channel)) {
-                            assert.strictEqual(channel.inspect(), new Buffer(channels[i]).inspect());
+                            assert.strictEqual(channel.inspect(), Buffer.from(channels[i]).inspect());
                         } else {
                             assert.strictEqual(channel, channels[i].toString());
                         }
@@ -420,7 +421,7 @@ describe('publish/subscribe', function () {
                     });
 
                     subscribe(['prefix:*', 'prefix:3'], function () {
-                        pub.publish('prefix:1', new Buffer('test'), function () {
+                        pub.publish('prefix:1', Buffer.from('test'), function () {
                             subscribe(['prefix:2']);
                             subscribe(['5', 'test:a', 'bla'], function () {
                                 assert(all);
@@ -494,9 +495,9 @@ describe('publish/subscribe', function () {
                         sub2.batch().psubscribe('*', helper.isString('*')).exec();
                         sub2.subscribe('/foo');
                         sub2.on('pmessage', function (pattern, channel, message) {
-                            assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
-                            assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
-                            assert.strictEqual(message.inspect(), new Buffer('hello world').inspect());
+                            assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect());
+                            assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect());
+                            assert.strictEqual(message.inspect(), Buffer.from('hello world').inspect());
                             sub2.quit(done);
                         });
                         pub.pubsub('numsub', '/foo', function (err, res) {
@@ -517,11 +518,11 @@ describe('publish/subscribe', function () {
                             assert.strictEqual(sub.shouldBuffer, false);
                             sub.on('pmessageBuffer', function (pattern, channel) {
                                 if (typeof pattern === 'string') {
-                                    pattern = new Buffer(pattern);
-                                    channel = new Buffer(channel);
+                                    pattern = Buffer.from(pattern);
+                                    channel = Buffer.from(channel);
                                 }
-                                assert.strictEqual(pattern.inspect(), new Buffer('*').inspect());
-                                assert.strictEqual(channel.inspect(), new Buffer('/foo').inspect());
+                                assert.strictEqual(pattern.inspect(), Buffer.from('*').inspect());
+                                assert.strictEqual(channel.inspect(), Buffer.from('/foo').inspect());
                                 sub.quit(end);
                             });
                             // Either message_buffers or buffers has to be true, but not both at the same time
@@ -587,7 +588,7 @@ describe('publish/subscribe', function () {
                     });
                     // Get is forbidden
                     sub.get('foo', function (err, res) {
-                        assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
+                        assert.ok(errors.subscribeUnsubscribeOnly.test(err.message));
                         assert.strictEqual(err.command, 'GET');
                     });
                     // Quit is allowed
@@ -597,7 +598,7 @@ describe('publish/subscribe', function () {
                 it('emit error if only pub sub commands are allowed without callback', function (done) {
                     sub.subscribe('channel');
                     sub.on('error', function (err) {
-                        assert(/^ERR only \(P\)SUBSCRIBE \/ \(P\)UNSUBSCRIBE/.test(err.message));
+                        assert.ok(errors.subscribeUnsubscribeOnly.test(err.message));
                         assert.strictEqual(err.command, 'GET');
                         done();
                     });

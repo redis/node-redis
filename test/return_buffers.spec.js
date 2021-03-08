@@ -40,6 +40,10 @@ describe('return_buffers', function () {
                 });
             });
 
+            afterEach(function () {
+                client.end(true);
+            });
+
             describe('get', function () {
                 describe('first argument is a string', function () {
                     it('returns a buffer', function (done) {
@@ -65,8 +69,8 @@ describe('return_buffers', function () {
                 it('returns buffers', function (done) {
                     client.multi()
                         .hget('hash key 2', 'key 1')
-                        .hget(new Buffer('hash key 2'), 'key 1')
-                        .hget('hash key 2', new Buffer('key 2'))
+                        .hget(Buffer.from('hash key 2'), 'key 1')
+                        .hget('hash key 2', Buffer.from('key 2'))
                         .hget('hash key 2', 'key 2')
                         .exec(function (err, reply) {
                             assert.strictEqual(true, Array.isArray(reply));
@@ -87,8 +91,8 @@ describe('return_buffers', function () {
                 it('returns buffers', function (done) {
                     client.batch()
                         .hget('hash key 2', 'key 1')
-                        .hget(new Buffer('hash key 2'), 'key 1')
-                        .hget('hash key 2', new Buffer('key 2'))
+                        .hget(Buffer.from('hash key 2'), 'key 1')
+                        .hget('hash key 2', Buffer.from('key 2'))
                         .hget('hash key 2', 'key 2')
                         .exec(function (err, reply) {
                             assert.strictEqual(true, Array.isArray(reply));
@@ -121,7 +125,7 @@ describe('return_buffers', function () {
 
                 describe('first argument is a buffer', function () {
                     it('returns buffers for keys requested', function (done) {
-                        client.hmget(new Buffer('hash key 2'), 'key 1', 'key 2', function (err, reply) {
+                        client.hmget(Buffer.from('hash key 2'), 'key 1', 'key 2', function (err, reply) {
                             assert.strictEqual(true, Array.isArray(reply));
                             assert.strictEqual(2, reply.length);
                             assert.strictEqual(true, Buffer.isBuffer(reply[0]));
@@ -133,7 +137,7 @@ describe('return_buffers', function () {
                     });
 
                     it('returns buffers for keys requested in transaction', function (done) {
-                        client.multi().hmget(new Buffer('hash key 2'), 'key 1', 'key 2').exec(function (err, reply) {
+                        client.multi().hmget(Buffer.from('hash key 2'), 'key 1', 'key 2').exec(function (err, reply) {
                             assert.strictEqual(true, Array.isArray(reply));
                             assert.strictEqual(1, reply.length);
                             assert.strictEqual(2, reply[0].length);
@@ -146,7 +150,7 @@ describe('return_buffers', function () {
                     });
 
                     it('returns buffers for keys requested in .batch', function (done) {
-                        client.batch().hmget(new Buffer('hash key 2'), 'key 1', 'key 2').exec(function (err, reply) {
+                        client.batch().hmget(Buffer.from('hash key 2'), 'key 1', 'key 2').exec(function (err, reply) {
                             assert.strictEqual(true, Array.isArray(reply));
                             assert.strictEqual(1, reply.length);
                             assert.strictEqual(2, reply[0].length);
@@ -197,7 +201,7 @@ describe('return_buffers', function () {
 
                 describe('first argument is a buffer', function () {
                     it('returns buffer values', function (done) {
-                        client.hgetall(new Buffer('hash key 2'), function (err, reply) {
+                        client.hgetall(Buffer.from('hash key 2'), function (err, reply) {
                             assert.strictEqual(null, err);
                             assert.strictEqual('object', typeof reply);
                             assert.strictEqual(2, Object.keys(reply).length);
@@ -210,7 +214,7 @@ describe('return_buffers', function () {
                     });
 
                     it('returns buffer values when executed in transaction', function (done) {
-                        client.multi().hgetall(new Buffer('hash key 2')).exec(function (err, reply) {
+                        client.multi().hgetall(Buffer.from('hash key 2')).exec(function (err, reply) {
                             assert.strictEqual(1, reply.length);
                             assert.strictEqual('object', typeof reply[0]);
                             assert.strictEqual(2, Object.keys(reply[0]).length);
@@ -223,7 +227,7 @@ describe('return_buffers', function () {
                     });
 
                     it('returns buffer values when executed in .batch', function (done) {
-                        client.batch().hgetall(new Buffer('hash key 2')).exec(function (err, reply) {
+                        client.batch().hgetall(Buffer.from('hash key 2')).exec(function (err, reply) {
                             assert.strictEqual(1, reply.length);
                             assert.strictEqual('object', typeof reply[0]);
                             assert.strictEqual(2, Object.keys(reply[0]).length);
@@ -241,7 +245,7 @@ describe('return_buffers', function () {
                 var pub;
                 var sub;
                 var channel = 'test channel';
-                var message = new Buffer('test message');
+                var message = Buffer.from('test message');
 
                 var args = config.configureClient(ip, {
                     return_buffers: true

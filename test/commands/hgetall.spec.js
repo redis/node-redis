@@ -50,7 +50,6 @@ describe("The 'hgetall' method", function () {
             });
 
             describe('binary client', function () {
-                var client;
                 var args = config.configureClient(ip, {
                     return_buffers: true
                 });
@@ -63,14 +62,14 @@ describe("The 'hgetall' method", function () {
                 });
 
                 it('returns binary results', function (done) {
-                    client.hmset(['bhosts', 'mjr', '1', 'another', '23', 'home', '1234', new Buffer([0xAA, 0xBB, 0x00, 0xF0]), new Buffer([0xCC, 0xDD, 0x00, 0xF0])], helper.isString('OK'));
+                    client.hmset(['bhosts', 'mjr', '1', 'another', '23', 'home', '1234', Buffer.from([0xAA, 0xBB, 0x00, 0xF0]), Buffer.from([0xCC, 0xDD, 0x00, 0xF0])], helper.isString('OK'));
                     client.HGETALL('bhosts', function (err, obj) {
                         assert.strictEqual(4, Object.keys(obj).length);
                         assert.strictEqual('1', obj.mjr.toString());
                         assert.strictEqual('23', obj.another.toString());
                         assert.strictEqual('1234', obj.home.toString());
-                        assert.strictEqual((new Buffer([0xAA, 0xBB, 0x00, 0xF0])).toString('binary'), Object.keys(obj)[3]);
-                        assert.strictEqual((new Buffer([0xCC, 0xDD, 0x00, 0xF0])).toString('binary'), obj[(new Buffer([0xAA, 0xBB, 0x00, 0xF0])).toString('binary')].toString('binary'));
+                        assert.strictEqual((Buffer.from([0xAA, 0xBB, 0x00, 0xF0])).toString('binary'), Object.keys(obj)[3]);
+                        assert.strictEqual((Buffer.from([0xCC, 0xDD, 0x00, 0xF0])).toString('binary'), obj[(Buffer.from([0xAA, 0xBB, 0x00, 0xF0])).toString('binary')].toString('binary'));
                         return done(err);
                     });
                 });

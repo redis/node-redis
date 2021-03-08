@@ -46,7 +46,7 @@ describe("The 'multi' method", function () {
                 }
 
                 var json = JSON.stringify(test_arr);
-                zlib.deflate(new Buffer(json), function (err, buffer) {
+                zlib.deflate(Buffer.from(json), function (err, buffer) {
                     if (err) {
                         done(err);
                         return;
