@@ -241,7 +241,7 @@ RedisClient.prototype.create_stream = function () {
     if (this.auth_pass !== undefined) {
         this.ready = true;
         // Fail silently as we might not be able to connect
-        this.auth(this.auth_user, this.auth_pass, function (err) {
+        this.auth(this.auth_pass, this.auth_user, function (err) {
             if (err && err.code !== 'UNCERTAIN_STATE') {
                 self.emit('error', err);
             }
