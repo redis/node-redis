@@ -543,7 +543,7 @@ describe('connection tests', function () {
 
                     it('allows connecting with the redis url in the options object and works with protocols other than the redis protocol (e.g. http)', function (done) {
                         client = redis.createClient({
-                            url: 'http://foo:porkchopsandwiches@' + config.HOST[ip] + '/3'
+                            url: 'http://:porkchopsandwiches@' + config.HOST[ip] + '/3'
                         });
                         assert.strictEqual(client.auth_pass, 'porkchopsandwiches');
                         assert.strictEqual(+client.selected_db, 3);

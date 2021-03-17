@@ -218,7 +218,7 @@ describe('createClient options', function () {
                 option: [1, 2, 3],
                 url: '//hm:abc@localhost:123/3'
             });
-            assert.strictEqual(Object.keys(options).length, 6);
+            assert.strictEqual(Object.keys(options).length, 7);
             assert.strictEqual(options.option.length, 3);
             assert.strictEqual(options.host, 'localhost');
             assert.strictEqual(options.port, '123');
