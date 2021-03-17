@@ -109,6 +109,7 @@ function RedisClient (options, stream) {
     this.closing = false;
     this.server_info = {};
     this.auth_pass = options.auth_pass || options.password;
+    this.auth_user = options.auth_user || options.user;
     this.selected_db = options.db; // Save the selected db here, used when reconnecting
     this.fire_strings = true; // Determine if strings or buffers should be written to the stream
     this.pipeline = false;
@@ -240,7 +241,7 @@ RedisClient.prototype.create_stream = function () {
     if (this.auth_pass !== undefined) {
         this.ready = true;
         // Fail silently as we might not be able to connect
-        this.auth(this.auth_pass, function (err) {
+        this.auth(this.auth_pass, this.auth_user, function (err) {
             if (err && err.code !== 'UNCERTAIN_STATE') {
                 self.emit('error', err);
             }

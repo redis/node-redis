@@ -61,7 +61,7 @@ describe('client authentication', function () {
                 });
                 var tmp = client.command_queue.get(0).callback;
                 client.command_queue.get(0).callback = function (err, res) {
-                    client.auth = function (pass, callback) {
+                    client.auth = function (pass, user, callback) {
                         callback(null, 'retry worked');
                     };
                     tmp(new Error('ERR redis is still LOADING'));
