@@ -55,7 +55,7 @@ want to use with promises using the built-in Node.js `util.promisify` method on 
 const { promisify } = require("util");
 const getAsync = promisify(client.get).bind(client);
 
-getAsync.then(console.log).catch(console.error);
+getAsync().then(console.log).catch(console.error);
 ```
 
 ### Commands
