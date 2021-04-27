@@ -220,7 +220,9 @@ RedisClient.prototype.create_stream = function () {
     });
 
     this.stream.on('error', function (err) {
-        self.on_error(err);
+        process.nextTick(function () {
+            self.on_error(err);
+        });
     });
 
     this.stream.once('close', function (hadError) {
