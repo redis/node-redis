@@ -360,7 +360,7 @@ RedisClient.prototype.on_connect = function () {
     if (this.options.socket_timeout === 0) {
         this.stream.setTimeout(0);
     } else {
-        this.stream.setTimeout(this.options.socket_timeout, function() {
+        this.stream.setTimeout(this.options.socket_timeout, function () {
             this.connection_gone('timeout');
         });
     }
