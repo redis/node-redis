@@ -377,7 +377,6 @@ describe('connection tests', function () {
                 
                 it('set the timeout to socket_timeout after a connection has been established', function (done) {
                     client = redis.createClient({
-                        parser: parser,
                         connect_timeout: 1000,
                         socket_timeout: 2000
                     });
