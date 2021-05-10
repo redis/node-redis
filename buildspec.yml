@@ -15,8 +15,8 @@ phases:
       - $(aws ecr get-login --region $CODEBUILD_REGION --no-include-email)
   build:
     commands:
-      - IMAGE_TAG=`echo $CODEBUILD_INITIATOR | cut -d '/' -f2`
-      - ENV_NAME=`echo $IMAGE_TAG | cut -d '-' -f2`
+      - IMAGE_TAG='echo $CODEBUILD_INITIATOR | cut -d '/' -f2'
+      - ENV_NAME='echo $IMAGE_TAG | cut -d '-' -f2'
       - docker build -t $REPOSITORY_URI . --build-arg arg=$ENV_NAME
       - docker tag $REPOSITORY_URI $REPOSITORY_URI:$IMAGE_TAG
   post_build:
