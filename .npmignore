@@ -20,3 +20,4 @@ appveyor.yml
 package-lock.json
 .prettierrc
 eslint-report.json
+.deepsource.toml
