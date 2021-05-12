@@ -13,11 +13,11 @@ export interface RedisClientOptions<M = RedisModules> {
 export type RedisCommandSignature<C extends RedisCommand> = (...args: Parameters<C['transformArguments']>) => Promise<ReturnType<C['transformReply']>>;
 
 type WithCommands = {
-    [P in keyof typeof COMMANDS]: RedisCommandSignature<(typeof COMMANDS)[P]>
+    [P in keyof typeof COMMANDS]: RedisCommandSignature<(typeof COMMANDS)[P]>;
 };
 
 type WithModules<M extends Array<RedisModule>> = {
-    [P in keyof M[number]]: RedisCommandSignature<M[number][P]>
+    [P in keyof M[number]]: RedisCommandSignature<M[number][P]>;
 };
 
 type WithMulti<M extends Array<RedisModule>> = {
@@ -55,7 +55,7 @@ export default class RedisClient extends EventEmitter {
     #initiateSocket(socketOptions?: RedisSocketOptions): RedisSocket {
         const socketInitiator = async (): Promise<void> => {
             if (socketOptions?.password) {
-                await (this as any).auth(socketOptions.username, socketOptions.password);
+                await (this as any).auth(socketOptions);
             }
         };
 
@@ -71,7 +71,7 @@ export default class RedisClient extends EventEmitter {
     #initiateMulti() {
         const executor = async (commands: Array<MultiQueuedCommand>): Promise<Array<RedisReply>> => {
             const promise = Promise.all(
-                commands.map(({ encodedCommand }) => {
+                commands.map(({encodedCommand}) => {
                     return this.#queue.addEncodedCommand<RedisReply>(encodedCommand);
                 })
             );

@@ -26,7 +26,7 @@ export function transformReply(reply: string): Array<RedisClusterNode> {
     const lines = reply.split('\n');
     lines.pop(); // last line is empty
     return lines.map(line => {
-        const [ id, url, flags, master, pingSent, pongRecv, configEpoch, linkState, ...slots ] = line.split(' ');
+        const [id, url, flags, master, pingSent, pongRecv, configEpoch, linkState, ...slots] = line.split(' ');
         return {
             id,
             url,
@@ -38,7 +38,7 @@ export function transformReply(reply: string): Array<RedisClusterNode> {
             linkState: (linkState as RedisClusterNodeLinkStates),
             slots: slots.map(slot => {
                 // TODO: importing & exporting (https://redis.io/commands/cluster-nodes#special-slot-entries)
-                const [ fromString, toString ] = slot.split('-', 2),
+                const [fromString, toString] = slot.split('-', 2),
                     from = Number(fromString);
                 return {
                     from,

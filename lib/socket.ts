@@ -123,7 +123,7 @@ export default class RedisSocket extends EventEmitter {
 
     #createSocket(): Promise<net.Socket | tls.TLSSocket> {
         return new Promise((resolve, reject) => {
-            const { connectEvent, socket } = RedisSocket.#isTlsSocket(this.#options) ?
+            const {connectEvent, socket} = RedisSocket.#isTlsSocket(this.#options) ?
                 this.#createTlsSocket() :
                 this.#createNetSocket();
 

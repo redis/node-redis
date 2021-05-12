@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { itWithClient }  from '../test-utils.js';
+import { TestRedisServers, itWithClient } from '../test-utils.js';
 import { transformArguments, transformReply } from './COPY.js';
 
 describe('COPY', () => {
@@ -56,7 +56,7 @@ describe('COPY', () => {
         });
     });
 
-    itWithClient('client.copy', {}, async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.copy', async client => {
         assert.equal(
             await client.copy('source', 'destination'),
             false

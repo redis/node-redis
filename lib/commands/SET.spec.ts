@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { itWithClient } from '../test-utils.js';
+import { TestRedisServers, itWithClient } from '../test-utils.js';
 import { transformArguments } from './SET.js';
 
 describe('SET', () => {
@@ -100,14 +100,14 @@ describe('SET', () => {
     });
 
     describe('client.set', () => {
-        itWithClient('simple', {}, async client => {
+        itWithClient(TestRedisServers.OPEN, 'simple', async client => {
             assert.equal(
                 await client.set('key', 'value'),
                 'OK'
             );
         });
 
-        itWithClient('with GET on empty key', {}, async client => {
+        itWithClient(TestRedisServers.OPEN, 'with GET on empty key', async client => {
             assert.equal(
                 await client.set('key', 'value', {
                     GET: true

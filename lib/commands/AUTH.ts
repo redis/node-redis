@@ -5,7 +5,7 @@ export interface AuthOptions {
     password: string;
 }
 
-export function transformArguments({ username, password }: AuthOptions): Array<string> {
+export function transformArguments({username, password}: AuthOptions): Array<string> {
     if (!username) {
         return ['AUTH', password];
     }

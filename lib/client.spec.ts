@@ -1,23 +1,32 @@
 import { strict as assert } from 'assert';
+import { TestRedisServers, TEST_REDIS_SERVERS, itWithClient } from './test-utils.js';
 import RedisClient from './client.js';
 
 describe('Client', () => {
-    describe.skip('authentication', () => {
-        it('Should fire auth command', async () => {
-            const client = RedisClient.create({
-                socket: {
-                    password: 'password'
-                }
-            });
-
-            await client.connect();
-
+    describe('authentication', () => {
+        itWithClient(TestRedisServers.PASSWORD, 'Client should be authenticated', async client => {
             assert.equal(
                 await client.ping(),
                 'PONG'
             );
+        });
 
-            await client.disconnect();
+        it('should not retry connecting if failed due to wrong auth', async () => {
+            const client = RedisClient.create({
+                socket: {
+                    ...TEST_REDIS_SERVERS[TestRedisServers.PASSWORD],
+                    password: 'wrongpassword'
+                }
+            });
+
+            await assert.rejects(
+                () => client.connect(),
+                {
+                    message: 'WRONGPASS invalid username-password pair or user is disabled.'
+                }
+            );
+
+            // TODO validate state
         });
     });
 

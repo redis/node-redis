@@ -45,7 +45,7 @@ export default class RedisClusterSlots {
         // Override this.#slots and add not existing clients to this.#clientByKey
         const promises = [],
             clientsInUse = new Set();
-        for (const { url, slots } of nodes) {
+        for (const {url, slots} of nodes) {
             clientsInUse.add(url);
 
             let client = this.#clientByKey.get(url);
@@ -87,7 +87,7 @@ export default class RedisClusterSlots {
             this.#randomClientIterator = this.#clientByKey.values();
         }
 
-        const { done, value } = this.#randomClientIterator.next();
+        const {done, value} = this.#randomClientIterator.next();
         if (done) {
             this.#randomClientIterator = undefined;
             return this.#getRandomClient();

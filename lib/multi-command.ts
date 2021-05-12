@@ -62,7 +62,7 @@ export default class RedisMultiCommand {
 
     async exec(): Promise<Array<unknown>> {
         const results = await this.#executor(this.#queue, Symbol('[RedisMultiCommand] Chain ID'));
-        return this.#queue.map(({ transformReply }, i) => {
+        return this.#queue.map(({transformReply}, i) => {
             const reply = results[i];
             return transformReply ? transformReply(reply) : reply;
         });

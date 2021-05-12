@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import {RedisClusterNodeLinkStates, transformArguments, transformReply} from './CLUSTER_NODES.js';
+import { RedisClusterNodeLinkStates, transformArguments, transformReply } from './CLUSTER_NODES.js';
 
 describe('CLUSTER NODES', () => {
     it('transformArguments', () => {

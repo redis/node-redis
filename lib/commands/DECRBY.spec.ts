@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { itWithClient }  from '../test-utils.js';
+import { TestRedisServers, itWithClient } from '../test-utils.js';
 import { transformArguments } from './DECRBY.js';
 
 describe('DECRBY', () => {
@@ -10,7 +10,7 @@ describe('DECRBY', () => {
         );
     });
 
-    itWithClient('client.decrBy', {}, async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.decrBy', async client => {
         assert.equal(
             await client.decrBy('key', 2),
             -2

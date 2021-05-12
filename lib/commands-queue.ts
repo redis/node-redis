@@ -79,7 +79,7 @@ export default class RedisCommandsQueue {
                 options.signal.addEventListener('abort', () => {
                     this.#waitingToBeSent.removeNode(node);
                     node.value.reject(new Error('The command was aborted'));
-                }, { once: true });
+                }, {once: true});
             }
 
             if (options?.asap) {
@@ -96,7 +96,7 @@ export default class RedisCommandsQueue {
         const encoded: Array<string> = [];
         let size = 0;
         let lastCommandChainId: Symbol | undefined;
-        for (const { encodedCommand, chainId } of this.#waitingToBeSent) {
+        for (const {encodedCommand, chainId} of this.#waitingToBeSent) {
             encoded.push(encodedCommand);
             size += encodedCommand.length;
             if (size > recommendedSize) {
