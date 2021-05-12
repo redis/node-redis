@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - v4
+
+jobs:
+  tests:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [12.x, 14.x, 15.x]
+        redis-version: [4.x, 5.x, 6.x]
+
+    steps:
+      - uses: actions/checkout@v2.3.4
+        with:
+          fetch-depth: 1
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2.1.5
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Setup Redis
+        uses: shogo82148/actions-setup-redis@v1.9.7
+        with:
+          redis-version: ${{ matrix.redis-version }}
+          auto-start: "false"
+
+      - name: Disable IPv6
+        run: sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
+
+      - name: Install Packages
+        run: npm install --legacy-peer-deps
+
+      - name: Run Tests
+        run: npm run test
