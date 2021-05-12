@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "outDir": "./dist",
+    "declaration": true,
+    "useDefineForClassFields": true,
+    "allowJs": true,
+    "sourceMap": true
+  },
+  "files": [
+    "./lib/ts-declarations/cluster-key-slot.d.ts",
+    "./lib/ts-declarations/redis-parser.d.ts"
+  ],
+  "include": [
+    "./index.ts",
+    "./lib/**/*.ts"
+  ]
+}
