@@ -8,8 +8,7 @@
     "outDir": "./dist",
     "declaration": true,
     "useDefineForClassFields": true,
-    "allowJs": true,
-    "sourceMap": true
+    "allowJs": true
   },
   "files": [
     "./lib/ts-declarations/cluster-key-slot.d.ts",
@@ -18,5 +17,11 @@
   "include": [
     "./index.ts",
     "./lib/**/*.ts"
-  ]
+  ],
+  "ts-node": {
+    "files": true,
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  }
 }

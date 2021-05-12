@@ -1,6 +1,6 @@
-import COMMANDS from './commands/client.js';
-import { RedisCommand, RedisModule, RedisModules, RedisReply } from './commands/index.js';
-import RedisCommandsQueue from './commands-queue.js';
+import COMMANDS from './commands/client';
+import { RedisCommand, RedisModule, RedisModules, RedisReply } from './commands';
+import RedisCommandsQueue from './commands-queue';
 
 type RedisMultiCommandSignature<C extends RedisCommand, M extends RedisModules> = (...args: Parameters<C['transformArguments']>) => RedisMultiCommandType<M>;
 

@@ -1,4 +1,4 @@
-import { transformReplyString } from './generic-transformers.js';
+import { transformReplyString } from './generic-transformers';
 
 enum RedisFlushModes {
     ASYNC = 'ASYNC',

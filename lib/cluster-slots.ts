@@ -1,8 +1,8 @@
 import calculateSlot from 'cluster-key-slot';
-import RedisClient from './client.js';
-import { RedisSocketOptions } from './socket.js';
-import { RedisClusterNode } from './commands/CLUSTER_NODES.js';
-import { RedisClusterOptions } from './cluster.js';
+import RedisClient from './client';
+import { RedisSocketOptions } from './socket';
+import { RedisClusterNode } from './commands/CLUSTER_NODES';
+import { RedisClusterOptions } from './cluster';
 
 export default class RedisClusterSlots {
     readonly #options: RedisClusterOptions;

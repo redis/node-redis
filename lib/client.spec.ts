@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, TEST_REDIS_SERVERS, itWithClient } from './test-utils.js';
-import RedisClient from './client.js';
+import { TestRedisServers, TEST_REDIS_SERVERS, itWithClient } from './test-utils';
+import RedisClient from './client';
 
 describe('Client', () => {
     describe('authentication', () => {

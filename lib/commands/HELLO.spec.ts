@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { transformArguments } from './HELLO.js';
+import { transformArguments } from './HELLO';
 
 describe('HELLO', () => {
     describe('transformArguments', () => {

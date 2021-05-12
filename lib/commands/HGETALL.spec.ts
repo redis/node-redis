@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { transformReply } from './HGETALL.js';
+import { transformReply } from './HGETALL';
 
 describe('HGETALL', () => {
     describe('transformReply', () => {

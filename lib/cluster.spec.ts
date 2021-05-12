@@ -1,4 +1,4 @@
-import RedisCluster from './cluster.js';
+import RedisCluster from './cluster';
 
 describe.skip('Cluster', () => {
     it('sendCommand', async () => {

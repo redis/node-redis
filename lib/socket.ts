@@ -163,6 +163,7 @@ export default class RedisSocket extends EventEmitter {
             await this.#retryConnection(0);
         } catch (err) {
             this.emit('error', err);
+            this.#socket = undefined;
         }
     }
 

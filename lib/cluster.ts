@@ -1,9 +1,8 @@
-import calculateSlot from 'cluster-key-slot';
-import COMMANDS from './commands/cluster.js';
-import { RedisCommand, RedisModule, RedisModules } from './commands/index.js';
-import { RedisCommandSignature } from './client.js';
-import { RedisSocketOptions } from './socket.js';
-import RedisClusterSlots from './cluster-slots.js';
+import COMMANDS from './commands/cluster';
+import { RedisCommand, RedisModule, RedisModules } from './commands';
+import { RedisCommandSignature } from './client';
+import { RedisSocketOptions } from './socket';
+import RedisClusterSlots from './cluster-slots';
 
 export interface RedisClusterOptions<M = RedisModules> {
     rootNodes: Array<RedisSocketOptions>;

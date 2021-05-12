@@ -1,4 +1,4 @@
-import { transformReplyString } from './generic-transformers.js';
+import { transformReplyString } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 

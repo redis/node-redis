@@ -1,8 +1,8 @@
-import RedisSocket, { RedisSocketOptions } from './socket.js';
-import RedisCommandsQueue, { AddCommandOptions } from './commands-queue.js';
-import COMMANDS from './commands/client.js';
-import { RedisCommand, RedisModules, RedisModule, RedisReply } from './commands/index.js';
-import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command.js';
+import RedisSocket, { RedisSocketOptions } from './socket';
+import RedisCommandsQueue, { AddCommandOptions } from './commands-queue';
+import COMMANDS from './commands/client';
+import { RedisCommand, RedisModules, RedisModule, RedisReply } from './commands';
+import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import EventEmitter from 'events';
 
 export interface RedisClientOptions<M = RedisModules> {

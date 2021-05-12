@@ -1,4 +1,4 @@
-import { transformReplyBoolean } from './generic-transformers.js';
+import { transformReplyBoolean } from './generic-transformers';
 
 export function transformArguments(key: string, timestamp: Date | number): Array<string> {
     return [

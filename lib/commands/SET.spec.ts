@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils.js';
-import { transformArguments } from './SET.js';
+import { TestRedisServers, itWithClient } from '../test-utils';
+import { transformArguments } from './SET';
 
 describe('SET', () => {
     describe('transformArguments', () => {

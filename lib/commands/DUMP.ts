@@ -1,4 +1,4 @@
-import { transformReplyString } from './generic-transformers.js';
+import { transformReplyString } from './generic-transformers';
 
 export function transformArguments(key: string): Array<string> {
     return ['DUMP', key];

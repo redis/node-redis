@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils.js';
-import { transformArguments, transformReply } from './COPY.js';
+import { TestRedisServers, itWithClient } from '../test-utils';
+import { transformArguments, transformReply } from './COPY';
 
 describe('COPY', () => {
     describe('transformArguments', () => {

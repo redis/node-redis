@@ -1,9 +1,9 @@
-import RedisClient, { RedisClientOptions, RedisClientType } from './client.js';
-import { RedisModules } from './commands/index.js';
+import RedisClient, { RedisClientType } from './client';
+import { RedisModules } from './commands';
 import { spawn } from 'child_process';
 import { once } from 'events';
 import tcpPortUsed from 'tcp-port-used';
-import { RedisSocketOptions } from './socket.js';
+import { RedisSocketOptions } from './socket';
 
 export enum TestRedisServers {
     OPEN,

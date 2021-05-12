@@ -1,4 +1,4 @@
-import { transformReplyBoolean } from './generic-transformers.js';
+import { transformReplyBoolean } from './generic-transformers';
 
 interface CopyCommandOptions {
     destinationDb?: number;

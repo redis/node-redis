@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
-import RedisMultiCommand, { MultiQueuedCommand } from './multi-command.js';
-import RedisClient from './client.js';
+import RedisMultiCommand, { MultiQueuedCommand } from './multi-command';
+import RedisClient from './client';
 
 describe('Multi Command', () => {
     it('create', async () => {

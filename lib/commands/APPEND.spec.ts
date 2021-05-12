@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { transformArguments } from './APPEND.js';
+import { transformArguments } from './APPEND';
 
 describe('AUTH', () => {
     it('transformArguments', () => {
