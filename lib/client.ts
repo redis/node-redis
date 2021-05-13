@@ -61,7 +61,11 @@ export default class RedisClient extends EventEmitter {
 
         return new RedisSocket(socketInitiator, socketOptions)
             .on('data', data => this.#queue.parseResponse(data))
-            .on('error', err => this.emit('error', err));
+            .on('error', err => this.emit('error', err))
+            .on('connect', () => this.emit('connect'))
+            .on('ready', () => this.emit('ready'))
+            .on('reconnecting', () => this.emit('reconnecting'))
+            .on('end', () => this.emit('end'));
     }
 
     #initiateQueue(): RedisCommandsQueue {
@@ -103,7 +107,7 @@ export default class RedisClient extends EventEmitter {
         return modules;
     }
 
-    async connect() {
+    async connect(): Promise<void> {
         await this.#socket.connect();
 
         this.#tick();
@@ -125,7 +129,8 @@ export default class RedisClient extends EventEmitter {
         return this.#socket.disconnect();
     }
 
-    #tick(chunkRecommendedSize: number = this.#socket.chunkRecommendedSize): void {
+    #tick(): void {
+        const {chunkRecommendedSize} = this.#socket;
         if (!chunkRecommendedSize) {
             return;
         }

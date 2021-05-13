@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { once } from 'events';
 import { TestRedisServers, TEST_REDIS_SERVERS, itWithClient } from './test-utils';
 import RedisClient from './client';
 
@@ -20,7 +21,7 @@ describe('Client', () => {
             });
 
             await assert.rejects(
-                () => client.connect(),
+                client.connect(),
                 {
                     message: 'WRONGPASS invalid username-password pair or user is disabled.'
                 }
@@ -30,11 +31,32 @@ describe('Client', () => {
         });
     });
 
+    describe('events', () => {
+        it('connect, ready, end', async () => {
+            const client = RedisClient.create({
+                socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
+            });
+
+            await Promise.all([
+                assert.doesNotReject(client.connect()),
+                assert.doesNotReject(once(client, 'connect')),
+                assert.doesNotReject(once(client, 'ready'))
+            ]);
+
+            await Promise.all([
+                assert.doesNotReject(client.disconnect()),
+                assert.doesNotReject(once(client, 'end'))
+            ]);
+        });
+    });
+
     it('sendCommand', async () => {
-        const client = RedisClient.create();
+        const client = RedisClient.create({
+            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
+        });
 
         await client.connect();
-        assert.deepEqual(await client.sendCommand(['PING']), 'PONG');
+        assert.equal(await client.sendCommand(['PING']), 'PONG');
         await client.disconnect();
     });
 });

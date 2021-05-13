@@ -70,11 +70,13 @@ export default class RedisSocket extends EventEmitter {
         return options.hasOwnProperty('tls');
     }
 
-    readonly #initiator: RedisSocketInitiator;
+    readonly #initiator?: RedisSocketInitiator;
 
     readonly #options: RedisSocketOptions;
 
     #socket?: net.Socket | tls.TLSSocket;
+
+    #isOpen = false;
 
     get chunkRecommendedSize(): number {
         if (!this.#socket) return 0;
@@ -82,7 +84,7 @@ export default class RedisSocket extends EventEmitter {
         return this.#socket.writableHighWaterMark - this.#socket.writableLength;
     }
 
-    constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
+    constructor(initiator?: RedisSocketInitiator, options?: RedisSocketOptions) {
         super();
 
         this.#initiator = initiator;
@@ -90,15 +92,21 @@ export default class RedisSocket extends EventEmitter {
     }
 
     async connect(): Promise<void> {
-        if (this.#socket) {
-            throw new Error('Socket already open');
+        if (this.#isOpen) {
+            throw new Error('Socket is connection/connecting');
         }
 
+        this.#isOpen = true;
         this.#socket = await this.#retryConnection(0);
+        this.emit('connect');
+
+        if (!this.#initiator) return;
 
         try {
             await this.#initiator();
+            this.emit('ready');
         } catch (err) {
+            this.#isOpen = false;
             this.#socket.end();
             this.#socket = undefined;
             throw err;
@@ -106,14 +114,22 @@ export default class RedisSocket extends EventEmitter {
     }
 
     async #retryConnection(retries: number): Promise<net.Socket | tls.TLSSocket> {
+        if (retries > 0 || this.#socket) {
+            this.emit('reconnecting');
+        }
+
         try {
             return await this.#createSocket();
         } catch (err) {
             this.emit('error', err);
 
+            if (!this.#isOpen) {
+                throw err;
+            }
+
             const retryIn = (this.#options?.retryStrategy ?? RedisSocket.#defaultRetryStrategy)(retries);
             if (retryIn instanceof Error) {
-                throw err;
+                throw retryIn;
             }
 
             await setTimeout(retryIn);
@@ -133,7 +149,13 @@ export default class RedisSocket extends EventEmitter {
                     socket
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))
-                        .once('end', () => this.#onSocketError(new Error('net.Socket ended')))
+                        .once('end', () => {
+                            this.emit('end');
+
+                            if (this.#isOpen) {
+                                this.#onSocketError(new Error('Socket ended'));
+                            }
+                        })
                         .on('drain', () => this.emit('drain'))
                         .on('data', (data: Buffer) => this.emit('data', data));
 
@@ -156,15 +178,13 @@ export default class RedisSocket extends EventEmitter {
         };
     }
 
-    async #onSocketError(err: Error): Promise<void> {
+    #onSocketError(err: Error): void {
         this.emit('error', err);
 
-        try {
-            await this.#retryConnection(0);
-        } catch (err) {
+        this.#retryConnection(0).catch(err => {
             this.emit('error', err);
             this.#socket = undefined;
-        }
+        });
     }
 
     write(encodedCommands: string): boolean {
@@ -176,10 +196,11 @@ export default class RedisSocket extends EventEmitter {
     }
 
     async disconnect(): Promise<void> {
-        if (!this.#socket) {
+        if (!this.#isOpen || !this.#socket) {
             throw new Error('Socket is closed');
         }
 
+        this.#isOpen = false;
         this.#socket.end();
         await EventEmitter.once(this.#socket, 'end');
         this.#socket = undefined;

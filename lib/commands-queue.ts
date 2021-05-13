@@ -10,6 +10,10 @@ export interface AddCommandOptions {
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
     encodedCommand: string;
     chainId?: Symbol;
+    abort?: {
+        signal: AbortSignal;
+        listener: () => void
+    };
 }
 
 interface CommandWaitingForReply {
@@ -75,11 +79,16 @@ export default class RedisCommandsQueue {
             });
 
             if (options?.signal) {
-                // TODO: remove listener once command moves to `this.#waitingForReply`?
-                options.signal.addEventListener('abort', () => {
-                    this.#waitingToBeSent.removeNode(node);
-                    node.value.reject(new Error('The command was aborted'));
-                }, {once: true});
+                node.value.abort = {
+                    signal: options.signal,
+                    listener: () => {
+                        this.#waitingToBeSent.removeNode(node);
+                        node.value.reject(new Error('The command was aborted'));
+                    }
+                };
+                options.signal.addEventListener('abort', node.value.abort.listener, {
+                    once: true
+                });
             }
 
             if (options?.asap) {
@@ -109,6 +118,10 @@ export default class RedisCommandsQueue {
 
         for (let i = 0; i < encoded.length; i++) {
             const waitingToBeSent = this.#waitingToBeSent.shift() as CommandWaitingToBeSent;
+            if (waitingToBeSent.abort) {
+                waitingToBeSent.abort.signal.removeEventListener('abort', waitingToBeSent.abort.listener);
+            }
+
             this.#waitingForReply.push({
                 resolve: waitingToBeSent.resolve,
                 reject: waitingToBeSent.reject
