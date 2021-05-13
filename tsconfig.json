@@ -2,7 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "target": "ESNext",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "outDir": "./dist",
@@ -19,9 +19,6 @@
     "./lib/**/*.ts"
   ],
   "ts-node": {
-    "files": true,
-    "compilerOptions": {
-      "module": "CommonJS"
-    }
+    "files": true
   }
 }
