@@ -78,6 +78,10 @@ export default class RedisSocket extends EventEmitter {
 
     #isOpen = false;
 
+    get isOpen(): boolean {
+        return this.#isOpen;
+    }
+
     get chunkRecommendedSize(): number {
         if (!this.#socket) return 0;
 

@@ -8,6 +8,7 @@ import EventEmitter from 'events';
 export interface RedisClientOptions<M = RedisModules> {
     socket?: RedisSocketOptions;
     modules?: M;
+    commandsQueueMaxLength?: number;
 }
 
 export type RedisCommandSignature<C extends RedisCommand> = (...args: Parameters<C['transformArguments']>) => Promise<ReturnType<C['transformReply']>>;
@@ -26,8 +27,8 @@ type WithMulti<M extends Array<RedisModule>> = {
 
 export type RedisClientType<M extends RedisModules> = WithCommands & WithModules<M> & WithMulti<M> & RedisClient;
 
-export default class RedisClient extends EventEmitter {
-    static defineCommand(on: any, name: string, command: RedisCommand) {
+export default class RedisClient<M extends RedisModules = RedisModules> extends EventEmitter {
+    static defineCommand(on: any, name: string, command: RedisCommand): void {
         on[name] = async function (...args: Array<unknown>): Promise<unknown> {
             return command.transformReply(
                 await this.sendCommand(command.transformArguments(...args))
@@ -41,13 +42,17 @@ export default class RedisClient extends EventEmitter {
 
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
-    readonly #Multi;
-    readonly #modules?: RedisModules;
+    readonly #Multi: typeof RedisMultiCommand & { new(): RedisMultiCommandType<M> };
+    readonly #modules?: M;
 
-    constructor(options?: RedisClientOptions) {
+    get isOpen(): boolean {
+        return this.#socket.isOpen;
+    }
+
+    constructor(options?: RedisClientOptions<M>) {
         super();
         this.#socket = this.#initiateSocket(options?.socket);
-        this.#queue = this.#initiateQueue();
+        this.#queue = this.#initiateQueue(options?.commandsQueueMaxLength);
         this.#Multi = this.#initiateMulti();
         this.#modules = this.#initiateModules(options?.modules);
     }
@@ -68,11 +73,14 @@ export default class RedisClient extends EventEmitter {
             .on('end', () => this.emit('end'));
     }
 
-    #initiateQueue(): RedisCommandsQueue {
-        return new RedisCommandsQueue((encodedCommands: string) => this.#socket.write(encodedCommands));
+    #initiateQueue(maxLength: number | null | undefined): RedisCommandsQueue {
+        return new RedisCommandsQueue(
+            maxLength,
+            (encodedCommands: string) => this.#socket.write(encodedCommands)
+        );
     }
 
-    #initiateMulti() {
+    #initiateMulti(): typeof RedisMultiCommand & { new(): RedisMultiCommandType<M> } {
         const executor = async (commands: Array<MultiQueuedCommand>): Promise<Array<RedisReply>> => {
             const promise = Promise.all(
                 commands.map(({encodedCommand}) => {
@@ -94,7 +102,7 @@ export default class RedisClient extends EventEmitter {
         };
     }
 
-    #initiateModules(modules?: RedisModules): RedisModules | undefined {
+    #initiateModules(modules?: M): M | undefined {
         if (!modules) return;
 
         for (const m of modules) {
@@ -121,7 +129,7 @@ export default class RedisClient extends EventEmitter {
         return promise;
     }
 
-    multi() {
+    multi(): RedisMultiCommandType<M> {
         return new this.#Multi();
     }
 

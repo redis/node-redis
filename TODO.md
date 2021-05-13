@@ -2,18 +2,18 @@
 * Missing Commands
 * Scan stream
 * PubSub
-* [`return_buffers`](https://github.com/NodeRedis/node-redis#options-object-properties) (? supported v3, but have performance drawbacks)
+* [`return_buffers`](https://github.com/NodeRedis/node-redis#options-object-properties) (? supported in v3, but have performance drawbacks)
 * Support options in a command function (`.get`, `.set`, ...)
 * Key prefixing (?) (partially supported in v3)
 
 ## Client
 * Blocking Commands
 * Events
-  * ready
-  * connect
-  * reconnecting
-  * error
-  * end
+  * ~~ready~~
+  * ~~connect~~
+  * ~~reconnecting~~
+  * ~~error~~
+  * ~~end~~
   * warning (?)
 * Select command
 
@@ -34,7 +34,11 @@
 * In `RedisMultiCommand` (with TypeScript mapping)
 * In `RedisCluster` (with TypeScript mapping)
 
+## Multi
+* exec without the `MULTI` command
+* support for constructor with array of commands (? supported in v3)
+
 ## Tests
 * Write tests..
-* Coverage
+* ~~Coverage~~
 * Performance Tests

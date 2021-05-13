@@ -27,7 +27,7 @@ describe('Client', () => {
                 }
             );
 
-            // TODO validate state
+            assert.equal(client.isOpen, false);
         });
     });
 
@@ -58,5 +58,18 @@ describe('Client', () => {
         await client.connect();
         assert.equal(await client.sendCommand(['PING']), 'PONG');
         await client.disconnect();
+    });
+
+    describe('multi', () => {
+        itWithClient(TestRedisServers.OPEN, 'simple', async client => {
+            assert.deepEqual(
+                await client.multi()
+                    .ping()
+                    .set('key', 'value')
+                    .get('key')
+                    .exec(),
+                ['PONG', 'OK', 'value']
+            );
+        });
     });
 });

@@ -45,6 +45,8 @@ export default class RedisCommandsQueue {
         }
     }
 
+    readonly #maxLength: number | null | undefined;
+
     readonly #executor: CommandsQueueExecutor;
 
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
@@ -58,18 +60,32 @@ export default class RedisCommandsQueue {
 
     #chainInExecution: Symbol | undefined;
 
-    constructor(executor: CommandsQueueExecutor) {
+    constructor(maxLength: number | null | undefined, executor: CommandsQueueExecutor) {
+        this.#maxLength = maxLength;
         this.#executor = executor;
     }
 
+    #isQueueFull<T = void>(): Promise<T> | undefined {
+        if (!this.#maxLength) return;
+
+        return this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength ?
+            Promise.reject(new Error('The queue is full')) :
+            undefined;
+    }
+
     addCommand<T = unknown>(args: Array<string>, options?: AddCommandOptions): Promise<T> {
-        return this.addEncodedCommand(
+        return this.#isQueueFull<T>() || this.addEncodedCommand(
             RedisCommandsQueue.encodeCommand(args),
             options
         );
     }
 
     addEncodedCommand<T = unknown>(encodedCommand: string, options?: AddCommandOptions): Promise<T> {
+        const fullQueuePromise = this.#isQueueFull<T>();
+        if (fullQueuePromise) {
+            return fullQueuePromise;
+        }
+
         return new Promise((resolve, reject) => {
             const node = new LinkedList.Node<CommandWaitingToBeSent>({
                 encodedCommand,
