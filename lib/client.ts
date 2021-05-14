@@ -21,11 +21,7 @@ type WithModules<M extends Array<RedisModule>> = {
     [P in keyof M[number]]: RedisCommandSignature<M[number][P]>;
 };
 
-type WithMulti<M extends Array<RedisModule>> = {
-    multi(): RedisMultiCommandType<M>
-};
-
-export type RedisClientType<M extends RedisModules> = WithCommands & WithModules<M> & WithMulti<M> & RedisClient;
+export type RedisClientType<M extends RedisModules> = WithCommands & WithModules<M> & RedisClient<M>;
 
 export default class RedisClient<M extends RedisModules = RedisModules> extends EventEmitter {
     static defineCommand(on: any, name: string, command: RedisCommand): void {
@@ -37,7 +33,7 @@ export default class RedisClient<M extends RedisModules = RedisModules> extends 
     }
 
     static create<M extends RedisModules>(options?: RedisClientOptions<M>): RedisClientType<M> {
-        return <any>new RedisClient(options);
+        return <any>new RedisClient<M>(options);
     }
 
     readonly #socket: RedisSocket;
@@ -84,13 +80,14 @@ export default class RedisClient<M extends RedisModules = RedisModules> extends 
         const executor = async (commands: Array<MultiQueuedCommand>): Promise<Array<RedisReply>> => {
             const promise = Promise.all(
                 commands.map(({encodedCommand}) => {
-                    return this.#queue.addEncodedCommand<RedisReply>(encodedCommand);
+                    return this.#queue.addEncodedCommand(encodedCommand);
                 })
             );
 
             this.#tick();
 
-            return promise;
+            const replies = await promise;
+            return (replies[replies.length - 1] as Array<RedisReply>);
         };
 
         const modules = this.#modules;
