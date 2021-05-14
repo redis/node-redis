@@ -1,34 +1,27 @@
 import { strict as assert } from 'assert';
-import RedisMultiCommand, { MultiQueuedCommand } from './multi-command';
-import RedisClient from './client';
+import RedisMultiCommand from './multi-command';
+import RedisCommandsQueue from './commands-queue';
 
 describe('Multi Command', () => {
-    it('create', async () => {
-        const multi = RedisMultiCommand.create(async (encodedCommands: Array<MultiQueuedCommand>): Promise<Array<string>> => {
-            return Object.keys(encodedCommands);
+    it('simple', async () => {
+        const multi = RedisMultiCommand.create(queue => {
+            assert.deepEqual(
+                queue.map(({encodedCommand}) => encodedCommand),
+                [
+                    RedisCommandsQueue.encodeCommand(['MULTI']),
+                    RedisCommandsQueue.encodeCommand(['PING']),
+                    RedisCommandsQueue.encodeCommand(['EXEC']),
+                ]
+            );
+
+            return Promise.resolve(['PONG']);
         });
 
         multi.ping();
-        multi.set('a', 'b');
-        // console.log(
-        await multi.exec()
-        // );
-    });
-
-    it('client.multi', async () => {
-        const client = RedisClient.create();
-
-        await client.connect();
 
         assert.deepEqual(
-            await client
-                .multi()
-                .ping()
-                .set('key', 'value')
-                .exec(),
-            ['PONG', 'OK']
+            await multi.exec(),
+            ['PONG']
         );
-
-        await client.disconnect();
     });
 });

@@ -19,7 +19,7 @@ export interface MultiQueuedCommand {
     transformReply?: RedisCommand['transformReply'];
 }
 
-export type RedisMultiExecutor = (encodedCommands: Array<MultiQueuedCommand>, chainId: Symbol) => Promise<Array<RedisReply>>;
+export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId: Symbol) => Promise<Array<RedisReply>>;
 
 export default class RedisMultiCommand {
     static defineCommand(on: any, name: string, command: RedisCommand) {
@@ -61,9 +61,21 @@ export default class RedisMultiCommand {
     }
 
     async exec(): Promise<Array<unknown>> {
-        const results = await this.#executor(this.#queue, Symbol('[RedisMultiCommand] Chain ID'));
-        return this.#queue.map(({transformReply}, i) => {
-            const reply = results[i];
+        if (!this.#queue.length) {
+            return [];
+        }
+
+        const queue = this.#queue.splice(0);
+        queue.unshift({
+            encodedCommand: RedisCommandsQueue.encodeCommand(['MULTI'])
+        });
+        queue.push({
+            encodedCommand: RedisCommandsQueue.encodeCommand(['EXEC'])
+        });
+
+        const rawReplies = await this.#executor(queue, Symbol('[RedisMultiCommand] Chain ID'));
+        return rawReplies.map((reply, i) => {
+            const { transformReply } = queue[i + 1];
             return transformReply ? transformReply(reply) : reply;
         });
     };
