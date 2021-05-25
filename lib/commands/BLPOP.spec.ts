@@ -33,8 +33,6 @@ describe('BLPOP', () => {
             ['key', '2']
         );
 
-        client.blPop()
-
         assert.equal(pushReply, 2);
     });
 });
