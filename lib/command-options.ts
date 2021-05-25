@@ -1,14 +1,14 @@
+const symbol = Symbol('Command Options');
+
 export type CommandOptions<T> = T & {
-    options: never;
+    readonly [symbol]: true
 };
 
-const set = new WeakSet();
-
-export function commandOptions<T extends object>(options: T): CommandOptions<T> {
-    set.add(options);
+export function commandOptions<T>(options: T): CommandOptions<T> {
+    (options as any)[symbol] = true;
     return options as CommandOptions<T>;
 }
 
-export function isCommandOptions<T extends object>(options: any): options is CommandOptions<T> {
-    return set.delete(options);
+export function isCommandOptions<T>(options: any): options is CommandOptions<T> {
+    return options && options[symbol] === true;
 }
