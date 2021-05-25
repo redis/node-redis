@@ -101,24 +101,34 @@ export default class RedisSocket extends EventEmitter {
         }
 
         this.#isOpen = true;
-        this.#socket = await this.#retryConnection(0);
-        this.emit('connect');
-
-        if (!this.#initiator) return;
 
         try {
-            await this.#initiator();
-            this.emit('ready');
+            await this.#connect();
         } catch (err) {
             this.#isOpen = false;
-            this.#socket.end();
-            this.#socket = undefined;
             throw err;
         }
     }
 
-    async #retryConnection(retries: number): Promise<net.Socket | tls.TLSSocket> {
-        if (retries > 0 || this.#socket) {
+    async #connect(hadError?: boolean): Promise<void> {
+        this.#socket = await this.#retryConnection(0, hadError);
+        this.emit('connect');
+
+        if (this.#initiator) {
+            try {
+                await this.#initiator();
+            } catch (err) {
+                this.#socket.end();
+                this.#socket = undefined;
+                throw err;
+            }
+        }
+
+        this.emit('ready');
+    }
+
+    async #retryConnection(retries: number, hadError?: boolean): Promise<net.Socket | tls.TLSSocket> {
+        if (retries > 0 || hadError) {
             this.emit('reconnecting');
         }
 
@@ -148,16 +158,14 @@ export default class RedisSocket extends EventEmitter {
                 this.#createNetSocket();
 
             socket
-                .once('error', reject)
+                .once('error', (err) => reject(err))
                 .once(connectEvent, () => {
                     socket
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))
-                        .once('end', () => {
-                            this.emit('end');
-
-                            if (this.#isOpen) {
-                                this.#onSocketError(new Error('Socket ended'));
+                        .once('close', hadError => {
+                            if (!hadError && this.#isOpen) {
+                                this.#onSocketError(new Error('Socket closed unexpectedly'));
                             }
                         })
                         .on('drain', () => this.emit('drain'))
@@ -183,12 +191,11 @@ export default class RedisSocket extends EventEmitter {
     }
 
     #onSocketError(err: Error): void {
+        this.#socket = undefined;
         this.emit('error', err);
 
-        this.#retryConnection(0).catch(err => {
-            this.emit('error', err);
-            this.#socket = undefined;
-        });
+        this.#connect(true)
+            .catch(err => this.emit('error', err));
     }
 
     write(encodedCommands: string): boolean {
@@ -208,5 +215,6 @@ export default class RedisSocket extends EventEmitter {
         this.#socket.end();
         await EventEmitter.once(this.#socket, 'end');
         this.#socket = undefined;
+        this.emit('end');
     }
 }

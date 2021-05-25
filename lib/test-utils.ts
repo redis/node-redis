@@ -1,3 +1,4 @@
+import assert from 'assert/strict';
 import RedisClient, { RedisClientType } from './client';
 import { RedisModules } from './commands';
 import { spawn } from 'child_process';
@@ -53,7 +54,7 @@ let port = 6379;
 
 async function spawnRedisServer(args?: Array<string>): Promise<number> {
     const currentPort = port++,
-        process = spawn('redis-server', [
+        process = spawn('/usr/local/bin/redis-server', [
             '--save',
             '',
             '--port',
@@ -66,7 +67,7 @@ async function spawnRedisServer(args?: Array<string>): Promise<number> {
     await tcpPortUsed.waitForStatus(currentPort, '127.0.0.1', true, 10, 1000);
 
     after(() => {
-        process.kill();
+        assert.ok(process.kill());
         return once(process, 'close');
     });
 

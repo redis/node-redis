@@ -20,8 +20,10 @@ describe('CLUSTER NODES', () => {
                 [{
                     id: 'master',
                     url: '127.0.0.1:30001@31001',
+                    host: '127.0.0.1',
+                    port: 30001,
+                    cport: 31001,
                     flags: ['myself', 'master'],
-                    master: null,
                     pingSent: 0,
                     pongRecv: 0,
                     configEpoch: 1,
@@ -29,17 +31,19 @@ describe('CLUSTER NODES', () => {
                     slots: [{
                         from: 0,
                         to: 16384
+                    }],
+                    replicas: [{
+                        id: 'slave',
+                        url: '127.0.0.1:30002@31002',
+                        host: '127.0.0.1',
+                        port: 30002,
+                        cport: 31002,
+                        flags: ['slave'],
+                        pingSent: 0,
+                        pongRecv: 0,
+                        configEpoch: 1,
+                        linkState: RedisClusterNodeLinkStates.CONNECTED
                     }]
-                }, {
-                    id: 'slave',
-                    url: '127.0.0.1:30002@31002',
-                    flags: ['slave'],
-                    master: 'master',
-                    pingSent: 0,
-                    pongRecv: 0,
-                    configEpoch: 1,
-                    linkState: RedisClusterNodeLinkStates.CONNECTED,
-                    slots: []
                 }]
             );
         });
@@ -47,18 +51,21 @@ describe('CLUSTER NODES', () => {
         it.skip('with importing slots', () => {
             assert.deepEqual(
                 transformReply(
-                    'id 127.0.0.1:30001@31001 master - 0 0 0 connected 0-<-16384'
+                    'id 127.0.0.1:30001@31001 master - 0 0 0 connected 0-<-16384\n'
                 ),
                 [{
                     id: 'id',
                     url: '127.0.0.1:30001@31001',
+                    host: '127.0.0.1',
+                    port: 30001,
+                    cport: 31001,
                     flags: ['master'],
-                    master: null,
                     pingSent: 0,
                     pongRecv: 0,
                     configEpoch: 0,
                     linkState: RedisClusterNodeLinkStates.CONNECTED,
-                    slots: [] // TODO
+                    slots: [], // TODO
+                    replicas: []
                 }]
             );
         });
@@ -66,18 +73,21 @@ describe('CLUSTER NODES', () => {
         it.skip('with migrating slots', () => {
             assert.deepEqual(
                 transformReply(
-                    'id 127.0.0.1:30001@31001 master - 0 0 0 connected 0->-16384'
+                    'id 127.0.0.1:30001@31001 master - 0 0 0 connected 0->-16384\n'
                 ),
                 [{
                     id: 'id',
                     url: '127.0.0.1:30001@31001',
+                    host: '127.0.0.1',
+                    port: 30001,
+                    cport: 31001,
                     flags: ['master'],
-                    master: null,
                     pingSent: 0,
                     pongRecv: 0,
                     configEpoch: 0,
                     linkState: RedisClusterNodeLinkStates.CONNECTED,
-                    slots: [] // TODO
+                    slots: [], // TODO
+                    replicas: []
                 }]
             );
         });

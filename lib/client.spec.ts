@@ -1,7 +1,8 @@
 import { strict as assert } from 'assert';
 import { once } from 'events';
-import { TestRedisServers, TEST_REDIS_SERVERS, itWithClient } from './test-utils';
+import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers } from './test-utils';
 import RedisClient from './client';
+import { AbortError } from './errors';
 
 describe('Client', () => {
     describe('authentication', () => {
@@ -31,6 +32,46 @@ describe('Client', () => {
         });
     });
 
+    describe('callbackify', () => {
+        const client = RedisClient.create({
+            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+            callbackify: true
+        });
+
+        before(() => client.connect());
+        after(async () => {
+            await (client as any).flushAllAsync();
+            await client.disconnect();
+        });
+
+        it('client.{command} should call the callback', done => {
+            (client as any).ping((err: Error, reply: string) => {
+                if (err) {
+                    return done(err);
+                }
+
+                try {
+                    assert.equal(reply, 'PONG');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            });
+        });
+
+        it('client.{command} should work without callback', async () => {
+            (client as any).ping();
+            await (client as any).pingAsync(); // make sure the first command was replied
+        });
+
+        it('client.{command}Async should return a promise', async () => {
+            assert.equal(
+                await (client as any).pingAsync(),
+                'PONG'
+            );
+        });
+    });
+
     describe('events', () => {
         it('connect, ready, end', async () => {
             const client = RedisClient.create({
@@ -38,26 +79,42 @@ describe('Client', () => {
             });
 
             await Promise.all([
-                assert.doesNotReject(client.connect()),
-                assert.doesNotReject(once(client, 'connect')),
-                assert.doesNotReject(once(client, 'ready'))
+                client.connect(),
+                once(client, 'connect'),
+                once(client, 'ready')
             ]);
 
             await Promise.all([
-                assert.doesNotReject(client.disconnect()),
-                assert.doesNotReject(once(client, 'end'))
+                client.disconnect(),
+                once(client, 'end')
             ]);
         });
     });
 
-    it('sendCommand', async () => {
-        const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
+    describe('sendCommand', () => {
+        itWithClient(TestRedisServers.OPEN, 'PING', async client => {
+            assert.equal(await client.sendCommand(['PING']), 'PONG');
         });
 
-        await client.connect();
-        assert.equal(await client.sendCommand(['PING']), 'PONG');
-        await client.disconnect();
+        describe('AbortController', () => {
+            itWithClient(TestRedisServers.OPEN, 'success', async client => {
+                await client.sendCommand(['PING'], {
+                    signal: new AbortController().signal
+                });
+            });
+
+            itWithClient(TestRedisServers.OPEN, 'AbortError', async client => {
+                const controller = new AbortController();
+                controller.abort();
+
+                await assert.rejects(
+                    client.sendCommand(['PING'], {
+                        signal: controller.signal
+                    }),
+                    AbortError
+                );
+            });
+        });
     });
 
     describe('multi', () => {
@@ -71,5 +128,40 @@ describe('Client', () => {
                 ['PONG', 'OK', 'value']
             );
         });
+
+        itWithClient(TestRedisServers.OPEN, 'should reject the whole chain on error', async client => {
+            client.on('error', () => {
+                // ignore errors
+            });
+
+            await assert.rejects(
+                client.multi()
+                    .ping()
+                    .addCommand(['DEBUG', 'RESTART'])
+                    .ping()
+                    .exec()
+            );
+        });
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'should reconnect after DEBUG RESTART', async client => {
+        client.on('error', () => {
+            // ignore errors
+        });
+
+        await client.sendCommand(['CLIENT', 'SETNAME', 'client']);
+        await assert.rejects(client.sendCommand(['DEBUG', 'RESTART']));
+        assert.ok(await client.sendCommand(['CLIENT', 'GETNAME']) === null);
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'should SELECT db after reconnection', async client => {
+        client.on('error', () => {
+            // ignore errors
+        });
+
+        await client.select(1);
+        await client.set('key', 'value');
+        await assert.rejects(client.sendCommand(['DEBUG', 'RESTART']));
+        // assert.equal(await client.get('key'), 'value');
     });
 });

@@ -1,12 +1,20 @@
 import { strict as assert } from 'assert';
+import RedisClient from '../client';
 import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './DEL';
 
 describe('DEL', () => {
     describe('transformArguments', () => {
-        it('multiple keys', () => {
+        it('string', () => {
             assert.deepEqual(
-                transformArguments('key1', 'key2'),
+                transformArguments('key'),
+                ['DEL', 'key']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                transformArguments(['key1', 'key2']),
                 ['DEL', 'key1', 'key2']
             );
         });
@@ -14,7 +22,7 @@ describe('DEL', () => {
 
     itWithClient(TestRedisServers.OPEN, 'client.del', async client => {
         assert.equal(
-            await client.del('key1', 'key2'),
+            await client.del('key'),
             0
         );
     });

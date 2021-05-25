@@ -1,7 +1,8 @@
-import LinkedList from 'yallist';
+import LinkedList, { Node } from 'yallist';
 import RedisParser from 'redis-parser';
+import { AbortError } from './errors';
 
-export interface AddCommandOptions {
+export interface QueueCommandOptions {
     asap?: boolean;
     signal?: AbortSignal;
     chainId?: Symbol;
@@ -73,17 +74,19 @@ export default class RedisCommandsQueue {
             undefined;
     }
 
-    addCommand<T = unknown>(args: Array<string>, options?: AddCommandOptions): Promise<T> {
+    addCommand<T = unknown>(args: Array<string>, options?: QueueCommandOptions): Promise<T> {
         return this.#isQueueFull<T>() || this.addEncodedCommand(
             RedisCommandsQueue.encodeCommand(args),
             options
         );
     }
 
-    addEncodedCommand<T = unknown>(encodedCommand: string, options?: AddCommandOptions): Promise<T> {
+    addEncodedCommand<T = unknown>(encodedCommand: string, options?: QueueCommandOptions): Promise<T> {
         const fullQueuePromise = this.#isQueueFull<T>();
         if (fullQueuePromise) {
             return fullQueuePromise;
+        } else if (options?.signal?.aborted) {
+            return Promise.reject(new AbortError());
         }
 
         return new Promise((resolve, reject) => {
@@ -95,14 +98,20 @@ export default class RedisCommandsQueue {
             });
 
             if (options?.signal) {
+                const listener = () => {
+                    this.#waitingToBeSent.removeNode(node);
+                    node.value.reject(new AbortError());
+                };
+
+                if (options.signal.aborted) {
+                    return listener();
+                }
+
                 node.value.abort = {
                     signal: options.signal,
-                    listener: () => {
-                        this.#waitingToBeSent.removeNode(node);
-                        node.value.reject(new Error('The command was aborted'));
-                    }
+                    listener
                 };
-                options.signal.addEventListener('abort', node.value.abort.listener, {
+                options.signal.addEventListener('abort', listener, {
                     once: true
                 });
             }
@@ -119,8 +128,8 @@ export default class RedisCommandsQueue {
         if (!this.#waitingToBeSent.length) return;
 
         const encoded: Array<string> = [];
-        let size = 0;
-        let lastCommandChainId: Symbol | undefined;
+        let size = 0,
+            lastCommandChainId: Symbol | undefined;
         for (const {encodedCommand, chainId} of this.#waitingToBeSent) {
             encoded.push(encodedCommand);
             size += encodedCommand.length;
@@ -129,6 +138,12 @@ export default class RedisCommandsQueue {
                 break;
             }
         }
+
+        if (!lastCommandChainId && encoded.length === this.#waitingToBeSent.length) {
+            lastCommandChainId = (this.#waitingToBeSent.tail as Node<CommandWaitingToBeSent>).value.chainId;
+        }
+
+        lastCommandChainId ??= this.#waitingToBeSent.tail?.value.chainId;
 
         this.#executor(encoded.join(''));
 
@@ -173,7 +188,8 @@ export default class RedisCommandsQueue {
         this.#chainInExecution = undefined;
     }
 
-    flushWaitingToBeSent(err: Error): void {
+    flushAll(err: Error): void {
+        RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         RedisCommandsQueue.#flushQueue(this.#waitingToBeSent, err);
     }
 };

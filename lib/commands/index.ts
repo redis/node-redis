@@ -1,5 +1,6 @@
 import * as APPEND from './APPEND';
 import * as AUTH from './AUTH';
+import * as BLPOP from './BLPOP';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as COPY from './COPY';
 import * as DECR from './DECR';
@@ -25,7 +26,9 @@ import * as INCR from './INCR';
 import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
+import * as LPUSH from './LPUSH';
 import * as PING from './PING';
+import * as READONLY from './READONLY';
 import * as SET from './SET';
 
 export default {
@@ -33,6 +36,8 @@ export default {
     append: APPEND,
     AUTH,
     auth: AUTH,
+    BLPOP,
+    blPop: BLPOP,
     CLUSTER_NODES,
     clusterNodes: CLUSTER_NODES,
     COPY,
@@ -83,8 +88,12 @@ export default {
     incrByFloat: INCRBYFLOAT,
     KEYS,
     keys: KEYS,
+    LPUSH,
+    lPush: LPUSH,
     PING,
     ping: PING,
+    READONLY,
+    readOnly: READONLY,
     SET,
     set: SET
 };
@@ -93,6 +102,7 @@ export type RedisReply = string | number | Array<string> | null | undefined;
 
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number;
+    IS_READ_ONLY?: boolean;
     transformArguments(...args: Array<any>): Array<string>;
     transformReply(reply: RedisReply): any;
 }

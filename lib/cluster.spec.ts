@@ -5,7 +5,8 @@ describe.skip('Cluster', () => {
         const cluster = RedisCluster.create({
             rootNodes: [{
                 port: 30001
-            }]
+            }],
+            useReplicas: true
         });
 
         await cluster.connect();
@@ -14,6 +15,10 @@ describe.skip('Cluster', () => {
         await cluster.set('a', 'b');
         await cluster.set('a{a}', 'bb');
         await cluster.set('aa', 'bb');
+        await cluster.get('aa');
+        await cluster.get('aa');
+        await cluster.get('aa');
+        await cluster.get('aa');
 
         await cluster.disconnect();
     });

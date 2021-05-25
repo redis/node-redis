@@ -1,35 +1,45 @@
 import calculateSlot from 'cluster-key-slot';
 import RedisClient from './client';
 import { RedisSocketOptions } from './socket';
-import { RedisClusterNode } from './commands/CLUSTER_NODES';
+import { RedisClusterMasterNode, RedisClusterReplicaNode } from './commands/CLUSTER_NODES';
 import { RedisClusterOptions } from './cluster';
+
+interface SlotClients {
+    master: RedisClient;
+    replicas: Array<RedisClient>;
+    iterator: IterableIterator<RedisClient> | undefined;
+}
 
 export default class RedisClusterSlots {
     readonly #options: RedisClusterOptions;
     readonly #clientByKey = new Map<string, RedisClient>();
-    readonly #slots: Array<RedisClient> = [];
+    readonly #slots: Array<SlotClients> = [];
 
     constructor(options: RedisClusterOptions) {
         this.#options = options;
     }
 
     async connect(): Promise<void> {
-        // TODO: if connected use a random client?
         for (const rootNode of this.#options.rootNodes) {
             try {
                 await this.#discoverNodes(rootNode);
+                return;
             } catch (err) {
                 // this.emit('error', err);
             }
         }
 
-        throw new Error('None of the root nodes was available');
+        throw new Error('None of the root nodes is available');
+    }
+
+    async discover(): Promise<void> {
+        // TODO
+        throw new Error('None of the cluster node is available');
     }
 
     async #discoverNodes(socketOptions: RedisSocketOptions) {
         const client = RedisClient.create({
-            socket: socketOptions,
-            modules: this.#options?.modules
+            socket: socketOptions
         });
 
         await client.connect();
@@ -41,23 +51,23 @@ export default class RedisClusterSlots {
         }
     }
 
-    async #reset(nodes: Array<RedisClusterNode>): Promise<void> {
+    async #reset(masters: Array<RedisClusterMasterNode>): Promise<void> {
         // Override this.#slots and add not existing clients to this.#clientByKey
-        const promises = [],
-            clientsInUse = new Set();
-        for (const {url, slots} of nodes) {
-            clientsInUse.add(url);
+        const promises: Array<Promise<void>> = [],
+            clientsInUse = new Set<string>();
+        for (const master of masters) {
+            const masterClient = this.#initiateClientForNode(master, false, clientsInUse, promises),
+                replicasClients = this.#options.useReplicas ?
+                    master.replicas.map(replica => this.#initiateClientForNode(replica, true, clientsInUse, promises)) :
+                    [];
 
-            let client = this.#clientByKey.get(url);
-            if (!client) {
-                // TODO: client configuration
-                client = RedisClient.create();
-                promises.push(client.connect());
-            }
-
-            for (const slot of slots) {
+            for (const slot of master.slots) {
                 for (let i = slot.from; i < slot.to; i++) {
-                    this.#slots[i] = client;
+                    this.#slots[i] = {
+                        master: masterClient,
+                        replicas: replicasClients,
+                        iterator: undefined // will be initiated in use
+                    };
                 }
             }
         }
@@ -72,8 +82,51 @@ export default class RedisClusterSlots {
         }
     }
 
-    #getSlotClient(slot: number): RedisClient {
-        return this.#slots[slot];
+    #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readOnly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClient {
+        clientsInUse.add(node.url);
+
+        let client = this.#clientByKey.get(node.url);
+        if (!client) {
+            client = RedisClient.create({
+                socket: {
+                    host: node.host,
+                    port: node.port
+                },
+                readOnly
+            });
+            promises.push(client.connect());
+            this.#clientByKey.set(node.url, client);
+        }
+
+        return client;
+    }
+
+    #getSlotMaster(slot: number): RedisClient {
+        return this.#slots[slot].master;
+    }
+
+    *#slotIterator(slotNumber: number): IterableIterator<RedisClient> {
+        const slot = this.#slots[slotNumber];
+        yield slot.master;
+
+        for (const replica of slot.replicas) {
+            yield replica;
+        }
+    }
+
+    #getSlotClient(slotNumber: number): RedisClient {
+        const slot = this.#slots[slotNumber];
+        if (!slot.iterator) {
+            slot.iterator = this.#slotIterator(slotNumber);
+        }
+
+        const {done, value} = slot.iterator.next();
+        if (done) {
+            slot.iterator = undefined;
+            return this.#getSlotClient(slotNumber);
+        }
+
+        return value;
     }
 
     #randomClientIterator?: IterableIterator<RedisClient>;
@@ -96,17 +149,25 @@ export default class RedisClusterSlots {
         return value;
     }
 
-    getClient(firstKey?: string): RedisClient {
+    getClient(firstKey?: string, isReadOnly?: boolean): RedisClient {
         if (!firstKey) {
             return this.#getRandomClient();
         }
 
-        return this.#getSlotClient(calculateSlot(firstKey));
+        const slot = calculateSlot(firstKey);
+        if (!isReadOnly || !this.#options.useReplicas) {
+            return this.#getSlotMaster(slot);
+        }
+
+        return this.#getSlotClient(slot);
     }
 
     async disconnect(): Promise<void> {
         await Promise.all(
             [...this.#clientByKey.values()].map(client => client.disconnect())
         );
+
+        this.#clientByKey.clear();
+        this.#slots.splice(0);
     }
 }

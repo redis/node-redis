@@ -7,44 +7,90 @@ export enum RedisClusterNodeLinkStates {
     DISCONNECTED = 'disconnected'
 }
 
-export interface RedisClusterNode {
+interface RedisClusterNodeTransformedUrl {
+    host: string;
+    port: number;
+    cport: number;
+}
+
+export interface RedisClusterReplicaNode extends RedisClusterNodeTransformedUrl {
     id: string;
     url: string;
     flags: Array<string>,
-    master: string | null;
     pingSent: number;
     pongRecv: number;
     configEpoch: number;
     linkState: RedisClusterNodeLinkStates;
+}
+
+export interface RedisClusterMasterNode extends RedisClusterReplicaNode {
     slots: Array<{
         from: number,
         to: number
-    }>
+    }>;
+    replicas: Array<RedisClusterReplicaNode>;
 }
 
-export function transformReply(reply: string): Array<RedisClusterNode> {
+export function transformReply(reply: string): Array<RedisClusterMasterNode> {
     const lines = reply.split('\n');
     lines.pop(); // last line is empty
-    return lines.map(line => {
-        const [id, url, flags, master, pingSent, pongRecv, configEpoch, linkState, ...slots] = line.split(' ');
-        return {
-            id,
-            url,
-            flags: flags.split(','),
-            master: master === '-' ? null : master,
-            pingSent: Number(pingSent),
-            pongRecv: Number(pongRecv),
-            configEpoch: Number(configEpoch),
-            linkState: (linkState as RedisClusterNodeLinkStates),
-            slots: slots.map(slot => {
-                // TODO: importing & exporting (https://redis.io/commands/cluster-nodes#special-slot-entries)
-                const [fromString, toString] = slot.split('-', 2),
-                    from = Number(fromString);
-                return {
-                    from,
-                    to: toString ? Number(toString) : from
-                };
-            })
-        };
-    });
+
+    const mastersMap = new Map<string, RedisClusterMasterNode>(),
+        replicasMap = new Map<string, Array<RedisClusterReplicaNode>>();
+
+    for (const line of lines) {
+        const [id, url, flags, masterId, pingSent, pongRecv, configEpoch, linkState, ...slots] = line.split(' '),
+            node = {
+                id,
+                url,
+                ...transformNodeUrl(url),
+                flags: flags.split(','),
+                pingSent: Number(pingSent),
+                pongRecv: Number(pongRecv),
+                configEpoch: Number(configEpoch),
+                linkState: (linkState as RedisClusterNodeLinkStates)
+            };
+
+        if (masterId === '-') {
+            let replicas = replicasMap.get(id);
+            if (!replicas) {
+                replicas = [];
+                replicasMap.set(id, replicas);
+            }
+
+            mastersMap.set(id, {
+                ...node,
+                slots: slots.map(slot => {
+                    // TODO: importing & exporting (https://redis.io/commands/cluster-nodes#special-slot-entries)
+                    const [fromString, toString] = slot.split('-', 2),
+                        from = Number(fromString);
+                    return {
+                        from,
+                        to: toString ? Number(toString) : from
+                    };
+                }),
+                replicas
+            });
+        } else {
+            const replicas = replicasMap.get(masterId);
+            if (!replicas) {
+                replicasMap.set(masterId, [node]);
+            } else {
+                replicas.push(node);
+            }
+        }
+    }
+
+    return [...mastersMap.values()];
+}
+
+function transformNodeUrl(url: string): RedisClusterNodeTransformedUrl {
+    const indexOfColon = url.indexOf(':'),
+        indexOfAt = url.indexOf('@', indexOfColon);
+
+    return {
+        host: url.substring(0, indexOfColon),
+        port: Number(url.substring(indexOfColon + 1, indexOfAt)),
+        cport: Number(url.substring(indexOfAt + 1))
+    };
 }
