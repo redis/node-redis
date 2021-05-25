@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { once } from 'events';
 import tcpPortUsed from 'tcp-port-used';
 import { RedisSocketOptions } from './socket';
+import which from 'which';
 
 export enum TestRedisServers {
     OPEN,
@@ -50,11 +51,13 @@ export function itWithClient(type: TestRedisServers, title: string, fn: (client:
     });
 }
 
+const REDIS_PATH = which.sync('redis-server');
+
 let port = 6379;
 
 async function spawnRedisServer(args?: Array<string>): Promise<number> {
     const currentPort = port++,
-        process = spawn('/usr/local/bin/redis-server', [
+        process = spawn(REDIS_PATH, [
             '--save',
             '',
             '--port',
