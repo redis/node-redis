@@ -20,7 +20,11 @@ import * as HINCRBY from './HINCRBY';
 import * as HINCRBYFLOAT from './HINCRBYFLOAT';
 import * as HKEYS from './HKEYS';
 import * as HLEN from './HLEN';
+import * as HMGET from './HMGET';
+import * as HRANDFIELD from './HRANDFIELD';
 import * as HSET from './HSET';
+import * as HSETNX from './HSETNX';
+import * as HSTRLEN from './HSTRLEN';
 import * as HVALS from './HVALS';
 import * as INCR from './INCR';
 import * as INCRBY from './INCRBY';
@@ -76,8 +80,16 @@ export default {
     hKeys: HKEYS,
     HLEN,
     hLen: HLEN,
+    HMGET,
+    hmGet: HMGET,
+    HRANDFIELD,
+    hRandField: HRANDFIELD,
     HSET,
     hSet: HSET,
+    HSETNX,
+    hSetNX: HSETNX,
+    HSTRLEN,
+    hStrLen: HSTRLEN,
     HVALS,
     hVals: HVALS,
     INCR,

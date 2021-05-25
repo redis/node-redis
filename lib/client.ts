@@ -4,7 +4,7 @@ import COMMANDS from './commands/client';
 import { RedisCommand, RedisModules, RedisModule, RedisReply } from './commands';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import EventEmitter from 'events';
-import { commandOptions, CommandOptions, isCommandOptions } from './command-options';
+import { CommandOptions, commandOptions, isCommandOptions } from './command-options';
 
 export interface RedisClientOptions<M = RedisModules> {
     socket?: RedisSocketOptions;

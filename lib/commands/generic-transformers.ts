@@ -6,6 +6,10 @@ export function transformReplyString(reply: string): string {
     return reply;
 }
 
+export function transformReplyStringArray(reply: Array<string>): Array<string> {
+    return reply;
+}
+
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
 }

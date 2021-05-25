@@ -1,6 +1,6 @@
 import { transformReplyString } from './generic-transformers';
 
-enum RedisFlushModes {
+export enum RedisFlushModes {
     ASYNC = 'ASYNC',
     SYNC = 'SYNC'
 }
