@@ -29,9 +29,8 @@
   * optionally filtered master(RW) & optionally filtered slaves(R) (?)
 
 ## Lua Scripts
-* Create `RedisLuaScript` class
-* In `RedisClient` (with TypeScript mapping)
-* In `RedisMultiCommand` (with TypeScript mapping)
+* ~~In `RedisClient` (with TypeScript mapping)~~
+* ~~In `RedisMultiCommand` (with TypeScript mapping)~~
 * In `RedisCluster` (with TypeScript mapping)
 
 ## Multi

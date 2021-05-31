@@ -3,6 +3,7 @@ import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers } from './test-utils';
 import RedisClient from './client';
 import { AbortError } from './errors';
+import { defineScript } from './lua-script';
 
 describe('Client', () => {
     describe('authentication', () => {
@@ -142,6 +143,64 @@ describe('Client', () => {
                     .exec()
             );
         });
+
+        it('with script', async () => {
+            const client = RedisClient.create({
+                scripts: {
+                    add: defineScript({
+                        NUMBER_OF_KEYS: 0,
+                        SCRIPT: 'return ARGV[1] + 1;',
+                        transformArguments(number: number): Array<string> {
+                            return [number.toString()];
+                        },
+                        transformReply(reply: number): number {
+                            return reply;
+                        }
+                    })
+                }
+            });
+    
+            await client.connect();
+
+            try {
+                assert.deepEqual(
+                    await client.multi()
+                        .add(1)
+                        .exec(),
+                    [2]
+                );
+            } finally {
+                await client.disconnect();
+            }
+        });
+    });
+    
+    it('scripts', async () => {
+        const client = RedisClient.create({
+            scripts: {
+                add: defineScript({
+                    NUMBER_OF_KEYS: 0,
+                    SCRIPT: 'return ARGV[1] + 1;',
+                    transformArguments(number: number): Array<string> {
+                        return [number.toString()];
+                    },
+                    transformReply(reply: number): number {
+                        return reply;
+                    }
+                })
+            }
+        });
+
+        await client.connect();
+
+        try {
+            assert.equal(
+                await client.add(1),
+                2
+            );
+        } finally {
+            await client.disconnect();
+        }
     });
 
     itWithClient(TestRedisServers.OPEN, 'should reconnect after DEBUG RESTART', async client => {
@@ -160,8 +219,10 @@ describe('Client', () => {
         });
 
         await client.select(1);
-        await client.set('key', 'value');
         await assert.rejects(client.sendCommand(['DEBUG', 'RESTART']));
-        // assert.equal(await client.get('key'), 'value');
+        assert.equal(
+            (await client.clientInfo()).db,
+            1
+        );
     });
 });

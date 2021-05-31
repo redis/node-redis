@@ -33,11 +33,20 @@ export default class RedisClusterSlots {
     }
 
     async discover(): Promise<void> {
-        // TODO
-        throw new Error('None of the cluster node is available');
+        // TODO: shuffle?
+        for (const client of this.#clientByKey.values()) {
+            try {
+                await this.#discoverNodes(client.options?.socket);
+                return;
+            } catch (err) {
+                // this.emit('error', err);
+            }
+        }
+
+        throw new Error('None of the cluster nodes is available');
     }
 
-    async #discoverNodes(socketOptions: RedisSocketOptions) {
+    async #discoverNodes(socketOptions?: RedisSocketOptions) {
         const client = RedisClient.create({
             socket: socketOptions
         });

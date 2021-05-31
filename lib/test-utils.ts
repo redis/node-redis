@@ -1,6 +1,7 @@
 import assert from 'assert/strict';
 import RedisClient, { RedisClientType } from './client';
 import { RedisModules } from './commands';
+import { RedisLuaScripts } from './lua-script';
 import { spawn } from 'child_process';
 import { once } from 'events';
 import tcpPortUsed from 'tcp-port-used';
@@ -35,7 +36,7 @@ async function spawnPasswordServer(): Promise<void> {
     };
 }
 
-export function itWithClient(type: TestRedisServers, title: string, fn: (client: RedisClientType<RedisModules>) => Promise<void>) {
+export function itWithClient(type: TestRedisServers, title: string, fn: (client: RedisClientType<RedisModules, RedisLuaScripts>) => Promise<void>) {
     it(title, async () => {
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[type]

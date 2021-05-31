@@ -1,6 +1,7 @@
 import * as APPEND from './APPEND';
 import * as AUTH from './AUTH';
 import * as BLPOP from './BLPOP';
+import * as CLIENT_INFO from './CLIENT_INFO';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as COPY from './COPY';
 import * as DECR from './DECR';
@@ -42,6 +43,8 @@ export default {
     auth: AUTH,
     BLPOP,
     blPop: BLPOP,
+    CLIENT_INFO,
+    clientInfo: CLIENT_INFO,
     CLUSTER_NODES,
     clusterNodes: CLUSTER_NODES,
     COPY,
