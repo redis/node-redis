@@ -298,7 +298,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return new this.#Multi();
     }
 
-    async* scanAsyncIterator(options?: ScanOptions): AsyncIterable<string> {
+    async* scanIterator(options?: ScanOptions): AsyncIterable<string> {
         let cursor = 0;
         do {
             const reply = await (this as any).scan(cursor, options);
