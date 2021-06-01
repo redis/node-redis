@@ -34,6 +34,7 @@ import * as KEYS from './KEYS';
 import * as LPUSH from './LPUSH';
 import * as PING from './PING';
 import * as READONLY from './READONLY';
+import * as SCAN from './SCAN';
 import * as SET from './SET';
 
 export default {
@@ -109,11 +110,13 @@ export default {
     ping: PING,
     READONLY,
     readOnly: READONLY,
+    SCAN,
+    scan: SCAN,
     SET,
     set: SET
 };
 
-export type RedisReply = string | number | Array<string> | null | undefined;
+export type RedisReply = string | number | Array<RedisReply> | null | undefined;
 
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number;

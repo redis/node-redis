@@ -301,4 +301,26 @@ describe('Client', () => {
             1
         );
     });
+
+    itWithClient(TestRedisServers.OPEN, 'scanIterator', async client => {
+        const promises = [],
+            keys = [];
+        for (let i = 0; i < 100; i++) {
+            const key = i.toString();
+            keys.push(key);
+            promises.push(client.set(key, ''));
+        }
+
+        await Promise.all(promises);
+
+        const set = new Set();
+        for await (const key of client.scanIterator()) {
+            set.add(key);
+        }
+
+        assert.deepEqual(
+            [...set].sort(),
+            keys.sort()
+        );
+    });
 });

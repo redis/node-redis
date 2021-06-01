@@ -6,6 +6,7 @@ import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './
 import EventEmitter from 'events';
 import { CommandOptions, commandOptions, isCommandOptions } from './command-options';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
+import { ScanOptions } from './commands/SCAN';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -296,6 +297,17 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     multi(): RedisMultiCommandType<M, S> {
         return new this.#Multi();
     }
+
+    async* scanAsyncIterator(options?: ScanOptions): AsyncIterable<string> {
+        let cursor = 0;
+        do {
+            const reply = await (this as any).scan(cursor, options);
+            cursor = reply.cursor;
+            for (const key of reply.keys) {
+                yield key;
+            }
+        } while (cursor !== 0)
+    }        
 
     disconnect(): Promise<void> {
         this.#queue.flushAll(new Error('Disconnecting'));
