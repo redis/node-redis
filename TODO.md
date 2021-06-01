@@ -5,6 +5,8 @@
 * [`return_buffers`](https://github.com/NodeRedis/node-redis#options-object-properties) (? supported in v3, but have performance drawbacks)
 * ~~Support options in a command function (`.get`, `.set`, ...)~~
 * Key prefixing (?) (partially supported in v3)
+* Support for RESP3
+* client-side caching
 
 ## Client
 * ~~Blocking Commands~~

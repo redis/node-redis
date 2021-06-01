@@ -33,20 +33,18 @@ describe('Client', () => {
         });
     });
 
-    describe('callbackify', () => {
+    describe('legacyMode', () => {
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
-            callbackify: true
+            legacyMode: true
         });
 
         before(() => client.connect());
-        after(async () => {
-            await (client as any).flushAllAsync();
-            await client.disconnect();
-        });
+        afterEach(() => client.modern.flushAll());
+        after(() => client.disconnect());
 
-        it('client.{command} should call the callback', done => {
-            (client as any).ping((err: Error, reply: string) => {
+        it('client.sendCommand should call the callback', done => {
+            (client as any).sendCommand('PING', (err?: Error, reply?: string) => {
                 if (err) {
                     return done(err);
                 }
@@ -60,15 +58,93 @@ describe('Client', () => {
             });
         });
 
-        it('client.{command} should work without callback', async () => {
-            (client as any).ping();
-            await (client as any).pingAsync(); // make sure the first command was replied
+        it('client.sendCommand should work without callback', async () => {
+            (client as any).sendCommand('PING');
+            await client.modern.ping(); // make sure the first command was replied
         });
 
-        it('client.{command}Async should return a promise', async () => {
+        it('client.modern.sendCommand should return a promise', async () => {
             assert.equal(
-                await (client as any).pingAsync(),
+                await client.modern.sendCommand(['PING']),
                 'PONG'
+            );
+        });
+
+        it('client.{command} should accept vardict arguments', done => {
+            (client as any).set('a', 'b', (err?: Error, reply?: string) => {
+                if (err) {
+                    return done(err);
+                }
+
+                try {
+                    assert.equal(reply, 'OK');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            });
+        });
+
+        it('client.{command} should accept arguments array', done => {
+            (client as any).set(['a', 'b'], (err?: Error, reply?: string) => {
+                if (err) {
+                    return done(err);
+                }
+
+                try {
+                    assert.equal(reply, 'OK');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            });
+        });
+
+        it('client.{command} should accept mix of strings and array of strings', done => {
+            (client as any).set(['a'], 'b', ['GET'], (err?: Error, reply?: string) => {
+                if (err) {
+                    return done(err);
+                }
+
+                try {
+                    assert.equal(reply, null);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            });
+        });
+
+        it('client.multi.exec should call the callback', done => {
+            (client as any).multi()
+                .ping()
+                .exec((err?: Error, reply?: string) => {
+                    if (err) {
+                        return done(err);
+                    }
+
+                    try {
+                        assert.deepEqual(reply, ['PONG']);
+                        done();
+                    } catch (err) {
+                        done(err);
+                    }
+                });
+        });
+
+        it('client.multi.exec should work without callback', async () => {
+            (client as any).multi()
+                .ping()
+                .exec();
+            await client.modern.ping(); // make sure the first command was replied
+        });
+
+        it('client.modern.exec should return a promise', async () => {
+            assert.deepEqual(
+                await ((client as any).multi().modern
+                    .ping()
+                    .exec()),
+                ['PONG']
             );
         });
     });

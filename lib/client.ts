@@ -13,7 +13,7 @@ export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     scripts?: S;
     commandsQueueMaxLength?: number;
     readOnly?: boolean;
-    callbackify?: boolean;
+    legacyMode?: boolean;
 }
 
 export type RedisCommandSignature<C extends RedisCommand> =
@@ -50,24 +50,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         };
     }
 
-    static callbackifyCommand(on: any, name: string): void {
-        const originalFunction = on[name + 'Async'] = on[name];
-        on[name] = function (...args: Array<unknown>) {
-            const hasCallback = typeof args[args.length - 1] === 'function',
-                callback = (hasCallback && args.pop()) as Function;
-
-            const promise = originalFunction.apply(this, args);
-            if (hasCallback) {
-                promise
-                    .then((reply: RedisReply) => callback(null, reply))
-                    .catch((err: Error) => callback(err));
-            } else {
-                promise
-                    .catch((err: Error) => this.emit('error', err));
-            }
-        };
-    }
-
     static create<M extends RedisModules, S extends RedisLuaScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
         return <any>new RedisClient<M, S>(options);
     }
@@ -80,6 +62,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
     readonly #Multi: typeof RedisMultiCommand & { new(): RedisMultiCommandType<M, S> };
+    readonly #modern: Record<string, Function> = {};
     #selectedDB = 0;
 
     get options(): RedisClientOptions<M> | null | undefined {
@@ -90,6 +73,14 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return this.#socket.isOpen;
     }
 
+    get modern(): Record<string, Function> {
+        if (!this.#options?.legacyMode) {
+            throw new Error('the client is not in "legacy mode"');
+        }
+
+        return this.#modern;
+    }
+
     constructor(options?: RedisClientOptions<M, S>) {
         super();
         this.#options = options;
@@ -98,7 +89,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#Multi = this.#initiateMulti();
         this.#initiateModules();
         this.#initiateScripts();
-        this.#callbackify();
+        this.#legacyMode();
     }
 
     #initiateSocket(): RedisSocket {
@@ -159,7 +150,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         const options = this.#options;
         return <any>class extends RedisMultiCommand {
             constructor() {
-                super(executor, options?.modules, options?.scripts);
+                super(executor, options);
             }
         };
     }
@@ -203,22 +194,61 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         }
     }
 
-    #callbackify(): void {
-        if (!this.#options?.callbackify) return;
+    #legacyMode(): void {
+        if (!this.#options?.legacyMode) return;
+
+        this.#modern.sendCommand = this.sendCommand.bind(this);
+
+        (this as any).sendCommand = (...args: Array<unknown>): void => {
+            const options = isCommandOptions(args[0]) && args.shift(),
+                callback = typeof args[args.length - 1] === 'function' && (args.pop() as Function);
+            
+            this.#modern.sendCommand(args.flat(), options)
+                .then((reply: unknown) => {
+                    if (!callback) return;
+
+                    // https://github.com/NodeRedis/node-redis#commands:~:text=minimal%20parsing
+
+                    callback(null, reply);
+                })
+                .catch((err: Error) => {
+                    if (!callback) {
+                        this.emit('error', err);
+                        return;
+                    }
+
+                    callback(err);
+                })
+        }
 
         for (const name of Object.keys(COMMANDS)) {
-            RedisClient.callbackifyCommand(this, name);
-            RedisClient.callbackifyCommand(this.#Multi.prototype, name);
+            this.#defineLegacyCommand(name);
         }
 
-        if (!this.#options?.modules) return;
+        // hard coded commands
+        this.#defineLegacyCommand('SELECT');
+        this.#defineLegacyCommand('select');
 
-        for (const m of this.#options.modules) {
-            for (const name of Object.keys(m)) {
-                RedisClient.callbackifyCommand(this, name);
-                RedisClient.callbackifyCommand(this.#Multi.prototype, name);
+        if (this.#options?.modules) {
+            for (const m of this.#options.modules) {
+                for (const name of Object.keys(m)) {
+                    this.#defineLegacyCommand(name);
+                }
             }
         }
+
+        if (this.#options?.scripts) {
+            for (const name of Object.keys(this.#options.scripts)) {
+                this.#defineLegacyCommand(name);
+            }
+        }
+    }
+
+    #defineLegacyCommand(name: string): void {
+        this.#modern[name] = (this as any)[name];
+        (this as any)[name] = function (...args: Array<unknown>): void {
+            this.sendCommand(name, ...args);
+        };
     }
 
     duplicate(): RedisClientType<M, S> {
