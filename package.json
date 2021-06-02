@@ -23,8 +23,7 @@
   "types": "./dist/index.t.ts",
   "scripts": {
     "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
-    "build": "tsc",
-    "benchmark": "cd ./benchmark && npm run start"
+    "build": "tsc"
   },
   "dependencies": {
     "cluster-key-slot": "1.1.0",
