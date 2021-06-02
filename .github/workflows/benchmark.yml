@@ -1,4 +1,4 @@
-name: Tests
+name: Benchmark
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - v4
 
 jobs:
-  tests:
-    name: Test
+  benchmark:
+    name: Benchmark
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -34,5 +34,8 @@ jobs:
       - name: Install Packages
         run: npm install
 
-      - name: Run Tests
-        run: npm run test
+      - name: Build
+        run: npm run build
+
+      - name: Benchmark
+        run: npm run benchmark
