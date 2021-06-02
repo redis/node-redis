@@ -37,11 +37,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Move to benchmark folder
-        run: cd ./benchmark
-
       - name: Install Benchmark Packages
         run: npm install
+        working-directory: ./benchmark
 
       - name: Benchmark
         run: npm run start
+        working-directory: ./benchmark
