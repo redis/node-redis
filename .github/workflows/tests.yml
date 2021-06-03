@@ -7,7 +7,7 @@ on:
 
 jobs:
   tests:
-    name: Test
+    name: Tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -36,6 +36,9 @@ jobs:
 
       - name: Run Tests
         run: npm run test
+
+      - name: Generate lcov
+        run: ./node_modules/.bin/nyc report -r lcov
 
       - name: Coveralls
         uses: coverallsapp/github-action@v1.1.2
