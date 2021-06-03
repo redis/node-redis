@@ -26,7 +26,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1.9.7
+        uses: shogo82148/actions-setup-redis@v1.10.3
         with:
           redis-version: ${{ matrix.redis-version }}
           auto-start: "false"
@@ -36,3 +36,8 @@ jobs:
 
       - name: Run Tests
         run: npm run test
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
