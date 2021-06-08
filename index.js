@@ -20,6 +20,8 @@ var SUBSCRIBE_COMMANDS = {
     punsubscribe: true
 };
 
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+
 function noop () {}
 
 function handle_detect_buffers_reply (reply, command, buffer_args) {
