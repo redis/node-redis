@@ -151,8 +151,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
             this.#tick();
 
-            const replies = await promise;
-            return (replies[replies.length - 1] as Array<RedisReply>);
+            return await promise;
         };
 
         const options = this.#options;

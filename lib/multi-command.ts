@@ -25,7 +25,7 @@ export interface MultiQueuedCommand {
     transformReply?: RedisCommand['transformReply'];
 }
 
-export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId: Symbol) => Promise<Array<RedisReply>>;
+export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: Symbol) => Promise<Array<RedisReply>>;
 
 export default class RedisMultiCommand<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
     static defineCommand(on: any, name: string, command: RedisCommand): void {
@@ -81,18 +81,18 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
         for (const [name, script] of Object.entries(this.#clientOptions.scripts)) {
             (this as any)[name] = function (...args: Array<unknown>) {
-                let evalArgs;
+                const evalArgs = [];
                 if (this.#scriptsInUse.has(name)) {
-                    evalArgs = [
+                    evalArgs.push(
                         'EVALSHA',
                         script.SHA
-                    ];
+                    );
                 } else {
                     this.#scriptsInUse.add(name);
-                    evalArgs = [
+                    evalArgs.push(
                         'EVAL',
                         script.SCRIPT
-                    ];
+                    );
                 }
     
                 return this.addCommand(
@@ -169,8 +169,10 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         return this;
     }
 
-    async exec(): Promise<Array<unknown>> {
-        if (!this.#queue.length) {
+    async exec(execAsPipeline: boolean = false): Promise<Array<unknown>> {
+        if (execAsPipeline) {
+            return this.execAsPipeline();
+        } else if (!this.#queue.length) {
             return [];
         }
 
@@ -183,11 +185,20 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         });
 
         const rawReplies = await this.#executor(queue, Symbol('[RedisMultiCommand] Chain ID'));
-        return rawReplies.map((reply, i) => {
+        console.log('!@#!@#!@#', rawReplies);
+        return (rawReplies[rawReplies.length - 1]! as Array<RedisReply>).map((reply, i) => {
             const { transformReply } = queue[i + 1];
             return transformReply ? transformReply(reply) : reply;
         });
-    };
+    }
+
+    async execAsPipeline(): Promise<Array<unknown>> {
+        if (!this.#queue.length) {
+            return [];
+        }
+
+        return await this.#executor(this.#queue.splice(0));
+    }
 }
 
 for (const [name, command] of Object.entries(COMMANDS)) {

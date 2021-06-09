@@ -1,6 +1,7 @@
 import LinkedList, { Node } from 'yallist';
 import RedisParser from 'redis-parser';
 import { AbortError } from './errors';
+import { RedisReply } from './commands';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -137,14 +138,14 @@ export default class RedisCommandsQueue {
             undefined;
     }
 
-    addCommand<T = unknown>(args: Array<string>, options?: QueueCommandOptions): Promise<T> {
+    addCommand<T = RedisReply>(args: Array<string>, options?: QueueCommandOptions): Promise<T> {
         return this.#isQueueBlocked<T>() || this.addEncodedCommand(
             RedisCommandsQueue.encodeCommand(args),
             options
         );
     }
 
-    addEncodedCommand<T = unknown>(encodedCommand: string, options?: QueueCommandOptions): Promise<T> {
+    addEncodedCommand<T = RedisReply>(encodedCommand: string, options?: QueueCommandOptions): Promise<T> {
         const fullQueuePromise = this.#isQueueBlocked<T>();
         if (fullQueuePromise) {
             return fullQueuePromise;

@@ -1,7 +1,7 @@
 # TODO
 * Missing Commands
 * Scan stream
-* PubSub
+* ~~PubSub~~
 * [`return_buffers`](https://github.com/NodeRedis/node-redis#options-object-properties) (? supported in v3, but have performance drawbacks)
 * ~~Support options in a command function (`.get`, `.set`, ...)~~
 * Key prefixing (?) (partially supported in v3)
@@ -36,7 +36,8 @@
 * In `RedisCluster` (with TypeScript mapping)
 
 ## Multi
-* exec without the `MULTI` command
+* ~~Pipeline~~
+* Pipeline backward compatibility (BATCH)
 * support for constructor with array of commands (? supported in v3)
 
 ## Tests

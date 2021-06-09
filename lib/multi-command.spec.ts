@@ -3,7 +3,7 @@ import RedisMultiCommand from './multi-command';
 import RedisCommandsQueue from './commands-queue';
 
 describe('Multi Command', () => {
-    it('simple', async () => {
+    it('exec', async () => {
         const multi = RedisMultiCommand.create(queue => {
             assert.deepEqual(
                 queue.map(({encodedCommand}) => encodedCommand),
@@ -14,13 +14,31 @@ describe('Multi Command', () => {
                 ]
             );
 
-            return Promise.resolve(['PONG']);
+            return Promise.resolve(['QUEUED', 'QUEUED', ['PONG']]);
         });
 
         multi.ping();
 
         assert.deepEqual(
             await multi.exec(),
+            ['PONG']
+        );
+    });
+
+    it('execAsPipeline', async () => {
+        const multi = RedisMultiCommand.create(queue => {
+            assert.deepEqual(
+                queue.map(({encodedCommand}) => encodedCommand),
+                [RedisCommandsQueue.encodeCommand(['PING'])]
+            );
+
+            return Promise.resolve(['PONG']);
+        });
+
+        multi.ping();
+
+        assert.deepEqual(
+            await multi.execAsPipeline(),
             ['PONG']
         );
     });
