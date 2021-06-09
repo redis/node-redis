@@ -323,4 +323,23 @@ describe('Client', () => {
             keys.sort()
         );
     });
+
+    itWithClient(TestRedisServers.OPEN, 'sScanIterator', async client => {
+        const keys = [];
+        for (let i = 0; i < 100; i++) {
+            keys.push(i.toString());
+        }
+
+        await client.sAdd('key', keys);
+
+        const set = new Set();
+        for await (const key of client.sScanIterator('key')) {
+            set.add(key);
+        }
+
+        assert.deepEqual(
+            [...set].sort(),
+            keys.sort()
+        );
+    });
 });

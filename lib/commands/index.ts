@@ -35,7 +35,23 @@ import * as LPUSH from './LPUSH';
 import * as PING from './PING';
 import * as PUBLISH from './PUBLISH';
 import * as READONLY from './READONLY';
+import * as SADD from './SADD';
 import * as SCAN from './SCAN';
+import * as SCARD from './SCARD';
+import * as SDIFF from './SDIFF';
+import * as SDIFFSTORE from './SDIFFSTORE';
+import * as SINTER from './SINTER';
+import * as SINTERSTORE from './SINTERSTORE';
+import * as SISMEMBER from './SISMEMBER';
+import * as SMEMBERS from './SMEMBERS';
+import * as SMISMEMBER from './SMISMEMBER';
+import * as SMOVE from './SMOVE';
+import * as SPOP from './SPOP';
+import * as SRANDMEMBER from './SRANDMEMBER';
+import * as SREM from './SREM';
+import * as SSCAN from './SSCAN';
+import * as SUNION from './SUNION';
+import * as SUNIONSTORE from './SUNIONSTORE';
 import * as SET from './SET';
 
 export default {
@@ -113,8 +129,40 @@ export default {
     publish: PUBLISH,
     READONLY,
     readOnly: READONLY,
+    SADD,
+    sAdd: SADD,
     SCAN,
     scan: SCAN,
+    SCARD,
+    sCard: SCARD,
+    SDIFF,
+    sDiff: SDIFF,
+    SDIFFSTORE,
+    sDiffStore: SDIFFSTORE,
+    SINTER,
+    sInter: SINTER,
+    SINTERSTORE,
+    sInterStore: SINTERSTORE,
+    SISMEMBER,
+    sIsMember: SISMEMBER,
+    SMEMBERS,
+    sMembers: SMEMBERS,
+    SMISMEMBER,
+    smIsMember: SMISMEMBER,
+    SMOVE,
+    sMove: SMOVE,
+    SPOP,
+    sPop: SPOP,
+    SRANDMEMBER,
+    sRandMember: SRANDMEMBER,
+    SREM,
+    sRem: SREM,
+    SSCAN,
+    sScan: SSCAN,
+    SUNION,
+    sUnion: SUNION,
+    SUNIONSTORE,
+    sUnionStore: SUNIONSTORE,
     SET,
     set: SET
 };
