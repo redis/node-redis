@@ -1,5 +1,5 @@
 import RedisSocket, { RedisSocketOptions } from './socket';
-import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
+import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import COMMANDS from './commands/client';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
@@ -97,18 +97,24 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         const socketInitiator = async (): Promise<void> => {
             const promises = [];
 
-            if (this.#options?.socket?.password) {
-                promises.push((this as any).auth(RedisClient.commandOptions({ asap: true }), this.#options?.socket));
+            if (this.#selectedDB !== 0) {
+                promises.push((this as any).select(RedisClient.commandOptions({ asap: true }), this.#selectedDB));
             }
 
             if (this.#options?.readOnly) {
                 promises.push((this as any).readOnly(RedisClient.commandOptions({ asap: true })));
             }
 
-            if (this.#selectedDB !== 0) {
-                promises.push((this as any).select(RedisClient.commandOptions({ asap: true }), this.#selectedDB));
+            if (this.#options?.socket?.password) {
+                promises.push((this as any).auth(RedisClient.commandOptions({ asap: true }), this.#options?.socket));
             }
 
+            const resubscribePromise = this.#queue.resubscribe();
+            if (resubscribePromise) {
+                promises.push(resubscribePromise);
+                this.#tick();
+            }
+            
             await Promise.all(promises);
         };
 
@@ -229,6 +235,14 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         // hard coded commands
         this.#defineLegacyCommand('SELECT');
         this.#defineLegacyCommand('select');
+        this.#defineLegacyCommand('SUBSCRIBE');
+        this.#defineLegacyCommand('subscribe');
+        this.#defineLegacyCommand('PSUBSCRIBE');
+        this.#defineLegacyCommand('pSubscribe');
+        this.#defineLegacyCommand('UNSUBSCRIBE');
+        this.#defineLegacyCommand('unsubscribe');
+        this.#defineLegacyCommand('PUNSUBSCRIBE');
+        this.#defineLegacyCommand('pUnsubscribe');
 
         if (this.#options?.modules) {
             for (const m of this.#options.modules) {
@@ -273,6 +287,42 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     select = this.SELECT;
+
+    SUBSCRIBE(channels: string | Array<string>, listener: PubSubListener): Promise<void> {
+        return this.#subscribe(PubSubSubscribeCommands.SUBSCRIBE, channels, listener);
+    }
+
+    subscribe = this.SUBSCRIBE;
+
+    PSUBSCRIBE(patterns: string | Array<string>, listener: PubSubListener): Promise<void> {
+        return this.#subscribe(PubSubSubscribeCommands.PSUBSCRIBE, patterns, listener);
+    }
+
+    pSubscribe = this.PSUBSCRIBE;
+
+    #subscribe(command: PubSubSubscribeCommands, channels: string | Array<string>, listener: PubSubListener): Promise<void> {
+        const promise = this.#queue.subscribe(command, channels, listener);
+        this.#tick();
+        return promise;
+    }
+
+    UNSUBSCRIBE(channels: string | Array<string>, listener?: PubSubListener): Promise<void> {
+        return this.#unsubscribe(PubSubUnsubscribeCommands.UNSUBSCRIBE, channels, listener);
+    }
+
+    unsubscribe = this.UNSUBSCRIBE;
+
+    PUNSUBSCRIBE(patterns: string | Array<string>, listener?: PubSubListener): Promise<void> {
+        return this.#unsubscribe(PubSubUnsubscribeCommands.PUNSUBSCRIBE, patterns, listener);
+    }
+
+    pUnsubscribe = this.PUNSUBSCRIBE;
+
+    #unsubscribe(command: PubSubUnsubscribeCommands, channels: string | Array<string>, listener?: PubSubListener): Promise<void> {
+        const promise = this.#queue.unsubscribe(command, channels, listener);
+        this.#tick();
+        return promise;
+    }
 
     async sendCommand<T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
         if (options?.duplicateConnection) {

@@ -33,6 +33,7 @@ import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
 import * as LPUSH from './LPUSH';
 import * as PING from './PING';
+import * as PUBLISH from './PUBLISH';
 import * as READONLY from './READONLY';
 import * as SCAN from './SCAN';
 import * as SET from './SET';
@@ -108,6 +109,8 @@ export default {
     lPush: LPUSH,
     PING,
     ping: PING,
+    PUBLISH,
+    publish: PUBLISH,
     READONLY,
     readOnly: READONLY,
     SCAN,
