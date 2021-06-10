@@ -185,7 +185,6 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         });
 
         const rawReplies = await this.#executor(queue, Symbol('[RedisMultiCommand] Chain ID'));
-        console.log('!@#!@#!@#', rawReplies);
         return (rawReplies[rawReplies.length - 1]! as Array<RedisReply>).map((reply, i) => {
             const { transformReply } = queue[i + 1];
             return transformReply ? transformReply(reply) : reply;
