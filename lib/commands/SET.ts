@@ -53,16 +53,14 @@ export function transformArguments(key: string, value: string, options?: SetOpti
         args.push('EXAT', options.EXAT.toString());
     } else if ('PXAT' in options) {
         args.push('PXAT', options.PXAT.toString());
+    } else if ((<KEEPTTL>options).KEEPTTL) {
+        args.push('KEEPTTL');
     }
 
     if ((<NX>options).NX) {
         args.push('NX');
     } else if ((<XX>options).XX) {
         args.push('XX');
-    }
-
-    if ((<KEEPTTL>options).KEEPTTL) {
-        args.push('KEEPTTL');
     }
 
     if ((<SetCommonOptions>options).GET) {
