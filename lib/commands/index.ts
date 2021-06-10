@@ -32,6 +32,9 @@ import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
 import * as LPUSH from './LPUSH';
+import * as PFADD from './PFADD';
+import * as PFCOUNT from './PFCOUNT';
+import * as PFMERGE from './PFMERGE';
 import * as PING from './PING';
 import * as PUBLISH from './PUBLISH';
 import * as READONLY from './READONLY';
@@ -123,6 +126,12 @@ export default {
     keys: KEYS,
     LPUSH,
     lPush: LPUSH,
+    PFADD,
+    pfAdd: PFADD,
+    PFCOUNT,
+    pfCount: PFCOUNT,
+    PFMERGE,
+    pfMerge: PFMERGE,
     PING,
     ping: PING,
     PUBLISH,
