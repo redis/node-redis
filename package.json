@@ -40,6 +40,7 @@
     "@types/yallist": "^4.0.0",
     "mocha": "^8.4.0",
     "nyc": "^15.1.0",
+    "release-it": "^14.8.0",
     "sinon": "^11.1.1",
     "source-map-support": "^0.5.19",
     "tcp-port-used": "^1.0.2",
@@ -57,13 +58,5 @@
   "bugs": {
     "url": "https://github.com/NodeRedis/node-redis/issues"
   },
-  "homepage": "https://github.com/NodeRedis/node-redis",
-  "directories": {
-    "example": "examples",
-    "test": "test"
-  },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/node-redis"
-  }
+  "homepage": "https://github.com/NodeRedis/node-redis/tree/v4"
 }
