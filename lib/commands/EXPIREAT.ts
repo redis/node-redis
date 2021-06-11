@@ -1,10 +1,11 @@
+import { time } from 'console';
 import { transformReplyBoolean } from './generic-transformers';
 
-export function transformArguments(key: string, timestamp: Date | number): Array<string> {
+export function transformArguments(key: string, timestamp: number | Date): Array<string> {
     return [
         'EXPIREAT',
         key,
-        (timestamp instanceof Date ? timestamp.getTime() : timestamp).toString()
+        (typeof timestamp === 'number' ? timestamp : Math.floor(timestamp.getTime() / 1000)).toString()
     ];
 }
 

@@ -3,11 +3,21 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './PEXPIREAT';
 
 describe('PEXPIREAT', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 1),
-            ['PEXPIREAT', 'key', '1']
-        );
+    describe('transformArguments', () => {
+        it('number', () => {
+            assert.deepEqual(
+                transformArguments('key', 1),
+                ['PEXPIREAT', 'key', '1']
+            );
+        });
+    
+        it('date', () => {
+            const d = new Date();
+            assert.deepEqual(
+                transformArguments('key', d),
+                ['PEXPIREAT', 'key', d.getTime().toString()]
+            );
+        });
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.pExpireAt', async client => {
