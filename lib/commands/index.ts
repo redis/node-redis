@@ -1,5 +1,7 @@
 import * as APPEND from './APPEND';
 import * as AUTH from './AUTH';
+import * as BITCOUNT from './BITCOUNT';
+import * as BITFIELD from './BITFIELD';
 import * as BLPOP from './BLPOP';
 import * as CLIENT_INFO from './CLIENT_INFO';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
@@ -32,36 +34,53 @@ import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
 import * as LPUSH from './LPUSH';
+import * as PERSIST from './PERSIST';
+import * as PEXPIRE from './PEXPIRE';
+import * as PEXPIREAT from './PEXPIREAT';
 import * as PFADD from './PFADD';
 import * as PFCOUNT from './PFCOUNT';
 import * as PFMERGE from './PFMERGE';
 import * as PING from './PING';
+import * as PTTL from './PTTL';
 import * as PUBLISH from './PUBLISH';
+import * as RANDOMKEY from './RANDOMKEY';
 import * as READONLY from './READONLY';
+import * as RENAME from './RENAME';
+import * as RENAMENX from './RENAMENX';
 import * as SADD from './SADD';
 import * as SCAN from './SCAN';
 import * as SCARD from './SCARD';
 import * as SDIFF from './SDIFF';
 import * as SDIFFSTORE from './SDIFFSTORE';
+import * as SET from './SET';
 import * as SINTER from './SINTER';
 import * as SINTERSTORE from './SINTERSTORE';
 import * as SISMEMBER from './SISMEMBER';
 import * as SMEMBERS from './SMEMBERS';
 import * as SMISMEMBER from './SMISMEMBER';
 import * as SMOVE from './SMOVE';
+import * as SORT from './SORT';
 import * as SPOP from './SPOP';
 import * as SRANDMEMBER from './SRANDMEMBER';
 import * as SREM from './SREM';
 import * as SSCAN from './SSCAN';
 import * as SUNION from './SUNION';
 import * as SUNIONSTORE from './SUNIONSTORE';
-import * as SET from './SET';
+import * as TOUCH from './TOUCH';
+import * as TTL from './TTL';
+import * as TYPE from './TYPE';
+import * as UNLINK from './UNLINK';
+import * as WAIT from './WAIT';
 
 export default {
     APPEND,
     append: APPEND,
     AUTH,
     auth: AUTH,
+    BITCOUNT,
+    bitCount: BITCOUNT,
+    BITFIELD,
+    bitField: BITFIELD,
     BLPOP,
     blPop: BLPOP,
     CLIENT_INFO,
@@ -126,6 +145,12 @@ export default {
     keys: KEYS,
     LPUSH,
     lPush: LPUSH,
+    PERSIST,
+    persist: PERSIST,
+    PEXPIRE,
+    pExpire: PEXPIRE,
+    PEXPIREAT,
+    pExpireAt: PEXPIREAT,
     PFADD,
     pfAdd: PFADD,
     PFCOUNT,
@@ -134,10 +159,18 @@ export default {
     pfMerge: PFMERGE,
     PING,
     ping: PING,
+    PTTL,
+    pTTL: PTTL,
     PUBLISH,
     publish: PUBLISH,
+    RANDOMKEY,
+    randomKey: RANDOMKEY,
     READONLY,
     readOnly: READONLY,
+    RENAME,
+    rename: RENAME,
+    RENAMENX,
+    renameNX: RENAMENX,
     SADD,
     sAdd: SADD,
     SCAN,
@@ -152,6 +185,8 @@ export default {
     sInter: SINTER,
     SINTERSTORE,
     sInterStore: SINTERSTORE,
+    SET,
+    set: SET,
     SISMEMBER,
     sIsMember: SISMEMBER,
     SMEMBERS,
@@ -160,6 +195,8 @@ export default {
     smIsMember: SMISMEMBER,
     SMOVE,
     sMove: SMOVE,
+    SORT,
+    sort: SORT,
     SPOP,
     sPop: SPOP,
     SRANDMEMBER,
@@ -172,8 +209,16 @@ export default {
     sUnion: SUNION,
     SUNIONSTORE,
     sUnionStore: SUNIONSTORE,
-    SET,
-    set: SET
+    TOUCH,
+    touch: TOUCH,
+    TTL,
+    ttl: TTL,
+    TYPE,
+    type: TYPE,
+    UNLINK,
+    unlink: UNLINK,
+    WAIT,
+    wait: WAIT
 };
 
 export type RedisReply = string | number | Array<RedisReply> | null | undefined;

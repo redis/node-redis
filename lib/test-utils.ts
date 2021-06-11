@@ -41,9 +41,11 @@ export function itWithClient(type: TestRedisServers, title: string, fn: (client:
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[type]
         });
+        
         await client.connect();
 
         try {
+            await client.flushAll();
             await fn(client);
         } finally {
             await client.flushAll();
