@@ -51,9 +51,9 @@ export default class RedisCluster {
         return this.#slots.connect();
     }
 
-    async sendCommand<T = unknown>(args: Array<string>, firstKeyIndex?: number, isReadOnly?: boolean, redirections: number = 0): Promise<T> {
+    async sendCommand<T = unknown>(args: Array<string>, firstKeyIndex?: number, isReadonly?: boolean, redirections: number = 0): Promise<T> {
         const firstKey = firstKeyIndex ? args[firstKeyIndex] : undefined,
-            client = this.#slots.getClient(firstKey, isReadOnly);
+            client = this.#slots.getClient(firstKey, isReadonly);
 
         try {
             return await client.sendCommand(args);
@@ -64,7 +64,7 @@ export default class RedisCluster {
                 await this.#slots.discover();
 
                 if (redirections < (this.#options.maxCommandRedirections ?? 16)) {
-                    return this.sendCommand(args, firstKeyIndex, isReadOnly, redirections + 1);
+                    return this.sendCommand(args, firstKeyIndex, isReadonly, redirections + 1);
                 }
             }
 

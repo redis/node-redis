@@ -91,7 +91,7 @@ export default class RedisClusterSlots {
         }
     }
 
-    #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readOnly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClient {
+    #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClient {
         clientsInUse.add(node.url);
 
         let client = this.#clientByKey.get(node.url);
@@ -101,7 +101,7 @@ export default class RedisClusterSlots {
                     host: node.host,
                     port: node.port
                 },
-                readOnly
+                readonly
             });
             promises.push(client.connect());
             this.#clientByKey.set(node.url, client);
@@ -158,13 +158,13 @@ export default class RedisClusterSlots {
         return value;
     }
 
-    getClient(firstKey?: string, isReadOnly?: boolean): RedisClient {
+    getClient(firstKey?: string, isReadonly?: boolean): RedisClient {
         if (!firstKey) {
             return this.#getRandomClient();
         }
 
         const slot = calculateSlot(firstKey);
-        if (!isReadOnly || !this.#options.useReplicas) {
+        if (!isReadonly || !this.#options.useReplicas) {
             return this.#getSlotMaster(slot);
         }
 

@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformReply } from './HGETALL';
 
 describe('HGETALL', () => {
@@ -29,5 +30,12 @@ describe('HGETALL', () => {
                 })
             );
         });
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'client.hGetAll', async client => {
+        assert.deepEqual(
+            await client.hGetAll('key'),
+            Object.create(null)
+        );
     });
 });

@@ -14,7 +14,7 @@ export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     modules?: M;
     scripts?: S;
     commandsQueueMaxLength?: number;
-    readOnly?: boolean;
+    readonly?: boolean;
     legacyMode?: boolean;
 }
 
@@ -102,8 +102,8 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 promises.push((this as any).select(RedisClient.commandOptions({ asap: true }), this.#selectedDB));
             }
 
-            if (this.#options?.readOnly) {
-                promises.push((this as any).readOnly(RedisClient.commandOptions({ asap: true })));
+            if (this.#options?.readonly) {
+                promises.push((this as any).readonly(RedisClient.commandOptions({ asap: true })));
             }
 
             if (this.#options?.socket?.password) {

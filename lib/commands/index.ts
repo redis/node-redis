@@ -166,7 +166,7 @@ export default {
     RANDOMKEY,
     randomKey: RANDOMKEY,
     READONLY,
-    readOnly: READONLY,
+    readonly: READONLY,
     RENAME,
     rename: RENAME,
     RENAMENX,
