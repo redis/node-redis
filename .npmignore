@@ -1,9 +1,16 @@
 .vscode
 .idea
 node_modules
-dist
 .nyc_output
 dump.rdb
 CONTRIBUTING.md
 CODE_OF_CONDUCT.md
+TODO.md
+GOALS.md
+tsconfig.json
+coverage
+benchmark
+.github
+scripts
+lib
 
