@@ -306,19 +306,19 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return promise;
     }
 
-    UNSUBSCRIBE(channels: string | Array<string>, listener?: PubSubListener): Promise<void> {
+    UNSUBSCRIBE(channels?: string | Array<string>, listener?: PubSubListener): Promise<void> {
         return this.#unsubscribe(PubSubUnsubscribeCommands.UNSUBSCRIBE, channels, listener);
     }
 
     unsubscribe = this.UNSUBSCRIBE;
 
-    PUNSUBSCRIBE(patterns: string | Array<string>, listener?: PubSubListener): Promise<void> {
+    PUNSUBSCRIBE(patterns?: string | Array<string>, listener?: PubSubListener): Promise<void> {
         return this.#unsubscribe(PubSubUnsubscribeCommands.PUNSUBSCRIBE, patterns, listener);
     }
 
     pUnsubscribe = this.PUNSUBSCRIBE;
 
-    #unsubscribe(command: PubSubUnsubscribeCommands, channels: string | Array<string>, listener?: PubSubListener): Promise<void> {
+    #unsubscribe(command: PubSubUnsubscribeCommands, channels?: string | Array<string>, listener?: PubSubListener): Promise<void> {
         const promise = this.#queue.unsubscribe(command, channels, listener);
         this.#tick();
         return promise;

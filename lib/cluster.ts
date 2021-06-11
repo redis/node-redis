@@ -61,7 +61,7 @@ export default class RedisCluster {
             if (err.message.startsWith('ASK')) {
                 // TODO
             } else if (err.message.startsWith('MOVED')) {
-                await this.#slots.discover();
+                await this.#slots.discover(client);
 
                 if (redirections < (this.#options.maxCommandRedirections ?? 16)) {
                     return this.sendCommand(args, firstKeyIndex, isReadonly, redirections + 1);

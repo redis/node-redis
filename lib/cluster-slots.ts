@@ -32,9 +32,17 @@ export default class RedisClusterSlots {
         throw new Error('None of the root nodes is available');
     }
 
-    async discover(): Promise<void> {
-        // TODO: shuffle?
+    async discover(startWith: RedisClient): Promise<void> {
+        try {
+            await this.#discoverNodes(startWith.options?.socket);
+            return;
+        } catch (err) {
+            // this.emit('error', err);
+        }
+
         for (const client of this.#clientByKey.values()) {
+            if (client === startWith) continue;
+            
             try {
                 await this.#discoverNodes(client.options?.socket);
                 return;

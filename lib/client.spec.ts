@@ -4,6 +4,7 @@ import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers } from './test-utils
 import RedisClient from './client';
 import { AbortError } from './errors';
 import { defineScript } from './lua-script';
+import { spy } from 'sinon';
 
 describe('Client', () => {
     describe('authentication', () => {
@@ -341,5 +342,51 @@ describe('Client', () => {
             [...set].sort(),
             keys.sort()
         );
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'PubSub', async publisher => {
+        const subscriber = publisher.duplicate();
+
+        await subscriber.connect();
+
+        try {
+            const channelListener1 = spy(),
+                channelListener2 = spy(),
+                patternListener = spy();
+
+            await Promise.all([
+                subscriber.subscribe('channel', channelListener1),
+                subscriber.subscribe('channel', channelListener2),
+                subscriber.pSubscribe('channel*', patternListener)
+            ]);
+
+            await publisher.publish('channel', 'message');
+            assert.ok(channelListener1.calledOnceWithExactly('message', 'channel'));
+            assert.ok(channelListener2.calledOnceWithExactly('message', 'channel'));
+            assert.ok(patternListener.calledOnceWithExactly('message', 'channel'));
+
+            await subscriber.unsubscribe('channel', channelListener1);
+            await publisher.publish('channel', 'message');
+            assert.ok(channelListener1.calledOnce);
+            assert.ok(channelListener2.calledTwice);
+            assert.ok(channelListener2.secondCall.calledWithExactly('message', 'channel'));
+            assert.ok(patternListener.calledTwice);
+            assert.ok(patternListener.secondCall.calledWithExactly('message', 'channel'));
+
+            await subscriber.unsubscribe('channel');
+            await publisher.publish('channel', 'message');
+            assert.ok(channelListener1.calledOnce);
+            assert.ok(channelListener2.calledTwice);
+            assert.ok(patternListener.calledThrice);
+            assert.ok(patternListener.thirdCall.calledWithExactly('message', 'channel'));
+
+            await subscriber.pUnsubscribe();
+            await publisher.publish('channel', 'message');
+            assert.ok(channelListener1.calledOnce);
+            assert.ok(channelListener2.calledTwice);
+            assert.ok(patternListener.calledThrice);
+        } finally {
+            await subscriber.disconnect();
+        }
     });
 });

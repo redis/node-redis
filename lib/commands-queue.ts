@@ -204,9 +204,15 @@ export default class RedisCommandsQueue {
         return this.#pushPubSubCommand(command, channelsToSubscribe);
     }
 
-    unsubscribe(command: PubSubUnsubscribeCommands, channels: string | Array<string>, listener?: PubSubListener) {
-        const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ? this.#pubSubListeners.channels : this.#pubSubListeners.patterns,
-            channelsToUnsubscribe = [];
+    unsubscribe(command: PubSubUnsubscribeCommands, channels?: string | Array<string>, listener?: PubSubListener) {
+        const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ? this.#pubSubListeners.channels : this.#pubSubListeners.patterns;
+        if (!channels) {
+            const keys = [...listeners.keys()];
+            listeners.clear();
+            return this.#pushPubSubCommand(command, keys);
+        }
+
+        const channelsToUnsubscribe = [];
         for (const channel of (Array.isArray(channels) ? channels : [channels])) {
             const set = listeners.get(channel);
             if (!set) continue;
