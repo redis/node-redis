@@ -13,8 +13,8 @@
 ---
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/dm/redis.svg" alt="NPM downloads"/></a>
-    <a href="https://www.npmjs.com/package/redis"><img src="https://img.shields.io/npm/v/redis/next" alt="NPM version"/></a>
+    <a href="https://www.npmjs.com/package/redis/v/next"><img src="https://img.shields.io/npm/dm/redis.svg" alt="NPM downloads"/></a>
+    <a href="https://www.npmjs.com/package/redis/v/next"><img src="https://img.shields.io/npm/v/redis/next" alt="NPM version"/></a>
     <a href="https://coveralls.io/github/NodeRedis/node-redis?branch=v4"><img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg?branch=v4" alt="Coverage Status"/></a>
     <a href="https://discord.gg/XMMVgxUm"><img src="https://img.shields.io/discord/697882427875393627?style=flat-square"/></a>
 </p>
