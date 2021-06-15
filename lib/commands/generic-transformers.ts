@@ -39,7 +39,7 @@ export function transformScanArguments(cursor: number, options?: ScanOptions): A
 
 export interface ScanReply {
     cursor: number;
-    keys: Array<string>
+    keys: Array<string>;
 }
 
 export function transformScanReply([cursor, keys]: [string, Array<string>]): ScanReply {
@@ -47,4 +47,44 @@ export function transformScanReply([cursor, keys]: [string, Array<string>]): Sca
         cursor: Number(cursor),
         keys
     };
+}
+
+export function transformReplyNumberInfinity(reply: string): number {
+    switch (reply) {
+        case '+inf':
+            return Infinity;
+        
+        case '-inf':
+            return -Infinity;
+
+        default:
+            return Number(reply);
+    }
+}
+
+export function transformReplyNumberInfinityArray(reply: Array<string>): Array<number | null> {
+    return reply.map(transformReplyNumberInfinity);
+}
+
+export function transformReplyNumberInfinityNull(reply: string | null): number | null {
+    if (reply === null) return null;
+
+    return transformReplyNumberInfinity(reply);
+}
+
+export function transformReplyNumberInfinityNullArray(reply: Array<string | null>): Array<number | null> {
+    return reply.map(transformReplyNumberInfinityNull);
+}
+
+export function transformArgumentNumberInfinity(num: number): string {
+    switch (num) {
+        case Infinity:
+            return '+inf';
+        
+        case -Infinity:
+            return '-inf';
+
+        default:
+            return num.toString();
+    }
 }

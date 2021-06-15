@@ -344,6 +344,34 @@ describe('Client', () => {
         );
     });
 
+    itWithClient(TestRedisServers.OPEN, 'zScanIterator', async client => {
+        const members = [];
+        for (let i = 0; i < 100; i++) {
+            members.push({
+                score: 1,
+                value: i.toString()
+            });
+        }
+
+        await client.zAdd('key', members);
+
+        const map = new Map();
+        for await (const member of client.zScanIterator('key')) {
+            map.set(member.value, member.score);
+        }
+
+        type MemberTuple = [string, number];
+
+        function sort(a: MemberTuple, b: MemberTuple) {
+            return Number(b[0]) - Number(a[0]);
+        }
+
+        assert.deepEqual(
+            [...map.entries()].sort(sort),
+            members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
+        );
+    });
+
     itWithClient(TestRedisServers.OPEN, 'PubSub', async publisher => {
         const subscriber = publisher.duplicate();
 

@@ -21,7 +21,7 @@ describe('BLPOP', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.blPop', async client => {
-        const [popReply, pushReply] = await Promise.all([
+        const [popReply] = await Promise.all([
             client.blPop(RedisClient.commandOptions({
                 duplicateConnection: true
             }), 'key', 0),
@@ -32,7 +32,5 @@ describe('BLPOP', () => {
             popReply,
             ['key', '2']
         );
-
-        assert.equal(pushReply, 2);
     });
 });

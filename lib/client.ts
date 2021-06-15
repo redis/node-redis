@@ -8,6 +8,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from './command-opti
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { ScanOptions } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
+import { ZMember } from './commands/ZADD';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -366,6 +367,17 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             cursor = reply.cursor;
             for (const key of reply.keys) {
                 yield key;
+            }
+        } while (cursor !== 0)
+    }
+
+    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember> {
+        let cursor = 0;
+        do {
+            const reply = await (this as any).zScan(key, cursor, options);
+            cursor = reply.cursor;
+            for (const member of reply.members) {
+                yield member;
             }
         } while (cursor !== 0)
     }

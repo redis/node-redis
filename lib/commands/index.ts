@@ -3,6 +3,8 @@ import * as AUTH from './AUTH';
 import * as BITCOUNT from './BITCOUNT';
 import * as BITFIELD from './BITFIELD';
 import * as BLPOP from './BLPOP';
+import * as BZPOPMAX from './BZPOPMAX';
+import * as BZPOPMIN from './BZPOPMIN';
 import * as CLIENT_INFO from './CLIENT_INFO';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as COPY from './COPY';
@@ -71,6 +73,31 @@ import * as TTL from './TTL';
 import * as TYPE from './TYPE';
 import * as UNLINK from './UNLINK';
 import * as WAIT from './WAIT';
+import * as ZADD from './ZADD';
+import * as ZCARD from './ZCARD';
+import * as ZCOUNT from './ZCOUNT';
+import * as ZDIFF from './ZDIFF';
+import * as ZDIFFSTORE from './ZDIFFSTORE';
+import * as ZINCRBY from './ZINCRBY';
+import * as ZINTER from './ZINTER';
+import * as ZINTERSTORE from './ZINTERSTORE';
+import * as ZLEXCOUNT from './ZLEXCOUNT';
+import * as ZMSCORE from './ZMSCORE';
+import * as ZPOPMAX from './ZPOPMAX';
+import * as ZPOPMIN from './ZPOPMIN';
+import * as ZRANDMEMBER from './ZRANDMEMBER';
+import * as ZRANGE from './ZRANGE';
+import * as ZRANGESTORE from './ZRANGESTORE';
+import * as ZRANK from './ZRANK';
+import * as ZREM from './ZREM';
+import * as ZREMRANGEBYLEX from './ZREMRANGEBYLEX';
+import * as ZREMRANGEBYRANK from './ZREMRANGEBYRANK';
+import * as ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
+import * as ZREVRANK from './ZREVRANK';
+import * as ZSCAN from './ZSCAN';
+import * as ZSCORE from './ZSCORE';
+import * as ZUNION from './ZUNION';
+import * as ZUNIONSTORE from './ZUNIONSTORE';
 
 export default {
     APPEND,
@@ -83,6 +110,10 @@ export default {
     bitField: BITFIELD,
     BLPOP,
     blPop: BLPOP,
+    BZPOPMAX,
+    bzPopMax: BZPOPMAX,
+    BZPOPMIN,
+    bzPopMin: BZPOPMIN,
     CLIENT_INFO,
     clientInfo: CLIENT_INFO,
     CLUSTER_NODES,
@@ -218,7 +249,57 @@ export default {
     UNLINK,
     unlink: UNLINK,
     WAIT,
-    wait: WAIT
+    wait: WAIT,
+    ZADD,
+    zAdd: ZADD,
+    ZCARD,
+    zCard: ZCARD,
+    ZCOUNT,
+    zCount: ZCOUNT,
+    ZDIFF,
+    zDiff: ZDIFF,
+    ZDIFFSTORE,
+    zDiffStore: ZDIFFSTORE,
+    ZINCRBY,
+    zIncrBy: ZINCRBY,
+    ZINTER,
+    zInter: ZINTER,
+    ZINTERSTORE,
+    zInterStore: ZINTERSTORE,
+    ZLEXCOUNT,
+    zLexCount: ZLEXCOUNT,
+    ZMSCORE,
+    zmScore: ZMSCORE,
+    ZPOPMAX,
+    zPopMax: ZPOPMAX,
+    ZPOPMIN,
+    zPopMin: ZPOPMIN,
+    ZRANDMEMBER,
+    zRandMember: ZRANDMEMBER,
+    ZRANGE,
+    zRange: ZRANGE,
+    ZRANGESTORE,
+    zRangeStore: ZRANGESTORE,
+    ZRANK,
+    zRank: ZRANK,
+    ZREM,
+    zRem: ZREM,
+    ZREMRANGEBYLEX,
+    zRemRangeByLex: ZREMRANGEBYLEX,
+    ZREMRANGEBYRANK,
+    zRemRangeByRank: ZREMRANGEBYRANK,
+    ZREMRANGEBYSCORE,
+    zRemRangeByScore: ZREMRANGEBYSCORE,
+    ZREVRANK,
+    zRevRank: ZREVRANK,
+    ZSCAN,
+    zScan: ZSCAN,
+    ZSCORE,
+    zScore: ZSCORE,
+    ZUNION,
+    zUnion: ZUNION,
+    ZUNIONSTORE,
+    zUnionStore: ZUNIONSTORE
 };
 
 export type RedisReply = string | number | Array<RedisReply> | null | undefined;
