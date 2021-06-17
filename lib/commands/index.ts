@@ -73,6 +73,27 @@ import * as TTL from './TTL';
 import * as TYPE from './TYPE';
 import * as UNLINK from './UNLINK';
 import * as WAIT from './WAIT';
+import * as XACK from './XACK';
+import * as XADD from './XADD';
+import * as XAUTOCLAIM_JUSTID from './XAUTOCLAIM_JUSTID';
+import * as XAUTOCLAIM from './XAUTOCLAIM';
+import * as XCLAIM from './XCLAIM';
+import * as XCLAIM_JUSTID from './XCLAIM_JUSTID';
+import * as XDEL from './XDEL';
+import * as XGROUP_CREATE from './XGROUP_CREATE';
+import * as XGROUP_CREATECONSUMER from './XGROUP_CREATECONSUMER';
+import * as XGROUP_DELCONSUMER from './XGROUP_DELCONSUMER';
+import * as XGROUP_DESTROY from './XGROUP_DESTROY';
+import * as XGROUP_SETID from './XGROUP_SETID';
+import * as XINFO_CONSUMERS from './XINFO_CONSUMERS';
+import * as XINFO_GROUPS from './XINFO_GROUPS';
+import * as XINFO_STREAM from './XINFO_STREAM';
+import * as XLEN from './XLEN';
+import * as XPENDING_RANGE from './XPENDING_RANGE';
+import * as XPENDING from './XPENDING';
+import * as XRANGE from './XRANGE';
+import * as XREVRANGE from './XREVRANGE';
+import * as XTRIM from './XTRIM';
 import * as ZADD from './ZADD';
 import * as ZCARD from './ZCARD';
 import * as ZCOUNT from './ZCOUNT';
@@ -250,6 +271,48 @@ export default {
     unlink: UNLINK,
     WAIT,
     wait: WAIT,
+    XACK,
+    xAck: XACK,
+    XADD,
+    xAdd: XADD,
+    XAUTOCLAIM_JUSTID,
+    xAutoClaimJustId: XAUTOCLAIM_JUSTID,
+    XAUTOCLAIM,
+    xAutoClaim: XAUTOCLAIM,
+    XCLAIM,
+    xClaim: XCLAIM,
+    XCLAIM_JUSTID,
+    xClaimJustId: XCLAIM_JUSTID,
+    XDEL,
+    xDel: XDEL,
+    XGROUP_CREATE,
+    xGroupCreate: XGROUP_CREATE,
+    XGROUP_CREATECONSUMER,
+    xGroupCreateConsumer: XGROUP_CREATECONSUMER,
+    XGROUP_DELCONSUMER,
+    xGroupDelConsumer: XGROUP_DELCONSUMER,
+    XGROUP_DESTROY,
+    xGroupDestroy: XGROUP_DESTROY,
+    XGROUP_SETID,
+    xGroupSetId: XGROUP_SETID,
+    XINFO_CONSUMERS,
+    xInfoConsumers: XINFO_CONSUMERS,
+    XINFO_GROUPS,
+    xInfoGroups: XINFO_GROUPS,
+    XINFO_STREAM,
+    xInfoStream: XINFO_STREAM,
+    XLEN,
+    xLen: XLEN,
+    XPENDING_RANGE,
+    xPendingRange: XPENDING_RANGE,
+    XPENDING,
+    xPending: XPENDING,
+    XRANGE,
+    xRange: XRANGE,
+    XREVRANGE,
+    xRevRange: XREVRANGE,
+    XTRIM,
+    xTrim: XTRIM,
     ZADD,
     zAdd: ZADD,
     ZCARD,
