@@ -88,3 +88,61 @@ export function transformArgumentNumberInfinity(num: number): string {
             return num.toString();
     }
 }
+
+export interface StreamMessage {
+    [field: string]: string;
+}
+
+export function transformReplyStreamMessage(reply: Array<string>): StreamMessage {
+    const message = Object.create(null);
+
+    for (let i = 0; i < reply.length; i += 2) {
+        message[reply[i]] = reply[i + 1];
+    }
+
+    return message;
+}
+
+export interface StreamMessageReply {
+    id: string;
+    message: StreamMessage;
+}
+
+export type StreamMessagesReply = Array<StreamMessageReply>;
+
+export function transformReplyStreamMessages(reply: Array<any>): StreamMessagesReply {
+    const messages = [];
+
+    for (let i = 0; i < reply.length; i += 2) {
+        messages.push({
+            id: reply[i],
+            message: transformReplyStreamMessage(reply[i + 1])
+        });
+    }
+
+    return messages;
+}
+
+export type StreamsMessagesReply = Array<{
+    name: string;
+    messages: StreamMessagesReply;
+}>;
+
+export function transformReplyStreamsMessages(reply: Array<any>): StreamsMessagesReply {
+    const streams = [];
+
+    for (let i = 0; i < reply.length; i+= 2) {
+        streams.push({
+            name: reply[i],
+            messages: transformReplyStreamMessages(reply[i + 1])
+        });
+    }
+
+    return streams
+}
+
+export function transformReplyStreamsMessagesNull(reply: Array<any> | null): StreamsMessagesReply | null {
+    if (reply === null) return null;
+
+    return transformReplyStreamsMessages(reply);
+}
