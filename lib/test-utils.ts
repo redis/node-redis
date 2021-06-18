@@ -7,6 +7,8 @@ import { once } from 'events';
 import tcpPortUsed from 'tcp-port-used';
 import { RedisSocketOptions } from './socket';
 import which from 'which';
+import { SinonSpy } from 'sinon';
+import { setTimeout } from 'timers/promises';
 
 export enum TestRedisServers {
     OPEN,
@@ -80,3 +82,15 @@ async function spawnRedisServer(args?: Array<string>): Promise<number> {
     return currentPort;
 }
 
+export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
+    const start = process.hrtime.bigint(),
+        calls = spy.callCount;
+
+    do {
+        if (process.hrtime.bigint() - start > 1_000_000_000) {
+            throw new Error('Waiting for more then 1 second');
+        }
+
+        await setTimeout(1);
+    } while (spy.callCount === calls)
+}
