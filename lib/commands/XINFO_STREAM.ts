@@ -1,4 +1,4 @@
-import { StreamMessageReply, transformReplyStreamMessage } from './generic-transformers';
+import { StreamMessageReply, transformReplyTupels } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
@@ -27,11 +27,11 @@ export function transformReply(reply: Array<any>): XInfoStreamReply {
         groups: reply[9],
         firstEntry: reply[11] ? {
             id: reply[11][0] ?? null,
-            message: transformReplyStreamMessage(reply[11][1])
+            message: transformReplyTupels(reply[11][1])
         } : null,
         lastEntry: reply[13] ? {
             id: reply[13][0],
-            message: transformReplyStreamMessage(reply[13][1])
+            message: transformReplyTupels(reply[13][1])
         } : null
     };
 }

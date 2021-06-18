@@ -1,4 +1,4 @@
-import { transformArgumentNumberInfinity, transformReplyNumber, transformReplyStringArray } from './generic-transformers';
+import { transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -11,15 +11,14 @@ interface ZRangeOptions {
         offset: number;
         count: number;
     };
-    WITHSCORES?: true;
 }
 
-export function transformArguments(src: string, min: number, max: number, options?: ZRangeOptions): Array<string> {
+export function transformArguments(src: string, min: string | number, max: string | number, options?: ZRangeOptions): Array<string> {
     const args = [
         'ZRANGE',
         src,
-        transformArgumentNumberInfinity(min),
-        transformArgumentNumberInfinity(max)
+        typeof min === 'string' ? min : min.toString(),
+        typeof max === 'string' ? max : max.toString()
     ];
 
     switch (options?.BY) {
@@ -40,12 +39,7 @@ export function transformArguments(src: string, min: number, max: number, option
         args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
     }
 
-    if (options?.WITHSCORES) {
-        args.push('WITHSCORES');
-    }
-
     return args;
 }
 
-// TODO: convert to `ZMember` when "WITHSCORES"
 export const transformReply = transformReplyStringArray;

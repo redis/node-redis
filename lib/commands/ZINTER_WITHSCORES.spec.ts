@@ -1,20 +1,20 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
-import { transformArguments } from './ZUNION';
+import { transformArguments } from './ZINTER_WITHSCORES';
 
-describe('ZUNION', () => {
+describe('ZINTER WITHSCORES', () => {
     describe('transformArguments', () => {
         it('key (string)', () => {
             assert.deepEqual(
                 transformArguments('key'),
-                ['ZUNION', '1', 'key']
+                ['ZINTER', '1', 'key', 'WITHSCORES']
             );
         });
 
         it('keys (array)', () => {
             assert.deepEqual(
                 transformArguments(['1', '2']),
-                ['ZUNION', '2', '1', '2']
+                ['ZINTER', '2', '1', '2', 'WITHSCORES']
             );
         });
 
@@ -23,7 +23,7 @@ describe('ZUNION', () => {
                 transformArguments('key', {
                     WEIGHTS: [1]
                 }),
-                ['ZUNION', '1', 'key', 'WEIGHTS', '1']
+                ['ZINTER', '1', 'key', 'WEIGHTS', '1', 'WITHSCORES']
             );
         });
 
@@ -32,14 +32,24 @@ describe('ZUNION', () => {
                 transformArguments('key', {
                     AGGREGATE: 'SUM'
                 }),
-                ['ZUNION', '1', 'key', 'AGGREGATE', 'SUM']
+                ['ZINTER', '1', 'key', 'AGGREGATE', 'SUM', 'WITHSCORES']
+            );
+        });
+
+        it('with WEIGHTS, AGGREGATE', () => {
+            assert.deepEqual(
+                transformArguments('key', {
+                    WEIGHTS: [1],
+                    AGGREGATE: 'SUM'
+                }),
+                ['ZINTER', '1', 'key', 'WEIGHTS', '1', 'AGGREGATE', 'SUM', 'WITHSCORES']
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zUnion', async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.zInterWithScores', async client => {
         assert.deepEqual(
-            await client.zUnion('key'),
+            await client.zInterWithScores('key'),
             []
         );
     });

@@ -6,9 +6,8 @@ import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './
 import EventEmitter from 'events';
 import { CommandOptions, commandOptions, isCommandOptions } from './command-options';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
-import { ScanOptions } from './commands/generic-transformers';
+import { ScanOptions, ZMember } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
-import { ZMember } from './commands/ZADD';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;

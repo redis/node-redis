@@ -1,4 +1,4 @@
-import { transformArgumentNumberInfinity, transformReplyNumberInfinity } from './generic-transformers';
+import { transformArgumentNumberInfinity, transformReplyNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -27,11 +27,6 @@ interface INCR {
 }
 
 type ZAddOptions = (NX | (XX & LT & GT)) & CH & INCR;
-
-export interface ZMember {
-    score: number;
-    value: string;
-}
 
 export function transformArguments(key: string, members: ZMember | Array<ZMember>, options?: ZAddOptions): Array<string> {
     const args = ['ZADD', key];

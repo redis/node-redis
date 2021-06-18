@@ -1,5 +1,4 @@
-import { transformReplyNumberInfinity } from './generic-transformers';
-import { ZMember } from './ZADD';
+import { transformReplyNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 

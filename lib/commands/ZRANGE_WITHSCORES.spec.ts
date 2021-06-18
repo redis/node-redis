@@ -1,13 +1,13 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
-import { transformArguments } from './ZRANGE';
+import { transformArguments } from './ZRANGE_WITHSCORES';
 
-describe('ZRANGE', () => {
+describe('ZRANGE WITHSCORES', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
                 transformArguments('src', 0, 1),
-                ['ZRANGE', 'src', '0', '1']
+                ['ZRANGE', 'src', '0', '1', 'WITHSCORES']
             );
         });
 
@@ -16,7 +16,7 @@ describe('ZRANGE', () => {
                 transformArguments('src', 0, 1, {
                     BY: 'SCORE'
                 }),
-                ['ZRANGE', 'src', '0', '1', 'BYSCORE']
+                ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'WITHSCORES']
             );
         });
 
@@ -25,7 +25,7 @@ describe('ZRANGE', () => {
                 transformArguments('src', 0, 1, {
                     REV: true
                 }),
-                ['ZRANGE', 'src', '0', '1', 'REV']
+                ['ZRANGE', 'src', '0', '1', 'REV', 'WITHSCORES']
             );
         });
 
@@ -37,7 +37,7 @@ describe('ZRANGE', () => {
                         count: 1
                     }
                 }),
-                ['ZRANGE', 'src', '0', '1', 'LIMIT', '0', '1']
+                ['ZRANGE', 'src', '0', '1', 'LIMIT', '0', '1', 'WITHSCORES']
             );
         });
 
@@ -51,14 +51,14 @@ describe('ZRANGE', () => {
                         count: 1
                     }
                 }),
-                ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1']
+                ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1', 'WITHSCORES']
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRange', async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.zRangeWithScores', async client => {
         assert.deepEqual(
-            await client.zRange('src', 0, 1),
+            await client.zRangeWithScores('src', 0, 1),
             []
         );
     });

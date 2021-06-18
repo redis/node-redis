@@ -26,6 +26,8 @@ import * as HINCRBYFLOAT from './HINCRBYFLOAT';
 import * as HKEYS from './HKEYS';
 import * as HLEN from './HLEN';
 import * as HMGET from './HMGET';
+import * as HRANDFIELD_COUNT_WITHVALUES from './HRANDFIELD_COUNT_WITHVALUES';
+import * as HRANDFIELD_COUNT from './HRANDFIELD_COUNT';
 import * as HRANDFIELD from './HRANDFIELD';
 import * as HSET from './HSET';
 import * as HSETNX from './HSETNX';
@@ -63,6 +65,7 @@ import * as SMISMEMBER from './SMISMEMBER';
 import * as SMOVE from './SMOVE';
 import * as SORT from './SORT';
 import * as SPOP from './SPOP';
+import * as SRANDMEMBER_COUNT from './SRANDMEMBER_COUNT';
 import * as SRANDMEMBER from './SRANDMEMBER';
 import * as SREM from './SREM';
 import * as SSCAN from './SSCAN';
@@ -97,16 +100,23 @@ import * as XTRIM from './XTRIM';
 import * as ZADD from './ZADD';
 import * as ZCARD from './ZCARD';
 import * as ZCOUNT from './ZCOUNT';
+import * as ZDIFF_WITHSCORES from './ZDIFF_WITHSCORES';
 import * as ZDIFF from './ZDIFF';
 import * as ZDIFFSTORE from './ZDIFFSTORE';
 import * as ZINCRBY from './ZINCRBY';
+import * as ZINTER_WITHSCORES from './ZINTER_WITHSCORES';
 import * as ZINTER from './ZINTER';
 import * as ZINTERSTORE from './ZINTERSTORE';
 import * as ZLEXCOUNT from './ZLEXCOUNT';
 import * as ZMSCORE from './ZMSCORE';
+import * as ZPOPMAX_COUNT from './ZPOPMAX_COUNT';
 import * as ZPOPMAX from './ZPOPMAX';
+import * as ZPOPMIN_COUNT from './ZPOPMIN_COUNT';
 import * as ZPOPMIN from './ZPOPMIN';
+import * as ZRANDMEMBER_COUNT_WITHSCORES from './ZRANDMEMBER_COUNT_WITHSCORES';
+import * as ZRANDMEMBER_COUNT from './ZRANDMEMBER_COUNT';
 import * as ZRANDMEMBER from './ZRANDMEMBER';
+import * as ZRANGE_WITHSCORES from './ZRANGE_WITHSCORES';
 import * as ZRANGE from './ZRANGE';
 import * as ZRANGESTORE from './ZRANGESTORE';
 import * as ZRANK from './ZRANK';
@@ -117,6 +127,7 @@ import * as ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
 import * as ZREVRANK from './ZREVRANK';
 import * as ZSCAN from './ZSCAN';
 import * as ZSCORE from './ZSCORE';
+import * as ZUNION_WITHSCORES from './ZUNION_WITHSCORES';
 import * as ZUNION from './ZUNION';
 import * as ZUNIONSTORE from './ZUNIONSTORE';
 
@@ -177,6 +188,10 @@ export default {
     hLen: HLEN,
     HMGET,
     hmGet: HMGET,
+    HRANDFIELD_COUNT_WITHVALUES,
+    hRandFieldCountWithValues: HRANDFIELD_COUNT_WITHVALUES,
+    HRANDFIELD_COUNT,
+    hRandFieldCount: HRANDFIELD_COUNT,
     HRANDFIELD,
     hRandField: HRANDFIELD,
     HSET,
@@ -251,6 +266,8 @@ export default {
     sort: SORT,
     SPOP,
     sPop: SPOP,
+    SRANDMEMBER_COUNT,
+    sRandMemberCount: SRANDMEMBER_COUNT,
     SRANDMEMBER,
     sRandMember: SRANDMEMBER,
     SREM,
@@ -319,12 +336,16 @@ export default {
     zCard: ZCARD,
     ZCOUNT,
     zCount: ZCOUNT,
+    ZDIFF_WITHSCORES,
+    zDiffWithScores: ZDIFF_WITHSCORES,    
     ZDIFF,
     zDiff: ZDIFF,
     ZDIFFSTORE,
     zDiffStore: ZDIFFSTORE,
     ZINCRBY,
     zIncrBy: ZINCRBY,
+    ZINTER_WITHSCORES,
+    zInterWithScores: ZINTER_WITHSCORES,
     ZINTER,
     zInter: ZINTER,
     ZINTERSTORE,
@@ -333,12 +354,22 @@ export default {
     zLexCount: ZLEXCOUNT,
     ZMSCORE,
     zmScore: ZMSCORE,
+    ZPOPMAX_COUNT,
+    zPopMaxCount: ZPOPMAX_COUNT,
     ZPOPMAX,
     zPopMax: ZPOPMAX,
+    ZPOPMIN_COUNT,
+    zPopMinCount: ZPOPMIN_COUNT,
     ZPOPMIN,
     zPopMin: ZPOPMIN,
+    ZRANDMEMBER_COUNT_WITHSCORES,
+    zRandMemberCountWithScores: ZRANDMEMBER_COUNT_WITHSCORES,
+    ZRANDMEMBER_COUNT,
+    zRandMemberCount: ZRANDMEMBER_COUNT,
     ZRANDMEMBER,
     zRandMember: ZRANDMEMBER,
+    ZRANGE_WITHSCORES,
+    zRangeWithScores: ZRANGE_WITHSCORES,
     ZRANGE,
     zRange: ZRANGE,
     ZRANGESTORE,
@@ -359,6 +390,8 @@ export default {
     zScan: ZSCAN,
     ZSCORE,
     zScore: ZSCORE,
+    ZUNION_WITHSCORES,
+    zUnionWithScores: ZUNION_WITHSCORES,
     ZUNION,
     zUnion: ZUNION,
     ZUNIONSTORE,

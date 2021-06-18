@@ -1,4 +1,4 @@
-import { StreamMessage, transformReplyString } from './generic-transformers';
+import { TupelsObject, transformReplyString } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,7 +13,7 @@ interface XAddOptions {
     }
 }
 
-export function transformArguments(key: string, id: string, message: StreamMessage, options?: XAddOptions): Array<string> {
+export function transformArguments(key: string, id: string, message: TupelsObject, options?: XAddOptions): Array<string> {
     const args = ['XADD', key];
 
     if (options?.NOMKSTREAM) {

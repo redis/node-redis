@@ -6,6 +6,10 @@ export function transformReplyString(reply: string): string {
     return reply;
 }
 
+export function transformReplyStringNull(reply: string | null): string | null {
+    return reply;
+}
+
 export function transformReplyStringArray(reply: Array<string>): Array<string> {
     return reply;
 }
@@ -89,11 +93,11 @@ export function transformArgumentNumberInfinity(num: number): string {
     }
 }
 
-export interface StreamMessage {
+export interface TupelsObject {
     [field: string]: string;
 }
 
-export function transformReplyStreamMessage(reply: Array<string>): StreamMessage {
+export function transformReplyTupels(reply: Array<string>): TupelsObject {
     const message = Object.create(null);
 
     for (let i = 0; i < reply.length; i += 2) {
@@ -105,7 +109,7 @@ export function transformReplyStreamMessage(reply: Array<string>): StreamMessage
 
 export interface StreamMessageReply {
     id: string;
-    message: StreamMessage;
+    message: TupelsObject;
 }
 
 export type StreamMessagesReply = Array<StreamMessageReply>;
@@ -116,7 +120,7 @@ export function transformReplyStreamMessages(reply: Array<any>): StreamMessagesR
     for (let i = 0; i < reply.length; i += 2) {
         messages.push({
             id: reply[i],
-            message: transformReplyStreamMessage(reply[i + 1])
+            message: transformReplyTupels(reply[i + 1])
         });
     }
 
@@ -138,11 +142,29 @@ export function transformReplyStreamsMessages(reply: Array<any>): StreamsMessage
         });
     }
 
-    return streams
+    return streams;
 }
 
 export function transformReplyStreamsMessagesNull(reply: Array<any> | null): StreamsMessagesReply | null {
     if (reply === null) return null;
 
     return transformReplyStreamsMessages(reply);
+}
+
+export interface ZMember {
+    score: number;
+    value: string;
+}
+
+export function transformReplySortedSetWithScores(reply: Array<string>): Array<ZMember> {
+    const members = [];
+
+    for (let i = 0; i < reply.length; i += 2) {
+        members.push({
+            value: reply[i],
+            score: transformReplyNumberInfinity(reply[i + 1])
+        });
+    }
+
+    return members;
 }

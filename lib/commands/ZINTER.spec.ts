@@ -36,23 +36,13 @@ describe('ZINTER', () => {
             );
         });
 
-        it('with WITHSCORES', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    WITHSCORES: true
-                }),
-                ['ZINTER', '1', 'key', 'WITHSCORES']
-            );
-        });
-
-        it('with WEIGHTS, AGGREGATE, WITHSCORES', () => {
+        it('with WEIGHTS, AGGREGATE', () => {
             assert.deepEqual(
                 transformArguments('key', {
                     WEIGHTS: [1],
-                    AGGREGATE: 'SUM',
-                    WITHSCORES: true
+                    AGGREGATE: 'SUM'
                 }),
-                ['ZINTER', '1', 'key', 'WEIGHTS', '1', 'AGGREGATE', 'SUM', 'WITHSCORES']
+                ['ZINTER', '1', 'key', 'WEIGHTS', '1', 'AGGREGATE', 'SUM']
             );
         });
     });

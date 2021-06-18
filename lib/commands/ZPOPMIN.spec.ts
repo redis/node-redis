@@ -3,20 +3,11 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './ZPOPMIN';
 
 describe('ZPOPMIN', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['ZPOPMIN', 'key']
-            );
-        });
-
-        it('with count', () => {
-            assert.deepEqual(
-                transformArguments('key', 1),
-                ['ZPOPMIN', 'key', '1']
-            );
-        });
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('key'),
+            ['ZPOPMIN', 'key']
+        );
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.zPopMin', async client => {

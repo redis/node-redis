@@ -7,7 +7,6 @@ export const IS_READ_ONLY = true;
 interface ZInterOptions {
     WEIGHTS?: Array<number>;
     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
-    WITHSCORES?: true;
 }
 
 export function transformArguments(keys: Array<string> | string, options?: ZInterOptions): Array<string> {
@@ -30,12 +29,7 @@ export function transformArguments(keys: Array<string> | string, options?: ZInte
         args.push('AGGREGATE', options?.AGGREGATE);
     }
 
-    if (options?.WITHSCORES) {
-        args.push('WITHSCORES');
-    }
-
     return args;
 }
 
-// TODO: convert to `Array<ZMember>` when "WITHSCORES"
 export const transformReply = transformReplyStringArray;
