@@ -2,17 +2,11 @@ import { transformReplyNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, count?: number): Array<string> {
-    const args = [
+export function transformArguments(key: string): Array<string> {
+    return [
         'ZPOPMAX',
         key
     ];
-
-    if (typeof count === 'number') {
-        args.push(count.toString());
-    }
-
-    return args;
 }
 
 export function transformReply(reply: [string, string] | []): ZMember | null {
