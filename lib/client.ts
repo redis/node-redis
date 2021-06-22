@@ -1,7 +1,7 @@
 import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
-import COMMANDS from './commands/client';
-import { RedisCommand, RedisModules, RedisReply } from './commands';
+import COMMANDS from './commands';
+import { RedisCommand, RedisCommands, RedisModules, RedisReply } from './commands';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import EventEmitter from 'events';
 import { CommandOptions, commandOptions, isCommandOptions } from './command-options';
@@ -33,7 +33,11 @@ type WithScripts<S extends RedisLuaScripts> = {
     [P in keyof S]: RedisCommandSignature<S[P]>;
 };
 
-export type RedisClientType<M extends RedisModules, S extends RedisLuaScripts> = WithCommands & WithModules<M> & WithScripts<S> & RedisClient<M, S>;
+export type WithPlugins<M extends RedisModules, S extends RedisLuaScripts> =
+    WithCommands & WithModules<M> & WithScripts<S>;
+
+export type RedisClientType<M extends RedisModules, S extends RedisLuaScripts> =
+    WithPlugins<M, S> & RedisClient<M, S>;
 
 export interface ClientCommandOptions extends QueueCommandOptions {
     duplicateConnection?: boolean;
@@ -42,10 +46,10 @@ export interface ClientCommandOptions extends QueueCommandOptions {
 export default class RedisClient<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> extends EventEmitter {
     static defineCommand(on: any, name: string, command: RedisCommand): void {
         on[name] = async function (...args: Array<unknown>): Promise<unknown> {
-            const options = isCommandOptions(args[0]) && args.shift();
+            const options = isCommandOptions(args[0]) && args[0];
             return command.transformReply(
                 await this.sendCommand(
-                    command.transformArguments(...args),
+                    command.transformArguments(...(options ? args.slice(1) : args)),
                     options
                 )
             );
@@ -58,7 +62,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
     static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
         return commandOptions(options);
-    };
+    }
 
     readonly #options?: RedisClientOptions<M, S>;
     readonly #socket: RedisSocket;
@@ -180,24 +184,34 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             (this as any)[name] = async function (...args: Parameters<typeof script.transformArguments>): Promise<ReturnType<typeof script.transformReply>> {
                 const options = isCommandOptions(args[0]) && args[0];
                 return script.transformReply(
-                    await this.#executeScript(script, [
-                        script.NUMBER_OF_KEYS.toString(),
-                        ...script.transformArguments(options ? args.slice(1) : args)
-                    ])
+                    await this.executeScript(
+                        script,
+                        ...script.transformArguments(...(options ? args.slice(1) : args))
+                    )
                 );
             };
         }
     }
 
-    async #executeScript<S extends RedisLuaScript>(script: S, args: Array<string>): Promise<ReturnType<S['transformReply']>> {
+    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>): Promise<ReturnType<S['transformReply']>> {
         try {
-            return await this.sendCommand(['EVALSHA', script.SHA, ...args]);        
+            return await this.sendCommand([
+                'EVALSHA',
+                script.SHA,
+                script.NUMBER_OF_KEYS.toString(),
+                ...args
+            ]);        
         } catch (err: any) {
             if (!err?.message?.startsWith?.('NOSCRIPT')) {
                 throw err;
             }
 
-            return await this.sendCommand(['EVAL', script.SCRIPT, ...args]);
+            return await this.sendCommand([
+                'EVAL',
+                script.SCRIPT,
+                script.NUMBER_OF_KEYS.toString(),
+                ...args
+            ]);
         }
     }
 

@@ -1,11 +1,12 @@
+import { strict as assert } from 'assert';
 import RedisCluster from './cluster';
+import { defineScript } from './lua-script';
+import { TestRedisClusters, TEST_REDIS_CLUSTERES } from './test-utils';
 
-describe.skip('Cluster', () => {
+describe('Cluster', () => {
     it('sendCommand', async () => {
         const cluster = RedisCluster.create({
-            rootNodes: [{
-                port: 30001
-            }],
+            rootNodes: TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
             useReplicas: true
         });
 
@@ -21,5 +22,36 @@ describe.skip('Cluster', () => {
         await cluster.get('aa');
 
         await cluster.disconnect();
+    });
+
+    it('scripts', async () => {
+        const cluster = RedisCluster.create({
+            rootNodes: TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
+            scripts: {
+                add: defineScript({
+                    NUMBER_OF_KEYS: 0,
+                    SCRIPT: 'return ARGV[1] + 1;',
+                    transformArguments(number: number): Array<string> {
+                        assert.equal(number, 1);
+                        return [number.toString()];
+                    },
+                    transformReply(reply: number): number {
+                        assert.equal(reply, 2);
+                        return reply;
+                    }
+                })
+            }
+        });
+
+        await cluster.connect();
+
+        try {
+            assert.equal(
+                await cluster.add(1),
+                2
+            );
+        } finally {
+            await cluster.disconnect();
+        }
     });
 });

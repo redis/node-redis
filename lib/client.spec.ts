@@ -228,9 +228,11 @@ describe('Client', () => {
                         NUMBER_OF_KEYS: 0,
                         SCRIPT: 'return ARGV[1] + 1;',
                         transformArguments(number: number): Array<string> {
+                            assert.equal(number, 1);
                             return [number.toString()];
                         },
                         transformReply(reply: number): number {
+                            assert.equal(reply, 2);
                             return reply;
                         }
                     })
@@ -259,9 +261,11 @@ describe('Client', () => {
                     NUMBER_OF_KEYS: 0,
                     SCRIPT: 'return ARGV[1] + 1;',
                     transformArguments(number: number): Array<string> {
+                        assert.equal(number, 1);
                         return [number.toString()];
                     },
                     transformReply(reply: number): number {
+                        assert.equal(reply, 2);
                         return reply;
                     }
                 })

@@ -1,7 +1,7 @@
-import COMMANDS from './commands/client';
+import COMMANDS from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisCommandsQueue from './commands-queue';
-import { RedisLuaScript, RedisLuaScripts } from './lua-script';
+import { RedisLuaScripts } from './lua-script';
 import { RedisClientOptions } from './client';
 
 type RedisMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisLuaScripts> = (...args: Parameters<C['transformArguments']>) => RedisMultiCommandType<M, S>;

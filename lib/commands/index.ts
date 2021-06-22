@@ -6,7 +6,11 @@ import * as BLPOP from './BLPOP';
 import * as BZPOPMAX from './BZPOPMAX';
 import * as BZPOPMIN from './BZPOPMIN';
 import * as CLIENT_INFO from './CLIENT_INFO';
+import * as CLUSTER_ADDSLOTS from './CLUSTER_ADDSLOTS';
+import * as CLUSTER_FLUSHSLOTS from './CLUSTER_FLUSHSLOTS';
+import * as CLUSTER_INFO from './CLUSTER_INFO';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
+import * as CLUSTER_MEET from './CLUSTER_MEET';
 import * as COPY from './COPY';
 import * as DECR from './DECR';
 import * as DECRBY from './DECRBY';
@@ -38,6 +42,7 @@ import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
 import * as LPUSH from './LPUSH';
+import * as MOVE from './MOVE';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
 import * as PEXPIREAT from './PEXPIREAT';
@@ -148,8 +153,16 @@ export default {
     bzPopMin: BZPOPMIN,
     CLIENT_INFO,
     clientInfo: CLIENT_INFO,
+    CLUSTER_ADDSLOTS,
+    clusterAddSlots: CLUSTER_ADDSLOTS,
+    CLUSTER_FLUSHSLOTS,
+    clusterFlushSlots: CLUSTER_FLUSHSLOTS,
+    CLUSTER_INFO,
+    clusterInfo: CLUSTER_INFO,
     CLUSTER_NODES,
     clusterNodes: CLUSTER_NODES,
+    CLUSTER_MEET,
+    clusterMeet: CLUSTER_MEET,
     COPY,
     copy: COPY,
     DECR,
@@ -212,6 +225,8 @@ export default {
     keys: KEYS,
     LPUSH,
     lPush: LPUSH,
+    MOVE,
+    move: MOVE,
     PERSIST,
     persist: PERSIST,
     PEXPIRE,
@@ -405,6 +420,10 @@ export interface RedisCommand {
     IS_READ_ONLY?: boolean;
     transformArguments(...args: Array<any>): Array<string>;
     transformReply(reply: RedisReply): any;
+}
+
+export interface RedisCommands {
+    [command: string]: RedisCommand;
 }
 
 export interface RedisModule {
