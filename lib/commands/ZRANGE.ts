@@ -1,4 +1,4 @@
-import { transformReplyStringArray } from './generic-transformers';
+import { transformArgumentNumberInfinity, transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,12 +13,12 @@ interface ZRangeOptions {
     };
 }
 
-export function transformArguments(src: string, min: string | number, max: string | number, options?: ZRangeOptions): Array<string> {
+export function transformArguments(key: string, min: string | number, max: string | number, options?: ZRangeOptions): Array<string> {
     const args = [
         'ZRANGE',
-        src,
-        typeof min === 'string' ? min : min.toString(),
-        typeof max === 'string' ? max : max.toString()
+        key,
+        typeof min === 'string' ? min : transformArgumentNumberInfinity(min),
+        typeof max === 'string' ? max : transformArgumentNumberInfinity(max)
     ];
 
     switch (options?.BY) {

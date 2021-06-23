@@ -1,3 +1,4 @@
+import { transformReplyStringArrayNull } from './generic-transformers';
 import { transformArguments as transformZRandMemberArguments } from './ZRANDMEMBER';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANDMEMBER';
@@ -9,6 +10,4 @@ export function transformArguments(key: string, count: number): Array<string> {
     ];
 }
 
-export function transformReply(reply: Array<string> | null): Array<string> | null {
-    return reply;
-}
+export const transformReply = transformReplyStringArrayNull;

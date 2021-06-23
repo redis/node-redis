@@ -2,7 +2,10 @@ import * as APPEND from './APPEND';
 import * as AUTH from './AUTH';
 import * as BITCOUNT from './BITCOUNT';
 import * as BITFIELD from './BITFIELD';
+import * as BLMOVE from './BLMOVE';
 import * as BLPOP from './BLPOP';
+import * as BRPOP from './BRPOP';
+import * as BRPOPLPUSH from './BRPOPLPUSH';
 import * as BZPOPMAX from './BZPOPMAX';
 import * as BZPOPMIN from './BZPOPMIN';
 import * as CLIENT_INFO from './CLIENT_INFO';
@@ -11,6 +14,7 @@ import * as CLUSTER_FLUSHSLOTS from './CLUSTER_FLUSHSLOTS';
 import * as CLUSTER_INFO from './CLUSTER_INFO';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as CLUSTER_MEET from './CLUSTER_MEET';
+import * as CLUSTER_RESET from './CLUSTER_RESET';
 import * as COPY from './COPY';
 import * as DECR from './DECR';
 import * as DECRBY from './DECRBY';
@@ -41,7 +45,18 @@ import * as INCR from './INCR';
 import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
+import * as LINDEX from './LINDEX';
+import * as LINSERT from './LINSERT';
+import * as LLEN from './LLEN';
+import * as LMOVE from './LMOVE';
+import * as LPOP from './LPOP';
+import * as LPOP_COUNT from './LPOP_COUNT';
 import * as LPUSH from './LPUSH';
+import * as LPUSHX from './LPUSHX';
+import * as LRANGE from './LRANGE';
+import * as LREM from './LREM';
+import * as LSET from './LSET';
+import * as LTRIM from './LTRIM';
 import * as MOVE from './MOVE';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
@@ -56,6 +71,11 @@ import * as RANDOMKEY from './RANDOMKEY';
 import * as READONLY from './READONLY';
 import * as RENAME from './RENAME';
 import * as RENAMENX from './RENAMENX';
+import * as RPOP_COUNT from './RPOP_COUNT';
+import * as RPOP from './RPOP';
+import * as RPOPLPUSH from './RPOPLPUSH';
+import * as RPUSH from './RPUSH';
+import * as RPUSHX from './RPUSHX'; 
 import * as SADD from './SADD';
 import * as SCAN from './SCAN';
 import * as SCARD from './SCARD';
@@ -145,8 +165,14 @@ export default {
     bitCount: BITCOUNT,
     BITFIELD,
     bitField: BITFIELD,
+    BLMOVE,
+    blMove: BLMOVE,
     BLPOP,
     blPop: BLPOP,
+    BRPOP,
+    brPop: BRPOP,
+    BRPOPLPUSH,
+    brPopLPush: BRPOPLPUSH,
     BZPOPMAX,
     bzPopMax: BZPOPMAX,
     BZPOPMIN,
@@ -163,6 +189,8 @@ export default {
     clusterNodes: CLUSTER_NODES,
     CLUSTER_MEET,
     clusterMeet: CLUSTER_MEET,
+    CLUSTER_RESET,
+    clusterReset: CLUSTER_RESET,
     COPY,
     copy: COPY,
     DECR,
@@ -223,8 +251,30 @@ export default {
     incrByFloat: INCRBYFLOAT,
     KEYS,
     keys: KEYS,
+    LINDEX,
+    lIndex: LINDEX,
+    LINSERT,
+    lInsert: LINSERT,
+    LLEN,
+    lLen: LLEN,
+    LMOVE,
+    lMove: LMOVE,
+    LPOP_COUNT,
+    lPopCount: LPOP_COUNT,
+    LPOP,
+    lPop: LPOP,
     LPUSH,
     lPush: LPUSH,
+    LPUSHX,
+    lPushX: LPUSHX,
+    LRANGE,
+    lRange: LRANGE,
+    LREM,
+    lRem: LREM,
+    LSET,
+    lSet: LSET,
+    LTRIM,
+    lTrim: LTRIM,
     MOVE,
     move: MOVE,
     PERSIST,
@@ -253,6 +303,16 @@ export default {
     rename: RENAME,
     RENAMENX,
     renameNX: RENAMENX,
+    RPOP_COUNT,
+    rPopCount: RPOP_COUNT,
+    RPOP,
+    rPop: RPOP,
+    RPOPLPUSH,
+    rPopLPush: RPOPLPUSH,
+    RPUSH,
+    rPush: RPUSH,
+    RPUSHX,
+    rPushX: RPUSHX,
     SADD,
     sAdd: SADD,
     SCAN,

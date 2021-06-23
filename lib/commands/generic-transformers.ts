@@ -2,6 +2,10 @@ export function transformReplyNumber(reply: number): number {
     return reply;
 }
 
+export function transformReplyNumberNull(reply: number | null): number | null {
+    return reply;
+}
+
 export function transformReplyString(reply: string): string {
     return reply;
 }
@@ -11,6 +15,10 @@ export function transformReplyStringNull(reply: string | null): string | null {
 }
 
 export function transformReplyStringArray(reply: Array<string>): Array<string> {
+    return reply;
+}
+
+export function transformReplyStringArrayNull(reply: Array<string> | null): Array<string> | null {
     return reply;
 }
 

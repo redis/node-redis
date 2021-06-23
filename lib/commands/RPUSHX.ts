@@ -2,16 +2,16 @@ import { transformReplyNumber } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, elements: string | Array<string>): Array<string> {
+export function transformArguments(key: string, element: string | Array<string>): Array<string> {
     const args = [
-        'LPUSH',
+        'RPUSHX',
         key
     ];
 
-    if (typeof elements === 'string') {
-        args.push(elements);
+    if (typeof element === 'string') {
+        args.push(element);
     } else {
-        args.push(...elements);
+        args.push(...element);
     }
 
     return args;

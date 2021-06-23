@@ -1,19 +1,21 @@
 import calculateSlot from 'cluster-key-slot';
-import RedisClient from './client';
+import RedisClient, { RedisClientType } from './client';
 import { RedisSocketOptions } from './socket';
 import { RedisClusterMasterNode, RedisClusterReplicaNode } from './commands/CLUSTER_NODES';
 import { RedisClusterOptions } from './cluster';
+import { RedisModules } from './commands';
+import { RedisLuaScripts } from './lua-script';
 
-interface SlotClients {
-    master: RedisClient;
-    replicas: Array<RedisClient>;
-    iterator: IterableIterator<RedisClient> | undefined;
+interface SlotClients<M extends RedisModules, S extends RedisLuaScripts> {
+    master: RedisClientType<M, S>;
+    replicas: Array<RedisClientType<M, S>>;
+    iterator: IterableIterator<RedisClientType<M, S>> | undefined;
 }
 
-export default class RedisClusterSlots {
+export default class RedisClusterSlots<M extends RedisModules, S extends RedisLuaScripts> {
     readonly #options: RedisClusterOptions;
-    readonly #clientByKey = new Map<string, RedisClient>();
-    readonly #slots: Array<SlotClients> = [];
+    readonly #clientByKey = new Map<string, RedisClientType<M, S>>();
+    readonly #slots: Array<SlotClients<M, S>> = [];
 
     constructor(options: RedisClusterOptions) {
         this.#options = options;
@@ -32,7 +34,7 @@ export default class RedisClusterSlots {
         throw new Error('None of the root nodes is available');
     }
 
-    async discover(startWith: RedisClient): Promise<void> {
+    async discover(startWith: RedisClientType<M, S>): Promise<void> {
         try {
             await this.#discoverNodes(startWith.options?.socket);
             return;
@@ -99,7 +101,7 @@ export default class RedisClusterSlots {
         }
     }
 
-    #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClient {
+    #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClientType<M, S> {
         clientsInUse.add(node.url);
 
         let client = this.#clientByKey.get(node.url);
@@ -118,11 +120,11 @@ export default class RedisClusterSlots {
         return client;
     }
 
-    #getSlotMaster(slot: number): RedisClient {
+    #getSlotMaster(slot: number): RedisClientType<M, S> {
         return this.#slots[slot].master;
     }
 
-    *#slotIterator(slotNumber: number): IterableIterator<RedisClient> {
+    *#slotIterator(slotNumber: number): IterableIterator<RedisClientType<M, S>> {
         const slot = this.#slots[slotNumber];
         yield slot.master;
 
@@ -131,7 +133,7 @@ export default class RedisClusterSlots {
         }
     }
 
-    #getSlotClient(slotNumber: number): RedisClient {
+    #getSlotClient(slotNumber: number): RedisClientType<M, S> {
         const slot = this.#slots[slotNumber];
         if (!slot.iterator) {
             slot.iterator = this.#slotIterator(slotNumber);
@@ -146,9 +148,9 @@ export default class RedisClusterSlots {
         return value;
     }
 
-    #randomClientIterator?: IterableIterator<RedisClient>;
+    #randomClientIterator?: IterableIterator<RedisClientType<M, S>>;
 
-    #getRandomClient(): RedisClient {
+    #getRandomClient(): RedisClientType<M, S> {
         if (!this.#clientByKey.size) {
             throw new Error('Cluster is not connected');
         }
@@ -166,7 +168,7 @@ export default class RedisClusterSlots {
         return value;
     }
 
-    getClient(firstKey?: string, isReadonly?: boolean): RedisClient {
+    getClient(firstKey?: string, isReadonly?: boolean): RedisClientType<M, S> {
         if (!firstKey) {
             return this.#getRandomClient();
         }
@@ -177,6 +179,18 @@ export default class RedisClusterSlots {
         }
 
         return this.#getSlotClient(slot);
+    }
+
+    getMasters(): Array<RedisClientType<M, S>> {
+        const masters = [];
+
+        for (const client of this.#clientByKey.values()) {
+            if (client.options?.readonly) continue;
+
+            masters.push(client);
+        }
+
+        return masters;
     }
 
     async disconnect(): Promise<void> {

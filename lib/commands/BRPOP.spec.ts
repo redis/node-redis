@@ -1,35 +1,36 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
-import { transformArguments } from './BLPOP';
+import { transformArguments } from './BRPOP';
 import RedisClient from '../client';
+import RedisCluster from '../cluster';
 
-describe('BLPOP', () => {
+describe('BRPOP', () => {
     describe('transformArguments', () => {
         it('single', () => {
             assert.deepEqual(
                 transformArguments('key', 0),
-                ['BLPOP', 'key', '0']
+                ['BRPOP', 'key', '0']
             );
         });
 
         it('multiple', () => {
             assert.deepEqual(
                 transformArguments(['key1', 'key2'], 0),
-                ['BLPOP', 'key1', 'key2', '0']
+                ['BRPOP', 'key1', 'key2', '0']
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.blPop', async client => {
-        const [popReply] = await Promise.all([
-            client.blPop(RedisClient.commandOptions({
+    itWithClient(TestRedisServers.OPEN, 'client.brPop', async client => {
+        const [brPopReply] = await Promise.all([
+            client.brPop(RedisClient.commandOptions({
                 duplicateConnection: true
             }), 'key', 0),
             client.lPush('key', 'element')
         ]);
 
         assert.deepEqual(
-            popReply,
+            brPopReply,
             {
                 key: 'key',
                 element: 'element'
@@ -37,16 +38,16 @@ describe('BLPOP', () => {
         );
     });
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.blPop', async cluster => {
-        const [popReply] = await Promise.all([
-            cluster.blPop(RedisClient.commandOptions({
+    itWithCluster(TestRedisClusters.OPEN, 'cluster.brPop', async cluster => {
+        const [brPopReply] = await Promise.all([
+            cluster.brPop(RedisCluster.commandOptions({
                 duplicateConnection: true
             }), 'key', 0),
             cluster.lPush('key', 'element')
         ]);
 
         assert.deepEqual(
-            popReply,
+            brPopReply,
             {
                 key: 'key',
                 element: 'element'

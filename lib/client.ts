@@ -193,14 +193,14 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         }
     }
 
-    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>): Promise<ReturnType<S['transformReply']>> {
+    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>, options?: ClientCommandOptions): Promise<ReturnType<S['transformReply']>> {
         try {
             return await this.sendCommand([
                 'EVALSHA',
                 script.SHA,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
-            ]);        
+            ], options);        
         } catch (err: any) {
             if (!err?.message?.startsWith?.('NOSCRIPT')) {
                 throw err;
@@ -211,7 +211,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 script.SCRIPT,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
-            ]);
+            ], options);
         }
     }
 

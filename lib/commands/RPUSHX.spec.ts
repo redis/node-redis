@@ -1,35 +1,35 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
-import { transformArguments } from './LPUSH';
+import { transformArguments } from './RPUSHX';
 
-describe('LPUSH', () => {
+describe('RPUSHX', () => {
     describe('transformArguments', () => {
         it('string', () => {
             assert.deepEqual(
-                transformArguments('key', 'field'),
-                ['LPUSH', 'key', 'field']
+                transformArguments('key', 'element'),
+                ['RPUSHX', 'key', 'element']
             );
         });
 
         it('array', () => {
             assert.deepEqual(
                 transformArguments('key', ['1', '2']),
-                ['LPUSH', 'key', '1', '2']
+                ['RPUSHX', 'key', '1', '2']
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lPush', async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.rPushX', async client => {
         assert.equal(
-            await client.lPush('key', 'field'),
-            1
+            await client.rPushX('key', 'element'),
+            0
         );
     });
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lPush', async cluster => {
+    itWithCluster(TestRedisClusters.OPEN, 'cluster.rPushX', async cluster => {
         assert.equal(
-            await cluster.lPush('key', 'field'),
-            1
+            await cluster.rPushX('key', 'element'),
+            0
         );
     });
 });

@@ -1,34 +1,34 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
-import { transformArguments } from './LPUSH';
+import { transformArguments } from './RPUSH';
 
-describe('LPUSH', () => {
+describe('RPUSH', () => {
     describe('transformArguments', () => {
         it('string', () => {
             assert.deepEqual(
-                transformArguments('key', 'field'),
-                ['LPUSH', 'key', 'field']
+                transformArguments('key', 'element'),
+                ['RPUSH', 'key', 'element']
             );
         });
 
         it('array', () => {
             assert.deepEqual(
                 transformArguments('key', ['1', '2']),
-                ['LPUSH', 'key', '1', '2']
+                ['RPUSH', 'key', '1', '2']
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lPush', async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.rPush', async client => {
         assert.equal(
-            await client.lPush('key', 'field'),
+            await client.rPush('key', 'element'),
             1
         );
     });
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lPush', async cluster => {
+    itWithCluster(TestRedisClusters.OPEN, 'cluster.rPush', async cluster => {
         assert.equal(
-            await cluster.lPush('key', 'field'),
+            await cluster.rPush('key', 'element'),
             1
         );
     });

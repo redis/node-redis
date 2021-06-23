@@ -1,11 +1,10 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisModules } from './commands';
-import RedisClient, { WithPlugins } from './client';
+import { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
-import { QueueCommandOptions } from './commands-queue';
-import { CommandOptions, isCommandOptions } from './command-options';
+import { commandOptions, CommandOptions, isCommandOptions } from './command-options';
 
 export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
     rootNodes: Array<RedisSocketOptions>;
@@ -26,6 +25,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
                 await this.sendCommand(
                     command,
                     command.transformArguments(...(options ? args.slice(1) : args)),
+                    options
                 )
             );
         };
@@ -35,12 +35,12 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         return <any>new RedisCluster(options);
     }
 
-    static commandOptions(options: QueueCommandOptions): CommandOptions<QueueCommandOptions> {
-        return this.commandOptions(options);
+    static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
+        return commandOptions(options);
     }
 
     readonly #options: RedisClusterOptions;
-    readonly #slots: RedisClusterSlots;
+    readonly #slots: RedisClusterSlots<M, S>;
 
     constructor(options: RedisClusterOptions<M, S>) {
         this.#options = options;
@@ -68,7 +68,8 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
                 return script.transformReply(
                     await this.executeScript(
                         script, 
-                        script.transformArguments(...(options ? args.slice(1) : args))
+                        script.transformArguments(...(options ? args.slice(1) : args)),
+                        options
                     )
                 );
             };
@@ -79,42 +80,42 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         return this.#slots.connect();
     }
 
-    async sendCommand<C extends RedisCommand>(command: C, args: Array<string>, redirections: number = 0): Promise<ReturnType<C['transformReply']>> {
+    async sendCommand<C extends RedisCommand>(command: C, args: Array<string>, options?: ClientCommandOptions, redirections: number = 0): Promise<ReturnType<C['transformReply']>> {
         const client = this.#getClient(command, args);
 
         try {
-            return await client.sendCommand(args);
+            return await client.sendCommand(args, options);
         } catch (err) {
             if (await this.#handleCommandError(err, client, redirections)) {
-                return this.sendCommand(command, args, redirections + 1);
+                return this.sendCommand(command, args, options, redirections + 1);
             }
 
             throw err;
         }
     }
 
-    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>, redirections: number = 0): Promise<ReturnType<S['transformReply']>> {
+    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>, options?: ClientCommandOptions, redirections: number = 0): Promise<ReturnType<S['transformReply']>> {
         const client = this.#getClient(script, args);
 
         try {
-            return await client.executeScript(script, args);
+            return await client.executeScript(script, args, options);
         } catch (err) {
             if (await this.#handleCommandError(err, client, redirections)) {
-                return this.executeScript(script, args, redirections + 1);
+                return this.executeScript(script, args, options, redirections + 1);
             }
 
             throw err;
         }
     }
 
-    #getClient(commandOrScript: RedisCommand | RedisLuaScript, args: Array<string>): RedisClient {
+    #getClient(commandOrScript: RedisCommand | RedisLuaScript, args: Array<string>): RedisClientType<M, S> {
         return this.#slots.getClient(
             commandOrScript.FIRST_KEY_INDEX ? args[commandOrScript.FIRST_KEY_INDEX] : undefined,
             commandOrScript.IS_READ_ONLY
         );
     }
 
-    async #handleCommandError(err: Error, client: RedisClient, redirections: number = 0): Promise<boolean> {
+    async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections: number = 0): Promise<boolean> {
         if (redirections < (this.#options.maxCommandRedirections ?? 16)) {
             throw err;
         }
@@ -126,6 +127,10 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         }
 
         throw err;
+    }
+
+    getMasters(): Array<RedisClientType<M, S>> {
+        return this.#slots.getMasters();
     }
 
     disconnect(): Promise<void> {
