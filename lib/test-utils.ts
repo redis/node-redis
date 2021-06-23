@@ -82,13 +82,19 @@ export function itWithCluster(type: TestRedisClusters, title: string, fn: (clust
         await cluster.connect();
 
         try {
-            // TODO: `FLUSHALL`
+            await clusterFlushAll(cluster);
             await fn(cluster);
         } finally {
-            // TODO: `FLUSHALL`
+            await clusterFlushAll(cluster);
             await cluster.disconnect();
         }
     });
+}
+
+async function clusterFlushAll(cluster: RedisCluster): Promise<void> {
+    await Promise.all(
+        cluster.getMasters().map(master => master.flushAll())
+    );
 }
 
 const REDIS_PATH = which.sync('redis-server');
@@ -121,84 +127,101 @@ const SLOTS = 16384,
     CLUSTER_NODE_TIMEOUT = 2000;
 
 async function spawnRedisCluster(type: TestRedisClusters, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
-    const spawnPromises = [];
-
+    const spawnPromises = [],
+        slotsPerNode = Math.floor(SLOTS / numberOfNodes);
     for (let i = 0; i < numberOfNodes; i++) {
-        const clusterConfigFile = `/tmp/${type}-${i}.conf`;
-
+        const fromSlot = i * slotsPerNode;
         spawnPromises.push(
-            spawnRedisServer([
-                '--cluster-enabled',
-                'yes',
-                '--cluster-node-timeout',
-                CLUSTER_NODE_TIMEOUT.toString(),
-                '--cluster-config-file',
-                clusterConfigFile,
-                ...(args ?? [])
-            ])
-        );
-
-        after(async () => {
-            try {
-                await unlink(clusterConfigFile);
-            } catch (err) {
-                if (err.code == 'ENOENT') return;
-
-                throw err;
-            }
-        })
-    }
-
-    const ports = await Promise.all(spawnPromises),
-        slotsPerNode = Math.floor(SLOTS / numberOfNodes),
-        initiateNodesPromises = [];
-
-    for (let i = 0; i < numberOfNodes - 1; i++) {
-        const from = i * slotsPerNode;
-        initiateNodesPromises.push(
-            initiateNode({
-                socket: {
-                    port: ports[i]
-                }
-            }, from, from + slotsPerNode, ports[i + 1])
+            spawnRedisClusterNode(
+                type,
+                i,
+                fromSlot,
+                i === numberOfNodes - 1 ? SLOTS : fromSlot + slotsPerNode,
+                args
+            )
         );
     }
 
-    initiateNodesPromises.push(
-        initiateNode({
-            socket: {
-                port: ports[ports.length - 1],
-            }
-        }, (numberOfNodes - 1) * slotsPerNode, SLOTS)
-    );
+    const spawnResults = await Promise.all(spawnPromises),
+        meetPromises = [];
+    for (let i = 1; i < spawnResults.length; i++) {
+        meetPromises.push(
+            spawnResults[i].client.clusterMeet(
+                '127.0.0.1',
+                spawnResults[i - 1].port
+            )
+        );
+    }
 
-    await Promise.all(initiateNodesPromises);
+    while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
+        await setTimeout(CLUSTER_NODE_TIMEOUT);
+    }
+
+    const ports = [],
+        disconnectPromises = [];
+    for (const { port, client } of spawnResults) {
+        ports.push(port);
+        disconnectPromises.push(client.disconnect());
+    }
+
+    await Promise.all(disconnectPromises);
 
     return ports;
 }
 
-async function initiateNode(options: RedisClientOptions, from: number, to: number, meetPort?: number): Promise<void> {
-    const client = RedisClient.create(options);
+async function spawnRedisClusterNode(
+    type: TestRedisClusters,
+    nodeIndex: number,
+    fromSlot: number,
+    toSlot: number,
+    args?: Array<string>
+): Promise<{
+    port: number;
+    client: RedisClientType<RedisModules, RedisLuaScripts>;
+}> {
+    const clusterConfigFile = `/tmp/${type}-${nodeIndex}.conf`,
+        port = await spawnRedisServer([
+            '--cluster-enabled',
+            'yes',
+            '--cluster-node-timeout',
+            CLUSTER_NODE_TIMEOUT.toString(),
+            '--cluster-config-file',
+            clusterConfigFile,
+            ...(args ?? [])
+        ]);
+
+    after(async () => {
+        try {
+            await unlink(clusterConfigFile);
+        } catch (err) {
+            if (err.code == 'ENOENT') return;
+
+            throw err;
+        }
+    });
+
+    const client = RedisClient.create({
+        socket: {
+            port
+        }
+    });
 
     await client.connect();
 
-    try {
-        const range = [];
-        for (let i = from; i < to; i++) {
-            range.push(i);
-        }
-        await client.clusterAddSlots(range);
-
-        if (meetPort) {
-            await client.clusterMeet('127.0.0.1', meetPort);
-        }
-
-        while ((await client.clusterInfo()).state !== 'ok') {
-            await setTimeout(CLUSTER_NODE_TIMEOUT);
-        }
-    } finally {
-        await client.disconnect();
+    const range = [];
+    for (let i = fromSlot; i < toSlot; i++) {
+        range.push(i);
     }
+
+    await Promise.all([
+        client.clusterFlushSlots(),
+        client.clusterAddSlots(range)
+    ]);
+    
+    return {
+        port,
+        client
+    };
 }
 
 export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
