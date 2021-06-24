@@ -20,15 +20,27 @@ export type RedisClusterType<M extends RedisModules, S extends RedisLuaScripts> 
 export default class RedisCluster<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
     static defineCommand(on: any, name: string, command: RedisCommand): void {
         on[name] = async function (...args: Array<unknown>): Promise<unknown> {
-            const options = isCommandOptions(args[0]) && args[0];
+            const options = isCommandOptions(args[0]) && args[0],
+                redisArgs = command.transformArguments(...(options ? args.slice(1) : args));
             return command.transformReply(
                 await this.sendCommand(
-                    command,
-                    command.transformArguments(...(options ? args.slice(1) : args)),
+                    RedisCluster.#extractFirstKey(command, args, redisArgs),
+                    command.IS_READ_ONLY,
+                    redisArgs,
                     options
                 )
             );
         };
+    }
+
+    static #extractFirstKey(commandOrScript: RedisCommand | RedisLuaScript, originalArgs: Array<unknown>, redisArgs: Array<string>): string | undefined {
+        if (commandOrScript.FIRST_KEY_INDEX === undefined) {
+            return undefined;
+        } else if (typeof commandOrScript.FIRST_KEY_INDEX === 'number') {
+            return redisArgs[commandOrScript.FIRST_KEY_INDEX];
+        }
+
+        return commandOrScript.FIRST_KEY_INDEX(...originalArgs);
     }
 
     static create<M extends RedisModules, S extends RedisLuaScripts>(options: RedisClusterOptions): RedisClusterType<M, S> {
@@ -67,7 +79,8 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
                 const options = isCommandOptions(args[0]) && args[0];
                 return script.transformReply(
                     await this.executeScript(
-                        script, 
+                        script,
+                        args,
                         script.transformArguments(...(options ? args.slice(1) : args)),
                         options
                     )
@@ -80,39 +93,47 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         return this.#slots.connect();
     }
 
-    async sendCommand<C extends RedisCommand>(command: C, args: Array<string>, options?: ClientCommandOptions, redirections: number = 0): Promise<ReturnType<C['transformReply']>> {
-        const client = this.#getClient(command, args);
+    async sendCommand<C extends RedisCommand>(
+        firstKey: string | undefined,
+        isReadonly: boolean | undefined,
+        args: Array<string>,
+        options?: ClientCommandOptions,
+        redirections: number = 0
+    ): Promise<ReturnType<C['transformReply']>> {
+        const client = this.#slots.getClient(firstKey, isReadonly);
 
         try {
             return await client.sendCommand(args, options);
         } catch (err) {
             if (await this.#handleCommandError(err, client, redirections)) {
-                return this.sendCommand(command, args, options, redirections + 1);
+                return this.sendCommand(firstKey, isReadonly, args, options, redirections + 1);
             }
 
             throw err;
         }
     }
 
-    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>, options?: ClientCommandOptions, redirections: number = 0): Promise<ReturnType<S['transformReply']>> {
-        const client = this.#getClient(script, args);
+    async executeScript<S extends RedisLuaScript>(
+        script: S,
+        originalArgs: Array<unknown>,
+        redisArgs: Array<string>,
+        options?: ClientCommandOptions,
+        redirections: number = 0
+    ): Promise<ReturnType<S['transformReply']>> {
+        const client = this.#slots.getClient(
+            RedisCluster.#extractFirstKey(script, originalArgs, redisArgs),
+            script.IS_READ_ONLY
+        );
 
         try {
-            return await client.executeScript(script, args, options);
+            return await client.executeScript(script, redisArgs, options);
         } catch (err) {
             if (await this.#handleCommandError(err, client, redirections)) {
-                return this.executeScript(script, args, options, redirections + 1);
+                return this.executeScript(script, originalArgs, redisArgs, options, redirections + 1);
             }
 
             throw err;
         }
-    }
-
-    #getClient(commandOrScript: RedisCommand | RedisLuaScript, args: Array<string>): RedisClientType<M, S> {
-        return this.#slots.getClient(
-            commandOrScript.FIRST_KEY_INDEX ? args[commandOrScript.FIRST_KEY_INDEX] : undefined,
-            commandOrScript.IS_READ_ONLY
-        );
     }
 
     async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections: number = 0): Promise<boolean> {

@@ -141,16 +141,10 @@ export type StreamsMessagesReply = Array<{
 }>;
 
 export function transformReplyStreamsMessages(reply: Array<any>): StreamsMessagesReply {
-    const streams = [];
-
-    for (let i = 0; i < reply.length; i+= 2) {
-        streams.push({
-            name: reply[i],
-            messages: transformReplyStreamMessages(reply[i + 1])
-        });
-    }
-
-    return streams;
+    return reply.map(([name, rawMessages]) => ({
+        name,
+        messages: transformReplyStreamMessages(rawMessages)
+    }));
 }
 
 export function transformReplyStreamsMessagesNull(reply: Array<any> | null): StreamsMessagesReply | null {

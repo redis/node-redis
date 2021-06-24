@@ -120,6 +120,8 @@ import * as XLEN from './XLEN';
 import * as XPENDING_RANGE from './XPENDING_RANGE';
 import * as XPENDING from './XPENDING';
 import * as XRANGE from './XRANGE';
+import * as XREAD from './XREAD';
+import * as XREADGROUP from './XREADGROUP';
 import * as XREVRANGE from './XREVRANGE';
 import * as XTRIM from './XTRIM';
 import * as ZADD from './ZADD';
@@ -401,6 +403,10 @@ export default {
     xPending: XPENDING,
     XRANGE,
     xRange: XRANGE,
+    XREAD,
+    xRead: XREAD,
+    XREADGROUP,
+    xReadGroup: XREADGROUP,
     XREVRANGE,
     xRevRange: XREVRANGE,
     XTRIM,
@@ -476,7 +482,7 @@ export default {
 export type RedisReply = string | number | Array<RedisReply> | null | undefined;
 
 export interface RedisCommand {
-    FIRST_KEY_INDEX?: number;
+    FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
     IS_READ_ONLY?: boolean;
     transformArguments(...args: Array<any>): Array<string>;
     transformReply(reply: RedisReply): any;
