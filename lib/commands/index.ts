@@ -24,6 +24,7 @@ import * as EXISTS from './EXISTS';
 import * as EXPIRE from './EXPIRE';
 import * as EXPIREAT from './EXPIREAT';
 import * as FLUSHALL from './FLUSHALL';
+import * as FLUSHDB from './FLUSHDB';
 import * as GET from './GET';
 import * as HDEL from './HDEL';
 import * as HEXISTS from './HEXISTS';
@@ -45,10 +46,12 @@ import * as INCR from './INCR';
 import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
 import * as KEYS from './KEYS';
+import * as LASTSAVE from './LASTSAVE';
 import * as LINDEX from './LINDEX';
 import * as LINSERT from './LINSERT';
 import * as LLEN from './LLEN';
 import * as LMOVE from './LMOVE';
+import * as LOLWUT from './LOLWUT';
 import * as LPOP from './LPOP';
 import * as LPOP_COUNT from './LPOP_COUNT';
 import * as LPUSH from './LPUSH';
@@ -82,6 +85,7 @@ import * as SCARD from './SCARD';
 import * as SDIFF from './SDIFF';
 import * as SDIFFSTORE from './SDIFFSTORE';
 import * as SET from './SET';
+import * as SETRANGE from './SETRANGE';
 import * as SINTER from './SINTER';
 import * as SINTERSTORE from './SINTERSTORE';
 import * as SISMEMBER from './SISMEMBER';
@@ -94,6 +98,7 @@ import * as SRANDMEMBER_COUNT from './SRANDMEMBER_COUNT';
 import * as SRANDMEMBER from './SRANDMEMBER';
 import * as SREM from './SREM';
 import * as SSCAN from './SSCAN';
+import * as STRLEN from './STRLEN';
 import * as SUNION from './SUNION';
 import * as SUNIONSTORE from './SUNIONSTORE';
 import * as TOUCH from './TOUCH';
@@ -211,6 +216,8 @@ export default {
     expireAt: EXPIREAT,
     FLUSHALL,
     flushAll: FLUSHALL,
+    FLUSHDB,
+    flushDb: FLUSHDB,
     GET,
     get: GET,
     HDEL,
@@ -253,6 +260,8 @@ export default {
     incrByFloat: INCRBYFLOAT,
     KEYS,
     keys: KEYS,
+    LASTSAVE,
+    lastSave: LASTSAVE,
     LINDEX,
     lIndex: LINDEX,
     LINSERT,
@@ -261,6 +270,7 @@ export default {
     lLen: LLEN,
     LMOVE,
     lMove: LMOVE,
+    LOLWUT,
     LPOP_COUNT,
     lPopCount: LPOP_COUNT,
     LPOP,
@@ -331,6 +341,8 @@ export default {
     sInterStore: SINTERSTORE,
     SET,
     set: SET,
+    SETRANGE,
+    setRange: SETRANGE,
     SISMEMBER,
     sIsMember: SISMEMBER,
     SMEMBERS,
@@ -351,6 +363,8 @@ export default {
     sRem: SREM,
     SSCAN,
     sScan: SSCAN,
+    STRLEN,
+    strLen: STRLEN,
     SUNION,
     sUnion: SUNION,
     SUNIONSTORE,

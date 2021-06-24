@@ -239,7 +239,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                     }
 
                     callback(err);
-                })
+                });
         }
 
         for (const name of Object.keys(COMMANDS)) {

@@ -50,9 +50,9 @@ async function spawnPasswordServer(): Promise<void> {
 }
 
 async function spawnOpenCluster(): Promise<void> {
-    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = [{
-        port: (await spawnRedisCluster(TestRedisClusters.OPEN, 3))[0]
-    }];
+    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = (await spawnRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
+        port
+    }));
 }
 
 export function itWithClient(type: TestRedisServers, title: string, fn: (client: RedisClientType<RedisModules, RedisLuaScripts>) => Promise<void>): void {

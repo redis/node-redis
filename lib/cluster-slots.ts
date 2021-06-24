@@ -75,18 +75,17 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         const promises: Array<Promise<void>> = [],
             clientsInUse = new Set<string>();
         for (const master of masters) {
-            const masterClient = this.#initiateClientForNode(master, false, clientsInUse, promises),
-                replicasClients = this.#options.useReplicas ?
+            const slot = {
+                master: this.#initiateClientForNode(master, false, clientsInUse, promises),
+                replicas: this.#options.useReplicas ?
                     master.replicas.map(replica => this.#initiateClientForNode(replica, true, clientsInUse, promises)) :
-                    [];
+                    [],
+                iterator: undefined // will be initiated in use
+            };
 
-            for (const slot of master.slots) {
-                for (let i = slot.from; i < slot.to; i++) {
-                    this.#slots[i] = {
-                        master: masterClient,
-                        replicas: replicasClients,
-                        iterator: undefined // will be initiated in use
-                    };
+            for (const { from, to } of master.slots) {
+                for (let i = from; i < to; i++) {
+                    this.#slots[i] = slot;
                 }
             }
         }
