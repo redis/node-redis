@@ -15,3 +15,4 @@ benchmark/
 scripts/
 lib/
 index.ts
+*.spec.*
