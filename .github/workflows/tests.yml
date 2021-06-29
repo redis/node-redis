@@ -50,3 +50,6 @@ jobs:
         with:
           name: coverage
           path: coverage
+      
+      - name: Codecov
+        run: bash <(curl -s https://codecov.io/bash)
