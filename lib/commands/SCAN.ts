@@ -1,4 +1,4 @@
-import { ScanOptions, transformScanArguments, transformScanReply } from './generic-transformers';
+import { ScanOptions, transformScanArguments } from './generic-transformers';
 
 export const IS_READ_ONLY = true;
 
@@ -19,4 +19,14 @@ export function transformArguments(cursor: number, options?: ScanCommandOptions)
     return args;
 }
 
-export const transformReply = transformScanReply;
+export interface ScanReply {
+    cursor: number;
+    keys: Array<string>;
+}
+
+export function transformReply([cursor, keys]: [string, Array<string>]): ScanReply {
+    return {
+        cursor: Number(cursor),
+        keys
+    };
+}

@@ -373,13 +373,24 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
+    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
+        let cursor = 0;
+        do {
+            const reply = await (this as any).hScan(key, cursor, options);
+            cursor = reply.cursor;
+            for (const key of reply.keys) {
+                yield key;
+            }
+        } while (cursor !== 0)
+    }
+
     async* sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
         let cursor = 0;
         do {
             const reply = await (this as any).sScan(key, cursor, options);
             cursor = reply.cursor;
-            for (const key of reply.keys) {
-                yield key;
+            for (const member of reply.members) {
+                yield member;
             }
         } while (cursor !== 0)
     }

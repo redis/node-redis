@@ -1,4 +1,4 @@
-import { transformReplyTupels, TupelsObject } from './generic-transformers';
+import { transformReplyTuplesNull } from './generic-transformers';
 import { transformArguments as transformHRandFieldCountArguments } from './HRANDFIELD_COUNT';
 
 export { FIRST_KEY_INDEX } from './HRANDFIELD_COUNT';
@@ -10,8 +10,4 @@ export function transformArguments(key: string, count: number): Array<string> {
     ];
 }
 
-export function transformReply(reply: Array<string> | null): TupelsObject | null {
-    if (reply === null) return null;
-
-    return transformReplyTupels(reply);
-}
+export const transformReply = transformReplyTuplesNull;

@@ -1,13 +1,13 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
-import { transformArguments, transformReply } from './ZSCAN';
+import { transformArguments, transformReply } from './HSCAN';
 
-describe('ZSCAN', () => {
+describe('HSCAN', () => {
     describe('transformArguments', () => {
         it('cusror only', () => {
             assert.deepEqual(
                 transformArguments('key', 0),
-                ['ZSCAN', 'key', '0']
+                ['HSCAN', 'key', '0']
             );
         });
 
@@ -16,7 +16,7 @@ describe('ZSCAN', () => {
                 transformArguments('key', 0, {
                     MATCH: 'pattern'
                 }),
-                ['ZSCAN', 'key', '0', 'MATCH', 'pattern']
+                ['HSCAN', 'key', '0', 'MATCH', 'pattern']
             );
         });
 
@@ -25,7 +25,7 @@ describe('ZSCAN', () => {
                 transformArguments('key', 0, {
                     COUNT: 1
                 }),
-                ['ZSCAN', 'key', '0', 'COUNT', '1']
+                ['HSCAN', 'key', '0', 'COUNT', '1']
             );
         });
 
@@ -35,42 +35,42 @@ describe('ZSCAN', () => {
                     MATCH: 'pattern',
                     COUNT: 1
                 }),
-                ['ZSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1']
+                ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1']
             );
         });
     });
 
     describe('transformReply', () => {
-        it('without members', () => {
+        it('without tuples', () => {
             assert.deepEqual(
                 transformReply(['0', []]),
                 {
                     cursor: 0,
-                    members: []
+                    tuples: []
                 }
             );
         });
 
-        it('with members', () => {
+        it('with tuples', () => {
             assert.deepEqual(
-                transformReply(['0', ['member', '-inf']]),
+                transformReply(['0', ['field', 'value']]),
                 {
                     cursor: 0,
-                    members: [{
-                        value: 'member',
-                        score: -Infinity
+                    tuples: [{
+                        field: 'field',
+                        value: 'value'
                     }]
                 }
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zScan', async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.hScan', async client => {
         assert.deepEqual(
-            await client.zScan('key', 0),
+            await client.hScan('key', 0),
             {
                 cursor: 0,
-                members: []
+                tuples: []
             }
         );
     });

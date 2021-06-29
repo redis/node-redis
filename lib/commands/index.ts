@@ -38,6 +38,7 @@ import * as HMGET from './HMGET';
 import * as HRANDFIELD_COUNT_WITHVALUES from './HRANDFIELD_COUNT_WITHVALUES';
 import * as HRANDFIELD_COUNT from './HRANDFIELD_COUNT';
 import * as HRANDFIELD from './HRANDFIELD';
+import * as HSCAN from './HSCAN';
 import * as HSET from './HSET';
 import * as HSETNX from './HSETNX';
 import * as HSTRLEN from './HSTRLEN';
@@ -244,6 +245,8 @@ export default {
     hRandFieldCount: HRANDFIELD_COUNT,
     HRANDFIELD,
     hRandField: HRANDFIELD,
+    HSCAN,
+    hScan: HSCAN,
     HSET,
     hSet: HSET,
     HSETNX,

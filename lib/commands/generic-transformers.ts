@@ -49,18 +49,6 @@ export function transformScanArguments(cursor: number, options?: ScanOptions): A
     return args;
 }
 
-export interface ScanReply {
-    cursor: number;
-    keys: Array<string>;
-}
-
-export function transformScanReply([cursor, keys]: [string, Array<string>]): ScanReply {
-    return {
-        cursor: Number(cursor),
-        keys
-    };
-}
-
 export function transformReplyNumberInfinity(reply: string): number {
     switch (reply) {
         case '+inf':
@@ -101,11 +89,11 @@ export function transformArgumentNumberInfinity(num: number): string {
     }
 }
 
-export interface TupelsObject {
+export interface TuplesObject {
     [field: string]: string;
 }
 
-export function transformReplyTupels(reply: Array<string>): TupelsObject {
+export function transformReplyTuples(reply: Array<string>): TuplesObject {
     const message = Object.create(null);
 
     for (let i = 0; i < reply.length; i += 2) {
@@ -115,9 +103,15 @@ export function transformReplyTupels(reply: Array<string>): TupelsObject {
     return message;
 }
 
+export function transformReplyTuplesNull(reply: Array<string> | null): TuplesObject | null {
+    if (reply === null) return null;
+
+    return transformReplyTuples(reply);
+}
+
 export interface StreamMessageReply {
     id: string;
-    message: TupelsObject;
+    message: TuplesObject;
 }
 
 export type StreamMessagesReply = Array<StreamMessageReply>;
@@ -128,7 +122,7 @@ export function transformReplyStreamMessages(reply: Array<any>): StreamMessagesR
     for (let i = 0; i < reply.length; i += 2) {
         messages.push({
             id: reply[i],
-            message: transformReplyTupels(reply[i + 1])
+            message: transformReplyTuples(reply[i + 1])
         });
     }
 

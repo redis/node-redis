@@ -1,13 +1,13 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
-import { transformArguments, transformReply } from './ZSCAN';
+import { transformArguments, transformReply } from './SSCAN';
 
-describe('ZSCAN', () => {
+describe('SSCAN', () => {
     describe('transformArguments', () => {
         it('cusror only', () => {
             assert.deepEqual(
                 transformArguments('key', 0),
-                ['ZSCAN', 'key', '0']
+                ['SSCAN', 'key', '0']
             );
         });
 
@@ -16,7 +16,7 @@ describe('ZSCAN', () => {
                 transformArguments('key', 0, {
                     MATCH: 'pattern'
                 }),
-                ['ZSCAN', 'key', '0', 'MATCH', 'pattern']
+                ['SSCAN', 'key', '0', 'MATCH', 'pattern']
             );
         });
 
@@ -25,7 +25,7 @@ describe('ZSCAN', () => {
                 transformArguments('key', 0, {
                     COUNT: 1
                 }),
-                ['ZSCAN', 'key', '0', 'COUNT', '1']
+                ['SSCAN', 'key', '0', 'COUNT', '1']
             );
         });
 
@@ -35,7 +35,7 @@ describe('ZSCAN', () => {
                     MATCH: 'pattern',
                     COUNT: 1
                 }),
-                ['ZSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1']
+                ['SSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1']
             );
         });
     });
@@ -53,21 +53,18 @@ describe('ZSCAN', () => {
 
         it('with members', () => {
             assert.deepEqual(
-                transformReply(['0', ['member', '-inf']]),
+                transformReply(['0', ['member']]),
                 {
                     cursor: 0,
-                    members: [{
-                        value: 'member',
-                        score: -Infinity
-                    }]
+                    members: ['member']
                 }
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zScan', async client => {
+    itWithClient(TestRedisServers.OPEN, 'client.sScan', async client => {
         assert.deepEqual(
-            await client.zScan('key', 0),
+            await client.sScan('key', 0),
             {
                 cursor: 0,
                 members: []
