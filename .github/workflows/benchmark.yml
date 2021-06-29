@@ -25,7 +25,7 @@ jobs:
       - name: Setup Redis
         uses: shogo82148/actions-setup-redis@v1.0.1
         with:
-          redis-version: ${{ matrix.redis-version }}
+          redis-version: ${{ github.event.comment.body }}
           auto-start: "true"
 
       - run: npm i --no-audit --prefer-offline
