@@ -20,26 +20,28 @@ interface ClusterInfoReply {
     };
 }
 
-const regex = /.*:(?<value>.*)(\n?)/g;
-
 export function transformReply(reply: string): ClusterInfoReply {
-    const iterator = reply.matchAll(regex);
+    const lines = reply.split('\r\n');
 
     return {
-        state: iterator.next().value[1],
+        state: extractLineValue(lines[0]),
         slots: {
-            assigned: Number(iterator.next().value[1]),
-            ok: Number(iterator.next().value[1]),
-            pfail: Number(iterator.next().value[1]),
-            fail: Number(iterator.next().value[1])
+            assigned: Number(extractLineValue(lines[1])),
+            ok: Number(extractLineValue(lines[2])),
+            pfail: Number(extractLineValue(lines[3])),
+            fail: Number(extractLineValue(lines[4]))
         },
-        knownNodes: Number(iterator.next().value[1]),
-        size: Number(iterator.next().value[1]),
-        currentEpoch: Number(iterator.next().value[1]),
-        myEpoch: Number(iterator.next().value[1]),
+        knownNodes: Number(extractLineValue(lines[5])),
+        size: Number(extractLineValue(lines[6])),
+        currentEpoch: Number(extractLineValue(lines[7])),
+        myEpoch: Number(extractLineValue(lines[8])),
         stats: {
-            messagesSent: Number(iterator.next().value[1]),
-            messagesReceived: Number(iterator.next().value[1])
+            messagesSent: Number(extractLineValue(lines[9])),
+            messagesReceived: Number(extractLineValue(lines[10]))
         }
     };
+}
+
+export function extractLineValue(line: string): string {
+    return line.substring(line.indexOf(':') + 1);
 }

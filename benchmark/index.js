@@ -1,5 +1,4 @@
 const cronometro = require('cronometro'),
-    { once } = require('events'),
     newRedis = require('redis-new'),
     oldRedis = require('redis-old');
 

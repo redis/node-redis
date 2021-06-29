@@ -98,7 +98,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         isReadonly: boolean | undefined,
         args: Array<string>,
         options?: ClientCommandOptions,
-        redirections: number = 0
+        redirections = 0
     ): Promise<ReturnType<C['transformReply']>> {
         const client = this.#slots.getClient(firstKey, isReadonly);
 
@@ -118,7 +118,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         originalArgs: Array<unknown>,
         redisArgs: Array<string>,
         options?: ClientCommandOptions,
-        redirections: number = 0
+        redirections = 0
     ): Promise<ReturnType<S['transformReply']>> {
         const client = this.#slots.getClient(
             RedisCluster.#extractFirstKey(script, originalArgs, redisArgs),
@@ -136,7 +136,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         }
     }
 
-    async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections: number = 0): Promise<boolean> {
+    async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections = 0): Promise<boolean> {
         if (redirections < (this.#options.maxCommandRedirections ?? 16)) {
             throw err;
         }

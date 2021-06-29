@@ -1,4 +1,4 @@
-import { transformReplyNumber, transformReplyStringArray } from './generic-transformers';
+import { transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 

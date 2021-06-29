@@ -59,15 +59,15 @@ export default class RedisSocket extends EventEmitter {
     }
 
     static #isUrlSocket(options: RedisSocketOptions): options is RedisUrlSocketOptions {
-        return options.hasOwnProperty('url');
+        return Object.prototype.hasOwnProperty.call(options, 'url');
     }
 
     static #isUnixSocket(options: RedisSocketOptions): options is RedisUnixSocketOptions {
-        return options.hasOwnProperty('path');
+        return Object.prototype.hasOwnProperty.call(options, 'path');
     }
 
     static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
-        return options.hasOwnProperty('tls');
+        return Object.prototype.hasOwnProperty.call(options, 'tls');
     }
 
     readonly #initiator?: RedisSocketInitiator;

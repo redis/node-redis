@@ -1,5 +1,5 @@
 import assert from 'assert/strict';
-import RedisClient, { RedisClientOptions, RedisClientType } from './client';
+import RedisClient, { RedisClientType } from './client';
 import { RedisModules } from './commands';
 import { RedisLuaScripts } from './lua-script';
 import { spawn } from 'child_process';

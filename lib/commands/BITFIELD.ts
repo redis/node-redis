@@ -24,7 +24,7 @@ interface BitFieldOptions {
     OVERFLOW?: 'WRAP' | 'SAT' | 'FAIL';
 }
 
-export function transformArguments(key: string, options?: BitFieldOptions) {
+export function transformArguments(key: string, options?: BitFieldOptions): Array<string> {
     const args = ['BITFIELD', key];
 
     if (options?.GET) {

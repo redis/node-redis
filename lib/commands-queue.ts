@@ -1,4 +1,4 @@
-import LinkedList, { Node } from 'yallist';
+import LinkedList from 'yallist';
 import RedisParser from 'redis-parser';
 import { AbortError } from './errors';
 import { RedisReply } from './commands';
@@ -208,7 +208,7 @@ export default class RedisCommandsQueue {
         return this.#pushPubSubCommand(command, channelsToSubscribe);
     }
 
-    unsubscribe(command: PubSubUnsubscribeCommands, channels?: string | Array<string>, listener?: PubSubListener) {
+    unsubscribe(command: PubSubUnsubscribeCommands, channels?: string | Array<string>, listener?: PubSubListener): Promise<void> {
         const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ? this.#pubSubListeners.channels : this.#pubSubListeners.patterns;
         if (!channels) {
             listeners.clear();

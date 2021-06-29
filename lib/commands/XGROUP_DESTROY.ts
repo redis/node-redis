@@ -1,4 +1,4 @@
-import { transformReplyBoolean, transformReplyNumber } from './generic-transformers';
+import { transformReplyBoolean } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 

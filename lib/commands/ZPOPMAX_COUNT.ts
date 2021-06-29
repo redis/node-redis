@@ -1,4 +1,3 @@
-import { deepEqual } from 'assert/strict';
 import { transformReplySortedSetWithScores } from './generic-transformers';
 import { transformArguments as transformZPopMaxArguments } from './ZPOPMAX';
 

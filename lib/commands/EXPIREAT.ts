@@ -1,4 +1,3 @@
-import { time } from 'console';
 import { transformReplyBoolean } from './generic-transformers';
 
 export function transformArguments(key: string, timestamp: number | Date): Array<string> {

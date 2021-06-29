@@ -23,7 +23,7 @@ describe('CLUSTER INFO', () => {
                 'cluster_my_epoch:2',
                 'cluster_stats_messages_sent:1483972',
                 'cluster_stats_messages_received:1483968'
-            ].join('\n')),
+            ].join('\r\n')),
             {
                 state: 'ok',
                 slots: {

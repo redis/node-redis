@@ -169,7 +169,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         return this;
     }
 
-    async exec(execAsPipeline: boolean = false): Promise<Array<unknown>> {
+    async exec(execAsPipeline = false): Promise<Array<unknown>> {
         if (execAsPipeline) {
             return this.execAsPipeline();
         } else if (!this.#queue.length) {

@@ -1,7 +1,7 @@
 import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommands, RedisModules, RedisReply } from './commands';
+import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import EventEmitter from 'events';
 import { CommandOptions, commandOptions, isCommandOptions } from './command-options';

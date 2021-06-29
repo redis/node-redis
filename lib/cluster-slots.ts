@@ -56,7 +56,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         throw new Error('None of the cluster nodes is available');
     }
 
-    async #discoverNodes(socketOptions?: RedisSocketOptions) {
+    async #discoverNodes(socketOptions?: RedisSocketOptions): Promise<void> {
         const client = RedisClient.create({
             socket: socketOptions
         });
@@ -98,6 +98,8 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
             promises.push(client.disconnect());
             this.#clientByKey.delete(key);
         }
+
+        await Promise.all(promises);
     }
 
     #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClientType<M, S> {
