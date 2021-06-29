@@ -39,6 +39,9 @@ jobs:
 
       - name: Run Tests
         run: npm test
+        
+      - name: Codecov
+        run: bash <(curl -s https://codecov.io/bash)
 
       - name: Submit Coverage
         run: npm run coveralls
@@ -50,6 +53,4 @@ jobs:
         with:
           name: coverage
           path: coverage
-      
-      - name: Codecov
-        run: bash <(curl -s https://codecov.io/bash)
+    
