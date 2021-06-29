@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { itWithCluster, TestRedisClusters } from '../test-utils';
 import { RedisClusterNodeLinkStates, transformArguments, transformReply } from './CLUSTER_NODES';
 
 describe('CLUSTER NODES', () => {
@@ -91,5 +92,27 @@ describe('CLUSTER NODES', () => {
                 }]
             );
         });
+    });
+
+    itWithCluster(TestRedisClusters.OPEN, 'cluster.clusterNodes', async cluster => {
+        const nodes = await cluster.clusterNodes();
+
+        for (const node of (await cluster.clusterNodes())) {
+            assert.equal(typeof node.id, 'string');
+            assert.equal(typeof node.url, 'string');
+            assert.equal(typeof node.host, 'string');
+            assert.equal(typeof node.port, 'number');
+            assert.equal(typeof node.cport, 'number');
+            assert.ok(Array.isArray(node.flags));
+            assert.equal(typeof node.pingSent, 'number');
+            assert.equal(typeof node.pongRecv, 'number');
+            assert.equal(typeof node.configEpoch, 'number');
+            assert.equal(typeof node.linkState, 'string');
+
+            for (const slot of node.slots) {
+                assert.equal(typeof slot.from, 'number');
+                assert.equal(typeof slot.to, 'number');
+            }
+        }
     });
 });

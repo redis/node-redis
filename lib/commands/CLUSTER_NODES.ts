@@ -16,7 +16,7 @@ interface RedisClusterNodeTransformedUrl {
 export interface RedisClusterReplicaNode extends RedisClusterNodeTransformedUrl {
     id: string;
     url: string;
-    flags: Array<string>,
+    flags: Array<string>;
     pingSent: number;
     pongRecv: number;
     configEpoch: number;
@@ -25,8 +25,8 @@ export interface RedisClusterReplicaNode extends RedisClusterNodeTransformedUrl 
 
 export interface RedisClusterMasterNode extends RedisClusterReplicaNode {
     slots: Array<{
-        from: number,
-        to: number
+        from: number;
+        to: number;
     }>;
     replicas: Array<RedisClusterReplicaNode>;
 }
