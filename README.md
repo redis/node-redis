@@ -31,9 +31,11 @@ npm install redis@next
 
 ### Basic Example
 
-```javascript
+```typescript
+import { createClient } from 'redis';
+
 (async () => {
-    const client = require('redis').createClient();
+    const client = createClient();
 
     client.on('error', (err) => console.log('Redis Client Error', err));
     
@@ -44,11 +46,13 @@ npm install redis@next
 })();
 ```
 
+The new interface is clean and cool, but if you have an existing code base, you might want to enable [legacy mode](#legacy-mode).
+
 ### Redis Commands
 
 There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HGET`, `HSET`, etc.) and a friendlier camel-cased version (`hGet`, `hSet`, etc.).
 
-```javascript
+```typescript
 // raw Redis commands
 await client.SET('key', 'value');
 await client.GET('key');
@@ -60,7 +64,7 @@ await client.hGetAll('key');
 
 Modifiers to commands are specified using a JavaScript object:
 
-```javascript
+```typescript
 await client.set('key', 'value', {
     EX: 10,
     NX: true
@@ -69,7 +73,7 @@ await client.set('key', 'value', {
 
 Replies will be transformed to useful data structures:
 
-```javascript
+```typescript
 await client.hGetAll('key'); // { key1: 'value1', key2: 'value2' }
 await client.hKeys('key'); // ['key1', 'key2']
 ```
@@ -78,7 +82,7 @@ await client.hKeys('key'); // ['key1', 'key2']
 
 If you want to run commands and arguments that Node Redis doesn't know about (yet!) you can use `.sendCommand`:
 
-```javascript
+```typescript
 await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
 
 await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
@@ -86,11 +90,11 @@ await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'fie
 
 ### Blocking Commands
 
-Any command can be run on a new connection by specifying the `duplicateConnection` option. The newly created connection is closed when command's `Promise` is fulfilled.
+Any command can be run on a new connection by specifying the `duplicateConnection` option. The newly created connection is closed when the command's `Promise` is fulfilled.
 
 This pattern works especially well for blocking commands—such as `BLPOP` and `BRPOPLPUSH`:
 
-```javascript
+```typescript
 const blPopPromise = client.blPop(
     client.commandOptions({ duplicateConnection: true }),
     'key'
@@ -105,7 +109,7 @@ await blPopPromise; // '2'
 
 Subscribing to a channel requires a dedicated Redis connection and is easily handled using events.
 
-```javascript
+```typescript
 await subscriber.subscribe('channel', message => {
     console.log(message); // 'message'
 });
@@ -121,11 +125,14 @@ await publisher.publish('channel', 'message');
 
 You can define Lua scripts to create efficient custom commands:
 
-```javascript
+```typescript
+import { createClient } from 'redis';
+import { defineScript } from 'redis/dist/lib/lua-script';
+
 (async () => {
-    const client = require('redis').createClient({
+    const client = createClient({
         scripts: {
-            add: require('redis/lua-script').defineScript({
+            add: defineScript({
                 NUMBER_OF_KEYS: 1,
                 SCRIPT:
                     'local val = redis.pcall("GET", KEYS[1]);' +
@@ -144,6 +151,53 @@ You can define Lua scripts to create efficient custom commands:
 
     await client.set('key', '1');
     await client.add('key', 2); // 3
+})();
+```
+
+### Legacy Mode
+
+Need to use the new client in an existing codebase? You can use legacy mode to preserve backwards compatibility while still getting access to the updated experience:
+
+```typescript
+const client = createClient({
+    legacyMode: true
+});
+
+// legacy mode
+client.set('key', 'value', 'NX', (err, reply) => {
+    // ...
+});
+
+// version 4 interface is still accessible
+await client.v4.set('key', 'value', {
+    NX: true
+});
+```
+
+### Cluster
+
+Connecting to a cluster is a bit different. Create the client by specifying the root nodes in your cluster and then use it like a non-clustered client.
+
+```typescript
+import { createCluster } from 'redis';
+
+(async () => {
+    const cluster = createCluster({
+        rootNodes: [{
+            host: '192.168.1.1',
+            port: 30001
+        }, {
+            host: '192.168.1.2',
+            port: 30002
+        }]
+    });
+
+    cluster.on('error', (err) => console.log('Redis Cluster Error', err));
+    
+    await cluster.connect();
+
+    await cluster.set('key', 'value');
+    const value = await cluster.get('key');
 })();
 ```
 
