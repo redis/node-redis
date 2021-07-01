@@ -1,11 +1,10 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisModules } from './commands';
-import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
+import { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { commandOptions, CommandOptions, isCommandOptions } from './command-options';
-import { Console } from 'console';
 
 export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
     rootNodes: Array<RedisSocketOptions>;
