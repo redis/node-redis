@@ -33,19 +33,17 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@types/mocha": "^8.2.2",
-    "@types/node": "^15.6.1",
+    "@types/node": "^15.12.5",
     "@types/sinon": "^10.0.2",
-    "@types/tcp-port-used": "^1.0.0",
     "@types/which": "^2.0.0",
     "@types/yallist": "^4.0.0",
-    "mocha": "^8.4.0",
+    "mocha": "^9.0.1",
     "nyc": "^15.1.0",
-    "release-it": "^14.8.0",
+    "release-it": "^14.10.0",
     "sinon": "^11.1.1",
     "source-map-support": "^0.5.19",
-    "tcp-port-used": "^1.0.2",
     "ts-node": "^10.0.0",
-    "typescript": "^4.3.2",
+    "typescript": "^4.3.5",
     "which": "^2.0.2"
   },
   "engines": {

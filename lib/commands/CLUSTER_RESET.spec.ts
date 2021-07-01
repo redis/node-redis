@@ -10,14 +10,14 @@ describe('CLUSTER RESET', () => {
             );
         });
 
-        it('simple', () => {
+        it('HARD', () => {
             assert.deepEqual(
                 transformArguments('HARD'),
                 ['CLUSTER', 'RESET', 'HARD']
             );
         });
 
-        it('simple', () => {
+        it('SOFT', () => {
             assert.deepEqual(
                 transformArguments('SOFT'),
                 ['CLUSTER', 'RESET', 'SOFT']

@@ -1,10 +1,11 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisModules } from './commands';
-import { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
+import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
-import RedisClusterSlots from './cluster-slots';
+import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { commandOptions, CommandOptions, isCommandOptions } from './command-options';
+import { Console } from 'console';
 
 export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
     rootNodes: Array<RedisSocketOptions>;
@@ -105,8 +106,11 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         try {
             return await client.sendCommand(args, options);
         } catch (err) {
-            if (await this.#handleCommandError(err, client, redirections)) {
+            const shouldRetry = await this.#handleCommandError(err, client, redirections);
+            if (shouldRetry === true) {
                 return this.sendCommand(firstKey, isReadonly, args, options, redirections + 1);
+            } else if (shouldRetry) {
+                return shouldRetry.sendCommand(args, options);
             }
 
             throw err;
@@ -128,30 +132,50 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         try {
             return await client.executeScript(script, redisArgs, options);
         } catch (err) {
-            if (await this.#handleCommandError(err, client, redirections)) {
+            const shouldRetry = await this.#handleCommandError(err, client, redirections);
+            if (shouldRetry === true) {
                 return this.executeScript(script, originalArgs, redisArgs, options, redirections + 1);
+            } else if (shouldRetry) {
+                return shouldRetry.executeScript(script, redisArgs, options);
             }
 
             throw err;
         }
     }
 
-    async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections = 0): Promise<boolean> {
-        if (redirections < (this.#options.maxCommandRedirections ?? 16)) {
+    async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections: number): Promise<boolean | RedisClientType<M, S>> {
+        if (redirections > (this.#options.maxCommandRedirections ?? 16)) {
             throw err;
         }
 
         if (err.message.startsWith('ASK')) {
-            // TODO
+            const url = err.message.substring(err.message.lastIndexOf(' ') + 1);
+            let node = this.#slots.getNodeByUrl(url);
+            if (!node) {
+                await this.#slots.discover(client);
+                node = this.#slots.getNodeByUrl(url);
+
+                if (!node) {
+                    throw new Error(`Cannot find node ${url}`);
+                }
+            }
+
+            await node.client.asking();
+            return node.client;
         } else if (err.message.startsWith('MOVED')) {
             await this.#slots.discover(client);
+            return client;
         }
 
         throw err;
     }
 
-    getMasters(): Array<RedisClientType<M, S>> {
+    getMasters(): Array<ClusterNode<M, S>> {
         return this.#slots.getMasters();
+    }
+
+    getSlotMaster(slot: number): ClusterNode<M, S> {
+        return this.#slots.getSlotMaster(slot);
     }
 
     disconnect(): Promise<void> {

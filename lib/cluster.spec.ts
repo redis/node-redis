@@ -1,7 +1,9 @@
 import { strict as assert } from 'assert';
 import RedisCluster from './cluster';
 import { defineScript } from './lua-script';
-import { TestRedisClusters, TEST_REDIS_CLUSTERES } from './test-utils';
+import { itWithDedicatedCluster, TestRedisClusters, TEST_REDIS_CLUSTERES } from './test-utils';
+import calculateSlot from 'cluster-key-slot';
+import { ClusterSlotStates } from './commands/CLUSTER_SETSLOT';
 
 describe('Cluster', () => {
     it('sendCommand', async () => {
@@ -12,16 +14,18 @@ describe('Cluster', () => {
 
         await cluster.connect();
 
-        await cluster.ping();
-        await cluster.set('a', 'b');
-        await cluster.set('a{a}', 'bb');
-        await cluster.set('aa', 'bb');
-        await cluster.get('aa');
-        await cluster.get('aa');
-        await cluster.get('aa');
-        await cluster.get('aa');
-
-        await cluster.disconnect();
+        try {
+            await cluster.ping();
+            await cluster.set('a', 'b');
+            await cluster.set('a{a}', 'bb');
+            await cluster.set('aa', 'bb');
+            await cluster.get('aa');
+            await cluster.get('aa');
+            await cluster.get('aa');
+            await cluster.get('aa');
+        } finally {
+            await cluster.disconnect();
+        }
     });
 
     it('scripts', async () => {
@@ -53,5 +57,47 @@ describe('Cluster', () => {
         } finally {
             await cluster.disconnect();
         }
+    });
+
+    itWithDedicatedCluster('should handle live resharding', async cluster => {
+        const key = 'key',
+            value = 'value';
+        await cluster.set(key, value);
+        
+        const slot = calculateSlot(key),
+            from = cluster.getSlotMaster(slot),
+            to = cluster.getMasters().find(node => node.id !== from.id);
+
+        await to!.client.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, from.id);
+
+        // should be able to get the key from the original node before it was migrated
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
+
+        await from.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, to!.id);
+        
+        // should be able to get the key from the original node using the "ASKING" command
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
+
+        const { port: toPort } = <any>to!.client.options!.socket;
+
+        await from.client.migrate(
+            '127.0.0.1',
+            toPort,
+            key,
+            0,
+            10
+        );
+
+        // should be able to get the key from the new node
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
     });
 });

@@ -6,16 +6,21 @@ import { RedisClusterOptions } from './cluster';
 import { RedisModules } from './commands';
 import { RedisLuaScripts } from './lua-script';
 
-interface SlotClients<M extends RedisModules, S extends RedisLuaScripts> {
-    master: RedisClientType<M, S>;
-    replicas: Array<RedisClientType<M, S>>;
-    iterator: IterableIterator<RedisClientType<M, S>> | undefined;
+export interface ClusterNode<M extends RedisModules, S extends RedisLuaScripts> {
+    id: string;
+    client: RedisClientType<M, S>;
+}
+
+interface SlotNodes<M extends RedisModules, S extends RedisLuaScripts> {
+    master: ClusterNode<M, S>;
+    replicas: Array<ClusterNode<M, S>>;
+    clientIterator: IterableIterator<RedisClientType<M, S>> | undefined;
 }
 
 export default class RedisClusterSlots<M extends RedisModules, S extends RedisLuaScripts> {
     readonly #options: RedisClusterOptions;
-    readonly #clientByKey = new Map<string, RedisClientType<M, S>>();
-    readonly #slots: Array<SlotClients<M, S>> = [];
+    readonly #nodeByUrl = new Map<string, ClusterNode<M, S>>();
+    readonly #slots: Array<SlotNodes<M, S>> = [];
 
     constructor(options: RedisClusterOptions) {
         this.#options = options;
@@ -27,6 +32,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
                 await this.#discoverNodes(rootNode);
                 return;
             } catch (err) {
+                console.error(err);
                 // this.emit('error', err);
             }
         }
@@ -39,16 +45,18 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
             await this.#discoverNodes(startWith.options?.socket);
             return;
         } catch (err) {
+            console.error(err);
             // this.emit('error', err);
         }
 
-        for (const client of this.#clientByKey.values()) {
+        for (const { client } of this.#nodeByUrl.values()) {
             if (client === startWith) continue;
             
             try {
                 await this.#discoverNodes(client.options?.socket);
                 return;
             } catch (err) {
+                console.error(err);
                 // this.emit('error', err);
             }
         }
@@ -80,7 +88,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
                 replicas: this.#options.useReplicas ?
                     master.replicas.map(replica => this.#initiateClientForNode(replica, true, clientsInUse, promises)) :
                     [],
-                iterator: undefined // will be initiated in use
+                    clientIterator: undefined // will be initiated in use
             };
 
             for (const { from, to } of master.slots) {
@@ -91,73 +99,77 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         }
 
         // Remove unused clients from this.#clientBykey using clientsInUse
-        for (const [key, client] of this.#clientByKey.entries()) {
-            if (clientsInUse.has(key)) continue;
+        for (const [url, { client }] of this.#nodeByUrl.entries()) {
+            if (clientsInUse.has(url)) continue;
 
             // TODO: ignore error from `.disconnect`?
             promises.push(client.disconnect());
-            this.#clientByKey.delete(key);
+            this.#nodeByUrl.delete(url);
         }
 
         await Promise.all(promises);
     }
 
-    #initiateClientForNode(node: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): RedisClientType<M, S> {
-        clientsInUse.add(node.url);
+    #initiateClientForNode(nodeData: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): ClusterNode<M, S> {
+        const url = `${nodeData.host}:${nodeData.port}`;
+        clientsInUse.add(url);
 
-        let client = this.#clientByKey.get(node.url);
-        if (!client) {
-            client = RedisClient.create({
-                socket: {
-                    host: node.host,
-                    port: node.port
-                },
-                readonly
-            });
-            promises.push(client.connect());
-            this.#clientByKey.set(node.url, client);
+        let node = this.#nodeByUrl.get(url);
+        if (!node) {
+            node = {
+                id: nodeData.id,
+                client: RedisClient.create({
+                    socket: {
+                        host: nodeData.host,
+                        port: nodeData.port
+                    },
+                    readonly
+                })
+            };
+            promises.push(node.client.connect());
+            this.#nodeByUrl.set(url, node);
         }
 
-        return client;
+        return node;
     }
 
-    #getSlotMaster(slot: number): RedisClientType<M, S> {
+    getSlotMaster(slot: number): ClusterNode<M, S> {
         return this.#slots[slot].master;
     }
 
-    *#slotIterator(slotNumber: number): IterableIterator<RedisClientType<M, S>> {
+    *#slotClientIterator(slotNumber: number): IterableIterator<RedisClientType<M, S>> {
         const slot = this.#slots[slotNumber];
-        yield slot.master;
+        yield slot.master.client;
 
         for (const replica of slot.replicas) {
-            yield replica;
+            yield replica.client;
         }
     }
 
     #getSlotClient(slotNumber: number): RedisClientType<M, S> {
         const slot = this.#slots[slotNumber];
-        if (!slot.iterator) {
-            slot.iterator = this.#slotIterator(slotNumber);
+        if (!slot.clientIterator) {
+            slot.clientIterator = this.#slotClientIterator(slotNumber);
         }
 
-        const {done, value} = slot.iterator.next();
+        const {done, value} = slot.clientIterator.next();
         if (done) {
-            slot.iterator = undefined;
+            slot.clientIterator = undefined;
             return this.#getSlotClient(slotNumber);
         }
 
         return value;
     }
 
-    #randomClientIterator?: IterableIterator<RedisClientType<M, S>>;
+    #randomClientIterator?: IterableIterator<ClusterNode<M, S>>;
 
     #getRandomClient(): RedisClientType<M, S> {
-        if (!this.#clientByKey.size) {
+        if (!this.#nodeByUrl.size) {
             throw new Error('Cluster is not connected');
         }
 
         if (!this.#randomClientIterator) {
-            this.#randomClientIterator = this.#clientByKey.values();
+            this.#randomClientIterator = this.#nodeByUrl.values();
         }
 
         const {done, value} = this.#randomClientIterator.next();
@@ -166,7 +178,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
             return this.#getRandomClient();
         }
 
-        return value;
+        return value.client;
     }
 
     getClient(firstKey?: string, isReadonly?: boolean): RedisClientType<M, S> {
@@ -176,30 +188,34 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
 
         const slot = calculateSlot(firstKey);
         if (!isReadonly || !this.#options.useReplicas) {
-            return this.#getSlotMaster(slot);
+            return this.getSlotMaster(slot).client;
         }
 
         return this.#getSlotClient(slot);
     }
 
-    getMasters(): Array<RedisClientType<M, S>> {
+    getMasters(): Array<ClusterNode<M, S>> {
         const masters = [];
 
-        for (const client of this.#clientByKey.values()) {
-            if (client.options?.readonly) continue;
+        for (const node of this.#nodeByUrl.values()) {
+            if (node.client.options?.readonly) continue;
 
-            masters.push(client);
+            masters.push(node);
         }
 
         return masters;
     }
 
+    getNodeByUrl(url: string): ClusterNode<M, S> | undefined {
+        return this.#nodeByUrl.get(url);
+    }
+
     async disconnect(): Promise<void> {
         await Promise.all(
-            [...this.#clientByKey.values()].map(client => client.disconnect())
+            [...this.#nodeByUrl.values()].map(({ client }) => client.disconnect())
         );
 
-        this.#clientByKey.clear();
+        this.#nodeByUrl.clear();
         this.#slots.splice(0);
     }
 }

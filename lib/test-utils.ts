@@ -4,7 +4,6 @@ import { RedisModules } from './commands';
 import { RedisLuaScripts } from './lua-script';
 import { spawn } from 'child_process';
 import { once } from 'events';
-import tcpPortUsed from 'tcp-port-used';
 import { RedisSocketOptions } from './socket';
 import which from 'which';
 import { SinonSpy } from 'sinon';
@@ -37,20 +36,20 @@ before(function () {
 
 async function spawnOpenServer(): Promise<void> {
     TEST_REDIS_SERVERS[TestRedisServers.OPEN] = {
-        port: await spawnRedisServer()
+        port: await spawnGlobalRedisServer()
     };
 }
 
 async function spawnPasswordServer(): Promise<void> {
     TEST_REDIS_SERVERS[TestRedisServers.PASSWORD] = {
-        port: await spawnRedisServer(['--requirepass', 'password']),
+        port: await spawnGlobalRedisServer(['--requirepass', 'password']),
         username: 'default',
         password: 'password'
     };
 }
 
 async function spawnOpenCluster(): Promise<void> {
-    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = (await spawnRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
+    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = (await spawnGlobalRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
         port
     }));
 }
@@ -91,9 +90,34 @@ export function itWithCluster(type: TestRedisClusters, title: string, fn: (clust
     });
 }
 
+export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
+    it(title, async function () {
+        this.timeout(10000);
+
+        const spawnResults = await spawnRedisCluster(null, 3),
+            cluster = RedisCluster.create({
+                rootNodes: [{
+                    port: spawnResults[0].port
+                }]
+            });
+        
+        await cluster.connect();
+
+        try {
+            await fn(cluster);
+        } finally {
+            await cluster.disconnect();
+            
+            for (const { cleanup } of spawnResults) {
+                await cleanup();
+            }
+        }
+    });
+}
+
 async function clusterFlushAll(cluster: RedisCluster): Promise<void> {
     await Promise.all(
-        cluster.getMasters().map(master => master.flushAll())
+        cluster.getMasters().map(({ client }) => client.flushAll())
     );
 }
 
@@ -101,7 +125,12 @@ const REDIS_PATH = which.sync('redis-server');
 
 let port = 6379;
 
-async function spawnRedisServer(args?: Array<string>): Promise<number> {
+interface SpawnRedisServerResult {
+    port: number;
+    cleanup: () => Promise<void>;
+}
+
+async function spawnRedisServer(args?: Array<string>): Promise<SpawnRedisServerResult> {
     const currentPort = port++,
         process = spawn(REDIS_PATH, [
             '--save',
@@ -110,23 +139,41 @@ async function spawnRedisServer(args?: Array<string>): Promise<number> {
             currentPort.toString(),
             ...(args ?? [])
         ]);
+    
+    process
+        .on('error', err => console.error('Redis process error', err))
+        .on('close', code => console.error(`Redis process closed unexpectedly with code ${code}`));
 
-    // TODO: catch process exit
+    for await (const chunk of process.stdout) {
+        if (chunk.toString().includes('Ready to accept connections')) {
+            break;
+        }
+    }
 
-    await tcpPortUsed.waitForStatus(currentPort, '127.0.0.1', true, 10, 10000);
+    if (process.exitCode !== null) {
+        throw new Error('Error while spawning redis server');
+    }
 
-    after(() => {
-        assert.ok(process.kill());
-        return once(process, 'close');
-    });
+    return {
+        port: currentPort,
+        async cleanup(): Promise<void> {
+            process.removeAllListeners('close');
+            assert.ok(process.kill());
+            await once(process, 'close');
+        }
+    };
+}
 
-    return currentPort;
+async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
+    const { port, cleanup } = await spawnRedisServer(args);
+    after(cleanup);
+    return port;
 }
 
 const SLOTS = 16384,
     CLUSTER_NODE_TIMEOUT = 2000;
 
-async function spawnRedisCluster(type: TestRedisClusters, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
+export async function spawnRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<SpawnRedisServerResult>> {
     const spawnPromises = [],
         slotsPerNode = Math.floor(SLOTS / numberOfNodes);
     for (let i = 0; i < numberOfNodes; i++) {
@@ -157,30 +204,41 @@ async function spawnRedisCluster(type: TestRedisClusters, numberOfNodes: number,
         await setTimeout(CLUSTER_NODE_TIMEOUT);
     }
 
-    const ports = [],
-        disconnectPromises = [];
-    for (const { port, client } of spawnResults) {
-        ports.push(port);
-        disconnectPromises.push(client.disconnect());
+    const disconnectPromises = [];
+    for (const result of spawnResults) {
+        disconnectPromises.push(result.client.disconnect());
     }
 
     await Promise.all(disconnectPromises);
 
-    return ports;
+    return spawnResults;
+}
+
+export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
+    const results = await spawnRedisCluster(type, numberOfNodes, args);
+
+    after(() => {
+        for (const { cleanup } of results) {
+            cleanup();
+        }
+    });
+
+    return results.map(({ port }) => port);
+}
+
+interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
+    client: RedisClientType<RedisModules, RedisLuaScripts>
 }
 
 async function spawnRedisClusterNode(
-    type: TestRedisClusters,
+    type: TestRedisClusters | null,
     nodeIndex: number,
     fromSlot: number,
     toSlot: number,
     args?: Array<string>
-): Promise<{
-    port: number;
-    client: RedisClientType<RedisModules, RedisLuaScripts>;
-}> {
+): Promise<SpawnRedisClusterNodeResult> {
     const clusterConfigFile = `/tmp/${type}-${nodeIndex}.conf`,
-        port = await spawnRedisServer([
+        { port, cleanup: originalCleanup } = await spawnRedisServer([
             '--cluster-enabled',
             'yes',
             '--cluster-node-timeout',
@@ -189,16 +247,6 @@ async function spawnRedisClusterNode(
             clusterConfigFile,
             ...(args ?? [])
         ]);
-
-    after(async () => {
-        try {
-            await unlink(clusterConfigFile);
-        } catch (err) {
-            if (err.code == 'ENOENT') return;
-
-            throw err;
-        }
-    });
 
     const client = RedisClient.create({
         socket: {
@@ -220,6 +268,17 @@ async function spawnRedisClusterNode(
     
     return {
         port,
+        async cleanup(): Promise<void> {
+            await originalCleanup();
+
+            try {
+                await unlink(clusterConfigFile);
+            } catch (err) {
+                if (err.code == 'ENOENT') return;
+    
+                throw err;
+            }
+        },
         client
     };
 }

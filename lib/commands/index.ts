@@ -1,4 +1,5 @@
 import * as APPEND from './APPEND';
+import * as ASKING from './ASKING';
 import * as AUTH from './AUTH';
 import * as BITCOUNT from './BITCOUNT';
 import * as BITFIELD from './BITFIELD';
@@ -15,6 +16,7 @@ import * as CLUSTER_INFO from './CLUSTER_INFO';
 import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as CLUSTER_MEET from './CLUSTER_MEET';
 import * as CLUSTER_RESET from './CLUSTER_RESET';
+import * as CLUSTER_SETSLOT from './CLUSTER_SETSLOT';
 import * as COPY from './COPY';
 import * as DECR from './DECR';
 import * as DECRBY from './DECRBY';
@@ -61,6 +63,7 @@ import * as LRANGE from './LRANGE';
 import * as LREM from './LREM';
 import * as LSET from './LSET';
 import * as LTRIM from './LTRIM';
+import * as MIGRATE from './MIGRATE';
 import * as MOVE from './MOVE';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
@@ -167,6 +170,8 @@ import * as ZUNIONSTORE from './ZUNIONSTORE';
 export default {
     APPEND,
     append: APPEND,
+    ASKING,
+    asking: ASKING,
     AUTH,
     auth: AUTH,
     BITCOUNT,
@@ -199,6 +204,8 @@ export default {
     clusterMeet: CLUSTER_MEET,
     CLUSTER_RESET,
     clusterReset: CLUSTER_RESET,
+    CLUSTER_SETSLOT,
+    clusterSetSlot: CLUSTER_SETSLOT,
     COPY,
     copy: COPY,
     DECR,
@@ -290,6 +297,8 @@ export default {
     lSet: LSET,
     LTRIM,
     lTrim: LTRIM,
+    MIGRATE,
+    migrate: MIGRATE,
     MOVE,
     move: MOVE,
     PERSIST,
