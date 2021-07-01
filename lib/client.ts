@@ -68,7 +68,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
     readonly #Multi: typeof RedisMultiCommand & { new(): RedisMultiCommandType<M, S> };
-    readonly #modern: Record<string, Function> = {};
+    readonly #v4: Record<string, Function> = {};
     #selectedDB = 0;
 
     get options(): RedisClientOptions<M> | null | undefined {
@@ -79,12 +79,12 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return this.#socket.isOpen;
     }
 
-    get modern(): Record<string, Function> {
+    get v4(): Record<string, Function> {
         if (!this.#options?.legacyMode) {
             throw new Error('the client is not in "legacy mode"');
         }
 
-        return this.#modern;
+        return this.#v4;
     }
 
     constructor(options?: RedisClientOptions<M, S>) {
@@ -218,13 +218,13 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     #legacyMode(): void {
         if (!this.#options?.legacyMode) return;
 
-        this.#modern.sendCommand = this.sendCommand.bind(this);
+        this.#v4.sendCommand = this.sendCommand.bind(this);
 
         (this as any).sendCommand = (...args: Array<unknown>): void => {
             const options = isCommandOptions(args[0]) && args.shift(),
                 callback = typeof args[args.length - 1] === 'function' && (args.pop() as Function);
             
-            this.#modern.sendCommand(args.flat(), options)
+            this.#v4.sendCommand(args.flat(), options)
                 .then((reply: unknown) => {
                     if (!callback) return;
 
@@ -274,7 +274,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     #defineLegacyCommand(name: string): void {
-        this.#modern[name] = (this as any)[name];
+        this.#v4[name] = (this as any)[name];
         (this as any)[name] = function (...args: Array<unknown>): void {
             this.sendCommand(name, ...args);
         };

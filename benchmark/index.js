@@ -4,7 +4,7 @@ const cronometro = require('cronometro'),
 
 let client;
 cronometro({
-    'New Client - Modern Mode': {
+    'New Client': {
         async before() {
             client = newRedis.createClient();
             await client.connect();

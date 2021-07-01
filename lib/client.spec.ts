@@ -41,7 +41,7 @@ describe('Client', () => {
         });
 
         before(() => client.connect());
-        afterEach(() => client.modern.flushAll());
+        afterEach(() => client.v4.flushAll());
         after(() => client.disconnect());
 
         it('client.sendCommand should call the callback', done => {
@@ -61,12 +61,12 @@ describe('Client', () => {
 
         it('client.sendCommand should work without callback', async () => {
             (client as any).sendCommand('PING');
-            await client.modern.ping(); // make sure the first command was replied
+            await client.v4.ping(); // make sure the first command was replied
         });
 
-        it('client.modern.sendCommand should return a promise', async () => {
+        it('client.v4.sendCommand should return a promise', async () => {
             assert.equal(
-                await client.modern.sendCommand(['PING']),
+                await client.v4.sendCommand(['PING']),
                 'PONG'
             );
         });
@@ -137,12 +137,12 @@ describe('Client', () => {
             (client as any).multi()
                 .ping()
                 .exec();
-            await client.modern.ping(); // make sure the first command was replied
+            await client.v4.ping(); // make sure the first command was replied
         });
 
-        it('client.modern.exec should return a promise', async () => {
+        it('client.v4.exec should return a promise', async () => {
             assert.deepEqual(
-                await ((client as any).multi().modern
+                await ((client as any).multi().v4
                     .ping()
                     .exec()),
                 ['PONG']

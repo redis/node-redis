@@ -48,14 +48,14 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
     readonly #scriptsInUse = new Set<string>();
 
-    readonly #modern: Record<string, Function> = {};
+    readonly #v4: Record<string, Function> = {};
 
-    get modern(): Record<string, Function> {
+    get v4(): Record<string, Function> {
         if (!this.#clientOptions?.legacyMode) {
             throw new Error('client is not in "legacy mode"');
         }
 
-        return this.#modern;
+        return this.#v4;
     }
 
     constructor(executor: RedisMultiExecutor, clientOptions?: RedisClientOptions<M, S>) {
@@ -110,12 +110,12 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
     #legacyMode(): Record<string, Function> | undefined {
         if (!this.#clientOptions?.legacyMode) return;
 
-        this.#modern.exec = this.exec.bind(this);
-        this.#modern.addCommand = this.addCommand.bind(this);
+        this.#v4.exec = this.exec.bind(this);
+        this.#v4.addCommand = this.addCommand.bind(this);
 
         (this as any).exec = function (...args: Array<unknown>): void {
             const callback = typeof args[args.length - 1] === 'function' && args.pop() as Function;
-            this.#modern.exec()
+            this.#v4.exec()
                 .then((reply: unknown) => {
                     if (!callback) return;
 
@@ -152,7 +152,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
     }
 
     #defineLegacyCommand(name: string): void {
-        this.#modern[name] = (this as any)[name];
+        this.#v4[name] = (this as any)[name];
 
         // TODO: https://github.com/NodeRedis/node-redis#commands:~:text=minimal%20parsing
         (this as any)[name] = function (...args: Array<unknown>) {
