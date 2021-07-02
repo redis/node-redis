@@ -8,6 +8,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from './command-opti
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { ScanOptions, ZMember } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
+import { HScanTuple } from './commands/HSCAN';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -373,13 +374,13 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
-    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
+    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<HScanTuple> {
         let cursor = 0;
         do {
             const reply = await (this as any).hScan(key, cursor, options);
             cursor = reply.cursor;
-            for (const key of reply.keys) {
-                yield key;
+            for (const tuple of reply.tuples) {
+                yield tuple;
             }
         } while (cursor !== 0)
     }

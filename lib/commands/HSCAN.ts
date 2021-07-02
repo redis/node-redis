@@ -12,12 +12,14 @@ export function transformArguments(key: string, cursor: number, options?: ScanOp
     ];
 }
 
+export interface HScanTuple {
+    field: string;
+    value: string;
+}
+
 interface HScanReply {
     cursor: number;
-    tuples: Array<{
-        field: string;
-        value: string;
-    }>;
+    tuples: Array<HScanTuple>;
 }
 
 export function transformReply([cursor, rawTuples]: [string, Array<string>]): HScanReply {

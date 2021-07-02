@@ -1,6 +1,19 @@
+import * as ACL_CAT from './ACL_CAT';
+import * as ACL_DELUSER from './ACL_DELUSER';
+import * as ACL_GENPASS from './ACL_GENPASS';
+import * as ACL_GETUSER from './ACL_GETUSER';
+import * as ACL_LIST from './ACL_LIST';
+import * as ACL_LOAD from './ACL_LOAD';
+import * as ACL_LOG_RESET from './ACL_LOG_RESET';
+import * as ACL_LOG from './ACL_LOG';
+import * as ACL_SAVE from './ACL_SAVE';
+import * as ACL_SETUSER from './ACL_SETUSER';
+import * as ACL_USERS from './ACL_USERS';
+import * as ACL_WHOAMI from './ACL_WHOAMI';
 import * as APPEND from './APPEND';
 import * as ASKING from './ASKING';
 import * as AUTH from './AUTH';
+import * as BGREWRITEAOF from './BGREWRITEAOF';
 import * as BITCOUNT from './BITCOUNT';
 import * as BITFIELD from './BITFIELD';
 import * as BLMOVE from './BLMOVE';
@@ -55,8 +68,10 @@ import * as LINSERT from './LINSERT';
 import * as LLEN from './LLEN';
 import * as LMOVE from './LMOVE';
 import * as LOLWUT from './LOLWUT';
-import * as LPOP from './LPOP';
 import * as LPOP_COUNT from './LPOP_COUNT';
+import * as LPOP from './LPOP';
+import * as LPOS_COUNT from './LPOS_COUNT';
+import * as LPOS from './LPOS';
 import * as LPUSH from './LPUSH';
 import * as LPUSHX from './LPUSHX';
 import * as LRANGE from './LRANGE';
@@ -64,6 +79,9 @@ import * as LREM from './LREM';
 import * as LSET from './LSET';
 import * as LTRIM from './LTRIM';
 import * as MIGRATE from './MIGRATE';
+import * as MODULE_LIST from './MODULE_LIST';
+import * as MODULE_LOAD from './MODULE_LOAD';
+import * as MODULE_UNLOAD from './MODULE_UNLOAD';
 import * as MOVE from './MOVE';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
@@ -78,12 +96,14 @@ import * as RANDOMKEY from './RANDOMKEY';
 import * as READONLY from './READONLY';
 import * as RENAME from './RENAME';
 import * as RENAMENX from './RENAMENX';
+import * as REPLICAOF from './REPLICAOF';
 import * as RPOP_COUNT from './RPOP_COUNT';
 import * as RPOP from './RPOP';
 import * as RPOPLPUSH from './RPOPLPUSH';
 import * as RPUSH from './RPUSH';
 import * as RPUSHX from './RPUSHX'; 
 import * as SADD from './SADD';
+import * as SAVE from './SAVE';
 import * as SCAN from './SCAN';
 import * as SCARD from './SCARD';
 import * as SDIFF from './SDIFF';
@@ -105,6 +125,7 @@ import * as SSCAN from './SSCAN';
 import * as STRLEN from './STRLEN';
 import * as SUNION from './SUNION';
 import * as SUNIONSTORE from './SUNIONSTORE';
+import * as TIME from './TIME';
 import * as TOUCH from './TOUCH';
 import * as TTL from './TTL';
 import * as TYPE from './TYPE';
@@ -168,12 +189,38 @@ import * as ZUNION from './ZUNION';
 import * as ZUNIONSTORE from './ZUNIONSTORE';
 
 export default {
+    ACL_CAT,
+    aclCat: ACL_CAT,
+    ACL_DELUSER,
+    aclDelUser: ACL_DELUSER,
+    ACL_GENPASS,
+    aclGenPass: ACL_GENPASS,
+    ACL_GETUSER,
+    aclGetUser: ACL_GETUSER,
+    ACL_LIST,
+    aclList: ACL_LIST,
+    ACL_LOAD,
+    aclLoad: ACL_LOAD,
+    ACL_LOG_RESET,
+    aclLogReset: ACL_LOG_RESET,
+    ACL_LOG,
+    aclLog: ACL_LOG,
+    ACL_SAVE,
+    aclSave: ACL_SAVE,
+    ACL_SETUSER,
+    aclSetUser: ACL_SETUSER,
+    ACL_USERS,
+    aclUsers: ACL_USERS,
+    ACL_WHOAMI,
+    aclWhoAmI: ACL_WHOAMI,
     APPEND,
     append: APPEND,
     ASKING,
     asking: ASKING,
     AUTH,
     auth: AUTH,
+    BGREWRITEAOF,
+    bgRewriteAof: BGREWRITEAOF,
     BITCOUNT,
     bitCount: BITCOUNT,
     BITFIELD,
@@ -285,6 +332,10 @@ export default {
     lPopCount: LPOP_COUNT,
     LPOP,
     lPop: LPOP,
+    LPOS_COUNT,
+    lPosCount: LPOS_COUNT,
+    LPOS,
+    lPos: LPOS,
     LPUSH,
     lPush: LPUSH,
     LPUSHX,
@@ -299,6 +350,12 @@ export default {
     lTrim: LTRIM,
     MIGRATE,
     migrate: MIGRATE,
+    MODULE_LIST,
+    moduleList: MODULE_LIST,
+    MODULE_LOAD,
+    moduleLoad: MODULE_LOAD,
+    MODULE_UNLOAD,
+    moduleUnload: MODULE_UNLOAD,
     MOVE,
     move: MOVE,
     PERSIST,
@@ -327,6 +384,8 @@ export default {
     rename: RENAME,
     RENAMENX,
     renameNX: RENAMENX,
+    REPLICAOF,
+    replicaOf: REPLICAOF,
     RPOP_COUNT,
     rPopCount: RPOP_COUNT,
     RPOP,
@@ -339,6 +398,8 @@ export default {
     rPushX: RPUSHX,
     SADD,
     sAdd: SADD,
+    SAVE,
+    save: SAVE,
     SCAN,
     scan: SCAN,
     SCARD,
@@ -381,6 +442,8 @@ export default {
     sUnion: SUNION,
     SUNIONSTORE,
     sUnionStore: SUNIONSTORE,
+    TIME,
+    time: TIME,
     TOUCH,
     touch: TOUCH,
     TTL,

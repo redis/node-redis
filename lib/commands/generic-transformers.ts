@@ -6,6 +6,10 @@ export function transformReplyNumberNull(reply: number | null): number | null {
     return reply;
 }
 
+export function transformReplyNumberArray(reply: Array<number>): Array<number> {
+    return reply;
+}
+
 export function transformReplyString(reply: string): string {
     return reply;
 }
