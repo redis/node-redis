@@ -1,4 +1,4 @@
-import { transformReplyNumber } from './generic-transformers';
+import { transformReplyNumberNullArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -6,61 +6,79 @@ export const IS_READ_ONLY = true;
 
 type BitFieldType = string; // TODO 'i[1-64]' | 'u[1-63]'
 
-interface BitFieldOptions {
-    GET?: {
-        type: BitFieldType;
-        offset: number | string;
-    };
-    SET?: {
-        type: BitFieldType;
-        offset: number | string;
-        value: number;
-    };
-    INCRBY?: {
-        type: BitFieldType;
-        offset: number | string;
-        increment: number;
-    };
-    OVERFLOW?: 'WRAP' | 'SAT' | 'FAIL';
+interface BitFieldOperation<S extends string> {
+    operation: S;
 }
 
-export function transformArguments(key: string, options?: BitFieldOptions): Array<string> {
+interface BitFieldGetOperation extends BitFieldOperation<'GET'> {
+    type: BitFieldType;
+    offset: number | string;
+}
+
+interface BitFieldSetOperation extends BitFieldOperation<'SET'> {
+    type: BitFieldType;
+    offset: number | string;
+    value: number;
+}
+
+interface BitFieldIncrByOperation extends BitFieldOperation<'INCRBY'> {
+    type: BitFieldType;
+    offset: number | string;
+    increment: number;
+}
+
+interface BitFieldOverflowOperation extends BitFieldOperation<'OVERFLOW'> {
+    behavior: string;
+}
+
+type BitFieldOperations = Array<
+    BitFieldGetOperation |
+    BitFieldSetOperation |
+    BitFieldIncrByOperation |
+    BitFieldOverflowOperation
+>;
+
+export function transformArguments(key: string, operations: BitFieldOperations): Array<string> {
     const args = ['BITFIELD', key];
 
-    if (options?.GET) {
-        args.push(
-            'GET',
-            options.GET.type,
-            options.GET.offset.toString()
-        );
-    }
+    for (const options of operations) {
+        switch (options.operation) {
+            case 'GET':
+                args.push(
+                    'GET',
+                    options.type,
+                    options.offset.toString()
+                );
+                break;
 
-    if (options?.SET) {
-        args.push(
-            'SET',
-            options.SET.type,
-            options.SET.offset.toString(),
-            options.SET.value.toString()
-        );
-    }
+            case 'SET':
+                args.push(
+                    'SET',
+                    options.type,
+                    options.offset.toString(),
+                    options.value.toString()
+                );
+                break;
 
-    if (options?.INCRBY) {
-        args.push(
-            'INCRBY',
-            options.INCRBY.type,
-            options.INCRBY.offset.toString(),
-            options.INCRBY.increment.toString()
-        );
-    }
+            case 'INCRBY':
+                args.push(
+                    'INCRBY',
+                    options.type,
+                    options.offset.toString(),
+                    options.increment.toString()
+                )
+                break;
 
-    if (options?.OVERFLOW) {
-        args.push(
-            'OVERFLOW',
-            options.OVERFLOW
-        );
+            case 'OVERFLOW':
+                args.push(
+                    'OVERFLOW',
+                    options.behavior
+                );
+                break;
+        }
     }
 
     return args;
 }
 
-export const transformReply = transformReplyNumber;
+export const transformReply = transformReplyNumberNullArray;

@@ -3,88 +3,39 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './BITFIELD';
 
 describe('BITFIELD', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['BITFIELD', 'key']
-            );
-        });
-
-        it('with GET', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    GET: {
-                        type: 'i8',
-                        offset: 0
-                    }
-                }),
-                ['BITFIELD', 'key', 'GET', 'i8', '0']
-            );
-        });
-
-        it('with SET', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    SET: {
-                        type: 'i8',
-                        offset: 0,
-                        value: 0
-                    }
-                }),
-                ['BITFIELD', 'key', 'SET', 'i8', '0', '0']
-            );
-        });
-
-        it('with INCRBY', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    INCRBY: {
-                        type: 'i8',
-                        offset: 0,
-                        increment: 0
-                    }
-                }),
-                ['BITFIELD', 'key', 'INCRBY', 'i8', '0', '0']
-            );
-        });
-
-        it('with OVERFLOW', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    OVERFLOW: 'WRAP'
-                }),
-                ['BITFIELD', 'key', 'OVERFLOW', 'WRAP']
-            );
-        });
-
-        it('with GET, SET, INCRBY, OVERFLOW', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    GET: {
-                        type: 'i8',
-                        offset: 0
-                    },
-                    SET: {
-                        type: 'i8',
-                        offset: 0,
-                        value: 0
-                    },
-                    INCRBY: {
-                        type: 'i8',
-                        offset: 0,
-                        increment: 0
-                    },
-                    OVERFLOW: 'WRAP'
-                }),
-                ['BITFIELD', 'key', 'GET', 'i8', '0', 'SET', 'i8', '0', '0', 'INCRBY', 'i8', '0', '0', 'OVERFLOW', 'WRAP']
-            );
-        })
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('key', [{
+                operation: 'OVERFLOW',
+                behavior: 'WRAP'
+            }, {
+                operation: 'GET',
+                type: 'i8',
+                offset: 0
+            }, {
+                operation: 'OVERFLOW',
+                behavior: 'SAT'
+            }, {
+                operation: 'SET',
+                type: 'i16',
+                offset: 1,
+                value: 0
+            }, {
+                operation: 'OVERFLOW',
+                behavior: 'FAIL'
+            }, {
+                operation: 'INCRBY',
+                type: 'i32',
+                offset: 2,
+                increment: 1
+            }]),
+            ['BITFIELD', 'key', 'OVERFLOW', 'WRAP', 'GET', 'i8', '0', 'OVERFLOW', 'SAT', 'SET', 'i16', '1', '0', 'OVERFLOW', 'FAIL', 'INCRBY', 'i32', '2', '1']
+        );
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.bitField', async client => {
         assert.deepEqual(
-            await client.bitField('key'),
+            await client.bitField('key', []),
             []
         );
     });
