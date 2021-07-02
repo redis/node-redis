@@ -3,7 +3,7 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './XTRIM';
 
 describe('XTRIM', () => {
-    it('transformArguments', () => {
+    describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
                 transformArguments('key', 'MAXLEN', 1),
