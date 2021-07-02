@@ -81,7 +81,7 @@ describe('SET', () => {
         it('with GET', () => {
             assert.deepEqual(
                 transformArguments('key', 'value', {
-                    GET: 1
+                    GET: true
                 }),
                 ['SET', 'key', 'value', 'GET']
             );

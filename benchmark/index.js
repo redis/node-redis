@@ -1,3 +1,5 @@
+'use strict';
+
 const cronometro = require('cronometro'),
     newRedis = require('redis-new'),
     oldRedis = require('redis-old');

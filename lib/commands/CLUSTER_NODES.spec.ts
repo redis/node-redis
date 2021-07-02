@@ -95,8 +95,6 @@ describe('CLUSTER NODES', () => {
     });
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.clusterNodes', async cluster => {
-        const nodes = await cluster.clusterNodes();
-
         for (const node of (await cluster.clusterNodes())) {
             assert.equal(typeof node.id, 'string');
             assert.equal(typeof node.url, 'string');

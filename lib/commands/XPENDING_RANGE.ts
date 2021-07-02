@@ -32,11 +32,4 @@ export function transformArguments(
     return args;
 }
 
-interface XPendingReply {
-    messageId: string;
-    owner: string;
-    msSinceLastDelivery: number;
-    deliveriesCounter: number;
-}
-
 export const transformReply = transformReplyStreamMessages;

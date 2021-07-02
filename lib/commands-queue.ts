@@ -6,12 +6,12 @@ import { RedisReply } from './commands';
 export interface QueueCommandOptions {
     asap?: boolean;
     signal?: AbortSignal;
-    chainId?: Symbol;
+    chainId?: symbol;
 }
 
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
     encodedCommand: string;
-    chainId?: Symbol;
+    chainId?: symbol;
     abort?: {
         signal: AbortSignal;
         listener(): void;
@@ -119,7 +119,7 @@ export default class RedisCommandsQueue {
         returnError: (err: Error) => this.#shiftWaitingForReply().reject(err)
     });
 
-    #chainInExecution: Symbol | undefined;
+    #chainInExecution: symbol | undefined;
 
     constructor(maxLength: number | null | undefined, executor: CommandsQueueExecutor) {
         this.#maxLength = maxLength;
@@ -293,7 +293,7 @@ export default class RedisCommandsQueue {
 
         const encoded: Array<string> = [];
         let size = 0,
-            lastCommandChainId: Symbol | undefined;
+            lastCommandChainId: symbol | undefined;
         for (const command of this.#waitingToBeSent) {
             encoded.push(command.encodedCommand);
             size += command.encodedCommand.length;

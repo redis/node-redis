@@ -31,7 +31,7 @@ interface AclLog {
     context: string;
     object: string;
     username: string;
-    ageSeconds: Number;
+    ageSeconds: number;
     clientInfo: string;
 }
 

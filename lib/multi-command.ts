@@ -25,7 +25,7 @@ export interface MultiQueuedCommand {
     transformReply?: RedisCommand['transformReply'];
 }
 
-export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: Symbol) => Promise<Array<RedisReply>>;
+export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisReply>>;
 
 export default class RedisMultiCommand<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
     static defineCommand(on: any, name: string, command: RedisCommand): void {

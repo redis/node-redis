@@ -217,11 +217,9 @@ export async function spawnRedisCluster(type: TestRedisClusters | null, numberOf
 export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
     const results = await spawnRedisCluster(type, numberOfNodes, args);
 
-    after(() => {
-        for (const { cleanup } of results) {
-            cleanup();
-        }
-    });
+    after(() => Promise.all(
+        results.map(({ cleanup }) => cleanup())
+    ));
 
     return results.map(({ port }) => port);
 }

@@ -1,5 +1,4 @@
 import { strict as assert } from 'assert';
-import { triggerAsyncId } from 'async_hooks';
 import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments, transformReply } from './XINFO_STREAM';
 
