@@ -1,4 +1,3 @@
-import { allowedNodeEnvironmentFlags } from 'process';
 import { transformReplyString } from './generic-transformers';
 
 export function transformArguments(bits?: number): Array<string> {

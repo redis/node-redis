@@ -1,5 +1,3 @@
-import { deepStrictEqual } from 'assert';
-
 export function transformArguments(): Array<string> {
     return ['TIME'];
 }
