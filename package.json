@@ -20,7 +20,7 @@
   ],
   "license": "MIT",
   "main": "./dist/index.js",
-  "types": "./dist/index.t.ts",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
     "build": "tsc"
