@@ -1,6 +1,6 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisModules } from './commands';
-import { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
+import { ClientCommandOptions, RedisClientType, RedisCommandSignature, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
@@ -18,12 +18,12 @@ export type RedisClusterType<M extends RedisModules, S extends RedisLuaScripts> 
     WithPlugins<M, S> & RedisCluster;
 
 export default class RedisCluster<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
-    static defineCommand(on: any, name: string, command: RedisCommand): void {
+    static defineCommand(on: any, name: string, command: RedisCommand, cluster?: RedisCluster): void {
         on[name] = async function (...args: Array<unknown>): Promise<unknown> {
             const options = isCommandOptions(args[0]) && args[0],
                 redisArgs = command.transformArguments(...(options ? args.slice(1) : args));
             return command.transformReply(
-                await this.sendCommand(
+                await (cluster ?? this).sendCommand(
                     RedisCluster.#extractFirstKey(command, args, redisArgs),
                     command.IS_READ_ONLY,
                     redisArgs,
@@ -64,10 +64,16 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
     #initiateModules(): void {
         if (!this.#options.modules) return;
 
-        for (const m of this.#options.modules) {
-            for (const [name, command] of Object.entries(m)) {
-                RedisCluster.defineCommand(this, name, command);
+        for (const [moduleName, commands] of Object.entries(this.#options.modules)) {
+            const module: {
+                [P in keyof typeof commands]: RedisCommandSignature<(typeof commands)[P]>;
+            } = {};
+
+            for (const [commandName, command] of Object.entries(commands)) {
+                module[commandName] = (...args) => this.executeCommand(command, args);
             }
+
+            (this as any)[moduleName] = module;
         }
     }
 
@@ -114,6 +120,24 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
 
             throw err;
         }
+    }
+
+    async executeCommand(command: RedisCommand, args: Array<unknown>): Promise<(typeof command)['transformReply']> {
+        let options;
+        if (isCommandOptions<ClientCommandOptions>(args[0])) {
+            options = args[0];
+            args = args.slice(1);
+        }
+
+        const redisArgs = command.transformArguments(...args);
+        return command.transformReply(
+            await this.sendCommand(
+                RedisCluster.#extractFirstKey(command, args, redisArgs),
+                command.IS_READ_ONLY,
+                redisArgs,
+                options
+            )
+        );
     }
 
     async executeScript<S extends RedisLuaScript>(
@@ -183,5 +207,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
 }
 
 for (const [name, command] of Object.entries(COMMANDS)) {
-    RedisCluster.defineCommand(RedisCluster.prototype, name, command);
+    (RedisCluster.prototype as any)[name] = function (this: RedisCluster, ...args: Array<unknown>) {
+        return this.executeCommand(command, args);
+    };
 }

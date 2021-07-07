@@ -585,4 +585,4 @@ export interface RedisModule {
     [key: string]: RedisCommand;
 }
 
-export type RedisModules = Array<RedisModule>;
+export type RedisModules = Record<string, RedisModule>;

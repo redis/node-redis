@@ -113,7 +113,7 @@ export default class RedisCommandsQueue {
                         return;
                 }
             }
-            
+
             this.#shiftWaitingForReply().resolve(reply);
         },
         returnError: (err: Error) => this.#shiftWaitingForReply().reject(err)

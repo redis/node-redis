@@ -1,7 +1,7 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisCommandsQueue from './commands-queue';
-import { RedisLuaScripts } from './lua-script';
+import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { RedisClientOptions } from './client';
 
 type RedisMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisLuaScripts> = (...args: Parameters<C['transformArguments']>) => RedisMultiCommandType<M, S>;
@@ -11,7 +11,9 @@ type WithCommands<M extends RedisModules, S extends RedisLuaScripts> = {
 };
 
 type WithModules<M extends RedisModules, S extends RedisLuaScripts> = {
-    [P in keyof M[number]]: RedisMultiCommandSignature<M[number][P], M, S>
+    [P in keyof M]: {
+        [C in keyof M[P]]: RedisMultiCommandSignature<M[P][C], M, S>;
+    };
 };
 
 type WithScripts<M extends RedisModules, S extends RedisLuaScripts> = {
@@ -28,14 +30,6 @@ export interface MultiQueuedCommand {
 export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisReply>>;
 
 export default class RedisMultiCommand<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
-    static defineCommand(on: any, name: string, command: RedisCommand): void {
-        on[name] = function (...args: Parameters<typeof command.transformArguments>) {
-            // do not return `this.addCommand` directly cause in legacy mode it's binded to the legacy version 
-            this.addCommand(command.transformArguments(...args), command.transformReply);
-            return this;
-        };
-    }
-
     static create<M extends RedisModules, S extends RedisLuaScripts>(executor: RedisMultiExecutor, clientOptions?: RedisClientOptions<M, S>): RedisMultiCommandType<M, S> {
         return <any>new RedisMultiCommand<M, S>(executor, clientOptions);
     }
@@ -48,9 +42,9 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
     readonly #scriptsInUse = new Set<string>();
 
-    readonly #v4: Record<string, Function> = {};
+    readonly #v4: Record<string, any> = {};
 
-    get v4(): Record<string, Function> {
+    get v4(): Record<string, any> {
         if (!this.#clientOptions?.legacyMode) {
             throw new Error('client is not in "legacy mode"');
         }
@@ -69,10 +63,16 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
     #initiateModules(): void {
         if (!this.#clientOptions?.modules) return;
 
-        for (const m of this.#clientOptions.modules) {
-            for (const [name, command] of Object.entries(m)) {
-                RedisMultiCommand.defineCommand(this, name, command);
+        for (const [moduleName, commands] of Object.entries(this.#clientOptions.modules)) {
+            const module: {
+                [P in keyof typeof commands]: RedisMultiCommandSignature<(typeof commands)[P], M, S>
+            } = {};
+
+            for (const [commandName, command] of Object.entries(commands)) {
+                module[commandName] = (...args) => this.executeCommand(command, args);
             }
+
+            (this as any)[moduleName] = module;
         }
     }
 
@@ -107,16 +107,14 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         }
     }
 
-    #legacyMode(): Record<string, Function> | undefined {
+    #legacyMode(): void {
         if (!this.#clientOptions?.legacyMode) return;
 
         this.#v4.exec = this.exec.bind(this);
-        this.#v4.addCommand = this.addCommand.bind(this);
 
-        (this as any).exec = function (...args: Array<unknown>): void {
-            const callback = typeof args[args.length - 1] === 'function' && args.pop() as Function;
+        (this as any).exec = (callback?: (err: Error | null, replies?: Array<unknown>) => unknown): void => {
             this.#v4.exec()
-                .then((reply: unknown) => {
+                .then((reply: Array<unknown>) => {
                     if (!callback) return;
 
                     callback(null, reply);
@@ -131,15 +129,15 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
                 });
         };
 
-
         for (const name of Object.keys(COMMANDS)) {
             this.#defineLegacyCommand(name);
         }
 
-        if (this.#clientOptions.modules) {
-            for (const m of this.#clientOptions.modules) {
-                for (const name of Object.keys(m)) {
-                    this.#defineLegacyCommand(name);
+        if (this.#clientOptions?.modules) {
+            for (const [module, commands] of Object.entries(this.#clientOptions.modules)) {
+                for (const name of Object.keys(commands)) {
+                    this.#v4[module] = {};
+                    this.#defineLegacyCommand(name, module);
                 }
             }
         }
@@ -151,22 +149,62 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         }
     }
 
-    #defineLegacyCommand(name: string): void {
-        this.#v4[name] = (this as any)[name];
-
-        // TODO: https://github.com/NodeRedis/node-redis#commands:~:text=minimal%20parsing
-        (this as any)[name] = function (...args: Array<unknown>) {
-            return this.addCommand([name, ...args.flat()]);
+    #defineLegacyCommand(name: string, moduleName?: string): void {
+        const handler = (...args: Array<unknown>): RedisMultiCommandType<M, S> => {
+            return this.addCommand([
+                name,
+                ...args.flat() as Array<string>
+            ]);
         };
+
+        if (moduleName) {
+            this.#v4[moduleName][name] = (this as any)[moduleName][name];
+            (this as any)[moduleName][name] = handler;
+        } else {
+            this.#v4[name] = (this as any)[name].bind(this);
+            (this as any)[name] = handler;
+        }
     }
 
-    addCommand(args: Array<string>, transformReply?: RedisCommand['transformReply']): this {
+    addCommand(args: Array<string>, transformReply?: RedisCommand['transformReply']): RedisMultiCommandType<M, S> {
         this.#queue.push({
             encodedCommand: RedisCommandsQueue.encodeCommand(args),
             transformReply
         });
 
-        return this;
+        return <any>this;
+    }
+
+    executeCommand(command: RedisCommand, args: Array<unknown>): RedisMultiCommandType<M, S> {
+        return this.addCommand(
+            command.transformArguments(...args),
+            command.transformReply
+        );
+    }
+
+    executeScript(name: string, script: RedisLuaScript, args: Array<unknown>): RedisMultiCommandType<M, S> {
+        const evalArgs = [];
+        if (this.#scriptsInUse.has(name)) {
+            evalArgs.push(
+                'EVALSHA',
+                script.SHA
+            );
+        } else {
+            this.#scriptsInUse.add(name);
+            evalArgs.push(
+                'EVAL',
+                script.SCRIPT
+            );
+        }
+
+        return this.addCommand(
+            [
+                ...evalArgs,
+                script.NUMBER_OF_KEYS.toString(),
+                ...script.transformArguments(...args)
+            ],
+            script.transformReply
+        );
     }
 
     async exec(execAsPipeline = false): Promise<Array<unknown>> {
@@ -201,5 +239,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 }
 
 for (const [name, command] of Object.entries(COMMANDS)) {
-    RedisMultiCommand.defineCommand(RedisMultiCommand.prototype, name, command);
+    (RedisMultiCommand.prototype as any)[name] = function (...args: Array<unknown>): RedisMultiCommand {
+        return this.executeCommand(command, args);
+    };
 }
