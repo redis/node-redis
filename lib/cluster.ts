@@ -18,21 +18,6 @@ export type RedisClusterType<M extends RedisModules, S extends RedisLuaScripts> 
     WithPlugins<M, S> & RedisCluster;
 
 export default class RedisCluster<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
-    static defineCommand(on: any, name: string, command: RedisCommand, cluster?: RedisCluster): void {
-        on[name] = async function (...args: Array<unknown>): Promise<unknown> {
-            const options = isCommandOptions(args[0]) && args[0],
-                redisArgs = command.transformArguments(...(options ? args.slice(1) : args));
-            return command.transformReply(
-                await (cluster ?? this).sendCommand(
-                    RedisCluster.#extractFirstKey(command, args, redisArgs),
-                    command.IS_READ_ONLY,
-                    redisArgs,
-                    options
-                )
-            );
-        };
-    }
-
     static #extractFirstKey(commandOrScript: RedisCommand | RedisLuaScript, originalArgs: Array<unknown>, redisArgs: Array<string>): string | undefined {
         if (commandOrScript.FIRST_KEY_INDEX === undefined) {
             return undefined;
