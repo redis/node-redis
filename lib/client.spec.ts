@@ -372,43 +372,53 @@ describe('Client', () => {
 
     itWithClient(TestRedisServers.OPEN, 'scanIterator', async client => {
         const promises = [],
-            keys = [];
+            keys = new Set();
         for (let i = 0; i < 100; i++) {
             const key = i.toString();
-            keys.push(key);
+            keys.add(key);
             promises.push(client.set(key, ''));
         }
 
         await Promise.all(promises);
 
-        const set = new Set();
+        const results = new Set();
         for await (const key of client.scanIterator()) {
-            set.add(key);
+            results.add(key);
         }
 
-        assert.deepEqual(
-            [...set].sort(),
-            keys.sort()
-        );
+        assert.deepEqual(keys, results);
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'hScanIterator', async client => {
+        const hash: Record<string, string> = {};
+        for (let i = 0; i < 100; i++) {
+            hash[i.toString()] = i.toString();
+        }
+
+        await client.hSet('key', hash);
+
+        const results: Record<string, string> = {};
+        for await (const { field, value } of client.hScanIterator('key')) {
+            results[field] = value;
+        }
+
+        assert.deepEqual(hash, results);
     });
 
     itWithClient(TestRedisServers.OPEN, 'sScanIterator', async client => {
-        const keys = [];
+        const members = new Set<string>();
         for (let i = 0; i < 100; i++) {
-            keys.push(i.toString());
+            members.add(i.toString());
         }
 
-        await client.sAdd('key', keys);
+        await client.sAdd('key', Array.from(members));
 
-        const set = new Set();
+        const results = new Set<string>();
         for await (const key of client.sScanIterator('key')) {
-            set.add(key);
+            results.add(key);
         }
 
-        assert.deepEqual(
-            [...set].sort(),
-            keys.sort()
-        );
+        assert.deepEqual(members, results);
     });
 
     itWithClient(TestRedisServers.OPEN, 'zScanIterator', async client => {
