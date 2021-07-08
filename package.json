@@ -47,7 +47,7 @@
     "which": "^2.0.2"
   },
   "engines": {
-    "node": ">=10"
+    "node": ">=12"
   },
   "repository": {
     "type": "git",
