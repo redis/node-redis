@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
     "strict": true,
-    "lib": ["es2019", "es2020.bigint", "es2020.string", "es2020.symbol.wellknown"],
-    "target": "es2019",
+    "target": "ES2019",
     "module": "CommonJS",
     "moduleResolution": "Node",
     "esModuleInterop": true,
