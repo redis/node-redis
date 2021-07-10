@@ -2,6 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "target": "ES2019",
+    "lib": ["ES2019", "ES2020.BigInt", "ES2020.String", "ES2020.Symbol.WellKnown"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "esModuleInterop": true,
