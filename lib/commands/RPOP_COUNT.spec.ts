@@ -1,8 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './RPOP_COUNT';
 
 describe('RPOP COUNT', () => {
+    describeHandleMinimumRedisVersion([6, 2]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', 1),

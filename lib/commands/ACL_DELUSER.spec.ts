@@ -1,8 +1,10 @@
 import { strict as assert } from 'assert';
-import { itWithClient, TestRedisServers } from '../test-utils';
+import { describeHandleMinimumRedisVersion, itWithClient, TestRedisServers } from '../test-utils';
 import { transformArguments } from './ACL_DELUSER';
 
 describe('ACL DELUSER', () => {
+    describeHandleMinimumRedisVersion([6]);
+
     describe('transformArguments', () => {
         it('string', () => {
             assert.deepEqual(

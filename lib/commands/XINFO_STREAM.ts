@@ -18,20 +18,46 @@ interface XInfoStreamReply {
     lastEntry: StreamMessageReply | null;
 };
 
-export function transformReply(reply: Array<any>): XInfoStreamReply {
-    return {
-        length: reply[1],
-        radixTreeKeys: reply[3],
-        radixTreeNodes: reply[5],
-        lastGeneratedId: reply[7],
-        groups: reply[9],
-        firstEntry: reply[11] ? {
-            id: reply[11][0] ?? null,
-            message: transformReplyTuples(reply[11][1])
-        } : null,
-        lastEntry: reply[13] ? {
-            id: reply[13][0],
-            message: transformReplyTuples(reply[13][1])
-        } : null
-    };
+export function transformReply(rawReply: Array<any>): XInfoStreamReply {
+    const parsedReply: Partial<XInfoStreamReply> = {};
+
+    for (let i = 0; i < rawReply.length; i+= 2) {
+        switch (rawReply[i]) {
+            case 'length':
+                parsedReply.length = rawReply[i + 1];
+                break;
+
+            case 'radix-tree-keys':
+                parsedReply.radixTreeKeys = rawReply[i + 1];
+                break;
+
+            case 'radix-tree-nodes':
+                parsedReply.radixTreeNodes = rawReply[i + 1];
+                break;
+
+            case 'groups':
+                parsedReply.groups = rawReply[i + 1];
+                break;
+
+            case 'last-generated-id':
+                parsedReply.lastGeneratedId = rawReply[i + 1];
+                break;
+
+            case 'first-entry':
+                parsedReply.firstEntry = {
+                    id: rawReply[i + 1][0],
+                    message: transformReplyTuples(rawReply[i + 1][1])
+                };
+                break;
+
+            case 'last-entry':
+                parsedReply.lastEntry = {
+                    id: rawReply[i + 1][0],
+                    message: transformReplyTuples(rawReply[i + 1][1])
+                };
+                break;  
+        }
+    }
+
+    return parsedReply as XInfoStreamReply;
 }

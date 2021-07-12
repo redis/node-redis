@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { once } from 'events';
-import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled } from './test-utils';
+import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
 import RedisClient from './client';
 import { AbortError } from './errors';
 import { defineScript } from './lua-script';
@@ -26,7 +26,10 @@ describe('Client', () => {
             await assert.rejects(
                 client.connect(),
                 {
-                    message: 'WRONGPASS invalid username-password pair or user is disabled.'
+                    
+                    message: isRedisVersionGreaterThan([6]) ?
+                        'WRONGPASS invalid username-password pair or user is disabled.' :
+                        'ERR invalid password'
                 }
             );
 
@@ -114,7 +117,7 @@ describe('Client', () => {
         });
 
         it('client.{command} should accept mix of strings and array of strings', done => {
-            (client as any).set(['a'], 'b', ['GET'], (err?: Error, reply?: string) => {
+            (client as any).set(['a'], 'b', ['XX'], (err?: Error, reply?: string) => {
                 if (err) {
                     return done(err);
                 }

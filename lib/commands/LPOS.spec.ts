@@ -1,8 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './LPOS';
 
 describe('LPOS', () => {
+    describeHandleMinimumRedisVersion([6, 0, 6]);
+
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(

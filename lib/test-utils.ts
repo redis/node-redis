@@ -1,8 +1,8 @@
-import assert from 'assert/strict';
+import { strict as assert } from 'assert';
 import RedisClient, { RedisClientType } from './client';
 import { RedisModules } from './commands';
 import { RedisLuaScripts } from './lua-script';
-import { spawn } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { once } from 'events';
 import { RedisSocketOptions } from './socket';
 import which from 'which';
@@ -10,6 +10,29 @@ import { SinonSpy } from 'sinon';
 import { setTimeout } from 'timers/promises';
 import RedisCluster, { RedisClusterType } from './cluster';
 import { unlink } from 'fs/promises';
+import { Context as MochaContext } from 'mocha';
+
+type RedisVersion = [major: number, minor: number, patch: number];
+
+type PartialRedisVersion = RedisVersion | [major: number, minor: number] | [major: number] | undefined;
+
+const REDIS_VERSION = execSync('redis-server -v')
+    .toString()
+    .split('.', 3)
+    .map(Number) as RedisVersion;
+
+export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion): boolean {
+    if (minimumVersion === undefined) return true;
+
+    const lastIndex = minimumVersion.length - 1;
+    for (let i = 0; i < lastIndex; i++) {
+        if (minimumVersion[i] > REDIS_VERSION[i]) {
+            return true;
+        }
+    }
+
+    return minimumVersion[lastIndex] >= REDIS_VERSION[lastIndex];
+}
 
 export enum TestRedisServers {
     OPEN,
@@ -24,102 +47,6 @@ export enum TestRedisClusters {
 
 export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, Array<RedisSocketOptions>> = <any>{};
 
-before(function () {
-    this.timeout(10000);
-    
-    return Promise.all([
-        spawnOpenServer(),
-        spawnPasswordServer(),
-        spawnOpenCluster()
-    ]);
-});
-
-async function spawnOpenServer(): Promise<void> {
-    TEST_REDIS_SERVERS[TestRedisServers.OPEN] = {
-        port: await spawnGlobalRedisServer()
-    };
-}
-
-async function spawnPasswordServer(): Promise<void> {
-    TEST_REDIS_SERVERS[TestRedisServers.PASSWORD] = {
-        port: await spawnGlobalRedisServer(['--requirepass', 'password']),
-        username: 'default',
-        password: 'password'
-    };
-}
-
-async function spawnOpenCluster(): Promise<void> {
-    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = (await spawnGlobalRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
-        port
-    }));
-}
-
-export function itWithClient(type: TestRedisServers, title: string, fn: (client: RedisClientType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
-    it(title, async () => {
-        const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[type]
-        });
-        
-        await client.connect();
-
-        try {
-            await client.flushAll();
-            await fn(client);
-        } finally {
-            await client.flushAll();
-            await client.disconnect();
-        }
-    });
-}
-
-export function itWithCluster(type: TestRedisClusters, title: string, fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
-    it(title, async () => {
-        const cluster = RedisCluster.create({
-            rootNodes: TEST_REDIS_CLUSTERES[type]
-        });
-        
-        await cluster.connect();
-
-        try {
-            await clusterFlushAll(cluster);
-            await fn(cluster);
-        } finally {
-            await clusterFlushAll(cluster);
-            await cluster.disconnect();
-        }
-    });
-}
-
-export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
-    it(title, async function () {
-        this.timeout(10000);
-
-        const spawnResults = await spawnRedisCluster(null, 3),
-            cluster = RedisCluster.create({
-                rootNodes: [{
-                    port: spawnResults[0].port
-                }]
-            });
-        
-        await cluster.connect();
-
-        try {
-            await fn(cluster);
-        } finally {
-            await cluster.disconnect();
-            
-            for (const { cleanup } of spawnResults) {
-                await cleanup();
-            }
-        }
-    });
-}
-
-async function clusterFlushAll(cluster: RedisCluster): Promise<void> {
-    await Promise.all(
-        cluster.getMasters().map(({ client }) => client.flushAll())
-    );
-}
 
 const REDIS_PATH = which.sync('redis-server');
 
@@ -172,57 +99,6 @@ async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
 
 const SLOTS = 16384,
     CLUSTER_NODE_TIMEOUT = 2000;
-
-export async function spawnRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<SpawnRedisServerResult>> {
-    const spawnPromises = [],
-        slotsPerNode = Math.floor(SLOTS / numberOfNodes);
-    for (let i = 0; i < numberOfNodes; i++) {
-        const fromSlot = i * slotsPerNode;
-        spawnPromises.push(
-            spawnRedisClusterNode(
-                type,
-                i,
-                fromSlot,
-                i === numberOfNodes - 1 ? SLOTS : fromSlot + slotsPerNode,
-                args
-            )
-        );
-    }
-
-    const spawnResults = await Promise.all(spawnPromises),
-        meetPromises = [];
-    for (let i = 1; i < spawnResults.length; i++) {
-        meetPromises.push(
-            spawnResults[i].client.clusterMeet(
-                '127.0.0.1',
-                spawnResults[i - 1].port
-            )
-        );
-    }
-
-    while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
-        await setTimeout(CLUSTER_NODE_TIMEOUT);
-    }
-
-    const disconnectPromises = [];
-    for (const result of spawnResults) {
-        disconnectPromises.push(result.client.disconnect());
-    }
-
-    await Promise.all(disconnectPromises);
-
-    return spawnResults;
-}
-
-export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
-    const results = await spawnRedisCluster(type, numberOfNodes, args);
-
-    after(() => Promise.all(
-        results.map(({ cleanup }) => cleanup())
-    ));
-
-    return results.map(({ port }) => port);
-}
 
 interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
     client: RedisClientType<RedisModules, RedisLuaScripts>
@@ -279,6 +155,186 @@ async function spawnRedisClusterNode(
         },
         client
     };
+}
+
+export async function spawnRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<SpawnRedisServerResult>> {
+    const spawnPromises = [],
+        slotsPerNode = Math.floor(SLOTS / numberOfNodes);
+    for (let i = 0; i < numberOfNodes; i++) {
+        const fromSlot = i * slotsPerNode;
+        spawnPromises.push(
+            spawnRedisClusterNode(
+                type,
+                i,
+                fromSlot,
+                i === numberOfNodes - 1 ? SLOTS : fromSlot + slotsPerNode,
+                args
+            )
+        );
+    }
+
+    const spawnResults = await Promise.all(spawnPromises),
+        meetPromises = [];
+    for (let i = 1; i < spawnResults.length; i++) {
+        meetPromises.push(
+            spawnResults[i].client.clusterMeet(
+                '127.0.0.1',
+                spawnResults[i - 1].port
+            )
+        );
+    }
+
+    while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
+        await setTimeout(CLUSTER_NODE_TIMEOUT);
+    }
+
+    const disconnectPromises = [];
+    for (const result of spawnResults) {
+        disconnectPromises.push(result.client.disconnect());
+    }
+
+    await Promise.all(disconnectPromises);
+
+    return spawnResults;
+}
+
+export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
+    const results = await spawnRedisCluster(type, numberOfNodes, args);
+
+    after(() => Promise.all(
+        results.map(({ cleanup }) => cleanup())
+    ));
+
+    return results.map(({ port }) => port);
+}
+
+async function spawnOpenServer(): Promise<void> {
+    TEST_REDIS_SERVERS[TestRedisServers.OPEN] = {
+        port: await spawnGlobalRedisServer()
+    };
+}
+
+async function spawnPasswordServer(): Promise<void> {
+    TEST_REDIS_SERVERS[TestRedisServers.PASSWORD] = {
+        port: await spawnGlobalRedisServer(['--requirepass', 'password']),
+        password: 'password'
+    };
+}
+
+async function spawnOpenCluster(): Promise<void> {
+    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = (await spawnGlobalRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
+        port
+    }));
+}
+
+before(function () {
+    this.timeout(10000);
+    
+    return Promise.all([
+        spawnOpenServer(),
+        spawnPasswordServer(),
+        spawnOpenCluster()
+    ]);
+});
+
+interface RedisTestOptions {
+    minimumRedisVersion?: PartialRedisVersion;
+}
+
+export function handleMinimumRedisVersion(mochaContext: MochaContext, minimumRedisVersion: PartialRedisVersion): boolean {
+    if (isRedisVersionGreaterThan(minimumRedisVersion)) {
+        mochaContext.skip();
+        return true;
+    }
+
+    return false;
+}
+
+export function describeHandleMinimumRedisVersion(minimumRedisVersion: PartialRedisVersion): void {
+    before(function () {
+        handleMinimumRedisVersion(this, minimumRedisVersion);
+    });
+}
+
+export function itWithClient(
+    type: TestRedisServers,
+    title: string,
+    fn: (client: RedisClientType<RedisModules, RedisLuaScripts>) => Promise<void>,
+    options?: RedisTestOptions
+): void {
+    it(title, async function () {
+        handleMinimumRedisVersion(this, options?.minimumRedisVersion);
+
+        const client = RedisClient.create({
+            socket: TEST_REDIS_SERVERS[type]
+        });
+        
+        await client.connect();
+
+        try {
+            await client.flushAll();
+            await fn(client);
+        } finally {
+            await client.flushAll();
+            await client.disconnect();
+        }
+    });
+}
+
+export function itWithCluster(
+    type: TestRedisClusters,
+    title: string,
+    fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>,
+    options?: RedisTestOptions
+): void {
+    it(title, async function () {
+        handleMinimumRedisVersion(this, options?.minimumRedisVersion);
+
+        const cluster = RedisCluster.create({
+            rootNodes: TEST_REDIS_CLUSTERES[type]
+        });
+        
+        await cluster.connect();
+
+        try {
+            await clusterFlushAll(cluster);
+            await fn(cluster);
+        } finally {
+            await clusterFlushAll(cluster);
+            await cluster.disconnect();
+        }
+    });
+}
+
+export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
+    it(title, async function () {
+        this.timeout(10000);
+
+        const spawnResults = await spawnRedisCluster(null, 3),
+            cluster = RedisCluster.create({
+                rootNodes: [{
+                    port: spawnResults[0].port
+                }]
+            });
+        
+        await cluster.connect();
+
+        try {
+            await fn(cluster);
+        } finally {
+            await cluster.disconnect();
+            
+            for (const { cleanup } of spawnResults) {
+                await cleanup();
+            }
+        }
+    });
+}
+
+async function clusterFlushAll(cluster: RedisCluster): Promise<void> {
+    await Promise.all(
+        cluster.getMasters().map(({ client }) => client.flushAll())
+    );
 }
 
 export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {

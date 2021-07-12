@@ -1,8 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './ZINTER';
 
 describe('ZINTER', () => {
+    describeHandleMinimumRedisVersion([6, 2]);
+    
     describe('transformArguments', () => {
         it('key (string)', () => {
             assert.deepEqual(

@@ -114,6 +114,8 @@ describe('SET', () => {
                 }),
                 null
             );
+        }, {
+            minimumRedisVersion: [6, 2]
         });
     });
 });

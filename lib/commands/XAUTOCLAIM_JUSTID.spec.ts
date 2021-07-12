@@ -1,8 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './XAUTOCLAIM_JUSTID';
 
 describe('XAUTOCLAIM JUSTID', () => {
+    describeHandleMinimumRedisVersion([6, 2]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', 'group', 'consumer', 1, '0-0'),

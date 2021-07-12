@@ -1,7 +1,10 @@
 import { strict as assert } from 'assert';
+import { describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './ACL_LOG';
 
 describe('ACL LOG', () => {
+    describeHandleMinimumRedisVersion([6]);
+
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
