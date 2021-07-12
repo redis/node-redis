@@ -2,6 +2,7 @@ import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
 import { setTimeout } from 'timers/promises';
+import { URL } from 'url';
 
 interface RedisSocketCommonOptions {
     username?: string;

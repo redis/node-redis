@@ -1,7 +1,7 @@
 const symbol = Symbol('Command Options');
 
 export type CommandOptions<T> = T & {
-    readonly [symbol]: true
+    readonly [symbol]: true;
 };
 
 export function commandOptions<T>(options: T): CommandOptions<T> {

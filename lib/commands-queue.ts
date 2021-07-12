@@ -5,7 +5,7 @@ import { RedisReply } from './commands';
 
 export interface QueueCommandOptions {
     asap?: boolean;
-    signal?: AbortSignal;
+    signal?: any; // TODO: TODO: `AbortSignal` type is incorrect
     chainId?: symbol;
 }
 
@@ -13,7 +13,7 @@ interface CommandWaitingToBeSent extends CommandWaitingForReply {
     encodedCommand: string;
     chainId?: symbol;
     abort?: {
-        signal: AbortSignal;
+        signal: any; // TODO: `AbortSignal` type is incorrect
         listener(): void;
     };
 }
