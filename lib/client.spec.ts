@@ -241,6 +241,12 @@ describe('Client', () => {
         });
 
         describe('AbortController', () => {
+            before(function () {
+                if (!global.AbortController) {
+                    this.skip();
+                }
+            });
+
             itWithClient(TestRedisServers.OPEN, 'success', async client => {
                 await client.sendCommand(['PING'], {
                     signal: new AbortController().signal
