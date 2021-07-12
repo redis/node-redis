@@ -1,8 +1,8 @@
 import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
-import { setTimeout } from 'timers/promises';
 import { URL } from 'url';
+import { promiseTimeout } from './utils';
 
 interface RedisSocketCommonOptions {
     username?: string;
@@ -147,7 +147,7 @@ export default class RedisSocket extends EventEmitter {
                 throw retryIn;
             }
 
-            await setTimeout(retryIn);
+            await promiseTimeout(retryIn);
             return this.#retryConnection(retries + 1);
         }
     }

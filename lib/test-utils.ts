@@ -7,10 +7,10 @@ import { once } from 'events';
 import { RedisSocketOptions } from './socket';
 import which from 'which';
 import { SinonSpy } from 'sinon';
-import { setTimeout } from 'timers/promises';
 import RedisCluster, { RedisClusterType } from './cluster';
 import { unlink } from 'fs/promises';
 import { Context as MochaContext } from 'mocha';
+import { promiseTimeout } from './utils';
 
 type RedisVersion = [major: number, minor: number, patch: number];
 
@@ -41,6 +41,8 @@ export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion | 
     for (let i = 0; i < lastIndex; i++) {
         if (REDIS_VERSION[i] > minimumVersion[i]) {
             return true;
+        } else if (minimumVersion[i] > REDIS_VERSION[i]) {
+            return false;
         }
     }
 
@@ -195,7 +197,7 @@ export async function spawnRedisCluster(type: TestRedisClusters | null, numberOf
     }
 
     while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
-        await setTimeout(CLUSTER_NODE_TIMEOUT);
+        await promiseTimeout(CLUSTER_NODE_TIMEOUT);
     }
 
     const disconnectPromises = [];
@@ -360,6 +362,6 @@ export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
             throw new Error('Waiting for more than 1 second');
         }
 
-        await setTimeout(1);
+        await promiseTimeout(1);
     } while (spy.callCount === calls)
 }

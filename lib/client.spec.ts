@@ -371,6 +371,9 @@ describe('Client', () => {
             (await client.clientInfo()).db,
             1
         );
+    }, {
+        // because of CLIENT INFO
+        minimumRedisVersion: [6, 2]
     });
 
     itWithClient(TestRedisServers.OPEN, 'scanIterator', async client => {

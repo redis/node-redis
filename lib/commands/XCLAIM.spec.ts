@@ -78,12 +78,9 @@ describe('XCLAIM', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.xClaim', async client => {
-        await Promise.all([
-            client.xGroupCreate('key', 'group', '$', {
-                MKSTREAM: true
-            }),
-            client.xGroupCreateConsumer('key', 'group', 'consumer'),
-        ]);
+        await client.xGroupCreate('key', 'group', '$', {
+            MKSTREAM: true
+        });
         
         assert.deepEqual(
             await client.xClaim('key', 'group', 'consumer', 1, '0-0'),
