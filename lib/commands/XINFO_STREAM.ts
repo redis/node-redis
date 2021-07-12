@@ -44,17 +44,17 @@ export function transformReply(rawReply: Array<any>): XInfoStreamReply {
                 break;
 
             case 'first-entry':
-                parsedReply.firstEntry = {
+                parsedReply.firstEntry = rawReply[i + 1] ? {
                     id: rawReply[i + 1][0],
                     message: transformReplyTuples(rawReply[i + 1][1])
-                };
+                } : null;
                 break;
 
             case 'last-entry':
-                parsedReply.lastEntry = {
+                parsedReply.lastEntry = rawReply[i + 1] ? {
                     id: rawReply[i + 1][0],
                     message: transformReplyTuples(rawReply[i + 1][1])
-                };
+                } : null;
                 break;  
         }
     }

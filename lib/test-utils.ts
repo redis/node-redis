@@ -14,24 +14,37 @@ import { Context as MochaContext } from 'mocha';
 
 type RedisVersion = [major: number, minor: number, patch: number];
 
-type PartialRedisVersion = RedisVersion | [major: number, minor: number] | [major: number] | undefined;
+type PartialRedisVersion = RedisVersion | [major: number, minor: number] | [major: number];
 
-const REDIS_VERSION = execSync('redis-server -v')
-    .toString()
-    .split('.', 3)
-    .map(Number) as RedisVersion;
+const REDIS_PATH = which.sync('redis-server'),
+    REDIS_VERSION = getRedisVersion();
 
-export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion): boolean {
+function getRedisVersion(): RedisVersion {
+    const raw = execSync(`${REDIS_PATH} -v`).toString(),
+        indexOfVersion = raw.indexOf('v=');
+
+    if (indexOfVersion === -1) {
+        throw new Error('Unknown redis version');
+    }
+
+    const start = indexOfVersion + 2;
+    return raw.substring(
+        start,
+        raw.indexOf(' ', start)
+    ).split('.', 3).map(Number) as RedisVersion;
+}
+
+export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion | undefined): boolean {    
     if (minimumVersion === undefined) return true;
 
     const lastIndex = minimumVersion.length - 1;
     for (let i = 0; i < lastIndex; i++) {
-        if (minimumVersion[i] > REDIS_VERSION[i]) {
+        if (REDIS_VERSION[i] > minimumVersion[i]) {
             return true;
         }
     }
 
-    return minimumVersion[lastIndex] >= REDIS_VERSION[lastIndex];
+    return REDIS_VERSION[lastIndex] >= minimumVersion[lastIndex];
 }
 
 export enum TestRedisServers {
@@ -46,9 +59,6 @@ export enum TestRedisClusters {
 }
 
 export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, Array<RedisSocketOptions>> = <any>{};
-
-
-const REDIS_PATH = which.sync('redis-server');
 
 let port = 6379;
 
@@ -219,6 +229,10 @@ async function spawnPasswordServer(): Promise<void> {
         port: await spawnGlobalRedisServer(['--requirepass', 'password']),
         password: 'password'
     };
+
+    if (isRedisVersionGreaterThan([6])) {
+        TEST_REDIS_SERVERS[TestRedisServers.PASSWORD].username = 'default';
+    }
 }
 
 async function spawnOpenCluster(): Promise<void> {
@@ -241,18 +255,18 @@ interface RedisTestOptions {
     minimumRedisVersion?: PartialRedisVersion;
 }
 
-export function handleMinimumRedisVersion(mochaContext: MochaContext, minimumRedisVersion: PartialRedisVersion): boolean {
-    if (isRedisVersionGreaterThan(minimumRedisVersion)) {
-        mochaContext.skip();
-        return true;
+export function handleMinimumRedisVersion(mochaContext: MochaContext, minimumVersion: PartialRedisVersion | undefined): boolean {
+    if (isRedisVersionGreaterThan(minimumVersion)) {
+        return false;
     }
 
-    return false;
+    mochaContext.skip();
+    return true;
 }
 
-export function describeHandleMinimumRedisVersion(minimumRedisVersion: PartialRedisVersion): void {
+export function describeHandleMinimumRedisVersion(minimumVersion: PartialRedisVersion): void {
     before(function () {
-        handleMinimumRedisVersion(this, minimumRedisVersion);
+        handleMinimumRedisVersion(this, minimumVersion);
     });
 }
 
@@ -263,7 +277,7 @@ export function itWithClient(
     options?: RedisTestOptions
 ): void {
     it(title, async function () {
-        handleMinimumRedisVersion(this, options?.minimumRedisVersion);
+        if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
 
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[type]
@@ -288,7 +302,7 @@ export function itWithCluster(
     options?: RedisTestOptions
 ): void {
     it(title, async function () {
-        handleMinimumRedisVersion(this, options?.minimumRedisVersion);
+        if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
 
         const cluster = RedisCluster.create({
             rootNodes: TEST_REDIS_CLUSTERES[type]
