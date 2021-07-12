@@ -8,7 +8,7 @@ import { RedisSocketOptions } from './socket';
 import which from 'which';
 import { SinonSpy } from 'sinon';
 import RedisCluster, { RedisClusterType } from './cluster';
-import { unlink } from 'fs/promises';
+import { promises as fs } from 'fs';
 import { Context as MochaContext } from 'mocha';
 import { promiseTimeout } from './utils';
 
@@ -158,7 +158,7 @@ async function spawnRedisClusterNode(
             await originalCleanup();
 
             try {
-                await unlink(clusterConfigFile);
+                await fs.unlink(clusterConfigFile);
             } catch (err) {
                 if (err.code == 'ENOENT') return;
     
