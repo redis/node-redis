@@ -14,8 +14,11 @@ import * as APPEND from './APPEND';
 import * as ASKING from './ASKING';
 import * as AUTH from './AUTH';
 import * as BGREWRITEAOF from './BGREWRITEAOF';
+import * as BGSAVE from './BGSAVE';
 import * as BITCOUNT from './BITCOUNT';
 import * as BITFIELD from './BITFIELD';
+import * as BITOP from './BITOP';
+import * as BITPOS from './BITPOS';
 import * as BLMOVE from './BLMOVE';
 import * as BLPOP from './BLPOP';
 import * as BRPOP from './BRPOP';
@@ -30,17 +33,27 @@ import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as CLUSTER_MEET from './CLUSTER_MEET';
 import * as CLUSTER_RESET from './CLUSTER_RESET';
 import * as CLUSTER_SETSLOT from './CLUSTER_SETSLOT';
+import * as CONFIG_GET from './CONFIG_GET';
+import * as CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
+import * as CONFIG_REWRITE from './CONFIG_REWRITE';
+import * as CONFIG_SET from './CONFIG_SET';
 import * as COPY from './COPY';
 import * as DECR from './DECR';
 import * as DECRBY from './DECRBY';
 import * as DEL from './DEL';
+import * as DISCARD from './DISCARD';
 import * as DUMP from './DUMP';
+import * as ECHO from './ECHO';
 import * as EXISTS from './EXISTS';
 import * as EXPIRE from './EXPIRE';
 import * as EXPIREAT from './EXPIREAT';
+import * as FAILOVER from './FAILOVER';
 import * as FLUSHALL from './FLUSHALL';
 import * as FLUSHDB from './FLUSHDB';
 import * as GET from './GET';
+import * as GETBIT from './GETBIT';
+import * as GETDEL from './GETDEL';
+import * as GETRANGE from './GETRANGE';
 import * as HDEL from './HDEL';
 import * as HEXISTS from './HEXISTS';
 import * as HGET from './HGET';
@@ -61,6 +74,7 @@ import * as HVALS from './HVALS';
 import * as INCR from './INCR';
 import * as INCRBY from './INCRBY';
 import * as INCRBYFLOAT from './INCRBYFLOAT';
+import * as INFO from './INFO';
 import * as KEYS from './KEYS';
 import * as LASTSAVE from './LASTSAVE';
 import * as LINDEX from './LINDEX';
@@ -94,6 +108,7 @@ import * as PTTL from './PTTL';
 import * as PUBLISH from './PUBLISH';
 import * as RANDOMKEY from './RANDOMKEY';
 import * as READONLY from './READONLY';
+import * as READWRITE from './READWRITE';
 import * as RENAME from './RENAME';
 import * as RENAMENX from './RENAMENX';
 import * as REPLICAOF from './REPLICAOF';
@@ -109,7 +124,9 @@ import * as SCARD from './SCARD';
 import * as SDIFF from './SDIFF';
 import * as SDIFFSTORE from './SDIFFSTORE';
 import * as SET from './SET';
+import * as SETBIT from './SETBIT';
 import * as SETRANGE from './SETRANGE';
+import * as SHUTDOWN from './SHUTDOWN';
 import * as SINTER from './SINTER';
 import * as SINTERSTORE from './SINTERSTORE';
 import * as SISMEMBER from './SISMEMBER';
@@ -125,6 +142,7 @@ import * as SSCAN from './SSCAN';
 import * as STRLEN from './STRLEN';
 import * as SUNION from './SUNION';
 import * as SUNIONSTORE from './SUNIONSTORE';
+import * as SWAPDB from './SWAPDB';
 import * as TIME from './TIME';
 import * as TOUCH from './TOUCH';
 import * as TTL from './TTL';
@@ -221,10 +239,16 @@ export default {
     auth: AUTH,
     BGREWRITEAOF,
     bgRewriteAof: BGREWRITEAOF,
+    BGSAVE,
+    bgSave: BGSAVE,
     BITCOUNT,
     bitCount: BITCOUNT,
     BITFIELD,
     bitField: BITFIELD,
+    BITOP,
+    bitOp: BITOP,
+    BITPOS,
+    bitPos: BITPOS,
     BLMOVE,
     blMove: BLMOVE,
     BLPOP,
@@ -253,6 +277,14 @@ export default {
     clusterReset: CLUSTER_RESET,
     CLUSTER_SETSLOT,
     clusterSetSlot: CLUSTER_SETSLOT,
+    CONFIG_GET,
+    configGet: CONFIG_GET,
+    CONFIG_RESETASTAT,
+    configResetStat: CONFIG_RESETASTAT,
+    CONFIG_REWRITE,
+    configRewrite: CONFIG_REWRITE,
+    CONFIG_SET,
+    configSet: CONFIG_SET,
     COPY,
     copy: COPY,
     DECR,
@@ -261,20 +293,32 @@ export default {
     decrBy: DECRBY,
     DEL,
     del: DEL,
+    DISCARD,
+    discard: DISCARD,
     DUMP,
     dump: DUMP,
+    ECHO,
+    echo: ECHO,
     EXISTS,
     exists: EXISTS,
     EXPIRE,
     expire: EXPIRE,
     EXPIREAT,
     expireAt: EXPIREAT,
+    FAILOVER,
+    failover: FAILOVER,
     FLUSHALL,
     flushAll: FLUSHALL,
     FLUSHDB,
     flushDb: FLUSHDB,
     GET,
     get: GET,
+    GETBIT,
+    getBit: GETBIT,
+    GETDEL,
+    getDel: GETDEL,
+    GETRANGE,
+    getRange: GETRANGE,
     HDEL,
     hDel: HDEL,
     HEXISTS,
@@ -315,6 +359,8 @@ export default {
     incrBy: INCRBY,
     INCRBYFLOAT,
     incrByFloat: INCRBYFLOAT,
+    INFO,
+    info: INFO,
     KEYS,
     keys: KEYS,
     LASTSAVE,
@@ -380,6 +426,8 @@ export default {
     randomKey: RANDOMKEY,
     READONLY,
     readonly: READONLY,
+    READWRITE,
+    readwrite: READWRITE,
     RENAME,
     rename: RENAME,
     RENAMENX,
@@ -414,8 +462,12 @@ export default {
     sInterStore: SINTERSTORE,
     SET,
     set: SET,
+    SETBIT,
+    setBit: SETBIT,
     SETRANGE,
     setRange: SETRANGE,
+    SHUTDOWN,
+    shutdown: SHUTDOWN,
     SISMEMBER,
     sIsMember: SISMEMBER,
     SMEMBERS,
@@ -442,6 +494,8 @@ export default {
     sUnion: SUNION,
     SUNIONSTORE,
     sUnionStore: SUNIONSTORE,
+    SWAPDB,
+    swapDb: SWAPDB,
     TIME,
     time: TIME,
     TOUCH,

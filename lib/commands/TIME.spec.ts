@@ -3,7 +3,7 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './TIME';
 
 describe('TIME', () => {
-    describe('transformArguments', () => {
+    it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
             ['TIME']

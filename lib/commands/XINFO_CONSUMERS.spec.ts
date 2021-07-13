@@ -3,7 +3,7 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments, transformReply } from './XINFO_CONSUMERS';
 
 describe('XINFO CONSUMERS', () => {
-    describe('transformArguments', () => {
+    it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', 'group'),
             ['XINFO', 'CONSUMERS', 'key', 'group']

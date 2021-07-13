@@ -38,6 +38,14 @@ export function transformReplyBooleanArray(reply: Array<number>): Array<boolean>
     return reply.map(transformReplyBoolean);
 }
 
+export type BitValue = 0 | 1;
+
+export function transformReplyBit(reply: BitValue): BitValue {
+    return reply;
+}
+
+export function transformReplyVoid(): void {}
+
 export interface ScanOptions {
     MATCH?: string;
     COUNT?: number;

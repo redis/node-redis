@@ -3,7 +3,7 @@ import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './XGROUP_SETID';
 
 describe('XGROUP SETID', () => {
-    describe('transformArguments', () => {
+    it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', 'group', '0'),
             ['XGROUP', 'SETID', 'key', 'group', '0']
