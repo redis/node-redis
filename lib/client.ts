@@ -16,10 +16,10 @@ export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     scripts?: S;
     commandsQueueMaxLength?: number;
     readonly?: boolean;
-    legacyMode?: modes;
+    legacyMode?: RedisClientLegacyModes;
 }
 
-export enum modes {
+export enum RedisClientLegacyModes {
     "off",
     "warn",
     "nowarn"
@@ -77,10 +77,10 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     get v4(): Record<string, any> {
-        if (this.#options?.legacyMode == modes.off || this.#options?.legacyMode == null) {
+        if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == null) {
             throw new Error('the client is not in "legacy mode"');
         }
-        else if (this.#options?.legacyMode == modes.warn)
+        else if (this.#options?.legacyMode == RedisClientLegacyModes.warn)
         {
             this.emit("warning", "Legacy command detected. See stderr for the stack trace.")
             console.warn("Legacy command detected");
