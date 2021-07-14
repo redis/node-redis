@@ -59,6 +59,12 @@ describe('Client', () => {
         afterEach(() => client.v4.flushAll());
         after(() => client.disconnect());
 
+	it('legacyMode=off throws');
+
+	it('legacyMode=warn warns');
+
+	it('legacyMode=nowarn doesn\'t warn');
+
         it('client.sendCommand should call the callback', done => {
             (client as any).sendCommand('PING', (err?: Error, reply?: string) => {
                 if (err) {
