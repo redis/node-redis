@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
-import RedisClient, { modes } from './client';
+import RedisClient, { RedisClientLegacyModes } from './client';
 import { AbortError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
@@ -26,7 +26,7 @@ describe('Client', () => {
             await assert.rejects(
                 client.connect(),
                 {
-                    
+
                     message: isRedisVersionGreaterThan([6]) ?
                         'WRONGPASS invalid username-password pair or user is disabled.' :
                         'ERR invalid password'
@@ -52,7 +52,7 @@ describe('Client', () => {
                     }
                 }
             },
-            legacyMode: modes.nowarn
+            legacyMode: RedisClientLegacyModes.nowarn
         });
 
         before(() => client.connect());
@@ -164,7 +164,7 @@ describe('Client', () => {
                 ['PONG', 'PONG']
             );
         });
-        
+
         it('client.testModule.echo should call the callback', done => {
             (client as any).testModule.echo('message', (err?: Error, reply?: string) => {
                 if (err) {
@@ -186,7 +186,7 @@ describe('Client', () => {
                 'message'
             );
         });
-        
+
         it('client.multi.testModule.echo.v4.testModule.echo.exec should call the callback', done => {
             (client as any).multi()
                 .testModule.echo('message')
@@ -310,7 +310,7 @@ describe('Client', () => {
                     })
                 }
             });
-    
+
             await client.connect();
 
             try {
@@ -325,7 +325,7 @@ describe('Client', () => {
             }
         });
     });
-    
+
     it('scripts', async () => {
         const client = RedisClient.create({
             scripts: {
@@ -514,7 +514,7 @@ describe('Client', () => {
 
             await subscriber.pUnsubscribe();
             await publisher.publish('channel', 'message');
-            
+
             assert.ok(channelListener1.calledOnce);
             assert.ok(channelListener2.calledTwice);
             assert.ok(patternListener.calledThrice);
