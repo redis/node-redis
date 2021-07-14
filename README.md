@@ -156,11 +156,17 @@ import { defineScript } from 'redis/dist/lib/lua-script';
 
 ### Legacy Mode
 
-Need to use the new client in an existing codebase? You can use legacy mode to preserve backwards compatibility while still getting access to the updated experience:
+Need to use the new client in an existing codebase? You can use legacy mode to preserve backwards compatibility while still getting access to the updated  experience.
+
+To enable legacy mode, you can:
+- Set `legacyMode = modes.warn` to print a warning and stacktrace (useful if you're upgrading)
+- Set `legacyMode = modes.nowarn` if you want it to work without complaining
+
+Setting `legacyMode` to `modes.off`, or just not setting it, will throw an error and exit when a legacy command is detected.
 
 ```typescript
 const client = createClient({
-    legacyMode: true
+    legacyMode: modes.warn
 });
 
 // legacy mode
