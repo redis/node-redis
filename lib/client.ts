@@ -82,6 +82,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         }
         else if (this.#options?.legacyMode == modes.warn)
         {
+            this.emit("warning", "Legacy command detected. See stderr for the stack trace.")
             console.warn("Legacy command detected");
             console.trace();
         }
