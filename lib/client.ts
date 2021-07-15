@@ -53,6 +53,9 @@ export interface ClientCommandOptions extends QueueCommandOptions {
 }
 
 export default class RedisClient<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> extends EventEmitter {
+    #warnLegacy = (): void => {
+        return;
+    };
     static create<M extends RedisModules, S extends RedisLuaScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
         return <any>new RedisClient<M, S>(options);
     }
@@ -78,13 +81,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
     get v4(): Record<string, any> {
         if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == null) {
-            throw new Error('the client is not in "legacy mode"');
-        }
-        else if (this.#options?.legacyMode == RedisClientLegacyModes.warn)
-        {
-            this.emit("warning", "Legacy command detected. See stderr for the stack trace.")
-            console.warn("Legacy command detected");
-            console.trace();
+            throw new Error('The client is not in "legacy mode". Only specify v4 when in legacy mode.');
         }
 
         return this.#v4;
@@ -103,7 +100,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
     #initiateSocket(): RedisSocket {
         const socketInitiator = async (): Promise<void> => {
-            const v4Commands = this.#options?.legacyMode ? this.#v4 : this,
+            const v4Commands = (this.#options?.legacyMode != RedisClientLegacyModes.off) ? this.#v4 : this,
                 promises = [];
 
             if (this.#selectedDB !== 0) {
@@ -123,7 +120,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 promises.push(resubscribePromise);
                 this.#tick();
             }
-            
+
             await Promise.all(promises);
         };
 
@@ -152,7 +149,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     #initiateMulti(): typeof RedisMultiCommand & { new(): RedisMultiCommandType<M, S> } {
         const executor = async (commands: Array<MultiQueuedCommand>): Promise<Array<RedisReply>> => {
             const promise = Promise.all(
-                commands.map(({encodedCommand}) => {
+                commands.map(({ encodedCommand }) => {
                     return this.#queue.addEncodedCommand(encodedCommand);
                 })
             );
@@ -209,7 +206,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 script.SHA,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
-            ], options);        
+            ], options);
         } catch (err: any) {
             if (!err?.message?.startsWith?.('NOSCRIPT')) {
                 throw err;
@@ -225,10 +222,20 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     #legacyMode(): void {
-        if (!this.#options?.legacyMode) return;
+        if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == undefined) return;
+
+        if (this.#options.legacyMode == RedisClientLegacyModes.warn)
+        {
+            this.#warnLegacy = (): void => {
+                this.emit("warning", "Legacy command detected");
+                console.warn("Legacy command detected");
+                console.trace();
+            }
+        }
 
         (this as any).#v4.sendCommand = this.sendCommand.bind(this);
         (this as any).sendCommand = (...args: Array<unknown>): void => {
+            this.#warnLegacy();
             const options = isCommandOptions<ClientCommandOptions>(args[0]) ? args[0] : undefined,
                 callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] as Function : undefined,
                 actualArgs = !options && !callback ? args : args.slice(options ? 1 : 0, callback ? -1 : Infinity);
@@ -286,7 +293,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         const handler = (...args: Array<unknown>): void => {
             (this as any).sendCommand(name, ...args);
         };
-        
+
         if (moduleName) {
             (this as any).#v4[moduleName][name] = (this as any)[moduleName][name];
             (this as any)[moduleName][name] = handler;
@@ -358,7 +365,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return this.#sendCommand(args, options);
     }
 
-    async #sendCommand<T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
+    async #sendCommand <T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
         if (options?.duplicateConnection) {
             const duplicate = this.duplicate();
             await duplicate.connect();
@@ -384,7 +391,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             options = args[0];
             args = args.slice(1);
         }
-        
+
         return command.transformReply(
             await this.#sendCommand(
                 command.transformArguments(...args),
@@ -397,7 +404,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return new this.#Multi();
     }
 
-    async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
+    async * scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
         let cursor = 0;
         do {
             const reply = await (this as any).scan(cursor, options);
@@ -408,7 +415,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
-    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<HScanTuple> {
+    async * hScanIterator(key: string, options?: ScanOptions): AsyncIterable<HScanTuple> {
         let cursor = 0;
         do {
             const reply = await (this as any).hScan(key, cursor, options);
@@ -419,7 +426,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
-    async* sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
+    async * sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
         let cursor = 0;
         do {
             const reply = await (this as any).sScan(key, cursor, options);
@@ -430,7 +437,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
-    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember> {
+    async * zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember> {
         let cursor = 0;
         do {
             const reply = await (this as any).zScan(key, cursor, options);
@@ -447,7 +454,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     #tick(): void {
-        const {chunkRecommendedSize} = this.#socket;
+        const { chunkRecommendedSize } = this.#socket;
         if (!chunkRecommendedSize) {
             return;
         }
