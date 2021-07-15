@@ -80,9 +80,9 @@ describe('Client', () => {
                 assert.throws(() => {client.v4.PING()});
             })
 
-            it('legacyMode=off throws on attempted callback')
+            it('legacyMode=off throws on attempted callback') // TODO
 
-            it('legacyMode=undefined throws on attempted callback')
+            it('legacyMode=undefined throws on attempted callback') // TODO
 
             it('legacyMode=warn warns', async (done) => {
                 const client = RedisClient.create({
