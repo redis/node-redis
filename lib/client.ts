@@ -239,6 +239,12 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             const options = isCommandOptions<ClientCommandOptions>(args[0]) ? args[0] : undefined,
                 callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] as Function : undefined,
                 actualArgs = !options && !callback ? args : args.slice(options ? 1 : 0, callback ? -1 : Infinity);
+            if (callback) {
+                if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == undefined)
+                {
+                    throw new Error("Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode")
+                }
+            }
             this.#sendCommand(actualArgs.flat() as Array<string>, options)
                 .then((reply: unknown) => {
                     if (!callback) return;
