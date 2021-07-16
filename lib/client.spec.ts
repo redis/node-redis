@@ -57,7 +57,7 @@ describe('Client', () => {
                     legacyMode: RedisClientLegacyModes.off
                 });
 
-                assert.throws(() => {client.v4.PING()});
+                assert.throws(() => { client.v4.PING() });
             });
 
             it('legacyMode=undefined throws on .v4 usage', async () => {
@@ -77,12 +77,63 @@ describe('Client', () => {
                     }
                 });
 
-                assert.throws(() => {client.v4.PING()});
+                assert.throws(() => { client.v4.PING() });
             })
 
-            it('legacyMode=off throws on attempted callback') // TODO
+            it('legacyMode=off throws on attempted callback', (done) => {
+                const client = RedisClient.create({
+                    socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+                    modules: {
+                        testModule: {
+                            echo: {
+                                transformArguments(message: string): Array<string> {
+                                    return ['ECHO', message];
+                                },
+                                transformReply(reply: string): string {
+                                    return reply;
+                                }
+                            }
+                        }
+                    },
+                    legacyMode: RedisClientLegacyModes.off
+                });
 
-            it('legacyMode=undefined throws on attempted callback') // TODO
+                client.once("error", (...args) => {
+                    if (args[0] == "Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode")
+                        done();
+                })
+
+                assert.throws(() => {
+                    (client as any).sendCommand(["echo", "test", (error: any, reply: any) => { return; }])
+                });
+            });
+
+            it('legacyMode=undefined throws on attempted callback', (done) => {
+                const client = RedisClient.create({
+                    socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+                    modules: {
+                        testModule: {
+                            echo: {
+                                transformArguments(message: string): Array<string> {
+                                    return ['ECHO', message];
+                                },
+                                transformReply(reply: string): string {
+                                    return reply;
+                                }
+                            }
+                        }
+                    }
+                });
+
+                client.once("error", (...args) => {
+                    if (args[0] == "Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode")
+                        done();
+                })
+
+                assert.throws(() => {
+                    (client as any).sendCommand(["echo", "test", (error: any, reply: any) => { return; }])
+                });
+            });
 
             it('legacyMode=warn warns', async (done) => {
                 const client = RedisClient.create({
@@ -106,7 +157,7 @@ describe('Client', () => {
                     done();
                 });
 
-                (client as any).sendCommand('PING', (error: any, reply: any) => {return});
+                (client as any).sendCommand('PING', (error: any, reply: any) => { return });
             });
 
             it('legacyMode=nowarn doesn\'t warn', async () => {
@@ -133,7 +184,7 @@ describe('Client', () => {
                     warned = true;
                 });
 
-                (client as any).sendCommand('PING', (error: any, reply: any) => {assert(warned == false, "Warning was emitted")});
+                (client as any).sendCommand('PING', (error: any, reply: any) => { assert(warned == false, "Warning was emitted") });
             });
         })
 

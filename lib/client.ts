@@ -224,8 +224,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     #legacyMode(): void {
         if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == undefined) return;
 
-        if (this.#options.legacyMode == RedisClientLegacyModes.warn)
-        {
+        if (this.#options.legacyMode == RedisClientLegacyModes.warn) {
             this.#warnLegacy = (): void => {
                 this.emit("warning", "Legacy command detected");
                 console.warn("Legacy command detected");
@@ -239,12 +238,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             const options = isCommandOptions<ClientCommandOptions>(args[0]) ? args[0] : undefined,
                 callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] as Function : undefined,
                 actualArgs = !options && !callback ? args : args.slice(options ? 1 : 0, callback ? -1 : Infinity);
-            if (callback) {
-                if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == undefined)
-                {
-                    throw new Error("Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode")
-                }
-            }
             this.#sendCommand(actualArgs.flat() as Array<string>, options)
                 .then((reply: unknown) => {
                     if (!callback) return;
@@ -368,10 +361,18 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     sendCommand<T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
-        return this.#sendCommand(args, options);
+        let temp = this.#sendCommand(args, options);
+        temp.catch(reason => {
+            throw reason
+        })
+        return (temp as Promise<T>);
     }
 
     async #sendCommand <T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
+        if (typeof args[args.length - 1] === 'function' || typeof options === 'function') {
+            this.emit("error", "Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode")
+            throw new Error("Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode");
+        }
         if (options?.duplicateConnection) {
             const duplicate = this.duplicate();
             await duplicate.connect();
