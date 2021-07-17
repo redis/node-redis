@@ -50,7 +50,7 @@ export default class RedisCommandsQueue {
 
         for (let i = 1; i < args.length; i++) {
             const str = args[i].toString();
-            encoded.push(`$${Buffer.byteLength(str)}`, str);
+            encoded.push(`$${str.length}`, str);
         }
 
         return encoded.join('\r\n') + '\r\n';
