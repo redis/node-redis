@@ -768,6 +768,11 @@ connected to the server including the monitoring client itself. The callback for
 the `monitor` event takes a timestamp from the Redis server, an array of command
 arguments and the raw monitoring string.
 
+Please note that, due to the way Redis handles connections, a client used for
+Monitor mode can *only* be used for monitor mode. Should you need to also send
+commands, you should either use `client.duplicate()` or create a second connection
+manually.
+
 #### Example:
 
 ```js
