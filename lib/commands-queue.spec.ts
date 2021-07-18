@@ -9,8 +9,8 @@ describe('Command Queue', () => {
     });
 
     it('UTF-16 Byte length check (see #1628)', () => {
-	const encodeCommandInput = ["\u{1f91e}"];
+	const encodeCommandInput = ["🤞", "🤞"];
 	const encoded = RedisCommandsQueue.encodeCommand(encodeCommandInput);
-	assert.equal(encoded, "*1\r\n$4\r\n\u{1f91e}\r\n");
+	assert.equal(encoded, "*2\r\n$4\r\n🤞\r\n$4\r\n🤞\r\n");
     }); 
 });

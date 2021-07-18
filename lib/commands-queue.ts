@@ -44,7 +44,7 @@ export default class RedisCommandsQueue {
     static encodeCommand(args: Array<string>): string {
         const encoded = [
             `*${args.length}`,
-            `$${args[0].length}`,
+            `$${Buffer.byteLength(args[0])}`,
             args[0]
         ];
 
