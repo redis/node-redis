@@ -74,6 +74,12 @@ export default class RedisCommandsQueue {
 
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
 
+    #waitingToBeSentCommandsLength = 0;
+
+    get waitingToBeSentCommandsLength() {
+        return this.#waitingToBeSentCommandsLength;
+    }
+
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
 
     readonly #pubSubState = {
@@ -97,7 +103,7 @@ export default class RedisCommandsQueue {
                             reply[2],
                             reply[1]
                         );
-                    
+
                     case 'pmessage':
                         return RedisCommandsQueue.#emitPubSubMessage(
                             this.#pubSubListeners.patterns.get(reply[1])!,
@@ -108,7 +114,7 @@ export default class RedisCommandsQueue {
                     case 'subscribe':
                     case 'psubscribe':
                         if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
-                            this.#shiftWaitingForReply().resolve(); 
+                            this.#shiftWaitingForReply().resolve();
                         }
                         return;
                 }
@@ -185,6 +191,8 @@ export default class RedisCommandsQueue {
             } else {
                 this.#waitingToBeSent.pushNode(node);
             }
+
+            this.#waitingToBeSentCommandsLength += encodedCommand.length;
         });
     }
 
@@ -325,6 +333,7 @@ export default class RedisCommandsQueue {
         }
 
         this.#chainInExecution = lastCommandChainId;
+        this.#waitingToBeSentCommandsLength -= size;
     }
 
     parseResponse(data: Buffer): void {

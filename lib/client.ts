@@ -444,20 +444,29 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return this.#socket.disconnect();
     }
 
+    #isTickQueued = false;
+
     #tick(): void {
         const {chunkRecommendedSize} = this.#socket;
         if (!chunkRecommendedSize) {
             return;
         }
 
-        // TODO: batch using process.nextTick? maybe socket.setNoDelay(false)?
+        if (!this.#isTickQueued && this.#queue.waitingToBeSentCommandsLength < chunkRecommendedSize) {
+            queueMicrotask(() => this.#tick());
+            this.#isTickQueued = true;
+            return;
+        }
 
         const isBuffering = this.#queue.executeChunk(chunkRecommendedSize);
         if (isBuffering === true) {
             this.#socket.once('drain', () => this.#tick());
         } else if (isBuffering === false) {
             this.#tick();
+            return;
         }
+
+        this.#isTickQueued = false;
     }
 }
 

@@ -159,6 +159,7 @@ export default class RedisSocket extends EventEmitter {
                 this.#createNetSocket();
 
             socket
+                .setNoDelay()
                 .once('error', (err) => reject(err))
                 .once(connectEvent, () => {
                     socket
