@@ -1,8 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './GEOSEARCHSTORE';
 
 describe('GEOSEARCHSTORE', () => {
+    describeHandleMinimumRedisVersion([6, 2]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('destination', 'source', 'member', {

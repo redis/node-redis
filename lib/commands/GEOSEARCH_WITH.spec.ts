@@ -1,10 +1,12 @@
 import { strict as assert } from 'assert';
 import { TransformArgumentsReply } from '.';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
 import { GeoReplyWith } from './generic-transformers';
 import { transformArguments } from './GEOSEARCH_WITH';
 
 describe('GEOSEARCH WITH', () => {
+    describeHandleMinimumRedisVersion([6, 2]);
+
     it('transformArguments', () => {
         const expectedReply: TransformArgumentsReply = ['GEOSEARCH', 'key', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'WITHDIST']
         expectedReply.preserve = ['WITHDIST'];
