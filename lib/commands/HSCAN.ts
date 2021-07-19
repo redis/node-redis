@@ -1,15 +1,14 @@
-import { ScanOptions, transformScanArguments } from './generic-transformers';
+import { ScanOptions, pushScanArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(key: string, cursor: number, options?: ScanOptions): Array<string> {
-    return [
+    return pushScanArguments([
         'HSCAN',
-        key,
-        ...transformScanArguments(cursor, options)
-    ];
+        key
+    ], cursor, options);
 }
 
 export interface HScanTuple {
@@ -30,7 +29,7 @@ export function transformReply([cursor, rawTuples]: [string, Array<string>]): HS
             value: rawTuples[i + 1]
         });
     }
-    
+
     return {
         cursor: Number(cursor),
         tuples: parsedTuples

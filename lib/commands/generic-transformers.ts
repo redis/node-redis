@@ -51,8 +51,8 @@ export interface ScanOptions {
     COUNT?: number;
 }
 
-export function transformScanArguments(cursor: number, options?: ScanOptions): Array<string> {
-    const args = [cursor.toString()];
+export function pushScanArguments(args: Array<string>, cursor: number, options?: ScanOptions): Array<string> {
+    args.push(cursor.toString());
 
     if (options?.MATCH) {
         args.push('MATCH', options.MATCH);
@@ -61,7 +61,7 @@ export function transformScanArguments(cursor: number, options?: ScanOptions): A
     if (options?.COUNT) {
         args.push('COUNT', options.COUNT.toString());
     }
-    
+
     return args;
 }
 
@@ -69,7 +69,7 @@ export function transformReplyNumberInfinity(reply: string): number {
     switch (reply) {
         case '+inf':
             return Infinity;
-        
+
         case '-inf':
             return -Infinity;
 
@@ -96,7 +96,7 @@ export function transformArgumentNumberInfinity(num: number): string {
     switch (num) {
         case Infinity:
             return '+inf';
-        
+
         case -Infinity:
             return '-inf';
 
@@ -179,4 +179,135 @@ export function transformReplySortedSetWithScores(reply: Array<string>): Array<Z
     }
 
     return members;
+}
+
+type GeoCountArgument = number | {
+    value: number;
+    ANY?: true
+};
+
+export function pushGeoCountArgument(args: Array<string>, count: GeoCountArgument | undefined): Array<string> {
+    if (typeof count === 'number') {
+        args.push('COUNT', count.toString());
+    } else if (count) {
+        args.push('COUNT', count.value.toString());
+
+        if (count.ANY) {
+            args.push('ANY');
+        }
+    }
+
+    return args;
+}
+
+export type GeoUnits = 'm' | 'km' | 'mi' | 'ft';
+
+export interface GeoCoordinates {
+    longitude: string | number;
+    latitude: string | number;
+}
+
+type GeoSearchFromMember = string;
+
+export type GeoSearchFrom = GeoSearchFromMember | GeoCoordinates;
+
+interface GeoSearchByRadius {
+    radius: number;
+    unit: GeoUnits;
+}
+
+interface GeoSearchByBox {
+    width: number;
+    height: number;
+    unit: GeoUnits;
+}
+
+export type GeoSearchBy = GeoSearchByRadius | GeoSearchByBox;
+
+export interface GeoSearchOptions {
+    SORT?: 'ASC' | 'DESC';
+    COUNT?: GeoCountArgument;
+}
+
+export function pushGeoSearchArguments(
+    args: Array<string>,
+    key: string,
+    from: GeoSearchFrom,
+    by: GeoSearchBy,
+    options?: GeoSearchOptions
+): Array<string> {
+    args.push(key);
+
+    if (typeof from === 'string') {
+        args.push('FROMMEMBER', from);
+    } else {
+        args.push('FROMLONLAT', from.longitude.toString(), from.latitude.toString());
+    }
+
+    if ('radius' in by) {
+        args.push('BYRADIUS', by.radius.toString());
+    } else {
+        args.push('BYBOX', by.width.toString(), by.height.toString());
+    }
+
+    if (by.unit) {
+        args.push(by.unit);
+    }
+
+    if (options?.SORT) {
+        args.push(options?.SORT);
+    }
+
+    pushGeoCountArgument(args, options?.COUNT);
+
+    return args;
+}
+
+export enum GeoReplyWith {
+    DISTANCE = 'WITHDIST',
+    HASH = 'WITHHASH',
+    COORDINATES = 'WITHCOORD'
+}
+
+export interface GeoReplyWithMember {
+    member: string;
+    distance?: number;
+    hash?: string;
+    coordinates?: {
+        longitude: string;
+        latitude: string;
+    };
+}
+
+export function transformGeoMembersWithReply(reply: Array<Array<any>>, replyWith: Array<GeoReplyWith>): Array<GeoReplyWithMember> {
+    const replyWithSet = new Set(replyWith);
+
+    let index = 0,
+        distanceIndex = replyWithSet.has(GeoReplyWith.DISTANCE) && ++index,
+        hashIndex = replyWithSet.has(GeoReplyWith.HASH) && ++index,
+        coordinatesIndex = replyWithSet.has(GeoReplyWith.COORDINATES) && ++index;
+
+    return reply.map(member => {
+        const transformedMember: GeoReplyWithMember = {
+            member: member[0]
+        };
+
+        if (distanceIndex) {
+            transformedMember.distance = member[distanceIndex];
+        }
+
+        if (hashIndex) {
+            transformedMember.hash = member[hashIndex];
+        }
+
+        if (coordinatesIndex) {
+            const [longitude, latitude] = member[coordinatesIndex];
+            transformedMember.coordinates = {
+                longitude,
+                latitude
+            };
+        }
+
+        return transformedMember;
+    });
 }

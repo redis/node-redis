@@ -50,6 +50,13 @@ import * as EXPIREAT from './EXPIREAT';
 import * as FAILOVER from './FAILOVER';
 import * as FLUSHALL from './FLUSHALL';
 import * as FLUSHDB from './FLUSHDB';
+import * as GEOADD from './GEOADD';
+import * as GEODIST from './GEODIST';
+import * as GEOHASH from './GEOHASH';
+import * as GEOPOS from './GEOPOS';
+import * as GEOSEARCH_WITH from './GEOSEARCH_WITH';
+import * as GEOSEARCH from './GEOSEARCH';
+import * as GEOSEARCHSTORE from './GEOSEARCHSTORE';
 import * as GET from './GET';
 import * as GETBIT from './GETBIT';
 import * as GETDEL from './GETDEL';
@@ -116,7 +123,7 @@ import * as RPOP_COUNT from './RPOP_COUNT';
 import * as RPOP from './RPOP';
 import * as RPOPLPUSH from './RPOPLPUSH';
 import * as RPUSH from './RPUSH';
-import * as RPUSHX from './RPUSHX'; 
+import * as RPUSHX from './RPUSHX';
 import * as SADD from './SADD';
 import * as SAVE from './SAVE';
 import * as SCAN from './SCAN';
@@ -311,6 +318,20 @@ export default {
     flushAll: FLUSHALL,
     FLUSHDB,
     flushDb: FLUSHDB,
+    GEOADD,
+    geoAdd: GEOADD,
+    GEODIST,
+    geoDist: GEODIST,
+    GEOHASH,
+    geoHash: GEOHASH,
+    GEOPOS,
+    geoPos: GEOPOS,
+    GEOSEARCH_WITH,
+    geoSearchWith: GEOSEARCH_WITH,
+    GEOSEARCH,
+    geoSearch: GEOSEARCH,
+    GEOSEARCHSTORE,
+    geoSearchStore: GEOSEARCHSTORE,
     GET,
     get: GET,
     GETBIT,
@@ -561,7 +582,7 @@ export default {
     ZCOUNT,
     zCount: ZCOUNT,
     ZDIFF_WITHSCORES,
-    zDiffWithScores: ZDIFF_WITHSCORES,    
+    zDiffWithScores: ZDIFF_WITHSCORES,
     ZDIFF,
     zDiff: ZDIFF,
     ZDIFFSTORE,
@@ -624,11 +645,13 @@ export default {
 
 export type RedisReply = string | number | Array<RedisReply> | null | undefined;
 
+export type TransformArgumentsReply = Array<string> & { preserve?: unknown };
+
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
     IS_READ_ONLY?: boolean;
-    transformArguments(...args: Array<any>): Array<string>;
-    transformReply(reply: RedisReply): any;
+    transformArguments(...args: Array<any>): TransformArgumentsReply;
+    transformReply(reply: RedisReply, preserved: unknown): any;
 }
 
 export interface RedisCommands {

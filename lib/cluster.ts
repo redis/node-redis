@@ -67,14 +67,21 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
 
         for (const [name, script] of Object.entries(this.#options.scripts)) {
             (this as any)[name] = async function (...args: Parameters<typeof script.transformArguments>): Promise<ReturnType<typeof script.transformReply>> {
-                const options = isCommandOptions(args[0]) && args[0];
+                let options;
+                if (isCommandOptions<ClientCommandOptions>(args[0])) {
+                    options = args[0];
+                    args = args.slice(1);
+                }
+
+                const transformedArguments = script.transformArguments(...args);
                 return script.transformReply(
                     await this.executeScript(
                         script,
                         args,
-                        script.transformArguments(...(options ? args.slice(1) : args)),
+                        transformedArguments,
                         options
-                    )
+                    ),
+                    transformedArguments.preserve
                 );
             };
         }
@@ -121,7 +128,8 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
                 command.IS_READ_ONLY,
                 redisArgs,
                 options
-            )
+            ),
+            redisArgs.preserve
         );
     }
 

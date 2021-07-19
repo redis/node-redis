@@ -1,13 +1,14 @@
-import { ScanOptions, transformScanArguments } from './generic-transformers';
+import { ScanOptions, pushScanArguments } from './generic-transformers';
+
+export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(key: string, cursor: number, options?: ScanOptions): Array<string> {
-    return [
+    return pushScanArguments([
         'SSCAN',
         key,
-        ...transformScanArguments(cursor, options)
-    ];
+    ], cursor, options);
 }
 
 interface SScanReply {

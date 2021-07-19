@@ -1,4 +1,4 @@
-import COMMANDS from './commands';
+import COMMANDS, { TransformArgumentsReply } from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisCommandsQueue from './commands-queue';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
@@ -24,6 +24,7 @@ export type RedisMultiCommandType<M extends RedisModules, S extends RedisLuaScri
 
 export interface MultiQueuedCommand {
     encodedCommand: string;
+    preservedArguments?: unknown;
     transformReply?: RedisCommand['transformReply'];
 }
 
@@ -94,7 +95,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
                         script.SCRIPT
                     );
                 }
-    
+
                 return this.addCommand(
                     [
                         ...evalArgs,
@@ -166,9 +167,10 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         }
     }
 
-    addCommand(args: Array<string>, transformReply?: RedisCommand['transformReply']): RedisMultiCommandType<M, S> {
+    addCommand(args: TransformArgumentsReply, transformReply?: RedisCommand['transformReply']): RedisMultiCommandType<M, S> {
         this.#queue.push({
             encodedCommand: RedisCommandsQueue.encodeCommand(args),
+            preservedArguments: args.preserve,
             transformReply
         });
 
@@ -224,8 +226,8 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
         const rawReplies = await this.#executor(queue, Symbol('[RedisMultiCommand] Chain ID'));
         return (rawReplies[rawReplies.length - 1]! as Array<RedisReply>).map((reply, i) => {
-            const { transformReply } = queue[i + 1];
-            return transformReply ? transformReply(reply) : reply;
+            const { transformReply, preservedArguments } = queue[i + 1];
+            return transformReply ? transformReply(reply, preservedArguments) : reply;
         });
     }
 

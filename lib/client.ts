@@ -111,7 +111,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 promises.push(resubscribePromise);
                 this.#tick();
             }
-            
+
             await Promise.all(promises);
         };
 
@@ -179,12 +179,20 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
         for (const [name, script] of Object.entries(this.#options.scripts)) {
             (this as any)[name] = async function (...args: Parameters<typeof script.transformArguments>): Promise<ReturnType<typeof script.transformReply>> {
-                const options = isCommandOptions(args[0]) && args[0];
+                let options;
+                if (isCommandOptions<ClientCommandOptions>(args[0])) {
+                    options = args[0];
+                    args = args.slice(1);
+                }
+
+                const transformedArguments = script.transformArguments(...args);
                 return script.transformReply(
                     await this.executeScript(
                         script,
-                        ...script.transformArguments(...(options ? args.slice(1) : args))
-                    )
+                        transformedArguments,
+                        options
+                    ),
+                    transformedArguments.preserve
                 );
             };
         }
@@ -197,7 +205,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 script.SHA,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
-            ], options);        
+            ], options);
         } catch (err: any) {
             if (!err?.message?.startsWith?.('NOSCRIPT')) {
                 throw err;
@@ -274,7 +282,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         const handler = (...args: Array<unknown>): void => {
             (this as any).sendCommand(name, ...args);
         };
-        
+
         if (moduleName) {
             (this as any).#v4[moduleName][name] = (this as any)[moduleName][name];
             (this as any)[moduleName][name] = handler;
@@ -372,12 +380,14 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             options = args[0];
             args = args.slice(1);
         }
-        
+
+        const transformedArguments = command.transformArguments(...args);
         return command.transformReply(
             await this.#sendCommand(
-                command.transformArguments(...args),
+                transformedArguments,
                 options
-            )
+            ),
+            transformedArguments.preserve
         );
     }
 
