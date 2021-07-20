@@ -1,4 +1,4 @@
-import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments, transformReplyNumber } from './generic-transformers';
+import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -30,11 +30,10 @@ export function transformArguments(
     return args;
 }
 
+export function transformReply(reply: number): number {
+    if (typeof reply !== 'number') {
+        throw new TypeError(`https://github.com/redis/redis/issues/9261`);
+    }
 
-// in versions 6.2.0-6.2.4 Redis will return an empty array when `src` is empty
-// TODO: issue/PR
-export function transformReply(reply: number | []): number {
-    if (typeof reply === 'number') return reply;
-
-    return 0;
+    return reply;
 }

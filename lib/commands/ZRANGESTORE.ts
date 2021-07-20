@@ -46,10 +46,10 @@ export function transformArguments(dst: string, src: string, min: number, max: n
     return args;
 }
 
-// in versions 6.2.0-6.2.4 Redis will return an empty array when `src` is empty
-// https://github.com/redis/redis/pull/9089
-export function transformReply(reply: number | []): number {
-    if (typeof reply === 'number') return reply;
+export function transformReply(reply: number): number {
+    if (typeof reply !== 'number') {
+        throw new TypeError(`Upgrade to Redis 6.2.5 and up (https://github.com/redis/redis/pull/9089)`);
+    };
 
     return 0;
 }
