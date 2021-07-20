@@ -156,6 +156,7 @@ import * as TTL from './TTL';
 import * as TYPE from './TYPE';
 import * as UNLINK from './UNLINK';
 import * as WAIT from './WAIT';
+import * as WATCH from './WATCH';
 import * as XACK from './XACK';
 import * as XADD from './XADD';
 import * as XAUTOCLAIM_JUSTID from './XAUTOCLAIM_JUSTID';
@@ -529,6 +530,8 @@ export default {
     unlink: UNLINK,
     WAIT,
     wait: WAIT,
+    WATCH,
+    watch: WATCH,
     XACK,
     xAck: XACK,
     XADD,

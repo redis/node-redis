@@ -22,22 +22,34 @@ describe('GEOSEARCHSTORE', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.geoSearchStore', async client => {
+        await client.geoAdd('source', {
+            longitude: 1,
+            latitude: 1,
+            member: 'member'
+        });
+
         assert.equal(
-            await client.geoSearchStore('source', 'destination', 'member', {
+            await client.geoSearchStore('destination', 'source', 'member', {
                 radius: 1,
                 unit: 'm'
             }),
-            0
+            1
         );
     });
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.geoSearchStore', async cluster => {
+        await cluster.geoAdd('{tag}source', {
+            longitude: 1,
+            latitude: 1,
+            member: 'member'
+        });
+
         assert.equal(
-            await cluster.geoSearchStore('{tag}source', '{tag}destination', 'member', {
+            await cluster.geoSearchStore('{tag}destination', '{tag}source', 'member', {
                 radius: 1,
                 unit: 'm'
             }),
-            0
+            1
         );
     });
 });
