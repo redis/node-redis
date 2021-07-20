@@ -82,26 +82,28 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
         for (const [name, script] of Object.entries(this.#clientOptions.scripts)) {
             (this as any)[name] = function (...args: Array<unknown>) {
-                const evalArgs = [];
+                const transformedArgs: TransformArgumentsReply = [];
                 if (this.#scriptsInUse.has(name)) {
-                    evalArgs.push(
+                    transformedArgs.push(
                         'EVALSHA',
                         script.SHA
                     );
                 } else {
                     this.#scriptsInUse.add(name);
-                    evalArgs.push(
+                    transformedArgs.push(
                         'EVAL',
                         script.SCRIPT
                     );
                 }
 
+                transformedArgs.push(script.NUMBER_OF_KEYS.toString());
+
+                const scriptArgs = script.transformArguments(...args);
+                transformedArgs.push(...scriptArgs);
+                transformedArgs.preserve = scriptArgs.preserve;
+
                 return this.addCommand(
-                    [
-                        ...evalArgs,
-                        script.NUMBER_OF_KEYS,
-                        ...script.transformArguments(...args)
-                    ],
+                    transformedArgs,
                     script.transformReply
                 );
             };
@@ -181,31 +183,6 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         return this.addCommand(
             command.transformArguments(...args),
             command.transformReply
-        );
-    }
-
-    executeScript(name: string, script: RedisLuaScript, args: Array<unknown>): RedisMultiCommandType<M, S> {
-        const evalArgs = [];
-        if (this.#scriptsInUse.has(name)) {
-            evalArgs.push(
-                'EVALSHA',
-                script.SHA
-            );
-        } else {
-            this.#scriptsInUse.add(name);
-            evalArgs.push(
-                'EVAL',
-                script.SCRIPT
-            );
-        }
-
-        return this.addCommand(
-            [
-                ...evalArgs,
-                script.NUMBER_OF_KEYS.toString(),
-                ...script.transformArguments(...args)
-            ],
-            script.transformReply
         );
     }
 
