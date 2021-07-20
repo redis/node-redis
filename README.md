@@ -38,7 +38,7 @@ import { createClient } from 'redis';
     const client = createClient();
 
     client.on('error', (err) => console.log('Redis Client Error', err));
-    
+
     await client.connect();
 
     await client.set('key', 'value');
@@ -50,7 +50,7 @@ The new interface is clean and cool, but if you have an existing code base, you 
 
 ### Redis Commands
 
-There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HGET`, `HSET`, etc.) and a friendlier camel-cased version (`hGet`, `hSet`, etc.).
+There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HGET`, `HSET`, etc.) and a friendlier camel-cased version (`hGet`, `hSet`, etc.):
 
 ```typescript
 // raw Redis commands
@@ -88,11 +88,38 @@ await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
 await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
 ```
 
+### Transactions (Multi/Exec)
+
+Start [transactions](https://redis.io/topics/transactions) with a call to `.multi()` and then chain your commands. At the end call `.exec()` and you'll get an array back with the results of your commands:
+
+```typescript
+const [ setKeyReply, otherKeyValue ] = await client.multi()
+    .set('key', 'value')
+    .get('other-key')
+    .exec()
+]); // ['OK', null]
+```
+
+You can also watch keys by calling `.watch()`. If someone else changes them out from underneath you, your transaction will abort:
+
+```typescript
+await client.watch('other-key');
+try {
+    await client.multi()
+        .set('key', 'value')
+        .get('other-key')
+        .exec()
+    ]);
+} catch (err) {
+    // ...
+}
+```
+
 ### Blocking Commands
 
 Any command can be run on a new connection by specifying the `duplicateConnection` option. The newly created connection is closed when the command's `Promise` is fulfilled.
 
-This pattern works especially well for blocking commands—such as `BLPOP` and `BRPOPLPUSH`:
+This pattern works especially well for blocking commands—such as `BLPOP` and `BLMOVE`:
 
 ```typescript
 const blPopPromise = client.blPop(
@@ -107,7 +134,7 @@ await blPopPromise; // '2'
 
 ### Pub/Sub
 
-Subscribing to a channel requires a dedicated Redis connection and is easily handled using events.
+Subscribing to a channel requires a dedicated Redis connection and is easily handled using events:
 
 ```typescript
 await subscriber.subscribe('channel', message => {
@@ -119,6 +146,35 @@ await subscriber.pSubscribe('channe*', (message, channel) => {
 });
 
 await publisher.publish('channel', 'message');
+```
+
+### Scan Iterator
+
+[`SCAN`](https://redis.io/commands/scan) can easily be looped over using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
+
+```typescript
+for await (const key of client.scanIterator()) {
+    // use the key!
+    await client.get(key);
+}
+```
+
+This works with HSCAN, SSCAN, and ZSCAN too:
+
+```typescript
+for await (const member of client.hScanIterator('hash')) {}
+for await (const { field, value } of client.sScanIterator('set')) {}
+for await (const { member, score } of client.zScanIterator('sorted-set')) {}
+```
+
+You can override the default options by just passing them in:
+
+```typescript
+client.scanIterator({
+    TYPE: 'string', // `SCAN` only
+    MATCH: 'patter*',
+    COUNT: 100
+});
 ```
 
 ### Lua Scripts
@@ -154,6 +210,33 @@ import { defineScript } from 'redis/dist/lib/lua-script';
 })();
 ```
 
+### Cluster
+
+Connecting to a cluster is a bit different. Create the client by specifying the root nodes in your cluster and then use it like a non-clustered client:
+
+```typescript
+import { createCluster } from 'redis';
+
+(async () => {
+    const cluster = createCluster({
+        rootNodes: [{
+            host: '192.168.1.1',
+            port: 30001
+        }, {
+            host: '192.168.1.2',
+            port: 30002
+        }]
+    });
+
+    cluster.on('error', (err) => console.log('Redis Cluster Error', err));
+
+    await cluster.connect();
+
+    await cluster.set('key', 'value');
+    const value = await cluster.get('key');
+})();
+```
+
 ### Legacy Mode
 
 Need to use the new client in an existing codebase? You can use legacy mode to preserve backwards compatibility while still getting access to the updated experience:
@@ -172,33 +255,6 @@ client.set('key', 'value', 'NX', (err, reply) => {
 await client.v4.set('key', 'value', {
     NX: true
 });
-```
-
-### Cluster
-
-Connecting to a cluster is a bit different. Create the client by specifying the root nodes in your cluster and then use it like a non-clustered client.
-
-```typescript
-import { createCluster } from 'redis';
-
-(async () => {
-    const cluster = createCluster({
-        rootNodes: [{
-            host: '192.168.1.1',
-            port: 30001
-        }, {
-            host: '192.168.1.2',
-            port: 30002
-        }]
-    });
-
-    cluster.on('error', (err) => console.log('Redis Cluster Error', err));
-    
-    await cluster.connect();
-
-    await cluster.set('key', 'value');
-    const value = await cluster.get('key');
-})();
 ```
 
 ## Contributing
