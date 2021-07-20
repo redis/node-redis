@@ -51,5 +51,5 @@ export function transformReply(reply: number): number {
         throw new TypeError(`Upgrade to Redis 6.2.5 and up (https://github.com/redis/redis/pull/9089)`);
     };
 
-    return 0;
+    return reply;
 }
