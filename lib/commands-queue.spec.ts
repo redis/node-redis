@@ -2,15 +2,26 @@ import { strict as assert } from 'assert';
 import RedisCommandsQueue from './commands-queue';
 
 describe('Command Queue', () => {
-    it('Command encodes correctly', () => {
-	const encodeCommandInput = ["TEST"];
-	const encoded = RedisCommandsQueue.encodeCommand(encodeCommandInput);
-	assert(encoded == "*1\r\n$4\r\nTEST\r\n");
-    });
+    describe('Encoding (see #1628)', () => {
+        it('1 byte', () => {
+            assert.equal(
+                RedisCommandsQueue.encodeCommand(['a', 'z']),
+                '*2\r\n$1\r\na\r\n$1\r\nz\r\n'
+            );
+        });
 
-    it('UTF-16 Byte length check (see #1628)', () => {
-	const encodeCommandInput = ["🤞", "🤞"];
-	const encoded = RedisCommandsQueue.encodeCommand(encodeCommandInput);
-	assert.equal(encoded, "*2\r\n$4\r\n🤞\r\n$4\r\n🤞\r\n");
-    }); 
+        it('2 bytes', () => {
+            assert.equal(
+                RedisCommandsQueue.encodeCommand(['א', 'ת']),
+                '*2\r\n$2\r\nא\r\n$2\r\nת\r\n'
+            );
+        });
+
+        it('4 bytes', () => {
+            assert.equal(
+                RedisCommandsQueue.encodeCommand(['🐣', '🐤']),
+                '*2\r\n$4\r\n🐣\r\n$4\r\n🐤\r\n'
+            );
+        });
+    });
 });
