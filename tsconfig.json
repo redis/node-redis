@@ -21,5 +21,13 @@
   ],
   "ts-node": {
     "files": true
+  },
+  "typedocOptions": {
+    "entryPoints": [
+      "./index.ts",
+      "lib"
+    ],
+    "theme": "./node_modules/typedoc-github-wiki-theme/dist",
+    "out": "documentation"
   }
 }
