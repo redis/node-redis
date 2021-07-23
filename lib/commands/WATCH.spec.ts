@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import { transformArguments } from './WATCH';
 
 describe('WATCH', () => {
-    it('transformArguments', () => {
+    describe('transformArguments', () => {
         it('string', () => {
             assert.deepEqual(
                 transformArguments('key'),
