@@ -109,8 +109,7 @@ async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
     return port;
 }
 
-const SLOTS = 16384,
-    CLUSTER_NODE_TIMEOUT = 5000;
+const SLOTS = 16384;
 
 interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
     client: RedisClientType<RedisModules, RedisLuaScripts>
@@ -128,7 +127,7 @@ async function spawnRedisClusterNode(
             '--cluster-enabled',
             'yes',
             '--cluster-node-timeout',
-            CLUSTER_NODE_TIMEOUT.toString(),
+            '5000',
             '--cluster-config-file',
             clusterConfigFile,
             ...(args ?? [])
@@ -197,7 +196,7 @@ export async function spawnRedisCluster(type: TestRedisClusters | null, numberOf
     }
 
     while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
-        await promiseTimeout(CLUSTER_NODE_TIMEOUT);
+        await promiseTimeout(100);
     }
 
     const disconnectPromises = [];
