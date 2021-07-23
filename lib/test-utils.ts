@@ -34,7 +34,7 @@ function getRedisVersion(): RedisVersion {
     ).split('.', 3).map(Number) as RedisVersion;
 }
 
-export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion | undefined): boolean {    
+export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion | undefined): boolean {
     if (minimumVersion === undefined) return true;
 
     const lastIndex = minimumVersion.length - 1;
@@ -78,7 +78,7 @@ async function spawnRedisServer(args?: Array<string>): Promise<SpawnRedisServerR
             currentPort.toString(),
             ...(args ?? [])
         ]);
-    
+
     process
         .on('error', err => console.error('Redis process error', err))
         .on('close', code => console.error(`Redis process closed unexpectedly with code ${code}`));
@@ -110,7 +110,7 @@ async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
 }
 
 const SLOTS = 16384,
-    CLUSTER_NODE_TIMEOUT = 2000;
+    CLUSTER_NODE_TIMEOUT = 5000;
 
 interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
     client: RedisClientType<RedisModules, RedisLuaScripts>
@@ -151,7 +151,7 @@ async function spawnRedisClusterNode(
         client.clusterFlushSlots(),
         client.clusterAddSlots(range)
     ]);
-    
+
     return {
         port,
         async cleanup(): Promise<void> {
@@ -161,7 +161,7 @@ async function spawnRedisClusterNode(
                 await fs.unlink(clusterConfigFile);
             } catch (err) {
                 if (err.code == 'ENOENT') return;
-    
+
                 throw err;
             }
         },
@@ -245,7 +245,7 @@ async function spawnOpenCluster(): Promise<void> {
 
 before(function () {
     this.timeout(10000);
-    
+
     return Promise.all([
         spawnOpenServer(),
         spawnPasswordServer(),
@@ -284,7 +284,7 @@ export function itWithClient(
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[type]
         });
-        
+
         await client.connect();
 
         try {
@@ -309,7 +309,7 @@ export function itWithCluster(
         const cluster = RedisCluster.create({
             rootNodes: TEST_REDIS_CLUSTERES[type]
         });
-        
+
         await cluster.connect();
 
         try {
@@ -332,14 +332,14 @@ export function itWithDedicatedCluster(title: string, fn: (cluster: RedisCluster
                     port: spawnResults[0].port
                 }]
             });
-        
+
         await cluster.connect();
 
         try {
             await fn(cluster);
         } finally {
             await cluster.disconnect();
-            
+
             for (const { cleanup } of spawnResults) {
                 await cleanup();
             }
