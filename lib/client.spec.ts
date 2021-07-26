@@ -6,6 +6,17 @@ import { AbortError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
 
+const SQUARE_SCRIPT = defineScript({
+    NUMBER_OF_KEYS: 0,
+    SCRIPT: 'return ARGV[1] * ARGV[1];',
+    transformArguments(number: number): Array<string> {
+        return [number.toString()];
+    },
+    transformReply(reply: number): number {
+        return reply;
+    }
+});
+
 describe('Client', () => {
     describe('authentication', () => {
         itWithClient(TestRedisServers.PASSWORD, 'Client should be authenticated', async client => {
@@ -26,7 +37,6 @@ describe('Client', () => {
             await assert.rejects(
                 client.connect(),
                 {
-                    
                     message: isRedisVersionGreaterThan([6]) ?
                         'WRONGPASS invalid username-password pair or user is disabled.' :
                         'ERR invalid password'
@@ -40,17 +50,8 @@ describe('Client', () => {
     describe('legacyMode', () => {
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
-            modules: {
-                testModule: {
-                    echo: {
-                        transformArguments(message: string): Array<string> {
-                            return ['ECHO', message];
-                        },
-                        transformReply(reply: string): string {
-                            return reply;
-                        }
-                    }
-                }
+            scripts: {
+                square: SQUARE_SCRIPT
             },
             legacyMode: true
         });
@@ -164,55 +165,9 @@ describe('Client', () => {
                 ['PONG', 'PONG']
             );
         });
-        
-        it('client.testModule.echo should call the callback', done => {
-            (client as any).testModule.echo('message', (err?: Error, reply?: string) => {
-                if (err) {
-                    return done(err);
-                }
 
-                try {
-                    assert.deepEqual(reply, 'message');
-                    done();
-                } catch (err) {
-                    done(err);
-                }
-            });
-        });
-
-        it('client.v4.testModule.echo should return a promise', async () => {
-            assert.equal(
-                await (client as any).v4.testModule.echo('message'),
-                'message'
-            );
-        });
-        
-        it('client.multi.testModule.echo.v4.testModule.echo.exec should call the callback', done => {
-            (client as any).multi()
-                .testModule.echo('message')
-                .v4.testModule.echo('message')
-                .exec((err?: Error, replies?: Array<string>) => {
-                    if (err) {
-                        return done(err);
-                    }
-
-                    try {
-                        assert.deepEqual(replies, ['message', 'message']);
-                        done();
-                    } catch (err) {
-                        done(err);
-                    }
-                });
-        });
-
-        it('client.multi.testModule.echo.v4.testModule.echo.v4.exec should return a promise', async () => {
-            assert.deepEqual(
-                await ((client as any).multi()
-                    .testModule.echo('message')
-                    .v4.testModule.echo('message')
-                    .v4.exec()),
-                ['message', 'message']
-            );
+        it('client.{script} should return a promise', async () => {
+            assert.equal(await client.square(2), 4);
         });
     });
 
@@ -296,51 +251,29 @@ describe('Client', () => {
         it('with script', async () => {
             const client = RedisClient.create({
                 scripts: {
-                    add: defineScript({
-                        NUMBER_OF_KEYS: 0,
-                        SCRIPT: 'return ARGV[1] + 1;',
-                        transformArguments(number: number): Array<string> {
-                            assert.equal(number, 1);
-                            return [number.toString()];
-                        },
-                        transformReply(reply: number): number {
-                            assert.equal(reply, 2);
-                            return reply;
-                        }
-                    })
+                    square: SQUARE_SCRIPT
                 }
             });
-    
+
             await client.connect();
 
             try {
                 assert.deepEqual(
                     await client.multi()
-                        .add(1)
+                        .square(2)
                         .exec(),
-                    [2]
+                    [4]
                 );
             } finally {
                 await client.disconnect();
             }
         });
     });
-    
+
     it('scripts', async () => {
         const client = RedisClient.create({
             scripts: {
-                add: defineScript({
-                    NUMBER_OF_KEYS: 0,
-                    SCRIPT: 'return ARGV[1] + 1;',
-                    transformArguments(number: number): Array<string> {
-                        assert.equal(number, 1);
-                        return [number.toString()];
-                    },
-                    transformReply(reply: number): number {
-                        assert.equal(reply, 2);
-                        return reply;
-                    }
-                })
+                square: SQUARE_SCRIPT
             }
         });
 
@@ -348,8 +281,8 @@ describe('Client', () => {
 
         try {
             assert.equal(
-                await client.add(1),
-                2
+                await client.square(2),
+                4
             );
         } finally {
             await client.disconnect();
@@ -514,7 +447,7 @@ describe('Client', () => {
 
             await subscriber.pUnsubscribe();
             await publisher.publish('channel', 'message');
-            
+
             assert.ok(channelListener1.calledOnce);
             assert.ok(channelListener2.calledTwice);
             assert.ok(patternListener.calledThrice);
