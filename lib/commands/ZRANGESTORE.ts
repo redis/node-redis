@@ -49,7 +49,7 @@ export function transformArguments(dst: string, src: string, min: number, max: n
 export function transformReply(reply: number): number {
     if (typeof reply !== 'number') {
         throw new TypeError(`Upgrade to Redis 6.2.5 and up (https://github.com/redis/redis/pull/9089)`);
-    };
+    }
 
     return reply;
 }

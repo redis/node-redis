@@ -3,7 +3,7 @@ import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } fro
 import { transformArguments } from './HRANDFIELD_COUNT_WITHVALUES';
 
 describe('HRANDFIELD COUNT WITHVALUES', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    describeHandleMinimumRedisVersion([6, 2, 5]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -13,9 +13,9 @@ describe('HRANDFIELD COUNT WITHVALUES', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.hRandFieldCountWithValues', async client => {
-        assert.equal(
+        assert.deepEqual(
             await client.hRandFieldCountWithValues('key', 1),
-            null
+            Object.create(null)
         );
     });
 });

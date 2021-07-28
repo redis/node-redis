@@ -30,6 +30,10 @@ export function transformReplyStringArrayNull(reply: Array<string> | null): Arra
     return reply;
 }
 
+export function transformReplyStringNullArray(reply: Array<string | null>): Array<string | null> {
+    return reply;
+}
+
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
 }
@@ -117,12 +121,6 @@ export function transformReplyTuples(reply: Array<string>): TuplesObject {
     }
 
     return message;
-}
-
-export function transformReplyTuplesNull(reply: Array<string> | null): TuplesObject | null {
-    if (reply === null) return null;
-
-    return transformReplyTuples(reply);
 }
 
 export interface StreamMessageReply {
@@ -310,4 +308,34 @@ export function transformGeoMembersWithReply(reply: Array<Array<any>>, replyWith
 
         return transformedMember;
     });
+}
+
+export function transformEXAT(EXAT: number | Date): string {
+    return (typeof EXAT === 'number' ? EXAT : Math.floor(EXAT.getTime() / 1000)).toString();
+}
+
+export function transformPXAT(PXAT: number | Date): string {
+    return (typeof PXAT === 'number' ? PXAT : PXAT.getTime()).toString();
+}
+
+export interface EvalOptions {
+    keys?: Array<string>;
+    arguments?: Array<string>;
+}
+
+export function pushEvalArguments(args: Array<string>, options?: EvalOptions): Array<string> {
+    if (options?.keys) {
+        args.push(
+            options.keys.length.toString(),
+            ...options.keys
+        );
+    } else {
+        args.push('0');
+    }
+
+    if (options?.arguments) {
+        args.push(...options.arguments);
+    }
+
+    return args;
 }

@@ -10,8 +10,4 @@ export function transformArguments(...args: Parameters<typeof transformZRandMemb
     ];
 }
 
-export function transformReply(reply: Array<string> | null): Array<ZMember> | null {
-    if (reply === null) return null;
-
-    return transformReplySortedSetWithScores(reply);
-}
+export const transformReply = transformReplySortedSetWithScores;

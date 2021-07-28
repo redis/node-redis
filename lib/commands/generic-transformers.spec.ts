@@ -1,5 +1,4 @@
 import { strict as assert } from 'assert';
-import { isKeyObject } from 'util/types';
 import {
     transformReplyBoolean,
     transformReplyBooleanArray,
@@ -9,15 +8,17 @@ import {
     transformReplyNumberInfinityNull,
     transformArgumentNumberInfinity,
     transformReplyTuples,
-    transformReplyTuplesNull,
     transformReplyStreamMessages,
     transformReplyStreamsMessages,
     transformReplyStreamsMessagesNull,
     transformReplySortedSetWithScores,
     pushGeoCountArgument,
     pushGeoSearchArguments,
+    GeoReplyWith,
     transformGeoMembersWithReply,
-    GeoReplyWith
+    transformEXAT,
+    transformPXAT,
+    pushEvalArguments
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
@@ -174,13 +175,6 @@ describe('Generic Transformers', () => {
                     enumerable: true
                 }
             })
-        );
-    });
-
-    it('transformReplyTuplesNull', () => {
-        assert.equal(
-            transformReplyTuplesNull(null),
-            null
         );
     });
 
@@ -459,6 +453,77 @@ describe('Generic Transformers', () => {
                         latitude: '10'
                     }
                 }]
+            );
+        });
+    });
+
+    describe('transformEXAT', () => {
+        it('number', () => {
+            assert.equal(
+                transformEXAT(1),
+                '1'
+            );
+        });
+
+        it('date', () => {
+            const d = new Date();
+            assert.equal(
+                transformEXAT(d),
+                Math.floor(d.getTime() / 1000).toString()
+            );
+        });
+    });
+
+    describe('transformPXAT', () => {
+        it('number', () => {
+            assert.equal(
+                transformPXAT(1),
+                '1'
+            );
+        });
+
+        it('date', () => {
+            const d = new Date();
+            assert.equal(
+                transformPXAT(d),
+                d.getTime().toString()
+            );
+        });
+    });
+
+    describe('pushEvalArguments', () => {
+        it('empty', () => {
+            assert.deepEqual(
+                pushEvalArguments([]),
+                ['0']
+            );
+        });
+
+        it('with keys', () => {
+            assert.deepEqual(
+                pushEvalArguments([], {
+                    keys: ['key']
+                }),
+                ['1', 'key']
+            );
+        });
+
+        it('with arguments', () => {
+            assert.deepEqual(
+                pushEvalArguments([], {
+                    arguments: ['argument']
+                }),
+                ['0', 'argument']
+            );
+        });
+
+        it('with keys and arguments', () => {
+            assert.deepEqual(
+                pushEvalArguments([], {
+                    keys: ['key'],
+                    arguments: ['argument']
+                }),
+                ['1', 'key', 'argument']
             );
         });
     });

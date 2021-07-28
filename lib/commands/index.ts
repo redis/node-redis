@@ -38,12 +38,15 @@ import * as CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
 import * as CONFIG_REWRITE from './CONFIG_REWRITE';
 import * as CONFIG_SET from './CONFIG_SET';
 import * as COPY from './COPY';
+import * as DBSIZE from './DBSIZE';
 import * as DECR from './DECR';
 import * as DECRBY from './DECRBY';
 import * as DEL from './DEL';
 import * as DISCARD from './DISCARD';
 import * as DUMP from './DUMP';
 import * as ECHO from './ECHO';
+import * as EVAL from './EVAL';
+import * as EVALSHA from './EVALSHA';
 import * as EXISTS from './EXISTS';
 import * as EXPIRE from './EXPIRE';
 import * as EXPIREAT from './EXPIREAT';
@@ -60,7 +63,9 @@ import * as GEOSEARCHSTORE from './GEOSEARCHSTORE';
 import * as GET from './GET';
 import * as GETBIT from './GETBIT';
 import * as GETDEL from './GETDEL';
+import * as GETEX from './GETEX';
 import * as GETRANGE from './GETRANGE';
+import * as GETSET from './GETSET';
 import * as HDEL from './HDEL';
 import * as HEXISTS from './HEXISTS';
 import * as HGET from './HGET';
@@ -99,11 +104,18 @@ import * as LRANGE from './LRANGE';
 import * as LREM from './LREM';
 import * as LSET from './LSET';
 import * as LTRIM from './LTRIM';
+import * as MEMOERY_DOCTOR from './MEMORY_DOCTOR';
+import * as MEMORY_MALLOC_STATS from './MEMORY_MALLOC-STATS';
+import * as MEMORY_PURGE from './MEMORY_PURGE';
+import * as MEMORY_STATS from './MEMORY_STATS';
+import * as MEMORY_USAGE from './MEMORY_USAGE';
+import * as MGET from './MGET';
 import * as MIGRATE from './MIGRATE';
 import * as MODULE_LIST from './MODULE_LIST';
 import * as MODULE_LOAD from './MODULE_LOAD';
 import * as MODULE_UNLOAD from './MODULE_UNLOAD';
 import * as MOVE from './MOVE';
+import * as MSET from './MSET';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
 import * as PEXPIREAT from './PEXPIREAT';
@@ -111,14 +123,20 @@ import * as PFADD from './PFADD';
 import * as PFCOUNT from './PFCOUNT';
 import * as PFMERGE from './PFMERGE';
 import * as PING from './PING';
+import * as PSETEX from './PSETEX';
 import * as PTTL from './PTTL';
 import * as PUBLISH from './PUBLISH';
+import * as PUBSUB_CHANNELS from './PUBSUB_CHANNELS';
+import * as PUBSUB_NUMPAT from './PUBSUB_NUMPAT';
+import * as PUBSUB_NUMSUB from './PUBSUB_NUMSUB';
 import * as RANDOMKEY from './RANDOMKEY';
 import * as READONLY from './READONLY';
 import * as READWRITE from './READWRITE';
 import * as RENAME from './RENAME';
 import * as RENAMENX from './RENAMENX';
 import * as REPLICAOF from './REPLICAOF';
+import * as RESTORE_ASKING from './RESTORE-ASKING';
+import * as ROLE from './ROLE';
 import * as RPOP_COUNT from './RPOP_COUNT';
 import * as RPOP from './RPOP';
 import * as RPOPLPUSH from './RPOPLPUSH';
@@ -132,6 +150,8 @@ import * as SDIFF from './SDIFF';
 import * as SDIFFSTORE from './SDIFFSTORE';
 import * as SET from './SET';
 import * as SETBIT from './SETBIT';
+import * as SETEX from './SETEX';
+import * as SETNX from './SETNX';
 import * as SETRANGE from './SETRANGE';
 import * as SHUTDOWN from './SHUTDOWN';
 import * as SINTER from './SINTER';
@@ -155,6 +175,7 @@ import * as TOUCH from './TOUCH';
 import * as TTL from './TTL';
 import * as TYPE from './TYPE';
 import * as UNLINK from './UNLINK';
+import * as UNWATCH from './UNWATCH';
 import * as WAIT from './WAIT';
 import * as WATCH from './WATCH';
 import * as XACK from './XACK';
@@ -295,6 +316,8 @@ export default {
     configSet: CONFIG_SET,
     COPY,
     copy: COPY,
+    DBSIZE,
+    dbSize: DBSIZE,
     DECR,
     decr: DECR,
     DECRBY,
@@ -307,6 +330,10 @@ export default {
     dump: DUMP,
     ECHO,
     echo: ECHO,
+    EVAL,
+    eval: EVAL,
+    EVALSHA,
+    evalSha: EVALSHA,
     EXISTS,
     exists: EXISTS,
     EXPIRE,
@@ -339,8 +366,12 @@ export default {
     getBit: GETBIT,
     GETDEL,
     getDel: GETDEL,
+    GETEX,
+    getEx: GETEX,
     GETRANGE,
     getRange: GETRANGE,
+    GETSET,
+    getSet: GETSET,
     HDEL,
     hDel: HDEL,
     HEXISTS,
@@ -416,6 +447,18 @@ export default {
     lSet: LSET,
     LTRIM,
     lTrim: LTRIM,
+    MEMOERY_DOCTOR,
+    memoryDoctor: MEMOERY_DOCTOR,
+    'MEMORY_MALLOC-STATS': MEMORY_MALLOC_STATS,
+    memoryMallocStats: MEMORY_MALLOC_STATS,
+    MEMORY_PURGE,
+    memoryPurge: MEMORY_PURGE,
+    MEMORY_STATS,
+    memoryStats: MEMORY_STATS,
+    MEMORY_USAGE,
+    memoryUsage: MEMORY_USAGE,
+    MGET,
+    mGet: MGET,
     MIGRATE,
     migrate: MIGRATE,
     MODULE_LIST,
@@ -426,6 +469,8 @@ export default {
     moduleUnload: MODULE_UNLOAD,
     MOVE,
     move: MOVE,
+    MSET,
+    mSet: MSET,
     PERSIST,
     persist: PERSIST,
     PEXPIRE,
@@ -440,10 +485,18 @@ export default {
     pfMerge: PFMERGE,
     PING,
     ping: PING,
+    PSETEX,
+    pSetEx: PSETEX,
     PTTL,
     pTTL: PTTL,
     PUBLISH,
     publish: PUBLISH,
+    PUBSUB_CHANNELS,
+    pubSubChannels: PUBSUB_CHANNELS,
+    PUBSUB_NUMPAT,
+    pubSubNumPat: PUBSUB_NUMPAT,
+    PUBSUB_NUMSUB,
+    pubSubNumSub: PUBSUB_NUMSUB,
     RANDOMKEY,
     randomKey: RANDOMKEY,
     READONLY,
@@ -456,6 +509,10 @@ export default {
     renameNX: RENAMENX,
     REPLICAOF,
     replicaOf: REPLICAOF,
+    'RESTORE-ASKING': RESTORE_ASKING,
+    restoreAsking: RESTORE_ASKING,
+    ROLE,
+    role: ROLE,
     RPOP_COUNT,
     rPopCount: RPOP_COUNT,
     RPOP,
@@ -486,6 +543,10 @@ export default {
     set: SET,
     SETBIT,
     setBit: SETBIT,
+    SETEX,
+    setEx: SETEX,
+    SETNX,
+    setNX: SETNX,
     SETRANGE,
     setRange: SETRANGE,
     SHUTDOWN,
@@ -528,6 +589,8 @@ export default {
     type: TYPE,
     UNLINK,
     unlink: UNLINK,
+    UNWATCH,
+    unwatch: UNWATCH,
     WAIT,
     wait: WAIT,
     WATCH,
