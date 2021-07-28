@@ -1,4 +1,4 @@
-import { RedisCommand, RedisModules, RedisReply } from './commands';
+import { RedisCommand, RedisModules } from './commands';
 import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';

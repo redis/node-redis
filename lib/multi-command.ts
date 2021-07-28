@@ -1,6 +1,5 @@
 import COMMANDS, { TransformArgumentsReply } from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
-import RedisCommandsQueue from './commands-queue';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { RedisClientOptions } from './client';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, encodeCommand } from './commander';
