@@ -3,14 +3,15 @@
   "private": true,
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node ./"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cronometro": "^0.8.0",
-    "redis-new": "file:../",
-    "redis-old": "npm:redis@3.1.2"
+    "benny": "^3.6.15",
+    "v3": "npm:redis@3.1.2",
+    "v4": "file:../"
   }
 }
