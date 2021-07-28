@@ -1,4 +1,4 @@
-import { transformReplySortedSetWithScores, ZMember } from './generic-transformers';
+import { transformReplySortedSetWithScores } from './generic-transformers';
 import { transformArguments as transformZRandMemberCountArguments } from './ZRANDMEMBER_COUNT';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANDMEMBER_COUNT';

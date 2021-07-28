@@ -1,5 +1,3 @@
-import { transformReplyNumber } from './generic-transformers';
-
 export const IS_READ_ONLY = true;
 
 export function transformArguments(channels?: Array<string> | string): Array<string> {
