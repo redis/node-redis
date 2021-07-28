@@ -9,7 +9,7 @@ import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { ScanOptions, ZMember } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
 import { HScanTuple } from './commands/HSCAN';
-import { extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
+import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -284,13 +284,17 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     // using `#sendCommand` cause `sendCommand` is overwritten in legacy mode
-    async #sendCommand<T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
+    #sendCommand<T = RedisReply>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
+        return this.sendEncodedCommand(encodeCommand(args), options);
+    }
+
+    async sendEncodedCommand<T = RedisReply>(encodedCommand: string, options?: ClientCommandOptions): Promise<T> {
         if (options?.duplicateConnection) {
             const duplicate = this.duplicate();
             await duplicate.connect();
 
             try {
-                return await duplicate.sendCommand(args, {
+                return await duplicate.sendEncodedCommand(encodedCommand, {
                     ...options,
                     duplicateConnection: false
                 });
@@ -299,9 +303,13 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             }
         }
 
-        const promise = this.#queue.addCommand<T>(args, options);
+        const promise = this.#queue.addEncodedCommand<T>(encodedCommand, options);
         this.#tick();
         return await promise;
+    }
+
+    async #duplicateConnection(fn: (duplicateClient: RedisClientType<M, S>) => Promise<unknown>) {
+
     }
 
     async executeScript(script: RedisLuaScript, args: Array<string>, options?: ClientCommandOptions): Promise<ReturnType<typeof script['transformReply']>> {
@@ -326,10 +334,12 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         }
     }
 
-    async #multiExecutor(commands: Array<MultiQueuedCommand>): Promise<Array<RedisReply>> {
+    async #multiExecutor(commands: Array<MultiQueuedCommand>, chainId?: symbol): Promise<Array<RedisReply>> {
         const promise = Promise.all(
             commands.map(({encodedCommand}) => {
-                return this.#queue.addEncodedCommand(encodedCommand);
+                return this.#queue.addEncodedCommand(encodedCommand, RedisClient.commandOptions({
+                    chainId
+                }));
             })
         );
 

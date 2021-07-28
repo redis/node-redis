@@ -3,7 +3,7 @@ import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisCommandsQueue from './commands-queue';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { RedisClientOptions } from './client';
-import { extendWithModulesAndScripts, extendWithDefaultCommands } from './commander';
+import { extendWithModulesAndScripts, extendWithDefaultCommands, encodeCommand } from './commander';
 
 type RedisMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisLuaScripts> = (...args: Parameters<C['transformArguments']>) => RedisMultiCommandType<M, S>;
 
@@ -88,6 +88,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
     ): RedisMultiCommandType<M, S> {
         return <any>new this(executor, clientOptions);
     }
+
     readonly #executor: RedisMultiExecutor;
 
     readonly #clientOptions: RedisClientOptions<M, S> | undefined;
@@ -118,7 +119,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         this.#v4.addCommand = this.addCommand.bind(this);
         (this as any).addCommand = (...args: Array<unknown>): this => {
             this.#queue.push({
-                encodedCommand: RedisCommandsQueue.encodeCommand(args.flat() as Array<string>)
+                encodedCommand: encodeCommand(args.flat() as Array<string>)
             });
             return this;
         }
@@ -152,7 +153,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
     addCommand(args: TransformArgumentsReply, transformReply?: RedisCommand['transformReply']): this {
         this.#queue.push({
-            encodedCommand: RedisCommandsQueue.encodeCommand(args),
+            encodedCommand: encodeCommand(args),
             preservedArguments: args.preserve,
             transformReply
         });
@@ -169,10 +170,10 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
         const queue = this.#queue.splice(0);
         queue.unshift({
-            encodedCommand: RedisCommandsQueue.encodeCommand(['MULTI'])
+            encodedCommand: encodeCommand(['MULTI'])
         });
         queue.push({
-            encodedCommand: RedisCommandsQueue.encodeCommand(['EXEC'])
+            encodedCommand: encodeCommand(['EXEC'])
         });
 
         const rawReplies = await this.#executor(queue, Symbol('[RedisMultiCommand] Chain ID'));

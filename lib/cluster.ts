@@ -1,10 +1,11 @@
-import { RedisCommand, RedisModules } from './commands';
-import { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
+import { RedisCommand, RedisModules, RedisReply } from './commands';
+import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { commandOptions, CommandOptions } from './command-options';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments } from './commander';
+import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 
 export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
     rootNodes: Array<RedisSocketOptions>;
@@ -18,14 +19,14 @@ export type RedisClusterType<M extends RedisModules, S extends RedisLuaScripts> 
     WithPlugins<M, S> & RedisCluster;
 
 export default class RedisCluster<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
-    static #extractFirstKey(commandOrScript: RedisCommand | RedisLuaScript, originalArgs: Array<unknown>, redisArgs: Array<string>): string | undefined {
-        if (commandOrScript.FIRST_KEY_INDEX === undefined) {
+    static #extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: Array<string>): string | undefined {
+        if (command.FIRST_KEY_INDEX === undefined) {
             return undefined;
-        } else if (typeof commandOrScript.FIRST_KEY_INDEX === 'number') {
-            return redisArgs[commandOrScript.FIRST_KEY_INDEX];
+        } else if (typeof command.FIRST_KEY_INDEX === 'number') {
+            return redisArgs[command.FIRST_KEY_INDEX];
         }
 
-        return commandOrScript.FIRST_KEY_INDEX(...originalArgs);
+        return command.FIRST_KEY_INDEX(...originalArgs);
     }
 
     static async commandsExecutor(
@@ -84,10 +85,12 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
 
     readonly #options: RedisClusterOptions;
     readonly #slots: RedisClusterSlots<M, S>;
+    readonly #Multi: new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisMultiCommandType<M, S>;
 
     constructor(options: RedisClusterOptions<M, S>) {
         this.#options = options;
         this.#slots = new RedisClusterSlots(options);
+        this.#Multi = RedisMultiCommand.extend(options);
     }
 
     async connect(): Promise<void> {
@@ -168,6 +171,23 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         }
 
         throw err;
+    }
+
+    multi(routing: string): RedisMultiCommandType<M, S> {
+        return new this.#Multi(
+            async (commands: Array<MultiQueuedCommand>, chainId?: symbol) => {
+                const client = this.#slots.getClient(routing);
+
+                return Promise.all(
+                    commands.map(({encodedCommand}) => {
+                        return client.sendEncodedCommand(encodedCommand, RedisClient.commandOptions({
+                            chainId
+                        }));
+                    })
+                );
+            },
+            this.#options
+        );
     }
 
     getMasters(): Array<ClusterNode<M, S>> {

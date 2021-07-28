@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import RedisMultiCommand from './multi-command';
-import RedisCommandsQueue from './commands-queue';
+import { encodeCommand } from './commander';
 
 describe('Multi Command', () => {
     it('exec', async () => {
@@ -8,9 +8,9 @@ describe('Multi Command', () => {
             assert.deepEqual(
                 queue.map(({encodedCommand}) => encodedCommand),
                 [
-                    RedisCommandsQueue.encodeCommand(['MULTI']),
-                    RedisCommandsQueue.encodeCommand(['PING']),
-                    RedisCommandsQueue.encodeCommand(['EXEC']),
+                    encodeCommand(['MULTI']),
+                    encodeCommand(['PING']),
+                    encodeCommand(['EXEC']),
                 ]
             );
 
@@ -29,7 +29,7 @@ describe('Multi Command', () => {
         const multi = RedisMultiCommand.create(queue => {
             assert.deepEqual(
                 queue.map(({encodedCommand}) => encodedCommand),
-                [RedisCommandsQueue.encodeCommand(['PING'])]
+                [encodeCommand(['PING'])]
             );
 
             return Promise.resolve(['PONG']);
