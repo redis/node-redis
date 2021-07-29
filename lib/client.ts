@@ -83,19 +83,22 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     static create<M extends RedisModules, S extends RedisLuaScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
-        return new (<any>extendWithModulesAndScripts({
+        const Client = (<any>extendWithModulesAndScripts({
             BaseClass: RedisClient,
             modules: options?.modules,
             modulesCommandsExecutor: RedisClient.commandsExecutor,
             scripts: options?.scripts,
             scriptsExecutor: RedisClient.#scriptsExecutor
-        }))(options);
+        }));
+
+        Client.prototype.Multi = RedisMultiCommand.extend(options);
+
+        return new Client(options);
     }
 
     readonly #options?: RedisClientOptions<M, S>;
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
-    readonly #Multi: new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisMultiCommandType<M, S>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
 
@@ -120,7 +123,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#options = options;
         this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
-        this.#Multi = RedisMultiCommand.extend(options);
         this.#legacyMode();
     }
 
@@ -308,10 +310,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return await promise;
     }
 
-    async #duplicateConnection(fn: (duplicateClient: RedisClientType<M, S>) => Promise<unknown>) {
-
-    }
-
     async executeScript(script: RedisLuaScript, args: Array<string>, options?: ClientCommandOptions): Promise<ReturnType<typeof script['transformReply']>> {
         try {
             return await this.#sendCommand([
@@ -349,7 +347,8 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     multi(): RedisMultiCommandType<M, S> {
-        return new this.#Multi(
+        // Multi is attached in `create`
+        return new (this as any).Multi(
             this.#multiExecutor.bind(this),
             this.#options
         );
