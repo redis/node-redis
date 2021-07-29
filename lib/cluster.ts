@@ -79,10 +79,6 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         }))(options);
     }
 
-    static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
-        return commandOptions(options);
-    }
-
     readonly #options: RedisClusterOptions;
     readonly #slots: RedisClusterSlots<M, S>;
     readonly #Multi: new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisMultiCommandType<M, S>;

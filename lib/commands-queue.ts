@@ -6,7 +6,7 @@ import { encodeCommand } from './commander';
 
 export interface QueueCommandOptions {
     asap?: boolean;
-    signal?: any; // TODO: TODO: `AbortSignal` type is incorrect
+    signal?: any; // TODO: `AbortSignal` type is incorrect
     chainId?: symbol;
 }
 

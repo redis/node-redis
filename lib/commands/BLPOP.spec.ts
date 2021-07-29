@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
 import { transformArguments } from './BLPOP';
-import RedisClient from '../client';
+import { commandOptions } from '../../index';
 
 describe('BLPOP', () => {
     describe('transformArguments', () => {
@@ -22,7 +22,7 @@ describe('BLPOP', () => {
 
     itWithClient(TestRedisServers.OPEN, 'client.blPop', async client => {
         const [popReply] = await Promise.all([
-            client.blPop(RedisClient.commandOptions({
+            client.blPop(commandOptions({
                 duplicateConnection: true
             }), 'key', 0),
             client.lPush('key', 'element')
@@ -39,7 +39,7 @@ describe('BLPOP', () => {
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.blPop', async cluster => {
         const [popReply] = await Promise.all([
-            cluster.blPop(RedisClient.commandOptions({
+            cluster.blPop(commandOptions({
                 duplicateConnection: true
             }), 'key', 0),
             cluster.lPush('key', 'element')

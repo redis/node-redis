@@ -122,8 +122,10 @@ Any command can be run on a new connection by specifying the `duplicateConnectio
 This pattern works especially well for blocking commands—such as `BLPOP` and `BLMOVE`:
 
 ```typescript
+import { commandOptions } from 'redis';
+
 const blPopPromise = client.blPop(
-    client.commandOptions({ duplicateConnection: true }),
+    commandOptions({ duplicateConnection: true }),
     'key'
 );
 
@@ -182,8 +184,7 @@ client.scanIterator({
 You can define Lua scripts to create efficient custom commands:
 
 ```typescript
-import { createClient } from 'redis';
-import { defineScript } from 'redis/dist/lib/lua-script';
+import { createClient, defineScript } from 'redis';
 
 (async () => {
     const client = createClient({
