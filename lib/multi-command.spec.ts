@@ -4,7 +4,7 @@ import { encodeCommand } from './commander';
 
 describe('Multi Command', () => {
     it('exec', async () => {
-        const multi = RedisMultiCommand.create(queue => {
+        const multi = RedisMultiCommand.create((queue, symbol) => {
             assert.deepEqual(
                 queue.map(({encodedCommand}) => encodedCommand),
                 [
@@ -13,6 +13,11 @@ describe('Multi Command', () => {
                     encodeCommand(['EXEC']),
                 ]
             );
+
+            assert.equal(
+                typeof symbol,
+                'symbol'
+            )
 
             return Promise.resolve(['QUEUED', 'QUEUED', ['PONG']]);
         });

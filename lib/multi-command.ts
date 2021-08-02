@@ -3,6 +3,7 @@ import { RedisCommand, RedisModules, RedisReply } from './commands';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { RedisClientOptions } from './client';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, encodeCommand } from './commander';
+import { WatchError } from './errors';
 
 type RedisMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisLuaScripts> = (...args: Parameters<C['transformArguments']>) => RedisMultiCommandType<M, S>;
 
@@ -28,7 +29,7 @@ export interface MultiQueuedCommand {
     transformReply?: RedisCommand['transformReply'];
 }
 
-export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisReply>>;
+export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<null | Array<RedisReply>>;
 
 export default class RedisMultiCommand<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
     static commandsExecutor(this: RedisMultiCommand, command: RedisCommand, args: Array<unknown>): RedisMultiCommand {
@@ -160,34 +161,57 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         return this;
     }
 
-    async exec(execAsPipeline = false): Promise<Array<unknown>> {
+    async exec(execAsPipeline = false): Promise<Array<RedisReply>> {
         if (execAsPipeline) {
             return this.execAsPipeline();
         } else if (!this.#queue.length) {
             return [];
         }
 
-        const queue = this.#queue.splice(0);
-        queue.unshift({
-            encodedCommand: encodeCommand(['MULTI'])
-        });
-        queue.push({
-            encodedCommand: encodeCommand(['EXEC'])
-        });
+        const queue = this.#queue.splice(0),
+            rawReplies = this.#handleNullReply(
+                await this.#executor([
+                    {
+                        encodedCommand: encodeCommand(['MULTI'])
+                    },
+                    ...queue,
+                    {
+                        encodedCommand: encodeCommand(['EXEC'])
+                    }
+                ], Symbol('[RedisMultiCommand] Chain ID'))
+            );
 
-        const rawReplies = await this.#executor(queue, Symbol('[RedisMultiCommand] Chain ID'));
-        return (rawReplies[rawReplies.length - 1]! as Array<RedisReply>).map((reply, i) => {
-            const { transformReply, preservedArguments } = queue[i + 1];
-            return transformReply ? transformReply(reply, preservedArguments) : reply;
-        });
+        return this.#transformReplies(
+            rawReplies[rawReplies.length - 1] as Array<RedisReply>,
+            queue
+        );
     }
 
-    async execAsPipeline(): Promise<Array<unknown>> {
+    async execAsPipeline(): Promise<Array<RedisReply>> {
         if (!this.#queue.length) {
             return [];
         }
 
-        return await this.#executor(this.#queue.splice(0));
+        const queue = this.#queue.splice(0);
+        return this.#transformReplies(
+            this.#handleNullReply(await this.#executor(queue)),
+            queue
+        );
+    }
+
+    #handleNullReply<T>(reply: null | T): T {
+        if (reply === null) {
+            throw new WatchError();
+        }
+
+        return reply;
+    }
+
+    #transformReplies(rawReplies: Array<RedisReply>, queue: Array<MultiQueuedCommand>): Array<RedisReply> {
+        return rawReplies.map((reply, i) => {
+            const { transformReply, preservedArguments } = queue[i];
+            return transformReply ? transformReply(reply, preservedArguments) : reply;
+        });
     }
 }
 

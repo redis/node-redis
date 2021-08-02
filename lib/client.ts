@@ -332,7 +332,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         }
     }
 
-    async #multiExecutor(commands: Array<MultiQueuedCommand>, chainId?: symbol): Promise<Array<RedisReply>> {
+    #multiExecutor(commands: Array<MultiQueuedCommand>, chainId?: symbol): Promise<Array<RedisReply>> {
         const promise = Promise.all(
             commands.map(({encodedCommand}) => {
                 return this.#queue.addEncodedCommand(encodedCommand, RedisClient.commandOptions({
@@ -343,7 +343,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
         this.#tick();
 
-        return await promise;
+        return promise;
     }
 
     multi(): RedisMultiCommandType<M, S> {
