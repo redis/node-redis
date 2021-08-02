@@ -4,44 +4,36 @@ type HSETObject = Record<string | number, string | number>;
 
 type HSETMap = Map<string | number, string | number>;
 
-export function transformArguments(key: string, objectOrMap: HSETObject | HSETMap): Array<string> {
-    const flattenArgs = mapArgumentTransformer(key, objectOrMap) ??
-        objectArgumentTransformer(key, objectOrMap) ??
-        [];
+type HSETTuples = Array<[string, string]> | Array<string>;
 
-    // TODO: add support for tuples
+export function transformArguments(key: string, value: HSETObject | HSETMap | HSETTuples): Array<string> {
+    const args = ['HSET', key];
 
-    flattenArgs.unshift('HSET');
+    if (value instanceof Map) {
+        pushMap(args, value);
+    } else if (Array.isArray(value)) {
+        pushTuples(args, value);
+    } else if (typeof value === 'object' && value !== null) {
+        pushObject(args, value);
+    }
 
-    return flattenArgs;
+    return args;
 }
 
-function mapArgumentTransformer(key: string, map: HSETMap | unknown): Array<string> | undefined {
-    if (!(map instanceof Map)) return;
-
-    const flat = [key];
+function pushMap(args: Array<string>, map: HSETMap): void {
     for (const [key, value] of map.entries()) {
-        flat.push(key.toString(), value.toString());
+        args.push(key.toString(), value.toString());
     }
-
-    return flat;
 }
 
-function isObject(obj: HSETObject | unknown): obj is HSETObject {
-    return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+function pushTuples(args: Array<string>, tuples: HSETTuples): void {
+    args.push(...tuples.flat());
 }
 
-function objectArgumentTransformer(key: string, obj: HSETObject | unknown): Array<string> | undefined {
-    if (!isObject(obj)) {
-        return;
+function pushObject(args: Array<string>, object: HSETObject): void {
+    for (const key of Object.keys(object)) {
+        args.push(key.toString(), object[key].toString());
     }
-
-    const flat = [key];
-    for (const key of Object.keys(obj)) {
-        flat.push(key.toString(), obj[key].toString());
-    }
-
-    return flat;
 }
 
 export const transformReply = transformReplyString;
