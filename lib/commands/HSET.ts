@@ -6,6 +6,8 @@ type HSETMap = Map<string | number, string | number>;
 
 type HSETTuples = Array<[string, string]> | Array<string>;
 
+export const FIRST_KEY_INDEX = 1;
+
 export function transformArguments(key: string, value: HSETObject | HSETMap | HSETTuples): Array<string> {
     const args = ['HSET', key];
 
