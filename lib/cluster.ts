@@ -3,7 +3,6 @@ import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from 
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
-import { commandOptions, CommandOptions } from './command-options';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments } from './commander';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 
