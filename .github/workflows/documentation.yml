@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 1
 
       - name: Use Node.js
-        uses: actions/setup-node@v2.1.5
+        uses: actions/setup-node@v2.3.0
 
       - name: Install Packages
         run: npm install
@@ -24,7 +24,7 @@ jobs:
         run: npm run documentation
 
       - name: Upload Documentation to Wiki
-        uses: SwiftDocOrg/github-wiki-publish-action@v1
+        uses: SwiftDocOrg/github-wiki-publish-action@v1.0.0
         with:
           path: documentation
         env:
