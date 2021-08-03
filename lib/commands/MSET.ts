@@ -1,5 +1,7 @@
 import { transformReplyString } from './generic-transformers';
 
+export const FIRST_KEY_INDEX = 1;
+
 export function transformArguments(toSet: Array<[string, string]> | Array<string> | Record<string, string>): Array<string> {
     const args = ['MSET'];
 
