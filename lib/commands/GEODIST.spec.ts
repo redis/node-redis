@@ -3,11 +3,20 @@ import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from
 import { transformArguments } from './GEODIST';
 
 describe('GEODIST', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', '1', '2'),
-            ['GEODIST', 'key', '1', '2']
-        );
+    describe('transformArguments', () => {
+        it('simple', () => {
+            assert.deepEqual(
+                transformArguments('key', '1', '2'),
+                ['GEODIST', 'key', '1', '2']
+            );
+        });
+
+        it('with unit', () => {
+            assert.deepEqual(
+                transformArguments('key', '1', '2', 'm'),
+                ['GEODIST', 'key', '1', '2', 'm']
+            );
+        });
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.geoDist', async client => {

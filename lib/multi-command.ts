@@ -45,13 +45,13 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         args: Array<unknown>
     ): RedisMultiCommand {
         const transformedArguments: TransformArgumentsReply = [];
-        if (this.#scriptsInUse.has(script.SHA)) {
+        if (this.#scriptsInUse.has(script.SHA1)) {
             transformedArguments.push(
                 'EVALSHA',
-                script.SHA
+                script.SHA1
             );
         } else {
-            this.#scriptsInUse.add(script.SHA);
+            this.#scriptsInUse.add(script.SHA1);
             transformedArguments.push(
                 'EVAL',
                 script.SCRIPT

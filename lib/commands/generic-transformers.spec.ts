@@ -18,7 +18,8 @@ import {
     transformGeoMembersWithReply,
     transformEXAT,
     transformPXAT,
-    pushEvalArguments
+    pushEvalArguments,
+    pushStringTuplesArguments
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
@@ -524,6 +525,29 @@ describe('Generic Transformers', () => {
                     arguments: ['argument']
                 }),
                 ['1', 'key', 'argument']
+            );
+        });
+    });
+
+    describe('pushStringTuplesArguments', () => {
+        it("['key1', 'value1', 'key2', 'value2']", () => {
+            assert.deepEqual(
+                pushStringTuplesArguments([], ['key1', 'value1', 'key2', 'value2']),
+                ['key1', 'value1', 'key2', 'value2']
+            );
+        });
+
+        it("[['key1', 'value1'], ['key2', 'value2']]", () => {
+            assert.deepEqual(
+                pushStringTuplesArguments([], [['key1', 'value1'], ['key2', 'value2']]),
+                ['key1', 'value1', 'key2', 'value2']
+            );
+        });
+
+        it("{key1: 'value1'. key2: 'value2'}", () => {
+            assert.deepEqual(
+                pushStringTuplesArguments([], { key1: 'value1', key2: 'value2' }),
+                ['key1', 'value1', 'key2', 'value2']
             );
         });
     });

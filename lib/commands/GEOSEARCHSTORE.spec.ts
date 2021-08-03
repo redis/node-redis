@@ -5,20 +5,39 @@ import { transformArguments } from './GEOSEARCHSTORE';
 describe('GEOSEARCHSTORE', () => {
     describeHandleMinimumRedisVersion([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('destination', 'source', 'member', {
-                radius: 1,
-                unit: 'm'
-            }, {
-                SORT: 'ASC',
-                COUNT: {
-                    value: 1,
-                    ANY: true
-                }
-            }),
-            ['GEOSEARCHSTORE', 'destination', 'source', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'ASC', 'COUNT', '1', 'ANY']
-        );
+    describe('transformArguments', () => {
+        it('simple', () => {
+            assert.deepEqual(
+                transformArguments('destination', 'source', 'member', {
+                    radius: 1,
+                    unit: 'm'
+                }, {
+                    SORT: 'ASC',
+                    COUNT: {
+                        value: 1,
+                        ANY: true
+                    }
+                }),
+                ['GEOSEARCHSTORE', 'destination', 'source', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'ASC', 'COUNT', '1', 'ANY']
+            );
+        });
+
+        it('with STOREDIST', () => {
+            assert.deepEqual(
+                transformArguments('destination', 'source', 'member', {
+                    radius: 1,
+                    unit: 'm'
+                }, {
+                    SORT: 'ASC',
+                    COUNT: {
+                        value: 1,
+                        ANY: true
+                    },
+                    STOREDIST: true
+                }),
+                ['GEOSEARCHSTORE', 'destination', 'source', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'ASC', 'COUNT', '1', 'ANY', 'STOREDIST']
+            );
+        });
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.geoSearchStore', async client => {

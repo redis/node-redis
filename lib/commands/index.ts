@@ -67,6 +67,7 @@ import * as GETEX from './GETEX';
 import * as GETRANGE from './GETRANGE';
 import * as GETSET from './GETSET';
 import * as HDEL from './HDEL';
+import * as HELLO from './HELLO';
 import * as HEXISTS from './HEXISTS';
 import * as HGET from './HGET';
 import * as HGETALL from './HGETALL';
@@ -116,6 +117,7 @@ import * as MODULE_LOAD from './MODULE_LOAD';
 import * as MODULE_UNLOAD from './MODULE_UNLOAD';
 import * as MOVE from './MOVE';
 import * as MSET from './MSET';
+import * as MSETNX from './MSETNX';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
 import * as PEXPIREAT from './PEXPIREAT';
@@ -146,6 +148,11 @@ import * as SADD from './SADD';
 import * as SAVE from './SAVE';
 import * as SCAN from './SCAN';
 import * as SCARD from './SCARD';
+import * as SCRIPT_DEBUG from './SCRIPT_DEBUG';
+import * as SCRIPT_EXISTS from './SCRIPT_EXISTS';
+import * as SCRIPT_FLUSH from './SCRIPT_FLUSH';
+import * as SCRIPT_KILL from './SCRIPT_KILL';
+import * as SCRIPT_LOAD from './SCRIPT_LOAD';
 import * as SDIFF from './SDIFF';
 import * as SDIFFSTORE from './SDIFFSTORE';
 import * as SET from './SET';
@@ -374,6 +381,8 @@ export default {
     getSet: GETSET,
     HDEL,
     hDel: HDEL,
+    HELLO,
+    hello: HELLO,
     HEXISTS,
     hExists: HEXISTS,
     HGET,
@@ -471,6 +480,8 @@ export default {
     move: MOVE,
     MSET,
     mSet: MSET,
+    MSETNX,
+    mSetNX: MSETNX,
     PERSIST,
     persist: PERSIST,
     PEXPIRE,
@@ -531,6 +542,16 @@ export default {
     scan: SCAN,
     SCARD,
     sCard: SCARD,
+    SCRIPT_DEBUG,
+    scriptDebug: SCRIPT_DEBUG,
+    SCRIPT_EXISTS,
+    scriptExists: SCRIPT_EXISTS,
+    SCRIPT_FLUSH,
+    scriptFlush: SCRIPT_FLUSH,
+    SCRIPT_KILL,
+    scriptKill: SCRIPT_KILL,
+    SCRIPT_LOAD,
+    scriptLoad: SCRIPT_LOAD,
     SDIFF,
     sDiff: SDIFF,
     SDIFFSTORE,

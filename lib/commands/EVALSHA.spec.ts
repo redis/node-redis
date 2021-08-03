@@ -1,14 +1,14 @@
 import { strict as assert } from 'assert';
-import { transformArguments } from './EVAL';
+import { transformArguments } from './EVALSHA';
 
-describe('EVAL', () => {
+describe('EVALSHA', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('sha1', {
                 keys: ['key'],
                 arguments: ['argument']
             }),
-            ['EVAL', 'sha1', '1', 'key', 'argument']
+            ['EVALSHA', 'sha1', '1', 'key', 'argument']
         );
     });
 });

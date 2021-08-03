@@ -1,7 +1,7 @@
-import { transformReplyString } from './generic-transformers';
+import { transformReplyBoolean } from './generic-transformers';
 
 export function transformArguments(toSet: Array<[string, string]> | Array<string> | Record<string, string>): Array<string> {
-    const args = ['MSET'];
+    const args = ['MSETNX'];
 
     if (Array.isArray(toSet)) {
         args.push(...toSet.flat());
@@ -14,4 +14,4 @@ export function transformArguments(toSet: Array<[string, string]> | Array<string
     return args;
 }
 
-export const transformReply = transformReplyString;
+export const transformReply = transformReplyBoolean;

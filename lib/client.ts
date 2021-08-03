@@ -314,7 +314,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         try {
             return await this.#sendCommand([
                 'EVALSHA',
-                script.SHA,
+                script.SHA1,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
             ], options);

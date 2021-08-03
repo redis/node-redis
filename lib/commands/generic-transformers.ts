@@ -339,3 +339,17 @@ export function pushEvalArguments(args: Array<string>, options?: EvalOptions): A
 
     return args;
 }
+
+export type StringTuplesArguments = Array<[string, string]> | Array<string> | Record<string, string>;
+
+export function pushStringTuplesArguments(args: Array<string>, tuples: StringTuplesArguments): Array<string> {
+    if (Array.isArray(tuples)) {
+        args.push(...tuples.flat());
+    } else {
+        for (const key of Object.keys(tuples)) {
+            args.push(key, tuples[key]);
+        }
+    }
+
+    return args;
+}
