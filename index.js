@@ -12,6 +12,7 @@ var Parser = require('redis-parser');
 var RedisErrors = require('redis-errors');
 var commands = require('redis-commands');
 var debug = require('./lib/debug');
+var Logger = require('Logger');
 var unifyOptions = require('./lib/createClient');
 var SUBSCRIBE_COMMANDS = {
     subscribe: true,
@@ -34,6 +35,7 @@ function handle_detect_buffers_reply (reply, command, buffer_args) {
     if (command === 'hgetall') {
         reply = utils.reply_to_object(reply);
     }
+    Logger.info("here")
     return reply;
 }
 
