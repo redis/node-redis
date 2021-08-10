@@ -1,4 +1,4 @@
-import { transformReplyNumber } from './generic-transformers';
+import { pushVerdictArgument, transformReplyNumber } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -8,13 +8,7 @@ interface ZInterStoreOptions {
 }
 
 export function transformArguments(destination: string, keys: Array<string> | string, options?: ZInterStoreOptions): Array<string> {
-    const args = ['ZINTERSTORE', destination];
-
-    if (typeof keys === 'string') {
-        args.push('1', keys);
-    } else {
-        args.push(keys.length.toString(), ...keys);
-    }
+    const args = pushVerdictArgument(['ZINTERSTORE', destination], keys);
 
     if (options?.WEIGHTS) {
         args.push(

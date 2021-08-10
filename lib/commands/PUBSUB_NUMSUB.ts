@@ -1,12 +1,12 @@
+import { pushVerdictArguments } from './generic-transformers';
+
 export const IS_READ_ONLY = true;
 
 export function transformArguments(channels?: Array<string> | string): Array<string> {
     const args = ['PUBSUB', 'NUMSUB'];
 
-    if (Array.isArray(channels)) {
-        args.push(...channels);
-    } else if (typeof channels === 'string') {
-        args.push(channels);
+    if (channels) {
+        pushVerdictArguments(args, channels);
     }
 
     return args;

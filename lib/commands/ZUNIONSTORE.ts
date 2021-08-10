@@ -1,4 +1,4 @@
-import { transformReplyNumber } from './generic-transformers';
+import { pushVerdictArgument, transformReplyNumber } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -8,13 +8,7 @@ interface ZUnionOptions {
 }
 
 export function transformArguments(destination: string, keys: Array<string> | string, options?: ZUnionOptions): Array<string> {
-    const args = ['ZUNIONSTORE', destination];
-
-    if (typeof keys === 'string') {
-        args.push('1', keys);
-    } else {
-        args.push(keys.length.toString(), ...keys);
-    }
+    const args = pushVerdictArgument(['ZUNIONSTORE', destination], keys);
 
     if (options?.WEIGHTS) {
         args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));

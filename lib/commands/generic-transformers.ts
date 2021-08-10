@@ -1,3 +1,5 @@
+import { TransformArgumentsReply } from '.';
+
 export function transformReplyNumber(reply: number): number {
     return reply;
 }
@@ -353,3 +355,32 @@ export function pushStringTuplesArguments(args: Array<string>, tuples: StringTup
 
     return args;
 }
+
+export function pushVerdictArguments(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply  {
+    if (typeof value === 'string') {
+        args.push(value);
+    } else {
+        args.push(...value);
+    }
+
+    return args;
+}
+
+export function pushVerdictArgument(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply {
+    if (typeof value === 'string') {
+        args.push('1', value);
+    } else {
+        args.push(value.length.toString(), ...value);
+    }
+
+    return args;
+}
+
+export function pushOptionalVerdictArgument(args: TransformArgumentsReply, name: string, value: undefined | string | Array<string>): TransformArgumentsReply {
+    if (value === undefined) return args;
+
+    args.push(name);
+
+    return pushVerdictArgument(args, value);
+}
+

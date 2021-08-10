@@ -1,15 +1,7 @@
-import { transformReplyBooleanArray } from './generic-transformers';
+import { pushVerdictArguments, transformReplyBooleanArray } from './generic-transformers';
 
 export function transformArguments(sha1: string | Array<string>): Array<string> {
-    const args = ['SCRIPT', 'EXISTS'];
-
-    if (typeof sha1 === 'string') {
-        args.push(sha1);
-    } else {
-        args.push(...sha1);
-    }
-
-    return args;
+    return pushVerdictArguments(['SCRIPT', 'EXISTS'], sha1);
 }
 
 export const transformReply = transformReplyBooleanArray;

@@ -1,17 +1,9 @@
-import { transformReplyStringArray } from './generic-transformers';
+import { pushVerdictArguments, transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(destination: string, keys: string | Array<string>): Array<string> {
-    const args = ['SINTERSTORE', destination];
-
-    if (typeof keys === 'string') {
-        args.push(keys);
-    } else {
-        args.push(...keys);
-    }
-
-    return args; 
+    return pushVerdictArguments(['SINTERSTORE', destination], keys);
 }
 
 export const transformReply = transformReplyStringArray;

@@ -1,4 +1,4 @@
-import { transformReplyStringArray } from './generic-transformers';
+import { pushVerdictArgument, transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
@@ -10,13 +10,7 @@ interface ZInterOptions {
 }
 
 export function transformArguments(keys: Array<string> | string, options?: ZInterOptions): Array<string> {
-    const args = ['ZINTER'];
-
-    if (typeof keys === 'string') {
-        args.push('1', keys);
-    } else {
-        args.push(keys.length.toString(), ...keys);
-    }
+    const args = pushVerdictArgument(['ZINTER'], keys);
 
     if (options?.WEIGHTS) {
         args.push(

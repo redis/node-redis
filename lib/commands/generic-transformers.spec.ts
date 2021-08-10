@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { isObject } from 'util';
 import {
     transformReplyBoolean,
     transformReplyBooleanArray,
@@ -19,7 +20,10 @@ import {
     transformEXAT,
     transformPXAT,
     pushEvalArguments,
-    pushStringTuplesArguments
+    pushStringTuplesArguments,
+    pushVerdictArguments,
+    pushVerdictArgument,
+    pushOptionalVerdictArgument
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
@@ -548,6 +552,61 @@ describe('Generic Transformers', () => {
             assert.deepEqual(
                 pushStringTuplesArguments([], { key1: 'value1', key2: 'value2' }),
                 ['key1', 'value1', 'key2', 'value2']
+            );
+        });
+    });
+
+    describe('pushVerdictArguments', () => {
+        it('string', () => {
+            assert.deepEqual(
+                pushVerdictArguments([], 'string'),
+                ['string']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                pushVerdictArguments([], ['1', '2']),
+                ['1', '2']
+            );
+        });
+    });
+
+    describe('pushVerdictArgument', () => {
+        it('string', () => {
+            assert.deepEqual(
+                pushVerdictArgument([], 'string'),
+                ['1', 'string']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                pushVerdictArgument([], ['1', '2']),
+                ['2', '1', '2']
+            );
+        });
+    });
+
+    describe('pushOptionalVerdictArgument', () => {
+        it('undefined', () => {
+            assert.deepEqual(
+                pushOptionalVerdictArgument([], 'name', undefined),
+                []
+            );
+        });
+
+        it('string', () => {
+            assert.deepEqual(
+                pushOptionalVerdictArgument([], 'name', 'string'),
+                ['name', '1', 'string']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                pushOptionalVerdictArgument([], 'name', ['1', '2']),
+                ['name', '2', '1', '2']
             );
         });
     });
