@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "cluster-key-slot": "1.1.0",
+    "generic-pool": "3.8.2",
     "redis-parser": "3.0.0",
     "yallist": "4.0.0"
   },

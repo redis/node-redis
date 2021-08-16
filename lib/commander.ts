@@ -32,23 +32,30 @@ export function extendWithModulesAndScripts<
     M extends RedisModules,
     S extends RedisLuaScripts,
 >(config: ExtendWithModulesAndScriptsConfig<T, M, S>): T {
-    let Commander: T | undefined,
-        modulesBaseObject: Record<string, any>;
+    let Commander: T | undefined;
 
     if (config.modules) {
-        modulesBaseObject = Object.create(null);
         Commander = class extends config.BaseClass {
             constructor(...args: Array<any>) {
                 super(...args);
-                modulesBaseObject.self = this;
+
+                for (const module of Object.keys(config.modules as RedisModules)) {
+                    this[module] = new this[module](this);
+                }
             }
         };
 
         for (const [moduleName, module] of Object.entries(config.modules)) {
-            Commander.prototype[moduleName] = Object.create(modulesBaseObject);
+            Commander.prototype[moduleName] = class {
+                readonly self: T;
+
+                constructor(self: InstanceType<T>) {
+                    this.self = self;
+                }
+            };
 
             for (const [commandName, command] of Object.entries(module)) {
-                Commander.prototype[moduleName][commandName] = function (...args: Array<unknown>): unknown {
+                Commander.prototype[moduleName].prototype[commandName] = function (...args: Array<unknown>): unknown {
                     return config.modulesCommandsExecutor.call(this.self, command, args);
                 };
             }

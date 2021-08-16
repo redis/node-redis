@@ -289,6 +289,34 @@ describe('Client', () => {
         }
     });
 
+    it('modules', async () => {
+        const client = RedisClient.create({
+            modules: {
+                module: {
+                    echo: {
+                        transformArguments(message: string): Array<string> {
+                            return ['ECHO', message];
+                        },
+                        transformReply(reply: string): string {
+                            return reply;
+                        }
+                    }
+                }
+            }
+        });
+
+        await client.connect();
+
+        try {
+            assert.equal(
+                await client.module.echo('message'),
+                'message'
+            );
+        } finally {
+            await client.disconnect();
+        }
+    });
+
     itWithClient(TestRedisServers.OPEN, 'should reconnect after DEBUG RESTART', async client => {
         client.on('error', () => {
             // ignore errors

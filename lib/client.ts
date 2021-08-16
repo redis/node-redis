@@ -10,6 +10,7 @@ import { ScanOptions, ZMember } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
 import { HScanTuple } from './commands/HSCAN';
 import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
+import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -18,6 +19,7 @@ export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     commandsQueueMaxLength?: number;
     readonly?: boolean;
     legacyMode?: boolean;
+    poolOptions?: PoolOptions;
 }
 
 export type RedisCommandSignature<C extends RedisCommand> =
@@ -91,7 +93,9 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             scriptsExecutor: RedisClient.#scriptsExecutor
         }));
 
-        Client.prototype.Multi = RedisMultiCommand.extend(options);
+        if (Client !== RedisClient) {
+            Client.prototype.Multi = RedisMultiCommand.extend(options);
+        }
 
         return new Client(options);
     }
@@ -99,6 +103,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     readonly #options?: RedisClientOptions<M, S>;
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
+    readonly #pool: Pool<RedisClientType<M, S>>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
 
@@ -123,6 +128,16 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#options = options;
         this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
+        this.#pool = createPool({
+            create: async () => {
+                console.log('HERE?');
+                const duplicate = this.duplicate();
+                await duplicate.connect();
+                console.log('connected');
+                return duplicate;
+            },
+            destroy: client => client.disconnect()
+        }, options?.poolOptions);
         this.#legacyMode();
     }
 
@@ -292,8 +307,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
     async sendEncodedCommand<T = RedisReply>(encodedCommand: string, options?: ClientCommandOptions): Promise<T> {
         if (options?.duplicateConnection) {
-            const duplicate = this.duplicate();
-            await duplicate.connect();
+            const duplicate = await this.#pool.acquire();
 
             try {
                 return await duplicate.sendEncodedCommand(encodedCommand, {
@@ -301,7 +315,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                     duplicateConnection: false
                 });
             } finally {
-                await duplicate.disconnect();
+                await this.#pool.release(duplicate);
             }
         }
 
@@ -347,7 +361,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     multi(): RedisMultiCommandType<M, S> {
-        // Multi is attached in `create`
         return new (this as any).Multi(
             this.#multiExecutor.bind(this),
             this.#options
@@ -398,9 +411,17 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
-    disconnect(): Promise<void> {
+    async disconnect(): Promise<void> {
         this.#queue.flushAll(new Error('Disconnecting'));
-        return this.#socket.disconnect();
+        await Promise.all([
+            this.#socket.disconnect(),
+            this.#destroyPool()
+        ]);
+    }
+
+    async #destroyPool(): Promise<void> {
+        await this.#pool.drain();
+        await this.#pool.clear();
     }
 
     #isTickQueued = false;
@@ -430,3 +451,4 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 }
 
 extendWithDefaultCommands(RedisClient, RedisClient.commandsExecutor);
+(RedisClient.prototype as any).Multi = RedisMultiCommand.extend();
