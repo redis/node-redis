@@ -31,13 +31,13 @@ jobs:
           redis-version: ${{ matrix.redis-version }}
 
       - name: Install Packages
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run build
 
       - name: Install Benchmark Packages
-        run: npm install
+        run: npm ci
         working-directory: ./benchmark
 
       - name: Benchmark

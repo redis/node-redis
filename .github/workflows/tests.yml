@@ -31,7 +31,7 @@ jobs:
           auto-start: "false"
 
       - name: Install Packages
-        run: npm install
+        run: npm ci
 
       - name: Run Tests
         run: npm run test
