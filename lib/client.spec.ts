@@ -317,6 +317,17 @@ describe('Client', () => {
         }
     });
 
+    itWithClient(TestRedisServers.OPEN, 'executeIsolated', async client => {
+        await client.sendCommand(['CLIENT', 'SETNAME', 'client']);
+
+        assert.equal(
+            await client.executeIsolated(isolatedClient =>
+                isolatedClient.sendCommand(['CLIENT', 'GETNAME'])
+            ),
+            null
+        );
+    });
+
     itWithClient(TestRedisServers.OPEN, 'should reconnect after DEBUG RESTART', async client => {
         client.on('error', () => {
             // ignore errors

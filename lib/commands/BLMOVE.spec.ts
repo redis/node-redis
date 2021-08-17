@@ -16,7 +16,7 @@ describe('BLMOVE', () => {
     itWithClient(TestRedisServers.OPEN, 'client.blMove', async client => {
         const [blMoveReply] = await Promise.all([
             client.blMove(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), 'source', 'destination', 'LEFT', 'RIGHT', 0),
             client.lPush('source', 'element')
         ]);
@@ -30,7 +30,7 @@ describe('BLMOVE', () => {
     itWithCluster(TestRedisClusters.OPEN, 'cluster.blMove', async cluster => {
         const [blMoveReply] = await Promise.all([
             cluster.blMove(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), '{tag}source', '{tag}destination', 'LEFT', 'RIGHT', 0),
             cluster.lPush('{tag}source', 'element')
         ]);

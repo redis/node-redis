@@ -23,7 +23,7 @@ describe('BZPOPMIN', () => {
     itWithClient(TestRedisServers.OPEN, 'client.bzPopMin', async client => {
         const [popReply] = await Promise.all([
             client.bzPopMin(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), 'key', 0),
             client.zAdd('key', [{
                 value: '1',

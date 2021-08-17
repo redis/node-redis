@@ -23,7 +23,7 @@ describe('BLPOP', () => {
     itWithClient(TestRedisServers.OPEN, 'client.blPop', async client => {
         const [popReply] = await Promise.all([
             client.blPop(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), 'key', 0),
             client.lPush('key', 'element')
         ]);
@@ -40,7 +40,7 @@ describe('BLPOP', () => {
     itWithCluster(TestRedisClusters.OPEN, 'cluster.blPop', async cluster => {
         const [popReply] = await Promise.all([
             cluster.blPop(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), 'key', 0),
             cluster.lPush('key', 'element')
         ]);

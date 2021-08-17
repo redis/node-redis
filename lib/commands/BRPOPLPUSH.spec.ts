@@ -14,7 +14,7 @@ describe('BRPOPLPUSH', () => {
     itWithClient(TestRedisServers.OPEN, 'client.brPopLPush', async client => {
         const [popReply] = await Promise.all([
             client.brPopLPush(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), 'source', 'destination', 0),
         client.lPush('source', 'element')
         ]);
@@ -28,7 +28,7 @@ describe('BRPOPLPUSH', () => {
     itWithCluster(TestRedisClusters.OPEN, 'cluster.brPopLPush', async cluster => {
         const [popReply] = await Promise.all([
             cluster.brPopLPush(commandOptions({
-                duplicateConnection: true
+                isolated: true
             }), '{tag}source', '{tag}destination', 0),
             cluster.lPush('{tag}source', 'element')
         ]);

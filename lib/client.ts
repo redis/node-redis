@@ -19,7 +19,7 @@ export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     commandsQueueMaxLength?: number;
     readonly?: boolean;
     legacyMode?: boolean;
-    poolOptions?: PoolOptions;
+    isolationPoolOptions?: PoolOptions;
 }
 
 export type RedisCommandSignature<C extends RedisCommand> =
@@ -46,7 +46,7 @@ export type RedisClientType<M extends RedisModules, S extends RedisLuaScripts> =
     WithPlugins<M, S> & RedisClient<M, S>;
 
 export interface ClientCommandOptions extends QueueCommandOptions {
-    duplicateConnection?: boolean;
+    isolated?: boolean;
 }
 
 export default class RedisClient<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> extends EventEmitter {
@@ -103,7 +103,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     readonly #options?: RedisClientOptions<M, S>;
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
-    readonly #pool: Pool<RedisClientType<M, S>>;
+    readonly #isolationPool: Pool<RedisClientType<M, S>>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
 
@@ -128,16 +128,14 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#options = options;
         this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
-        this.#pool = createPool({
+        this.#isolationPool = createPool({
             create: async () => {
-                console.log('HERE?');
                 const duplicate = this.duplicate();
                 await duplicate.connect();
-                console.log('connected');
                 return duplicate;
             },
             destroy: client => client.disconnect()
-        }, options?.poolOptions);
+        }, options?.isolationPoolOptions);
         this.#legacyMode();
     }
 
@@ -306,22 +304,22 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     async sendEncodedCommand<T = RedisReply>(encodedCommand: string, options?: ClientCommandOptions): Promise<T> {
-        if (options?.duplicateConnection) {
-            const duplicate = await this.#pool.acquire();
-
-            try {
-                return await duplicate.sendEncodedCommand(encodedCommand, {
+        if (options?.isolated) {
+            return this.executeIsolated(isolatedClient =>
+                isolatedClient.sendEncodedCommand(encodedCommand, {
                     ...options,
-                    duplicateConnection: false
-                });
-            } finally {
-                await this.#pool.release(duplicate);
-            }
+                    isolated: false
+                })
+            );
         }
 
         const promise = this.#queue.addEncodedCommand<T>(encodedCommand, options);
         this.#tick();
         return await promise;
+    }
+
+    executeIsolated<T>(fn: (client: RedisClientType<M, S>) => T | Promise<T>): Promise<T> {
+        return this.#isolationPool.use(fn);
     }
 
     async executeScript(script: RedisLuaScript, args: Array<string>, options?: ClientCommandOptions): Promise<ReturnType<typeof script['transformReply']>> {
@@ -420,8 +418,8 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     async #destroyPool(): Promise<void> {
-        await this.#pool.drain();
-        await this.#pool.clear();
+        await this.#isolationPool.drain();
+        await this.#isolationPool.clear();
     }
 
     #isTickQueued = false;

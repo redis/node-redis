@@ -50,12 +50,12 @@ The new interface is clean and cool, but if you have an existing code base, you 
 
 ### Redis Commands
 
-There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HGET`, `HSET`, etc.) and a friendlier camel-cased version (`hGet`, `hSet`, etc.):
+There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) and a friendlier camel-cased version (`hSet`, `hGetAll`, etc.):
 
 ```typescript
 // raw Redis commands
-await client.SET('key', 'value');
-await client.GET('key');
+await client.HSET('key', 'field', 'value');
+await client.HGETALL('key');
 
 // friendly JavaScript commands
 await client.hSet('key', 'field', 'value');
@@ -71,16 +71,16 @@ await client.set('key', 'value', {
 });
 ```
 
-Replies will be transformed to useful data structures:
+Replies will be transformed into useful data structures:
 
 ```typescript
-await client.hGetAll('key'); // { key1: 'value1', key2: 'value2' }
-await client.hKeys('key'); // ['key1', 'key2']
+await client.hGetAll('key'); // { field1: 'value1', field2: 'value2' }
+await client.hVals('key'); // ['value1', 'value2']
 ```
 
 ### Unsupported Redis Commands
 
-If you want to run commands and arguments that Node Redis doesn't know about (yet!) you can use `.sendCommand`:
+If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) you can use `.sendCommand()`:
 
 ```typescript
 await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
@@ -90,34 +90,25 @@ await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'fie
 
 ### Transactions (Multi/Exec)
 
-Start [transactions](https://redis.io/topics/transactions) with a call to `.multi()` and then chain your commands. At the end call `.exec()` and you'll get an array back with the results of your commands:
+Start a [transaction](https://redis.io/topics/transactions) by calling `.multi()`, then chaining your commands. When you're done, call `.exec()` and you'll get an array back with your results:
 
 ```typescript
+await client.set('another-key', 'another-value');
+
 const [ setKeyReply, otherKeyValue ] = await client.multi()
     .set('key', 'value')
-    .get('other-key')
+    .get('another-key')
     .exec()
-]); // ['OK', null]
+]); // ['OK', 'another-value']
 ```
 
-You can also watch keys by calling `.watch()`. If someone else changes them out from underneath you, your transaction will abort:
+You can also [watch](https://redis.io/topics/transactions#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change.
 
-```typescript
-await client.watch('other-key');
-try {
-    await client.multi()
-        .set('key', 'value')
-        .get('other-key')
-        .exec()
-    ]);
-} catch (err) {
-    // ...
-}
-```
+To dig deeper into transactions, check out the [Execution Isolation Guide](./docs/isolation.md).
 
 ### Blocking Commands
 
-Any command can be run on a new connection by specifying the `duplicateConnection` option. The newly created connection is closed when the command's `Promise` is fulfilled.
+Any command can be run on a new connection by specifying the `isolated` option. The newly created connection is closed when the command's `Promise` is fulfilled.
 
 This pattern works especially well for blocking commands—such as `BLPOP` and `BLMOVE`:
 
@@ -125,7 +116,7 @@ This pattern works especially well for blocking commands—such as `BLPOP` and `
 import { commandOptions } from 'redis';
 
 const blPopPromise = client.blPop(
-    commandOptions({ duplicateConnection: true }),
+    commandOptions({ isolated: true }),
     'key'
 );
 
@@ -133,6 +124,8 @@ await client.lPush('key', ['1', '2']);
 
 await blPopPromise; // '2'
 ```
+
+[TODO](./docs/isolation.md)
 
 ### Pub/Sub
 
