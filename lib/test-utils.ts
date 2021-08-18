@@ -197,16 +197,13 @@ export async function spawnRedisCluster(type: TestRedisClusters | null, numberOf
 
     await Promise.all(meetPromises);
 
-    while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
+    do {
         await promiseTimeout(100);
-    }
+    } while ((await spawnResults[0].client.clusterInfo()).state !== 'ok')
 
-    const disconnectPromises = [];
-    for (const result of spawnResults) {
-        disconnectPromises.push(result.client.disconnect());
-    }
-
-    await Promise.all(disconnectPromises);
+    await Promise.all(
+        spawnResults.map(result => result.client.disconnect())
+    );
 
     return spawnResults;
 }
