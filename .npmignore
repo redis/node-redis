@@ -15,3 +15,4 @@ scripts/
 lib/
 index.ts
 *.spec.*
+dist/lib/test-utils.*
