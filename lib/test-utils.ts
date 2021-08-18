@@ -197,15 +197,23 @@ export async function spawnRedisCluster(type: TestRedisClusters | null, numberOf
 
     await Promise.all(meetPromises);
 
-    do {
+    while (!(await clusterIsReady(spawnResults))) {
         await promiseTimeout(100);
-    } while ((await spawnResults[0].client.clusterInfo()).state !== 'ok')
+    }
 
     await Promise.all(
         spawnResults.map(result => result.client.disconnect())
     );
 
     return spawnResults;
+}
+
+async function clusterIsReady(spawnResults: Array<SpawnRedisClusterNodeResult>): Promise<boolean> {
+    const nodesClusetrInfo = await Promise.all(
+        spawnResults.map(result => result.client.clusterInfo())
+    );
+
+    return nodesClusetrInfo.every(({ state }) => state === 'ok');
 }
 
 export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
