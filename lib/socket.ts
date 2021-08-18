@@ -4,26 +4,26 @@ import tls from 'tls';
 import { URL } from 'url';
 import { promiseTimeout } from './utils';
 
-interface RedisSocketCommonOptions {
+export interface RedisSocketCommonOptions {
     username?: string;
     password?: string;
     retryStrategy?(retries: number): number | Error;
 }
 
-interface RedisNetSocketOptions extends RedisSocketCommonOptions {
+export interface RedisNetSocketOptions extends RedisSocketCommonOptions {
     port?: number;
     host?: string;
 }
 
-interface RedisUrlSocketOptions extends RedisSocketCommonOptions {
+export interface RedisUrlSocketOptions extends RedisSocketCommonOptions {
     url: string;
 }
 
-interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
+export interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
     path: string;
 }
 
-interface RedisTlsSocketOptions extends RedisNetSocketOptions {
+export interface RedisTlsSocketOptions extends RedisNetSocketOptions {
     tls: tls.SecureContextOptions;
 }
 

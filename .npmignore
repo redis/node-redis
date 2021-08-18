@@ -4,11 +4,9 @@ node_modules/
 .nyc_output
 coverage/
 dump.rdb
-documentation
+documentation/
 CONTRIBUTING.md
 CODE_OF_CONDUCT.md
-TODO.md
-GOALS.md
 tsconfig.json
 .nycrc.json
 benchmark/

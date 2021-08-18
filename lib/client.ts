@@ -413,11 +413,11 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#queue.flushAll(new Error('Disconnecting'));
         await Promise.all([
             this.#socket.disconnect(),
-            this.#destroyPool()
+            this.#destroyIsolationPool()
         ]);
     }
 
-    async #destroyPool(): Promise<void> {
+    async #destroyIsolationPool(): Promise<void> {
         await this.#isolationPool.drain();
         await this.#isolationPool.clear();
     }

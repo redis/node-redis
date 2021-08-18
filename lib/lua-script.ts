@@ -6,7 +6,7 @@ export interface RedisLuaScriptConfig extends RedisCommand {
     NUMBER_OF_KEYS: number;
 }
 
-interface SHA1 {
+export interface SHA1 {
     SHA1: string;
 }
 

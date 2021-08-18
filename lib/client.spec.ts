@@ -6,7 +6,7 @@ import { AbortError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
 
-const SQUARE_SCRIPT = defineScript({
+export const SQUARE_SCRIPT = defineScript({
     NUMBER_OF_KEYS: 0,
     SCRIPT: 'return ARGV[1] * ARGV[1];',
     transformArguments(number: number): Array<string> {

@@ -134,16 +134,12 @@ export default class RedisCommandsQueue {
                 resolve,
                 reject
             });
-
+            
             if (options?.signal) {
                 const listener = () => {
                     this.#waitingToBeSent.removeNode(node);
                     node.value.reject(new AbortError());
                 };
-
-                if (options.signal.aborted) {
-                    return listener();
-                }
 
                 node.value.abort = {
                     signal: options.signal,

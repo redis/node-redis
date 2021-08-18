@@ -1,4 +1,4 @@
-# Execution Isolation
+# Isolated Execution
 
 Sometimes you want to run your commands on an exclusive connection. There are a few reasons you might want to do this:
 

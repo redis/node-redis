@@ -46,7 +46,19 @@ import { createClient } from 'redis';
 })();
 ```
 
-The new interface is clean and cool, but if you have an existing code base, you might want to enable [legacy mode](#legacy-mode).
+The above code only connects to localhost on port 6379. You probably want to connect to somewhere else. To do so, use a connection string in the format `[redis[s]:]//[[username][:password@]][host][:port]`:
+
+```typescript
+createClient({
+    socket: {
+        url: 'redis://alice:foobared@awesome.redis.server:6380'
+    }
+});
+```
+
+You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in in the [Wiki](https://github.com/NodeRedis/node-redis/wiki/lib.socket#RedisSocketOptions).
+
+> The new interface is clean and cool, but if you have an existing code base, you might want to enable [legacy mode](#legacy-mode).
 
 ### Redis Commands
 
@@ -104,7 +116,7 @@ const [ setKeyReply, otherKeyValue ] = await client.multi()
 
 You can also [watch](https://redis.io/topics/transactions#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change.
 
-To dig deeper into transactions, check out the [Execution Isolation Guide](./docs/isolation.md).
+To dig deeper into transactions, check out the [Isolated Execution Guide](./docs/isolated-execution.md).
 
 ### Blocking Commands
 
@@ -125,11 +137,19 @@ await client.lPush('key', ['1', '2']);
 await blPopPromise; // '2'
 ```
 
-[TODO](./docs/isolation.md)
+To learn more about isolated execution, check out the [guide](./docs/isolated-execution.md).
 
 ### Pub/Sub
 
-Subscribing to a channel requires a dedicated Redis connection and is easily handled using events:
+Subscribing to a channel requires a dedicated stand-alone connection. You can easily get one by `.duplicate()`ing an existing Redis connection.
+
+```typescript
+const subscriber = client.duplicate();
+
+await subscriber.connect();
+```
+
+Once you have one, simply subscribe and unsubscribe as needed:
 
 ```typescript
 await subscriber.subscribe('channel', message => {
@@ -140,6 +160,14 @@ await subscriber.pSubscribe('channe*', (message, channel) => {
     console.log(message, channel); // 'message', 'channel'
 });
 
+await subscriber.unsubscribe('channel');
+
+await subscriber.pUnsubscribe('channe*');
+```
+
+Publish a message on a channel:
+
+```typescript
 await publisher.publish('channel', 'message');
 ```
 
@@ -154,7 +182,7 @@ for await (const key of client.scanIterator()) {
 }
 ```
 
-This works with HSCAN, SSCAN, and ZSCAN too:
+This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 
 ```typescript
 for await (const member of client.hScanIterator('hash')) {}
@@ -174,7 +202,7 @@ client.scanIterator({
 
 ### Lua Scripts
 
-You can define Lua scripts to create efficient custom commands:
+You can define [Lua scripts](https://redis.io/commands/eval) to create efficient custom commands:
 
 ```typescript
 import { createClient, defineScript } from 'redis';
@@ -206,7 +234,7 @@ import { createClient, defineScript } from 'redis';
 
 ### Cluster
 
-Connecting to a cluster is a bit different. Create the client by specifying the root nodes in your cluster and then use it like a non-clustered client:
+Connecting to a cluster is a bit different. Create the client by specifying some (or all) of the nodes in your cluster and then use it like a non-clustered client:
 
 ```typescript
 import { createCluster } from 'redis';
@@ -214,10 +242,10 @@ import { createCluster } from 'redis';
 (async () => {
     const cluster = createCluster({
         rootNodes: [{
-            host: '192.168.1.1',
+            host: '10.0.0.1',
             port: 30001
         }, {
-            host: '192.168.1.2',
+            host: '10.0.0.2',
             port: 30002
         }]
     });
