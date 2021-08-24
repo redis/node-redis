@@ -223,7 +223,7 @@ describe('Client', () => {
         });
     });
 
-    describe.only('multi', () => {
+    describe('multi', () => {
         itWithClient(TestRedisServers.OPEN, 'simple', async client => {
             assert.deepEqual(
                 await client.multi()
