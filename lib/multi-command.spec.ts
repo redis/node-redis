@@ -47,7 +47,7 @@ describe('Multi Command', () => {
 
         it('WatchError', async () => {
             assert.rejects(
-                RedisMultiCommand.create(() => Promise.resolve(null)).exec(),
+                RedisMultiCommand.create(() => Promise.resolve([null])).exec(),
                 WatchError
             );
         });

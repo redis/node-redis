@@ -29,7 +29,7 @@ export interface MultiQueuedCommand {
     transformReply?: RedisCommand['transformReply'];
 }
 
-export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<null | Array<RedisReply>>;
+export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisReply>>;
 
 export default class RedisMultiCommand<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
     static commandsExecutor(this: RedisMultiCommand, command: RedisCommand, args: Array<unknown>): RedisMultiCommand {
@@ -169,22 +169,22 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         }
 
         const queue = this.#queue.splice(0),
-            rawReplies = this.#handleNullReply(
-                await this.#executor([
-                    {
-                        encodedCommand: encodeCommand(['MULTI'])
-                    },
-                    ...queue,
-                    {
-                        encodedCommand: encodeCommand(['EXEC'])
-                    }
-                ], Symbol('[RedisMultiCommand] Chain ID'))
-            );
+            rawReplies = await this.#executor([
+                {
+                    encodedCommand: encodeCommand(['MULTI'])
+                },
+                ...queue,
+                {
+                    encodedCommand: encodeCommand(['EXEC'])
+                }
+            ], Symbol('[RedisMultiCommand] Chain ID')),
+            execReply = rawReplies[rawReplies.length - 1] as (null | Array<RedisReply>);
 
-        return this.#transformReplies(
-            rawReplies[rawReplies.length - 1] as Array<RedisReply>,
-            queue
-        );
+        if (execReply === null) {
+            throw new WatchError();
+        }
+
+        return this.#transformReplies(execReply, queue);
     }
 
     async execAsPipeline(): Promise<Array<RedisReply>> {
@@ -194,17 +194,9 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
         const queue = this.#queue.splice(0);
         return this.#transformReplies(
-            this.#handleNullReply(await this.#executor(queue)),
+            await this.#executor(queue),
             queue
         );
-    }
-
-    #handleNullReply<T>(reply: null | T): T {
-        if (reply === null) {
-            throw new WatchError();
-        }
-
-        return reply;
     }
 
     #transformReplies(rawReplies: Array<RedisReply>, queue: Array<MultiQueuedCommand>): Array<RedisReply> {
