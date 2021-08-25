@@ -43,8 +43,7 @@ client.set("key", "value", redis.print);
 client.get("key", redis.print);
 ```
 
-Note that the API is entirely asynchronous. To get data back from the server,
-you'll need to use a callback.
+Note that the API is entirely asynchronous. To get data returned by the server, use a callback.
 
 ### Promises
 
