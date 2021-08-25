@@ -3,14 +3,14 @@ import { SinonFakeTimers, useFakeTimers, spy } from 'sinon';
 import RedisSocket from './socket';
 
 describe('Socket', () => {
-    describe('retryStrategy', () => {
+    describe('reconnectStrategy', () => {
         let clock: SinonFakeTimers;
         beforeEach(() => clock = useFakeTimers());
         afterEach(() => clock.uninstall());
 
         it('custom strategy', async () => {
-            const retryStrategy = spy((retries: number): number | Error => {
-                assert.equal(retries + 1, retryStrategy.callCount);
+            const reconnectStrategy = spy((retries: number): number | Error => {
+                assert.equal(retries + 1, reconnectStrategy.callCount);
 
                 if (retries === 50) {
                     return Error('50');
@@ -23,7 +23,7 @@ describe('Socket', () => {
 
             const socket = new RedisSocket(undefined, {
                 host: 'error',
-                retryStrategy
+                reconnectStrategy
             });
 
             socket.on('error', () => {

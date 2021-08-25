@@ -7,7 +7,7 @@ import { promiseTimeout } from './utils';
 export interface RedisSocketCommonOptions {
     username?: string;
     password?: string;
-    retryStrategy?(retries: number): number | Error;
+    reconnectStrategy?(retries: number): number | Error;
 }
 
 export interface RedisNetSocketOptions extends RedisSocketCommonOptions {
@@ -55,7 +55,7 @@ export default class RedisSocket extends EventEmitter {
         return options;
     }
 
-    static #defaultRetryStrategy(retries: number): number {
+    static #defaultReconnectStrategy(retries: number): number {
         return Math.min(retries * 50, 500);
     }
 
@@ -142,7 +142,7 @@ export default class RedisSocket extends EventEmitter {
                 throw err;
             }
 
-            const retryIn = (this.#options?.retryStrategy ?? RedisSocket.#defaultRetryStrategy)(retries);
+            const retryIn = (this.#options?.reconnectStrategy ?? RedisSocket.#defaultReconnectStrategy)(retries);
             if (retryIn instanceof Error) {
                 throw retryIn;
             }

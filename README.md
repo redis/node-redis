@@ -1,7 +1,3 @@
-> :warning: Version 4 is still under development and isn't ready for production use. Use at your own risk.
-
----
-
 <p align="center">
     <a href="https://github.com/noderedis/node-redis/">
         <img width="190px" src="https://static.invertase.io/assets/node_redis_logo.png" />
@@ -12,12 +8,20 @@
 
 ---
 
-<p align="center">
-    <a href="https://www.npmjs.com/package/redis/v/next"><img src="https://img.shields.io/npm/dm/redis.svg" alt="NPM downloads"/></a>
-    <a href="https://www.npmjs.com/package/redis/v/next"><img src="https://img.shields.io/npm/v/redis/next" alt="NPM version"/></a>
-    <a href="https://coveralls.io/github/NodeRedis/node-redis?branch=v4"><img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg?branch=v4" alt="Coverage Status"/></a>
-    <a href="https://discord.gg/XMMVgxUm"><img src="https://img.shields.io/discord/697882427875393627?style=flat-square"/></a>
-</p>
+<div align="center">
+    <a href="https://www.npmjs.com/package/redis/v/next">
+        <img src="https://img.shields.io/npm/dm/redis.svg" alt="NPM downloads"/>
+    </a>
+    <a href="https://www.npmjs.com/package/redis/v/next">
+        <img src="https://img.shields.io/npm/v/redis/next.svg" alt="NPM version"/>
+    </a>
+    <a href="https://coveralls.io/github/NodeRedis/node-redis?branch=v4">
+        <img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg?branch=v4" alt="Coverage Status"/>
+    </a>
+    <a href="https://discord.gg/XMMVgxUm">
+        <img src="https://img.shields.io/discord/697882427875393627"/>
+    <a>
+</div>
 
 ---
 
@@ -26,6 +30,8 @@
 ```bash
 npm install redis@next
 ```
+
+> :warning: The new interface is clean and cool, but if you have an existing code base, you'll want to read the [migration guide](./docs/v3-to-v4.md).
 
 ## Usage
 
@@ -46,7 +52,7 @@ import { createClient } from 'redis';
 })();
 ```
 
-The above code only connects to localhost on port 6379. You probably want to connect to somewhere else. To do so, use a connection string in the format `[redis[s]:]//[[username][:password@]][host][:port]`:
+The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `[redis[s]:]//[[username][:password@]][host][:port]`:
 
 ```typescript
 createClient({
@@ -57,8 +63,6 @@ createClient({
 ```
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in in the [Wiki](https://github.com/NodeRedis/node-redis/wiki/lib.socket#RedisSocketOptions).
-
-> The new interface is clean and cool, but if you have an existing code base, you might want to enable [legacy mode](#legacy-mode).
 
 ### Redis Commands
 
@@ -92,7 +96,7 @@ await client.hVals('key'); // ['value1', 'value2']
 
 ### Unsupported Redis Commands
 
-If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) you can use `.sendCommand()`:
+If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`:
 
 ```typescript
 await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
@@ -173,7 +177,7 @@ await publisher.publish('channel', 'message');
 
 ### Scan Iterator
 
-[`SCAN`](https://redis.io/commands/scan) can easily be looped over using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
+[`SCAN`](https://redis.io/commands/scan) results can be looped over using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
 
 ```typescript
 for await (const key of client.scanIterator()) {
@@ -190,7 +194,7 @@ for await (const { field, value } of client.sScanIterator('set')) {}
 for await (const { member, score } of client.zScanIterator('sorted-set')) {}
 ```
 
-You can override the default options by just passing them in:
+You can override the default options by providing a configuration object:
 
 ```typescript
 client.scanIterator({
@@ -202,7 +206,7 @@ client.scanIterator({
 
 ### Lua Scripts
 
-You can define [Lua scripts](https://redis.io/commands/eval) to create efficient custom commands:
+Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
 
 ```typescript
 import { createClient, defineScript } from 'redis';
@@ -257,26 +261,6 @@ import { createCluster } from 'redis';
     await cluster.set('key', 'value');
     const value = await cluster.get('key');
 })();
-```
-
-### Legacy Mode
-
-Need to use the new client in an existing codebase? You can use legacy mode to preserve backwards compatibility while still getting access to the updated experience:
-
-```typescript
-const client = createClient({
-    legacyMode: true
-});
-
-// legacy mode
-client.set('key', 'value', 'NX', (err, reply) => {
-    // ...
-});
-
-// version 4 interface is still accessible
-await client.v4.set('key', 'value', {
-    NX: true
-});
 ```
 
 ## Contributing
