@@ -1,6 +1,6 @@
 # Isolated Execution
 
-Sometimes you want to run your commands on an exclusive connection. There are a few reasons you might want to do this:
+Sometimes you want to run your commands on an exclusive connection. There are a few reasons to do this:
 
 - You're using [transactions]() and need to `WATCH` a key or keys for changes.
 - You want to run a blocking command that will take over the connection, such as `BLPOP` or `BLMOVE`.
@@ -65,4 +65,3 @@ await client.blPop(
     'key'
 );
 ```
-
