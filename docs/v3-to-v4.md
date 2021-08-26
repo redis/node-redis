@@ -1,4 +1,4 @@
-# v3 to v4 migration guide
+# v3 to v4 Migration Guide
 
 Version 4 of Node Redis is a major refactor. While we have tried to maintain backwards compatibility where possible, several interfaces have changed. Read this guide to understand the differences and how to implement version 4 in your application.
 
