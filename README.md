@@ -201,9 +201,6 @@ client.scanIterator({
 });
 ```
 
-    <a href="https://discord.gg/XMMVgxUm">
-        <img src="https://img.shields.io/discord/697882427875393627" alt="Discord"/>
-    <a>
 ### Lua Scripts
 
 Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
