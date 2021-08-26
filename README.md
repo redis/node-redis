@@ -1,26 +1,23 @@
 <p align="center">
-    <a href="https://github.com/noderedis/node-redis/">
-        <img width="190px" src="https://static.invertase.io/assets/node_redis_logo.png" />
+    <a href="https://github.com/noderedis/node-redis">
+        <img width="128" src="https://static.invertase.io/assets/node_redis_logo.png" />
     </a>
     <h2 align="center">Node Redis</h2>
-    <h4 align="center">A high performance Node.js Redis client.</h4>
 </p>
 
----
-
 <div align="center">
-    <a href="https://www.npmjs.com/package/redis/v/next">
-        <img src="https://img.shields.io/npm/dm/redis.svg" alt="NPM downloads"/>
-    </a>
-    <a href="https://www.npmjs.com/package/redis/v/next">
-        <img src="https://img.shields.io/npm/v/redis/next.svg" alt="NPM version"/>
-    </a>
     <a href="https://coveralls.io/github/NodeRedis/node-redis?branch=v4">
         <img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg?branch=v4" alt="Coverage Status"/>
     </a>
+    <a href="https://www.npmjs.com/package/redis/v/next">
+        <img src="https://img.shields.io/npm/dm/redis.svg" alt="Downloads"/>
+    </a>
+    <a href="https://www.npmjs.com/package/redis/v/next">
+        <img src="https://img.shields.io/npm/v/redis/next.svg" alt="Version"/>
+    </a>
     <a href="https://discord.gg/XMMVgxUm">
-        <img src="https://img.shields.io/discord/697882427875393627"/>
-    <a>
+        <img src="https://img.shields.io/discord/697882427875393627" alt="Chat"/>
+    </a>
 </div>
 
 ---
@@ -204,6 +201,9 @@ client.scanIterator({
 });
 ```
 
+    <a href="https://discord.gg/XMMVgxUm">
+        <img src="https://img.shields.io/discord/697882427875393627" alt="Discord"/>
+    <a>
 ### Lua Scripts
 
 Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
@@ -266,6 +266,10 @@ import { createCluster } from 'redis';
 ## Contributing
 
 If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md).
+
+Thank you to all the people who already contributed to Node Redis!
+
+<a href="https://github.com/vuejs/vue/graphs/contributors"><img src="https://opencollective.com/node-redis/contributors.svg?width=1012" /></a>
 
 ## License
 
