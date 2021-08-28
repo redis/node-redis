@@ -266,7 +266,7 @@ If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md)
 
 Thank you to all the people who already contributed to Node Redis!
 
-<a href="https://github.com/vuejs/vue/graphs/contributors"><img src="https://opencollective.com/node-redis/contributors.svg?width=1012" /></a>
+<a href="https://github.com/NodeRedis/node-redis/graphs/contributors"><img src="https://opencollective.com/node-redis/contributors.svg?width=1012" /></a>
 
 ## License
 
