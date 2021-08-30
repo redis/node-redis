@@ -1,11 +1,10 @@
-import { strict as assert } from 'assert';
+import { strict as assert, AssertionError } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
 import RedisClient from './client';
 import { AbortError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
-import { AssertionError } from 'assert/strict';
 
 export const SQUARE_SCRIPT = defineScript({
     NUMBER_OF_KEYS: 0,
