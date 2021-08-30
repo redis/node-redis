@@ -8,7 +8,7 @@ describe('Socket', () => {
         beforeEach(() => clock = useFakeTimers());
         afterEach(() => clock.uninstall());
 
-        it('custom strategy', async () => {
+        it('custom strategy', () => {
             const reconnectStrategy = spy((retries: number): number | Error => {
                 assert.equal(retries + 1, reconnectStrategy.callCount);
 
@@ -30,7 +30,7 @@ describe('Socket', () => {
                 // ignore errors
             });
 
-            await assert.rejects(socket.connect(), {
+            return assert.rejects(socket.connect(), {
                 message: '50'
             });
         })

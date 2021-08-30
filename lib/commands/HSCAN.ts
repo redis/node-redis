@@ -34,4 +34,4 @@ export function transformReply([cursor, rawTuples]: [string, Array<string>]): HS
         cursor: Number(cursor),
         tuples: parsedTuples
     };
-};
+}

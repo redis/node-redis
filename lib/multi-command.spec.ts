@@ -45,9 +45,9 @@ describe('Multi Command', () => {
             assert.ok(executor.notCalled);
         });
 
-        it('WatchError', async () => {
-            assert.rejects(
-                RedisMultiCommand.create(() => Promise.resolve([null])).exec(),
+        it('WatchError', () => {
+            return assert.rejects(
+                RedisMultiCommand.create(() => Promise.resolve([null])).ping().exec(),
                 WatchError
             );
         });

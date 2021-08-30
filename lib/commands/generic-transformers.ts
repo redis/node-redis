@@ -282,8 +282,8 @@ export interface GeoReplyWithMember {
 export function transformGeoMembersWithReply(reply: Array<Array<any>>, replyWith: Array<GeoReplyWith>): Array<GeoReplyWithMember> {
     const replyWithSet = new Set(replyWith);
 
-    let index = 0,
-        distanceIndex = replyWithSet.has(GeoReplyWith.DISTANCE) && ++index,
+    let index = 0;
+    const distanceIndex = replyWithSet.has(GeoReplyWith.DISTANCE) && ++index,
         hashIndex = replyWithSet.has(GeoReplyWith.HASH) && ++index,
         coordinatesIndex = replyWithSet.has(GeoReplyWith.COORDINATES) && ++index;
 

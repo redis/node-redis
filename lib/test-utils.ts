@@ -158,8 +158,8 @@ async function spawnRedisClusterNode(
 
             try {
                 await fs.unlink(clusterConfigFile);
-            } catch (err) {
-                if (err.code == 'ENOENT') return;
+            } catch (err: any) {
+                if (err.code === 'ENOENT') return;
 
                 throw err;
             }

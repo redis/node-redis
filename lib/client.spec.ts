@@ -5,7 +5,7 @@ import RedisClient from './client';
 import { AbortError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
-import { commandOptions } from './command-options';
+import { AssertionError } from 'assert/strict';
 
 export const SQUARE_SCRIPT = defineScript({
     NUMBER_OF_KEYS: 0,
@@ -209,11 +209,11 @@ describe('Client', () => {
                 });
             });
 
-            itWithClient(TestRedisServers.OPEN, 'AbortError', async client => {
+            itWithClient(TestRedisServers.OPEN, 'AbortError', client => {
                 const controller = new AbortController();
                 controller.abort();
 
-                await assert.rejects(
+                return assert.rejects(
                     client.sendCommand(['PING'], {
                         signal: controller.signal
                     }),
@@ -235,12 +235,12 @@ describe('Client', () => {
             );
         });
 
-        itWithClient(TestRedisServers.OPEN, 'should reject the whole chain on error', async client => {
+        itWithClient(TestRedisServers.OPEN, 'should reject the whole chain on error', client => {
             client.on('error', () => {
                 // ignore errors
             });
 
-            await assert.rejects(
+            return assert.rejects(
                 client.multi()
                     .ping()
                     .addCommand(['DEBUG', 'RESTART'])
@@ -523,9 +523,20 @@ describe('Client', () => {
             }
         });
 
-        assert.rejects(
-            client.connect(),
-            ConnectionTimeoutError
-        );
+        try {
+            const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
+                start = process.hrtime.bigint();
+
+            // block the event loop for 1ms, to make sure the connection will timeout
+            while (process.hrtime.bigint() - start < 1_000_000) {}
+
+            await promise;
+        } catch (err) {
+            if (err instanceof AssertionError) {
+                await client.disconnect();
+            }
+
+            throw err;
+        }
     });
 });

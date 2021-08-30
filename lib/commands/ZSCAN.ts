@@ -29,4 +29,4 @@ export function transformReply([cursor, rawMembers]: [string, Array<string>]): Z
         cursor: Number(cursor),
         members: parsedMembers
     };
-};
+}

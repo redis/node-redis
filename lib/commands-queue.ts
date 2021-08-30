@@ -134,7 +134,7 @@ export default class RedisCommandsQueue {
                 resolve,
                 reject
             });
-            
+
             if (options?.signal) {
                 const listener = () => {
                     this.#waitingToBeSent.removeNode(node);
@@ -330,4 +330,4 @@ export default class RedisCommandsQueue {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         RedisCommandsQueue.#flushQueue(this.#waitingToBeSent, err);
     }
-};
+}

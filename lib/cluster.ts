@@ -103,7 +103,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
 
         try {
             return await client.sendCommand(args, options);
-        } catch (err) {
+        } catch (err: any) {
             const shouldRetry = await this.#handleCommandError(err, client, redirections);
             if (shouldRetry === true) {
                 return this.sendCommand(firstKey, isReadonly, args, options, redirections + 1);
@@ -129,7 +129,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
 
         try {
             return await client.executeScript(script, redisArgs, options);
-        } catch (err) {
+        } catch (err: any) {
             const shouldRetry = await this.#handleCommandError(err, client, redirections);
             if (shouldRetry === true) {
                 return this.executeScript(script, originalArgs, redisArgs, options, redirections + 1);
