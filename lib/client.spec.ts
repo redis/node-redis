@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
 import RedisClient from './client';
-import { AbortError, WatchError } from './errors';
+import { AbortError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
 import { commandOptions } from './command-options';
@@ -513,5 +513,19 @@ describe('Client', () => {
         } finally {
             await subscriber.disconnect();
         }
+    });
+
+    it('ConnectionTimeoutError', async () => {
+        const client = RedisClient.create({
+            socket: {
+                ...TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+                connectTimeout: 1
+            }
+        });
+
+        assert.rejects(
+            client.connect(),
+            ConnectionTimeoutError
+        );
     });
 });

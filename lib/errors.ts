@@ -9,3 +9,9 @@ export class WatchError extends Error {
         super('One (or more) of the watched keys has been changed');
     }
 }
+
+export class ConnectionTimeoutError extends Error {
+    constructor() {
+        super('Connection timeout');
+    }
+}

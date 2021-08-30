@@ -10,6 +10,7 @@ This version is a major change and refactor, adding modern JavaScript capabiliti
 - Dropped support for Node.js 10.x, the minimum supported Node.js version is now 12.x
 - `createClient` takes new and different arguments
 - The `prefix`, `rename_commands` configuration options to `createClient` have been removed
+- The `enable_offline_queue` configuration options is removed, executing commands on a closed client (without calling `.connect()` or after calling `.disconnect()`) will reject immediately
 - Login credentials are no longer saved when using `.auth()` directly
 
 ### Features

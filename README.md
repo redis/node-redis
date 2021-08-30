@@ -260,6 +260,24 @@ import { createCluster } from 'redis';
 })();
 ```
 
+### Auto-Pipelining
+
+Node Redis will automatically pipeline requests that are made during the same "tick".
+
+```typescript
+client.set('Tm9kZSBSZWRpcw==', 'users:1');
+client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==');
+```
+
+Of course, if you don't do something with your Promises you're certain to get [unhandled Promise exceptions](https://nodejs.org/api/process.html#process_event_unhandledrejection). To take advantage of auto-pipelining and handle your Promises, use `Promise.all()`.
+
+```typescript
+await Promise.all([
+    client.set('Tm9kZSBSZWRpcw==', 'users:1'),
+    client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
+]);
+```
+
 ## Contributing
 
 If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md).

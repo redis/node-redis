@@ -2,11 +2,13 @@ import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
 import { URL } from 'url';
+import { ConnectionTimeoutError } from './errors';
 import { promiseTimeout } from './utils';
 
 export interface RedisSocketCommonOptions {
     username?: string;
     password?: string;
+    connectTimeout?: number;
     reconnectStrategy?(retries: number): number | Error;
 }
 
@@ -23,8 +25,8 @@ export interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
     path: string;
 }
 
-export interface RedisTlsSocketOptions extends RedisNetSocketOptions {
-    tls: tls.SecureContextOptions;
+export interface RedisTlsSocketOptions extends RedisNetSocketOptions, tls.SecureContextOptions {
+    tls: true;
 }
 
 export type RedisSocketOptions = RedisNetSocketOptions | RedisUrlSocketOptions | RedisUnixSocketOptions | RedisTlsSocketOptions;
@@ -52,6 +54,8 @@ export default class RedisSocket extends EventEmitter {
             (options as RedisNetSocketOptions).host ??= '127.0.0.1';
         }
 
+        options.connectTimeout ??= 5000;
+
         return options;
     }
 
@@ -68,7 +72,7 @@ export default class RedisSocket extends EventEmitter {
     }
 
     static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
-        return Object.prototype.hasOwnProperty.call(options, 'tls');
+        return (options as RedisTlsSocketOptions).tls === true;
     }
 
     readonly #initiator?: RedisSocketInitiator;
@@ -155,13 +159,24 @@ export default class RedisSocket extends EventEmitter {
     #createSocket(): Promise<net.Socket | tls.TLSSocket> {
         return new Promise((resolve, reject) => {
             const {connectEvent, socket} = RedisSocket.#isTlsSocket(this.#options) ?
-                this.#createTlsSocket() :
-                this.#createNetSocket();
+                    this.#createTlsSocket() :
+                    this.#createNetSocket(),
+                timeoutListener = this.#options.connectTimeout ?
+                    () => socket.destroy(new ConnectionTimeoutError()) :
+                    null;
+
+            if (timeoutListener) {
+                socket.setTimeout(this.#options.connectTimeout!, timeoutListener);
+            }
 
             socket
                 .setNoDelay()
-                .once('error', (err) => reject(err))
+                .once('error', reject)
                 .once(connectEvent, () => {
+                    if (timeoutListener) {
+                        socket.off('timeout', timeoutListener);
+                    }
+
                     socket
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))
