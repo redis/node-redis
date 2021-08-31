@@ -3,7 +3,7 @@ import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } fro
 import { transformArguments } from './ZRANDMEMBER_COUNT_WITHSCORES';
 
 describe('ZRANDMEMBER COUNT WITHSCORES', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    describeHandleMinimumRedisVersion([6, 2, 5]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -13,9 +13,9 @@ describe('ZRANDMEMBER COUNT WITHSCORES', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.zRandMemberCountWithScores', async client => {
-        assert.equal(
+        assert.deepEqual(
             await client.zRandMemberCountWithScores('key', 1),
-            null
+            []
         );
     });
 });

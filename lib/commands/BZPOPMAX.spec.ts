@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './BZPOPMAX';
-import RedisClient from '../client';
+import { commandOptions } from '../../index';
 
 describe('BZPOPMAX', () => {
     describe('transformArguments', () => {
@@ -22,8 +22,8 @@ describe('BZPOPMAX', () => {
 
     itWithClient(TestRedisServers.OPEN, 'client.bzPopMax', async client => {
         const [popReply] = await Promise.all([
-            client.bzPopMax(RedisClient.commandOptions({
-                duplicateConnection: true
+            client.bzPopMax(commandOptions({
+                isolated: true
             }), 'key', 0),
             client.zAdd('key', [{
                 value: '1',

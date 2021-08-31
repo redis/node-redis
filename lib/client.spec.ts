@@ -1,10 +1,21 @@
-import { strict as assert } from 'assert';
+import { strict as assert, AssertionError } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
 import RedisClient, { RedisClientLegacyModes } from './client';
-import { AbortError } from './errors';
+import { AbortError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
+
+export const SQUARE_SCRIPT = defineScript({
+    NUMBER_OF_KEYS: 0,
+    SCRIPT: 'return ARGV[1] * ARGV[1];',
+    transformArguments(number: number): Array<string> {
+        return [number.toString()];
+    },
+    transformReply(reply: number): number {
+        return reply;
+    }
+});
 
 describe('Client', () => {
     describe('authentication', () => {
@@ -26,7 +37,6 @@ describe('Client', () => {
             await assert.rejects(
                 client.connect(),
                 {
-
                     message: isRedisVersionGreaterThan([6]) ?
                         'WRONGPASS invalid username-password pair or user is disabled.' :
                         'ERR invalid password'
@@ -76,9 +86,15 @@ describe('Client', () => {
                         }
                     }
                 });
-
                 assert.throws(() => { client.v4.PING() });
             })
+            const client = RedisClient.create({
+                socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+                scripts: {
+                    square: SQUARE_SCRIPT
+                },
+                legacyMode: RedisClientLegacyModes.nowarn
+            });
 
             it('legacyMode=off throws on attempted callback', (done) => {
                 const client = RedisClient.create({
@@ -186,185 +202,113 @@ describe('Client', () => {
 
                 (client as any).sendCommand('PING', (error: any, reply: any) => { assert(warned == false, "Warning was emitted") });
             });
-        })
+        });
+    });
+});
 
-        describe('Behaviour Testing', () => {
-            const client = RedisClient.create({
-                socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
-                modules: {
-                    testModule: {
-                        echo: {
-                            transformArguments(message: string): Array<string> {
-                                return ['ECHO', message];
-                            },
-                            transformReply(reply: string): string {
-                                return reply;
-                            }
-                        }
+describe('Behaviour Testing', () => {
+    const client = RedisClient.create({
+        socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+        modules: {
+            testModule: {
+                echo: {
+                    transformArguments(message: string): Array<string> {
+                        return ['ECHO', message];
+                    },
+                    transformReply(reply: string): string {
+                        return reply;
                     }
-                },
-                legacyMode: RedisClientLegacyModes.nowarn
-            });
+                }
+            }
+        },
+        legacyMode: RedisClientLegacyModes.nowarn
+    });
 
-            before(() => client.connect());
-            afterEach(() => client.v4.flushAll());
-            after(() => client.disconnect());
+    before(() => client.connect());
+    afterEach(() => client.v4.flushAll());
+    after(() => client.disconnect());
 
-            it('client.sendCommand should call the callback', done => {
-                (client as any).sendCommand('PING', (err?: Error, reply?: string) => {
-                    if (err) {
-                        return done(err);
-                    }
+    it('client.sendCommand should call the callback', done => {
+        (client as any).sendCommand('PING', (err?: Error, reply?: string) => {
+            if (err) {
+                return done(err);
+            }
 
-                    try {
-                        assert.equal(reply, 'PONG');
-                        done();
-                    } catch (err) {
-                        done(err);
-                    }
-                });
-            });
+            try {
+                assert.equal(reply, 'PONG');
+                done();
+            } catch (err) {
+                done(err);
+            }
+        });
+    });
 
-            it('client.sendCommand should work without callback', async () => {
-                (client as any).sendCommand('PING');
-                await client.v4.ping(); // make sure the first command was replied
-            });
+    it('client.sendCommand should work without callback', async () => {
+        (client as any).sendCommand('PING');
+        await client.v4.ping(); // make sure the first command was replied
+    });
 
-            it('client.v4.sendCommand should return a promise', async () => {
-                assert.equal(
-                    await client.v4.sendCommand(['PING']),
-                    'PONG'
-                );
-            });
+    it('client.v4.sendCommand should return a promise', async () => {
+        assert.equal(
+            await client.v4.sendCommand(['PING']),
+            'PONG'
+        );
+    });
 
-            it('client.{command} should accept vardict arguments', done => {
-                (client as any).set('a', 'b', (err?: Error, reply?: string) => {
-                    if (err) {
-                        return done(err);
-                    }
+    it('client.{command} should accept vardict arguments', done => {
+        (client as any).set('a', 'b', (err?: Error, reply?: string) => {
+            if (err) {
+                return done(err);
+            }
 
-                    try {
-                        assert.equal(reply, 'OK');
-                        done();
-                    } catch (err) {
-                        done(err);
-                    }
-                });
-            });
+            try {
+                assert.equal(reply, 'OK');
+                done();
+            } catch (err) {
+                done(err);
+            }
+        });
+    });
 
-            it('client.{command} should accept arguments array', done => {
-                (client as any).set(['a', 'b'], (err?: Error, reply?: string) => {
-                    if (err) {
-                        return done(err);
-                    }
+    it('client.{command} should accept arguments array', done => {
+        (client as any).set(['a', 'b'], (err?: Error, reply?: string) => {
+            if (err) {
+                return done(err);
+            }
 
-                    try {
-                        assert.equal(reply, 'OK');
-                        done();
-                    } catch (err) {
-                        done(err);
-                    }
-                });
-            });
+            try {
+                assert.equal(reply, 'OK');
+                done();
+            } catch (err) {
+                done(err);
+            }
+        });
+    });
 
-            it('client.{command} should accept mix of strings and array of strings', done => {
-                (client as any).set(['a'], 'b', ['XX'], (err?: Error, reply?: string) => {
-                    if (err) {
-                        return done(err);
-                    }
+    it('client.{command} should accept mix of strings and array of strings', done => {
+        (client as any).set(['a'], 'b', ['XX'], (err?: Error, reply?: string) => {
+            if (err) {
+                return done(err);
+            }
 
-                    try {
-                        assert.equal(reply, null);
-                        done();
-                    } catch (err) {
-                        done(err);
-                    }
-                });
-            });
+            try {
+                assert.equal(reply, null);
+                done();
+            } catch (err) {
+                done(err);
+            }
+        });
+    });
 
-            it('client.multi.ping.exec should call the callback', done => {
-                (client as any).multi()
-                    .ping()
-                    .exec((err?: Error, reply?: string) => {
-                        if (err) {
-                            return done(err);
-                        }
+    it('client.multi.ping.exec should call the callback', async () => {
+        assert(await (client as any).multi()
+            .v4.ping()
+            .v4.exec(),
+            'PONG'
+        );
 
-                        try {
-                            assert.deepEqual(reply, ['PONG']);
-                            done();
-                        } catch (err) {
-                            done(err);
-                        }
-                    });
-            });
-
-            it('client.multi.ping.exec should work without callback', async () => {
-                (client as any).multi()
-                    .ping()
-                    .exec();
-                await client.v4.ping(); // make sure the first command was replied
-            });
-
-            it('client.multi.ping.v4.ping.v4.exec should return a promise', async () => {
-                assert.deepEqual(
-                    await ((client as any).multi()
-                        .ping()
-                        .v4.ping()
-                        .v4.exec()),
-                    ['PONG', 'PONG']
-                );
-            });
-
-            it('client.testModule.echo should call the callback', done => {
-                (client as any).testModule.echo('message', (err?: Error, reply?: string) => {
-                    if (err) {
-                        return done(err);
-                    }
-
-                    try {
-                        assert.deepEqual(reply, 'message');
-                        done();
-                    } catch (err) {
-                        done(err);
-                    }
-                });
-            });
-
-            it('client.v4.testModule.echo should return a promise', async () => {
-                assert.equal(
-                    await (client as any).v4.testModule.echo('message'),
-                    'message'
-                );
-            });
-
-            it('client.multi.testModule.echo.v4.testModule.echo.exec should call the callback', done => {
-                (client as any).multi()
-                    .testModule.echo('message')
-                    .v4.testModule.echo('message')
-                    .exec((err?: Error, replies?: Array<string>) => {
-                        if (err) {
-                            return done(err);
-                        }
-
-                        try {
-                            assert.deepEqual(replies, ['message', 'message']);
-                            done();
-                        } catch (err) {
-                            done(err);
-                        }
-                    });
-            });
-
-            it('client.multi.testModule.echo.v4.testModule.echo.v4.exec should return a promise', async () => {
-                assert.deepEqual(
-                    await ((client as any).multi()
-                        .testModule.echo('message')
-                        .v4.testModule.echo('message')
-                        .v4.exec()),
-                    ['message', 'message']
-                );
-            });
+        it('client.{script} should return a promise', async () => {
+            assert.equal(await client.square(2), 4);
         });
     });
 
@@ -405,11 +349,11 @@ describe('Client', () => {
                 });
             });
 
-            itWithClient(TestRedisServers.OPEN, 'AbortError', async client => {
+            itWithClient(TestRedisServers.OPEN, 'AbortError', client => {
                 const controller = new AbortController();
                 controller.abort();
 
-                await assert.rejects(
+                return assert.rejects(
                     client.sendCommand(['PING'], {
                         signal: controller.signal
                     }),
@@ -431,12 +375,12 @@ describe('Client', () => {
             );
         });
 
-        itWithClient(TestRedisServers.OPEN, 'should reject the whole chain on error', async client => {
+        itWithClient(TestRedisServers.OPEN, 'should reject the whole chain on error', client => {
             client.on('error', () => {
                 // ignore errors
             });
 
-            await assert.rejects(
+            return assert.rejects(
                 client.multi()
                     .ping()
                     .addCommand(['DEBUG', 'RESTART'])
@@ -448,18 +392,7 @@ describe('Client', () => {
         it('with script', async () => {
             const client = RedisClient.create({
                 scripts: {
-                    add: defineScript({
-                        NUMBER_OF_KEYS: 0,
-                        SCRIPT: 'return ARGV[1] + 1;',
-                        transformArguments(number: number): Array<string> {
-                            assert.equal(number, 1);
-                            return [number.toString()];
-                        },
-                        transformReply(reply: number): number {
-                            assert.equal(reply, 2);
-                            return reply;
-                        }
-                    })
+                    square: SQUARE_SCRIPT
                 }
             });
 
@@ -468,31 +401,39 @@ describe('Client', () => {
             try {
                 assert.deepEqual(
                     await client.multi()
-                        .add(1)
+                        .square(2)
                         .exec(),
-                    [2]
+                    [4]
                 );
             } finally {
                 await client.disconnect();
             }
+        });
+
+        itWithClient(TestRedisServers.OPEN, 'WatchError', async client => {
+            await client.watch('key');
+
+            await client.set(
+                RedisClient.commandOptions({
+                    isolated: true
+                }),
+                'key',
+                '1'
+            );
+
+            await assert.rejects(
+                client.multi()
+                    .decr('key')
+                    .exec(),
+                WatchError
+            );
         });
     });
 
     it('scripts', async () => {
         const client = RedisClient.create({
             scripts: {
-                add: defineScript({
-                    NUMBER_OF_KEYS: 0,
-                    SCRIPT: 'return ARGV[1] + 1;',
-                    transformArguments(number: number): Array<string> {
-                        assert.equal(number, 1);
-                        return [number.toString()];
-                    },
-                    transformReply(reply: number): number {
-                        assert.equal(reply, 2);
-                        return reply;
-                    }
-                })
+                square: SQUARE_SCRIPT
             }
         });
 
@@ -500,12 +441,51 @@ describe('Client', () => {
 
         try {
             assert.equal(
-                await client.add(1),
-                2
+                await client.square(2),
+                4
             );
         } finally {
             await client.disconnect();
         }
+    });
+
+    it('modules', async () => {
+        const client = RedisClient.create({
+            modules: {
+                module: {
+                    echo: {
+                        transformArguments(message: string): Array<string> {
+                            return ['ECHO', message];
+                        },
+                        transformReply(reply: string): string {
+                            return reply;
+                        }
+                    }
+                }
+            }
+        });
+
+        await client.connect();
+
+        try {
+            assert.equal(
+                await client.module.echo('message'),
+                'message'
+            );
+        } finally {
+            await client.disconnect();
+        }
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'executeIsolated', async client => {
+        await client.sendCommand(['CLIENT', 'SETNAME', 'client']);
+
+        assert.equal(
+            await client.executeIsolated(isolatedClient =>
+                isolatedClient.sendCommand(['CLIENT', 'GETNAME'])
+            ),
+            null
+        );
     });
 
     itWithClient(TestRedisServers.OPEN, 'should reconnect after DEBUG RESTART', async client => {
@@ -672,6 +652,31 @@ describe('Client', () => {
             assert.ok(patternListener.calledThrice);
         } finally {
             await subscriber.disconnect();
+        }
+    });
+
+    it('ConnectionTimeoutError', async () => {
+        const client = RedisClient.create({
+            socket: {
+                ...TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+                connectTimeout: 1
+            }
+        });
+
+        try {
+            const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
+                start = process.hrtime.bigint();
+
+            // block the event loop for 1ms, to make sure the connection will timeout
+            while (process.hrtime.bigint() - start < 1_000_000) { }
+
+            await promise;
+        } catch (err) {
+            if (err instanceof AssertionError) {
+                await client.disconnect();
+            }
+
+            throw err;
         }
     });
 });

@@ -2,29 +2,31 @@ import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
 import { URL } from 'url';
+import { ConnectionTimeoutError } from './errors';
 import { promiseTimeout } from './utils';
 
-interface RedisSocketCommonOptions {
+export interface RedisSocketCommonOptions {
     username?: string;
     password?: string;
-    retryStrategy?(retries: number): number | Error;
+    connectTimeout?: number;
+    reconnectStrategy?(retries: number): number | Error;
 }
 
-interface RedisNetSocketOptions extends RedisSocketCommonOptions {
+export interface RedisNetSocketOptions extends RedisSocketCommonOptions {
     port?: number;
     host?: string;
 }
 
-interface RedisUrlSocketOptions extends RedisSocketCommonOptions {
+export interface RedisUrlSocketOptions extends RedisSocketCommonOptions {
     url: string;
 }
 
-interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
+export interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
     path: string;
 }
 
-interface RedisTlsSocketOptions extends RedisNetSocketOptions {
-    tls: tls.SecureContextOptions;
+export interface RedisTlsSocketOptions extends RedisNetSocketOptions, tls.SecureContextOptions {
+    tls: true;
 }
 
 export type RedisSocketOptions = RedisNetSocketOptions | RedisUrlSocketOptions | RedisUnixSocketOptions | RedisTlsSocketOptions;
@@ -52,10 +54,12 @@ export default class RedisSocket extends EventEmitter {
             (options as RedisNetSocketOptions).host ??= '127.0.0.1';
         }
 
+        options.connectTimeout ??= 5000;
+
         return options;
     }
 
-    static #defaultRetryStrategy(retries: number): number {
+    static #defaultReconnectStrategy(retries: number): number {
         return Math.min(retries * 50, 500);
     }
 
@@ -68,7 +72,7 @@ export default class RedisSocket extends EventEmitter {
     }
 
     static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
-        return Object.prototype.hasOwnProperty.call(options, 'tls');
+        return (options as RedisTlsSocketOptions).tls === true;
     }
 
     readonly #initiator?: RedisSocketInitiator;
@@ -142,7 +146,7 @@ export default class RedisSocket extends EventEmitter {
                 throw err;
             }
 
-            const retryIn = (this.#options?.retryStrategy ?? RedisSocket.#defaultRetryStrategy)(retries);
+            const retryIn = (this.#options?.reconnectStrategy ?? RedisSocket.#defaultReconnectStrategy)(retries);
             if (retryIn instanceof Error) {
                 throw retryIn;
             }
@@ -155,12 +159,24 @@ export default class RedisSocket extends EventEmitter {
     #createSocket(): Promise<net.Socket | tls.TLSSocket> {
         return new Promise((resolve, reject) => {
             const {connectEvent, socket} = RedisSocket.#isTlsSocket(this.#options) ?
-                this.#createTlsSocket() :
-                this.#createNetSocket();
+                    this.#createTlsSocket() :
+                    this.#createNetSocket(),
+                timeoutListener = this.#options.connectTimeout ?
+                    () => socket.destroy(new ConnectionTimeoutError()) :
+                    null;
+
+            if (timeoutListener) {
+                socket.setTimeout(this.#options.connectTimeout!, timeoutListener);
+            }
 
             socket
-                .once('error', (err) => reject(err))
+                .setNoDelay()
+                .once('error', reject)
                 .once(connectEvent, () => {
+                    if (timeoutListener) {
+                        socket.off('timeout', timeoutListener);
+                    }
+
                     socket
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))

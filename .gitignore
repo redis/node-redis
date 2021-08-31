@@ -1,7 +1,8 @@
-.vscode
-.idea
-node_modules
-dist
-.nyc_output
-coverage
+.vscode/
+.idea/
+node_modules/
+dist/
+.nyc_output/
+coverage/
 dump.rdb
+documentation/

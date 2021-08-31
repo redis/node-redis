@@ -9,6 +9,8 @@ import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { ScanOptions, ZMember } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
 import { HScanTuple } from './commands/HSCAN';
+import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
+import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -17,6 +19,7 @@ export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     commandsQueueMaxLength?: number;
     readonly?: boolean;
     legacyMode?: RedisClientLegacyModes;
+    isolationPoolOptions?: PoolOptions;
 }
 
 export enum RedisClientLegacyModes {
@@ -49,25 +52,68 @@ export type RedisClientType<M extends RedisModules, S extends RedisLuaScripts> =
     WithPlugins<M, S> & RedisClient<M, S>;
 
 export interface ClientCommandOptions extends QueueCommandOptions {
-    duplicateConnection?: boolean;
+    isolated?: boolean;
 }
 
 export default class RedisClient<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> extends EventEmitter {
     #warnLegacy = (): void => {
         return;
     };
-    static create<M extends RedisModules, S extends RedisLuaScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
-        return <any>new RedisClient<M, S>(options);
-    }
 
     static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
         return commandOptions(options);
     }
 
+    static async commandsExecutor(
+        this: RedisClient,
+        command: RedisCommand,
+        args: Array<unknown>
+    ): Promise<ReturnType<typeof command['transformReply']>> {
+        const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(command, args);
+
+        const reply = command.transformReply(
+            await this.#sendCommand(redisArgs, options),
+            redisArgs.preserve
+        );
+
+        return reply;
+    }
+
+    static async #scriptsExecutor(
+        this: RedisClient,
+        script: RedisLuaScript,
+        args: Array<unknown>
+    ): Promise<typeof script['transformArguments']> {
+        const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(script, args);
+
+        const reply = script.transformReply(
+            await this.executeScript(script, redisArgs, options),
+            redisArgs.preserve
+        );
+
+        return reply;
+    }
+
+    static create<M extends RedisModules, S extends RedisLuaScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
+        const Client = (<any>extendWithModulesAndScripts({
+            BaseClass: RedisClient,
+            modules: options?.modules,
+            modulesCommandsExecutor: RedisClient.commandsExecutor,
+            scripts: options?.scripts,
+            scriptsExecutor: RedisClient.#scriptsExecutor
+        }));
+
+        if (Client !== RedisClient) {
+            Client.prototype.Multi = RedisMultiCommand.extend(options);
+        }
+
+        return new Client(options);
+    }
+
     readonly #options?: RedisClientOptions<M, S>;
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
-    readonly #Multi: typeof RedisMultiCommand & { new(): RedisMultiCommandType<M, S> };
+    readonly #isolationPool: Pool<RedisClientType<M, S>>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
 
@@ -92,9 +138,14 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#options = options;
         this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
-        this.#Multi = this.#initiateMulti();
-        this.#initiateModules();
-        this.#initiateScripts();
+        this.#isolationPool = createPool({
+            create: async () => {
+                const duplicate = this.duplicate();
+                await duplicate.connect();
+                return duplicate;
+            },
+            destroy: client => client.disconnect()
+        }, options?.isolationPoolOptions);
         this.#legacyMode();
     }
 
@@ -146,81 +197,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         );
     }
 
-    #initiateMulti(): typeof RedisMultiCommand & { new(): RedisMultiCommandType<M, S> } {
-        const executor = async (commands: Array<MultiQueuedCommand>): Promise<Array<RedisReply>> => {
-            const promise = Promise.all(
-                commands.map(({ encodedCommand }) => {
-                    return this.#queue.addEncodedCommand(encodedCommand);
-                })
-            );
-
-            this.#tick();
-
-            return await promise;
-        };
-
-        const options = this.#options;
-        return <any>class extends RedisMultiCommand {
-            constructor() {
-                super(executor, options);
-            }
-        };
-    }
-
-    #initiateModules(): void {
-        if (!this.#options?.modules) return;
-
-        for (const [moduleName, commands] of Object.entries(this.#options.modules)) {
-            const module: {
-                [P in keyof typeof commands]: RedisCommandSignature<(typeof commands)[P]>;
-            } = {};
-
-            for (const [commandName, command] of Object.entries(commands)) {
-                module[commandName] = (...args) => this.executeCommand(command, args);
-            }
-
-            (this as any)[moduleName] = module;
-        }
-    }
-
-    #initiateScripts(): void {
-        if (!this.#options?.scripts) return;
-
-        for (const [name, script] of Object.entries(this.#options.scripts)) {
-            (this as any)[name] = async function (...args: Parameters<typeof script.transformArguments>): Promise<ReturnType<typeof script.transformReply>> {
-                const options = isCommandOptions(args[0]) && args[0];
-                return script.transformReply(
-                    await this.executeScript(
-                        script,
-                        ...script.transformArguments(...(options ? args.slice(1) : args))
-                    )
-                );
-            };
-        }
-    }
-
-    async executeScript<S extends RedisLuaScript>(script: S, args: Array<string>, options?: ClientCommandOptions): Promise<ReturnType<S['transformReply']>> {
-        try {
-            return await this.#sendCommand([
-                'EVALSHA',
-                script.SHA,
-                script.NUMBER_OF_KEYS.toString(),
-                ...args
-            ], options);
-        } catch (err: any) {
-            if (!err?.message?.startsWith?.('NOSCRIPT')) {
-                throw err;
-            }
-
-            return await this.#sendCommand([
-                'EVAL',
-                script.SCRIPT,
-                script.NUMBER_OF_KEYS.toString(),
-                ...args
-            ], options);
-        }
-    }
-
     #legacyMode(): void {
         if (this.#options?.legacyMode == RedisClientLegacyModes.off || this.#options?.legacyMode == undefined) return;
 
@@ -232,13 +208,12 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             }
         }
 
-        (this as any).#v4.sendCommand = this.sendCommand.bind(this);
+        (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
         (this as any).sendCommand = (...args: Array<unknown>): void => {
             this.#warnLegacy();
-            const options = isCommandOptions<ClientCommandOptions>(args[0]) ? args[0] : undefined,
-                callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] as Function : undefined,
-                actualArgs = !options && !callback ? args : args.slice(options ? 1 : 0, callback ? -1 : Infinity);
-            this.#sendCommand(actualArgs.flat() as Array<string>, options)
+            const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] as Function : undefined,
+                actualArgs = !callback ? args : args.slice(0, -1);
+            this.#sendCommand(actualArgs.flat() as Array<string>)
                 .then((reply: unknown) => {
                     if (!callback) return;
 
@@ -254,7 +229,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
                     callback(err);
                 });
-        }
+        };
 
         for (const name of Object.keys(COMMANDS)) {
             this.#defineLegacyCommand(name);
@@ -271,39 +246,18 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#defineLegacyCommand('unsubscribe');
         this.#defineLegacyCommand('PUNSUBSCRIBE');
         this.#defineLegacyCommand('pUnsubscribe');
-
-        if (this.#options?.modules) {
-            for (const [module, commands] of Object.entries(this.#options.modules)) {
-                for (const name of Object.keys(commands)) {
-                    this.#v4[module] = {};
-                    this.#defineLegacyCommand(name, module);
-                }
-            }
-        }
-
-        if (this.#options?.scripts) {
-            for (const name of Object.keys(this.#options.scripts)) {
-                this.#defineLegacyCommand(name);
-            }
-        }
     }
 
-    #defineLegacyCommand(name: string, moduleName?: string): void {
-        const handler = (...args: Array<unknown>): void => {
+    #defineLegacyCommand(name: string): void {
+        (this as any).#v4[name] = (this as any)[name].bind(this);
+        (this as any)[name] = (...args: Array<unknown>): void => {
+            this.#warnLegacy();
             (this as any).sendCommand(name, ...args);
         };
-
-        if (moduleName) {
-            (this as any).#v4[moduleName][name] = (this as any)[moduleName][name];
-            (this as any)[moduleName][name] = handler;
-        } else {
-            (this as any).#v4[name] = (this as any)[name].bind(this);
-            (this as any)[name] = handler;
-        }
     }
 
     duplicate(): RedisClientType<M, S> {
-        return RedisClient.create(this.#options);
+        return new (Object.getPrototypeOf(this).constructor)(this.#options);
     }
 
     async connect(): Promise<void> {
@@ -360,55 +314,82 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return promise;
     }
 
-    sendCommand<T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
+    sendCommand<T = RedisReply>(args: Array<string>, options?: ClientCommandOptions): Promise<RedisReply> {
         let temp = this.#sendCommand(args, options);
         temp.catch(reason => {
             throw reason
         })
-        return (temp as Promise<T>);
+        return temp;
     }
 
-    async #sendCommand <T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
+    async #sendCommand <T = RedisReply>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
         if (typeof args[args.length - 1] === 'function' || typeof options === 'function') {
             this.emit("error", "Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode")
             throw new Error("Legacy command detected. See https://github.com/NodeRedis/node-redis/tree/v4#legacy-mode");
         }
-        if (options?.duplicateConnection) {
-            const duplicate = this.duplicate();
-            await duplicate.connect();
+        return this.sendEncodedCommand(encodeCommand(args), options);
+    }
 
-            try {
-                return await duplicate.#sendCommand(args, {
+    async sendEncodedCommand<T = RedisReply>(encodedCommand: string, options?: ClientCommandOptions): Promise<T> {
+        if (options?.isolated) {
+            return this.executeIsolated(isolatedClient =>
+                isolatedClient.sendEncodedCommand(encodedCommand, {
                     ...options,
-                    duplicateConnection: false
-                });
-            } finally {
-                await duplicate.disconnect();
-            }
+                    isolated: false
+                })
+            );
         }
 
-        const promise = this.#queue.addCommand<T>(args, options);
+        const promise = this.#queue.addEncodedCommand<T>(encodedCommand, options);
         this.#tick();
         return await promise;
     }
 
-    async executeCommand(command: RedisCommand, args: Array<unknown>): Promise<unknown> {
-        let options;
-        if (isCommandOptions<ClientCommandOptions>(args[0])) {
-            options = args[0];
-            args = args.slice(1);
-        }
+    executeIsolated<T>(fn: (client: RedisClientType<M, S>) => T | Promise<T>): Promise<T> {
+        return this.#isolationPool.use(fn);
+    }
 
-        return command.transformReply(
-            await this.#sendCommand(
-                command.transformArguments(...args),
-                options
-            )
+    async executeScript(script: RedisLuaScript, args: Array<string>, options?: ClientCommandOptions): Promise<ReturnType<typeof script['transformReply']>> {
+        try {
+            return await this.#sendCommand([
+                'EVALSHA',
+                script.SHA1,
+                script.NUMBER_OF_KEYS.toString(),
+                ...args
+            ], options);
+        } catch (err: any) {
+            if (!err?.message?.startsWith?.('NOSCRIPT')) {
+                throw err;
+            }
+
+            return await this.#sendCommand([
+                'EVAL',
+                script.SCRIPT,
+                script.NUMBER_OF_KEYS.toString(),
+                ...args
+            ], options);
+        }
+    }
+
+    #multiExecutor(commands: Array<MultiQueuedCommand>, chainId?: symbol): Promise<Array<RedisReply>> {
+        const promise = Promise.all(
+            commands.map(({ encodedCommand }) => {
+                return this.#queue.addEncodedCommand(encodedCommand, RedisClient.commandOptions({
+                    chainId
+                }));
+            })
         );
+
+        this.#tick();
+
+        return promise;
     }
 
     multi(): RedisMultiCommandType<M, S> {
-        return new this.#Multi();
+        return new (this as any).Multi(
+            this.#multiExecutor.bind(this),
+            this.#options
+        );
     }
 
     async * scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
@@ -455,10 +436,20 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         } while (cursor !== 0)
     }
 
-    disconnect(): Promise<void> {
+    async disconnect(): Promise<void> {
         this.#queue.flushAll(new Error('Disconnecting'));
-        return this.#socket.disconnect();
+        await Promise.all([
+            this.#socket.disconnect(),
+            this.#destroyIsolationPool()
+        ]);
     }
+
+    async #destroyIsolationPool(): Promise<void> {
+        await this.#isolationPool.drain();
+        await this.#isolationPool.clear();
+    }
+
+    #isTickQueued = false;
 
     #tick(): void {
         const { chunkRecommendedSize } = this.#socket;
@@ -466,19 +457,23 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
             return;
         }
 
-        // TODO: batch using process.nextTick? maybe socket.setNoDelay(false)?
+        if (!this.#isTickQueued && this.#queue.waitingToBeSentCommandsLength < chunkRecommendedSize) {
+            queueMicrotask(() => this.#tick());
+            this.#isTickQueued = true;
+            return;
+        }
 
         const isBuffering = this.#queue.executeChunk(chunkRecommendedSize);
         if (isBuffering === true) {
             this.#socket.once('drain', () => this.#tick());
         } else if (isBuffering === false) {
             this.#tick();
+            return;
         }
+
+        this.#isTickQueued = false;
     }
 }
 
-for (const [name, command] of Object.entries(COMMANDS)) {
-    (RedisClient.prototype as any)[name] = async function (this: RedisClient, ...args: Array<unknown>): Promise<unknown> {
-        return this.executeCommand(command, args);
-    };
-}
+extendWithDefaultCommands(RedisClient, RedisClient.commandsExecutor);
+(RedisClient.prototype as any).Multi = RedisMultiCommand.extend();

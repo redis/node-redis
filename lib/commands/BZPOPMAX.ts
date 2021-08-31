@@ -1,15 +1,9 @@
-import { transformReplyNumberInfinity, ZMember } from './generic-transformers';
+import { pushVerdictArguments, transformReplyNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(key: string | Array<string>, timeout: number): Array<string> {
-    const args = ['BZPOPMAX'];
-
-    if (typeof key === 'string') {
-        args.push(key);
-    } else {
-        args.push(...key);
-    }
+    const args = pushVerdictArguments(['BZPOPMAX'], key);
 
     args.push(timeout.toString());
 

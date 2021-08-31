@@ -34,7 +34,7 @@ function getRedisVersion(): RedisVersion {
     ).split('.', 3).map(Number) as RedisVersion;
 }
 
-export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion | undefined): boolean {    
+export function isRedisVersionGreaterThan(minimumVersion: PartialRedisVersion | undefined): boolean {
     if (minimumVersion === undefined) return true;
 
     const lastIndex = minimumVersion.length - 1;
@@ -78,7 +78,7 @@ async function spawnRedisServer(args?: Array<string>): Promise<SpawnRedisServerR
             currentPort.toString(),
             ...(args ?? [])
         ]);
-    
+
     process
         .on('error', err => console.error('Redis process error', err))
         .on('close', code => console.error(`Redis process closed unexpectedly with code ${code}`));
@@ -109,8 +109,7 @@ async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
     return port;
 }
 
-const SLOTS = 16384,
-    CLUSTER_NODE_TIMEOUT = 2000;
+const SLOTS = 16384;
 
 interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
     client: RedisClientType<RedisModules, RedisLuaScripts>
@@ -128,7 +127,7 @@ async function spawnRedisClusterNode(
             '--cluster-enabled',
             'yes',
             '--cluster-node-timeout',
-            CLUSTER_NODE_TIMEOUT.toString(),
+            '5000',
             '--cluster-config-file',
             clusterConfigFile,
             ...(args ?? [])
@@ -151,7 +150,7 @@ async function spawnRedisClusterNode(
         client.clusterFlushSlots(),
         client.clusterAddSlots(range)
     ]);
-    
+
     return {
         port,
         async cleanup(): Promise<void> {
@@ -159,9 +158,9 @@ async function spawnRedisClusterNode(
 
             try {
                 await fs.unlink(clusterConfigFile);
-            } catch (err) {
-                if (err.code == 'ENOENT') return;
-    
+            } catch (err: any) {
+                if (err.code === 'ENOENT') return;
+
                 throw err;
             }
         },
@@ -196,18 +195,25 @@ export async function spawnRedisCluster(type: TestRedisClusters | null, numberOf
         );
     }
 
-    while ((await spawnResults[0].client.clusterInfo()).state !== 'ok') {
-        await promiseTimeout(CLUSTER_NODE_TIMEOUT);
+    await Promise.all(meetPromises);
+
+    while (!(await clusterIsReady(spawnResults))) {
+        await promiseTimeout(100);
     }
 
-    const disconnectPromises = [];
-    for (const result of spawnResults) {
-        disconnectPromises.push(result.client.disconnect());
-    }
-
-    await Promise.all(disconnectPromises);
+    await Promise.all(
+        spawnResults.map(result => result.client.disconnect())
+    );
 
     return spawnResults;
+}
+
+async function clusterIsReady(spawnResults: Array<SpawnRedisClusterNodeResult>): Promise<boolean> {
+    const nodesClusetrInfo = await Promise.all(
+        spawnResults.map(result => result.client.clusterInfo())
+    );
+
+    return nodesClusetrInfo.every(({ state }) => state === 'ok');
 }
 
 export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, numberOfNodes: number, args?: Array<string>): Promise<Array<number>> {
@@ -245,7 +251,7 @@ async function spawnOpenCluster(): Promise<void> {
 
 before(function () {
     this.timeout(10000);
-    
+
     return Promise.all([
         spawnOpenServer(),
         spawnPasswordServer(),
@@ -284,7 +290,7 @@ export function itWithClient(
         const client = RedisClient.create({
             socket: TEST_REDIS_SERVERS[type]
         });
-        
+
         await client.connect();
 
         try {
@@ -309,7 +315,7 @@ export function itWithCluster(
         const cluster = RedisCluster.create({
             rootNodes: TEST_REDIS_CLUSTERES[type]
         });
-        
+
         await cluster.connect();
 
         try {
@@ -332,14 +338,14 @@ export function itWithDedicatedCluster(title: string, fn: (cluster: RedisCluster
                     port: spawnResults[0].port
                 }]
             });
-        
+
         await cluster.connect();
 
         try {
             await fn(cluster);
         } finally {
             await cluster.disconnect();
-            
+
             for (const { cleanup } of spawnResults) {
                 await cleanup();
             }

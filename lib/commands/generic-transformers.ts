@@ -1,3 +1,5 @@
+import { TransformArgumentsReply } from '.';
+
 export function transformReplyNumber(reply: number): number {
     return reply;
 }
@@ -30,6 +32,10 @@ export function transformReplyStringArrayNull(reply: Array<string> | null): Arra
     return reply;
 }
 
+export function transformReplyStringNullArray(reply: Array<string | null>): Array<string | null> {
+    return reply;
+}
+
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
 }
@@ -51,8 +57,8 @@ export interface ScanOptions {
     COUNT?: number;
 }
 
-export function transformScanArguments(cursor: number, options?: ScanOptions): Array<string> {
-    const args = [cursor.toString()];
+export function pushScanArguments(args: Array<string>, cursor: number, options?: ScanOptions): Array<string> {
+    args.push(cursor.toString());
 
     if (options?.MATCH) {
         args.push('MATCH', options.MATCH);
@@ -61,7 +67,7 @@ export function transformScanArguments(cursor: number, options?: ScanOptions): A
     if (options?.COUNT) {
         args.push('COUNT', options.COUNT.toString());
     }
-    
+
     return args;
 }
 
@@ -69,7 +75,7 @@ export function transformReplyNumberInfinity(reply: string): number {
     switch (reply) {
         case '+inf':
             return Infinity;
-        
+
         case '-inf':
             return -Infinity;
 
@@ -96,7 +102,7 @@ export function transformArgumentNumberInfinity(num: number): string {
     switch (num) {
         case Infinity:
             return '+inf';
-        
+
         case -Infinity:
             return '-inf';
 
@@ -117,12 +123,6 @@ export function transformReplyTuples(reply: Array<string>): TuplesObject {
     }
 
     return message;
-}
-
-export function transformReplyTuplesNull(reply: Array<string> | null): TuplesObject | null {
-    if (reply === null) return null;
-
-    return transformReplyTuples(reply);
 }
 
 export interface StreamMessageReply {
@@ -180,3 +180,207 @@ export function transformReplySortedSetWithScores(reply: Array<string>): Array<Z
 
     return members;
 }
+
+type GeoCountArgument = number | {
+    value: number;
+    ANY?: true
+};
+
+export function pushGeoCountArgument(args: Array<string>, count: GeoCountArgument | undefined): Array<string> {
+    if (typeof count === 'number') {
+        args.push('COUNT', count.toString());
+    } else if (count) {
+        args.push('COUNT', count.value.toString());
+
+        if (count.ANY) {
+            args.push('ANY');
+        }
+    }
+
+    return args;
+}
+
+export type GeoUnits = 'm' | 'km' | 'mi' | 'ft';
+
+export interface GeoCoordinates {
+    longitude: string | number;
+    latitude: string | number;
+}
+
+type GeoSearchFromMember = string;
+
+export type GeoSearchFrom = GeoSearchFromMember | GeoCoordinates;
+
+interface GeoSearchByRadius {
+    radius: number;
+    unit: GeoUnits;
+}
+
+interface GeoSearchByBox {
+    width: number;
+    height: number;
+    unit: GeoUnits;
+}
+
+export type GeoSearchBy = GeoSearchByRadius | GeoSearchByBox;
+
+export interface GeoSearchOptions {
+    SORT?: 'ASC' | 'DESC';
+    COUNT?: GeoCountArgument;
+}
+
+export function pushGeoSearchArguments(
+    args: Array<string>,
+    key: string,
+    from: GeoSearchFrom,
+    by: GeoSearchBy,
+    options?: GeoSearchOptions
+): Array<string> {
+    args.push(key);
+
+    if (typeof from === 'string') {
+        args.push('FROMMEMBER', from);
+    } else {
+        args.push('FROMLONLAT', from.longitude.toString(), from.latitude.toString());
+    }
+
+    if ('radius' in by) {
+        args.push('BYRADIUS', by.radius.toString());
+    } else {
+        args.push('BYBOX', by.width.toString(), by.height.toString());
+    }
+
+    if (by.unit) {
+        args.push(by.unit);
+    }
+
+    if (options?.SORT) {
+        args.push(options?.SORT);
+    }
+
+    pushGeoCountArgument(args, options?.COUNT);
+
+    return args;
+}
+
+export enum GeoReplyWith {
+    DISTANCE = 'WITHDIST',
+    HASH = 'WITHHASH',
+    COORDINATES = 'WITHCOORD'
+}
+
+export interface GeoReplyWithMember {
+    member: string;
+    distance?: number;
+    hash?: string;
+    coordinates?: {
+        longitude: string;
+        latitude: string;
+    };
+}
+
+export function transformGeoMembersWithReply(reply: Array<Array<any>>, replyWith: Array<GeoReplyWith>): Array<GeoReplyWithMember> {
+    const replyWithSet = new Set(replyWith);
+
+    let index = 0;
+    const distanceIndex = replyWithSet.has(GeoReplyWith.DISTANCE) && ++index,
+        hashIndex = replyWithSet.has(GeoReplyWith.HASH) && ++index,
+        coordinatesIndex = replyWithSet.has(GeoReplyWith.COORDINATES) && ++index;
+
+    return reply.map(member => {
+        const transformedMember: GeoReplyWithMember = {
+            member: member[0]
+        };
+
+        if (distanceIndex) {
+            transformedMember.distance = member[distanceIndex];
+        }
+
+        if (hashIndex) {
+            transformedMember.hash = member[hashIndex];
+        }
+
+        if (coordinatesIndex) {
+            const [longitude, latitude] = member[coordinatesIndex];
+            transformedMember.coordinates = {
+                longitude,
+                latitude
+            };
+        }
+
+        return transformedMember;
+    });
+}
+
+export function transformEXAT(EXAT: number | Date): string {
+    return (typeof EXAT === 'number' ? EXAT : Math.floor(EXAT.getTime() / 1000)).toString();
+}
+
+export function transformPXAT(PXAT: number | Date): string {
+    return (typeof PXAT === 'number' ? PXAT : PXAT.getTime()).toString();
+}
+
+export interface EvalOptions {
+    keys?: Array<string>;
+    arguments?: Array<string>;
+}
+
+export function pushEvalArguments(args: Array<string>, options?: EvalOptions): Array<string> {
+    if (options?.keys) {
+        args.push(
+            options.keys.length.toString(),
+            ...options.keys
+        );
+    } else {
+        args.push('0');
+    }
+
+    if (options?.arguments) {
+        args.push(...options.arguments);
+    }
+
+    return args;
+}
+
+export type StringTuplesArguments = Array<[string, string]> | Array<string> | Record<string, string>;
+
+export function pushStringTuplesArguments(args: Array<string>, tuples: StringTuplesArguments): Array<string> {
+    if (Array.isArray(tuples)) {
+        args.push(...tuples.flat());
+    } else {
+        for (const key of Object.keys(tuples)) {
+            args.push(key, tuples[key]);
+        }
+    }
+
+    return args;
+}
+
+export function pushVerdictArguments(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply  {
+    if (typeof value === 'string') {
+        args.push(value);
+    } else {
+        args.push(...value);
+    }
+
+    return args;
+}
+
+export function pushVerdictArgument(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply {
+    if (typeof value === 'string') {
+        args.push('1', value);
+    } else {
+        args.push(value.length.toString(), ...value);
+    }
+
+    return args;
+}
+
+export function pushOptionalVerdictArgument(args: TransformArgumentsReply, name: string, value: undefined | string | Array<string>): TransformArgumentsReply {
+    if (value === undefined) return args;
+
+    args.push(name);
+
+    return pushVerdictArgument(args, value);
+}
+
