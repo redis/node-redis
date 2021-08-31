@@ -9,6 +9,8 @@ export interface RedisSocketCommonOptions {
     username?: string;
     password?: string;
     connectTimeout?: number;
+    noDelay?: boolean;
+    keepAlive?: number | false;
     reconnectStrategy?(retries: number): number | Error;
 }
 
@@ -55,6 +57,8 @@ export default class RedisSocket extends EventEmitter {
         }
 
         options.connectTimeout ??= 5000;
+        options.keepAlive ??= 5000;
+        options.noDelay ??= true;
 
         return options;
     }
@@ -159,25 +163,20 @@ export default class RedisSocket extends EventEmitter {
     #createSocket(): Promise<net.Socket | tls.TLSSocket> {
         return new Promise((resolve, reject) => {
             const {connectEvent, socket} = RedisSocket.#isTlsSocket(this.#options) ?
-                    this.#createTlsSocket() :
-                    this.#createNetSocket(),
-                timeoutListener = this.#options.connectTimeout ?
-                    () => socket.destroy(new ConnectionTimeoutError()) :
-                    null;
+                this.#createTlsSocket() :
+                this.#createNetSocket();
 
-            if (timeoutListener) {
-                socket.setTimeout(this.#options.connectTimeout!, timeoutListener);
+            if (this.#options.connectTimeout) {
+                socket.setTimeout(this.#options.connectTimeout, () => socket.destroy(new ConnectionTimeoutError()));
             }
 
             socket
-                .setNoDelay()
+                .setNoDelay(this.#options.noDelay)
+                .setKeepAlive(this.#options.keepAlive !== false, this.#options.keepAlive || 0)
                 .once('error', reject)
                 .once(connectEvent, () => {
-                    if (timeoutListener) {
-                        socket.off('timeout', timeoutListener);
-                    }
-
                     socket
+                        .setTimeout(0)
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))
                         .once('close', hadError => {
