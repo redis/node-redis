@@ -11,6 +11,7 @@ import { ScanCommandOptions } from './commands/SCAN';
 import { HScanTuple } from './commands/HSCAN';
 import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
+import { ClientClosedError } from './errors';
 
 export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
     socket?: RedisSocketOptions;
@@ -227,6 +228,8 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#defineLegacyCommand('unsubscribe');
         this.#defineLegacyCommand('PUNSUBSCRIBE');
         this.#defineLegacyCommand('pUnsubscribe');
+        this.#defineLegacyCommand('QUIT');
+        this.#defineLegacyCommand('quit');
     }
 
     #defineLegacyCommand(name: string): void {
@@ -294,6 +297,15 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return promise;
     }
 
+    QUIT(): Promise<void> {
+        return this.#socket.quit(async () => {
+            this.#queue.addEncodedCommand(encodeCommand(['QUIT']));
+            this.#tick();
+        });
+    }
+
+    quit = this.QUIT;
+
     sendCommand<T = unknown>(args: Array<string>, options?: ClientCommandOptions): Promise<T> {
         return this.#sendCommand(args, options);
     }
@@ -304,6 +316,10 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     async sendEncodedCommand<T = RedisReply>(encodedCommand: string, options?: ClientCommandOptions): Promise<T> {
+        if (!this.#socket.isOpen) {
+            throw new ClientClosedError();
+        }
+
         if (options?.isolated) {
             return this.executeIsolated(isolatedClient =>
                 isolatedClient.sendEncodedCommand(encodedCommand, {

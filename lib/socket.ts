@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
 import { URL } from 'url';
-import { ConnectionTimeoutError } from './errors';
+import { ConnectionTimeoutError, ClientClosedError } from './errors';
 import { promiseTimeout } from './utils';
 
 export interface RedisSocketCommonOptions {
@@ -217,21 +217,39 @@ export default class RedisSocket extends EventEmitter {
 
     write(encodedCommands: string): boolean {
         if (!this.#socket) {
-            throw new Error('Socket is closed');
+            throw new ClientClosedError();
         }
 
         return this.#socket.write(encodedCommands);
     }
 
-    async disconnect(): Promise<void> {
-        if (!this.#isOpen || !this.#socket) {
-            throw new Error('Socket is closed');
+    async disconnect(ignoreIsOpen = false): Promise<void> {
+        if ((!ignoreIsOpen && !this.#isOpen) || !this.#socket) {
+            throw new ClientClosedError();
+        } else {
+            this.#isOpen = false;
         }
 
-        this.#isOpen = false;
         this.#socket.end();
         await EventEmitter.once(this.#socket, 'end');
         this.#socket = undefined;
         this.emit('end');
+    }
+
+    async quit(fn: () => Promise<unknown>): Promise<void> {
+        if (!this.#isOpen) {
+            throw new ClientClosedError();
+        }
+
+        this.#isOpen = false;
+
+
+        try {
+            await fn();
+            await this.disconnect(true);
+        } catch (err) {
+            this.#isOpen = true;
+            throw err;
+        }
     }
 }
