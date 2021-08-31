@@ -135,10 +135,10 @@ export type StreamMessagesReply = Array<StreamMessageReply>;
 export function transformReplyStreamMessages(reply: Array<any>): StreamMessagesReply {
     const messages = [];
 
-    for (let i = 0; i < reply.length; i += 2) {
+    for (const [id, message] of reply) {
         messages.push({
-            id: reply[i],
-            message: transformReplyTuples(reply[i + 1])
+            id,
+            message: transformReplyTuples(message)
         });
     }
 
@@ -148,19 +148,15 @@ export function transformReplyStreamMessages(reply: Array<any>): StreamMessagesR
 export type StreamsMessagesReply = Array<{
     name: string;
     messages: StreamMessagesReply;
-}>;
+}> | null;
 
-export function transformReplyStreamsMessages(reply: Array<any>): StreamsMessagesReply {
+export function transformReplyStreamsMessages(reply: Array<any> | null): StreamsMessagesReply | null {
+    if (reply === null) return null;
+
     return reply.map(([name, rawMessages]) => ({
         name,
         messages: transformReplyStreamMessages(rawMessages)
     }));
-}
-
-export function transformReplyStreamsMessagesNull(reply: Array<any> | null): StreamsMessagesReply | null {
-    if (reply === null) return null;
-
-    return transformReplyStreamsMessages(reply);
 }
 
 export interface ZMember {
@@ -383,4 +379,3 @@ export function pushOptionalVerdictArgument(args: TransformArgumentsReply, name:
 
     return pushVerdictArgument(args, value);
 }
-

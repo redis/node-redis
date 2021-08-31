@@ -1,5 +1,16 @@
 import { transformReplyStreamsMessages } from './generic-transformers';
 
+export interface XReadGroupStream {
+    key: string;
+    id: string;
+}
+
+export interface XReadGroupOptions {
+    COUNT?: number;
+    BLOCK?: number;
+    NOACK?: true;
+}
+
 export const FIRST_KEY_INDEX = (
     _group: string,
     _consumer: string,
@@ -10,21 +21,10 @@ export const FIRST_KEY_INDEX = (
 
 export const IS_READ_ONLY = true;
 
-interface XReadGroupStream {
-    key: string;
-    id: string;
-}
-
-interface XReadGroupOptions {
-    COUNT?: number;
-    BLOCK?: number;
-    NOACK?: true;
-}
-
 export function transformArguments(
     group: string,
     consumer: string,
-    streams: Array<XReadGroupStream> | XReadGroupStream, 
+    streams: Array<XReadGroupStream> | XReadGroupStream,
     options?: XReadGroupOptions
 ): Array<string> {
     const args = ['XREADGROUP', 'GROUP', group, consumer];
