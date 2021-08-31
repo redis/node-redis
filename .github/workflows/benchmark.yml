@@ -21,23 +21,23 @@ jobs:
           fetch-depth: 1
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2.1.5
+        uses: actions/setup-node@v2.3.0
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1.9.7
+        uses: shogo82148/actions-setup-redis@v1.12.0
         with:
           redis-version: ${{ matrix.redis-version }}
 
       - name: Install Packages
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run build
 
       - name: Install Benchmark Packages
-        run: npm install
+        run: npm ci
         working-directory: ./benchmark
 
       - name: Benchmark

@@ -16,7 +16,7 @@ interface XInfoStreamReply {
     lastGeneratedId: string;
     firstEntry: StreamMessageReply | null;
     lastEntry: StreamMessageReply | null;
-};
+}
 
 export function transformReply(rawReply: Array<any>): XInfoStreamReply {
     const parsedReply: Partial<XInfoStreamReply> = {};
@@ -55,7 +55,7 @@ export function transformReply(rawReply: Array<any>): XInfoStreamReply {
                     id: rawReply[i + 1][0],
                     message: transformReplyTuples(rawReply[i + 1][1])
                 } : null;
-                break;  
+                break;
         }
     }
 

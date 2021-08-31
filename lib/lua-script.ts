@@ -6,19 +6,23 @@ export interface RedisLuaScriptConfig extends RedisCommand {
     NUMBER_OF_KEYS: number;
 }
 
-interface SHA {
-    SHA: string;
+export interface SHA1 {
+    SHA1: string;
 }
 
-export type RedisLuaScript = RedisLuaScriptConfig & SHA;
+export type RedisLuaScript = RedisLuaScriptConfig & SHA1;
 
 export interface RedisLuaScripts {
     [key: string]: RedisLuaScript;
 }
 
-export function defineScript<S extends RedisLuaScriptConfig>(script: S): S & SHA {
+export function defineScript<S extends RedisLuaScriptConfig>(script: S): S & SHA1 {
     return {
         ...script,
-        SHA: createHash('sha1').update(script.SCRIPT).digest('hex')
+        SHA1: scriptSha1(script.SCRIPT)
     };
+}
+
+export function scriptSha1(script: string): string {
+    return createHash('sha1').update(script).digest('hex');
 }

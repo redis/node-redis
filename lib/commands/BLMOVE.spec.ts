@@ -1,8 +1,7 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './BLMOVE';
-import RedisClient from '../client';
-import RedisCluster from '../cluster';
+import { commandOptions } from '../../index';
 
 describe('BLMOVE', () => {
     describeHandleMinimumRedisVersion([6, 2]);
@@ -16,8 +15,8 @@ describe('BLMOVE', () => {
 
     itWithClient(TestRedisServers.OPEN, 'client.blMove', async client => {
         const [blMoveReply] = await Promise.all([
-            client.blMove(RedisClient.commandOptions({
-                duplicateConnection: true
+            client.blMove(commandOptions({
+                isolated: true
             }), 'source', 'destination', 'LEFT', 'RIGHT', 0),
             client.lPush('source', 'element')
         ]);
@@ -30,8 +29,8 @@ describe('BLMOVE', () => {
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.blMove', async cluster => {
         const [blMoveReply] = await Promise.all([
-            cluster.blMove(RedisCluster.commandOptions({
-                duplicateConnection: true
+            cluster.blMove(commandOptions({
+                isolated: true
             }), '{tag}source', '{tag}destination', 'LEFT', 'RIGHT', 0),
             cluster.lPush('{tag}source', 'element')
         ]);

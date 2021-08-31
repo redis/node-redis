@@ -1,4 +1,4 @@
-import { transformReplyBoolean } from './generic-transformers';
+import { transformPXAT, transformReplyBoolean } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -6,7 +6,7 @@ export function transformArguments(key: string, millisecondsTimestamp: number | 
     return [
         'PEXPIREAT',
         key,
-        (typeof millisecondsTimestamp === 'number' ? millisecondsTimestamp : millisecondsTimestamp.getTime()).toString()
+        transformPXAT(millisecondsTimestamp)
     ];
 }
 

@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import RedisCluster from './cluster';
 import { defineScript } from './lua-script';
-import { itWithDedicatedCluster, TestRedisClusters, TEST_REDIS_CLUSTERES } from './test-utils';
+import { itWithCluster, itWithDedicatedCluster, TestRedisClusters, TEST_REDIS_CLUSTERES } from './test-utils';
 import calculateSlot from 'cluster-key-slot';
 import { ClusterSlotStates } from './commands/CLUSTER_SETSLOT';
 
@@ -26,6 +26,18 @@ describe('Cluster', () => {
         } finally {
             await cluster.disconnect();
         }
+    });
+
+    itWithCluster(TestRedisClusters.OPEN, 'multi', async cluster => {
+        const key = 'key';
+        assert.deepEqual(
+            await cluster.multi(key)
+                .ping()
+                .set(key, 'value')
+                .get(key)
+                .exec(),
+            ['PONG', 'OK', 'value']
+        );
     });
 
     it('scripts', async () => {
@@ -63,7 +75,7 @@ describe('Cluster', () => {
         const key = 'key',
             value = 'value';
         await cluster.set(key, value);
-        
+
         const slot = calculateSlot(key),
             from = cluster.getSlotMaster(slot),
             to = cluster.getMasters().find(node => node.id !== from.id);
@@ -77,7 +89,7 @@ describe('Cluster', () => {
         );
 
         await from.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, to!.id);
-        
+
         // should be able to get the key from the original node using the "ASKING" command
         assert.equal(
             await cluster.get(key),

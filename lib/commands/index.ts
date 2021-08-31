@@ -38,23 +38,36 @@ import * as CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
 import * as CONFIG_REWRITE from './CONFIG_REWRITE';
 import * as CONFIG_SET from './CONFIG_SET';
 import * as COPY from './COPY';
+import * as DBSIZE from './DBSIZE';
 import * as DECR from './DECR';
 import * as DECRBY from './DECRBY';
 import * as DEL from './DEL';
 import * as DISCARD from './DISCARD';
 import * as DUMP from './DUMP';
 import * as ECHO from './ECHO';
+import * as EVAL from './EVAL';
+import * as EVALSHA from './EVALSHA';
 import * as EXISTS from './EXISTS';
 import * as EXPIRE from './EXPIRE';
 import * as EXPIREAT from './EXPIREAT';
 import * as FAILOVER from './FAILOVER';
 import * as FLUSHALL from './FLUSHALL';
 import * as FLUSHDB from './FLUSHDB';
+import * as GEOADD from './GEOADD';
+import * as GEODIST from './GEODIST';
+import * as GEOHASH from './GEOHASH';
+import * as GEOPOS from './GEOPOS';
+import * as GEOSEARCH_WITH from './GEOSEARCH_WITH';
+import * as GEOSEARCH from './GEOSEARCH';
+import * as GEOSEARCHSTORE from './GEOSEARCHSTORE';
 import * as GET from './GET';
 import * as GETBIT from './GETBIT';
 import * as GETDEL from './GETDEL';
+import * as GETEX from './GETEX';
 import * as GETRANGE from './GETRANGE';
+import * as GETSET from './GETSET';
 import * as HDEL from './HDEL';
+import * as HELLO from './HELLO';
 import * as HEXISTS from './HEXISTS';
 import * as HGET from './HGET';
 import * as HGETALL from './HGETALL';
@@ -92,11 +105,19 @@ import * as LRANGE from './LRANGE';
 import * as LREM from './LREM';
 import * as LSET from './LSET';
 import * as LTRIM from './LTRIM';
+import * as MEMOERY_DOCTOR from './MEMORY_DOCTOR';
+import * as MEMORY_MALLOC_STATS from './MEMORY_MALLOC-STATS';
+import * as MEMORY_PURGE from './MEMORY_PURGE';
+import * as MEMORY_STATS from './MEMORY_STATS';
+import * as MEMORY_USAGE from './MEMORY_USAGE';
+import * as MGET from './MGET';
 import * as MIGRATE from './MIGRATE';
 import * as MODULE_LIST from './MODULE_LIST';
 import * as MODULE_LOAD from './MODULE_LOAD';
 import * as MODULE_UNLOAD from './MODULE_UNLOAD';
 import * as MOVE from './MOVE';
+import * as MSET from './MSET';
+import * as MSETNX from './MSETNX';
 import * as PERSIST from './PERSIST';
 import * as PEXPIRE from './PEXPIRE';
 import * as PEXPIREAT from './PEXPIREAT';
@@ -104,27 +125,40 @@ import * as PFADD from './PFADD';
 import * as PFCOUNT from './PFCOUNT';
 import * as PFMERGE from './PFMERGE';
 import * as PING from './PING';
+import * as PSETEX from './PSETEX';
 import * as PTTL from './PTTL';
 import * as PUBLISH from './PUBLISH';
+import * as PUBSUB_CHANNELS from './PUBSUB_CHANNELS';
+import * as PUBSUB_NUMPAT from './PUBSUB_NUMPAT';
+import * as PUBSUB_NUMSUB from './PUBSUB_NUMSUB';
 import * as RANDOMKEY from './RANDOMKEY';
 import * as READONLY from './READONLY';
 import * as READWRITE from './READWRITE';
 import * as RENAME from './RENAME';
 import * as RENAMENX from './RENAMENX';
 import * as REPLICAOF from './REPLICAOF';
+import * as RESTORE_ASKING from './RESTORE-ASKING';
+import * as ROLE from './ROLE';
 import * as RPOP_COUNT from './RPOP_COUNT';
 import * as RPOP from './RPOP';
 import * as RPOPLPUSH from './RPOPLPUSH';
 import * as RPUSH from './RPUSH';
-import * as RPUSHX from './RPUSHX'; 
+import * as RPUSHX from './RPUSHX';
 import * as SADD from './SADD';
 import * as SAVE from './SAVE';
 import * as SCAN from './SCAN';
 import * as SCARD from './SCARD';
+import * as SCRIPT_DEBUG from './SCRIPT_DEBUG';
+import * as SCRIPT_EXISTS from './SCRIPT_EXISTS';
+import * as SCRIPT_FLUSH from './SCRIPT_FLUSH';
+import * as SCRIPT_KILL from './SCRIPT_KILL';
+import * as SCRIPT_LOAD from './SCRIPT_LOAD';
 import * as SDIFF from './SDIFF';
 import * as SDIFFSTORE from './SDIFFSTORE';
 import * as SET from './SET';
 import * as SETBIT from './SETBIT';
+import * as SETEX from './SETEX';
+import * as SETNX from './SETNX';
 import * as SETRANGE from './SETRANGE';
 import * as SHUTDOWN from './SHUTDOWN';
 import * as SINTER from './SINTER';
@@ -148,7 +182,9 @@ import * as TOUCH from './TOUCH';
 import * as TTL from './TTL';
 import * as TYPE from './TYPE';
 import * as UNLINK from './UNLINK';
+import * as UNWATCH from './UNWATCH';
 import * as WAIT from './WAIT';
+import * as WATCH from './WATCH';
 import * as XACK from './XACK';
 import * as XADD from './XADD';
 import * as XAUTOCLAIM_JUSTID from './XAUTOCLAIM_JUSTID';
@@ -287,6 +323,8 @@ export default {
     configSet: CONFIG_SET,
     COPY,
     copy: COPY,
+    DBSIZE,
+    dbSize: DBSIZE,
     DECR,
     decr: DECR,
     DECRBY,
@@ -299,6 +337,10 @@ export default {
     dump: DUMP,
     ECHO,
     echo: ECHO,
+    EVAL,
+    eval: EVAL,
+    EVALSHA,
+    evalSha: EVALSHA,
     EXISTS,
     exists: EXISTS,
     EXPIRE,
@@ -311,16 +353,36 @@ export default {
     flushAll: FLUSHALL,
     FLUSHDB,
     flushDb: FLUSHDB,
+    GEOADD,
+    geoAdd: GEOADD,
+    GEODIST,
+    geoDist: GEODIST,
+    GEOHASH,
+    geoHash: GEOHASH,
+    GEOPOS,
+    geoPos: GEOPOS,
+    GEOSEARCH_WITH,
+    geoSearchWith: GEOSEARCH_WITH,
+    GEOSEARCH,
+    geoSearch: GEOSEARCH,
+    GEOSEARCHSTORE,
+    geoSearchStore: GEOSEARCHSTORE,
     GET,
     get: GET,
     GETBIT,
     getBit: GETBIT,
     GETDEL,
     getDel: GETDEL,
+    GETEX,
+    getEx: GETEX,
     GETRANGE,
     getRange: GETRANGE,
+    GETSET,
+    getSet: GETSET,
     HDEL,
     hDel: HDEL,
+    HELLO,
+    hello: HELLO,
     HEXISTS,
     hExists: HEXISTS,
     HGET,
@@ -394,6 +456,18 @@ export default {
     lSet: LSET,
     LTRIM,
     lTrim: LTRIM,
+    MEMOERY_DOCTOR,
+    memoryDoctor: MEMOERY_DOCTOR,
+    'MEMORY_MALLOC-STATS': MEMORY_MALLOC_STATS,
+    memoryMallocStats: MEMORY_MALLOC_STATS,
+    MEMORY_PURGE,
+    memoryPurge: MEMORY_PURGE,
+    MEMORY_STATS,
+    memoryStats: MEMORY_STATS,
+    MEMORY_USAGE,
+    memoryUsage: MEMORY_USAGE,
+    MGET,
+    mGet: MGET,
     MIGRATE,
     migrate: MIGRATE,
     MODULE_LIST,
@@ -404,6 +478,10 @@ export default {
     moduleUnload: MODULE_UNLOAD,
     MOVE,
     move: MOVE,
+    MSET,
+    mSet: MSET,
+    MSETNX,
+    mSetNX: MSETNX,
     PERSIST,
     persist: PERSIST,
     PEXPIRE,
@@ -418,10 +496,18 @@ export default {
     pfMerge: PFMERGE,
     PING,
     ping: PING,
+    PSETEX,
+    pSetEx: PSETEX,
     PTTL,
     pTTL: PTTL,
     PUBLISH,
     publish: PUBLISH,
+    PUBSUB_CHANNELS,
+    pubSubChannels: PUBSUB_CHANNELS,
+    PUBSUB_NUMPAT,
+    pubSubNumPat: PUBSUB_NUMPAT,
+    PUBSUB_NUMSUB,
+    pubSubNumSub: PUBSUB_NUMSUB,
     RANDOMKEY,
     randomKey: RANDOMKEY,
     READONLY,
@@ -434,6 +520,10 @@ export default {
     renameNX: RENAMENX,
     REPLICAOF,
     replicaOf: REPLICAOF,
+    'RESTORE-ASKING': RESTORE_ASKING,
+    restoreAsking: RESTORE_ASKING,
+    ROLE,
+    role: ROLE,
     RPOP_COUNT,
     rPopCount: RPOP_COUNT,
     RPOP,
@@ -452,6 +542,16 @@ export default {
     scan: SCAN,
     SCARD,
     sCard: SCARD,
+    SCRIPT_DEBUG,
+    scriptDebug: SCRIPT_DEBUG,
+    SCRIPT_EXISTS,
+    scriptExists: SCRIPT_EXISTS,
+    SCRIPT_FLUSH,
+    scriptFlush: SCRIPT_FLUSH,
+    SCRIPT_KILL,
+    scriptKill: SCRIPT_KILL,
+    SCRIPT_LOAD,
+    scriptLoad: SCRIPT_LOAD,
     SDIFF,
     sDiff: SDIFF,
     SDIFFSTORE,
@@ -464,6 +564,10 @@ export default {
     set: SET,
     SETBIT,
     setBit: SETBIT,
+    SETEX,
+    setEx: SETEX,
+    SETNX,
+    setNX: SETNX,
     SETRANGE,
     setRange: SETRANGE,
     SHUTDOWN,
@@ -506,8 +610,12 @@ export default {
     type: TYPE,
     UNLINK,
     unlink: UNLINK,
+    UNWATCH,
+    unwatch: UNWATCH,
     WAIT,
     wait: WAIT,
+    WATCH,
+    watch: WATCH,
     XACK,
     xAck: XACK,
     XADD,
@@ -561,7 +669,7 @@ export default {
     ZCOUNT,
     zCount: ZCOUNT,
     ZDIFF_WITHSCORES,
-    zDiffWithScores: ZDIFF_WITHSCORES,    
+    zDiffWithScores: ZDIFF_WITHSCORES,
     ZDIFF,
     zDiff: ZDIFF,
     ZDIFFSTORE,
@@ -624,11 +732,13 @@ export default {
 
 export type RedisReply = string | number | Array<RedisReply> | null | undefined;
 
+export type TransformArgumentsReply = Array<string> & { preserve?: unknown };
+
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
     IS_READ_ONLY?: boolean;
-    transformArguments(...args: Array<any>): Array<string>;
-    transformReply(reply: RedisReply): any;
+    transformArguments(...args: Array<any>): TransformArgumentsReply;
+    transformReply(reply: RedisReply, preserved: unknown): any;
 }
 
 export interface RedisCommands {

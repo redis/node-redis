@@ -1,4 +1,4 @@
-import { transformReplyStreamMessages } from './generic-transformers';
+import { pushVerdictArguments, transformReplyStreamMessages } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -19,11 +19,7 @@ export function transformArguments(
 ): Array<string> {
     const args = ['XCLAIM', key, group, consumer, minIdleTime.toString()];
 
-    if (typeof id === 'string') {
-        args.push(id);
-    } else {
-        args.push(...id);
-    }
+    pushVerdictArguments(args, id);
 
     if (options?.IDLE) {
         args.push('IDLE', options.IDLE.toString());

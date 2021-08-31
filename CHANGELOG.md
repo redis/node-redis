@@ -1,5 +1,28 @@
 # Changelog
 
+## v4.0.0
+
+This version is a major change and refactor, adding modern JavaScript capabilities and multiple breaking changes. See the [migration guide](./docs/v3-to-v4.md) for tips on how to upgrade.
+
+### Breaking Changes
+
+- All functions return Promises by default
+- Dropped support for Node.js 10.x, the minimum supported Node.js version is now 12.x
+- `createClient` takes new and different arguments
+- The `prefix`, `rename_commands` configuration options to `createClient` have been removed
+- The `enable_offline_queue` configuration option is removed, executing commands on a closed client (without calling `.connect()` or after calling `.disconnect()`) will reject immediately
+- Login credentials are no longer saved when using `.auth()` directly
+
+### Features
+
+- Added support for Promises
+- Added built-in TypeScript declaration files enabling code completion
+- Added support for [clustering](./README.md#cluster)
+- Added idiomatic arguments and responses to [Redis commands](./README.md#redis-commands)
+- Added full support for [Lua Scripts](./README.md#lua-scripts)
+- Added support for [SCAN iterators](./README.md#scan-iterator)
+- Added the ability to extend Node Redis with Redis Module commands
+
 ## v3.0.0 - 09 Feb, 2020
 
 This version is mainly a release to distribute all the unreleased changes on master since 2017 and additionally removes

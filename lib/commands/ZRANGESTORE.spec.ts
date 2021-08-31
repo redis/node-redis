@@ -60,9 +60,14 @@ describe('ZRANGESTORE', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.zRangeStore', async client => {
+        await client.zAdd('src', {
+            score: 0.5,
+            value: 'value'
+        });
+
         assert.equal(
             await client.zRangeStore('dst', 'src', 0, 1),
-            0
+            1
         );
     });
 });

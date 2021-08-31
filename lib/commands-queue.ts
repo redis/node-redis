@@ -2,10 +2,11 @@ import LinkedList from 'yallist';
 import RedisParser from 'redis-parser';
 import { AbortError } from './errors';
 import { RedisReply } from './commands';
+import { encodeCommand } from './commander';
 
 export interface QueueCommandOptions {
     asap?: boolean;
-    signal?: any; // TODO: TODO: `AbortSignal` type is incorrect
+    signal?: any; // TODO: `AbortSignal` type is incorrect
     chainId?: symbol;
 }
 
@@ -41,21 +42,6 @@ export type PubSubListener = (message: string, channel: string) => unknown;
 export type PubSubListenersMap = Map<string, Set<PubSubListener>>;
 
 export default class RedisCommandsQueue {
-    static encodeCommand(args: Array<string>): string {
-        const encoded = [
-            `*${args.length}`,
-            `$${args[0].length}`,
-            args[0]
-        ];
-
-        for (let i = 1; i < args.length; i++) {
-            const str = args[i].toString();
-            encoded.push(`$${str.length}`, str);
-        }
-
-        return encoded.join('\r\n') + '\r\n';
-    }
-
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
         while (queue.length) {
             queue.shift()!.reject(err);
@@ -73,6 +59,12 @@ export default class RedisCommandsQueue {
     readonly #executor: CommandsQueueExecutor;
 
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
+
+    #waitingToBeSentCommandsLength = 0;
+
+    get waitingToBeSentCommandsLength() {
+        return this.#waitingToBeSentCommandsLength;
+    }
 
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
 
@@ -97,7 +89,7 @@ export default class RedisCommandsQueue {
                             reply[2],
                             reply[1]
                         );
-                    
+
                     case 'pmessage':
                         return RedisCommandsQueue.#emitPubSubMessage(
                             this.#pubSubListeners.patterns.get(reply[1])!,
@@ -108,7 +100,7 @@ export default class RedisCommandsQueue {
                     case 'subscribe':
                     case 'psubscribe':
                         if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
-                            this.#shiftWaitingForReply().resolve(); 
+                            this.#shiftWaitingForReply().resolve();
                         }
                         return;
                 }
@@ -126,29 +118,11 @@ export default class RedisCommandsQueue {
         this.#executor = executor;
     }
 
-    #isQueueBlocked<T = void>(): Promise<T> | undefined {
+    addEncodedCommand<T = RedisReply>(encodedCommand: string, options?: QueueCommandOptions): Promise<T> {
         if (this.#pubSubState.subscribing || this.#pubSubState.subscribed) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
-        } else if (!this.#maxLength) {
-            return;
-        }
-
-        return this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength ?
-            Promise.reject(new Error('The queue is full')) :
-            undefined;
-    }
-
-    addCommand<T = RedisReply>(args: Array<string>, options?: QueueCommandOptions): Promise<T> {
-        return this.#isQueueBlocked<T>() || this.addEncodedCommand(
-            RedisCommandsQueue.encodeCommand(args),
-            options
-        );
-    }
-
-    addEncodedCommand<T = RedisReply>(encodedCommand: string, options?: QueueCommandOptions): Promise<T> {
-        const fullQueuePromise = this.#isQueueBlocked<T>();
-        if (fullQueuePromise) {
-            return fullQueuePromise;
+        } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
+            return Promise.reject(new Error('The queue is full'));
         } else if (options?.signal?.aborted) {
             return Promise.reject(new AbortError());
         }
@@ -167,10 +141,6 @@ export default class RedisCommandsQueue {
                     node.value.reject(new AbortError());
                 };
 
-                if (options.signal.aborted) {
-                    return listener();
-                }
-
                 node.value.abort = {
                     signal: options.signal,
                     listener
@@ -185,6 +155,8 @@ export default class RedisCommandsQueue {
             } else {
                 this.#waitingToBeSent.pushNode(node);
             }
+
+            this.#waitingToBeSentCommandsLength += encodedCommand.length;
         });
     }
 
@@ -259,7 +231,7 @@ export default class RedisCommandsQueue {
 
             this.#pubSubState[inProgressKey] += channelsCounter;
             this.#waitingToBeSent.push({
-                encodedCommand: RedisCommandsQueue.encodeCommand(commandArgs),
+                encodedCommand: encodeCommand(commandArgs),
                 channelsCounter,
                 resolve: () => {
                     this.#pubSubState[inProgressKey] -= channelsCounter;
@@ -325,6 +297,7 @@ export default class RedisCommandsQueue {
         }
 
         this.#chainInExecution = lastCommandChainId;
+        this.#waitingToBeSentCommandsLength -= size;
     }
 
     parseResponse(data: Buffer): void {
@@ -357,4 +330,4 @@ export default class RedisCommandsQueue {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         RedisCommandsQueue.#flushQueue(this.#waitingToBeSent, err);
     }
-};
+}

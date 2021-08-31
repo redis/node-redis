@@ -1,17 +1,9 @@
-import { transformReplyStringArray } from './generic-transformers';
+import { pushVerdictArguments, transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(keys: string | Array<string>): Array<string> {
-    const args = ['SDIFF'];
-
-    if (typeof keys === 'string') {
-        args.push(keys);
-    } else {
-        args.push(...keys);
-    }
-
-    return args; 
+    return pushVerdictArguments(['SDIFF'], keys);
 }
 
 export const transformReply = transformReplyStringArray;

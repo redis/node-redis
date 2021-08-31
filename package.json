@@ -1,6 +1,6 @@
 {
   "name": "redis",
-  "version": "4.0.0-next.4",
+  "version": "4.0.0-rc.0",
   "description": "A high performance Redis client.",
   "keywords": [
     "database",
@@ -23,27 +23,32 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
-    "build": "tsc"
+    "build": "tsc",
+    "documentation": "typedoc"
   },
   "dependencies": {
     "cluster-key-slot": "1.1.0",
+    "generic-pool": "3.8.2",
     "redis-parser": "3.0.0",
     "yallist": "4.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
-    "@types/mocha": "^8.2.3",
-    "@types/node": "^16.3.1",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.7.8",
     "@types/sinon": "^10.0.2",
     "@types/which": "^2.0.1",
     "@types/yallist": "^4.0.1",
-    "mocha": "^9.0.2",
+    "mocha": "^9.1.1",
     "nyc": "^15.1.0",
-    "release-it": "^14.10.0",
-    "sinon": "^11.1.1",
+    "release-it": "^14.11.5",
+    "sinon": "^11.1.2",
     "source-map-support": "^0.5.19",
-    "ts-node": "^10.1.0",
-    "typescript": "^4.3.5",
+    "ts-node": "^10.2.1",
+    "typedoc": "^0.21.9",
+    "typedoc-github-wiki-theme": "^0.5.1",
+    "typedoc-plugin-markdown": "^3.10.4",
+    "typescript": "^4.4.2",
     "which": "^2.0.2"
   },
   "engines": {
