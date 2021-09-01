@@ -49,7 +49,7 @@ import { createClient } from 'redis';
 })();
 ```
 
-The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `[redis[s]:]//[[username][:password@]][host][:port]`:
+The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `[redis[s]:]//[[username][:password]@][host][:port]`:
 
 ```typescript
 createClient({
