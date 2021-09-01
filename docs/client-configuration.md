@@ -12,7 +12,7 @@
 | socket.noDelay           | `true`                                   | Enable/disable the use of [`Nagle's algorithm`](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay)               |
 | socket.keepAlive         | `5000`                                   | Enable/disable the [`keep-alive`](https://nodejs.org/api/net.html#net_socket_setkeepalive_enable_initialdelay) functionality |
 | socket.tls               |                                          | Set to `true` to enable [TLS Configuration](https://nodejs.org/api/tls.html#tls_tls_connect_options_callback)                |
-| socket.reconnectStrategy | `retries => Math.min(retries * 50, 500)` | A function containing the [Connection Retry Strategy](#retry-strategy) logic                                                 |
+| socket.reconnectStrategy | `retries => Math.min(retries * 50, 500)` | A function containing the [Reconnect Strategy](#reconnect-strategy) logic                                                    |
 | modules                  |                                          | Object defining which [Redis Modules](https://redis.io/modules) to include (TODO - document)                                 |
 | scripts                  |                                          | Object defining Lua scripts to use with this client.  See [Lua Scripts](../README.md#lua-scripts)                            |
 | commandsQueueMaxLength   |                                          | Maximum length of the client's internal command queue                                                                        |
