@@ -3,7 +3,7 @@
 | Property                 | Default                                  | Description                                                                                                                  |
 |--------------------------|------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
 | socket                   |                                          | Object defining socket connection properties                                                                                 |
-| socket.url               |                                          | `[redis[s]:]//[[username][:password@]][host][:port]`                                                                         |
+| socket.url               |                                          | `[redis[s]:]//[[username][:password]@][host][:port]`                                                                         |
 | socket.host              | `'localhost'`                            | Hostname to connect to                                                                                                       |
 | socket.port              | `6379`                                   | Port to connect to                                                                                                           |
 | socket.username          |                                          | ACL username ([see ACL guide](https://redis.io/topics/acl))                                                                  |
