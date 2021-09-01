@@ -25,6 +25,7 @@ import * as BRPOP from './BRPOP';
 import * as BRPOPLPUSH from './BRPOPLPUSH';
 import * as BZPOPMAX from './BZPOPMAX';
 import * as BZPOPMIN from './BZPOPMIN';
+import * as CLIENT_ID from './CLIENT_ID';
 import * as CLIENT_INFO from './CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from './CLUSTER_ADDSLOTS';
 import * as CLUSTER_FLUSHSLOTS from './CLUSTER_FLUSHSLOTS';
@@ -297,6 +298,8 @@ export default {
     bzPopMax: BZPOPMAX,
     BZPOPMIN,
     bzPopMin: BZPOPMIN,
+    CLIENT_ID,
+    clientId: CLIENT_ID,
     CLIENT_INFO,
     clientInfo: CLIENT_INFO,
     CLUSTER_ADDSLOTS,

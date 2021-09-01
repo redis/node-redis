@@ -134,11 +134,20 @@ describe('Generic Transformers', () => {
         });
     });
 
-    it('transformReplyNumberInfinityNull', () => {
-        assert.equal(
-            transformReplyNumberInfinityNull(null),
-            null
-        );
+    describe('transformReplyNumberInfinityNull', () => {
+        it('null', () => {
+            assert.equal(
+                transformReplyNumberInfinityNull(null),
+                null
+            );
+        });
+
+        it('1', () => {
+            assert.equal(
+                transformReplyNumberInfinityNull('1'),
+                1
+            );
+        });
     });
 
     describe('transformArgumentNumberInfinity', () => {

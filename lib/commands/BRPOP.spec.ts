@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
-import { transformArguments } from './BRPOP';
+import { transformArguments, transformReply } from './BRPOP';
 import { commandOptions } from '../../index';
 
 describe('BRPOP', () => {
@@ -20,12 +20,33 @@ describe('BRPOP', () => {
         });
     });
 
+    describe('transformReply', () => {
+        it('null', () => {
+            assert.equal(
+                transformReply(null),
+                null
+            );
+        });
+
+        it('member', () => {
+            assert.deepEqual(
+                transformReply(['key', 'element']),
+                {
+                    key: 'key',
+                    element: 'element'
+                }
+            );
+        });
+    });
+
     itWithClient(TestRedisServers.OPEN, 'client.brPop', async client => {
-        const [brPopReply] = await Promise.all([
-            client.brPop(commandOptions({
-                isolated: true
-            }), 'key', 0),
-            client.lPush('key', 'element')
+        const [ brPopReply ] = await Promise.all([
+            client.brPop(
+                commandOptions({ isolated: true }),
+                'key',
+                1
+            ),
+            client.lPush('key', 'element'),
         ]);
 
         assert.deepEqual(
@@ -38,11 +59,13 @@ describe('BRPOP', () => {
     });
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.brPop', async cluster => {
-        const [brPopReply] = await Promise.all([
-            cluster.brPop(commandOptions({
-                isolated: true
-            }), 'key', 0),
-            cluster.lPush('key', 'element')
+        const [ brPopReply ] = await Promise.all([
+            cluster.brPop(
+                commandOptions({ isolated: true }),
+                'key',
+                1
+            ),
+            cluster.lPush('key', 'element'),
         ]);
 
         assert.deepEqual(

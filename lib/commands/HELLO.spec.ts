@@ -1,7 +1,10 @@
 import { strict as assert } from 'assert';
+import { REDIS_VERSION, TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
 import { transformArguments } from './HELLO';
 
 describe('HELLO', () => {
+    describeHandleMinimumRedisVersion([6]);
+
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
@@ -55,5 +58,20 @@ describe('HELLO', () => {
                 ['HELLO', '3', 'AUTH', 'username', 'password', 'SETNAME', 'clientName']
             );
         });
+    });
+
+    itWithClient(TestRedisServers.OPEN, 'client.hello', async client => {
+        assert.deepEqual(
+            await client.hello(),
+            {
+                server: 'redis',
+                version: REDIS_VERSION.join('.'),
+                proto: 2,
+                id: await client.clientId(),
+                mode: 'standalone',
+                role: 'master',
+                modules: []
+            }
+        );
     });
 });

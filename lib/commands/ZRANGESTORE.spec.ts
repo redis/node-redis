@@ -13,12 +13,21 @@ describe('ZRANGESTORE', () => {
             );
         });
 
-        it('with BY', () => {
+        it('with BYSCORE', () => {
             assert.deepEqual(
                 transformArguments('dst', 'src', 0, 1, {
                     BY: 'SCORE'
                 }),
                 ['ZRANGESTORE', 'dst', 'src', '0', '1', 'BYSCORE']
+            );
+        });
+
+        it('with BYLEX', () => {
+            assert.deepEqual(
+                transformArguments('dst', 'src', 0, 1, {
+                    BY: 'LEX'
+                }),
+                ['ZRANGESTORE', 'dst', 'src', '0', '1', 'BYLEX']
             );
         });
 

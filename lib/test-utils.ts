@@ -16,8 +16,8 @@ type RedisVersion = [major: number, minor: number, patch: number];
 
 type PartialRedisVersion = RedisVersion | [major: number, minor: number] | [major: number];
 
-const REDIS_PATH = which.sync('redis-server'),
-    REDIS_VERSION = getRedisVersion();
+const REDIS_PATH = which.sync('redis-server');
+export const REDIS_VERSION = getRedisVersion();
 
 function getRedisVersion(): RedisVersion {
     const raw = execSync(`${REDIS_PATH} -v`).toString(),
@@ -80,8 +80,8 @@ async function spawnRedisServer(args?: Array<string>): Promise<SpawnRedisServerR
         ]);
 
     process
-        .on('error', err => console.error('Redis process error', err))
-        .on('close', code => console.error(`Redis process closed unexpectedly with code ${code}`));
+        .once('error', err => console.error('Redis process error', err))
+        .once('close', code => console.error(`Redis process closed unexpectedly with code ${code}`));
 
     for await (const chunk of process.stdout) {
         if (chunk.toString().includes('Ready to accept connections')) {

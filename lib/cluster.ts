@@ -162,7 +162,7 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
             return node.client;
         } else if (err.message.startsWith('MOVED')) {
             await this.#slots.discover(client);
-            return client;
+            return true;
         }
 
         throw err;

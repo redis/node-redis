@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
-import { transformArguments } from './ZPOPMIN';
+import { transformArguments, transformReply } from './ZPOPMIN';
 
 describe('ZPOPMIN', () => {
     it('transformArguments', () => {
@@ -10,10 +10,32 @@ describe('ZPOPMIN', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zPopMin', async client => {
-        assert.equal(
-            await client.zPopMin('key'),
-            null
+    it('transformReply', () => {
+        assert.deepEqual(
+            transformReply(['value', '1']),
+            {
+                value: 'value',
+                score: 1
+            }
         );
+    });
+
+    describe('client.zPopMin', () => {
+        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+            assert.equal(
+                await client.zPopMin('key'),
+                null
+            );
+        });
+
+        itWithClient(TestRedisServers.OPEN, 'member', async client => {
+            const member = { score: 1, value: 'value' },
+                [, zPopMinReply] = await Promise.all([
+                    client.zAdd('key', member),
+                    client.zPopMin('key')
+                ]);
+
+            assert.deepEqual(zPopMinReply, member);
+        });
     });
 });

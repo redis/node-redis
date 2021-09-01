@@ -153,7 +153,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
                 promises.push(v4Commands.readonly(RedisClient.commandOptions({ asap: true })));
             }
 
-            if (this.#options?.socket?.password) {
+            if (this.#options?.socket?.username || this.#options?.socket?.password) {
                 promises.push(v4Commands.auth(RedisClient.commandOptions({ asap: true }), this.#options.socket));
             }
 

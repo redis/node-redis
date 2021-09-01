@@ -1,7 +1,8 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
-import { transformArguments } from './BZPOPMAX';
+import { transformArguments, transformReply } from './BZPOPMAX';
 import { commandOptions } from '../../index';
+import { describe } from 'mocha';
 
 describe('BZPOPMAX', () => {
     describe('transformArguments', () => {
@@ -20,26 +21,45 @@ describe('BZPOPMAX', () => {
         });
     });
 
+    describe('transformReply', () => {
+        it('null', () => {
+            assert.equal(
+                transformReply(null),
+                null
+            );
+        });
+
+        it('member', () => {
+            assert.deepEqual(
+                transformReply(['key', 'value', '1']),
+                {
+                    key: 'key',
+                    value: 'value',
+                    score: 1
+                }
+            );
+        });
+    });
+
     itWithClient(TestRedisServers.OPEN, 'client.bzPopMax', async client => {
-        const [popReply] = await Promise.all([
-            client.bzPopMax(commandOptions({
-                isolated: true
-            }), 'key', 0),
+        const [ bzPopMaxReply ] = await Promise.all([
+            client.bzPopMax(
+                commandOptions({ isolated: true }),
+                'key',
+                0
+            ),
             client.zAdd('key', [{
                 value: '1',
                 score: 1
-            }, {
-                value: '2',
-                score: 2
             }])
         ]);
 
         assert.deepEqual(
-            popReply,
+            bzPopMaxReply,
             {
                 key: 'key',
-                value: '2',
-                score: 2
+                value: '1',
+                score: 1
             }
         );
     });

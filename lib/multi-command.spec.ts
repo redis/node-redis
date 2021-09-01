@@ -51,6 +51,24 @@ describe('Multi Command', () => {
                 WatchError
             );
         });
+
+        it('execAsPipeline', async () => {
+            const multi = RedisMultiCommand.create(queue => {
+                assert.deepEqual(
+                    queue.map(({encodedCommand}) => encodedCommand),
+                    [encodeCommand(['PING'])]
+                );
+
+                return Promise.resolve(['PONG']);
+            });
+
+            multi.ping();
+
+            assert.deepEqual(
+                await multi.exec(true),
+                ['PONG']
+            );
+        });
     });
 
     describe('execAsPipeline', () => {

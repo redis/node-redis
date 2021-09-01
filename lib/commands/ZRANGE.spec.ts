@@ -11,12 +11,21 @@ describe('ZRANGE', () => {
             );
         });
 
-        it('with BY', () => {
+        it('with BYSCORE', () => {
             assert.deepEqual(
                 transformArguments('src', 0, 1, {
                     BY: 'SCORE'
                 }),
                 ['ZRANGE', 'src', '0', '1', 'BYSCORE']
+            );
+        });
+
+        it('with BYLEX', () => {
+            assert.deepEqual(
+                transformArguments('src', 0, 1, {
+                    BY: 'LEX'
+                }),
+                ['ZRANGE', 'src', '0', '1', 'BYLEX']
             );
         });
 
