@@ -11,7 +11,6 @@ import {
     transformReplyTuples,
     transformReplyStreamMessages,
     transformReplyStreamsMessages,
-    transformReplyStreamsMessagesNull,
     transformReplySortedSetWithScores,
     pushGeoCountArgument,
     pushGeoSearchArguments,
@@ -185,7 +184,7 @@ describe('Generic Transformers', () => {
 
     it('transformReplyStreamMessages', () => {
         assert.deepEqual(
-            transformReplyStreamMessages(['0-0', ['0key', '0value'], '1-0', ['1key', '1value']]),
+            transformReplyStreamMessages([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
             [{
                 id: '0-0',
                 message: Object.create(null, {
@@ -208,56 +207,58 @@ describe('Generic Transformers', () => {
         );
     });
 
-    it('transformReplyStreamsMessages', () => {
-        assert.deepEqual(
-            transformReplyStreamsMessages([['stream1', ['0-1', ['11key', '11value'], '1-1', ['12key', '12value']]], ['stream2', ['0-2', ['2key1', '2value1', '2key2', '2value2']]]]),
-            [{
-                name: 'stream1',
-                messages: [{
-                    id: '0-1',
-                    message: Object.create(null, {
-                        '11key': {
-                            value: '11value',
-                            configurable: true,
-                            enumerable: true
-                        }
-                    })
-                }, {
-                    id: '1-1',
-                    message: Object.create(null, {
-                        '12key': {
-                            value: '12value',
-                            configurable: true,
-                            enumerable: true
-                        }
-                    })
-                }]
-            }, {
-                name: 'stream2',
-                messages: [{
-                    id: '0-2',
-                    message: Object.create(null, {
-                        '2key1': {
-                            value: '2value1',
-                            configurable: true,
-                            enumerable: true
-                        },
-                        '2key2': {
-                            value: '2value2',
-                            configurable: true,
-                            enumerable: true
-                        }
-                    })
-                }]
-            }]
-        )
-    });
+    describe('transformReplyStreamsMessages', () => {
+        it('null', () => {
+            assert.equal(
+                transformReplyStreamsMessages(null),
+                null
+            );
+        });
 
-    it('transformReplyStreamsMessagesNull', () => {
-        assert.equal(
-            transformReplyStreamsMessagesNull(null),
-            null
-        );
+        it('with messages', () => {
+            assert.deepEqual(
+                transformReplyStreamsMessages([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]]),
+                [{
+                    name: 'stream1',
+                    messages: [{
+                        id: '0-1',
+                        message: Object.create(null, {
+                            '11key': {
+                                value: '11value',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }, {
+                        id: '1-1',
+                        message: Object.create(null, {
+                            '12key': {
+                                value: '12value',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }]
+                }, {
+                    name: 'stream2',
+                    messages: [{
+                        id: '0-2',
+                        message: Object.create(null, {
+                            '2key1': {
+                                value: '2value1',
+                                configurable: true,
+                                enumerable: true
+                            },
+                            '2key2': {
+                                value: '2value2',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }]
+                }]
+            )
+        });
     });
 
     it('transformReplySortedSetWithScores', () => {

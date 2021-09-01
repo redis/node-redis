@@ -41,9 +41,9 @@ describe('XTRIM', () => {
     });
 
     itWithClient(TestRedisServers.OPEN, 'client.xTrim', async client => {
-        assert.deepEqual(
+        assert.equal(
             await client.xTrim('key', 'MAXLEN', 1),
-            []
+            0
         );
     });
 });

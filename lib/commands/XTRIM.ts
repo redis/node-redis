@@ -1,4 +1,4 @@
-import { transformReplyStreamMessages } from './generic-transformers';
+import { transformReplyNumber } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -23,4 +23,4 @@ export function transformArguments(key: string, strategy: 'MAXLEN' | 'MINID', th
     return args;
 }
 
-export const transformReply = transformReplyStreamMessages;
+export const transformReply = transformReplyNumber;

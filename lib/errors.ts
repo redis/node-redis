@@ -15,3 +15,9 @@ export class ConnectionTimeoutError extends Error {
         super('Connection timeout');
     }
 }
+
+export class ClientClosedError extends Error {
+    constructor() {
+        super('The client is closed');
+    }
+}

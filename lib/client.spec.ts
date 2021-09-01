@@ -2,7 +2,7 @@ import { strict as assert, AssertionError } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
 import RedisClient, { RedisClientLegacyModes } from './client';
-import { AbortError, ConnectionTimeoutError, WatchError } from './errors';
+import { AbortError, CLientClosedError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
 
@@ -677,6 +677,27 @@ describe('Behaviour Testing', () => {
             }
 
             throw err;
+        }
+    });
+
+    it('client.quit', async () => {
+        const client = RedisClient.create({
+            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
+        });
+
+        await client.connect();
+
+        try {
+            const quitPromise = client.quit();
+            assert.equal(client.isOpen, false);
+            await Promise.all([
+                quitPromise,
+                assert.rejects(client.ping(), ClientClosedError)
+            ]);
+        } finally {
+            if (client.isOpen) {
+                await client.disconnect();
+            }
         }
     });
 });

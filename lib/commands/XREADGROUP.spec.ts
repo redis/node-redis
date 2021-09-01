@@ -13,7 +13,7 @@ describe('XREADGROUP', () => {
                 ['XREADGROUP', 'GROUP', 'group', 'consumer', 'STREAMS', 'key', '0']
             );
         });
-    
+
         it('multiple streams', () => {
             assert.deepEqual(
                 transformArguments('group', 'consumer', [{
@@ -78,21 +78,47 @@ describe('XREADGROUP', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xReadGroup', async client => {
-        const [, readGroupReply] = await Promise.all([
-            client.xGroupCreate('key', 'group', '$', {
-                MKSTREAM: true
-            }),
-            client.xReadGroup('group', 'consumer', {
-                key: 'key',
-                id: '0'
-            })
-        ]);
+    describe('client.xReadGroup', () => {
+        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+            const [, readGroupReply] = await Promise.all([
+                client.xGroupCreate('key', 'group', '$', {
+                    MKSTREAM: true
+                }),
+                client.xReadGroup('group', 'consumer', {
+                    key: 'key',
+                    id: '>'
+                })
+            ]);
 
-        assert.deepEqual(readGroupReply, [{
-            name: 'key',
-            messages: []
-        }]);
+            assert.equal(readGroupReply, null);
+        });
+
+        itWithClient(TestRedisServers.OPEN, 'with a message', async client => {
+            const [, id, readGroupReply] = await Promise.all([
+                client.xGroupCreate('key', 'group', '$', {
+                    MKSTREAM: true
+                }),
+                client.xAdd('key', '*', { field: 'value' }),
+                client.xReadGroup('group', 'consumer', {
+                    key: 'key',
+                    id: '>'
+                })
+            ]);
+
+            assert.deepEqual(readGroupReply, [{
+                name: 'key',
+                messages: [{
+                    id,
+                    message: Object.create(null, {
+                        field: {
+                            value: 'value',
+                            configurable: true,
+                            enumerable: true
+                        }
+                    })
+                }]
+            }]);
+        });
     });
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.xReadGroup', async cluster => {
@@ -102,13 +128,10 @@ describe('XREADGROUP', () => {
             }),
             cluster.xReadGroup('group', 'consumer', {
                 key: 'key',
-                id: '0'
+                id: '>'
             })
         ]);
 
-        assert.deepEqual(readGroupReply, [{
-            name: 'key',
-            messages: []
-        }]);
+        assert.equal(readGroupReply, null);
     });
 });
