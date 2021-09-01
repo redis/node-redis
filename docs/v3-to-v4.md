@@ -32,4 +32,4 @@ await client.v4.set('key', 'value', {
 
 ## `createClient`
 
-The configuration object passed to `createClient` has changed significantly with this release. See the [client configuration guide](./docs/client-configuration.md) for details.
+The configuration object passed to `createClient` has changed significantly with this release. See the [client configuration guide](./client-configuration.md) for details.
