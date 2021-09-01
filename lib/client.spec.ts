@@ -2,7 +2,7 @@ import { strict as assert, AssertionError } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from './test-utils';
 import RedisClient, { RedisClientLegacyModes } from './client';
-import { AbortError, CLientClosedError, ConnectionTimeoutError, WatchError } from './errors';
+import { AbortError, ClientClosedError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
 
