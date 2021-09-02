@@ -97,12 +97,12 @@ export function transformCommandArguments<T = unknown>(
 export function encodeCommand(args: Array<string>): string {
     const encoded = [
         `*${args.length}`,
-        `$${Buffer.byteLength(args[0])}`,
+        `$${Buffer.byteLength(args[0]).toString()}`,
         args[0]
     ];
 
     for (let i = 1; i < args.length; i++) {
-        encoded.push(`$${Buffer.byteLength(args[i])}`, args[i]);
+        encoded.push(`$${Buffer.byteLength(args[i]).toString()}`, args[i]);
     }
 
     return encoded.join('\r\n') + '\r\n';

@@ -298,9 +298,10 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 
     QUIT(): Promise<void> {
-        return this.#socket.quit(async () => {
-            this.#queue.addEncodedCommand(encodeCommand(['QUIT']));
+        return this.#socket.quit(() => {
+            const promise = this.#queue.addEncodedCommand(encodeCommand(['QUIT']));
             this.#tick();
+            return promise;
         });
     }
 

@@ -19,7 +19,7 @@ export function transformArguments(
         isKeyString = typeof key === 'string';
 
     if (isKeyString) {
-        args.push(key as string);
+        args.push(key);
     } else {
         args.push('""');
     }
