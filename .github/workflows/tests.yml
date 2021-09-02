@@ -3,7 +3,8 @@ name: Tests
 on:
   push:
     branches:
-      - v4
+      - master
+      - v4.0
 
 jobs:
   tests:
