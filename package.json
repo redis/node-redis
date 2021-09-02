@@ -1,17 +1,11 @@
 {
   "name": "redis",
-  "version": "3.1.2",
+  "version": "4.0.0-rc.0",
   "description": "A high performance Redis client.",
   "keywords": [
     "database",
     "redis",
-    "transaction",
-    "pipelining",
-    "performance",
-    "queue",
-    "nodejs",
-    "pubsub",
-    "backpressure"
+    "pubsub"
   ],
   "author": "Matt Ranney <mjr@ranney.com>",
   "contributors": [
@@ -25,38 +19,40 @@
     }
   ],
   "license": "MIT",
-  "main": "./index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "coveralls": "nyc report --reporter=text-lcov | coveralls",
-    "coverage": "nyc report --reporter=html",
-    "benchmark": "node benchmarks/multi_bench.js",
-    "test": "nyc --cache mocha ./test/*.spec.js ./test/commands/*.spec.js --timeout=8000 && npm run coverage",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "lint:report": "eslint --output-file=eslint-report.json --format=json  .",
-    "compare": "node benchmarks/diff_multi_bench_output.js beforeBench.txt afterBench.txt"
+    "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
+    "build": "tsc",
+    "documentation": "typedoc"
   },
   "dependencies": {
-    "denque": "^1.5.0",
-    "redis-commands": "^1.7.0",
-    "redis-errors": "^1.2.0",
-    "redis-parser": "^3.0.0"
-  },
-  "engines": {
-    "node": ">=10"
+    "cluster-key-slot": "1.1.0",
+    "generic-pool": "3.8.2",
+    "redis-parser": "3.0.0",
+    "yallist": "4.0.0"
   },
   "devDependencies": {
-    "bluebird": "^3.7.2",
-    "coveralls": "^3.1.0",
-    "cross-spawn": "^7.0.3",
-    "eslint": "^7.21.0",
-    "intercept-stdout": "~0.1.2",
-    "metrics": "^0.1.21",
-    "mocha": "^8.3.0",
+    "@istanbuljs/nyc-config-typescript": "^1.0.1",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.7.8",
+    "@types/sinon": "^10.0.2",
+    "@types/which": "^2.0.1",
+    "@types/yallist": "^4.0.1",
+    "mocha": "^9.1.1",
     "nyc": "^15.1.0",
-    "prettier": "^2.2.1",
-    "tcp-port-used": "^1.0.1",
-    "uuid": "^8.3.2"
+    "release-it": "^14.11.5",
+    "sinon": "^11.1.2",
+    "source-map-support": "^0.5.19",
+    "ts-node": "^10.2.1",
+    "typedoc": "^0.21.9",
+    "typedoc-github-wiki-theme": "^0.5.1",
+    "typedoc-plugin-markdown": "^3.10.4",
+    "typescript": "^4.4.2",
+    "which": "^2.0.2"
+  },
+  "engines": {
+    "node": ">=12"
   },
   "repository": {
     "type": "git",
@@ -65,13 +61,5 @@
   "bugs": {
     "url": "https://github.com/NodeRedis/node-redis/issues"
   },
-  "homepage": "https://github.com/NodeRedis/node-redis",
-  "directories": {
-    "example": "examples",
-    "test": "test"
-  },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/node-redis"
-  }
+  "homepage": "https://github.com/NodeRedis/node-redis/tree/v4"
 }

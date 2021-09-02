@@ -1,17 +1,8 @@
-node_modules
-.tern-port
-.nyc_output
-coverage
-*.log
-*.rdb
-stunnel.conf
-stunnel.pid
-*.out
-package-lock.json
-
-# IntelliJ IDEs
-.idea
-# VisualStudioCode IDEs
-.vscode
-.vs
-eslint-report.json
+.vscode/
+.idea/
+node_modules/
+dist/
+.nyc_output/
+coverage/
+dump.rdb
+documentation/

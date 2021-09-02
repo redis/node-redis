@@ -1,16 +1,18 @@
 name: Tests
 
-on: [push]
+on:
+  push:
+    branches:
+      - v4
 
 jobs:
-  testing:
-    name: Test
+  tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [10.x, 12.x, 14.x, 15.x]
-        redis-version: [4.x, 5.x, 6.x]
+        node-version: [12.x, 14.x, 16.x]
+        redis-version: [5.x, 6.x]
 
     steps:
       - uses: actions/checkout@v2.3.4
@@ -18,35 +20,38 @@ jobs:
           fetch-depth: 1
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2.1.5
+        uses: actions/setup-node@v2.3.0
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1.9.7
+        uses: shogo82148/actions-setup-redis@v1.12.0
         with:
           redis-version: ${{ matrix.redis-version }}
           auto-start: "false"
 
-      - name: Disable IPv6
-        run: sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
-
-      - name: Setup Stunnel
-        run: sudo apt-get install stunnel4
-
       - name: Install Packages
-        run: npm i --no-audit --prefer-offline
+        run: npm ci
 
       - name: Run Tests
-        run: npm test
+        run: npm run test
 
-      - name: Submit Coverage
-        run: npm run coveralls
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+      - name: Generate lcov
+        run: ./node_modules/.bin/nyc report -r lcov
 
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v2.2.2
+      - name: Coveralls
+        uses: coverallsapp/github-action@1.1.3
         with:
-          name: coverage
-          path: coverage
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: Node ${{ matrix.node-version }} Redis ${{ matrix.redis-version }}
+          parallel: true
+
+  finish:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@1.1.3
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true

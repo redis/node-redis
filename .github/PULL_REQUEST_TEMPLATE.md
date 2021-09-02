@@ -1,13 +1,10 @@
-<!-- please ensure you have read the `./CONTRIBUTING.md` guide -->
-
 ### Description
 
 <!-- Please provide a description of the change below, e.g What was the purpose? -->
-<!-- Why does it matter to you? What problem are you trying to solve? --> 
+<!-- Why does it matter to you? What problem are you trying to solve? -->
 <!-- Tag in any linked issues. -->
 
-> Description your pull request here
-
+> Describe your pull request here
 
 ---
 

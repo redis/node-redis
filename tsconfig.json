@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2019",
+    "lib": ["ES2019", "ES2020.BigInt", "ES2020.String", "ES2020.Symbol.WellKnown"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "outDir": "./dist",
+    "declaration": true,
+    "useDefineForClassFields": true,
+    "allowJs": true
+  },
+  "files": [
+    "./lib/ts-declarations/cluster-key-slot.d.ts",
+    "./lib/ts-declarations/redis-parser.d.ts"
+  ],
+  "include": [
+    "./index.ts",
+    "./lib/**/*.ts"
+  ],
+  "ts-node": {
+    "files": true
+  },
+  "typedocOptions": {
+    "entryPoints": [
+      "./index.ts",
+      "./lib"
+    ],
+    "exclude": [
+      "./lib/ts-declarations",
+      "./lib/test-utils.ts"
+    ],
+    "theme": "./node_modules/typedoc-github-wiki-theme/dist",
+    "out": "documentation"
+  }
+}
