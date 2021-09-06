@@ -12,6 +12,7 @@ export interface QueueCommandOptions {
 
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
     encodedCommand: string;
+    byteLength: number;
     chainId?: symbol;
     abort?: {
         signal: any; // TODO: `AbortSignal` type is incorrect
@@ -130,6 +131,7 @@ export default class RedisCommandsQueue {
         return new Promise((resolve, reject) => {
             const node = new LinkedList.Node<CommandWaitingToBeSent>({
                 encodedCommand,
+                byteLength: Buffer.byteLength(encodedCommand),
                 chainId: options?.chainId,
                 resolve,
                 reject
@@ -156,7 +158,7 @@ export default class RedisCommandsQueue {
                 this.#waitingToBeSent.pushNode(node);
             }
 
-            this.#waitingToBeSentCommandsLength += encodedCommand.length;
+            this.#waitingToBeSentCommandsLength += node.value.byteLength;
         });
     }
 
@@ -230,8 +232,12 @@ export default class RedisCommandsQueue {
             }
 
             this.#pubSubState[inProgressKey] += channelsCounter;
+
+            const encodedCommand = encodeCommand(commandArgs),
+                byteLength = Buffer.byteLength(encodedCommand);
             this.#waitingToBeSent.push({
-                encodedCommand: encodeCommand(commandArgs),
+                encodedCommand,
+                byteLength,
                 channelsCounter,
                 resolve: () => {
                     this.#pubSubState[inProgressKey] -= channelsCounter;
@@ -243,6 +249,7 @@ export default class RedisCommandsQueue {
                     reject();
                 }
             });
+            this.#waitingToBeSentCommandsLength += byteLength;
         });
     }
 
@@ -268,7 +275,7 @@ export default class RedisCommandsQueue {
             lastCommandChainId: symbol | undefined;
         for (const command of this.#waitingToBeSent) {
             encoded.push(command.encodedCommand);
-            size += command.encodedCommand.length;
+            size += command.byteLength;
             if (size > recommendedSize) {
                 lastCommandChainId = command.chainId;
                 break;

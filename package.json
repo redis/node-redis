@@ -1,6 +1,6 @@
 {
   "name": "redis",
-  "version": "4.0.0-rc.0",
+  "version": "4.0.0-rc.1",
   "description": "A high performance Redis client.",
   "keywords": [
     "database",
@@ -35,7 +35,7 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^16.7.8",
+    "@types/node": "^16.7.10",
     "@types/sinon": "^10.0.2",
     "@types/which": "^2.0.1",
     "@types/yallist": "^4.0.1",

@@ -5,6 +5,7 @@ import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments } from './commander';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
+import { EventEmitter } from 'events';
 
 export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
     rootNodes: Array<RedisSocketOptions>;
@@ -17,7 +18,7 @@ export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
 export type RedisClusterType<M extends RedisModules, S extends RedisLuaScripts> =
     WithPlugins<M, S> & RedisCluster;
 
-export default class RedisCluster<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
+export default class RedisCluster<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> extends EventEmitter {
     static #extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: Array<string>): string | undefined {
         if (command.FIRST_KEY_INDEX === undefined) {
             return undefined;
@@ -83,8 +84,10 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
     readonly #Multi: new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisMultiCommandType<M, S>;
 
     constructor(options: RedisClusterOptions<M, S>) {
+        super();
+
         this.#options = options;
-        this.#slots = new RedisClusterSlots(options);
+        this.#slots = new RedisClusterSlots(options, err => this.emit('error', err));
         this.#Multi = RedisMultiCommand.extend(options);
     }
 

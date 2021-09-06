@@ -6,8 +6,8 @@
 </p>
 
 <div align="center">
-    <a href="https://coveralls.io/github/NodeRedis/node-redis?branch=v4">
-        <img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg?branch=v4" alt="Coverage Status"/>
+    <a href="https://coveralls.io/github/NodeRedis/node-redis">
+        <img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg" alt="Coverage Status"/>
     </a>
     <a href="https://www.npmjs.com/package/redis/v/next">
         <img src="https://img.shields.io/npm/dm/redis.svg" alt="Downloads"/>

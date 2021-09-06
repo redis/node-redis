@@ -1,5 +1,4 @@
 import { strict as assert } from 'assert';
-import { isObject } from 'util';
 import {
     transformReplyBoolean,
     transformReplyBooleanArray,
