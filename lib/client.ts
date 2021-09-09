@@ -184,7 +184,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     #initiateQueue(): RedisCommandsQueue {
         return new RedisCommandsQueue(
             this.#options?.commandsQueueMaxLength,
-            (encodedCommands: string) => this.#socket.write(encodedCommands)
+            encodedCommands => this.#socket.write(encodedCommands)
         );
     }
 

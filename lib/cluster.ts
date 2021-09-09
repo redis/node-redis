@@ -91,6 +91,10 @@ export default class RedisCluster<M extends RedisModules = RedisModules, S exten
         this.#Multi = RedisMultiCommand.extend(options);
     }
 
+    duplicate(): RedisClusterOptions<M, S> {
+        return new (Object.getPrototypeOf(this).constructor)(this.#options);
+    }
+
     async connect(): Promise<void> {
         return this.#slots.connect();
     }
