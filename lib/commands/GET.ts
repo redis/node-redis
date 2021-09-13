@@ -1,5 +1,5 @@
 import { TransformArgumentsReply } from '.';
-import { transformReplyString } from './generic-transformers';
+import { transformReplyStringNull } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -9,4 +9,4 @@ export function transformArguments(key: string | Buffer): TransformArgumentsRepl
     return ['GET', key];
 }
 
-export const transformReply = transformReplyString;
+export const transformReply = transformReplyStringNull;

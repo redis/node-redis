@@ -20,10 +20,6 @@ export function transformReplyString(reply: string): string {
     return reply;
 }
 
-export function transformReplyBuffer(reply: Buffer): Buffer {
-    return reply;
-}
-
 export function transformReplyStringNull(reply: string | null): string | null {
     return reply;
 }
@@ -51,6 +47,10 @@ export function transformReplyBooleanArray(reply: Array<number>): Array<boolean>
 export type BitValue = 0 | 1;
 
 export function transformReplyBit(reply: BitValue): BitValue {
+    return reply;
+}
+
+export function transformReplyBufferNull(reply: Buffer | null): Buffer | null {
     return reply;
 }
 
