@@ -106,7 +106,7 @@ describe('SET', () => {
                 'OK'
             );
         });
-
+        
         itWithClient(TestRedisServers.OPEN, 'with GET on empty key', async client => {
             assert.equal(
                 await client.set('key', 'value', {

@@ -1,6 +1,5 @@
 import { strict as assert } from 'assert';
 import RedisMultiCommand from './multi-command';
-import { encodeCommand } from './commander';
 import { WatchError } from './errors';
 import { spy } from 'sinon';
 import { SQUARE_SCRIPT } from './client.spec';
@@ -10,11 +9,11 @@ describe('Multi Command', () => {
         it('simple', async () => {
             const multi = RedisMultiCommand.create((queue, symbol) => {
                 assert.deepEqual(
-                    queue.map(({encodedCommand}) => encodedCommand),
+                    queue.map(({ args }) => args),
                     [
-                        encodeCommand(['MULTI']),
-                        encodeCommand(['PING']),
-                        encodeCommand(['EXEC']),
+                        ['MULTI'],
+                        ['PING'],
+                        ['EXEC'],
                     ]
                 );
 
@@ -55,8 +54,8 @@ describe('Multi Command', () => {
         it('execAsPipeline', async () => {
             const multi = RedisMultiCommand.create(queue => {
                 assert.deepEqual(
-                    queue.map(({encodedCommand}) => encodedCommand),
-                    [encodeCommand(['PING'])]
+                    queue.map(({ args }) => args),
+                    [['PING']]
                 );
 
                 return Promise.resolve(['PONG']);
@@ -75,8 +74,8 @@ describe('Multi Command', () => {
         it('simple', async () => {
             const multi = RedisMultiCommand.create(queue => {
                 assert.deepEqual(
-                    queue.map(({encodedCommand}) => encodedCommand),
-                    [encodeCommand(['PING'])]
+                    queue.map(({ args }) => args),
+                    [['PING']]
                 );
 
                 return Promise.resolve(['PONG']);
@@ -111,10 +110,10 @@ describe('Multi Command', () => {
             assert.deepEqual(
                 await new MultiWithScript(queue => {
                     assert.deepEqual(
-                        queue.map(({encodedCommand}) => encodedCommand),
+                        queue.map(({ args }) => args),
                         [
-                            encodeCommand(['EVAL', SQUARE_SCRIPT.SCRIPT, '0', '2']),
-                            encodeCommand(['EVALSHA', SQUARE_SCRIPT.SHA1, '0', '3']),
+                            ['EVAL', SQUARE_SCRIPT.SCRIPT, '0', '2'],
+                            ['EVALSHA', SQUARE_SCRIPT.SHA1, '0', '3'],
                         ]
                     );
 

@@ -1,3 +1,4 @@
+import { TransformArgumentsReply } from '.';
 import { pushVerdictArgument, transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
@@ -9,7 +10,7 @@ interface ZInterOptions {
     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(keys: Array<string> | string, options?: ZInterOptions): Array<string> {
+export function transformArguments(keys: Array<string> | string, options?: ZInterOptions): TransformArgumentsReply {
     const args = pushVerdictArgument(['ZINTER'], keys);
 
     if (options?.WEIGHTS) {

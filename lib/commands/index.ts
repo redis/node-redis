@@ -61,6 +61,7 @@ import * as GEOPOS from './GEOPOS';
 import * as GEOSEARCH_WITH from './GEOSEARCH_WITH';
 import * as GEOSEARCH from './GEOSEARCH';
 import * as GEOSEARCHSTORE from './GEOSEARCHSTORE';
+import * as GET_BUFFER from './GET_BUFFER';
 import * as GET from './GET';
 import * as GETBIT from './GETBIT';
 import * as GETDEL from './GETDEL';
@@ -370,6 +371,8 @@ export default {
     geoSearch: GEOSEARCH,
     GEOSEARCHSTORE,
     geoSearchStore: GEOSEARCHSTORE,
+    GET_BUFFER,
+    getBuffer: GET_BUFFER,
     GET,
     get: GET,
     GETBIT,
@@ -733,15 +736,16 @@ export default {
     zUnionStore: ZUNIONSTORE
 };
 
-export type RedisReply = string | number | Array<RedisReply> | null | undefined;
+export type RedisReply = string | number | Buffer | Array<RedisReply> | null | undefined;
 
-export type TransformArgumentsReply = Array<string> & { preserve?: unknown };
+export type TransformArgumentsReply = Array<string | Buffer> & { preserve?: unknown };
 
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
     IS_READ_ONLY?: boolean;
     transformArguments(...args: Array<any>): TransformArgumentsReply;
-    transformReply(reply: RedisReply, preserved: unknown): any;
+    BUFFER_MODE?: boolean;
+    transformReply(reply: RedisReply, preserved?: unknown): any;
 }
 
 export interface RedisCommands {

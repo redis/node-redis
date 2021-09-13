@@ -195,6 +195,13 @@ describe('Client', () => {
             assert.equal(await client.sendCommand(['PING']), 'PONG');
         });
 
+        itWithClient(TestRedisServers.OPEN, 'bufferMode', async client => {
+            assert.deepEqual(
+                await client.sendCommand(['PING'], undefined, true),
+                Buffer.from('PONG')
+            );
+        });
+
         describe('AbortController', () => {
             before(function () {
                 if (!global.AbortController) {

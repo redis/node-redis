@@ -91,10 +91,8 @@ export default class RedisSocket extends EventEmitter {
         return this.#isOpen;
     }
 
-    get chunkRecommendedSize(): number {
-        if (!this.#socket) return 0;
-
-        return this.#socket.writableHighWaterMark - this.#socket.writableLength;
+    get isSocketExists(): boolean {
+        return !!this.#socket;
     }
 
     constructor(initiator?: RedisSocketInitiator, options?: RedisSocketOptions) {
@@ -214,12 +212,12 @@ export default class RedisSocket extends EventEmitter {
             .catch(err => this.emit('error', err));
     }
 
-    write(encodedCommands: string): boolean {
+    write(toWrite: string | Buffer): boolean {
         if (!this.#socket) {
             throw new ClientClosedError();
         }
 
-        return this.#socket.write(encodedCommands);
+        return this.#socket.write(toWrite);
     }
 
     async disconnect(ignoreIsOpen = false): Promise<void> {
@@ -249,6 +247,24 @@ export default class RedisSocket extends EventEmitter {
         } catch (err) {
             this.#isOpen = true;
             throw err;
+        }
+    }
+
+    #isCorked = false;
+
+    cork(): void {
+        if (!this.#socket) {
+            return;
+        }
+
+        if (!this.#isCorked) {
+            this.#socket.cork();
+            this.#isCorked = true;
+
+            queueMicrotask(() => {
+                this.#socket?.uncork();
+                this.#isCorked = false;
+            });
         }
     }
 }

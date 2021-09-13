@@ -2,6 +2,7 @@
 import COMMANDS, { RedisCommand, RedisModules, TransformArgumentsReply } from './commands';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { CommandOptions, isCommandOptions } from './command-options';
+import { off } from 'process';
 
 type Instantiable<T = any> = new(...args: Array<any>) => T;
 
@@ -94,16 +95,15 @@ export function transformCommandArguments<T = unknown>(
     };
 }
 
-export function encodeCommand(args: Array<string>): string {
-    const encoded = [
-        `*${args.length}`,
-        `$${Buffer.byteLength(args[0]).toString()}`,
-        args[0]
-    ];
+const DELIMITER = '\r\n';
 
-    for (let i = 1; i < args.length; i++) {
-        encoded.push(`$${Buffer.byteLength(args[i]).toString()}`, args[i]);
+export function* encodeCommand(args: TransformArgumentsReply): IterableIterator<string | Buffer> {
+    yield `*${args.length}${DELIMITER}`;
+
+    for (const arg of args) {
+        const byteLength = typeof arg === 'string' ? Buffer.byteLength(arg): arg.length;
+        yield `$${byteLength.toString()}${DELIMITER}`;
+        yield arg;
+        yield DELIMITER;
     }
-
-    return encoded.join('\r\n') + '\r\n';
 }

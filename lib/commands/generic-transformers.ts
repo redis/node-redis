@@ -20,6 +20,10 @@ export function transformReplyString(reply: string): string {
     return reply;
 }
 
+export function transformReplyBuffer(reply: Buffer): Buffer {
+    return reply;
+}
+
 export function transformReplyStringNull(reply: string | null): string | null {
     return reply;
 }
@@ -352,11 +356,11 @@ export function pushStringTuplesArguments(args: Array<string>, tuples: StringTup
     return args;
 }
 
-export function pushVerdictArguments(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply  {
-    if (typeof value === 'string') {
-        args.push(value);
-    } else {
+export function pushVerdictArguments(args: TransformArgumentsReply, value: string | Buffer | Array<string | Buffer>): TransformArgumentsReply  {
+    if (Array.isArray(value)) {
         args.push(...value);
+    } else {
+        args.push(value);
     }
 
     return args;
