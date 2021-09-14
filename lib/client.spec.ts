@@ -516,6 +516,9 @@ describe('Client', () => {
             assert.ok(channelListener1.calledOnce);
             assert.ok(channelListener2.calledTwice);
             assert.ok(patternListener.calledThrice);
+
+            // should be able to send commands when unsubsribed from all channels (see #1652)
+            await assert.doesNotReject(subscriber.ping());
         } finally {
             await subscriber.disconnect();
         }

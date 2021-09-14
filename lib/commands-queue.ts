@@ -171,8 +171,9 @@ export default class RedisCommandsQueue {
     unsubscribe(command: PubSubUnsubscribeCommands, channels?: string | Array<string>, listener?: PubSubListener): Promise<void> {
         const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ? this.#pubSubListeners.channels : this.#pubSubListeners.patterns;
         if (!channels) {
+            const size = listeners.size;
             listeners.clear();
-            return this.#pushPubSubCommand(command);
+            return this.#pushPubSubCommand(command, size);
         }
 
         const channelsToUnsubscribe = [];
@@ -199,22 +200,18 @@ export default class RedisCommandsQueue {
         return this.#pushPubSubCommand(command, channelsToUnsubscribe);
     }
 
-    #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels?: Array<string>): Promise<void> {
+    #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels: number | Array<string>): Promise<void> {
         return new Promise((resolve, reject) => {
             const isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
                 inProgressKey = isSubscribe ? 'subscribing' : 'unsubscribing',
                 commandArgs: Array<string> = [command];
+
             let channelsCounter: number;
-            if (channels?.length) {
+            if (typeof channels === 'number') { // unsubscribe only
+                channelsCounter = channels;
+            } else {
                 commandArgs.push(...channels);
                 channelsCounter = channels.length;
-            } else {
-                // unsubscribe only
-                channelsCounter = (
-                    command[0] === 'P' ?
-                    this.#pubSubListeners.patterns :
-                    this.#pubSubListeners.channels
-                ).size;
             }
 
             this.#pubSubState[inProgressKey] += channelsCounter;
