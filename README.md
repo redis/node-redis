@@ -111,8 +111,7 @@ await client.set('another-key', 'another-value');
 const [ setKeyReply, otherKeyValue ] = await client.multi()
     .set('key', 'value')
     .get('another-key')
-    .exec()
-]); // ['OK', 'another-value']
+    .exec(); // ['OK', 'another-value']
 ```
 
 You can also [watch](https://redis.io/topics/transactions#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change.
