@@ -112,7 +112,7 @@ async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
 const SLOTS = 16384;
 
 interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
-    client: RedisClientType<RedisModules, RedisLuaScripts>
+    client: RedisClientType
 }
 
 async function spawnRedisClusterNode(
@@ -281,7 +281,7 @@ export function describeHandleMinimumRedisVersion(minimumVersion: PartialRedisVe
 export function itWithClient(
     type: TestRedisServers,
     title: string,
-    fn: (client: RedisClientType<RedisModules, RedisLuaScripts>) => Promise<void>,
+    fn: (client: RedisClientType) => Promise<void>,
     options?: RedisTestOptions
 ): void {
     it(title, async function () {
@@ -306,7 +306,7 @@ export function itWithClient(
 export function itWithCluster(
     type: TestRedisClusters,
     title: string,
-    fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>,
+    fn: (cluster: RedisClusterType) => Promise<void>,
     options?: RedisTestOptions
 ): void {
     it(title, async function () {
@@ -328,7 +328,7 @@ export function itWithCluster(
     });
 }
 
-export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
+export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType) => Promise<void>): void {
     it(title, async function () {
         this.timeout(10000);
 

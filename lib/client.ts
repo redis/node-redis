@@ -13,7 +13,7 @@ import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, 
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError } from './errors';
 
-export interface RedisClientOptions<M = RedisModules, S = RedisLuaScripts> {
+export interface RedisClientOptions<M, S> {
     socket?: RedisSocketOptions;
     modules?: M;
     scripts?: S;
@@ -43,51 +43,25 @@ type WithScripts<S extends RedisLuaScripts> = {
 export type WithPlugins<M extends RedisModules, S extends RedisLuaScripts> =
     WithCommands & WithModules<M> & WithScripts<S>;
 
-export type RedisClientType<M extends RedisModules, S extends RedisLuaScripts> =
+export type RedisClientType<M extends RedisModules = {}, S extends RedisLuaScripts = {}> =
     WithPlugins<M, S> & RedisClient<M, S>;
 
 export interface ClientCommandOptions extends QueueCommandOptions {
     isolated?: boolean;
 }
 
-export default class RedisClient<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> extends EventEmitter {
+export default class RedisClient<M extends RedisModules, S extends RedisLuaScripts> extends EventEmitter {
     static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
         return commandOptions(options);
     }
 
-    static async commandsExecutor(
-        this: RedisClient,
-        command: RedisCommand,
-        args: Array<unknown>
-    ): Promise<ReturnType<typeof command['transformReply']>> {
-        const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(command, args);
-
-        return command.transformReply(
-            await this.#sendCommand(redisArgs, options, command.BUFFER_MODE),
-            redisArgs.preserve,
-        );
-    }
-
-    static async #scriptsExecutor(
-        this: RedisClient,
-        script: RedisLuaScript,
-        args: Array<unknown>
-    ): Promise<typeof script['transformArguments']> {
-        const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(script, args);
-
-        return script.transformReply(
-            await this.executeScript(script, redisArgs, options, script.BUFFER_MODE),
-            redisArgs.preserve
-        );
-    }
-
-    static create<M extends RedisModules, S extends RedisLuaScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
+    static create<M extends RedisModules = {}, S extends RedisLuaScripts = {}>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
         const Client = (<any>extendWithModulesAndScripts({
             BaseClass: RedisClient,
             modules: options?.modules,
-            modulesCommandsExecutor: RedisClient.commandsExecutor,
+            modulesCommandsExecutor: RedisClient.prototype.commandsExecutor,
             scripts: options?.scripts,
-            scriptsExecutor: RedisClient.#scriptsExecutor
+            scriptsExecutor: RedisClient.prototype.scriptsExecutor
         }));
 
         if (Client !== RedisClient) {
@@ -104,7 +78,7 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
 
-    get options(): RedisClientOptions<M> | null | undefined {
+    get options(): RedisClientOptions<M, S> | undefined {
         return this.#options;
     }
 
@@ -240,6 +214,72 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         await this.#socket.connect();
     }
 
+    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<ReturnType<typeof command['transformReply']>> {
+        const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(command, args);
+
+        return command.transformReply(
+            await this.#sendCommand(redisArgs, options, command.BUFFER_MODE),
+            redisArgs.preserve,
+        );
+    }
+
+    sendCommand<T = RedisReply>(args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
+        return this.#sendCommand(args, options, bufferMode);
+    }
+
+    // using `#sendCommand` cause `sendCommand` is overwritten in legacy mode
+    async #sendCommand<T = RedisReply>(args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
+        if (!this.#socket.isOpen) {
+            throw new ClientClosedError();
+        }
+
+        if (options?.isolated) {
+            return this.executeIsolated(isolatedClient =>
+                isolatedClient.sendCommand(args, {
+                    ...options,
+                    isolated: false
+                })
+            );
+        }
+
+        const promise = this.#queue.addCommand<T>(args, options, bufferMode);
+        this.#tick();
+        return await promise;
+    }
+
+    async scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): Promise<ReturnType<typeof script['transformReply']>> {
+        const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(script, args);
+
+        return script.transformReply(
+            await this.executeScript(script, redisArgs, options, script.BUFFER_MODE),
+            redisArgs.preserve
+        );
+    }
+
+    async executeScript(script: RedisLuaScript, args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<ReturnType<typeof script['transformReply']>> {
+        try {
+            return await this.#sendCommand([
+                'EVALSHA',
+                script.SHA1,
+                script.NUMBER_OF_KEYS.toString(),
+                ...args
+            ], options, bufferMode);
+        } catch (err: any) {
+            if (!err?.message?.startsWith?.('NOSCRIPT')) {
+                throw err;
+            }
+
+            return await this.#sendCommand([
+                'EVAL',
+                script.SCRIPT,
+                script.NUMBER_OF_KEYS.toString(),
+                ...args
+            ], options, bufferMode);
+        }
+    }
+
+
+
     async SELECT(db: number): Promise<void>;
     async SELECT(options: CommandOptions<ClientCommandOptions>, db: number): Promise<void>;
     async SELECT(options?: any, db?: any): Promise<void> {
@@ -300,30 +340,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
 
     quit = this.QUIT;
 
-    sendCommand<T = RedisReply>(args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
-        return this.#sendCommand(args, options, bufferMode);
-    }
-
-    // using `#sendCommand` cause `sendCommand` is overwritten in legacy mode
-    async #sendCommand<T = RedisReply>(args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
-        if (!this.#socket.isOpen) {
-            throw new ClientClosedError();
-        }
-
-        if (options?.isolated) {
-            return this.executeIsolated(isolatedClient =>
-                isolatedClient.sendCommand(args, {
-                    ...options,
-                    isolated: false
-                })
-            );
-        }
-
-        const promise = this.#queue.addCommand<T>(args, options, bufferMode);
-        this.#tick();
-        return await promise;
-    }
-
     #tick(): void {
         if (!this.#socket.isSocketExists) {
             return;
@@ -350,26 +366,11 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         return this.#isolationPool.use(fn);
     }
 
-    async executeScript(script: RedisLuaScript, args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<ReturnType<typeof script['transformReply']>> {
-        try {
-            return await this.#sendCommand([
-                'EVALSHA',
-                script.SHA1,
-                script.NUMBER_OF_KEYS.toString(),
-                ...args
-            ], options, bufferMode);
-        } catch (err: any) {
-            if (!err?.message?.startsWith?.('NOSCRIPT')) {
-                throw err;
-            }
-
-            return await this.#sendCommand([
-                'EVAL',
-                script.SCRIPT,
-                script.NUMBER_OF_KEYS.toString(),
-                ...args
-            ], options, bufferMode);
-        }
+    multi(): RedisMultiCommandType<M, S> {
+        return new (this as any).Multi(
+            this.#multiExecutor.bind(this),
+            this.#options
+        );
     }
 
     #multiExecutor(commands: Array<MultiQueuedCommand>, chainId?: symbol): Promise<Array<RedisReply>> {
@@ -384,13 +385,6 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
         this.#tick();
 
         return promise;
-    }
-
-    multi(): RedisMultiCommandType<M, S> {
-        return new (this as any).Multi(
-            this.#multiExecutor.bind(this),
-            this.#options
-        );
     }
 
     async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
@@ -451,5 +445,5 @@ export default class RedisClient<M extends RedisModules = RedisModules, S extend
     }
 }
 
-extendWithDefaultCommands(RedisClient, RedisClient.commandsExecutor);
+extendWithDefaultCommands(RedisClient, RedisClient.prototype.commandsExecutor);
 (RedisClient.prototype as any).Multi = RedisMultiCommand.extend();

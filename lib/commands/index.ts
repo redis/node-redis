@@ -753,7 +753,10 @@ export interface RedisCommands {
 }
 
 export interface RedisModule {
-    [key: string]: RedisCommand;
+    [command: string]: RedisCommand;
 }
 
-export type RedisModules = Record<string, RedisModule>;
+export interface RedisModules {
+    [module: string]: RedisModule;
+}
+// export type RedisModules = Record<string, RedisModule>;

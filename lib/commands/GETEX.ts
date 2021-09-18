@@ -1,3 +1,4 @@
+import { TransformArgumentsReply } from '.';
 import { transformEXAT, transformPXAT, transformReplyStringNull } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -14,7 +15,7 @@ type GetExModes = {
     PERSIST: true;
 };
 
-export function transformArguments(key: string, mode: GetExModes) {
+export function transformArguments(key: string, mode: GetExModes): TransformArgumentsReply {
     const args = ['GETEX', key];
 
     if ('EX' in mode) {
