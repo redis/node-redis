@@ -8,7 +8,7 @@ describe('GEOSEARCHSTORE', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments('destination', '/home/leibale/Workspace/node-redis/lib/commands/GEOSEARCHSTORE.spec.tssource', 'member', {
+                transformArguments('destination', 'source', 'member', {
                     radius: 1,
                     unit: 'm'
                 }, {
