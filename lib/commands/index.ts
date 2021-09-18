@@ -743,7 +743,7 @@ export type TransformArgumentsReply = Array<string | Buffer> & { preserve?: unkn
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
     IS_READ_ONLY?: boolean;
-    transformArguments(this: void, zpte...args: Array<any>): TransformArgumentsReply;
+    transformArguments(this: void, ...args: Array<any>): TransformArgumentsReply;
     BUFFER_MODE?: boolean;
     transformReply(this: void, reply: RedisReply, preserved?: unknown): any;
 }
