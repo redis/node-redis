@@ -4,6 +4,13 @@ import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from
 
 describe('HSET', () => {
     describe('transformArguments', () => {
+        it('field, value', () => {
+            assert.deepEqual(
+                transformArguments('key', 'field', 'value'),
+                ['HSET', 'key', 'field', 'value']
+            );
+        });
+
         it('Map', () => {
             assert.deepEqual(
                 transformArguments('key', new Map([['field', 'value']])),
@@ -30,7 +37,7 @@ describe('HSET', () => {
 
     itWithClient(TestRedisServers.OPEN, 'client.hSet', async client => {
         assert.equal(
-            await client.hSet('key', { field: 'value' }),
+            await client.hSet('key', 'field', 'value'),
             1
         );
     });
