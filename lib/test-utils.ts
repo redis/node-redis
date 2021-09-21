@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import RedisClient, { RedisClientType } from './client';
+import RedisClient, { RedisClientOptions, RedisClientType } from './client';
 import { execSync, spawn } from 'child_process';
 import { once } from 'events';
 import { RedisSocketOptions } from './socket';
@@ -9,6 +9,8 @@ import RedisCluster, { RedisClusterType } from './cluster';
 import { promises as fs } from 'fs';
 import { Context as MochaContext } from 'mocha';
 import { promiseTimeout } from './utils';
+import { RedisModules } from './commands';
+import { RedisLuaScripts } from './lua-script';
 
 type RedisVersion = [major: number, minor: number, patch: number];
 
@@ -52,7 +54,7 @@ export enum TestRedisServers {
     PASSWORD
 }
 
-export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisSocketOptions> = <any>{};
+export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisLuaScripts>> = <any>{};
 
 export enum TestRedisClusters {
     OPEN
@@ -226,13 +228,17 @@ export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, nu
 
 async function spawnOpenServer(): Promise<void> {
     TEST_REDIS_SERVERS[TestRedisServers.OPEN] = {
-        port: await spawnGlobalRedisServer()
+        socket: {
+            port: await spawnGlobalRedisServer()
+        }
     };
 }
 
 async function spawnPasswordServer(): Promise<void> {
     TEST_REDIS_SERVERS[TestRedisServers.PASSWORD] = {
-        port: await spawnGlobalRedisServer(['--requirepass', 'password']),
+        socket: {
+            port: await spawnGlobalRedisServer(['--requirepass', 'password']),
+        },
         password: 'password'
     };
 
@@ -285,9 +291,7 @@ export function itWithClient(
     it(title, async function () {
         if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
 
-        const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[type]
-        });
+        const client = RedisClient.create(TEST_REDIS_SERVERS[type]);
 
         await client.connect();
 

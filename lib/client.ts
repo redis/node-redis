@@ -1,4 +1,4 @@
-import RedisSocket, { RedisSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions, RedisNetSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import COMMANDS, { TransformArgumentsReply } from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
@@ -12,9 +12,14 @@ import { HScanTuple } from './commands/HSCAN';
 import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError } from './errors';
+import { URL } from 'url';
 
 export interface RedisClientOptions<M, S> {
+    url?: string;
     socket?: RedisSocketOptions;
+    username?: string;
+    password?: string;
+    database?: number;
     modules?: M;
     scripts?: S;
     commandsQueueMaxLength?: number;
@@ -71,6 +76,45 @@ export default class RedisClient<M extends RedisModules, S extends RedisLuaScrip
         return new Client(options);
     }
 
+    static parseURL(url: string): RedisClientOptions<{}, {}> {
+        // https://www.iana.org/assignments/uri-schemes/prov/redis
+        const { hostname, port, protocol, username, password, pathname } = new URL(url),
+            parsed: RedisClientOptions<{}, {}> = {
+                socket: {
+                    host: hostname
+                }
+            };
+
+        if (protocol === 'rediss:') {
+            (parsed.socket as RedisTlsSocketOptions).tls = true;
+        } else if (protocol !== 'redis:') {
+            throw new TypeError('Invalid protocol');
+        }
+
+        if (port) {
+            (parsed.socket as RedisNetSocketOptions).port = Number(port);
+        }
+
+        if (username) {
+            parsed.username = username;
+        }
+
+        if (password) {
+            parsed.password = password;
+        }
+
+        if (pathname.length > 1) {
+            const database = Number(pathname.substring(1));
+            if (isNaN(database)) {
+                throw new TypeError('Invalid pathname');
+            }
+
+            parsed.database = database;
+        }
+
+        return parsed;
+    }
+
     readonly #options?: RedisClientOptions<M, S>;
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
@@ -96,7 +140,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisLuaScrip
 
     constructor(options?: RedisClientOptions<M, S>) {
         super();
-        this.#options = options;
+        this.#options = this.#initiateOptions(options);
         this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
         this.#isolationPool = createPool({
@@ -108,6 +152,23 @@ export default class RedisClient<M extends RedisModules, S extends RedisLuaScrip
             destroy: client => client.disconnect()
         }, options?.isolationPoolOptions);
         this.#legacyMode();
+    }
+
+    #initiateOptions(options?: RedisClientOptions<M, S>): RedisClientOptions<M, S> | undefined {
+        if (options?.url) {
+            const parsed = RedisClient.parseURL(options.url);
+            if (options.socket) {
+                parsed.socket = Object.assign(options.socket, parsed.socket);
+            }
+
+            Object.assign(options, parsed);
+        }
+
+        if (options?.database) {
+            this.#selectedDB = options.database;
+        }
+
+        return options;
     }
 
     #initiateSocket(): RedisSocket {
@@ -123,8 +184,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisLuaScrip
                 promises.push(v4Commands.readonly(RedisClient.commandOptions({ asap: true })));
             }
 
-            if (this.#options?.socket?.username || this.#options?.socket?.password) {
-                promises.push(v4Commands.auth(RedisClient.commandOptions({ asap: true }), this.#options.socket));
+            if (this.#options?.username || this.#options?.password) {
+                promises.push(v4Commands.auth(RedisClient.commandOptions({ asap: true }), this.#options));
             }
 
             const resubscribePromise = this.#queue.resubscribe();

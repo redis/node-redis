@@ -18,6 +18,53 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+    describe('parseURL', () => {
+        it('redis://user:secret@localhost:6379/0', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('redis://user:secret@localhost:6379/0'),
+                {
+                    socket: {
+                        host: 'localhost',
+                        port: 6379
+                    },
+                    username: 'user',
+                    password: 'secret',
+                    database: 0
+                }
+            );
+        });
+
+        it('rediss://user:secret@localhost:6379/0', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('rediss://user:secret@localhost:6379/0'),
+                {
+                    socket: {
+                        host: 'localhost',
+                        port: 6379,
+                        tls: true
+                    },
+                    username: 'user',
+                    password: 'secret',
+                    database: 0
+                }
+            );
+        });
+
+        it('Invalid protocol', () => {
+            assert.throws(
+                () => RedisClient.parseURL('redi://user:secret@localhost:6379/0'),
+                TypeError
+            );
+        });
+
+        it('Invalid pathname', () => {
+            assert.throws(
+                () => RedisClient.parseURL('redis://user:secret@localhost:6379/NaN'),
+                TypeError
+            );
+        });
+    });
+
     describe('authentication', () => {
         itWithClient(TestRedisServers.PASSWORD, 'Client should be authenticated', async client => {
             assert.equal(
@@ -28,10 +75,8 @@ describe('Client', () => {
 
         it('should not retry connecting if failed due to wrong auth', async () => {
             const client = RedisClient.create({
-                socket: {
-                    ...TEST_REDIS_SERVERS[TestRedisServers.PASSWORD],
-                    password: 'wrongpassword'
-                }
+                ...TEST_REDIS_SERVERS[TestRedisServers.PASSWORD],
+                password: 'wrongpassword'
             });
 
             await assert.rejects(
@@ -49,7 +94,7 @@ describe('Client', () => {
 
     describe('legacyMode', () => {
         const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+            ...TEST_REDIS_SERVERS[TestRedisServers.OPEN],
             scripts: {
                 square: SQUARE_SCRIPT
             },
@@ -173,9 +218,7 @@ describe('Client', () => {
 
     describe('events', () => {
         it('connect, ready, end', async () => {
-            const client = RedisClient.create({
-                socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
-            });
+            const client = RedisClient.create(TEST_REDIS_SERVERS[TestRedisServers.OPEN]);
 
             await Promise.all([
                 client.connect(),
@@ -550,9 +593,7 @@ describe('Client', () => {
     });
 
     it('client.quit', async () => {
-        const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
-        });
+        const client = RedisClient.create(TEST_REDIS_SERVERS[TestRedisServers.OPEN]);
 
         await client.connect();
 
