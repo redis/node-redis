@@ -35,27 +35,25 @@ npm install redis@next
 ### Basic Example
 
 ```typescript
-import { createClient } from "redis";
+import { createClient } from 'redis';
 
 (async () => {
   const client = createClient();
 
-  client.on("error", (err) => console.log("Redis Client Error", err));
+  client.on('error', (err) => console.log('Redis Client Error', err));
 
   await client.connect();
 
-  await client.set("key", "value");
-  const value = await client.get("key");
+  await client.set('key', 'value');
+  const value = await client.get('key');
 })();
 ```
 
-The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `[redis[s]:]//[[username][:password]@][host][:port]`:
+The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
 
 ```typescript
 createClient({
-  socket: {
-    url: "redis://alice:foobared@awesome.redis.server:6380",
-  },
+  url: 'redis://alice:foobared@awesome.redis.server:6380',
 });
 ```
 
@@ -67,18 +65,18 @@ There is built-in support for all of the [out-of-the-box Redis commands](https:/
 
 ```typescript
 // raw Redis commands
-await client.HSET("key", "field", "value");
-await client.HGETALL("key");
+await client.HSET('key', 'field', 'value');
+await client.HGETALL('key');
 
 // friendly JavaScript commands
-await client.hSet("key", "field", "value");
-await client.hGetAll("key");
+await client.hSet('key', 'field', 'value');
+await client.hGetAll('key');
 ```
 
 Modifiers to commands are specified using a JavaScript object:
 
 ```typescript
-await client.set("key", "value", {
+await client.set('key', 'value', {
   EX: 10,
   NX: true,
 });
@@ -87,8 +85,8 @@ await client.set("key", "value", {
 Replies will be transformed into useful data structures:
 
 ```typescript
-await client.hGetAll("key"); // { field1: 'value1', field2: 'value2' }
-await client.hVals("key"); // ['value1', 'value2']
+await client.hGetAll('key'); // { field1: 'value1', field2: 'value2' }
+await client.hVals('key'); // ['value1', 'value2']
 ```
 
 ### Unsupported Redis Commands
@@ -96,9 +94,9 @@ await client.hVals("key"); // ['value1', 'value2']
 If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`:
 
 ```typescript
-await client.sendCommand(["SET", "key", "value", "NX"]); // 'OK'
+await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
 
-await client.sendCommand(["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'field2']
+await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
 ```
 
 ### Transactions (Multi/Exec)
@@ -106,12 +104,12 @@ await client.sendCommand(["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'fie
 Start a [transaction](https://redis.io/topics/transactions) by calling `.multi()`, then chaining your commands. When you're done, call `.exec()` and you'll get an array back with your results:
 
 ```typescript
-await client.set("another-key", "another-value");
+await client.set('another-key', 'another-value');
 
 const [setKeyReply, otherKeyValue] = await client
   .multi()
-  .set("key", "value")
-  .get("another-key")
+  .set('key', 'value')
+  .get('another-key')
   .exec(); // ['OK', 'another-value']
 ```
 
@@ -126,11 +124,11 @@ Any command can be run on a new connection by specifying the `isolated` option. 
 This pattern works especially well for blocking commands—such as `BLPOP` and `BLMOVE`:
 
 ```typescript
-import { commandOptions } from "redis";
+import { commandOptions } from 'redis';
 
-const blPopPromise = client.blPop(commandOptions({ isolated: true }), "key");
+const blPopPromise = client.blPop(commandOptions({ isolated: true }), 'key');
 
-await client.lPush("key", ["1", "2"]);
+await client.lPush('key', ['1', '2']);
 
 await blPopPromise; // '2'
 ```
@@ -150,23 +148,23 @@ await subscriber.connect();
 Once you have one, simply subscribe and unsubscribe as needed:
 
 ```typescript
-await subscriber.subscribe("channel", (message) => {
+await subscriber.subscribe('channel', (message) => {
   console.log(message); // 'message'
 });
 
-await subscriber.pSubscribe("channe*", (message, channel) => {
+await subscriber.pSubscribe('channe*', (message, channel) => {
   console.log(message, channel); // 'message', 'channel'
 });
 
-await subscriber.unsubscribe("channel");
+await subscriber.unsubscribe('channel');
 
-await subscriber.pUnsubscribe("channe*");
+await subscriber.pUnsubscribe('channe*');
 ```
 
 Publish a message on a channel:
 
 ```typescript
-await publisher.publish("channel", "message");
+await publisher.publish('channel', 'message');
 ```
 
 ### Scan Iterator
@@ -183,11 +181,11 @@ for await (const key of client.scanIterator()) {
 This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 
 ```typescript
-for await (const member of client.hScanIterator("hash")) {
+for await (const member of client.hScanIterator('hash')) {
 }
-for await (const { field, value } of client.sScanIterator("set")) {
+for await (const { field, value } of client.sScanIterator('set')) {
 }
-for await (const { member, score } of client.zScanIterator("sorted-set")) {
+for await (const { member, score } of client.zScanIterator('sorted-set')) {
 }
 ```
 
@@ -195,8 +193,8 @@ You can override the default options by providing a configuration object:
 
 ```typescript
 client.scanIterator({
-  TYPE: "string", // `SCAN` only
-  MATCH: "patter*",
+  TYPE: 'string', // `SCAN` only
+  MATCH: 'patter*',
   COUNT: 100,
 });
 ```
@@ -206,7 +204,7 @@ client.scanIterator({
 Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
 
 ```typescript
-import { createClient, defineScript } from "redis";
+import { createClient, defineScript } from 'redis';
 
 (async () => {
   const client = createClient({
@@ -214,7 +212,7 @@ import { createClient, defineScript } from "redis";
       add: defineScript({
         NUMBER_OF_KEYS: 1,
         SCRIPT:
-          'local val = redis.pcall("GET", KEYS[1]);' + "return val + ARGV[1];",
+          "local val = redis.pcall('GET', KEYS[1]);' + 'return val + ARGV[1];",
         transformArguments(key: string, toAdd: number): Array<string> {
           return [key, number.toString()];
         },
@@ -227,8 +225,8 @@ import { createClient, defineScript } from "redis";
 
   await client.connect();
 
-  await client.set("key", "1");
-  await client.add("key", 2); // 3
+  await client.set('key', '1');
+  await client.add('key', 2); // 3
 })();
 ```
 
@@ -237,28 +235,28 @@ import { createClient, defineScript } from "redis";
 Connecting to a cluster is a bit different. Create the client by specifying some (or all) of the nodes in your cluster and then use it like a non-clustered client:
 
 ```typescript
-import { createCluster } from "redis";
+import { createCluster } from 'redis';
 
 (async () => {
   const cluster = createCluster({
     rootNodes: [
       {
-        host: "10.0.0.1",
+        host: '10.0.0.1',
         port: 30001,
       },
       {
-        host: "10.0.0.2",
+        host: '10.0.0.2',
         port: 30002,
       },
     ],
   });
 
-  cluster.on("error", (err) => console.log("Redis Cluster Error", err));
+  cluster.on('error', (err) => console.log('Redis Cluster Error', err));
 
   await cluster.connect();
 
-  await cluster.set("key", "value");
-  const value = await cluster.get("key");
+  await cluster.set('key', 'value');
+  const value = await cluster.get('key');
 })();
 ```
 
@@ -267,16 +265,16 @@ import { createCluster } from "redis";
 Node Redis will automatically pipeline requests that are made during the same "tick".
 
 ```typescript
-client.set("Tm9kZSBSZWRpcw==", "users:1");
-client.sAdd("users:1:tokens", "Tm9kZSBSZWRpcw==");
+client.set('Tm9kZSBSZWRpcw==', 'users:1');
+client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==');
 ```
 
 Of course, if you don't do something with your Promises you're certain to get [unhandled Promise exceptions](https://nodejs.org/api/process.html#process_event_unhandledrejection). To take advantage of auto-pipelining and handle your Promises, use `Promise.all()`.
 
 ```typescript
 await Promise.all([
-  client.set("Tm9kZSBSZWRpcw==", "users:1"),
-  client.sAdd("users:1:tokens", "Tm9kZSBSZWRpcw=="),
+  client.set('Tm9kZSBSZWRpcw==', 'users:1'),
+  client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw=='),
 ]);
 ```
 

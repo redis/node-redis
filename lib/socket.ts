@@ -1,7 +1,6 @@
 import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
-import { URL } from 'url';
 import { ConnectionTimeoutError, ClientClosedError } from './errors';
 import { promiseTimeout } from './utils';
 
