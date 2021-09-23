@@ -66,7 +66,7 @@ export function transformArguments(key: string, operations: BitFieldOperations):
                     options.type,
                     options.offset.toString(),
                     options.increment.toString()
-                )
+                );
                 break;
 
             case 'OVERFLOW':
