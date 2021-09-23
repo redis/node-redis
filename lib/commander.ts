@@ -2,7 +2,6 @@
 import COMMANDS, { RedisCommand, RedisModules, TransformArgumentsReply } from './commands';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { CommandOptions, isCommandOptions } from './command-options';
-import { off } from 'process';
 
 type Instantiable<T = any> = new(...args: Array<any>) => T;
 

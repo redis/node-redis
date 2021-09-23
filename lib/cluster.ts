@@ -6,7 +6,6 @@ import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments } from './commander';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import { EventEmitter } from 'events';
-import cluster from 'cluster';
 
 export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
     rootNodes: Array<RedisSocketOptions>;
