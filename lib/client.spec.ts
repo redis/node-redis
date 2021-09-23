@@ -5,6 +5,7 @@ import RedisClient from './client';
 import { AbortError, ClientClosedError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
+import { RedisNetSocketOptions } from './socket';
 
 export const SQUARE_SCRIPT = defineScript({
     NUMBER_OF_KEYS: 0,
@@ -62,6 +63,34 @@ describe('Client', () => {
                 () => RedisClient.parseURL('redis://user:secret@localhost:6379/NaN'),
                 TypeError
             );
+        });
+
+        it('redis://localhost', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('redis://localhost'),
+                {
+                    socket: {
+                        host: 'localhost',
+                    }
+                }
+            );
+        });
+
+        it('createClient with url', async () => {
+            const client = RedisClient.create({
+                url: `redis://localhost:${(TEST_REDIS_SERVERS[TestRedisServers.OPEN].socket as RedisNetSocketOptions)!.port!.toString()}/1`
+            });
+
+            await client.connect();
+
+            try {
+                assert.equal(
+                    (await client.clientInfo()).db,
+                    1
+                );
+            } finally {
+                await client.disconnect();
+            }
         });
     });
 
