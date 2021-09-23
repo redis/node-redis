@@ -85,13 +85,13 @@ describe('Client', () => {
 
             try {
                 assert.equal(
-                    (await client.clientInfo()).db,
-                    1
+                    await client.ping(),
+                    'PONG'
                 );
             } finally {
                 await client.disconnect();
             }
-        });
+        })
     });
 
     describe('authentication', () => {
