@@ -287,6 +287,7 @@ Thank you to all the people who already contributed to Node Redis!
 <a href="https://github.com/NodeRedis/node-redis/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=NodeRedis/node-redis"/>
 </a>
+
 ## License
 
 This repository is licensed under the "MIT" license. See [LICENSE](LICENSE).
