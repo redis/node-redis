@@ -1,7 +1,5 @@
 import { strict as assert } from 'assert';
-import RedisClient, { RedisClientType } from './client';
-import { RedisModules } from './commands';
-import { RedisLuaScripts } from './lua-script';
+import RedisClient, { RedisClientOptions, RedisClientType } from './client';
 import { execSync, spawn } from 'child_process';
 import { once } from 'events';
 import { RedisSocketOptions } from './socket';
@@ -11,6 +9,8 @@ import RedisCluster, { RedisClusterType } from './cluster';
 import { promises as fs } from 'fs';
 import { Context as MochaContext } from 'mocha';
 import { promiseTimeout } from './utils';
+import { RedisModules } from './commands';
+import { RedisLuaScripts } from './lua-script';
 
 type RedisVersion = [major: number, minor: number, patch: number];
 
@@ -54,7 +54,7 @@ export enum TestRedisServers {
     PASSWORD
 }
 
-export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisSocketOptions> = <any>{};
+export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisLuaScripts>> = <any>{};
 
 export enum TestRedisClusters {
     OPEN
@@ -112,7 +112,7 @@ async function spawnGlobalRedisServer(args?: Array<string>): Promise<number> {
 const SLOTS = 16384;
 
 interface SpawnRedisClusterNodeResult extends SpawnRedisServerResult {
-    client: RedisClientType<RedisModules, RedisLuaScripts>
+    client: RedisClientType
 }
 
 async function spawnRedisClusterNode(
@@ -228,13 +228,17 @@ export async function spawnGlobalRedisCluster(type: TestRedisClusters | null, nu
 
 async function spawnOpenServer(): Promise<void> {
     TEST_REDIS_SERVERS[TestRedisServers.OPEN] = {
-        port: await spawnGlobalRedisServer()
+        socket: {
+            port: await spawnGlobalRedisServer()
+        }
     };
 }
 
 async function spawnPasswordServer(): Promise<void> {
     TEST_REDIS_SERVERS[TestRedisServers.PASSWORD] = {
-        port: await spawnGlobalRedisServer(['--requirepass', 'password']),
+        socket: {
+            port: await spawnGlobalRedisServer(['--requirepass', 'password']),
+        },
         password: 'password'
     };
 
@@ -281,15 +285,13 @@ export function describeHandleMinimumRedisVersion(minimumVersion: PartialRedisVe
 export function itWithClient(
     type: TestRedisServers,
     title: string,
-    fn: (client: RedisClientType<RedisModules, RedisLuaScripts>) => Promise<void>,
+    fn: (client: RedisClientType) => Promise<void>,
     options?: RedisTestOptions
 ): void {
     it(title, async function () {
         if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
 
-        const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[type]
-        });
+        const client = RedisClient.create(TEST_REDIS_SERVERS[type]);
 
         await client.connect();
 
@@ -306,7 +308,7 @@ export function itWithClient(
 export function itWithCluster(
     type: TestRedisClusters,
     title: string,
-    fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>,
+    fn: (cluster: RedisClusterType) => Promise<void>,
     options?: RedisTestOptions
 ): void {
     it(title, async function () {
@@ -328,7 +330,7 @@ export function itWithCluster(
     });
 }
 
-export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType<RedisModules, RedisLuaScripts>) => Promise<void>): void {
+export function itWithDedicatedCluster(title: string, fn: (cluster: RedisClusterType) => Promise<void>): void {
     it(title, async function () {
         this.timeout(10000);
 

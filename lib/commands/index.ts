@@ -34,6 +34,7 @@ import * as CLUSTER_NODES from './CLUSTER_NODES';
 import * as CLUSTER_MEET from './CLUSTER_MEET';
 import * as CLUSTER_RESET from './CLUSTER_RESET';
 import * as CLUSTER_SETSLOT from './CLUSTER_SETSLOT';
+import * as CLUSTER_SLOTS from './CLUSTER_SLOTS';
 import * as CONFIG_GET from './CONFIG_GET';
 import * as CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
 import * as CONFIG_REWRITE from './CONFIG_REWRITE';
@@ -61,6 +62,7 @@ import * as GEOPOS from './GEOPOS';
 import * as GEOSEARCH_WITH from './GEOSEARCH_WITH';
 import * as GEOSEARCH from './GEOSEARCH';
 import * as GEOSEARCHSTORE from './GEOSEARCHSTORE';
+import * as GET_BUFFER from './GET_BUFFER';
 import * as GET from './GET';
 import * as GETBIT from './GETBIT';
 import * as GETDEL from './GETDEL';
@@ -316,6 +318,8 @@ export default {
     clusterReset: CLUSTER_RESET,
     CLUSTER_SETSLOT,
     clusterSetSlot: CLUSTER_SETSLOT,
+    CLUSTER_SLOTS,
+    clusterSlots: CLUSTER_SLOTS,
     CONFIG_GET,
     configGet: CONFIG_GET,
     CONFIG_RESETASTAT,
@@ -370,6 +374,8 @@ export default {
     geoSearch: GEOSEARCH,
     GEOSEARCHSTORE,
     geoSearchStore: GEOSEARCHSTORE,
+    GET_BUFFER,
+    getBuffer: GET_BUFFER,
     GET,
     get: GET,
     GETBIT,
@@ -733,15 +739,16 @@ export default {
     zUnionStore: ZUNIONSTORE
 };
 
-export type RedisReply = string | number | Array<RedisReply> | null | undefined;
+export type RedisReply = string | number | Buffer | Array<RedisReply> | null | undefined;
 
-export type TransformArgumentsReply = Array<string> & { preserve?: unknown };
+export type TransformArgumentsReply = Array<string | Buffer> & { preserve?: unknown };
 
 export interface RedisCommand {
     FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
     IS_READ_ONLY?: boolean;
-    transformArguments(...args: Array<any>): TransformArgumentsReply;
-    transformReply(reply: RedisReply, preserved: unknown): any;
+    transformArguments(this: void, ...args: Array<any>): TransformArgumentsReply;
+    BUFFER_MODE?: boolean;
+    transformReply(this: void, reply: RedisReply, preserved?: unknown): any;
 }
 
 export interface RedisCommands {
@@ -749,7 +756,10 @@ export interface RedisCommands {
 }
 
 export interface RedisModule {
-    [key: string]: RedisCommand;
+    [command: string]: RedisCommand;
 }
 
-export type RedisModules = Record<string, RedisModule>;
+export interface RedisModules {
+    [module: string]: RedisModule;
+}
+// export type RedisModules = Record<string, RedisModule>;

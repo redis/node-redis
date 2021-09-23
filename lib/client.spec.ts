@@ -5,6 +5,7 @@ import RedisClient from './client';
 import { AbortError, ClientClosedError, ConnectionTimeoutError, WatchError } from './errors';
 import { defineScript } from './lua-script';
 import { spy } from 'sinon';
+import { RedisNetSocketOptions } from './socket';
 
 export const SQUARE_SCRIPT = defineScript({
     NUMBER_OF_KEYS: 0,
@@ -18,6 +19,81 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+    describe('parseURL', () => {
+        it('redis://user:secret@localhost:6379/0', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('redis://user:secret@localhost:6379/0'),
+                {
+                    socket: {
+                        host: 'localhost',
+                        port: 6379
+                    },
+                    username: 'user',
+                    password: 'secret',
+                    database: 0
+                }
+            );
+        });
+
+        it('rediss://user:secret@localhost:6379/0', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('rediss://user:secret@localhost:6379/0'),
+                {
+                    socket: {
+                        host: 'localhost',
+                        port: 6379,
+                        tls: true
+                    },
+                    username: 'user',
+                    password: 'secret',
+                    database: 0
+                }
+            );
+        });
+
+        it('Invalid protocol', () => {
+            assert.throws(
+                () => RedisClient.parseURL('redi://user:secret@localhost:6379/0'),
+                TypeError
+            );
+        });
+
+        it('Invalid pathname', () => {
+            assert.throws(
+                () => RedisClient.parseURL('redis://user:secret@localhost:6379/NaN'),
+                TypeError
+            );
+        });
+
+        it('redis://localhost', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('redis://localhost'),
+                {
+                    socket: {
+                        host: 'localhost',
+                    }
+                }
+            );
+        });
+
+        it('createClient with url', async () => {
+            const client = RedisClient.create({
+                url: `redis://localhost:${(TEST_REDIS_SERVERS[TestRedisServers.OPEN].socket as RedisNetSocketOptions)!.port!.toString()}/1`
+            });
+
+            await client.connect();
+
+            try {
+                assert.equal(
+                    await client.ping(),
+                    'PONG'
+                );
+            } finally {
+                await client.disconnect();
+            }
+        })
+    });
+
     describe('authentication', () => {
         itWithClient(TestRedisServers.PASSWORD, 'Client should be authenticated', async client => {
             assert.equal(
@@ -28,10 +104,8 @@ describe('Client', () => {
 
         it('should not retry connecting if failed due to wrong auth', async () => {
             const client = RedisClient.create({
-                socket: {
-                    ...TEST_REDIS_SERVERS[TestRedisServers.PASSWORD],
-                    password: 'wrongpassword'
-                }
+                ...TEST_REDIS_SERVERS[TestRedisServers.PASSWORD],
+                password: 'wrongpassword'
             });
 
             await assert.rejects(
@@ -49,7 +123,7 @@ describe('Client', () => {
 
     describe('legacyMode', () => {
         const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN],
+            ...TEST_REDIS_SERVERS[TestRedisServers.OPEN],
             scripts: {
                 square: SQUARE_SCRIPT
             },
@@ -173,9 +247,7 @@ describe('Client', () => {
 
     describe('events', () => {
         it('connect, ready, end', async () => {
-            const client = RedisClient.create({
-                socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
-            });
+            const client = RedisClient.create(TEST_REDIS_SERVERS[TestRedisServers.OPEN]);
 
             await Promise.all([
                 client.connect(),
@@ -193,6 +265,13 @@ describe('Client', () => {
     describe('sendCommand', () => {
         itWithClient(TestRedisServers.OPEN, 'PING', async client => {
             assert.equal(await client.sendCommand(['PING']), 'PONG');
+        });
+
+        itWithClient(TestRedisServers.OPEN, 'bufferMode', async client => {
+            assert.deepEqual(
+                await client.sendCommand(['PING'], undefined, true),
+                Buffer.from('PONG')
+            );
         });
 
         describe('AbortController', () => {
@@ -509,6 +588,9 @@ describe('Client', () => {
             assert.ok(channelListener1.calledOnce);
             assert.ok(channelListener2.calledTwice);
             assert.ok(patternListener.calledThrice);
+
+            // should be able to send commands when unsubsribed from all channels (see #1652)
+            await assert.doesNotReject(subscriber.ping());
         } finally {
             await subscriber.disconnect();
         }
@@ -540,9 +622,7 @@ describe('Client', () => {
     });
 
     it('client.quit', async () => {
-        const client = RedisClient.create({
-            socket: TEST_REDIS_SERVERS[TestRedisServers.OPEN]
-        });
+        const client = RedisClient.create(TEST_REDIS_SERVERS[TestRedisServers.OPEN]);
 
         await client.connect();
 

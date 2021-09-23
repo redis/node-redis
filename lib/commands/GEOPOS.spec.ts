@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
-import { transformArguments } from './GEOPOS';
+import { transformArguments, transformReply } from './GEOPOS';
 
 describe('GEOPOS', () => {
     describe('transformArguments', () => {
@@ -19,11 +19,49 @@ describe('GEOPOS', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.geoPos', async client => {
-        assert.deepEqual(
-            await client.geoPos('key', 'member'),
-            [null]
-        );
+    describe('transformReply', () => {
+        it('null', () => {
+            assert.deepEqual(
+                transformReply([null]),
+                [null]
+            );
+        });
+
+        it('with member', () => {
+            assert.deepEqual(
+                transformReply([['1', '2']]),
+                [{
+                    longitude: '1',
+                    latitude: '2'
+                }]
+            );
+        });
+    });
+
+    describe('client.geoPos', () => {
+        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+            assert.deepEqual(
+                await client.geoPos('key', 'member'),
+                [null]
+            );
+        });
+
+        itWithClient(TestRedisServers.OPEN, 'with member', async client => {
+            const coordinates = {
+                longitude: '-122.06429868936538696',
+                latitude: '37.37749628831998194'
+            };
+
+            await client.geoAdd('key', {
+                member: 'member',
+                ...coordinates
+            });
+
+            assert.deepEqual(
+                await client.geoPos('key', 'member'),
+                [coordinates]
+            );
+        });
     });
 
     itWithCluster(TestRedisClusters.OPEN, 'cluster.geoPos', async cluster => {

@@ -33,7 +33,7 @@ describe('PUBSUB NUMSUB', () => {
         );
     });
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.pubSubNumPat', async cluster => {
+    itWithCluster(TestRedisClusters.OPEN, 'cluster.pubSubNumSub', async cluster => {
         assert.deepEqual(
             await cluster.pubSubNumSub(),
             Object.create(null)

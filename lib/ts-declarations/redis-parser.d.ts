@@ -8,6 +8,8 @@ declare module 'redis-parser' {
     export default class RedisParser {
         constructor(callbacks: RedisParserCallbacks);
 
+        setReturnBuffers(returnBuffers?: boolean): void;
+
         execute(buffer: Buffer): void;
     }
 }

@@ -1,6 +1,7 @@
+import { TransformArgumentsReply } from '.';
 import { pushVerdictArguments, transformReplyString } from './generic-transformers';
 
-export function transformArguments(key: string | Array<string>): Array<string> {
+export function transformArguments(key: string | Array<string>): TransformArgumentsReply {
     return pushVerdictArguments(['WATCH'], key);
 }
 

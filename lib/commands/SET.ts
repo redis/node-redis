@@ -1,3 +1,5 @@
+import { TransformArgumentsReply } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
 interface EX {
@@ -38,7 +40,7 @@ interface SetCommonOptions {
 
 type SetOptions = SetTTL & SetGuards & (SetCommonOptions | {});
 
-export function transformArguments(key: string, value: string, options?: SetOptions): Array<string> {
+export function transformArguments(key: string | Buffer, value: string | Buffer, options?: SetOptions): TransformArgumentsReply {
     const args = ['SET', key, value];
 
     if (!options) {

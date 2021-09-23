@@ -1,3 +1,4 @@
+import { TransformArgumentsReply } from '.';
 import { transformReplyString } from './generic-transformers';
 
 type HSETObject = Record<string | number, string | number>;
@@ -8,10 +9,18 @@ type HSETTuples = Array<[string, string]> | Array<string>;
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, value: HSETObject | HSETMap | HSETTuples): Array<string> {
+type GenericArguments = [key: string];
+
+type SingleFieldArguments = [...generic: GenericArguments, field: string, value: string];
+
+type MultipleFieldsArguments = [...generic: GenericArguments, value: HSETObject | HSETMap | HSETTuples];
+
+export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArguments | MultipleFieldsArguments): TransformArgumentsReply {
     const args = ['HSET', key];
 
-    if (value instanceof Map) {
+    if (typeof value === 'string') {
+        args.push(value, fieldValue!);
+    } else if (value instanceof Map) {
         pushMap(args, value);
     } else if (Array.isArray(value)) {
         pushTuples(args, value);

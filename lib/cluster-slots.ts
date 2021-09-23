@@ -172,7 +172,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         return value.client;
     }
 
-    getClient(firstKey?: string, isReadonly?: boolean): RedisClientType<M, S> {
+    getClient(firstKey?: string | Buffer, isReadonly?: boolean): RedisClientType<M, S> {
         if (!firstKey) {
             return this.#getRandomClient();
         }

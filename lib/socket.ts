@@ -1,13 +1,10 @@
 import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
-import { URL } from 'url';
 import { ConnectionTimeoutError, ClientClosedError } from './errors';
 import { promiseTimeout } from './utils';
 
 export interface RedisSocketCommonOptions {
-    username?: string;
-    password?: string;
     connectTimeout?: number;
     noDelay?: boolean;
     keepAlive?: number | false;
@@ -19,10 +16,6 @@ export interface RedisNetSocketOptions extends RedisSocketCommonOptions {
     host?: string;
 }
 
-export interface RedisUrlSocketOptions extends RedisSocketCommonOptions {
-    url: string;
-}
-
 export interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
     path: string;
 }
@@ -31,7 +24,7 @@ export interface RedisTlsSocketOptions extends RedisNetSocketOptions, tls.Secure
     tls: true;
 }
 
-export type RedisSocketOptions = RedisNetSocketOptions | RedisUrlSocketOptions | RedisUnixSocketOptions | RedisTlsSocketOptions;
+export type RedisSocketOptions = RedisNetSocketOptions | RedisUnixSocketOptions | RedisTlsSocketOptions;
 
 interface CreateSocketReturn<T> {
     connectEvent: string;
@@ -44,14 +37,6 @@ export default class RedisSocket extends EventEmitter {
     static #initiateOptions(options?: RedisSocketOptions): RedisSocketOptions {
         options ??= {};
         if (!RedisSocket.#isUnixSocket(options)) {
-            if (RedisSocket.#isUrlSocket(options)) {
-                const url = new URL(options.url);
-                (options as RedisNetSocketOptions).port = Number(url.port);
-                (options as RedisNetSocketOptions).host = url.hostname;
-                options.username = url.username;
-                options.password = url.password;
-            }
-
             (options as RedisNetSocketOptions).port ??= 6379;
             (options as RedisNetSocketOptions).host ??= '127.0.0.1';
         }
@@ -65,10 +50,6 @@ export default class RedisSocket extends EventEmitter {
 
     static #defaultReconnectStrategy(retries: number): number {
         return Math.min(retries * 50, 500);
-    }
-
-    static #isUrlSocket(options: RedisSocketOptions): options is RedisUrlSocketOptions {
-        return Object.prototype.hasOwnProperty.call(options, 'url');
     }
 
     static #isUnixSocket(options: RedisSocketOptions): options is RedisUnixSocketOptions {
@@ -91,10 +72,8 @@ export default class RedisSocket extends EventEmitter {
         return this.#isOpen;
     }
 
-    get chunkRecommendedSize(): number {
-        if (!this.#socket) return 0;
-
-        return this.#socket.writableHighWaterMark - this.#socket.writableLength;
+    get isSocketExists(): boolean {
+        return !!this.#socket;
     }
 
     constructor(initiator?: RedisSocketInitiator, options?: RedisSocketOptions) {
@@ -214,12 +193,12 @@ export default class RedisSocket extends EventEmitter {
             .catch(err => this.emit('error', err));
     }
 
-    write(encodedCommands: string): boolean {
+    write(toWrite: string | Buffer): boolean {
         if (!this.#socket) {
             throw new ClientClosedError();
         }
 
-        return this.#socket.write(encodedCommands);
+        return this.#socket.write(toWrite);
     }
 
     async disconnect(ignoreIsOpen = false): Promise<void> {
@@ -249,6 +228,24 @@ export default class RedisSocket extends EventEmitter {
         } catch (err) {
             this.#isOpen = true;
             throw err;
+        }
+    }
+
+    #isCorked = false;
+
+    cork(): void {
+        if (!this.#socket) {
+            return;
+        }
+
+        if (!this.#isCorked) {
+            this.#socket.cork();
+            this.#isCorked = true;
+
+            queueMicrotask(() => {
+                this.#socket?.uncork();
+                this.#isCorked = false;
+            });
         }
     }
 }

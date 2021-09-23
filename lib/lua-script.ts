@@ -13,10 +13,10 @@ export interface SHA1 {
 export type RedisLuaScript = RedisLuaScriptConfig & SHA1;
 
 export interface RedisLuaScripts {
-    [key: string]: RedisLuaScript;
+    [script: string]: RedisLuaScript;
 }
 
-export function defineScript<S extends RedisLuaScriptConfig>(script: S): S & SHA1 {
+export function defineScript(script: RedisLuaScriptConfig): typeof script & SHA1 {
     return {
         ...script,
         SHA1: scriptSha1(script.SCRIPT)

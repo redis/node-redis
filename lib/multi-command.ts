@@ -2,7 +2,7 @@ import COMMANDS, { TransformArgumentsReply } from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { RedisClientOptions } from './client';
-import { extendWithModulesAndScripts, extendWithDefaultCommands, encodeCommand } from './commander';
+import { extendWithModulesAndScripts, extendWithDefaultCommands } from './commander';
 import { WatchError } from './errors';
 
 type RedisMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisLuaScripts> = (...args: Parameters<C['transformArguments']>) => RedisMultiCommandType<M, S>;
@@ -21,68 +21,31 @@ type WithScripts<M extends RedisModules, S extends RedisLuaScripts> = {
     [P in keyof S]: RedisMultiCommandSignature<S[P], M, S>
 };
 
-export type RedisMultiCommandType<M extends RedisModules, S extends RedisLuaScripts> = RedisMultiCommand & WithCommands<M, S> & WithModules<M, S> & WithScripts<M, S>;
+export type RedisMultiCommandType<M extends RedisModules = {}, S extends RedisLuaScripts = {}> =
+    RedisMultiCommand<M, S> & WithCommands<M, S> & WithModules<M, S> & WithScripts<M, S>;
 
 export interface MultiQueuedCommand {
-    encodedCommand: string;
+    args: TransformArgumentsReply;
     preservedArguments?: unknown;
     transformReply?: RedisCommand['transformReply'];
 }
 
 export type RedisMultiExecutor = (queue: Array<MultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisReply>>;
 
-export default class RedisMultiCommand<M extends RedisModules = RedisModules, S extends RedisLuaScripts = RedisLuaScripts> {
-    static commandsExecutor(this: RedisMultiCommand, command: RedisCommand, args: Array<unknown>): RedisMultiCommand {
-        return this.addCommand(
-            command.transformArguments(...args),
-            command.transformReply
-        );
-    }
-
-    static #scriptsExecutor(
-        this: RedisMultiCommand,
-        script: RedisLuaScript,
-        args: Array<unknown>
-    ): RedisMultiCommand {
-        const transformedArguments: TransformArgumentsReply = [];
-        if (this.#scriptsInUse.has(script.SHA1)) {
-            transformedArguments.push(
-                'EVALSHA',
-                script.SHA1
-            );
-        } else {
-            this.#scriptsInUse.add(script.SHA1);
-            transformedArguments.push(
-                'EVAL',
-                script.SCRIPT
-            );
-        }
-
-        transformedArguments.push(script.NUMBER_OF_KEYS.toString());
-
-        const scriptArguments = script.transformArguments(...args);
-        transformedArguments.push(...scriptArguments);
-        transformedArguments.preserve = scriptArguments.preserve;
-
-        return this.addCommand(
-            transformedArguments,
-            script.transformReply
-        );
-    }
-
+export default class RedisMultiCommand<M extends RedisModules, S extends RedisLuaScripts> {
     static extend<M extends RedisModules, S extends RedisLuaScripts>(
         clientOptions?: RedisClientOptions<M, S>
     ): new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisMultiCommandType<M, S> {
         return <any>extendWithModulesAndScripts({
             BaseClass: RedisMultiCommand,
             modules: clientOptions?.modules,
-            modulesCommandsExecutor: RedisMultiCommand.commandsExecutor,
+            modulesCommandsExecutor: RedisMultiCommand.prototype.commandsExecutor,
             scripts: clientOptions?.scripts,
-            scriptsExecutor: RedisMultiCommand.#scriptsExecutor
+            scriptsExecutor: RedisMultiCommand.prototype.scriptsExecutor
         });
     }
 
-    static create<M extends RedisModules, S extends RedisLuaScripts>(
+    static create<M extends RedisModules = {}, S extends RedisLuaScripts = {}>(
         executor: RedisMultiExecutor,
         clientOptions?: RedisClientOptions<M, S>
     ): RedisMultiCommandType<M, S> {
@@ -119,7 +82,7 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         this.#v4.addCommand = this.addCommand.bind(this);
         (this as any).addCommand = (...args: Array<unknown>): this => {
             this.#queue.push({
-                encodedCommand: encodeCommand(args.flat() as Array<string>)
+                args: args.flat() as Array<string>
             });
             return this;
         }
@@ -151,9 +114,45 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
         (this as any)[name] = (...args: Array<unknown>): void => (this as any).addCommand(name, args);
     }
 
+    commandsExecutor(command: RedisCommand, args: Array<unknown>): this {
+        return this.addCommand(
+            command.transformArguments(...args),
+            command.transformReply
+        );
+    }
+
+    scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): this {
+        const transformedArguments: TransformArgumentsReply = [];
+        if (this.#scriptsInUse.has(script.SHA1)) {
+            transformedArguments.push(
+                'EVALSHA',
+                script.SHA1
+            );
+        } else {
+            this.#scriptsInUse.add(script.SHA1);
+            transformedArguments.push(
+                'EVAL',
+                script.SCRIPT
+            );
+        }
+
+        transformedArguments.push(script.NUMBER_OF_KEYS.toString());
+
+        const scriptArguments = script.transformArguments(...args);
+        transformedArguments.push(...scriptArguments);
+        if (scriptArguments.preserve) {
+            transformedArguments.preserve = scriptArguments.preserve;
+        }
+
+        return this.addCommand(
+            transformedArguments,
+            script.transformReply
+        );
+    }
+
     addCommand(args: TransformArgumentsReply, transformReply?: RedisCommand['transformReply']): this {
         this.#queue.push({
-            encodedCommand: encodeCommand(args),
+            args,
             preservedArguments: args.preserve,
             transformReply
         });
@@ -170,13 +169,9 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
 
         const queue = this.#queue.splice(0),
             rawReplies = await this.#executor([
-                {
-                    encodedCommand: encodeCommand(['MULTI'])
-                },
+                { args: ['MULTI'] },
                 ...queue,
-                {
-                    encodedCommand: encodeCommand(['EXEC'])
-                }
+                { args: ['EXEC'] }
             ], Symbol('[RedisMultiCommand] Chain ID')),
             execReply = rawReplies[rawReplies.length - 1] as (null | Array<RedisReply>);
 
@@ -207,4 +202,4 @@ export default class RedisMultiCommand<M extends RedisModules = RedisModules, S 
     }
 }
 
-extendWithDefaultCommands(RedisMultiCommand, RedisMultiCommand.commandsExecutor);
+extendWithDefaultCommands(RedisMultiCommand, RedisMultiCommand.prototype.commandsExecutor);

@@ -1,3 +1,4 @@
+import { TransformArgumentsReply } from '.';
 import { pushVerdictArgument, transformReplyStringArray } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
@@ -9,7 +10,7 @@ interface ZUnionOptions {
     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(keys: Array<string> | string, options?: ZUnionOptions): Array<string> {
+export function transformArguments(keys: Array<string> | string, options?: ZUnionOptions): TransformArgumentsReply {
     const args = pushVerdictArgument(['ZUNION'], keys);
 
     if (options?.WEIGHTS) {

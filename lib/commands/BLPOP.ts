@@ -1,8 +1,9 @@
+import { TransformArgumentsReply } from '.';
 import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(keys: string | Array<string>, timeout: number): Array<string> {
+export function transformArguments(keys: string | Buffer | Array<string | Buffer>, timeout: number): TransformArgumentsReply {
     const args = pushVerdictArguments(['BLPOP'], keys);
 
     args.push(timeout.toString());

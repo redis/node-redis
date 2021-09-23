@@ -2,17 +2,15 @@ import LinkedList from 'yallist';
 import RedisParser from 'redis-parser';
 import { AbortError } from './errors';
 import { RedisReply } from './commands';
-import { encodeCommand } from './commander';
 
 export interface QueueCommandOptions {
     asap?: boolean;
-    signal?: any; // TODO: `AbortSignal` type is incorrect
     chainId?: symbol;
+    signal?: any; // TODO: `AbortSignal` type is incorrect
 }
 
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
-    encodedCommand: string;
-    byteLength: number;
+    args: Array<string | Buffer>;
     chainId?: symbol;
     abort?: {
         signal: any; // TODO: `AbortSignal` type is incorrect
@@ -24,9 +22,8 @@ interface CommandWaitingForReply {
     resolve(reply?: any): void;
     reject(err: Error): void;
     channelsCounter?: number;
+    bufferMode?: boolean;
 }
-
-export type CommandsQueueExecutor = (encodedCommands: string) => boolean | undefined;
 
 export enum PubSubSubscribeCommands {
     SUBSCRIBE = 'SUBSCRIBE',
@@ -57,15 +54,7 @@ export default class RedisCommandsQueue {
 
     readonly #maxLength: number | null | undefined;
 
-    readonly #executor: CommandsQueueExecutor;
-
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
-
-    #waitingToBeSentCommandsLength = 0;
-
-    get waitingToBeSentCommandsLength() {
-        return this.#waitingToBeSentCommandsLength;
-    }
 
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
 
@@ -114,12 +103,11 @@ export default class RedisCommandsQueue {
 
     #chainInExecution: symbol | undefined;
 
-    constructor(maxLength: number | null | undefined, executor: CommandsQueueExecutor) {
+    constructor(maxLength: number | null | undefined) {
         this.#maxLength = maxLength;
-        this.#executor = executor;
     }
 
-    addEncodedCommand<T = RedisReply>(encodedCommand: string, options?: QueueCommandOptions): Promise<T> {
+    addCommand<T = RedisReply>(args: Array<string | Buffer>, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
         if (this.#pubSubState.subscribing || this.#pubSubState.subscribed) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
@@ -130,11 +118,11 @@ export default class RedisCommandsQueue {
 
         return new Promise((resolve, reject) => {
             const node = new LinkedList.Node<CommandWaitingToBeSent>({
-                encodedCommand,
-                byteLength: Buffer.byteLength(encodedCommand),
+                args,
                 chainId: options?.chainId,
+                bufferMode,
                 resolve,
-                reject
+                reject,
             });
 
             if (options?.signal) {
@@ -157,8 +145,6 @@ export default class RedisCommandsQueue {
             } else {
                 this.#waitingToBeSent.pushNode(node);
             }
-
-            this.#waitingToBeSentCommandsLength += node.value.byteLength;
         });
     }
 
@@ -185,8 +171,9 @@ export default class RedisCommandsQueue {
     unsubscribe(command: PubSubUnsubscribeCommands, channels?: string | Array<string>, listener?: PubSubListener): Promise<void> {
         const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ? this.#pubSubListeners.channels : this.#pubSubListeners.patterns;
         if (!channels) {
+            const size = listeners.size;
             listeners.clear();
-            return this.#pushPubSubCommand(command);
+            return this.#pushPubSubCommand(command, size);
         }
 
         const channelsToUnsubscribe = [];
@@ -213,31 +200,24 @@ export default class RedisCommandsQueue {
         return this.#pushPubSubCommand(command, channelsToUnsubscribe);
     }
 
-    #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels?: Array<string>): Promise<void> {
+    #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels: number | Array<string>): Promise<void> {
         return new Promise((resolve, reject) => {
             const isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
                 inProgressKey = isSubscribe ? 'subscribing' : 'unsubscribing',
                 commandArgs: Array<string> = [command];
+
             let channelsCounter: number;
-            if (channels?.length) {
+            if (typeof channels === 'number') { // unsubscribe only
+                channelsCounter = channels;
+            } else {
                 commandArgs.push(...channels);
                 channelsCounter = channels.length;
-            } else {
-                // unsubscribe only
-                channelsCounter = (
-                    command[0] === 'P' ?
-                    this.#pubSubListeners.patterns :
-                    this.#pubSubListeners.channels
-                ).size;
             }
 
             this.#pubSubState[inProgressKey] += channelsCounter;
 
-            const encodedCommand = encodeCommand(commandArgs),
-                byteLength = Buffer.byteLength(encodedCommand);
             this.#waitingToBeSent.push({
-                encodedCommand,
-                byteLength,
+                args: commandArgs,
                 channelsCounter,
                 resolve: () => {
                     this.#pubSubState[inProgressKey] -= channelsCounter;
@@ -249,7 +229,6 @@ export default class RedisCommandsQueue {
                     reject();
                 }
             });
-            this.#waitingToBeSentCommandsLength += byteLength;
         });
     }
 
@@ -267,47 +246,25 @@ export default class RedisCommandsQueue {
         ]);
     }
 
-    executeChunk(recommendedSize: number): boolean | undefined {
-        if (!this.#waitingToBeSent.length) return;
+    getCommandToSend(): Array<string | Buffer> | undefined {
+        const toSend = this.#waitingToBeSent.shift();
 
-        const encoded: Array<string> = [];
-        let size = 0,
-            lastCommandChainId: symbol | undefined;
-        for (const command of this.#waitingToBeSent) {
-            encoded.push(command.encodedCommand);
-            size += command.byteLength;
-            if (size > recommendedSize) {
-                lastCommandChainId = command.chainId;
-                break;
-            }
-        }
-
-        if (!lastCommandChainId && encoded.length === this.#waitingToBeSent.length) {
-            lastCommandChainId = this.#waitingToBeSent.tail!.value.chainId;
-        }
-
-        lastCommandChainId ??= this.#waitingToBeSent.tail?.value.chainId;
-
-        this.#executor(encoded.join(''));
-
-        for (let i = 0; i < encoded.length; i++) {
-            const waitingToBeSent = this.#waitingToBeSent.shift()!;
-            if (waitingToBeSent.abort) {
-                waitingToBeSent.abort.signal.removeEventListener('abort', waitingToBeSent.abort.listener);
-            }
-
+        if (toSend) {
             this.#waitingForReply.push({
-                resolve: waitingToBeSent.resolve,
-                reject: waitingToBeSent.reject,
-                channelsCounter: waitingToBeSent.channelsCounter
+                resolve: toSend.resolve,
+                reject: toSend.reject,
+                channelsCounter: toSend.channelsCounter,
+                bufferMode: toSend.bufferMode
             });
         }
 
-        this.#chainInExecution = lastCommandChainId;
-        this.#waitingToBeSentCommandsLength -= size;
+        this.#chainInExecution = toSend?.chainId;
+
+        return toSend?.args;
     }
 
     parseResponse(data: Buffer): void {
+        this.#parser.setReturnBuffers(!!this.#waitingForReply.head?.value.bufferMode);
         this.#parser.execute(data);
     }
 

@@ -38,24 +38,22 @@ npm install redis@next
 import { createClient } from 'redis';
 
 (async () => {
-    const client = createClient();
+  const client = createClient();
 
-    client.on('error', (err) => console.log('Redis Client Error', err));
+  client.on('error', (err) => console.log('Redis Client Error', err));
 
-    await client.connect();
+  await client.connect();
 
-    await client.set('key', 'value');
-    const value = await client.get('key');
+  await client.set('key', 'value');
+  const value = await client.get('key');
 })();
 ```
 
-The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `[redis[s]:]//[[username][:password]@][host][:port]`:
+The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
 
 ```typescript
 createClient({
-    socket: {
-        url: 'redis://alice:foobared@awesome.redis.server:6380'
-    }
+  url: 'redis://alice:foobared@awesome.redis.server:6380',
 });
 ```
 
@@ -79,8 +77,8 @@ Modifiers to commands are specified using a JavaScript object:
 
 ```typescript
 await client.set('key', 'value', {
-    EX: 10,
-    NX: true
+  EX: 10,
+  NX: true,
 });
 ```
 
@@ -108,11 +106,11 @@ Start a [transaction](https://redis.io/topics/transactions) by calling `.multi()
 ```typescript
 await client.set('another-key', 'another-value');
 
-const [ setKeyReply, otherKeyValue ] = await client.multi()
-    .set('key', 'value')
-    .get('another-key')
-    .exec()
-]); // ['OK', 'another-value']
+const [setKeyReply, otherKeyValue] = await client
+  .multi()
+  .set('key', 'value')
+  .get('another-key')
+  .exec(); // ['OK', 'another-value']
 ```
 
 You can also [watch](https://redis.io/topics/transactions#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change.
@@ -128,10 +126,7 @@ This pattern works especially well for blocking commands—such as `BLPOP` and `
 ```typescript
 import { commandOptions } from 'redis';
 
-const blPopPromise = client.blPop(
-    commandOptions({ isolated: true }),
-    'key'
-);
+const blPopPromise = client.blPop(commandOptions({ isolated: true }), 'key');
 
 await client.lPush('key', ['1', '2']);
 
@@ -153,12 +148,12 @@ await subscriber.connect();
 Once you have one, simply subscribe and unsubscribe as needed:
 
 ```typescript
-await subscriber.subscribe('channel', message => {
-    console.log(message); // 'message'
+await subscriber.subscribe('channel', (message) => {
+  console.log(message); // 'message'
 });
 
 await subscriber.pSubscribe('channe*', (message, channel) => {
-    console.log(message, channel); // 'message', 'channel'
+  console.log(message, channel); // 'message', 'channel'
 });
 
 await subscriber.unsubscribe('channel');
@@ -178,26 +173,29 @@ await publisher.publish('channel', 'message');
 
 ```typescript
 for await (const key of client.scanIterator()) {
-    // use the key!
-    await client.get(key);
+  // use the key!
+  await client.get(key);
 }
 ```
 
 This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 
 ```typescript
-for await (const member of client.hScanIterator('hash')) {}
-for await (const { field, value } of client.sScanIterator('set')) {}
-for await (const { member, score } of client.zScanIterator('sorted-set')) {}
+for await (const member of client.hScanIterator('hash')) {
+}
+for await (const { field, value } of client.sScanIterator('set')) {
+}
+for await (const { member, score } of client.zScanIterator('sorted-set')) {
+}
 ```
 
 You can override the default options by providing a configuration object:
 
 ```typescript
 client.scanIterator({
-    TYPE: 'string', // `SCAN` only
-    MATCH: 'patter*',
-    COUNT: 100
+  TYPE: 'string', // `SCAN` only
+  MATCH: 'patter*',
+  COUNT: 100,
 });
 ```
 
@@ -209,27 +207,26 @@ Define new functions using [Lua scripts](https://redis.io/commands/eval) which e
 import { createClient, defineScript } from 'redis';
 
 (async () => {
-    const client = createClient({
-        scripts: {
-            add: defineScript({
-                NUMBER_OF_KEYS: 1,
-                SCRIPT:
-                    'local val = redis.pcall("GET", KEYS[1]);' +
-                    'return val + ARGV[1];',
-                transformArguments(key: string, toAdd: number): Array<string> {
-                    return [key, number.toString()];
-                },
-                transformReply(reply: number): number {
-                    return reply;
-                }
-            })
-        }
-    });
+  const client = createClient({
+    scripts: {
+      add: defineScript({
+        NUMBER_OF_KEYS: 1,
+        SCRIPT:
+          "local val = redis.pcall('GET', KEYS[1]);' + 'return val + ARGV[1];",
+        transformArguments(key: string, toAdd: number): Array<string> {
+          return [key, number.toString()];
+        },
+        transformReply(reply: number): number {
+          return reply;
+        },
+      }),
+    },
+  });
 
-    await client.connect();
+  await client.connect();
 
-    await client.set('key', '1');
-    await client.add('key', 2); // 3
+  await client.set('key', '1');
+  await client.add('key', 2); // 3
 })();
 ```
 
@@ -241,22 +238,25 @@ Connecting to a cluster is a bit different. Create the client by specifying some
 import { createCluster } from 'redis';
 
 (async () => {
-    const cluster = createCluster({
-        rootNodes: [{
-            host: '10.0.0.1',
-            port: 30001
-        }, {
-            host: '10.0.0.2',
-            port: 30002
-        }]
-    });
+  const cluster = createCluster({
+    rootNodes: [
+      {
+        host: '10.0.0.1',
+        port: 30001,
+      },
+      {
+        host: '10.0.0.2',
+        port: 30002,
+      },
+    ],
+  });
 
-    cluster.on('error', (err) => console.log('Redis Cluster Error', err));
+  cluster.on('error', (err) => console.log('Redis Cluster Error', err));
 
-    await cluster.connect();
+  await cluster.connect();
 
-    await cluster.set('key', 'value');
-    const value = await cluster.get('key');
+  await cluster.set('key', 'value');
+  const value = await cluster.get('key');
 })();
 ```
 
@@ -273,8 +273,8 @@ Of course, if you don't do something with your Promises you're certain to get [u
 
 ```typescript
 await Promise.all([
-    client.set('Tm9kZSBSZWRpcw==', 'users:1'),
-    client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
+  client.set('Tm9kZSBSZWRpcw==', 'users:1'),
+  client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw=='),
 ]);
 ```
 
@@ -284,7 +284,9 @@ If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md)
 
 Thank you to all the people who already contributed to Node Redis!
 
-<a href="https://github.com/NodeRedis/node-redis/graphs/contributors"><img src="https://opencollective.com/node-redis/contributors.svg?width=1012" /></a>
+<a href="https://github.com/NodeRedis/node-redis/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=NodeRedis/node-redis"/>
+</a>
 
 ## License
 
