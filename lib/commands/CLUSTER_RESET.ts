@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export type ClusterResetModes = 'HARD' | 'SOFT';
 
 export function transformArguments(mode?: ClusterResetModes): Array<string> {
@@ -12,4 +10,4 @@ export function transformArguments(mode?: ClusterResetModes): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

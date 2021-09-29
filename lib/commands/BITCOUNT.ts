@@ -1,5 +1,3 @@
-import { transformReplyNumber } from './generic-transformers';
-
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
@@ -22,4 +20,4 @@ export function transformArguments(key: string, range?: BitCountRange): Array<st
     return args;
 }
 
-export const transformReply = transformReplyNumber;
+export declare function transformReply(): number;

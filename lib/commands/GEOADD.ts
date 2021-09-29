@@ -1,4 +1,4 @@
-import { GeoCoordinates, transformReplyNumber } from './generic-transformers';
+import { GeoCoordinates } from './generic-transformers';
 
 interface GeoMember extends GeoCoordinates {
     member: string;
@@ -46,4 +46,4 @@ export function transformArguments(key: string, toAdd: GeoMember | Array<GeoMemb
     return args;
 }
 
-export const transformReply = transformReplyNumber;
+export declare function transformReply(): number;

@@ -1,5 +1,3 @@
-import { transformReplyStringArray } from './generic-transformers';
-
 export const IS_READ_ONLY = true;
 
 export function transformArguments(pattern?: string): Array<string> {
@@ -12,4 +10,4 @@ export function transformArguments(pattern?: string): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

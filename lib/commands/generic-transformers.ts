@@ -1,41 +1,5 @@
 import { TransformArgumentsReply } from '.';
 
-export function transformReplyNumber(reply: number): number {
-    return reply;
-}
-
-export function transformReplyNumberNull(reply: number | null): number | null {
-    return reply;
-}
-
-export function transformReplyNumberArray(reply: Array<number>): Array<number> {
-    return reply;
-}
-
-export function transformReplyNumberNullArray(reply: Array<number | null>): Array<number | null> {
-    return reply;
-}
-
-export function transformReplyString(reply: string): string {
-    return reply;
-}
-
-export function transformReplyStringNull(reply: string | null): string | null {
-    return reply;
-}
-
-export function transformReplyStringArray(reply: Array<string>): Array<string> {
-    return reply;
-}
-
-export function transformReplyStringArrayNull(reply: Array<string> | null): Array<string> | null {
-    return reply;
-}
-
-export function transformReplyStringNullArray(reply: Array<string | null>): Array<string | null> {
-    return reply;
-}
-
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
 }
@@ -45,16 +9,6 @@ export function transformReplyBooleanArray(reply: Array<number>): Array<boolean>
 }
 
 export type BitValue = 0 | 1;
-
-export function transformReplyBit(reply: BitValue): BitValue {
-    return reply;
-}
-
-export function transformReplyBufferNull(reply: Buffer | null): Buffer | null {
-    return reply;
-}
-
-export function transformReplyVoid(): void {}
 
 export interface ScanOptions {
     MATCH?: string;

@@ -1,5 +1,3 @@
-import { transformReplyNumberNullArray } from './generic-transformers';
-
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
@@ -81,4 +79,4 @@ export function transformArguments(key: string, operations: BitFieldOperations):
     return args;
 }
 
-export const transformReply = transformReplyNumberNullArray;
+export declare function transformReply(): Array<number | null>;

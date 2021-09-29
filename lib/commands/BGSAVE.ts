@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 interface BgSaveOptions {
     SCHEDULE?: true;
 }
@@ -14,4 +12,4 @@ export function transformArguments(options?: BgSaveOptions): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

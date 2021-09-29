@@ -1,4 +1,4 @@
-import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments, transformReplyStringArray } from './generic-transformers';
+import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,4 +13,4 @@ export function transformArguments(
     return pushGeoSearchArguments(['GEOSEARCH'], key, from, by, options);
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

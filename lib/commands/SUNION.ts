@@ -1,5 +1,5 @@
 import { TransformArgumentsReply } from '.';
-import { pushVerdictArguments, transformReplyStringArray } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -9,4 +9,4 @@ export function transformArguments(keys: string | Array<string>): TransformArgum
     return pushVerdictArguments(['SUNION'], keys);
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

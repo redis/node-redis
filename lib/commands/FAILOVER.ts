@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 interface FailoverOptions {
     TO?: {
         host: string;
@@ -32,4 +30,4 @@ export function transformArguments(options?: FailoverOptions): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

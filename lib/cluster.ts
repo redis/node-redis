@@ -1,9 +1,9 @@
-import { RedisCommand, RedisModules, TransformArgumentsReply } from './commands';
+import { RedisCommand, RedisCommandReply, RedisModules, TransformArgumentsReply } from './commands';
 import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
 import { RedisSocketOptions } from './socket';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
-import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments } from './commander';
+import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments, transformCommandReply } from './commander';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import { EventEmitter } from 'events';
 
@@ -59,10 +59,11 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         return this.#slots.connect();
     }
 
-    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<ReturnType<typeof command['transformReply']>> {
+    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<RedisCommandReply<typeof command>> {
         const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(command, args);
 
-        const reply = command.transformReply(
+        return transformCommandReply(
+            command,
             await this.sendCommand(
                 RedisCluster.#extractFirstKey(command, args, redisArgs),
                 command.IS_READ_ONLY,
@@ -72,8 +73,6 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
             ),
             redisArgs.preserve
         );
-
-        return reply;
     }
 
     async sendCommand<C extends RedisCommand>(
@@ -83,7 +82,7 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         options?: ClientCommandOptions,
         bufferMode?: boolean,
         redirections = 0
-    ): Promise<ReturnType<C['transformReply']>> {
+    ): Promise<RedisCommandReply<C>> {
         const client = this.#slots.getClient(firstKey, isReadonly);
 
         try {
@@ -100,10 +99,11 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         }
     }
 
-    async scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): Promise<ReturnType<typeof script['transformReply']>> {
+    async scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): Promise<RedisCommandReply<typeof script>> {
         const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(script, args);
 
-        const reply = script.transformReply(
+        return transformCommandReply(
+            script,
             await this.executeScript(
                 script,
                 args,
@@ -112,8 +112,6 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
             ),
             redisArgs.preserve
         );
-
-        return reply;
     }
 
     async executeScript(
@@ -122,7 +120,7 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         redisArgs: TransformArgumentsReply,
         options?: ClientCommandOptions,
         redirections = 0
-    ): Promise<ReturnType<typeof script['transformReply']>> {
+    ): Promise<RedisCommandReply<typeof script>> {
         const client = this.#slots.getClient(
             RedisCluster.#extractFirstKey(script, originalArgs, redisArgs),
             script.IS_READ_ONLY

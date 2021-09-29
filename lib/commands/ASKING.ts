@@ -1,7 +1,5 @@
-import { transformReplyString } from './generic-transformers';
-
 export function transformArguments(): Array<string> {
     return ['ASKING'];
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

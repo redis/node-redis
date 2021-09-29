@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export function transformArguments(path: string, moduleArgs?: Array<string>): Array<string> {
     const args = ['MODULE', 'LOAD', path];
 
@@ -10,4 +8,4 @@ export function transformArguments(path: string, moduleArgs?: Array<string>): Ar
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

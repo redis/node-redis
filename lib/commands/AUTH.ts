@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export interface AuthOptions {
     username?: string;
     password: string;
@@ -13,4 +11,4 @@ export function transformArguments({username, password}: AuthOptions): Array<str
     return ['AUTH', username, password];
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

@@ -1,5 +1,4 @@
 import { AuthOptions } from './AUTH';
-import { transformReplyString } from './generic-transformers';
 
 interface MigrateOptions {
     COPY?: true;
@@ -62,4 +61,4 @@ export function transformArguments(
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

@@ -1,5 +1,5 @@
 import { TransformArgumentsReply } from '.';
-import { pushVerdictArguments, transformReplyNumber } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
@@ -9,4 +9,4 @@ export function transformArguments(operation: BitOperations, destKey: string, ke
     return pushVerdictArguments(['BITOP', operation, destKey], key);
 }
 
-export const transformReply = transformReplyNumber;
+export declare function transformReply(): number;

@@ -748,8 +748,10 @@ export interface RedisCommand {
     IS_READ_ONLY?: boolean;
     transformArguments(this: void, ...args: Array<any>): TransformArgumentsReply;
     BUFFER_MODE?: boolean;
-    transformReply(this: void, reply: RedisReply, preserved?: unknown): any;
+    transformReply?(this: void, reply: RedisReply, preserved?: unknown): any;
 }
+
+export type RedisCommandReply<C extends RedisCommand> = C['transformReply'] extends (...args: any) => infer T ? T : RedisReply;
 
 export interface RedisCommands {
     [command: string]: RedisCommand;

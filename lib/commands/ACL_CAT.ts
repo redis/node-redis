@@ -1,5 +1,3 @@
-import { transformReplyStringArray } from './generic-transformers';
-
 export function transformArguments(categoryName?: string): Array<string> {
     const args = ['ACL', 'CAT'];
 
@@ -10,4 +8,4 @@ export function transformArguments(categoryName?: string): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

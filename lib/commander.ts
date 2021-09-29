@@ -1,5 +1,5 @@
 
-import COMMANDS, { RedisCommand, RedisModules, TransformArgumentsReply } from './commands';
+import COMMANDS, { RedisCommand, RedisCommandReply, RedisModules, RedisReply, TransformArgumentsReply } from './commands';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { CommandOptions, isCommandOptions } from './command-options';
 
@@ -105,4 +105,12 @@ export function* encodeCommand(args: TransformArgumentsReply): IterableIterator<
         yield arg;
         yield DELIMITER;
     }
+}
+
+export function transformCommandReply(command: RedisCommand, rawReply: RedisReply, preserved: unknown): RedisCommandReply<typeof command> {
+    if (!command.transformReply) {
+        return rawReply;
+    }
+
+    return command.transformReply(rawReply, preserved);
 }

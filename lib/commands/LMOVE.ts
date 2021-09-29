@@ -1,5 +1,3 @@
-import { transformReplyStringNull } from './generic-transformers';
-
 export type LMoveSide = 'LEFT' | 'RIGHT';
 
 export const FIRST_KEY_INDEX = 1;
@@ -19,4 +17,4 @@ export function transformArguments(
     ];
 }
 
-export const transformReply = transformReplyStringNull;
+export declare function transformReply(): string | null;

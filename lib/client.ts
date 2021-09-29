@@ -1,6 +1,6 @@
 import RedisSocket, { RedisSocketOptions, RedisNetSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
-import COMMANDS, { TransformArgumentsReply } from './commands';
+import COMMANDS, { RedisCommandReply, TransformArgumentsReply } from './commands';
 import { RedisCommand, RedisModules, RedisReply } from './commands';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import EventEmitter from 'events';
@@ -9,7 +9,7 @@ import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { ScanOptions, ZMember } from './commands/generic-transformers';
 import { ScanCommandOptions } from './commands/SCAN';
 import { HScanTuple } from './commands/HSCAN';
-import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments } from './commander';
+import { encodeCommand, extendWithDefaultCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from './commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError } from './errors';
 import { URL } from 'url';
@@ -29,7 +29,7 @@ export interface RedisClientOptions<M, S> {
 }
 
 export type RedisCommandSignature<C extends RedisCommand> =
-    (...args: Parameters<C['transformArguments']> | [options: CommandOptions<ClientCommandOptions>, ...rest: Parameters<C['transformArguments']>]) => Promise<ReturnType<C['transformReply']>>;
+    (...args: Parameters<C['transformArguments']> | [options: CommandOptions<ClientCommandOptions>, ...rest: Parameters<C['transformArguments']>]) => Promise<RedisCommandReply<C>>;
 
 type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisCommandSignature<(typeof COMMANDS)[P]>;
@@ -275,12 +275,13 @@ export default class RedisClient<M extends RedisModules, S extends RedisLuaScrip
         await this.#socket.connect();
     }
 
-    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<ReturnType<typeof command['transformReply']>> {
+    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<RedisCommandReply<typeof command>> {
         const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(command, args);
 
-        return command.transformReply(
+        return transformCommandReply(
+            command,
             await this.#sendCommand(redisArgs, options, command.BUFFER_MODE),
-            redisArgs.preserve,
+            redisArgs.preserve
         );
     }
 
@@ -308,16 +309,17 @@ export default class RedisClient<M extends RedisModules, S extends RedisLuaScrip
         return await promise;
     }
 
-    async scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): Promise<ReturnType<typeof script['transformReply']>> {
+    async scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): Promise<RedisCommandReply<typeof script>> {
         const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(script, args);
 
-        return script.transformReply(
+        return transformCommandReply(
+            script,
             await this.executeScript(script, redisArgs, options, script.BUFFER_MODE),
             redisArgs.preserve
         );
     }
 
-    async executeScript(script: RedisLuaScript, args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<ReturnType<typeof script['transformReply']>> {
+    async executeScript(script: RedisLuaScript, args: TransformArgumentsReply, options?: ClientCommandOptions, bufferMode?: boolean): Promise<RedisCommandReply<typeof script>> {
         try {
             return await this.#sendCommand([
                 'EVALSHA',

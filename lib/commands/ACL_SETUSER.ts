@@ -1,8 +1,8 @@
 import { TransformArgumentsReply } from '.';
-import { pushVerdictArguments, transformReplyString } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
 
 export function transformArguments(username: string, rule: string | Array<string>): TransformArgumentsReply {
     return pushVerdictArguments(['ACL', 'SETUSER', username], rule);
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

@@ -1,5 +1,4 @@
 import { TransformArgumentsReply } from '.';
-import { transformReplyString } from './generic-transformers';
 
 type HSETObject = Record<string | number, string | number>;
 
@@ -47,4 +46,4 @@ function pushObject(args: Array<string>, object: HSETObject): void {
     }
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

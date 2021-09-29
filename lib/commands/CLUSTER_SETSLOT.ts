@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export enum ClusterSlotStates {
     IMPORTING = 'IMPORTING',
     MIGRATING = 'MIGRATING',
@@ -17,4 +15,4 @@ export function transformArguments(slot: number, state: ClusterSlotStates, nodeI
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

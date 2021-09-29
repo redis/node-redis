@@ -1,4 +1,4 @@
-import { transformArgumentNumberInfinity, transformReplyNumber } from './generic-transformers';
+import { transformArgumentNumberInfinity } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,4 +13,4 @@ export function transformArguments(key: string, min: number, max: number): Array
     ];
 }
 
-export const transformReply = transformReplyNumber;
+export declare function transformReply(): number;
