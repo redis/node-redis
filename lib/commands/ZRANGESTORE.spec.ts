@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
-import { transformArguments } from './ZRANGESTORE';
+import { transformArguments, transformReply } from './ZRANGESTORE';
 
 describe('ZRANGESTORE', () => {
     describeHandleMinimumRedisVersion([6, 2]);
@@ -64,6 +64,15 @@ describe('ZRANGESTORE', () => {
                     WITHSCORES: true
                 }),
                 ['ZRANGESTORE', 'dst', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1', 'WITHSCORES']
+            );
+        });
+    });
+
+    describe('transformReply', () => {
+        it('should throw TypeError when reply is not a number', () => {
+            assert.throws(
+                () => (transformReply as any)([]),
+                TypeError
             );
         });
     });

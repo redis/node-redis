@@ -204,12 +204,10 @@ export function pushGeoSearchArguments(
         args.push('BYBOX', by.width.toString(), by.height.toString());
     }
 
-    if (by.unit) {
-        args.push(by.unit);
-    }
+    args.push(by.unit);
 
     if (options?.SORT) {
-        args.push(options?.SORT);
+        args.push(options.SORT);
     }
 
     pushGeoCountArgument(args, options?.COUNT);

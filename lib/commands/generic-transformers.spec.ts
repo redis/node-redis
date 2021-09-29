@@ -300,6 +300,13 @@ describe('Generic Transformers', () => {
             );
         });
 
+        it('with COUNT', () => {
+            assert.deepEqual(
+                pushGeoCountArgument([], 1),
+                ['COUNT', '1']
+            );
+        });
+
         it('with ANY', () => {
             assert.deepEqual(
                 pushGeoCountArgument([], {
