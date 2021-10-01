@@ -232,6 +232,9 @@ import * as ZRANDMEMBER_COUNT from './ZRANDMEMBER_COUNT';
 import * as ZRANDMEMBER from './ZRANDMEMBER';
 import * as ZRANGE_WITHSCORES from './ZRANGE_WITHSCORES';
 import * as ZRANGE from './ZRANGE';
+import * as ZRANGEBYLEX from './ZRANGEBYLEX';
+import * as ZRANGEBYSCORE_WITHSCORES from './ZRANGEBYSCORE_WITHSCORES';
+import * as ZRANGEBYSCORE from './ZRANGEBYSCORE';
 import * as ZRANGESTORE from './ZRANGESTORE';
 import * as ZRANK from './ZRANK';
 import * as ZREM from './ZREM';
@@ -713,6 +716,12 @@ export default {
     zRangeWithScores: ZRANGE_WITHSCORES,
     ZRANGE,
     zRange: ZRANGE,
+    ZRANGEBYLEX,
+    zRangeByLex: ZRANGEBYLEX,
+    ZRANGEBYSCORE_WITHSCORES,
+    zRangeByScoreWithScores: ZRANGEBYSCORE_WITHSCORES,
+    ZRANGEBYSCORE,
+    zRangeByScore: ZRANGEBYSCORE,
     ZRANGESTORE,
     zRangeStore: ZRANGESTORE,
     ZRANK,
