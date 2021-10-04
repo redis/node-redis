@@ -35,6 +35,10 @@ import * as CLUSTER_MEET from './CLUSTER_MEET';
 import * as CLUSTER_RESET from './CLUSTER_RESET';
 import * as CLUSTER_SETSLOT from './CLUSTER_SETSLOT';
 import * as CLUSTER_SLOTS from './CLUSTER_SLOTS';
+import * as COMMAND_COUNT from './COMMAND_COUNT';
+import * as COMMAND_GETKEYS from './COMMAND_GETKEYS';
+import * as COMMAND_INFO from './COMMAND_INFO';
+import * as COMMAND from './COMMAND';
 import * as CONFIG_GET from './CONFIG_GET';
 import * as CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
 import * as CONFIG_REWRITE from './CONFIG_REWRITE';
@@ -323,6 +327,14 @@ export default {
     clusterSetSlot: CLUSTER_SETSLOT,
     CLUSTER_SLOTS,
     clusterSlots: CLUSTER_SLOTS,
+    COMMAND_COUNT,
+    commandCount: COMMAND_COUNT,
+    COMMAND_GETKEYS,
+    commandGetKeys: COMMAND_GETKEYS,
+    COMMAND_INFO,
+    commandInfo: COMMAND_INFO,
+    COMMAND,
+    command: COMMAND,
     CONFIG_GET,
     configGet: CONFIG_GET,
     CONFIG_RESETASTAT,

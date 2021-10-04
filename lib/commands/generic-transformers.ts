@@ -335,3 +335,79 @@ export function pushOptionalVerdictArgument(args: TransformArgumentsReply, name:
 
     return pushVerdictArgument(args, value);
 }
+
+export enum CommandFlags {
+    WRITE = 'write', // command may result in modifications
+    READONLY = 'readonly', // command will never modify keys
+    DENYOOM = 'denyoom', // reject command if currently out of memory
+    ADMIN = 'admin', // server admin command
+    PUBSUB = 'pubsub', // pubsub-related command
+    NOSCRIPT = 'noscript', // deny this command from scripts
+    RANDOM = 'random', // command has random results, dangerous for scripts
+    SORT_FOR_SCRIPT = 'sort_for_script', // if called from script, sort output
+    LOADING = 'loading', // allow command while database is loading
+    STALE = 'stale', // allow command while replica has stale data
+    SKIP_MONITOR = 'skip_monitor', // do not show this command in MONITOR
+    ASKING = 'asking', // cluster related - accept even if importing
+    FAST = 'fast', // command operates in constant or log(N) time. Used for latency monitoring.
+    MOVABLEKEYS = 'movablekeys' // keys have no pre-determined position. You must discover keys yourself.
+}
+
+export enum CommandCategories {
+    KEYSPACE = '@keyspace',
+    READ = '@read',
+    WRITE = '@write',
+    SET = '@set',
+    SORTEDSET = '@sortedset',
+    LIST = '@list',
+    HASH = '@hash',
+    STRING = '@string',
+    BITMAP = '@bitmap',
+    HYPERLOGLOG = '@hyperloglog',
+    GEO = '@geo',
+    STREAM = '@stream',
+    PUBSUB = '@pubsub',
+    ADMIN = '@admin',
+    FAST = '@fast',
+    SLOW = '@slow',
+    BLOCKING = '@blocking',
+    DANGEROUS = '@dangerous',
+    CONNECTION = '@connection',
+    TRANSACTION = '@transaction',
+    SCRIPTING = '@scripting'
+}
+
+export type CommandRawReply = [
+    name: string,
+    arity: number,
+    flags: Array<CommandFlags>,
+    firstKeyIndex: number,
+    lastKeyIndex: number,
+    step: number,
+    categories: Array<CommandCategories>
+];
+
+export type CommandReply = {
+    name: string,
+    arity: number,
+    flags: Set<CommandFlags>,
+    firstKeyIndex: number,
+    lastKeyIndex: number,
+    step: number,
+    categories: Set<CommandCategories>
+};
+
+export function transformCommandReply(
+    this: void,
+    [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories]: CommandRawReply
+): CommandReply {
+    return {
+        name,
+        arity,
+        flags: new Set(flags),
+        firstKeyIndex,
+        lastKeyIndex,
+        step,
+        categories: new Set(categories)
+    };
+}
