@@ -24,5 +24,7 @@ describe('COMMAND INFO', () => {
                 categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
             }]
         );
+    }, {
+        minimumRedisVersion: [6]
     });
 });
