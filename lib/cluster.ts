@@ -10,7 +10,7 @@ export type RedisClusterClientOptions = Omit<RedisClientOptions<{}, {}>, 'module
 
 export interface RedisClusterOptions<M = {}, S = {}> {
     rootNodes: Array<RedisClusterClientOptions>;
-    defaults?: RedisClusterClientOptions;
+    defaults?: Partial<RedisClusterClientOptions>;
     modules?: M;
     scripts?: S;
     useReplicas?: boolean;

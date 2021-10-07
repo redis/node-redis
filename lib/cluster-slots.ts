@@ -1,6 +1,5 @@
 import calculateSlot from 'cluster-key-slot';
 import RedisClient, { RedisClientType } from './client';
-import { RedisSocketOptions } from './socket';
 import { RedisClusterMasterNode, RedisClusterReplicaNode } from './commands/CLUSTER_NODES';
 import { RedisClusterClientOptions, RedisClusterOptions } from './cluster';
 import { RedisModules } from './commands';
@@ -32,7 +31,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
 
     async connect(): Promise<void> {
         for (const rootNode of this.#options.rootNodes) {
-            if (await this.#discoverNodes(rootNode)) return;
+            if (await this.#discoverNodes(this.#clientOptionsDefaults(rootNode))) return;
         }
 
         throw new Error('None of the root nodes is available');
@@ -99,6 +98,18 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         await Promise.all(promises);
     }
 
+    #clientOptionsDefaults(options: RedisClusterClientOptions): RedisClusterClientOptions {
+        if (!this.#options.defaults) return options;
+
+        const merged = Object.assign({}, this.#options.defaults, options);
+
+        if (options.socket && this.#options.defaults.socket) {
+            Object.assign({}, this.#options.defaults.socket, options.socket);
+        }
+
+        return merged;
+    }
+
     #initiateClientForNode(nodeData: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): ClusterNode<M, S> {
         const url = `${nodeData.host}:${nodeData.port}`;
         clientsInUse.add(url);
@@ -107,13 +118,15 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         if (!node) {
             node = {
                 id: nodeData.id,
-                client: RedisClient.create({
-                    socket: {
-                        host: nodeData.host,
-                        port: nodeData.port
-                    },
-                    readonly
-                })
+                client: RedisClient.create(
+                    this.#clientOptionsDefaults({
+                        socket: {
+                            host: nodeData.host,
+                            port: nodeData.port
+                        },
+                        readonly
+                    })
+                )
             };
             promises.push(node.client.connect());
             this.#nodeByUrl.set(url, node);
