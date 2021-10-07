@@ -1,14 +1,16 @@
 import { RedisCommand, RedisCommandReply, RedisModules, TransformArgumentsReply } from './commands';
-import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
-import { RedisSocketOptions } from './socket';
+import RedisClient, { ClientCommandOptions, RedisClientOptions, RedisClientType, WithPlugins } from './client';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments, transformCommandReply } from './commander';
 import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
 import { EventEmitter } from 'events';
 
-export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
-    rootNodes: Array<RedisSocketOptions>;
+export type RedisClusterClientOptions = Omit<RedisClientOptions<{}, {}>, 'modules' | 'scripts'>;
+
+export interface RedisClusterOptions<M = {}, S = {}> {
+    rootNodes: Array<RedisClusterClientOptions>;
+    defaults?: RedisClusterClientOptions;
     modules?: M;
     scripts?: S;
     useReplicas?: boolean;

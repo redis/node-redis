@@ -8,7 +8,7 @@ import { ClusterSlotStates } from './commands/CLUSTER_SETSLOT';
 describe('Cluster', () => {
     it('sendCommand', async () => {
         const cluster = RedisCluster.create({
-            rootNodes: TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
+            ...TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
             useReplicas: true
         });
 
@@ -42,7 +42,7 @@ describe('Cluster', () => {
 
     it('scripts', async () => {
         const cluster = RedisCluster.create({
-            rootNodes: TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
+            ...TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
             scripts: {
                 add: defineScript({
                     NUMBER_OF_KEYS: 0,

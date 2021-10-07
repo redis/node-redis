@@ -2,7 +2,7 @@ import calculateSlot from 'cluster-key-slot';
 import RedisClient, { RedisClientType } from './client';
 import { RedisSocketOptions } from './socket';
 import { RedisClusterMasterNode, RedisClusterReplicaNode } from './commands/CLUSTER_NODES';
-import { RedisClusterOptions } from './cluster';
+import { RedisClusterClientOptions, RedisClusterOptions } from './cluster';
 import { RedisModules } from './commands';
 import { RedisLuaScripts } from './lua-script';
 
@@ -39,21 +39,19 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
     }
 
     async discover(startWith: RedisClientType<M, S>): Promise<void> {
-        if (await this.#discoverNodes(startWith.options?.socket)) return;
+        if (await this.#discoverNodes(startWith.options)) return;
 
         for (const { client } of this.#nodeByUrl.values()) {
             if (client === startWith) continue;
 
-            if (await this.#discoverNodes(client.options?.socket)) return;
+            if (await this.#discoverNodes(client.options)) return;
         }
 
         throw new Error('None of the cluster nodes is available');
     }
 
-    async #discoverNodes(socketOptions?: RedisSocketOptions): Promise<boolean> {
-        const client = RedisClient.create({
-            socket: socketOptions
-        });
+    async #discoverNodes(clientOptions?: RedisClusterClientOptions): Promise<boolean> {
+        const client = RedisClient.create(clientOptions);
 
         await client.connect();
 

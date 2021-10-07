@@ -53,7 +53,7 @@ The above code connects to localhost on port 6379. To connect to a different hos
 
 ```typescript
 createClient({
-  url: 'redis://alice:foobared@awesome.redis.server:6380',
+  url: 'redis://alice:foobared@awesome.redis.server:6380'
 });
 ```
 
@@ -78,7 +78,7 @@ Modifiers to commands are specified using a JavaScript object:
 ```typescript
 await client.set('key', 'value', {
   EX: 10,
-  NX: true,
+  NX: true
 });
 ```
 
@@ -181,12 +181,9 @@ for await (const key of client.scanIterator()) {
 This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 
 ```typescript
-for await (const member of client.hScanIterator('hash')) {
-}
-for await (const { field, value } of client.sScanIterator('set')) {
-}
-for await (const { member, score } of client.zScanIterator('sorted-set')) {
-}
+for await (const member of client.hScanIterator('hash')) {}
+for await (const { field, value } of client.sScanIterator('set')) {}
+for await (const { member, score } of client.zScanIterator('sorted-set')) {}
 ```
 
 You can override the default options by providing a configuration object:
@@ -204,7 +201,8 @@ client.scanIterator({
 Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
 
 ```typescript
-import { createClient, defineScript } from 'redis';
+import { createClient } from 'redis';
+import { defineScript } from 'redis/lua-script';
 
 (async () => {
   const client = createClient({
@@ -218,9 +216,9 @@ import { createClient, defineScript } from 'redis';
         },
         transformReply(reply: number): number {
           return reply;
-        },
-      }),
-    },
+        }
+      })
+    }
   });
 
   await client.connect();
@@ -241,14 +239,12 @@ import { createCluster } from 'redis';
   const cluster = createCluster({
     rootNodes: [
       {
-        host: '10.0.0.1',
-        port: 30001,
+        url: 'redis://10.0.0.1:30001'
       },
       {
-        host: '10.0.0.2',
-        port: 30002,
-      },
-    ],
+        url: 'redis://10.0.0.2:30002'
+      }
+    ]
   });
 
   cluster.on('error', (err) => console.log('Redis Cluster Error', err));
@@ -274,7 +270,7 @@ Of course, if you don't do something with your Promises you're certain to get [u
 ```typescript
 await Promise.all([
   client.set('Tm9kZSBSZWRpcw==', 'users:1'),
-  client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw=='),
+  client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
 ]);
 ```
 
