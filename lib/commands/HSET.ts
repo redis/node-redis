@@ -1,4 +1,4 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 
 type HSETObject = Record<string | number, string | number>;
 
@@ -14,7 +14,7 @@ type SingleFieldArguments = [...generic: GenericArguments, field: string, value:
 
 type MultipleFieldsArguments = [...generic: GenericArguments, value: HSETObject | HSETMap | HSETTuples];
 
-export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArguments | MultipleFieldsArguments): TransformArgumentsReply {
+export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArguments | MultipleFieldsArguments): RedisCommandArguments {
     const args = ['HSET', key];
 
     if (typeof value === 'string') {

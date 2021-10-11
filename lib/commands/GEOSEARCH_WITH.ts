@@ -1,4 +1,4 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { GeoSearchFrom, GeoSearchBy, GeoReplyWith, GeoSearchOptions, transformGeoMembersWithReply } from './generic-transformers';
 import { transformArguments as geoSearchTransformArguments } from './GEOSEARCH';
 
@@ -10,8 +10,8 @@ export function transformArguments(
     by: GeoSearchBy,
     replyWith: Array<GeoReplyWith>,
     options?: GeoSearchOptions
-): TransformArgumentsReply {
-    const args: TransformArgumentsReply = geoSearchTransformArguments(key, from, by, options);
+): RedisCommandArguments {
+    const args: RedisCommandArguments = geoSearchTransformArguments(key, from, by, options);
 
     args.push(...replyWith);
 

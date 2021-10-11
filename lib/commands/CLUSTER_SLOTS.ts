@@ -1,6 +1,6 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 
-export function transformArguments(): TransformArgumentsReply {
+export function transformArguments(): RedisCommandArguments {
     return ['CLUSTER', 'SLOTS'];
 }
 

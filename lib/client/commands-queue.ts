@@ -1,7 +1,7 @@
 import LinkedList from 'yallist';
 import RedisParser from 'redis-parser';
-import { AbortError } from './errors';
-import { RedisReply } from './commands';
+import { AbortError } from '../errors';
+import { RedisCommandRawReply } from '../commands';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -107,7 +107,7 @@ export default class RedisCommandsQueue {
         this.#maxLength = maxLength;
     }
 
-    addCommand<T = RedisReply>(args: Array<string | Buffer>, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
+    addCommand<T = RedisCommandRawReply>(args: Array<string | Buffer>, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
         if (this.#pubSubState.subscribing || this.#pubSubState.subscribed) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {

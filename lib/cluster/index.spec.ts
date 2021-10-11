@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import RedisCluster from './cluster';
-import { defineScript } from './lua-script';
-import { itWithCluster, itWithDedicatedCluster, TestRedisClusters, TEST_REDIS_CLUSTERES } from './test-utils';
+import RedisCluster from '.';
+import { defineScript } from '../lua-script';
+import { itWithCluster, itWithDedicatedCluster, TestRedisClusters, TEST_REDIS_CLUSTERES } from '../test-utils';
 import calculateSlot from 'cluster-key-slot';
-import { ClusterSlotStates } from './commands/CLUSTER_SETSLOT';
+import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 
 describe('Cluster', () => {
     it('sendCommand', async () => {
@@ -15,7 +15,7 @@ describe('Cluster', () => {
         await cluster.connect();
 
         try {
-            await cluster.ping();
+            await cluster.publish('channel', 'message');
             await cluster.set('a', 'b');
             await cluster.set('a{a}', 'bb');
             await cluster.set('aa', 'bb');
@@ -32,11 +32,10 @@ describe('Cluster', () => {
         const key = 'key';
         assert.deepEqual(
             await cluster.multi(key)
-                .ping()
                 .set(key, 'value')
                 .get(key)
                 .exec(),
-            ['PONG', 'OK', 'value']
+            ['OK', 'value']
         );
     });
 

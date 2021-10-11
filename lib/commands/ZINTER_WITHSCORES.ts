@@ -1,10 +1,10 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { transformReplySortedSetWithScores } from './generic-transformers';
 import { transformArguments as transformZInterArguments } from './ZINTER';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZINTER';
 
-export function transformArguments(...args: Parameters<typeof transformZInterArguments>): TransformArgumentsReply {
+export function transformArguments(...args: Parameters<typeof transformZInterArguments>): RedisCommandArguments {
     return [
         ...transformZInterArguments(...args),
         'WITHSCORES'

@@ -1,4 +1,4 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { transformReplySortedSetWithScores } from './generic-transformers';
 import { ZRangeByScoreOptions, transformArguments as transformZRangeByScoreArguments } from './ZRANGEBYSCORE';
 
@@ -9,7 +9,7 @@ export function transformArguments(
     min: number | string,
     max: number | string,
     options?: ZRangeByScoreOptions
-): TransformArgumentsReply {
+): RedisCommandArguments {
     return [
         ...transformZRangeByScoreArguments(key, min, max, options),
         'WITHSCORES'

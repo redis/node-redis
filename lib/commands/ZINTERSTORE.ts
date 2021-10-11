@@ -1,4 +1,4 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { pushVerdictArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -8,7 +8,7 @@ interface ZInterStoreOptions {
     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(destination: string, keys: Array<string> | string, options?: ZInterStoreOptions): TransformArgumentsReply {
+export function transformArguments(destination: string, keys: Array<string> | string, options?: ZInterStoreOptions): RedisCommandArguments {
     const args = pushVerdictArgument(['ZINTERSTORE', destination], keys);
 
     if (options?.WEIGHTS) {

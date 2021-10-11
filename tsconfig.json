@@ -1,11 +1,6 @@
 {
+  "extends": "@tsconfig/node12/tsconfig.json",
   "compilerOptions": {
-    "strict": true,
-    "target": "ES2019",
-    "lib": ["ES2019", "ES2020.BigInt", "ES2020.String", "ES2020.Symbol.WellKnown"],
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "esModuleInterop": true,
     "outDir": "./dist",
     "declaration": true,
     "useDefineForClassFields": true,
@@ -27,6 +22,7 @@
       "./index.ts",
       "./lib"
     ],
+    "entryPointStrategy": "expand",
     "exclude": [
       "./lib/ts-declarations",
       "./lib/test-utils.ts"

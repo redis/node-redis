@@ -1,126 +1,97 @@
 import { strict as assert } from 'assert';
 import RedisMultiCommand from './multi-command';
 import { WatchError } from './errors';
-import { spy } from 'sinon';
-import { SQUARE_SCRIPT } from './client.spec';
+import { SQUARE_SCRIPT } from './client/index.spec';
 
 describe('Multi Command', () => {
+    it('generateChainId', () => {
+        assert.equal(
+            typeof RedisMultiCommand.generateChainId(),
+            'symbol'
+        );
+    });
+
+    it('addCommand', () => {
+        const multi = new RedisMultiCommand();
+        multi.addCommand(['PING']);
+
+        assert.deepEqual(
+            multi.queue[0].args,
+            ['PING']
+        );
+    });
+
+    it('addScript', () => {
+        const multi = new RedisMultiCommand();
+
+        multi.addScript(SQUARE_SCRIPT, ['1']);
+        assert.equal(
+            multi.scriptsInUse.has(SQUARE_SCRIPT.SHA1),
+            true
+        );
+        assert.deepEqual(
+            multi.queue[0].args,
+            ['EVAL', SQUARE_SCRIPT.SCRIPT, '0', '1']
+        );
+
+        multi.addScript(SQUARE_SCRIPT, ['2']);
+        assert.equal(
+            multi.scriptsInUse.has(SQUARE_SCRIPT.SHA1),
+            true
+        );
+        assert.deepEqual(
+            multi.queue[1].args,
+            ['EVALSHA', SQUARE_SCRIPT.SHA1, '0', '2']
+        );
+    });
+
     describe('exec', () => {
-        it('simple', async () => {
-            const multi = RedisMultiCommand.create((queue, symbol) => {
-                assert.deepEqual(
-                    queue.map(({ args }) => args),
-                    [
-                        ['MULTI'],
-                        ['PING'],
-                        ['EXEC'],
-                    ]
-                );
-
-                assert.equal(
-                    typeof symbol,
-                    'symbol'
-                );
-
-                return Promise.resolve(['QUEUED', 'QUEUED', ['PONG']]);
-            });
-
-            multi.ping();
-
-            assert.deepEqual(
-                await multi.exec(),
-                ['PONG']
+        it('undefined', () => {
+            assert.equal(
+                new RedisMultiCommand().exec(),
+                undefined
             );
         });
 
-        it('executing an empty queue should resolve without executing on the server', async () => {
-            const executor = spy();
+        it('Array', () => {
+            const multi = new RedisMultiCommand();
+            multi.addCommand(['PING']);
 
             assert.deepEqual(
-                await RedisMultiCommand.create(executor).exec(),
-                []
+                multi.exec(),
+                [
+                    { args: ['MULTI'] },
+                    { args: ['PING'], transformReply: undefined },
+                    { args: ['EXEC'] }
+                ]
             );
-
-            assert.ok(executor.notCalled);
         });
+    });
 
+    describe('handleExecReplies', () => {
         it('WatchError', () => {
-            return assert.rejects(
-                RedisMultiCommand.create(() => Promise.resolve([null])).ping().exec(),
+            assert.throws(
+                () => new RedisMultiCommand().handleExecReplies([null]),
                 WatchError
             );
         });
 
-        it('execAsPipeline', async () => {
-            const multi = RedisMultiCommand.create(queue => {
-                assert.deepEqual(
-                    queue.map(({ args }) => args),
-                    [['PING']]
-                );
-
-                return Promise.resolve(['PONG']);
-            });
-
-            multi.ping();
-
+        it('with replies', () => {
+            const multi = new RedisMultiCommand();
+            multi.addCommand(['PING']);
             assert.deepEqual(
-                await multi.exec(true),
+                multi.handleExecReplies(['OK', 'QUEUED', ['PONG']]),
                 ['PONG']
             );
         });
     });
 
-    describe('execAsPipeline', () => {
-        it('simple', async () => {
-            const multi = RedisMultiCommand.create(queue => {
-                assert.deepEqual(
-                    queue.map(({ args }) => args),
-                    [['PING']]
-                );
-
-                return Promise.resolve(['PONG']);
-            });
-
-            multi.ping();
-
-            assert.deepEqual(
-                await multi.execAsPipeline(),
-                ['PONG']
-            );
-        });
-
-        it('executing an empty queue should resolve without executing on the server', async () => {
-            const executor = spy();
-
-            assert.deepEqual(
-                await RedisMultiCommand.create(executor).execAsPipeline(),
-                []
-            );
-
-            assert.ok(executor.notCalled);
-        });
-
-        it('with scripts', async () => {
-            const MultiWithScript = RedisMultiCommand.extend({
-                scripts: {
-                    square: SQUARE_SCRIPT
-                }
-            });
-
-            assert.deepEqual(
-                await new MultiWithScript(queue => {
-                    assert.deepEqual(
-                        queue.map(({ args }) => args),
-                        [
-                            ['EVAL', SQUARE_SCRIPT.SCRIPT, '0', '2'],
-                            ['EVALSHA', SQUARE_SCRIPT.SHA1, '0', '3'],
-                        ]
-                    );
-
-                    return Promise.resolve([4, 9]);
-                }).square(2).square(3).execAsPipeline(),
-                [4, 9]
-            );
-        });
+    it('transformReplies', () => {
+        const multi = new RedisMultiCommand();
+        multi.addCommand(['PING'], (reply: string) => reply.substring(0, 2));
+        assert.deepEqual(
+            multi.transformReplies(['PONG']),
+            ['PO']
+        );
     });
 });

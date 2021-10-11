@@ -1,9 +1,9 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { CommandRawReply, CommandReply, transformCommandReply } from './generic-transformers';
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(): TransformArgumentsReply {
+export function transformArguments(): RedisCommandArguments {
     return ['COMMAND'];
 }
 

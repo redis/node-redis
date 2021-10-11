@@ -2,15 +2,13 @@ import { strict as assert } from 'assert';
 import RedisClient, { RedisClientOptions, RedisClientType } from './client';
 import { execSync, spawn } from 'child_process';
 import { once } from 'events';
-import { RedisSocketOptions } from './socket';
 import which from 'which';
 import { SinonSpy } from 'sinon';
 import RedisCluster, { RedisClusterOptions, RedisClusterType } from './cluster';
 import { promises as fs } from 'fs';
 import { Context as MochaContext } from 'mocha';
 import { promiseTimeout } from './utils';
-import { RedisModules } from './commands';
-import { RedisLuaScripts } from './lua-script';
+import { RedisModules, RedisScripts } from './commands';
 
 type RedisVersion = [major: number, minor: number, patch: number];
 
@@ -54,13 +52,13 @@ export enum TestRedisServers {
     PASSWORD
 }
 
-export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisLuaScripts>> = <any>{};
+export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisScripts>> = <any>{};
 
 export enum TestRedisClusters {
     OPEN
 }
 
-export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, RedisClusterOptions<RedisModules, RedisLuaScripts>> = <any>{};
+export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, RedisClusterOptions<RedisModules, RedisScripts>> = <any>{};
 
 let port = 6379;
 

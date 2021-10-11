@@ -1,16 +1,15 @@
 import calculateSlot from 'cluster-key-slot';
-import RedisClient, { RedisClientType } from './client';
-import { RedisClusterMasterNode, RedisClusterReplicaNode } from './commands/CLUSTER_NODES';
-import { RedisClusterClientOptions, RedisClusterOptions } from './cluster';
-import { RedisModules } from './commands';
-import { RedisLuaScripts } from './lua-script';
+import RedisClient, { InstantiableRedisClient, RedisClientType } from '../client';
+import { RedisClusterMasterNode, RedisClusterReplicaNode } from '../commands/CLUSTER_NODES';
+import { RedisClusterClientOptions, RedisClusterOptions } from '.';
+import { RedisModules, RedisScripts } from '../commands';
 
-export interface ClusterNode<M extends RedisModules, S extends RedisLuaScripts> {
+export interface ClusterNode<M extends RedisModules, S extends RedisScripts> {
     id: string;
     client: RedisClientType<M, S>;
 }
 
-interface SlotNodes<M extends RedisModules, S extends RedisLuaScripts> {
+interface SlotNodes<M extends RedisModules, S extends RedisScripts> {
     master: ClusterNode<M, S>;
     replicas: Array<ClusterNode<M, S>>;
     clientIterator: IterableIterator<RedisClientType<M, S>> | undefined;
@@ -18,14 +17,16 @@ interface SlotNodes<M extends RedisModules, S extends RedisLuaScripts> {
 
 type OnError = (err: unknown) => void;
 
-export default class RedisClusterSlots<M extends RedisModules, S extends RedisLuaScripts> {
-    readonly #options: RedisClusterOptions;
+export default class RedisClusterSlots<M extends RedisModules, S extends RedisScripts> {
+    readonly #options: RedisClusterOptions<M, S>;
+    readonly #Client: InstantiableRedisClient<M, S>;
     readonly #onError: OnError;
     readonly #nodeByUrl = new Map<string, ClusterNode<M, S>>();
     readonly #slots: Array<SlotNodes<M, S>> = [];
 
-    constructor(options: RedisClusterOptions, onError: OnError) {
+    constructor(options: RedisClusterOptions<M, S>, onError: OnError) {
         this.#options = options;
+        this.#Client = RedisClient.extend(options);
         this.#onError = onError;
     }
 
@@ -50,7 +51,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
     }
 
     async #discoverNodes(clientOptions?: RedisClusterClientOptions): Promise<boolean> {
-        const client = RedisClient.create(clientOptions);
+        const client = new this.#Client(clientOptions);
 
         await client.connect();
 
@@ -118,7 +119,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisLu
         if (!node) {
             node = {
                 id: nodeData.id,
-                client: RedisClient.create(
+                client: new this.#Client(
                     this.#clientOptionsDefaults({
                         socket: {
                             host: nodeData.host,

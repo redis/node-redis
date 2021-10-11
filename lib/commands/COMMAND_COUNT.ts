@@ -1,8 +1,8 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(): TransformArgumentsReply {
+export function transformArguments(): RedisCommandArguments {
     return ['COMMAND', 'COUNT'];
 }
 

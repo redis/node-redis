@@ -1,4 +1,4 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { transformArgumentNumberInfinity } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -17,7 +17,7 @@ export function transformArguments(
     min: number | string,
     max: number | string,
     options?: ZRangeByLexOptions
-): TransformArgumentsReply {
+): RedisCommandArguments {
     const args = [
         'ZRANGEBYLEX',
         key,

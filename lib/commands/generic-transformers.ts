@@ -1,4 +1,4 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
@@ -308,7 +308,7 @@ export function pushStringTuplesArguments(args: Array<string>, tuples: StringTup
     return args;
 }
 
-export function pushVerdictArguments(args: TransformArgumentsReply, value: string | Buffer | Array<string | Buffer>): TransformArgumentsReply  {
+export function pushVerdictArguments(args: RedisCommandArguments, value: string | Buffer | Array<string | Buffer>): RedisCommandArguments  {
     if (Array.isArray(value)) {
         args.push(...value);
     } else {
@@ -318,7 +318,7 @@ export function pushVerdictArguments(args: TransformArgumentsReply, value: strin
     return args;
 }
 
-export function pushVerdictArgument(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply {
+export function pushVerdictArgument(args: RedisCommandArguments, value: string | Array<string>): RedisCommandArguments {
     if (typeof value === 'string') {
         args.push('1', value);
     } else {
@@ -328,7 +328,7 @@ export function pushVerdictArgument(args: TransformArgumentsReply, value: string
     return args;
 }
 
-export function pushOptionalVerdictArgument(args: TransformArgumentsReply, name: string, value: undefined | string | Array<string>): TransformArgumentsReply {
+export function pushOptionalVerdictArgument(args: RedisCommandArguments, name: string, value: undefined | string | Array<string>): RedisCommandArguments {
     if (value === undefined) return args;
 
     args.push(name);
