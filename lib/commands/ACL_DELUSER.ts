@@ -1,8 +1,8 @@
-import { TransformArgumentsReply } from '.';
-import { pushVerdictArguments, transformReplyNumber } from './generic-transformers';
+import { RedisCommandArguments } from '.';
+import { pushVerdictArguments } from './generic-transformers';
 
-export function transformArguments(username: string | Array<string>): TransformArgumentsReply {
+export function transformArguments(username: string | Array<string>): RedisCommandArguments {
     return pushVerdictArguments(['ACL', 'DELUSER'], username);
 }
 
-export const transformReply = transformReplyNumber;
+export declare const transformReply: (reply: number) => number;

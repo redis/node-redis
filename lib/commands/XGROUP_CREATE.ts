@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export const FIRST_KEY_INDEX = 2;
 
 interface XGroupCreateOptions {
@@ -16,4 +14,4 @@ export function transformArguments(key: string, group: string, id: string, optio
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

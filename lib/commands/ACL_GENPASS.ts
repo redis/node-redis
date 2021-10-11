@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export function transformArguments(bits?: number): Array<string> {
     const args = ['ACL', 'GENPASS'];
 
@@ -10,4 +8,4 @@ export function transformArguments(bits?: number): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

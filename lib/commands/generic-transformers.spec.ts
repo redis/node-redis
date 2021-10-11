@@ -21,7 +21,10 @@ import {
     pushStringTuplesArguments,
     pushVerdictArguments,
     pushVerdictArgument,
-    pushOptionalVerdictArgument
+    pushOptionalVerdictArgument,
+    transformCommandReply,
+    CommandFlags,
+    CommandCategories
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
@@ -294,6 +297,13 @@ describe('Generic Transformers', () => {
         });
 
         it('number', () => {
+            assert.deepEqual(
+                pushGeoCountArgument([], 1),
+                ['COUNT', '1']
+            );
+        });
+
+        it('with COUNT', () => {
             assert.deepEqual(
                 pushGeoCountArgument([], 1),
                 ['COUNT', '1']
@@ -618,5 +628,28 @@ describe('Generic Transformers', () => {
                 ['name', '2', '1', '2']
             );
         });
+    });
+
+    it('transformCommandReply', () => {
+        assert.deepEqual(
+            transformCommandReply([
+                'ping',
+                -1,
+                [CommandFlags.STALE, CommandFlags.FAST],
+                0,
+                0,
+                0,
+                [CommandCategories.FAST, CommandCategories.CONNECTION]
+            ]),
+            {
+                name: 'ping',
+                arity: -1,
+                flags: new Set([CommandFlags.STALE, CommandFlags.FAST]),
+                firstKeyIndex: 0,
+                lastKeyIndex: 0,
+                step: 0,
+                categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
+            }
+        );
     });
 });

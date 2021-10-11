@@ -1,5 +1,5 @@
-import { TransformArgumentsReply } from '.';
-import { pushVerdictArgument, transformReplyStringArray } from './generic-transformers';
+import { RedisCommandArguments } from '.';
+import { pushVerdictArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
@@ -10,7 +10,7 @@ interface ZInterOptions {
     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(keys: Array<string> | string, options?: ZInterOptions): TransformArgumentsReply {
+export function transformArguments(keys: Array<string> | string, options?: ZInterOptions): RedisCommandArguments {
     const args = pushVerdictArgument(['ZINTER'], keys);
 
     if (options?.WEIGHTS) {
@@ -21,10 +21,10 @@ export function transformArguments(keys: Array<string> | string, options?: ZInte
     }
 
     if (options?.AGGREGATE) {
-        args.push('AGGREGATE', options?.AGGREGATE);
+        args.push('AGGREGATE', options.AGGREGATE);
     }
 
     return args;
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

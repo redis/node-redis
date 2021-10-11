@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export function transformArguments(slots: number | Array<number>): Array<string> {
     const args =  ['CLUSTER', 'ADDSLOTS'];
 
@@ -12,4 +10,4 @@ export function transformArguments(slots: number | Array<number>): Array<string>
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

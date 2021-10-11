@@ -1,4 +1,4 @@
-import { BitValue, transformReplyNumber } from './generic-transformers';
+import { BitValue } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -18,4 +18,4 @@ export function transformArguments(key: string, bit: BitValue, start?: number, e
     return args;
 }
 
-export const transformReply = transformReplyNumber;
+export declare function transformReply(): number;

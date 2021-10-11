@@ -6,5 +6,3 @@ export const createClient = RedisClient.create;
 export const commandOptions = RedisClient.commandOptions;
 
 export const createCluster = RedisCluster.create;
-
-export { defineScript } from './lib/lua-script';

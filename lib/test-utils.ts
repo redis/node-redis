@@ -2,15 +2,13 @@ import { strict as assert } from 'assert';
 import RedisClient, { RedisClientOptions, RedisClientType } from './client';
 import { execSync, spawn } from 'child_process';
 import { once } from 'events';
-import { RedisSocketOptions } from './socket';
 import which from 'which';
 import { SinonSpy } from 'sinon';
-import RedisCluster, { RedisClusterType } from './cluster';
+import RedisCluster, { RedisClusterOptions, RedisClusterType } from './cluster';
 import { promises as fs } from 'fs';
 import { Context as MochaContext } from 'mocha';
 import { promiseTimeout } from './utils';
-import { RedisModules } from './commands';
-import { RedisLuaScripts } from './lua-script';
+import { RedisModules, RedisScripts } from './commands';
 
 type RedisVersion = [major: number, minor: number, patch: number];
 
@@ -54,13 +52,13 @@ export enum TestRedisServers {
     PASSWORD
 }
 
-export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisLuaScripts>> = <any>{};
+export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisScripts>> = <any>{};
 
 export enum TestRedisClusters {
     OPEN
 }
 
-export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, Array<RedisSocketOptions>> = <any>{};
+export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, RedisClusterOptions<RedisModules, RedisScripts>> = <any>{};
 
 let port = 6379;
 
@@ -248,9 +246,13 @@ async function spawnPasswordServer(): Promise<void> {
 }
 
 async function spawnOpenCluster(): Promise<void> {
-    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = (await spawnGlobalRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
-        port
-    }));
+    TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN] = {
+        rootNodes: (await spawnGlobalRedisCluster(TestRedisClusters.OPEN, 3)).map(port => ({
+            socket: {
+                port
+            }
+        }))
+    };
 }
 
 before(function () {
@@ -314,9 +316,7 @@ export function itWithCluster(
     it(title, async function () {
         if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
 
-        const cluster = RedisCluster.create({
-            rootNodes: TEST_REDIS_CLUSTERES[type]
-        });
+        const cluster = RedisCluster.create(TEST_REDIS_CLUSTERES[type]);
 
         await cluster.connect();
 
@@ -337,7 +337,9 @@ export function itWithDedicatedCluster(title: string, fn: (cluster: RedisCluster
         const spawnResults = await spawnRedisCluster(null, 3),
             cluster = RedisCluster.create({
                 rootNodes: [{
-                    port: spawnResults[0].port
+                    socket: {
+                        port: spawnResults[0].port
+                    }
                 }]
             });
 

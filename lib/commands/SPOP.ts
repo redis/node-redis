@@ -1,5 +1,3 @@
-import { transformReplyStringArray } from './generic-transformers';
-
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(key: string, count?: number): Array<string> {
@@ -12,4 +10,4 @@ export function transformArguments(key: string, count?: number): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

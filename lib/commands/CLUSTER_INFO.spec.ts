@@ -1,5 +1,4 @@
 import { strict as assert } from 'assert';
-import { itWithCluster, TestRedisClusters } from '../test-utils';
 import { transformArguments, transformReply } from './CLUSTER_INFO';
 
 describe('CLUSTER INFO', () => {
@@ -43,22 +42,5 @@ describe('CLUSTER INFO', () => {
                 }
             }
         );
-    });
-
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.clusterInfo', async cluster => {
-        const info = await cluster.clusterInfo();
-        assert.equal(info.state, 'ok');
-        assert.deepEqual(info.slots, {
-            assigned: 16384,
-            ok: 16384,
-            pfail: 0,
-            fail: 0
-        });
-        assert.equal(info.knownNodes, 3);
-        assert.equal(info.size, 3);
-        assert.equal(typeof info.currentEpoch, 'number');
-        assert.equal(typeof info.myEpoch, 'number');
-        assert.equal(typeof info.stats.messagesReceived, 'number');
-        assert.equal(typeof info.stats.messagesSent, 'number');
     });
 });

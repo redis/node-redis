@@ -1,8 +1,8 @@
 import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
-import { ConnectionTimeoutError, ClientClosedError } from './errors';
-import { promiseTimeout } from './utils';
+import { ConnectionTimeoutError, ClientClosedError } from '../errors';
+import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
     connectTimeout?: number;

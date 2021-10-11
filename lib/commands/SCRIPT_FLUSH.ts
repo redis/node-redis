@@ -1,5 +1,3 @@
-import { transformReplyString } from './generic-transformers';
-
 export function transformArguments(mode?: 'ASYNC' | 'SYNC'): Array<string> {
     const args = ['SCRIPT', 'FLUSH'];
 
@@ -10,4 +8,4 @@ export function transformArguments(mode?: 'ASYNC' | 'SYNC'): Array<string> {
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

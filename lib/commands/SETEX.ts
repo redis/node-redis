@@ -1,9 +1,8 @@
-import { TransformArgumentsReply } from '.';
-import { transformReplyString } from './generic-transformers';
+import { RedisCommandArguments } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string | Buffer, seconds: number, value: string): TransformArgumentsReply {
+export function transformArguments(key: string | Buffer, seconds: number, value: string): RedisCommandArguments {
     return [
         'SETEX',
         key,
@@ -12,4 +11,4 @@ export function transformArguments(key: string | Buffer, seconds: number, value:
     ];
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

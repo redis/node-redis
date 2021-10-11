@@ -1,4 +1,3 @@
-import { transformReplyNumberArray } from './generic-transformers';
 import { LPosOptions } from './LPOS';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './LPOS';
@@ -19,4 +18,4 @@ export function transformArguments(key: string, element: string, count: number, 
     return args;
 }
 
-export const transformReply = transformReplyNumberArray;
+export declare function transformReply(): Array<number>;

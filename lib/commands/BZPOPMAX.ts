@@ -1,9 +1,9 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { pushVerdictArguments, transformReplyNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string | Array<string>, timeout: number): TransformArgumentsReply {
+export function transformArguments(key: string | Array<string>, timeout: number): RedisCommandArguments {
     const args = pushVerdictArguments(['BZPOPMAX'], key);
 
     args.push(timeout.toString());

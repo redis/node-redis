@@ -1,40 +1,4 @@
-import { TransformArgumentsReply } from '.';
-
-export function transformReplyNumber(reply: number): number {
-    return reply;
-}
-
-export function transformReplyNumberNull(reply: number | null): number | null {
-    return reply;
-}
-
-export function transformReplyNumberArray(reply: Array<number>): Array<number> {
-    return reply;
-}
-
-export function transformReplyNumberNullArray(reply: Array<number | null>): Array<number | null> {
-    return reply;
-}
-
-export function transformReplyString(reply: string): string {
-    return reply;
-}
-
-export function transformReplyStringNull(reply: string | null): string | null {
-    return reply;
-}
-
-export function transformReplyStringArray(reply: Array<string>): Array<string> {
-    return reply;
-}
-
-export function transformReplyStringArrayNull(reply: Array<string> | null): Array<string> | null {
-    return reply;
-}
-
-export function transformReplyStringNullArray(reply: Array<string | null>): Array<string | null> {
-    return reply;
-}
+import { RedisCommandArguments } from '.';
 
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
@@ -45,16 +9,6 @@ export function transformReplyBooleanArray(reply: Array<number>): Array<boolean>
 }
 
 export type BitValue = 0 | 1;
-
-export function transformReplyBit(reply: BitValue): BitValue {
-    return reply;
-}
-
-export function transformReplyBufferNull(reply: Buffer | null): Buffer | null {
-    return reply;
-}
-
-export function transformReplyVoid(): void {}
 
 export interface ScanOptions {
     MATCH?: string;
@@ -250,12 +204,10 @@ export function pushGeoSearchArguments(
         args.push('BYBOX', by.width.toString(), by.height.toString());
     }
 
-    if (by.unit) {
-        args.push(by.unit);
-    }
+    args.push(by.unit);
 
     if (options?.SORT) {
-        args.push(options?.SORT);
+        args.push(options.SORT);
     }
 
     pushGeoCountArgument(args, options?.COUNT);
@@ -356,7 +308,7 @@ export function pushStringTuplesArguments(args: Array<string>, tuples: StringTup
     return args;
 }
 
-export function pushVerdictArguments(args: TransformArgumentsReply, value: string | Buffer | Array<string | Buffer>): TransformArgumentsReply  {
+export function pushVerdictArguments(args: RedisCommandArguments, value: string | Buffer | Array<string | Buffer>): RedisCommandArguments  {
     if (Array.isArray(value)) {
         args.push(...value);
     } else {
@@ -366,7 +318,7 @@ export function pushVerdictArguments(args: TransformArgumentsReply, value: strin
     return args;
 }
 
-export function pushVerdictArgument(args: TransformArgumentsReply, value: string | Array<string>): TransformArgumentsReply {
+export function pushVerdictArgument(args: RedisCommandArguments, value: string | Array<string>): RedisCommandArguments {
     if (typeof value === 'string') {
         args.push('1', value);
     } else {
@@ -376,10 +328,86 @@ export function pushVerdictArgument(args: TransformArgumentsReply, value: string
     return args;
 }
 
-export function pushOptionalVerdictArgument(args: TransformArgumentsReply, name: string, value: undefined | string | Array<string>): TransformArgumentsReply {
+export function pushOptionalVerdictArgument(args: RedisCommandArguments, name: string, value: undefined | string | Array<string>): RedisCommandArguments {
     if (value === undefined) return args;
 
     args.push(name);
 
     return pushVerdictArgument(args, value);
+}
+
+export enum CommandFlags {
+    WRITE = 'write', // command may result in modifications
+    READONLY = 'readonly', // command will never modify keys
+    DENYOOM = 'denyoom', // reject command if currently out of memory
+    ADMIN = 'admin', // server admin command
+    PUBSUB = 'pubsub', // pubsub-related command
+    NOSCRIPT = 'noscript', // deny this command from scripts
+    RANDOM = 'random', // command has random results, dangerous for scripts
+    SORT_FOR_SCRIPT = 'sort_for_script', // if called from script, sort output
+    LOADING = 'loading', // allow command while database is loading
+    STALE = 'stale', // allow command while replica has stale data
+    SKIP_MONITOR = 'skip_monitor', // do not show this command in MONITOR
+    ASKING = 'asking', // cluster related - accept even if importing
+    FAST = 'fast', // command operates in constant or log(N) time. Used for latency monitoring.
+    MOVABLEKEYS = 'movablekeys' // keys have no pre-determined position. You must discover keys yourself.
+}
+
+export enum CommandCategories {
+    KEYSPACE = '@keyspace',
+    READ = '@read',
+    WRITE = '@write',
+    SET = '@set',
+    SORTEDSET = '@sortedset',
+    LIST = '@list',
+    HASH = '@hash',
+    STRING = '@string',
+    BITMAP = '@bitmap',
+    HYPERLOGLOG = '@hyperloglog',
+    GEO = '@geo',
+    STREAM = '@stream',
+    PUBSUB = '@pubsub',
+    ADMIN = '@admin',
+    FAST = '@fast',
+    SLOW = '@slow',
+    BLOCKING = '@blocking',
+    DANGEROUS = '@dangerous',
+    CONNECTION = '@connection',
+    TRANSACTION = '@transaction',
+    SCRIPTING = '@scripting'
+}
+
+export type CommandRawReply = [
+    name: string,
+    arity: number,
+    flags: Array<CommandFlags>,
+    firstKeyIndex: number,
+    lastKeyIndex: number,
+    step: number,
+    categories: Array<CommandCategories>
+];
+
+export type CommandReply = {
+    name: string,
+    arity: number,
+    flags: Set<CommandFlags>,
+    firstKeyIndex: number,
+    lastKeyIndex: number,
+    step: number,
+    categories: Set<CommandCategories>
+};
+
+export function transformCommandReply(
+    this: void,
+    [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories]: CommandRawReply
+): CommandReply {
+    return {
+        name,
+        arity,
+        flags: new Set(flags),
+        firstKeyIndex,
+        lastKeyIndex,
+        step,
+        categories: new Set(categories)
+    };
 }

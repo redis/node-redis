@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './SCRIPT_FLUSH';
 
 describe('SCRIPT FLUSH', () => {
@@ -22,13 +22,6 @@ describe('SCRIPT FLUSH', () => {
     itWithClient(TestRedisServers.OPEN, 'client.scriptFlush', async client => {
         assert.equal(
             await client.scriptFlush(),
-            'OK'
-        );
-    });
-
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.scriptFlush', async cluster => {
-        assert.equal(
-            await cluster.scriptFlush(),
             'OK'
         );
     });

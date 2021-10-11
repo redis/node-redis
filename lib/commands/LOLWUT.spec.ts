@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments } from './LOLWUT';
 
 describe('LOLWUT', () => {
@@ -25,18 +25,11 @@ describe('LOLWUT', () => {
             );
         });
     });
-    
+
 
     itWithClient(TestRedisServers.OPEN, 'client.LOLWUT', async client => {
         assert.equal(
             typeof (await client.LOLWUT()),
-            'string'
-        );
-    });
-
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.LOLWUT', async cluster => {
-        assert.equal(
-            typeof (await cluster.LOLWUT()),
             'string'
         );
     });

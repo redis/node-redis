@@ -1,7 +1,6 @@
-import { TuplesObject, transformReplyString } from './generic-transformers';
+import { TuplesObject } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
-
 
 interface XAddOptions {
     NOMKSTREAM?: true;
@@ -45,4 +44,4 @@ export function transformArguments(key: string, id: string, message: TuplesObjec
     return args;
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;

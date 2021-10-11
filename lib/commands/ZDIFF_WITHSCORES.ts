@@ -1,10 +1,10 @@
-import { TransformArgumentsReply } from '.';
+import { RedisCommandArguments } from '.';
 import { transformReplySortedSetWithScores } from './generic-transformers';
 import { transformArguments as transformZDiffArguments } from './ZDIFF';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZDIFF';
 
-export function transformArguments(...args: Parameters<typeof transformZDiffArguments>): TransformArgumentsReply {
+export function transformArguments(...args: Parameters<typeof transformZDiffArguments>): RedisCommandArguments {
     return [
         ...transformZDiffArguments(...args),
         'WITHSCORES'

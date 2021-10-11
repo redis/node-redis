@@ -1,37 +1,32 @@
 
-import COMMANDS, { RedisCommand, RedisModules, TransformArgumentsReply } from './commands';
-import { RedisLuaScript, RedisLuaScripts } from './lua-script';
 import { CommandOptions, isCommandOptions } from './command-options';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
 
 type Instantiable<T = any> = new(...args: Array<any>) => T;
 
-type CommandExecutor<T extends Instantiable = Instantiable> = (this: InstanceType<T>, command: RedisCommand, args: Array<unknown>) => unknown;
+interface ExtendWithCommandsConfig<T extends Instantiable> {
+    BaseClass: T;
+    commands: RedisCommands;
+    executor(command: RedisCommand, args: Array<unknown>): unknown;
+}
 
-export function extendWithDefaultCommands<T extends Instantiable>(BaseClass: T, executor: CommandExecutor<T>): void {
-    for (const [name, command] of Object.entries(COMMANDS)) {
+export function extendWithCommands<T extends Instantiable>({ BaseClass, commands, executor }: ExtendWithCommandsConfig<T>): void {
+    for (const [name, command] of Object.entries(commands)) {
         BaseClass.prototype[name] = function (...args: Array<unknown>): unknown {
             return executor.call(this, command, args);
         };
     }
 }
 
-interface ExtendWithModulesAndScriptsConfig<
-    T extends Instantiable,
-    M extends RedisModules,
-    S extends RedisLuaScripts
-> {
+interface ExtendWithModulesAndScriptsConfig<T extends Instantiable> {
     BaseClass: T;
-    modules: M | undefined;
-    modulesCommandsExecutor: CommandExecutor<T>;
-    scripts: S | undefined;
-    scriptsExecutor(this: InstanceType<T>, script: RedisLuaScript, args: Array<unknown>): unknown;
+    modules?: RedisModules;
+    modulesCommandsExecutor(this: InstanceType<T>, command: RedisCommand, args: Array<unknown>): unknown;
+    scripts?: RedisScripts;
+    scriptsExecutor(this: InstanceType<T>, script: RedisScript, args: Array<unknown>): unknown;
 }
 
-export function extendWithModulesAndScripts<
-    T extends Instantiable,
-    M extends RedisModules,
-    S extends RedisLuaScripts,
->(config: ExtendWithModulesAndScriptsConfig<T, M, S>): T {
+export function extendWithModulesAndScripts<T extends Instantiable>(config: ExtendWithModulesAndScriptsConfig<T>): T {
     let Commander: T | undefined;
 
     if (config.modules) {
@@ -39,7 +34,7 @@ export function extendWithModulesAndScripts<
             constructor(...args: Array<any>) {
                 super(...args);
 
-                for (const module of Object.keys(config.modules as RedisModules)) {
+                for (const module of Object.keys(config.modules!)) {
                     this[module] = new this[module](this);
                 }
             }
@@ -79,7 +74,7 @@ export function transformCommandArguments<T = unknown>(
     command: RedisCommand,
     args: Array<unknown>
 ): {
-    args: TransformArgumentsReply;
+    args: RedisCommandArguments;
     options: CommandOptions<T> | undefined;
 } {
     let options;
@@ -96,7 +91,7 @@ export function transformCommandArguments<T = unknown>(
 
 const DELIMITER = '\r\n';
 
-export function* encodeCommand(args: TransformArgumentsReply): IterableIterator<string | Buffer> {
+export function* encodeCommand(args: RedisCommandArguments): IterableIterator<string | Buffer> {
     yield `*${args.length}${DELIMITER}`;
 
     for (const arg of args) {
@@ -105,4 +100,16 @@ export function* encodeCommand(args: TransformArgumentsReply): IterableIterator<
         yield arg;
         yield DELIMITER;
     }
+}
+
+export function transformCommandReply(
+    command: RedisCommand,
+    rawReply: RedisCommandRawReply,
+    preserved: unknown
+): RedisCommandReply<typeof command> {
+    if (!command.transformReply) {
+        return rawReply;
+    }
+
+    return command.transformReply(rawReply, preserved);
 }

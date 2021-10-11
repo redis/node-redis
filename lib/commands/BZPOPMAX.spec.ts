@@ -2,7 +2,6 @@ import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient } from '../test-utils';
 import { transformArguments, transformReply } from './BZPOPMAX';
 import { commandOptions } from '../../index';
-import { describe } from 'mocha';
 
 describe('BZPOPMAX', () => {
     describe('transformArguments', () => {

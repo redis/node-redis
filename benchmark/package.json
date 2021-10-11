@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "benny": "^3.6.15",
+    "benny": "3.6.15",
     "v3": "npm:redis@3.1.2",
     "v4": "file:../"
   }

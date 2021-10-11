@@ -1,25 +1,35 @@
-import { RedisCommand, RedisModules, TransformArgumentsReply } from './commands';
-import RedisClient, { ClientCommandOptions, RedisClientType, WithPlugins } from './client';
-import { RedisSocketOptions } from './socket';
+import COMMANDS from './commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandReply, RedisModules, RedisScript, RedisScripts } from '../commands';
+import { ClientCommandOptions, RedisClientCommandSignature, RedisClientOptions, RedisClientType, WithModules, WithScripts } from '../client';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
-import { RedisLuaScript, RedisLuaScripts } from './lua-script';
-import { extendWithModulesAndScripts, extendWithDefaultCommands, transformCommandArguments } from './commander';
-import RedisMultiCommand, { MultiQueuedCommand, RedisMultiCommandType } from './multi-command';
+import { extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, extendWithCommands } from '../commander';
 import { EventEmitter } from 'events';
+import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
+import { RedisMultiQueuedCommand } from '../multi-command';
 
-export interface RedisClusterOptions<M = RedisModules, S = RedisLuaScripts> {
-    rootNodes: Array<RedisSocketOptions>;
+export type RedisClusterClientOptions = Omit<RedisClientOptions<{}, {}>, 'modules' | 'scripts'>;
+
+export interface RedisClusterPlugins<M extends RedisModules, S extends RedisScripts> {
     modules?: M;
     scripts?: S;
+}
+
+export interface RedisClusterOptions<M extends RedisModules, S extends RedisScripts> extends RedisClusterPlugins<M, S> {
+    rootNodes: Array<RedisClusterClientOptions>;
+    defaults?: Partial<RedisClusterClientOptions>;
     useReplicas?: boolean;
     maxCommandRedirections?: number;
 }
 
-export type RedisClusterType<M extends RedisModules = {}, S extends RedisLuaScripts = {}> =
-    WithPlugins<M, S> & RedisCluster<M, S>;
+type WithCommands = {
+    [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
+};
 
-export default class RedisCluster<M extends RedisModules = {}, S extends RedisLuaScripts = {}> extends EventEmitter {
-    static #extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: TransformArgumentsReply): string | Buffer | undefined {
+export type RedisClusterType<M extends RedisModules = {}, S extends RedisScripts = {}> =
+    RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
+
+export default class RedisCluster<M extends RedisModules = {}, S extends RedisScripts = {}> extends EventEmitter {
+    static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): string | Buffer | undefined {
         if (command.FIRST_KEY_INDEX === undefined) {
             return undefined;
         } else if (typeof command.FIRST_KEY_INDEX === 'number') {
@@ -29,7 +39,7 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         return command.FIRST_KEY_INDEX(...originalArgs);
     }
 
-    static create<M extends RedisModules = {}, S extends RedisLuaScripts = {}>(options?: RedisClusterOptions<M, S>): RedisClusterType<M, S> {
+    static create<M extends RedisModules = {}, S extends RedisScripts = {}>(options?: RedisClusterOptions<M, S>): RedisClusterType<M, S> {
         return new (<any>extendWithModulesAndScripts({
             BaseClass: RedisCluster,
             modules: options?.modules,
@@ -39,32 +49,36 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         }))(options);
     }
 
-    readonly #options: RedisClusterOptions;
+    readonly #options: RedisClusterOptions<M, S>;
     readonly #slots: RedisClusterSlots<M, S>;
-    readonly #Multi: new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisMultiCommandType<M, S>;
+    readonly #Multi: new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<M, S>;
 
     constructor(options: RedisClusterOptions<M, S>) {
         super();
 
         this.#options = options;
         this.#slots = new RedisClusterSlots(options, err => this.emit('error', err));
-        this.#Multi = RedisMultiCommand.extend(options);
+        this.#Multi = RedisClusterMultiCommand.extend(options);
     }
 
-    duplicate(): RedisClusterOptions<M, S> {
-        return new (Object.getPrototypeOf(this).constructor)(this.#options);
+    duplicate(overrides?: Partial<RedisClusterOptions<M, S>>): RedisClusterType<M, S> {
+        return new (Object.getPrototypeOf(this).constructor)({
+            ...this.#options,
+            ...overrides
+        });
     }
 
     async connect(): Promise<void> {
         return this.#slots.connect();
     }
 
-    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<ReturnType<typeof command['transformReply']>> {
+    async commandsExecutor(command: RedisCommand, args: Array<unknown>): Promise<RedisCommandReply<typeof command>> {
         const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(command, args);
 
-        const reply = command.transformReply(
+        return transformCommandReply(
+            command,
             await this.sendCommand(
-                RedisCluster.#extractFirstKey(command, args, redisArgs),
+                RedisCluster.extractFirstKey(command, args, redisArgs),
                 command.IS_READ_ONLY,
                 redisArgs,
                 options,
@@ -72,18 +86,16 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
             ),
             redisArgs.preserve
         );
-
-        return reply;
     }
 
     async sendCommand<C extends RedisCommand>(
         firstKey: string | Buffer | undefined,
         isReadonly: boolean | undefined,
-        args: TransformArgumentsReply,
+        args: RedisCommandArguments,
         options?: ClientCommandOptions,
         bufferMode?: boolean,
         redirections = 0
-    ): Promise<ReturnType<C['transformReply']>> {
+    ): Promise<RedisCommandReply<C>> {
         const client = this.#slots.getClient(firstKey, isReadonly);
 
         try {
@@ -100,10 +112,11 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         }
     }
 
-    async scriptsExecutor(script: RedisLuaScript, args: Array<unknown>): Promise<ReturnType<typeof script['transformReply']>> {
+    async scriptsExecutor(script: RedisScript, args: Array<unknown>): Promise<RedisCommandReply<typeof script>> {
         const { args: redisArgs, options } = transformCommandArguments<ClientCommandOptions>(script, args);
 
-        const reply = script.transformReply(
+        return transformCommandReply(
+            script,
             await this.executeScript(
                 script,
                 args,
@@ -112,19 +125,17 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
             ),
             redisArgs.preserve
         );
-
-        return reply;
     }
 
     async executeScript(
-        script: RedisLuaScript,
+        script: RedisScript,
         originalArgs: Array<unknown>,
-        redisArgs: TransformArgumentsReply,
+        redisArgs: RedisCommandArguments,
         options?: ClientCommandOptions,
         redirections = 0
-    ): Promise<ReturnType<typeof script['transformReply']>> {
+    ): Promise<RedisCommandReply<typeof script>> {
         const client = this.#slots.getClient(
-            RedisCluster.#extractFirstKey(script, originalArgs, redisArgs),
+            RedisCluster.extractFirstKey(script, originalArgs, redisArgs),
             script.IS_READ_ONLY
         );
 
@@ -169,20 +180,14 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
         throw err;
     }
 
-    multi(routing: string): RedisMultiCommandType<M, S> {
+    multi(routing?: string | Buffer): RedisClusterMultiCommandType<M, S> {
         return new this.#Multi(
-            async (commands: Array<MultiQueuedCommand>, chainId?: symbol) => {
-                const client = this.#slots.getClient(routing);
-
-                return Promise.all(
-                    commands.map(({ args }) => {
-                        return client.sendCommand(args, RedisClient.commandOptions({
-                            chainId
-                        }));
-                    })
-                );
+            async (commands: Array<RedisMultiQueuedCommand>, firstKey?: string | Buffer, chainId?: symbol) => {
+                return this.#slots
+                    .getClient(firstKey)
+                    .multiExecutor(commands, chainId);
             },
-            this.#options
+            routing
         );
     }
 
@@ -199,4 +204,8 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisLu
     }
 }
 
-extendWithDefaultCommands(RedisCluster, RedisCluster.prototype.commandsExecutor);
+extendWithCommands({
+    BaseClass: RedisCluster,
+    commands: COMMANDS,
+    executor: RedisCluster.prototype.commandsExecutor
+});

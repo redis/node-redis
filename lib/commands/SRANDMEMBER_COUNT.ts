@@ -1,4 +1,3 @@
-import { transformReplyStringArray } from './generic-transformers';
 import { transformArguments as transformSRandMemberArguments } from './SRANDMEMBER';
 
 export { FIRST_KEY_INDEX } from './SRANDMEMBER';
@@ -10,4 +9,4 @@ export function transformArguments(key: string, count: number): Array<string> {
     ];
 }
 
-export const transformReply = transformReplyStringArray;
+export declare function transformReply(): Array<string>;

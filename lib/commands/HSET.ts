@@ -1,5 +1,4 @@
-import { TransformArgumentsReply } from '.';
-import { transformReplyString } from './generic-transformers';
+import { RedisCommandArguments } from '.';
 
 type HSETObject = Record<string | number, string | number>;
 
@@ -15,7 +14,7 @@ type SingleFieldArguments = [...generic: GenericArguments, field: string, value:
 
 type MultipleFieldsArguments = [...generic: GenericArguments, value: HSETObject | HSETMap | HSETTuples];
 
-export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArguments | MultipleFieldsArguments): TransformArgumentsReply {
+export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArguments | MultipleFieldsArguments): RedisCommandArguments {
     const args = ['HSET', key];
 
     if (typeof value === 'string') {
@@ -47,4 +46,4 @@ function pushObject(args: Array<string>, object: HSETObject): void {
     }
 }
 
-export const transformReply = transformReplyString;
+export declare function transformReply(): string;
