@@ -1,8 +1,24 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
-import { transformArguments } from './XREAD';
+import { FIRST_KEY_INDEX, transformArguments } from './XREAD';
 
 describe('XREAD', () => {
+    describe('FIRST_KEY_INDEX', () => {
+        it('single stream', () => {
+            assert.equal(
+                FIRST_KEY_INDEX({ key: 'key', id: '' }),
+                'key'
+            );
+        });
+
+        it('multiple streams', () => {
+            assert.equal(
+                FIRST_KEY_INDEX([{ key: '1', id: '' }, { key: '2', id: '' }]),
+                '1'
+            );
+        });
+    });
+
     describe('transformArguments', () => {
         it('single stream', () => {
             assert.deepEqual(
@@ -13,13 +29,13 @@ describe('XREAD', () => {
                 ['XREAD', 'STREAMS', 'key', '0']
             );
         });
-    
+
         it('multiple streams', () => {
             assert.deepEqual(
                 transformArguments([{
                     key: '1',
                     id: '0'
-                }, {                    
+                }, {
                     key: '2',
                     id: '0'
                 }]),

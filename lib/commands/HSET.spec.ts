@@ -26,12 +26,10 @@ describe('HSET', () => {
         });
 
         it('Object', () => {
-            it('Array', () => {
-                assert.deepEqual(
-                    transformArguments('key', { field: 'value' }),
-                    ['HSET', 'key', 'field', 'value']
-                );
-            });
+            assert.deepEqual(
+                transformArguments('key', { field: 'value' }),
+                ['HSET', 'key', 'field', 'value']
+            );
         });
     });
 

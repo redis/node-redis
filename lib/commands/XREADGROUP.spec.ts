@@ -1,8 +1,24 @@
 import { strict as assert } from 'assert';
 import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
-import { transformArguments } from './XREADGROUP';
+import { FIRST_KEY_INDEX, transformArguments } from './XREADGROUP';
 
 describe('XREADGROUP', () => {
+    describe('FIRST_KEY_INDEX', () => {
+        it('single stream', () => {
+            assert.equal(
+                FIRST_KEY_INDEX('', '', { key: 'key', id: '' }),
+                'key'
+            );
+        });
+
+        it('multiple streams', () => {
+            assert.equal(
+                FIRST_KEY_INDEX('', '', [{ key: '1', id: '' }, { key: '2', id: '' }]),
+                '1'
+            );
+        });
+    });
+
     describe('transformArguments', () => {
         it('single stream', () => {
             assert.deepEqual(
@@ -78,13 +94,27 @@ describe('XREADGROUP', () => {
         });
     });
 
-    describe('client.xReadGroup', () => {
-        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+    itWithClient(TestRedisServers.OPEN, 'null', async client => {
+        const [, readGroupReply] = await Promise.all([
+            client.xGroupCreate('key', 'group', '$', {
+                MKSTREAM: true
+            }),
+            client.xReadGroup('group', 'consumer', {
+                key: 'key',
+                id: '>'
+            })
+        ]);
+
+        assert.equal(readGroupReply, null);
+    });
+
+    describe('cluster.xReadGroup', () => {
+        itWithCluster(TestRedisClusters.OPEN, 'null', async cluster => {
             const [, readGroupReply] = await Promise.all([
-                client.xGroupCreate('key', 'group', '$', {
+                cluster.xGroupCreate('key', 'group', '$', {
                     MKSTREAM: true
                 }),
-                client.xReadGroup('group', 'consumer', {
+                cluster.xReadGroup('group', 'consumer', {
                     key: 'key',
                     id: '>'
                 })
@@ -93,7 +123,7 @@ describe('XREADGROUP', () => {
             assert.equal(readGroupReply, null);
         });
 
-        itWithClient(TestRedisServers.OPEN, 'with a message', async client => {
+        itWithCluster(TestRedisClusters.OPEN, 'with a message', async client => {
             const [, id, readGroupReply] = await Promise.all([
                 client.xGroupCreate('key', 'group', '$', {
                     MKSTREAM: true
@@ -119,19 +149,5 @@ describe('XREADGROUP', () => {
                 }]
             }]);
         });
-    });
-
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.xReadGroup', async cluster => {
-        const [, readGroupReply] = await Promise.all([
-            cluster.xGroupCreate('key', 'group', '$', {
-                MKSTREAM: true
-            }),
-            cluster.xReadGroup('group', 'consumer', {
-                key: 'key',
-                id: '>'
-            })
-        ]);
-
-        assert.equal(readGroupReply, null);
     });
 });

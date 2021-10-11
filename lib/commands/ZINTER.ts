@@ -21,7 +21,7 @@ export function transformArguments(keys: Array<string> | string, options?: ZInte
     }
 
     if (options?.AGGREGATE) {
-        args.push('AGGREGATE', options?.AGGREGATE);
+        args.push('AGGREGATE', options.AGGREGATE);
     }
 
     return args;

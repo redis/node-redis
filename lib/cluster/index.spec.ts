@@ -31,7 +31,7 @@ describe('Cluster', () => {
     itWithCluster(TestRedisClusters.OPEN, 'multi', async cluster => {
         const key = 'key';
         assert.deepEqual(
-            await cluster.multi(key)
+            await cluster.multi()
                 .set(key, 'value')
                 .get(key)
                 .exec(),

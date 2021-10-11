@@ -19,7 +19,7 @@ export function transformArguments(destination: string, keys: Array<string> | st
     }
 
     if (options?.AGGREGATE) {
-        args.push('AGGREGATE', options?.AGGREGATE);
+        args.push('AGGREGATE', options.AGGREGATE);
     }
 
     return args;

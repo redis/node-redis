@@ -12,7 +12,7 @@ export function transformArguments(options?: HelloOptions): Array<string> {
     if (options) {
         args.push(options.protover.toString());
 
-        if (options?.auth) {
+        if (options.auth) {
             args.push('AUTH', options.auth.username, options.auth.password);
         }
 
