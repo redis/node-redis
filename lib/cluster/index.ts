@@ -61,8 +61,11 @@ export default class RedisCluster<M extends RedisModules = {}, S extends RedisSc
         this.#Multi = RedisClusterMultiCommand.extend(options);
     }
 
-    duplicate<M extends RedisModules, S extends RedisScripts>(): RedisClusterType<M, S> {
-        return new (Object.getPrototypeOf(this).constructor)();
+    duplicate(overrides?: Partial<RedisClusterOptions<M, S>>): RedisClusterType<M, S> {
+        return new (Object.getPrototypeOf(this).constructor)({
+            ...this.#options,
+            ...overrides
+        });
     }
 
     async connect(): Promise<void> {

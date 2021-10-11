@@ -147,7 +147,9 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         this.#queue = this.#initiateQueue();
         this.#isolationPool = createPool({
             create: async () => {
-                const duplicate = this.duplicate();
+                const duplicate = this.duplicate({
+                    isolationPoolOptions: undefined
+                });
                 await duplicate.connect();
                 return duplicate;
             },
@@ -269,8 +271,11 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         };
     }
 
-    duplicate(): RedisClientType<M, S> {
-        return new (Object.getPrototypeOf(this).constructor)(this.#options);
+    duplicate(overrides?: Partial<RedisClientOptions<M, S>>): RedisClientType<M, S> {
+        return new (Object.getPrototypeOf(this).constructor)({
+            ...this.#options,
+            ...overrides
+        });
     }
 
     async connect(): Promise<void> {
