@@ -192,7 +192,7 @@ You can override the default options by providing a configuration object:
 client.scanIterator({
   TYPE: 'string', // `SCAN` only
   MATCH: 'patter*',
-  COUNT: 100,
+  COUNT: 100
 });
 ```
 
@@ -201,8 +201,7 @@ client.scanIterator({
 Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
 
 ```typescript
-import { createClient } from 'redis';
-import { defineScript } from 'redis/lua-script';
+import { createClient, defineScript } from 'redis';
 
 (async () => {
   const client = createClient({
