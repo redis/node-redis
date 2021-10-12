@@ -1,4 +1,3 @@
-import { transformReplySortedSetWithScores } from './generic-transformers';
 import { transformArguments as transformZRangeArguments } from './ZRANGE';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANGE';
@@ -10,4 +9,4 @@ export function transformArguments(...args: Parameters<typeof transformZRangeArg
     ];
 }
 
-export const transformReply = transformReplySortedSetWithScores;
+export { transformReplySortedSetWithScores as transformReply } from './generic-transformers';

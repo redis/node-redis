@@ -1,5 +1,3 @@
-import { transformReplyStreamMessages } from './generic-transformers';
-
 interface XRangeRevOptions {
     COUNT?: number;
 }
@@ -14,4 +12,4 @@ export function transformArguments(key: string, start: string, end: string, opti
     return args;
 }
 
-export const transformReply = transformReplyStreamMessages;
+export { transformReplyStreamMessages as transformReply } from './generic-transformers';

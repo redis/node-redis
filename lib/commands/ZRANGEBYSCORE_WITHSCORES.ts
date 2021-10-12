@@ -1,5 +1,4 @@
 import { RedisCommandArguments } from '.';
-import { transformReplySortedSetWithScores } from './generic-transformers';
 import { ZRangeByScoreOptions, transformArguments as transformZRangeByScoreArguments } from './ZRANGEBYSCORE';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANGEBYSCORE';
@@ -16,4 +15,4 @@ export function transformArguments(
     ];
 }
 
-export const transformReply = transformReplySortedSetWithScores;
+export { transformReplySortedSetWithScores as transformReply } from './generic-transformers';

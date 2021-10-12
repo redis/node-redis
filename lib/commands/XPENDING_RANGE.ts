@@ -1,5 +1,3 @@
-import { transformReplyStreamMessages } from './generic-transformers';
-
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
@@ -24,7 +22,7 @@ export function transformArguments(
     }
 
     args.push(start, end, count.toString());
-    
+
     if (options?.consumer) {
         args.push(options.consumer);
     }
@@ -32,4 +30,4 @@ export function transformArguments(
     return args;
 }
 
-export const transformReply = transformReplyStreamMessages;
+export { transformReplyStreamMessages as transformReply } from './generic-transformers';

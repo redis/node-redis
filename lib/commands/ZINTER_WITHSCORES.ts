@@ -1,5 +1,4 @@
 import { RedisCommandArguments } from '.';
-import { transformReplySortedSetWithScores } from './generic-transformers';
 import { transformArguments as transformZInterArguments } from './ZINTER';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZINTER';
@@ -11,4 +10,4 @@ export function transformArguments(...args: Parameters<typeof transformZInterArg
     ];
 }
 
-export const transformReply = transformReplySortedSetWithScores;
+export { transformReplySortedSetWithScores as transformReply } from './generic-transformers';

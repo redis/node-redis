@@ -1,4 +1,4 @@
-import { pushVerdictArguments, transformReplyStreamMessages } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -43,4 +43,4 @@ export function transformArguments(
     return args;
 }
 
-export const transformReply = transformReplyStreamMessages;
+export { transformReplyStreamMessages as transformReply } from './generic-transformers';

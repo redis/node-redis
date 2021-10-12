@@ -1,4 +1,4 @@
-import { transformArgumentNumberInfinity, transformReplyNumberInfinity, ZMember } from './generic-transformers';
+import { transformArgumentNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -56,11 +56,11 @@ export function transformArguments(key: string, members: ZMember | Array<ZMember
     for (const { score, value } of (Array.isArray(members) ? members : [members])) {
         args.push(
             transformArgumentNumberInfinity(score),
-            value            
+            value
         );
     }
 
     return args;
 }
 
-export const transformReply = transformReplyNumberInfinity;
+export { transformReplyNumberInfinity as transformReply } from './generic-transformers';

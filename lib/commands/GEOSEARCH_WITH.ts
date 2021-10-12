@@ -1,5 +1,5 @@
 import { RedisCommandArguments } from '.';
-import { GeoSearchFrom, GeoSearchBy, GeoReplyWith, GeoSearchOptions, transformGeoMembersWithReply } from './generic-transformers';
+import { GeoSearchFrom, GeoSearchBy, GeoReplyWith, GeoSearchOptions } from './generic-transformers';
 import { transformArguments as geoSearchTransformArguments } from './GEOSEARCH';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEOSEARCH';
@@ -20,4 +20,4 @@ export function transformArguments(
     return args;
 }
 
-export const transformReply = transformGeoMembersWithReply;
+export { transformGeoMembersWithReply as transformReply } from './generic-transformers';

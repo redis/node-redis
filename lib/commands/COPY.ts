@@ -1,5 +1,3 @@
-import { transformReplyBoolean } from './generic-transformers';
-
 interface CopyCommandOptions {
     destinationDb?: number;
     replace?: boolean;
@@ -21,4 +19,4 @@ export function transformArguments(source: string, destination: string, options?
     return args;
 }
 
-export const transformReply = transformReplyBoolean;
+export { transformReplyBoolean as transformReply } from './generic-transformers';

@@ -1,5 +1,5 @@
 import { RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformReplyBoolean } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -9,4 +9,4 @@ export function transformArguments(keys: string | Array<string>): RedisCommandAr
     return pushVerdictArguments(['EXISTS'], keys);
 }
 
-export const transformReply = transformReplyBoolean;
+export { transformReplyBoolean as transformReply } from './generic-transformers';

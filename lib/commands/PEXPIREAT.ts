@@ -1,4 +1,4 @@
-import { transformPXAT, transformReplyBoolean } from './generic-transformers';
+import { transformPXAT } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -10,4 +10,4 @@ export function transformArguments(key: string, millisecondsTimestamp: number | 
     ];
 }
 
-export const transformReply = transformReplyBoolean;
+export { transformReplyBoolean as transformReply } from './generic-transformers';

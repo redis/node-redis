@@ -1,5 +1,5 @@
 import { RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformReplyNumberInfinityNullArray } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -9,4 +9,4 @@ export function transformArguments(key: string, member: string | Array<string>):
     return pushVerdictArguments(['ZMSCORE', key], member);
 }
 
-export const transformReply = transformReplyNumberInfinityNullArray;
+export { transformReplyNumberInfinityNullArray as transformReply } from './generic-transformers';

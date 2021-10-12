@@ -1,5 +1,3 @@
-import { transformReplyStreamsMessages } from './generic-transformers';
-
 export interface XReadGroupStream {
     key: string;
     id: string;
@@ -54,4 +52,4 @@ export function transformArguments(
     return args;
 }
 
-export const transformReply = transformReplyStreamsMessages;
+export { transformReplyStreamsMessages as transformReply } from './generic-transformers';

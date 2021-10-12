@@ -1,5 +1,3 @@
-import { transformReplyStreamsMessages } from './generic-transformers';
-
 export const FIRST_KEY_INDEX = (streams: Array<XReadStream> | XReadStream): string => {
     return Array.isArray(streams) ? streams[0].key : streams.key;
 };
@@ -40,4 +38,4 @@ export function transformArguments(streams: Array<XReadStream> | XReadStream, op
     return args;
 }
 
-export const transformReply = transformReplyStreamsMessages;
+export { transformReplyStreamsMessages as transformReply } from './generic-transformers';
