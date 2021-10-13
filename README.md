@@ -1,13 +1,13 @@
 <p align="center">
-    <a href="https://github.com/noderedis/node-redis">
+    <a href="https://github.com/redis/node-redis">
         <img width="128" src="https://static.invertase.io/assets/node_redis_logo.png" />
     </a>
     <h2 align="center">Node Redis</h2>
 </p>
 
 <div align="center">
-    <a href="https://coveralls.io/github/NodeRedis/node-redis">
-        <img src="https://coveralls.io/repos/github/NodeRedis/node-redis/badge.svg" alt="Coverage Status"/>
+    <a href="https://coveralls.io/github/redis/node-redis">
+        <img src="https://coveralls.io/repos/github/redis/node-redis/badge.svg" alt="Coverage Status"/>
     </a>
     <a href="https://www.npmjs.com/package/redis/v/next">
         <img src="https://img.shields.io/npm/dm/redis.svg" alt="Downloads"/>
@@ -57,7 +57,7 @@ createClient({
 });
 ```
 
-You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in in the [Wiki](https://github.com/NodeRedis/node-redis/wiki/lib.socket#RedisSocketOptions).
+You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in in the [Wiki](https://github.com/redis/node-redis/wiki/lib.socket#RedisSocketOptions).
 
 ### Redis Commands
 
@@ -279,8 +279,8 @@ If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md)
 
 Thank you to all the people who already contributed to Node Redis!
 
-<a href="https://github.com/NodeRedis/node-redis/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=NodeRedis/node-redis"/>
+<a href="https://github.com/redis/node-redis/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=redis/node-redis"/>
 </a>
 
 ## License
