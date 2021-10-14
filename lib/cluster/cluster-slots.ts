@@ -69,7 +69,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
     }
 
     async #reset(masters: Array<RedisClusterMasterNode>): Promise<void> {
-        // Override this.#slots and add not existing clients to this.#clientByKey
+        // Override this.#slots and add not existing clients to this.#nodeByUrl
         const promises: Array<Promise<void>> = [],
             clientsInUse = new Set<string>();
         for (const master of masters) {
@@ -88,7 +88,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
             }
         }
 
-        // Remove unused clients from this.#clientBykey using clientsInUse
+        // Remove unused clients from this.#nodeByUrl using clientsInUse
         for (const [url, { client }] of this.#nodeByUrl.entries()) {
             if (clientsInUse.has(url)) continue;
 
