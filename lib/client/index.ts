@@ -213,6 +213,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                 this.#tick();
             })
             .on('reconnecting', () => this.emit('reconnecting'))
+            .on('drain', () => this.#tick())
             .on('end', () => this.emit('end'));
     }
 
