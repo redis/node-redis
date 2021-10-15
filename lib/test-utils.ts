@@ -288,12 +288,13 @@ export function itWithClient(
     type: TestRedisServers,
     title: string,
     fn: (client: RedisClientType) => Promise<void>,
-    options?: RedisTestOptions
+    options?: RedisTestOptions,
+    clientOptions?: RedisClientOptions<{}, {}>
 ): void {
     it(title, async function () {
         if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
-
-        const client = RedisClient.create(TEST_REDIS_SERVERS[type]);
+    
+        const client = RedisClient.create(Object.assign({}, TEST_REDIS_SERVERS[type], clientOptions));
 
         await client.connect();
 

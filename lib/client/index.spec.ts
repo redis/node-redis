@@ -121,6 +121,18 @@ describe('Client', () => {
         });
     });
 
+    describe('authWithDatabaseSelect', () => {
+        const database = 2
+        itWithClient(TestRedisServers.PASSWORD, 'Client should auth success and select index 2', async client => {
+            assert.equal(
+                await client.ping(),
+                'PONG'
+            );
+            let info = await client.clientInfo()
+            assert.equal(info.db, database)
+        }, undefined, { database });
+    })
+
     describe('legacyMode', () => {
         const client = RedisClient.create({
             ...TEST_REDIS_SERVERS[TestRedisServers.OPEN],

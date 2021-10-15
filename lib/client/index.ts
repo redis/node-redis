@@ -180,16 +180,16 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             const v4Commands = this.#options?.legacyMode ? this.#v4 : this,
                 promises = [];
 
+            if (this.#options?.username || this.#options?.password) {
+                await v4Commands.auth(RedisClient.commandOptions({ asap: true }), this.#options);
+            }
+
             if (this.#selectedDB !== 0) {
                 promises.push(v4Commands.select(RedisClient.commandOptions({ asap: true }), this.#selectedDB));
             }
 
             if (this.#options?.readonly) {
                 promises.push(v4Commands.readonly(RedisClient.commandOptions({ asap: true })));
-            }
-
-            if (this.#options?.username || this.#options?.password) {
-                promises.push(v4Commands.auth(RedisClient.commandOptions({ asap: true }), this.#options));
             }
 
             const resubscribePromise = this.#queue.resubscribe();
