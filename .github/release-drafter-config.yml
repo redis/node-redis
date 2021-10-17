@@ -37,4 +37,8 @@ template: |
 
   $CHANGES
 
-We'd like to thank all of the contributors who have worked on this release!
+  ## Contributors
+  We'd like to thank all the contributors who worked on this release!
+
+  $CONTRIBUTORS
+
