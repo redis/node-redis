@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "node-redis 4 example script",
   "main": "index.js",
+  "private": true,
   "scripts": {
   },
   "type": "module",
