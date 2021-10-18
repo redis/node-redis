@@ -76,6 +76,14 @@ export default class RedisSocket extends EventEmitter {
         return !!this.#socket;
     }
 
+    // `writable.writableNeedDrain` was added in v15.2.0 and therefore can't be used
+    // https://nodejs.org/api/stream.html#stream_writable_writableneeddrain
+    #writableNeedDrain = false;
+
+    get writableNeedDrain(): boolean {
+        return this.#writableNeedDrain;
+    }
+
     constructor(initiator?: RedisSocketInitiator, options?: RedisSocketOptions) {
         super();
 
@@ -163,7 +171,10 @@ export default class RedisSocket extends EventEmitter {
                                 this.#onSocketError(new Error('Socket closed unexpectedly'));
                             }
                         })
-                        .on('drain', () => this.emit('drain'))
+                        .on('drain', () => {
+                            this.#writableNeedDrain = false;
+                            this.emit('drain');
+                        })
                         .on('data', (data: Buffer) => this.emit('data', data));
 
                     resolve(socket);
@@ -198,7 +209,9 @@ export default class RedisSocket extends EventEmitter {
             throw new ClientClosedError();
         }
 
-        return this.#socket.write(toWrite);
+        const wasFullyWritten = this.#socket.write(toWrite);
+        this.#writableNeedDrain = !wasFullyWritten;
+        return wasFullyWritten;
     }
 
     async disconnect(ignoreIsOpen = false): Promise<void> {

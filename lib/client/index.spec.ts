@@ -119,19 +119,19 @@ describe('Client', () => {
 
             assert.equal(client.isOpen, false);
         });
-    });
 
-    describe('authWithDatabaseSelect', () => {
-        const database = 2
-        itWithClient(TestRedisServers.PASSWORD, 'Client should auth success and select index 2', async client => {
+        itWithClient(TestRedisServers.PASSWORD, 'should execute AUTH before SELECT', async client => {
             assert.equal(
-                await client.ping(),
-                'PONG'
+                (await client.clientInfo()).db,
+                2
             );
-            let info = await client.clientInfo()
-            assert.equal(info.db, database)
-        }, undefined, { database });
-    })
+        }, {
+            minimumRedisVersion: [6, 2],
+            clientOptions: {
+                database: 2
+            }
+        });
+    });
 
     describe('legacyMode', () => {
         const client = RedisClient.create({

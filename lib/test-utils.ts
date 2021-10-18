@@ -284,17 +284,23 @@ export function describeHandleMinimumRedisVersion(minimumVersion: PartialRedisVe
     });
 }
 
+interface RedisClientTestOptions extends RedisTestOptions {
+    clientOptions?: RedisClientOptions<{}, {}>;
+}
+
 export function itWithClient(
     type: TestRedisServers,
     title: string,
     fn: (client: RedisClientType) => Promise<void>,
-    options?: RedisTestOptions,
-    clientOptions?: RedisClientOptions<{}, {}>
+    options?: RedisClientTestOptions
 ): void {
     it(title, async function () {
         if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
-    
-        const client = RedisClient.create(Object.assign({}, TEST_REDIS_SERVERS[type], clientOptions));
+
+        const client = RedisClient.create({
+            ...TEST_REDIS_SERVERS[type],
+            ...options?.clientOptions
+        });
 
         await client.connect();
 
