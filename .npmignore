@@ -16,4 +16,5 @@ lib/
 index.ts
 *.spec.*
 dist/lib/test-utils.*
+.DS_Store
 examples/
