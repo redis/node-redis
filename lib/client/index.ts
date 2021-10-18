@@ -177,24 +177,44 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
     #initiateSocket(): RedisSocket {
         const socketInitiator = async (): Promise<void> => {
-            const v4Commands = this.#options?.legacyMode ? this.#v4 : this,
-                promises = [];
+            const promises = [];
 
             if (this.#selectedDB !== 0) {
-                promises.push(v4Commands.select(RedisClient.commandOptions({ asap: true }), this.#selectedDB));
+                promises.push(
+                    this.#queue.addCommand(
+                        ['SELECT', this.#selectedDB.toString()],
+                        { asap: true }
+                    )
+                );
             }
 
             if (this.#options?.readonly) {
-                promises.push(v4Commands.readonly(RedisClient.commandOptions({ asap: true })));
+                promises.push(
+                    this.#queue.addCommand(
+                        COMMANDS.READONLY.transformArguments(),
+                        { asap: true }
+                    )
+                );
             }
 
             if (this.#options?.username || this.#options?.password) {
-                promises.push(v4Commands.auth(RedisClient.commandOptions({ asap: true }), this.#options));
+                promises.push(
+                    this.#queue.addCommand(
+                        COMMANDS.AUTH.transformArguments({
+                            username: this.#options.username,
+                            password: this.#options.password ?? ''
+                        }),
+                        { asap: true }
+                    )
+                );
             }
 
             const resubscribePromise = this.#queue.resubscribe();
             if (resubscribePromise) {
                 promises.push(resubscribePromise);
+            }
+
+            if (promises.length) {
                 this.#tick();
             }
 
@@ -410,7 +430,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     quit = this.QUIT;
 
     #tick(): void {
-        if (!this.#socket.isSocketExists) {
+        if (!this.#socket.isSocketExists || this.#socket.writableNeedDrain) {
             return;
         }
 

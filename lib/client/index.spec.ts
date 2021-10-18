@@ -119,6 +119,18 @@ describe('Client', () => {
 
             assert.equal(client.isOpen, false);
         });
+
+        itWithClient(TestRedisServers.PASSWORD, 'should execute AUTH before SELECT', async client => {
+            assert.equal(
+                (await client.clientInfo()).db,
+                2
+            );
+        }, {
+            minimumRedisVersion: [6, 2],
+            clientOptions: {
+                database: 2
+            }
+        });
     });
 
     describe('legacyMode', () => {
