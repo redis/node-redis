@@ -7,7 +7,7 @@
 
 import { createClient } from 'redis';
 
-const connectWithACLUser = async () => {
+async function connectWithACLUser() {
   const client = createClient({
     url: 'redis://testuser:testpassword@127.0.0.1:6379'
   });
@@ -27,6 +27,4 @@ const connectWithACLUser = async () => {
   await client.quit();
 }
 
-
 connectWithACLUser();
-

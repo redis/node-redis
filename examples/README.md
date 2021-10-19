@@ -2,9 +2,9 @@
 
 This folder contains example scripts showing how to use Node Redis in different scenarios.
 
-|File Name               |Description                         |
-|------------------------|------------------------------------|
-|`connect-as-acl-user.js`|Connect to Redis 6 using an ACL user|
+| File Name                | Description                          |
+|--------------------------|--------------------------------------|
+| `connect-as-acl-user.js` | Connect to Redis 6 using an ACL user |
 
 ## Contributing
 
@@ -45,7 +45,7 @@ Here's a starter template for adding a new example, imagine this is stored in `d
 
 import { createClient } from 'redis';
 
-const doSomething = async () => {
+async function doSomething() {
   const client = createClient();
 
   await client.connect();
@@ -54,7 +54,6 @@ const doSomething = async () => {
 
   await client.quit();
 }
-
 
 doSomething();
 ```
