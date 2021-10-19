@@ -339,24 +339,18 @@ describe('Client', () => {
             );
         });
 
-        it('with script', async () => {
-            const client = RedisClient.create({
+        itWithClient(TestRedisServers.OPEN, 'with script', async client => {
+            assert.deepEqual(
+                await client.multi()
+                    .square(2)
+                    .exec(),
+                [4]
+            );
+        }, {
+            clientOptions: {
                 scripts: {
                     square: SQUARE_SCRIPT
                 }
-            });
-
-            await client.connect();
-
-            try {
-                assert.deepEqual(
-                    await client.multi()
-                        .square(2)
-                        .exec(),
-                    [4]
-                );
-            } finally {
-                await client.disconnect();
             }
         });
 
@@ -389,27 +383,26 @@ describe('Client', () => {
         });
     });
 
-    it('scripts', async () => {
-        const client = RedisClient.create({
+    itWithClient(TestRedisServers.OPEN, 'scripts', async client => {
+        assert.equal(
+            await client.square(2),
+            4
+        );
+    }, {
+        clientOptions: {
             scripts: {
                 square: SQUARE_SCRIPT
             }
-        });
-
-        await client.connect();
-
-        try {
-            assert.equal(
-                await client.square(2),
-                4
-            );
-        } finally {
-            await client.disconnect();
         }
     });
 
-    it('modules', async () => {
-        const client = RedisClient.create({
+    itWithClient(TestRedisServers.OPEN, 'modules', async client => {
+        assert.equal(
+            await client.module.echo('message'),
+            'message'
+        );
+    }, {
+        clientOptions: {
             modules: {
                 module: {
                     echo: {
@@ -422,17 +415,6 @@ describe('Client', () => {
                     }
                 }
             }
-        });
-
-        await client.connect();
-
-        try {
-            assert.equal(
-                await client.module.echo('message'),
-                'message'
-            );
-        } finally {
-            await client.disconnect();
         }
     });
 

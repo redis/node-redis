@@ -52,13 +52,13 @@ export enum TestRedisServers {
     PASSWORD
 }
 
-export const TEST_REDIS_SERVERS: Record<TestRedisServers, RedisClientOptions<RedisModules, RedisScripts>> = <any>{};
+export const TEST_REDIS_SERVERS: Record<TestRedisServers, Omit<RedisClientOptions<RedisModules, RedisScripts>, 'modules' | 'scripts'>> = <any>{};
 
 export enum TestRedisClusters {
     OPEN
 }
 
-export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, RedisClusterOptions<RedisModules, RedisScripts>> = <any>{};
+export const TEST_REDIS_CLUSTERES: Record<TestRedisClusters, Omit<RedisClusterOptions<RedisModules, RedisScripts>, 'modules' | 'scripts'>> = <any>{};
 
 let port = 6379;
 
@@ -284,15 +284,15 @@ export function describeHandleMinimumRedisVersion(minimumVersion: PartialRedisVe
     });
 }
 
-interface RedisClientTestOptions extends RedisTestOptions {
-    clientOptions?: RedisClientOptions<{}, {}>;
+interface RedisClientTestOptions<M extends RedisModules, S extends RedisScripts> extends RedisTestOptions {
+    clientOptions?: RedisClientOptions<M, S>;
 }
 
-export function itWithClient(
+export function itWithClient<M extends RedisModules, S extends RedisScripts>(
     type: TestRedisServers,
     title: string,
-    fn: (client: RedisClientType) => Promise<void>,
-    options?: RedisClientTestOptions
+    fn: (client: RedisClientType<M, S>) => Promise<void>,
+    options?: RedisClientTestOptions<M, S>
 ): void {
     it(title, async function () {
         if (handleMinimumRedisVersion(this, options?.minimumRedisVersion)) return;
