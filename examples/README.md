@@ -45,7 +45,7 @@ Here's a starter template for adding a new example, imagine this is stored in `d
 
 import { createClient } from 'redis';
 
-const doSomething = async () => {
+async function doSomething () {
   const client = createClient();
 
   await client.connect();
