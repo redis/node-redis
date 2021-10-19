@@ -216,9 +216,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
             if (promises.length) {
                 this.#tick();
+                await Promise.all(promises);
             }
-
-            await Promise.all(promises);
         };
 
         return new RedisSocket(socketInitiator, this.#options?.socket)
@@ -318,9 +317,9 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     }
 
     // using `#sendCommand` cause `sendCommand` is overwritten in legacy mode
-    async #sendCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
+    #sendCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
         if (!this.#socket.isOpen) {
-            throw new ClientClosedError();
+            return Promise.reject(new ClientClosedError());
         }
 
         if (options?.isolated) {
@@ -334,7 +333,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
         const promise = this.#queue.addCommand<T>(args, options, bufferMode);
         this.#tick();
-        return await promise;
+        return promise;
     }
 
     async scriptsExecutor(script: RedisScript, args: Array<unknown>): Promise<RedisCommandReply<typeof script>> {
