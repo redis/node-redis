@@ -16,11 +16,15 @@ describe('ACL GETUSER', () => {
         assert.deepEqual(
             await client.aclGetUser('default'),
             {
-                flags: ['on', 'allkeys', 'allchannels', 'allcommands', 'nopass'],
                 passwords: [],
                 commands: '+@all',
                 keys: ['*'],
-                channels: isRedisVersionGreaterThan([6, 2]) ? ['*'] : undefined
+                ...(isRedisVersionGreaterThan([6, 2]) ? {
+                    flags: ['on', 'allkeys', 'allchannels', 'allcommands', 'nopass'],
+                    channels: ['*']
+                } : {
+                    flags: ['on', 'allkeys', 'allcommands', 'nopass']
+                })
             }
         );
     });
