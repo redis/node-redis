@@ -2,7 +2,7 @@ import { strict as assert, AssertionError } from 'assert';
 import { once } from 'events';
 import { itWithClient, TEST_REDIS_SERVERS, TestRedisServers, waitTillBeenCalled, isRedisVersionGreaterThan } from '../test-utils';
 import RedisClient from '.';
-import { AbortError, ClientClosedError, ConnectionTimeoutError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { RedisNetSocketOptions } from '../client/socket';
@@ -636,10 +636,36 @@ describe('Client', () => {
         await client.connect();
 
         try {
-            const quitPromise = client.quit();
+            const pingPromise = client.ping(),
+                quitPromise = client.quit();
+            assert.equal(client.isOpen, false);
+
+            const [ping] = await Promise.all([
+                pingPromise,
+                assert.doesNotReject(quitPromise),
+                assert.rejects(client.ping(), ClientClosedError)
+            ]);
+
+            assert.equal(ping, 'PONG');
+        } finally {
+            if (client.isOpen) {
+                await client.disconnect();
+            }
+        }
+    });
+
+    it('client.disconnect', async () => {
+        const client = RedisClient.create(TEST_REDIS_SERVERS[TestRedisServers.OPEN]);
+
+        await client.connect();
+
+        try {
+            const pingPromise = client.ping(),
+                disconnectPromise = client.disconnect();
             assert.equal(client.isOpen, false);
             await Promise.all([
-                quitPromise,
+                assert.rejects(pingPromise, DisconnectsClientError),
+                assert.doesNotReject(disconnectPromise),
                 assert.rejects(client.ping(), ClientClosedError)
             ]);
         } finally {

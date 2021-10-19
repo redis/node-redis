@@ -11,7 +11,7 @@ import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
 import { encodeCommand, extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ClientClosedError } from '../errors';
+import { ClientClosedError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 
 export interface RedisClientOptions<M extends RedisModules, S extends RedisScripts> extends RedisPlugins<M, S> {
@@ -424,9 +424,12 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
     QUIT(): Promise<void> {
         return this.#socket.quit(() => {
-            const promise = this.#queue.addCommand(['QUIT']);
+            const quitPromise = this.#queue.addCommand(['QUIT']);
             this.#tick();
-            return promise;
+            return Promise.all([
+                quitPromise,
+                this.#destroyIsolationPool()
+            ]);
         });
     }
 
@@ -519,7 +522,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     }
 
     async disconnect(): Promise<void> {
-        this.#queue.flushAll(new Error('Disconnecting'));
+        this.#queue.flushAll(new DisconnectsClientError());
         await Promise.all([
             this.#socket.disconnect(),
             this.#destroyIsolationPool()

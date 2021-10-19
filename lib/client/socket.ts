@@ -222,6 +222,7 @@ export default class RedisSocket extends EventEmitter {
         }
 
         this.#socket.end();
+        this.#socket.removeAllListeners('data');
         await EventEmitter.once(this.#socket, 'end');
         this.#socket = undefined;
         this.emit('end');

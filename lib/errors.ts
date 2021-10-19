@@ -21,3 +21,9 @@ export class ClientClosedError extends Error {
         super('The client is closed');
     }
 }
+
+export class DisconnectsClientError extends Error {
+    constructor() {
+        super('Disconnects client');
+    }
+}
