@@ -23,7 +23,8 @@ describe('ACL GETUSER', () => {
                     flags: ['on', 'allkeys', 'allchannels', 'allcommands', 'nopass'],
                     channels: ['*']
                 } : {
-                    flags: ['on', 'allkeys', 'allcommands', 'nopass']
+                    flags: ['on', 'allkeys', 'allcommands', 'nopass'],
+                    channels: undefined
                 })
             }
         );
