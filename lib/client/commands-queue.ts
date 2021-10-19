@@ -6,20 +6,20 @@ import { RedisCommandRawReply } from '../commands';
 export interface QueueCommandOptions {
     asap?: boolean;
     chainId?: symbol;
-    signal?: any; // TODO: `AbortSignal` type is incorrect
+    signal?: AbortSignal;
 }
 
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
     args: Array<string | Buffer>;
     chainId?: symbol;
     abort?: {
-        signal: any; // TODO: `AbortSignal` type is incorrect
+        signal: AbortSignal;
         listener(): void;
     };
 }
 
 interface CommandWaitingForReply {
-    resolve(reply?: any): void;
+    resolve(reply?: unknown): void;
     reject(err: Error): void;
     channelsCounter?: number;
     bufferMode?: boolean;
@@ -135,7 +135,8 @@ export default class RedisCommandsQueue {
                     signal: options.signal,
                     listener
                 };
-                options.signal.addEventListener('abort', listener, {
+                // AbortSignal type is incorrent
+                (options.signal as any).addEventListener('abort', listener, {
                     once: true
                 });
             }

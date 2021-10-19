@@ -11,16 +11,16 @@ type WithCommands<M extends RedisModules, S extends RedisScripts> = {
 };
 
 type WithModules<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof M]: {
+    [P in keyof M as M[P] extends never ? never : P]: {
         [C in keyof M[P]]: RedisClientMultiCommandSignature<M[P][C], M, S>;
     };
 };
 
 type WithScripts<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof S]: RedisClientMultiCommandSignature<S[P], M, S>
+    [P in keyof S as S[P] extends never ? never : P]: RedisClientMultiCommandSignature<S[P], M, S>
 };
 
-export type RedisClientMultiCommandType<M extends RedisModules = {}, S extends RedisScripts = {}> =
+export type RedisClientMultiCommandType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
     RedisClientMultiCommand & WithCommands<M, S> & WithModules<M, S> & WithScripts<M, S>;
 
 export type RedisClientMultiExecutor = (queue: Array<RedisMultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisCommandRawReply>>;

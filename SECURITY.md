@@ -5,9 +5,9 @@
 Node Redis is generally backwards compatible with very few exceptions, so we recommend users to always use the latest version to experience stability, performance and security.
 
 | Version | Supported          |
-| ------- | ------------------ |
-| 4.0.x   | :white_check_mark: |
-| 3.1.x   | :white_check_mark: |
+|---------|--------------------|
+| 4.0.z   | :heavy_check_mark: |
+| 3.1.z   | :heavy_check_mark: |
 | < 3.1   | :x:                |
 
 ## Reporting a Vulnerability

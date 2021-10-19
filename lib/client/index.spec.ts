@@ -611,8 +611,9 @@ describe('Client', () => {
             const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
                 start = process.hrtime.bigint();
 
-            // block the event loop for 1ms, to make sure the connection will timeout
-            while (process.hrtime.bigint() - start < 1_000_000) {}
+            while (process.hrtime.bigint() - start < 1_000_000) {
+                // block the event loop for 1ms, to make sure the connection will timeout
+            }
 
             await promise;
         } catch (err) {

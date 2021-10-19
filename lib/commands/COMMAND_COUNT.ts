@@ -6,4 +6,4 @@ export function transformArguments(): RedisCommandArguments {
     return ['COMMAND', 'COUNT'];
 }
 
-declare function transformReply(): number;
+export declare function transformReply(): number;

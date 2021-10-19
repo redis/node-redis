@@ -34,16 +34,16 @@ type WithCommands = {
 };
 
 export type WithModules<M extends RedisModules> = {
-    [P in keyof M]: {
+    [P in keyof M as M[P] extends never ? never : P]: {
         [C in keyof M[P]]: RedisClientCommandSignature<M[P][C]>;
     };
 };
 
 export type WithScripts<S extends RedisScripts> = {
-    [P in keyof S]: RedisClientCommandSignature<S[P]>;
+    [P in keyof S as S[P] extends never ? never : P]: RedisClientCommandSignature<S[P]>;
 };
 
-export type RedisClientType<M extends RedisModules = {}, S extends RedisScripts = {}> =
+export type RedisClientType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
     RedisClient<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
 export type InstantiableRedisClient<M extends RedisModules, S extends RedisScripts> =
@@ -53,12 +53,14 @@ export interface ClientCommandOptions extends QueueCommandOptions {
     isolated?: boolean;
 }
 
+type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
+
 export default class RedisClient<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
         return commandOptions(options);
     }
 
-    static extend<M extends RedisModules = {}, S extends RedisScripts = {}>(plugins?: RedisPlugins<M, S>): InstantiableRedisClient<M, S> {
+    static extend<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>>(plugins?: RedisPlugins<M, S>): InstantiableRedisClient<M, S> {
         const Client = <any>extendWithModulesAndScripts({
             BaseClass: RedisClient,
             modules: plugins?.modules,
@@ -74,14 +76,14 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         return Client;
     }
 
-    static create<M extends RedisModules = {}, S extends RedisScripts = {}>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
+    static create<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
         return new (RedisClient.extend(options))(options);
     }
 
-    static parseURL(url: string): RedisClientOptions<{}, {}> {
+    static parseURL(url: string): RedisClientOptions<Record<string, never>, Record<string, never>> {
         // https://www.iana.org/assignments/uri-schemes/prov/redis
         const { hostname, port, protocol, username, password, pathname } = new URL(url),
-            parsed: RedisClientOptions<{}, {}> = {
+            parsed: RedisClientOptions<Record<string, never>, Record<string, never>> = {
                 socket: {
                     host: hostname
                 }
@@ -245,10 +247,12 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
         (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
         (this as any).sendCommand = (...args: Array<unknown>): void => {
-            const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] as Function : undefined,
+            const callback = typeof args[args.length - 1] === 'function' ?
+                    args[args.length - 1] as ClientLegacyCallback :
+                    undefined,
                 actualArgs = !callback ? args : args.slice(0, -1);
             this.#sendCommand(actualArgs.flat() as Array<string>)
-                .then((reply: unknown) => {
+                .then((reply: RedisCommandRawReply) => {
                     if (!callback) return;
 
                     // https://github.com/NodeRedis/node-redis#commands:~:text=minimal%20parsing
@@ -435,17 +439,12 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
         this.#socket.cork();
 
-        while (true) {
+        while (!this.#socket.writableNeedDrain) {
             const args = this.#queue.getCommandToSend();
             if (args === undefined) break;
 
-            let writeResult;
             for (const toWrite of encodeCommand(args)) {
-                writeResult = this.#socket.write(toWrite);
-            }
-
-            if (!writeResult) {
-                break;
+                this.#socket.write(toWrite);
             }
         }
     }

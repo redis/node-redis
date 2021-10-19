@@ -6,4 +6,4 @@ export function transformArguments(args: Array<string>): RedisCommandArguments {
     return ['COMMAND', 'GETKEYS', ...args];
 }
 
-declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<string>;

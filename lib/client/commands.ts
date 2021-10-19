@@ -229,5 +229,5 @@ export default {
     UNWATCH,
     unwatch: UNWATCH,
     WAIT,
-    wait: WAIT,
+    wait: WAIT
 };

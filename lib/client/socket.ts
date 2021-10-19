@@ -234,7 +234,6 @@ export default class RedisSocket extends EventEmitter {
 
         this.#isOpen = false;
 
-
         try {
             await fn();
             await this.disconnect(true);

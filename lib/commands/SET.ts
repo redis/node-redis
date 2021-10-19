@@ -2,43 +2,27 @@ import { RedisCommandArguments } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
-interface EX {
+type MaximumOneOf<T, K extends keyof T = keyof T> =
+    K extends keyof T ? { [P in K]?: T[K] } & Partial<Record<Exclude<keyof T, K>, never>> : never;
+
+type SetTTL = MaximumOneOf<{
     EX: number;
-}
-
-interface PX {
-    PX: number
-}
-
-interface EXAT {
+    PX: number;
     EXAT: number;
-}
-
-interface PXAT {
     PXAT: number;
-}
-
-interface KEEPTTL {
     KEEPTTL: true;
-}
+}>;
 
-type SetTTL = EX | PX | EXAT | PXAT | KEEPTTL | {};
-
-interface NX {
+type SetGuards = MaximumOneOf<{
     NX: true;
-}
-
-interface XX {
     XX: true;
-}
-
-type SetGuards = NX | XX | {};
+}>;
 
 interface SetCommonOptions {
-    GET: true
+    GET?: true;
 }
 
-type SetOptions = SetTTL & SetGuards & (SetCommonOptions | {});
+type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 
 export function transformArguments(key: string | Buffer, value: string | Buffer, options?: SetOptions): RedisCommandArguments {
     const args = ['SET', key, value];
@@ -47,25 +31,25 @@ export function transformArguments(key: string | Buffer, value: string | Buffer,
         return args;
     }
 
-    if ('EX' in options) {
+    if (options.EX) {
         args.push('EX', options.EX.toString());
-    } else if ('PX' in options) {
+    } else if (options.PX) {
         args.push('PX', options.PX.toString());
-    } else if ('EXAT' in options) {
+    } else if (options.EXAT) {
         args.push('EXAT', options.EXAT.toString());
-    } else if ('PXAT' in options) {
+    } else if (options.PXAT) {
         args.push('PXAT', options.PXAT.toString());
-    } else if ((<KEEPTTL>options).KEEPTTL) {
+    } else if (options.KEEPTTL) {
         args.push('KEEPTTL');
     }
 
-    if ((<NX>options).NX) {
+    if (options.NX) {
         args.push('NX');
-    } else if ((<XX>options).XX) {
+    } else if (options.XX) {
         args.push('XX');
     }
 
-    if ((<SetCommonOptions>options).GET) {
+    if (options.GET) {
         args.push('GET');
     }
 

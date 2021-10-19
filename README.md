@@ -57,7 +57,7 @@ createClient({
 });
 ```
 
-You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in in the [Wiki](https://github.com/redis/node-redis/wiki/lib.socket#RedisSocketOptions).
+You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](./docs/client-configuration.md).
 
 ### Redis Commands
 
@@ -227,32 +227,34 @@ import { createClient, defineScript } from 'redis';
 })();
 ```
 
-### Cluster
+### Disconnecting
 
-Connecting to a cluster is a bit different. Create the client by specifying some (or all) of the nodes in your cluster and then use it like a non-clustered client:
+There are two functions that disconnect a client from the Redis server. In most scenarios you should use `.quit()` to ensure that pending commands are sent to Redis before closing a connection.
+
+#### `.QUIT()`/`.quit()`
+
+Gracefully close a client's connection to Redis, by sending the [`QUIT`](https://redis.io/commands/quit) command to the server. Before quitting, the client executes any remaining commands in its queue, and will receive replies from Redis for each of them.
 
 ```typescript
-import { createCluster } from 'redis';
+const [ping, get, quit] = await Promise.all([
+  client.ping(),
+  client.get('key'),
+  client.quit()
+]); // ['PONG', null, 'OK']
 
-(async () => {
-  const cluster = createCluster({
-    rootNodes: [
-      {
-        url: 'redis://10.0.0.1:30001'
-      },
-      {
-        url: 'redis://10.0.0.2:30002'
-      }
-    ]
-  });
+try {
+  await client.get('key');
+} catch (err) {
+  // ClosedClient Error
+}
+```
 
-  cluster.on('error', (err) => console.log('Redis Cluster Error', err));
+#### `.disconnect()`
 
-  await cluster.connect();
+Forcibly close a client's connection to Redis immediately. Calling `disconnect` will not send further pending commands to the Redis server, or wait for or parse outstanding responses.
 
-  await cluster.set('key', 'value');
-  const value = await cluster.get('key');
-})();
+```typescript
+await client.disconnect();
 ```
 
 ### Auto-Pipelining
@@ -272,6 +274,23 @@ await Promise.all([
   client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
 ]);
 ```
+
+### Clustering
+
+Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
+
+## Supported Redis versions
+
+Node Redis is supported with the following versions of Redis:
+
+| Version | Supported          |
+|---------|--------------------|
+| 6.2.z   | :heavy_check_mark: |
+| 6.0.z   | :heavy_check_mark: |
+| 5.y.z   | :heavy_check_mark: |
+| < 5.0   | :x:                |
+
+> Node Redis should work with older versions of Redis, but it is not fully tested and we cannot offer support.
 
 ## Contributing
 
