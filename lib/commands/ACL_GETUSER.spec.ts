@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { describeHandleMinimumRedisVersion, itWithClient, TestRedisServers } from '../test-utils';
+import { describeHandleMinimumRedisVersion, isRedisVersionGreaterThan, itWithClient, TestRedisServers } from '../test-utils';
 import { transformArguments } from './ACL_GETUSER';
 
 describe('ACL GETUSER', () => {
@@ -20,7 +20,7 @@ describe('ACL GETUSER', () => {
                 passwords: [],
                 commands: '+@all',
                 keys: ['*'],
-                channels: ['*']
+                channels: isRedisVersionGreaterThan([6, 2]) ? ['*'] : undefined
             }
         );
     });

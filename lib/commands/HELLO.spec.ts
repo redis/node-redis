@@ -73,5 +73,7 @@ describe('HELLO', () => {
                 modules: []
             }
         );
+    }, {
+        minimumRedisVersion: [6, 2]
     });
 });

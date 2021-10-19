@@ -108,13 +108,18 @@ describe('Client', () => {
                 password: 'wrongpassword'
             });
 
+            let message;
+            if (isRedisVersionGreaterThan([6, 2])) {
+                message = 'WRONGPASS invalid username-password pair or user is disabled.';
+            } else if (isRedisVersionGreaterThan([6])) {
+                message = 'WRONGPASS invalid username-password pair';
+            } else {
+                message = 'ERR invalid password';
+            }
+
             await assert.rejects(
                 client.connect(),
-                {
-                    message: isRedisVersionGreaterThan([6]) ?
-                        'WRONGPASS invalid username-password pair or user is disabled.' :
-                        'ERR invalid password'
-                }
+                { message }
             );
 
             assert.equal(client.isOpen, false);
