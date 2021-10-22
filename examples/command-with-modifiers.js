@@ -9,7 +9,7 @@ async function commandWithModifiers() {
   await client.connect();
 
   await client.set('mykey', 'myvalue', {
-    EX: 60,
+    EX: 60
   });
 
   const value = await client.get('mykey');
