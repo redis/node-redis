@@ -2,9 +2,10 @@
 
 This folder contains example scripts showing how to use Node Redis in different scenarios.
 
-| File Name                | Description                          |
-|--------------------------|--------------------------------------|
-| `connect-as-acl-user.js` | Connect to Redis 6 using an ACL user |
+| File Name                   | Description                                                         |
+|-----------------------------|---------------------------------------------------------------------|
+| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                |
+| `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers |
 
 ## Contributing
 
