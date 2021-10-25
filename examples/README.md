@@ -5,6 +5,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | File Name                | Description                          |
 |--------------------------|--------------------------------------|
 | `connect-as-acl-user.js` | Connect to Redis 6 using an ACL user |
+| `blocking-list-pop.js` | Block isolated execution till element is pushed to list  |
 
 ## Contributing
 

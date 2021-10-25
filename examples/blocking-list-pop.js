@@ -15,10 +15,11 @@ async function blockingListPop() {
 
 	const blpopPromise = client.blPop(
 		commandOptions({ isolated: true }),
-		keyName
+		keyName,
+		0
 	);
 
-	await client.LPUSH(keyName, 'value');
+	await client.lPush(keyName, 'value');
 
 	await blpopPromise;
 
