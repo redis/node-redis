@@ -10,6 +10,18 @@ This folder contains example scripts showing how to use Node Redis in different 
 
 We'd love to see more examples here. If you have an idea that you'd like to see included here, submit a Pull Request and we'll be sure to review it!  Don't forget to check out our [contributing guide](../CONTRIBUTING.md).
 
+## Setup
+
+To set up the examples folder so that you can run an example / develop one of your own:
+
+```
+$ git clone https://github.com/redis/node-redis.git
+$ cd node-redis
+$ npm install && npm run build
+$ cd examples
+$ npm install
+```
+
 ### Coding Guidelines for Examples
 
 When adding a new example, please follow these guidelines:
