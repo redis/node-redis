@@ -209,9 +209,9 @@ import { createClient, defineScript } from 'redis';
       add: defineScript({
         NUMBER_OF_KEYS: 1,
         SCRIPT:
-          "local val = redis.pcall('GET', KEYS[1]);' + 'return val + ARGV[1];",
+          "local val = redis.pcall('GET', KEYS[1]);" + "return val + ARGV[1];",
         transformArguments(key: string, toAdd: number): Array<string> {
-          return [key, number.toString()];
+          return [key, toAdd.toString()];
         },
         transformReply(reply: number): number {
           return reply;

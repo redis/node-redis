@@ -5,11 +5,24 @@ This folder contains example scripts showing how to use Node Redis in different 
 | File Name                | Description                          |
 |--------------------------|--------------------------------------|
 | `connect-as-acl-user.js` | Connect to Redis 6 using an ACL user |
-| `blocking-list-pop.js` | Block isolated execution till element is pushed to list  |
+| `blocking-list-pop.js`   | Block until an element is pushed to a list  |
+| `lua-multi-incr.js`      | Define a custom lua script that allows you to perform INCRBY on multiple keys |
 
 ## Contributing
 
 We'd love to see more examples here. If you have an idea that you'd like to see included here, submit a Pull Request and we'll be sure to review it!  Don't forget to check out our [contributing guide](../CONTRIBUTING.md).
+
+## Setup
+
+To set up the examples folder so that you can run an example / develop one of your own:
+
+```
+$ git clone https://github.com/redis/node-redis.git
+$ cd node-redis
+$ npm install && npm run build
+$ cd examples
+$ npm install
+```
 
 ### Coding Guidelines for Examples
 
