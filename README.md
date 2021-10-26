@@ -181,9 +181,9 @@ for await (const key of client.scanIterator()) {
 This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 
 ```typescript
-for await (const member of client.hScanIterator('hash')) {}
-for await (const { field, value } of client.sScanIterator('set')) {}
-for await (const { member, score } of client.zScanIterator('sorted-set')) {}
+for await (const { field, value } of client.hScanIterator('hash')) {}
+for await (const member of client.sScanIterator('set')) {}
+for await (const { score, member } of client.zScanIterator('sorted-set')) {}
 ```
 
 You can override the default options by providing a configuration object:
@@ -209,9 +209,9 @@ import { createClient, defineScript } from 'redis';
       add: defineScript({
         NUMBER_OF_KEYS: 1,
         SCRIPT:
-          "local val = redis.pcall('GET', KEYS[1]);' + 'return val + ARGV[1];",
+          "local val = redis.pcall('GET', KEYS[1]);" + "return val + ARGV[1];",
         transformArguments(key: string, toAdd: number): Array<string> {
-          return [key, number.toString()];
+          return [key, toAdd.toString()];
         },
         transformReply(reply: number): number {
           return reply;
