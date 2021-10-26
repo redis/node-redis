@@ -6,7 +6,6 @@
   "private": true,
   "scripts": {
   },
-  "type": "module",
   "dependencies": {
     "redis": "../"
   }
