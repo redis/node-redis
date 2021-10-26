@@ -2,11 +2,12 @@
 
 This folder contains example scripts showing how to use Node Redis in different scenarios.
 
-| File Name                | Description                          |
-|--------------------------|--------------------------------------|
-| `connect-as-acl-user.js` | Connect to Redis 6 using an ACL user |
-| `blocking-list-pop.js`   | Block until an element is pushed to a list  |
-| `lua-multi-incr.js`      | Define a custom lua script that allows you to perform INCRBY on multiple keys |
+| File Name                   | Description                          |
+|-----------------------------|--------------------------------------|
+| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user |
+| `blocking-list-pop.js`      | Block until an element is pushed to a list  |
+| `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys |
+| `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers |
 
 ## Contributing
 
