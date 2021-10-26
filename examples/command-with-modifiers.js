@@ -11,12 +11,16 @@ async function commandWithModifiers() {
   await client.set('mykey', 'myvalue', {
     EX: 60,
     GET: true
-  });
+    }, function(err, result) {
+    console.log(result); 
+  });                         //nil
 
   await client.set('mykey', 'newvalue', {
     EX: 60,
     GET: true
-  });
+    }, function(err, result) {
+    console.log(result);
+  });                        //myvalue
 
   await client.quit();
 }
