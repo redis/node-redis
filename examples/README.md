@@ -8,6 +8,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `blocking-list-pop.js`      | Block until an element is pushed to a list  |
 | `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys |
 | `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers |
+| `set-scan.js` | An example script that shows how to use the SSCAN iterator functionality  |
 
 ## Contributing
 
