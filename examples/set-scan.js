@@ -1,3 +1,5 @@
+//An example script that shows how to use the SSCAN iterator functionality to retrieve the contents of a Redis set.
+
 import { createClient } from 'redis';
 async function setScan() {
 	const client = createClient();
