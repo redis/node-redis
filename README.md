@@ -4,7 +4,7 @@
     </a>
     <h2 align="center">Node Redis</h2>
 </p>
-
+# Hacktoberfest 2021
 <div align="center">
     <a href="https://coveralls.io/github/redis/node-redis">
         <img src="https://coveralls.io/repos/github/redis/node-redis/badge.svg" alt="Coverage Status"/>
