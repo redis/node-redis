@@ -1,7 +1,5 @@
-import { createClient as _createClient, createCluster as _createCluster } from '@node-redis/client';
+import { createClient as _createClient, createCluster as _createCluster, RedisClientOptions, RedisClientType, RedisClusterOptions, RedisClusterType } from '@node-redis/client';
 import { RedisScripts } from '@node-redis/client/dist/lib/commands';
-import { RedisClientOptions, RedisClientType } from '@node-redis/client/dist/lib/client';
-import { RedisClusterOptions, RedisClusterType } from '@node-redis/client/dist/lib/cluster';
 import RedisJSON from '@node-redis/json';
 import RediSearch from '@node-redis/search';
 
