@@ -89,7 +89,7 @@ export default class TestUtils {
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
             const dockerImage = this.#DOCKER_IMAGE;
             before(function () {
-                this.timeout(5000);
+                this.timeout(30000);
 
                 dockerPromise = spawnRedisServer(dockerImage, options.serverArguments);
                 return dockerPromise;
@@ -140,7 +140,7 @@ export default class TestUtils {
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
             const dockerImage = this.#DOCKER_IMAGE;
             before(function () {
-                this.timeout(10000);
+                this.timeout(30000);
 
                 dockersPromise = spawnRedisCluster(dockerImage, options.serverArguments);
                 return dockersPromise;
