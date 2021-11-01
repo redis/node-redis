@@ -46,4 +46,4 @@ function pushObject(args: Array<string>, object: HSETObject): void {
     }
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): number;
