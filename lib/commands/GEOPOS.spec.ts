@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './GEOPOS';
 
 describe('GEOPOS', () => {
@@ -39,14 +39,14 @@ describe('GEOPOS', () => {
     });
 
     describe('client.geoPos', () => {
-        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+        testUtils.testWithClient('null', async client => {
             assert.deepEqual(
                 await client.geoPos('key', 'member'),
                 [null]
             );
-        });
+        }, GLOBAL.SERVERS.OPEN);
 
-        itWithClient(TestRedisServers.OPEN, 'with member', async client => {
+        testUtils.testWithClient('with member', async client => {
             const coordinates = {
                 longitude: '-122.06429868936538696',
                 latitude: '37.37749628831998194'
@@ -61,13 +61,13 @@ describe('GEOPOS', () => {
                 await client.geoPos('key', 'member'),
                 [coordinates]
             );
-        });
+        }, GLOBAL.SERVERS.OPEN);
     });
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.geoPos', async cluster => {
+    testUtils.testWithCluster('cluster.geoPos', async cluster => {
         assert.deepEqual(
             await cluster.geoPos('key', 'member'),
             [null]
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

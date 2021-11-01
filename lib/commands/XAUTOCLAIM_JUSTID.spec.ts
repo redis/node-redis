@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XAUTOCLAIM_JUSTID';
 
 describe('XAUTOCLAIM JUSTID', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,7 +12,7 @@ describe('XAUTOCLAIM JUSTID', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xAutoClaimJustId', async client => {
+    testUtils.testWithClient('client.xAutoClaimJustId', async client => {
         await Promise.all([
             client.xGroupCreate('key', 'group', '$', {
                 MKSTREAM: true
@@ -27,5 +27,5 @@ describe('XAUTOCLAIM JUSTID', () => {
                 messages: []
             }
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

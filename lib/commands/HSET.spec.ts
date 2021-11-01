@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { transformArguments } from './HSET';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 
 describe('HSET', () => {
     describe('transformArguments', () => {
@@ -33,17 +33,17 @@ describe('HSET', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.hSet', async client => {
+    testUtils.testWithClient('client.hSet', async client => {
         assert.equal(
             await client.hSet('key', 'field', 'value'),
             1
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.hSet', async cluster => {
+    testUtils.testWithCluster('cluster.hSet', async cluster => {
         assert.equal(
             await cluster.hSet('key', { field: 'value' }),
             1
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './ZRANGESTORE';
 
 describe('ZRANGESTORE', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     describe('transformArguments', () => {
         it('simple', () => {
@@ -71,13 +71,14 @@ describe('ZRANGESTORE', () => {
     describe('transformReply', () => {
         it('should throw TypeError when reply is not a number', () => {
             assert.throws(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 () => (transformReply as any)([]),
                 TypeError
             );
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRangeStore', async client => {
+    testUtils.testWithClient('client.zRangeStore', async client => {
         await client.zAdd('src', {
             score: 0.5,
             value: 'value'
@@ -87,5 +88,5 @@ describe('ZRANGESTORE', () => {
             await client.zRangeStore('dst', 'src', 0, 1),
             1
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

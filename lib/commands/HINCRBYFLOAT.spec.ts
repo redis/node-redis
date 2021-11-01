@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './HINCRBYFLOAT';
 
 describe('HINCRBYFLOAT', () => {
@@ -10,10 +10,10 @@ describe('HINCRBYFLOAT', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.hIncrByFloat', async client => {
+    testUtils.testWithClient('client.hIncrByFloat', async client => {
         assert.equal(
             await client.hIncrByFloat('key', 'field', 1.5),
             '1.5'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

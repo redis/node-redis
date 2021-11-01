@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './HVALS';
 
 describe('HVALS', () => {
@@ -10,10 +10,10 @@ describe('HVALS', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.hVals', async client => {
+    testUtils.testWithClient('client.hVals', async client => {
         assert.deepEqual(
             await client.hVals('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

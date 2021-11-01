@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZINTERSTORE';
 
 describe('ZINTERSTORE', () => {
@@ -47,10 +47,10 @@ describe('ZINTERSTORE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zInterStore', async client => {
+    testUtils.testWithClient('client.zInterStore', async client => {
         assert.equal(
             await client.zInterStore('destination', 'key'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

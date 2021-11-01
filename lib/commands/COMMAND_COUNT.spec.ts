@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './COMMAND_COUNT';
 
 describe('COMMAND COUNT', () => {
@@ -10,10 +10,10 @@ describe('COMMAND COUNT', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.commandCount', async client => {
+    testUtils.testWithClient('client.commandCount', async client => {
         assert.equal(
             typeof await client.commandCount(),
             'number'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

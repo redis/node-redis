@@ -1,17 +1,11 @@
 import { strict as assert } from 'assert';
-import RedisCluster from '.';
-import { defineScript } from '../lua-script';
-import { itWithCluster, itWithDedicatedCluster, TestRedisClusters, TEST_REDIS_CLUSTERES } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import calculateSlot from 'cluster-key-slot';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
+import { SQUARE_SCRIPT } from '../client/index.spec';
 
 describe('Cluster', () => {
-    it('sendCommand', async () => {
-        const cluster = RedisCluster.create({
-            ...TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
-            useReplicas: true
-        });
-
+    testUtils.testWithCluster('sendCommand', async cluster => {
         await cluster.connect();
 
         try {
@@ -26,9 +20,9 @@ describe('Cluster', () => {
         } finally {
             await cluster.disconnect();
         }
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'multi', async cluster => {
+    testUtils.testWithCluster('multi', async cluster => {
         const key = 'key';
         assert.deepEqual(
             await cluster.multi()
@@ -37,40 +31,23 @@ describe('Cluster', () => {
                 .exec(),
             ['OK', 'value']
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 
-    it('scripts', async () => {
-        const cluster = RedisCluster.create({
-            ...TEST_REDIS_CLUSTERES[TestRedisClusters.OPEN],
+    testUtils.testWithCluster('scripts', async cluster => {
+        assert.equal(
+            await cluster.square(2),
+            4
+        );
+    }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: {
             scripts: {
-                add: defineScript({
-                    NUMBER_OF_KEYS: 0,
-                    SCRIPT: 'return ARGV[1] + 1;',
-                    transformArguments(number: number): Array<string> {
-                        assert.equal(number, 1);
-                        return [number.toString()];
-                    },
-                    transformReply(reply: number): number {
-                        assert.equal(reply, 2);
-                        return reply;
-                    }
-                })
+                square: SQUARE_SCRIPT
             }
-        });
-
-        await cluster.connect();
-
-        try {
-            assert.equal(
-                await cluster.add(1),
-                2
-            );
-        } finally {
-            await cluster.disconnect();
         }
     });
 
-    itWithDedicatedCluster('should handle live resharding', async cluster => {
+    testUtils.testWithCluster('should handle live resharding', async cluster => {
         const key = 'key',
             value = 'value';
         await cluster.set(key, value);
@@ -110,5 +87,7 @@ describe('Cluster', () => {
             await cluster.get(key),
             value
         );
+    }, {
+        serverArguments: []
     });
 });

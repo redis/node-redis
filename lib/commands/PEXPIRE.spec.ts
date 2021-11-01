@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PEXPIRE';
 
 describe('PEXPIRE', () => {
@@ -10,10 +10,10 @@ describe('PEXPIRE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pExpire', async client => {
+    testUtils.testWithClient('client.pExpire', async client => {
         assert.equal(
             await client.pExpire('key', 1),
             false
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

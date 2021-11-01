@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZREMRANGEBYRANK';
 
 describe('ZREMRANGEBYRANK', () => {
@@ -10,10 +10,10 @@ describe('ZREMRANGEBYRANK', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRemRangeByRank', async client => {
+    testUtils.testWithClient('client.zRemRangeByRank', async client => {
         assert.equal(
             await client.zRemRangeByRank('key', 0, 1),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

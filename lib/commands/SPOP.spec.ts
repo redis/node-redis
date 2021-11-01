@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SPOP';
 
 describe('SPOP', () => {
@@ -19,10 +19,10 @@ describe('SPOP', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sPop', async client => {
+    testUtils.testWithClient('client.sPop', async client => {
         assert.equal(
             await client.sPop('key'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

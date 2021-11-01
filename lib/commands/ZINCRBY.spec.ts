@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZINCRBY';
 
 describe('ZINCRBY', () => {
@@ -10,10 +10,10 @@ describe('ZINCRBY', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zIncrBy', async client => {
+    testUtils.testWithClient('client.zIncrBy', async client => {
         assert.equal(
             await client.zIncrBy('destination', 1, 'member'),
             1
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

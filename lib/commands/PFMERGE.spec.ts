@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PFMERGE';
 
 describe('PFMERGE', () => {
@@ -19,10 +19,10 @@ describe('PFMERGE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pfMerge', async client => {
+    testUtils.testWithClient('client.pfMerge', async client => {
         assert.equal(
             await client.pfMerge('destination', 'source'),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

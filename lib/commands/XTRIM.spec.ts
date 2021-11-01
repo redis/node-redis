@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XTRIM';
 
 describe('XTRIM', () => {
@@ -40,10 +40,10 @@ describe('XTRIM', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xTrim', async client => {
+    testUtils.testWithClient('client.xTrim', async client => {
         assert.equal(
             await client.xTrim('key', 'MAXLEN', 1),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SDIFF';
 
 describe('SDIFF', () => {
@@ -19,10 +19,10 @@ describe('SDIFF', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sDiff', async client => {
+    testUtils.testWithClient('client.sDiff', async client => {
         assert.deepEqual(
             await client.sDiff('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

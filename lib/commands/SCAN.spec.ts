@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './SCAN';
 
 describe('SCAN', () => {
@@ -72,7 +72,7 @@ describe('SCAN', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.scan', async client => {
+    testUtils.testWithClient('client.scan', async client => {
         assert.deepEqual(
             await client.scan(0),
             {
@@ -80,5 +80,5 @@ describe('SCAN', () => {
                 keys: []
             }
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

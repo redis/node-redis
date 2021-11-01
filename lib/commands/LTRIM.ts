@@ -6,7 +6,7 @@ export function transformArguments(key: string, start: number, stop: number): Ar
         key,
         start.toString(),
         stop.toString()
-    ]
+    ];
 }
 
 export declare function transformReply(): string;

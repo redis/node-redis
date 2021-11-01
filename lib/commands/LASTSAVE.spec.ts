@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LASTSAVE';
 
 describe('LASTSAVE', () => {
@@ -10,7 +10,7 @@ describe('LASTSAVE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lastSave', async client => {
+    testUtils.testWithClient('client.lastSave', async client => {
         assert.ok((await client.lastSave()) instanceof Date);
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

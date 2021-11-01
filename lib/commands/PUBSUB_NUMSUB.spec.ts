@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PUBSUB_NUMSUB';
 
 describe('PUBSUB NUMSUB', () => {
@@ -26,10 +26,10 @@ describe('PUBSUB NUMSUB', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pubSubNumSub', async client => {
+    testUtils.testWithClient('client.pubSubNumSub', async client => {
         assert.deepEqual(
             await client.pubSubNumSub(),
             Object.create(null)
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

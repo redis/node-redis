@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './XINFO_GROUPS';
 
 describe('XINFO GROUPS', () => {
@@ -28,9 +28,9 @@ describe('XINFO GROUPS', () => {
                 lastDeliveredId: '1588152498034-0'
             }]
         );
-    })
+    });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xInfoGroups', async client => {
+    testUtils.testWithClient('client.xInfoGroups', async client => {
         await client.xGroupCreate('key', 'group', '$', {
             MKSTREAM: true
         });
@@ -44,5 +44,5 @@ describe('XINFO GROUPS', () => {
                 lastDeliveredId: '0-0'
             }]
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

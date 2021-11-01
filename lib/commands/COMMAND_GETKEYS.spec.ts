@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './COMMAND_GETKEYS';
 
 describe('COMMAND GETKEYS', () => {
@@ -10,10 +10,10 @@ describe('COMMAND GETKEYS', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.commandGetKeys', async client => {
+    testUtils.testWithClient('client.commandGetKeys', async client => {
         assert.deepEqual(
             await client.commandGetKeys(['GET', 'key']),
             ['key']
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

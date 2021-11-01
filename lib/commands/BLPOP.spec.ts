@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './BLPOP';
 import { commandOptions } from '../../index';
 
@@ -39,7 +39,7 @@ describe('BLPOP', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.blPop', async client => {
+    testUtils.testWithClient('client.blPop', async client => {
         const [ blPopReply ] = await Promise.all([
             client.blPop(
                 commandOptions({ isolated: true }),
@@ -56,9 +56,9 @@ describe('BLPOP', () => {
                 element: 'element'
             }
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.blPop', async cluster => {
+    testUtils.testWithCluster('cluster.blPop', async cluster => {
         const [ blPopReply ] = await Promise.all([
             cluster.blPop(
                 commandOptions({ isolated: true }),
@@ -75,5 +75,5 @@ describe('BLPOP', () => {
                 element: 'element'
             }
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

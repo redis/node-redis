@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MEMORY_DOCTOR';
 
 describe('MEMORY DOCTOR', () => {
@@ -10,10 +10,10 @@ describe('MEMORY DOCTOR', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.memoryDoctor', async client => {
+    testUtils.testWithClient('client.memoryDoctor', async client => {
         assert.equal(
             typeof (await client.memoryDoctor()),
             'string'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

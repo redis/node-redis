@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XCLAIM';
 
 describe('XCLAIM', () => {
@@ -77,14 +77,14 @@ describe('XCLAIM', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xClaim', async client => {
+    testUtils.testWithClient('client.xClaim', async client => {
         await client.xGroupCreate('key', 'group', '$', {
             MKSTREAM: true
         });
-        
+
         assert.deepEqual(
             await client.xClaim('key', 'group', 'consumer', 1, '0-0'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

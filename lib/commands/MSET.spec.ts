@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MSET';
 
 describe('MSET', () => {
@@ -26,17 +26,17 @@ describe('MSET', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.mSet', async client => {
+    testUtils.testWithClient('client.mSet', async client => {
         assert.equal(
             await client.mSet(['key1', 'value1', 'key2', 'value2']),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.mSet', async cluster => {
+    testUtils.testWithCluster('cluster.mSet', async cluster => {
         assert.equal(
             await cluster.mSet(['{key}1', 'value1', '{key}2', 'value2']),
             'OK'
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

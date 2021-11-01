@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './TYPE';
 
 describe('TYPE', () => {
@@ -10,10 +10,10 @@ describe('TYPE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.type', async client => {
+    testUtils.testWithClient('client.type', async client => {
         assert.equal(
             await client.type('key'),
             'none'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZLEXCOUNT';
 
 describe('ZLEXCOUNT', () => {
@@ -10,10 +10,10 @@ describe('ZLEXCOUNT', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zLexCount', async client => {
+    testUtils.testWithClient('client.zLexCount', async client => {
         assert.equal(
             await client.zLexCount('key', '[a', '[b'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

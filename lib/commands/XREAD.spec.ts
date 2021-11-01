@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { FIRST_KEY_INDEX, transformArguments } from './XREAD';
 
 describe('XREAD', () => {
@@ -81,7 +81,7 @@ describe('XREAD', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xRead', async client => {
+    testUtils.testWithClient('client.xRead', async client => {
         assert.equal(
             await client.xRead({
                 key: 'key',
@@ -89,9 +89,9 @@ describe('XREAD', () => {
             }),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.xRead', async cluster => {
+    testUtils.testWithCluster('cluster.xRead', async cluster => {
         assert.equal(
             await cluster.xRead({
                 key: 'key',
@@ -99,5 +99,5 @@ describe('XREAD', () => {
             }),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

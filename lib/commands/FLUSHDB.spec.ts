@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { RedisFlushModes } from './FLUSHALL';
 import { transformArguments } from './FLUSHDB';
 
@@ -27,10 +27,10 @@ describe('FLUSHDB', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.flushDb', async client => {
+    testUtils.testWithClient('client.flushDb', async client => {
         assert.equal(
             await client.flushDb(),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

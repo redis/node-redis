@@ -268,7 +268,7 @@ describe('Generic Transformers', () => {
                         })
                     }]
                 }]
-            )
+            );
         });
     });
 

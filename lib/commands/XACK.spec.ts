@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XACK';
 
 describe('XACK', () => {
@@ -19,10 +19,10 @@ describe('XACK', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xAck', async client => {
+    testUtils.testWithClient('client.xAck', async client => {
         assert.equal(
             await client.xAck('key', 'group', '1-0'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

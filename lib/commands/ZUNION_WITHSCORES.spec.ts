@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZUNION_WITHSCORES';
 
 describe('ZUNION WITHSCORES', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     describe('transformArguments', () => {
         it('key (string)', () => {
@@ -39,10 +39,10 @@ describe('ZUNION WITHSCORES', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zUnionWithScores', async client => {
+    testUtils.testWithClient('client.zUnionWithScores', async client => {
         assert.deepEqual(
             await client.zUnionWithScores('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

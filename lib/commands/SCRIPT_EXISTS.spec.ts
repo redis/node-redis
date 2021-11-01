@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SCRIPT_EXISTS';
 
 describe('SCRIPT EXISTS', () => {
@@ -19,10 +19,10 @@ describe('SCRIPT EXISTS', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.scriptExists', async client => {
+    testUtils.testWithClient('client.scriptExists', async client => {
         assert.deepEqual(
             await client.scriptExists('sha1'),
             [false]
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

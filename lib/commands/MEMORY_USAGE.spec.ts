@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MEMORY_USAGE';
 
 describe('MEMORY USAGE', () => {
@@ -21,10 +21,10 @@ describe('MEMORY USAGE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.memoryUsage', async client => {
+    testUtils.testWithClient('client.memoryUsage', async client => {
         assert.equal(
             await client.memoryUsage('key'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

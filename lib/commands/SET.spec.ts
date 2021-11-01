@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SET';
 
 describe('SET', () => {
@@ -100,14 +100,14 @@ describe('SET', () => {
     });
 
     describe('client.set', () => {
-        itWithClient(TestRedisServers.OPEN, 'simple', async client => {
+        testUtils.testWithClient('simple', async client => {
             assert.equal(
                 await client.set('key', 'value'),
                 'OK'
             );
-        });
-        
-        itWithClient(TestRedisServers.OPEN, 'with GET on empty key', async client => {
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('with GET on empty key', async client => {
             assert.equal(
                 await client.set('key', 'value', {
                     GET: true
@@ -115,7 +115,8 @@ describe('SET', () => {
                 null
             );
         }, {
-            minimumRedisVersion: [6, 2]
+            ...GLOBAL.SERVERS.OPEN,
+            minimumDockerVersion: [6, 2]
         });
     });
 });

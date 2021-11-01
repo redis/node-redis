@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PFCOUNT';
 
 describe('PFCOUNT', () => {
@@ -19,10 +19,10 @@ describe('PFCOUNT', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pfCount', async client => {
+    testUtils.testWithClient('client.pfCount', async client => {
         assert.equal(
             await client.pfCount('key'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

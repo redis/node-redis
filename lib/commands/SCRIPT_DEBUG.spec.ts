@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SCRIPT_DEBUG';
 
 describe('SCRIPT DEBUG', () => {
@@ -10,10 +10,10 @@ describe('SCRIPT DEBUG', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.scriptDebug', async client => {
+    testUtils.testWithClient('client.scriptDebug', async client => {
         assert.equal(
             await client.scriptDebug('NO'),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

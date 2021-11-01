@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { REDIS_VERSION, TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './HELLO';
 
 describe('HELLO', () => {
-    describeHandleMinimumRedisVersion([6]);
+    testUtils.isVersionGreaterThanHook([6]);
 
     describe('transformArguments', () => {
         it('simple', () => {
@@ -60,20 +60,17 @@ describe('HELLO', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.hello', async client => {
-        assert.deepEqual(
-            await client.hello(),
-            {
-                server: 'redis',
-                version: REDIS_VERSION.join('.'),
-                proto: 2,
-                id: await client.clientId(),
-                mode: 'standalone',
-                role: 'master',
-                modules: []
-            }
-        );
+    testUtils.testWithClient('client.hello', async client => {
+        const reply = await client.hello();
+        assert.equal(reply.server, 'redis');
+        assert.equal(typeof reply.version, 'string');
+        assert.equal(reply.proto, 2);
+        assert.equal(typeof reply.id, 'number');
+        assert.equal(reply.mode, 'standalone');
+        assert.equal(reply.role, 'master');
+        assert.deepEqual(reply.modules, []);
     }, {
-        minimumRedisVersion: [6, 2]
+        ...GLOBAL.SERVERS.OPEN,
+        minimumDockerVersion: [6, 2]
     });
 });

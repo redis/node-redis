@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XGROUP_DESTROY';
 
 describe('XGROUP DESTROY', () => {
@@ -10,14 +10,14 @@ describe('XGROUP DESTROY', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xGroupDestroy', async client => {
+    testUtils.testWithClient('client.xGroupDestroy', async client => {
         await client.xGroupCreate('key', 'group', '$', {
             MKSTREAM: true
         });
-        
+
         assert.equal(
             await client.xGroupDestroy('key', 'group'),
             true
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

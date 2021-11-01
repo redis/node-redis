@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SUNION';
 
 describe('SUNION', () => {
@@ -19,10 +19,10 @@ describe('SUNION', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sUnion', async client => {
+    testUtils.testWithClient('client.sUnion', async client => {
         assert.deepEqual(
             await client.sUnion('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

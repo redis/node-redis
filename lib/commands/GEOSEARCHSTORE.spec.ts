@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './GEOSEARCHSTORE';
 
 describe('GEOSEARCHSTORE', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     describe('transformArguments', () => {
         it('simple', () => {
@@ -47,7 +47,7 @@ describe('GEOSEARCHSTORE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.geoSearchStore', async client => {
+    testUtils.testWithClient('client.geoSearchStore', async client => {
         await client.geoAdd('source', {
             longitude: 1,
             latitude: 1,
@@ -61,9 +61,9 @@ describe('GEOSEARCHSTORE', () => {
             }),
             1
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.geoSearchStore', async cluster => {
+    testUtils.testWithCluster('cluster.geoSearchStore', async cluster => {
         await cluster.geoAdd('{tag}source', {
             longitude: 1,
             latitude: 1,
@@ -77,5 +77,5 @@ describe('GEOSEARCHSTORE', () => {
             }),
             1
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

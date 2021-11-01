@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BITFIELD';
 
 describe('BITFIELD', () => {
@@ -33,10 +33,10 @@ describe('BITFIELD', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.bitField', async client => {
+    testUtils.testWithClient('client.bitField', async client => {
         assert.deepEqual(
             await client.bitField('key', []),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

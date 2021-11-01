@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './ZPOPMAX';
 
 describe('ZPOPMAX', () => {
@@ -21,14 +21,14 @@ describe('ZPOPMAX', () => {
     });
 
     describe('client.zPopMax', () => {
-        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+        testUtils.testWithClient('null', async client => {
             assert.equal(
                 await client.zPopMax('key'),
                 null
             );
-        });
+        }, GLOBAL.SERVERS.OPEN);
 
-        itWithClient(TestRedisServers.OPEN, 'member', async client => {
+        testUtils.testWithClient('member', async client => {
             const member = { score: 1, value: 'value' },
                 [, zPopMaxReply] = await Promise.all([
                     client.zAdd('key', member),
@@ -36,6 +36,6 @@ describe('ZPOPMAX', () => {
                 ]);
 
             assert.deepEqual(zPopMaxReply, member);
-        });
+        }, GLOBAL.SERVERS.OPEN);
     });
 });

@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SMISMEMBER';
 
 describe('SMISMEMBER', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,10 +12,10 @@ describe('SMISMEMBER', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.smIsMember', async client => {
+    testUtils.testWithClient('client.smIsMember', async client => {
         assert.deepEqual(
             await client.smIsMember('key', ['1', '2']),
             [false, false]
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

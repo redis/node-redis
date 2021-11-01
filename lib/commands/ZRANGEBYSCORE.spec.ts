@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZRANGEBYSCORE';
 
 describe('ZRANGEBYSCORE', () => {
@@ -24,10 +24,10 @@ describe('ZRANGEBYSCORE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRangeByScore', async client => {
+    testUtils.testWithClient('client.zRangeByScore', async client => {
         assert.deepEqual(
             await client.zRangeByScore('src', 0, 1),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

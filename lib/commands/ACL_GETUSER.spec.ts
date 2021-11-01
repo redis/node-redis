@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { describeHandleMinimumRedisVersion, isRedisVersionGreaterThan, itWithClient, TestRedisServers } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ACL_GETUSER';
 
 describe('ACL GETUSER', () => {
-    describeHandleMinimumRedisVersion([6]);
+    testUtils.isVersionGreaterThanHook([6]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,14 +12,14 @@ describe('ACL GETUSER', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.aclGetUser', async client => {
+    testUtils.testWithClient('client.aclGetUser', async client => {
         assert.deepEqual(
             await client.aclGetUser('default'),
             {
                 passwords: [],
                 commands: '+@all',
                 keys: ['*'],
-                ...(isRedisVersionGreaterThan([6, 2]) ? {
+                ...(testUtils.isVersionGreaterThan([6, 2]) ? {
                     flags: ['on', 'allkeys', 'allchannels', 'allcommands', 'nopass'],
                     channels: ['*']
                 } : {
@@ -28,5 +28,5 @@ describe('ACL GETUSER', () => {
                 })
             }
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

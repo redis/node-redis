@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GEODIST';
 
 describe('GEODIST', () => {
@@ -20,14 +20,14 @@ describe('GEODIST', () => {
     });
 
     describe('client.geoDist', () => {
-        itWithClient(TestRedisServers.OPEN, 'null', async client => {
+        testUtils.testWithClient('null', async client => {
             assert.equal(
                 await client.geoDist('key', '1', '2'),
                 null
             );
-        });
+        }, GLOBAL.SERVERS.OPEN);
 
-        itWithClient(TestRedisServers.OPEN, 'with value', async client => {
+        testUtils.testWithClient('with value', async client => {
             const [, dist] = await Promise.all([
                 client.geoAdd('key', [{
                     member: '1',
@@ -45,13 +45,13 @@ describe('GEODIST', () => {
                 dist,
                 157270.0561
             );
-        });
+        }, GLOBAL.SERVERS.OPEN);
     });
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.geoDist', async cluster => {
+    testUtils.testWithCluster('cluster.geoDist', async cluster => {
         assert.equal(
             await cluster.geoDist('key', '1', '2'),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

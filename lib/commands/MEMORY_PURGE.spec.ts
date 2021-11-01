@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MEMORY_PURGE';
 
 describe('MEMORY PURGE', () => {
@@ -10,10 +10,10 @@ describe('MEMORY PURGE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.memoryPurge', async client => {
+    testUtils.testWithClient('client.memoryPurge', async client => {
         assert.equal(
             await client.memoryPurge(),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

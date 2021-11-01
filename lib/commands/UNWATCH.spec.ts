@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './UNWATCH';
 
 describe('UNWATCH', () => {
@@ -10,10 +10,10 @@ describe('UNWATCH', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.unwatch', async client => {
+    testUtils.testWithClient('client.unwatch', async client => {
         assert.equal(
             await client.unwatch(),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

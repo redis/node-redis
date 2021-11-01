@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XLEN';
 
 describe('XLEN', () => {
@@ -10,10 +10,10 @@ describe('XLEN', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xLen', async client => {
+    testUtils.testWithClient('client.xLen', async client => {
         assert.equal(
             await client.xLen('key'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

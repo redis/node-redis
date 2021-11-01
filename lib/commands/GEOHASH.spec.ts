@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GEOHASH';
 
 describe('GEOHASH', () => {
@@ -19,17 +19,17 @@ describe('GEOHASH', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.geoHash', async client => {
+    testUtils.testWithClient('client.geoHash', async client => {
         assert.deepEqual(
             await client.geoHash('key', 'member'),
             [null]
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.geoHash', async cluster => {
+    testUtils.testWithCluster('cluster.geoHash', async cluster => {
         assert.deepEqual(
             await cluster.geoHash('key', 'member'),
             [null]
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

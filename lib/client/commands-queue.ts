@@ -1,7 +1,7 @@
 import LinkedList from 'yallist';
 import RedisParser from 'redis-parser';
 import { AbortError } from '../errors';
-import { RedisCommandRawReply } from '../commands';
+import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -10,7 +10,7 @@ export interface QueueCommandOptions {
 }
 
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
-    args: Array<string | Buffer>;
+    args: RedisCommandArguments;
     chainId?: symbol;
     abort?: {
         signal: AbortSignal;
@@ -107,7 +107,7 @@ export default class RedisCommandsQueue {
         this.#maxLength = maxLength;
     }
 
-    addCommand<T = RedisCommandRawReply>(args: Array<string | Buffer>, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
+    addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
         if (this.#pubSubState.subscribing || this.#pubSubState.subscribed) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
@@ -247,7 +247,7 @@ export default class RedisCommandsQueue {
         ]);
     }
 
-    getCommandToSend(): Array<string | Buffer> | undefined {
+    getCommandToSend(): RedisCommandArguments | undefined {
         const toSend = this.#waitingToBeSent.shift();
 
         if (toSend) {

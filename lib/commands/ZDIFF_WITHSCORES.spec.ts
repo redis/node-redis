@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZDIFF_WITHSCORES';
 
 describe('ZDIFF WITHSCORES', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     describe('transformArguments', () => {
         it('string', () => {
@@ -21,10 +21,10 @@ describe('ZDIFF WITHSCORES', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zDiffWithScores', async client => {
+    testUtils.testWithClient('client.zDiffWithScores', async client => {
         assert.deepEqual(
             await client.zDiffWithScores('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

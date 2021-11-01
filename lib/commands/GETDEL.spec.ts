@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GETDEL';
 
 describe('GETDEL', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,18 +12,17 @@ describe('GETDEL', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.getDel', async client => {
+    testUtils.testWithClient('client.getDel', async client => {
         assert.equal(
             await client.getDel('key'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.getDel', async cluster => {
+    testUtils.testWithCluster('cluster.getDel', async cluster => {
         assert.equal(
             await cluster.getDel('key'),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

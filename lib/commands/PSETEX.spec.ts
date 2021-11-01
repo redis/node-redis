@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PSETEX';
 
 describe('PSETEX', () => {
@@ -10,17 +10,17 @@ describe('PSETEX', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pSetEx', async client => {
+    testUtils.testWithClient('client.pSetEx', async client => {
         assert.equal(
             await client.pSetEx('key', 1, 'value'),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.pSetEx', async cluster => {
+    testUtils.testWithCluster('cluster.pSetEx', async cluster => {
         assert.equal(
             await cluster.pSetEx('key', 1, 'value'),
             'OK'
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

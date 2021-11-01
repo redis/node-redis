@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZMSCORE';
 
 describe('ZMSCORE', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     describe('transformArguments', () => {
         it('string', () => {
@@ -21,10 +21,10 @@ describe('ZMSCORE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zmScore', async client => {
+    testUtils.testWithClient('client.zmScore', async client => {
         assert.deepEqual(
             await client.zmScore('key', 'member'),
             [null]
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

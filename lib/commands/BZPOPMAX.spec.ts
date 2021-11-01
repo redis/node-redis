@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './BZPOPMAX';
 import { commandOptions } from '../../index';
 
@@ -40,7 +40,7 @@ describe('BZPOPMAX', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.bzPopMax', async client => {
+    testUtils.testWithClient('client.bzPopMax', async client => {
         const [ bzPopMaxReply ] = await Promise.all([
             client.bzPopMax(
                 commandOptions({ isolated: true }),
@@ -61,5 +61,5 @@ describe('BZPOPMAX', () => {
                 score: 1
             }
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

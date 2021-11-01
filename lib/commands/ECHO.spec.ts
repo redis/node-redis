@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ECHO';
 
 describe('ECHO', () => {
@@ -10,10 +10,10 @@ describe('ECHO', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.echo', async client => {
+    testUtils.testWithClient('client.echo', async client => {
         assert.equal(
             await client.echo('message'),
             'message'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

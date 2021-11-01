@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GETEX';
 
 describe('GETEX', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     describe('transformArguments', () => {
         it('EX', () => {
@@ -76,21 +76,21 @@ describe('GETEX', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.getEx', async client => {
+    testUtils.testWithClient('client.getEx', async client => {
         assert.equal(
             await client.getEx('key', {
                 PERSIST: true
             }),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.getEx', async cluster => {
+    testUtils.testWithCluster('cluster.getEx', async cluster => {
         assert.equal(
             await cluster.getEx('key', {
                 PERSIST: true
             }),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

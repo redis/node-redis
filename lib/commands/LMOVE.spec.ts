@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LMOVE';
 
 describe('LMOVE', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,17 +12,17 @@ describe('LMOVE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lMove', async client => {
+    testUtils.testWithClient('client.lMove', async client => {
         assert.equal(
             await client.lMove('source', 'destination', 'LEFT', 'RIGHT'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lMove', async cluster => {
+    testUtils.testWithCluster('cluster.lMove', async cluster => {
         assert.equal(
             await cluster.lMove('{tag}source', '{tag}destination', 'LEFT', 'RIGHT'),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

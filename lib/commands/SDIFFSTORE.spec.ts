@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SDIFFSTORE';
 
 describe('SDIFFSTORE', () => {
@@ -19,10 +19,10 @@ describe('SDIFFSTORE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sDiffStore', async client => {
+    testUtils.testWithClient('client.sDiffStore', async client => {
         assert.equal(
             await client.sDiffStore('destination', 'key'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

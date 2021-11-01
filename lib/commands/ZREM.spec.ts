@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZREM';
 
 describe('ZREM', () => {
@@ -19,10 +19,10 @@ describe('ZREM', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRem', async client => {
+    testUtils.testWithClient('client.zRem', async client => {
         assert.equal(
             await client.zRem('key', 'member'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

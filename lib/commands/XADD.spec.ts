@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XADD';
 
 describe('XADD', () => {
@@ -60,7 +60,7 @@ describe('XADD', () => {
                 ['XADD', 'key', 'MAXLEN', '1000', '*','field', 'value']
             );
         });
-        
+
         it('with TRIM.strategyModifier', () => {
             assert.deepEqual(
                 transformArguments('key', '*', {
@@ -107,12 +107,12 @@ describe('XADD', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xAdd', async client => {
+    testUtils.testWithClient('client.xAdd', async client => {
         assert.equal(
             typeof await client.xAdd('key', '*', {
                 field: 'value'
             }),
             'string'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

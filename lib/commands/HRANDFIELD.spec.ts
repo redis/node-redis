@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './HRANDFIELD';
 
 describe('HRANDFIELD', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,10 +12,10 @@ describe('HRANDFIELD', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.hRandField', async client => {
+    testUtils.testWithClient('client.hRandField', async client => {
         assert.equal(
             await client.hRandField('key'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

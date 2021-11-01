@@ -9,7 +9,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from '../command-opt
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
-import { encodeCommand, extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
@@ -217,7 +217,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             }
 
             if (promises.length) {
-                this.#tick();
+                this.#tick(true);
                 await Promise.all(promises);
             }
         };
@@ -435,8 +435,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
     quit = this.QUIT;
 
-    #tick(): void {
-        if (!this.#socket.isSocketExists || this.#socket.writableNeedDrain) {
+    #tick(force = false): void {
+        if (this.#socket.writableNeedDrain || (!force && !this.#socket.isReady)) {
             return;
         }
 
@@ -446,9 +446,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             const args = this.#queue.getCommandToSend();
             if (args === undefined) break;
 
-            for (const toWrite of encodeCommand(args)) {
-                this.#socket.write(toWrite);
-            }
+            this.#socket.writeCommand(args);
         }
     }
 
@@ -485,7 +483,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             for (const key of reply.keys) {
                 yield key;
             }
-        } while (cursor !== 0)
+        } while (cursor !== 0);
     }
 
     async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<HScanTuple> {
@@ -496,7 +494,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             for (const tuple of reply.tuples) {
                 yield tuple;
             }
-        } while (cursor !== 0)
+        } while (cursor !== 0);
     }
 
     async* sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
@@ -507,7 +505,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             for (const member of reply.members) {
                 yield member;
             }
-        } while (cursor !== 0)
+        } while (cursor !== 0);
     }
 
     async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember> {
@@ -518,15 +516,13 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             for (const member of reply.members) {
                 yield member;
             }
-        } while (cursor !== 0)
+        } while (cursor !== 0);
     }
 
     async disconnect(): Promise<void> {
         this.#queue.flushAll(new DisconnectsClientError());
-        await Promise.all([
-            this.#socket.disconnect(),
-            this.#destroyIsolationPool()
-        ]);
+        this.#socket.disconnect();
+        await this.#destroyIsolationPool();
     }
 
     async #destroyIsolationPool(): Promise<void> {

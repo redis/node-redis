@@ -1,6 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LRANGE';
 
 describe('LRANGE', () => {
@@ -11,17 +11,17 @@ describe('LRANGE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lRange', async client => {
+    testUtils.testWithClient('client.lRange', async client => {
         assert.deepEqual(
             await client.lRange('key', 0, -1),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lRange', async cluster => {
+    testUtils.testWithCluster('cluster.lRange', async cluster => {
         assert.deepEqual(
             await cluster.lRange('key', 0, -1),
             []
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

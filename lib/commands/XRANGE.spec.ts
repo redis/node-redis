@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XRANGE';
 
 describe('XRANGE', () => {
@@ -10,7 +10,7 @@ describe('XRANGE', () => {
                 ['XRANGE', 'key', '-', '+']
             );
         });
-    
+
         it('with COUNT', () => {
             assert.deepEqual(
                 transformArguments('key', '-', '+', {
@@ -21,10 +21,10 @@ describe('XRANGE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xRange', async client => {
+    testUtils.testWithClient('client.xRange', async client => {
         assert.deepEqual(
             await client.xRange('key', '+', '-'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

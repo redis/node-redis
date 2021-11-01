@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './HDEL';
 
 describe('HDEL', () => {
@@ -19,10 +19,10 @@ describe('HDEL', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.hDel', async client => {
+    testUtils.testWithClient('client.hDel', async client => {
         assert.equal(
             await client.hDel('key', 'field'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

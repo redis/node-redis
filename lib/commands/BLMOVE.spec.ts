@@ -1,10 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BLMOVE';
 import { commandOptions } from '../../index';
 
 describe('BLMOVE', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -13,7 +13,7 @@ describe('BLMOVE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.blMove', async client => {
+    testUtils.testWithClient('client.blMove', async client => {
         const [blMoveReply] = await Promise.all([
             client.blMove(commandOptions({
                 isolated: true
@@ -25,9 +25,9 @@ describe('BLMOVE', () => {
             blMoveReply,
             'element'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.blMove', async cluster => {
+    testUtils.testWithCluster('cluster.blMove', async cluster => {
         const [blMoveReply] = await Promise.all([
             cluster.blMove(commandOptions({
                 isolated: true
@@ -39,5 +39,5 @@ describe('BLMOVE', () => {
             blMoveReply,
             'element'
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

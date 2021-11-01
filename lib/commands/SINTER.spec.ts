@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SINTER';
 
 describe('SINTER', () => {
@@ -19,10 +19,10 @@ describe('SINTER', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sInter', async client => {
+    testUtils.testWithClient('client.sInter', async client => {
         assert.deepEqual(
             await client.sInter('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

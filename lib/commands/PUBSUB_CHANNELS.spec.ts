@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PUBSUB_CHANNELS';
 
 describe('PUBSUB CHANNELS', () => {
@@ -19,10 +19,10 @@ describe('PUBSUB CHANNELS', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pubSubChannels', async client => {
+    testUtils.testWithClient('client.pubSubChannels', async client => {
         assert.deepEqual(
             await client.pubSubChannels(),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

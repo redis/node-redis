@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LPOS';
 
 describe('LPOS', () => {
-    describeHandleMinimumRedisVersion([6, 0, 6]);
+    testUtils.isVersionGreaterThanHook([6, 0, 6]);
 
     describe('transformArguments', () => {
         it('simple', () => {
@@ -42,17 +42,17 @@ describe('LPOS', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lPos', async client => {
+    testUtils.testWithClient('client.lPos', async client => {
         assert.equal(
             await client.lPos('key', 'element'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lPos', async cluster => {
+    testUtils.testWithCluster('cluster.lPos', async cluster => {
         assert.equal(
             await cluster.lPos('key', 'element'),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

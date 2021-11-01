@@ -71,6 +71,6 @@ describe('CLUSTER SLOTS', () => {
                     id: '58e6e48d41228013e5d9c1c37c5060693925e97e'
                 }]
             }]
-        )
+        );
     });
 });

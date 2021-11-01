@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZRANDMEMBER_COUNT';
 
 describe('ZRANDMEMBER COUNT', () => {
-    describeHandleMinimumRedisVersion([6, 2, 5]);
+    testUtils.isVersionGreaterThanHook([6, 2, 5]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,10 +12,10 @@ describe('ZRANDMEMBER COUNT', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRandMemberCount', async client => {
+    testUtils.testWithClient('client.zRandMemberCount', async client => {
         assert.deepEqual(
             await client.zRandMemberCount('key', 1),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

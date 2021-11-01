@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZREMRANGEBYLEX';
 
 describe('ZREMRANGEBYLEX', () => {
@@ -10,10 +10,10 @@ describe('ZREMRANGEBYLEX', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRemRangeByLex', async client => {
+    testUtils.testWithClient('client.zRemRangeByLex', async client => {
         assert.equal(
             await client.zRemRangeByLex('key', '[a', '[b'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

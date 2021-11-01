@@ -33,6 +33,6 @@ describe('Socket', () => {
             return assert.rejects(socket.connect(), {
                 message: '50'
             });
-        })
+        });
     });
 });

@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZREVRANK';
 
 describe('ZREVRANK', () => {
@@ -10,10 +10,10 @@ describe('ZREVRANK', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRevRank', async client => {
+    testUtils.testWithClient('client.zRevRank', async client => {
         assert.equal(
             await client.zRevRank('key', 'member'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

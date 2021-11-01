@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils from '../test-utils';
 import { transformArguments } from './ACL_LOAD';
 
 describe('ACL LOAD', () => {
-    describeHandleMinimumRedisVersion([6]);
+    testUtils.isVersionGreaterThanHook([6]);
 
     it('transformArguments', () => {
         assert.deepEqual(

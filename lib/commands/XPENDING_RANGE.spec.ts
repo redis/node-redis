@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XPENDING_RANGE';
 
 describe('XPENDING RANGE', () => {
@@ -10,7 +10,7 @@ describe('XPENDING RANGE', () => {
                 ['XPENDING', 'key', 'group', '-', '+', '1']
             );
         });
-    
+
         it('with IDLE', () => {
             assert.deepEqual(
                 transformArguments('key', 'group', '-', '+', 1, {
@@ -40,14 +40,14 @@ describe('XPENDING RANGE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xPendingRange', async client => {
+    testUtils.testWithClient('client.xPendingRange', async client => {
         await client.xGroupCreate('key', 'group', '$', {
             MKSTREAM: true
         });
-        
+
         assert.deepEqual(
             await client.xPendingRange('key', 'group', '-', '+', 1),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

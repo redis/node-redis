@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { itWithClient, TestRedisServers } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SWAPDB';
 
 describe('SWAPDB', () => {
@@ -10,10 +10,10 @@ describe('SWAPDB', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.swapDb', async client => {
+    testUtils.testWithClient('client.swapDb', async client => {
         assert.equal(
             await client.swapDb(0, 1),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

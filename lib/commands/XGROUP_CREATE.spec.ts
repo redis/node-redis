@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XGROUP_CREATE';
 
 describe('XGROUP CREATE', () => {
@@ -21,12 +21,12 @@ describe('XGROUP CREATE', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xGroupCreate', async client => {
+    testUtils.testWithClient('client.xGroupCreate', async client => {
         assert.equal(
             await client.xGroupCreate('key', 'group', '$', {
                 MKSTREAM: true
             }),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

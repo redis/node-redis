@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PTTL';
 
 describe('PTTL', () => {
@@ -10,10 +10,10 @@ describe('PTTL', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.pTTL', async client => {
+    testUtils.testWithClient('client.pTTL', async client => {
         assert.equal(
             await client.pTTL('key'),
             -2
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

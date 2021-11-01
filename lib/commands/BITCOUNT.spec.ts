@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BITCOUNT';
 
 describe('BITCOUNT', () => {
@@ -22,10 +22,10 @@ describe('BITCOUNT', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.bitCount', async client => {
+    testUtils.testWithClient('client.bitCount', async client => {
         assert.equal(
             await client.bitCount('key'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

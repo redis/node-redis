@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PUBLISH';
 
 describe('PUBLISH', () => {
@@ -10,10 +10,10 @@ describe('PUBLISH', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.publish', async client => {
+    testUtils.testWithClient('client.publish', async client => {
         assert.equal(
             await client.publish('channel', 'message'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,6 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LREM';
 
 describe('LREM', () => {
@@ -11,17 +11,17 @@ describe('LREM', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lRem', async client => {
+    testUtils.testWithClient('client.lRem', async client => {
         assert.equal(
             await client.lRem('key', 0, 'element'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lRem', async cluster => {
+    testUtils.testWithCluster('cluster.lRem', async cluster => {
         assert.equal(
             await cluster.lRem('key', 0, 'element'),
             0
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

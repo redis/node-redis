@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './RENAME';
 
 describe('RENAME', () => {
@@ -10,12 +10,12 @@ describe('RENAME', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.rename', async client => {
+    testUtils.testWithClient('client.rename', async client => {
         await client.set('from', 'value');
 
         assert.equal(
             await client.rename('from', 'to'),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

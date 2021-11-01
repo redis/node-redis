@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LPOP';
 
 describe('LPOP', () => {
@@ -10,17 +10,17 @@ describe('LPOP', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lPop', async client => {
+    testUtils.testWithClient('client.lPop', async client => {
         assert.equal(
             await client.lPop('key'),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lPop', async cluster => {
+    testUtils.testWithCluster('cluster.lPop', async cluster => {
         assert.equal(
             await cluster.lPop('key'),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

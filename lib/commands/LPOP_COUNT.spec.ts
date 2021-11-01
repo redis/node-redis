@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LPOP_COUNT';
 
 describe('LPOP COUNT', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -12,17 +12,17 @@ describe('LPOP COUNT', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lPopCount', async client => {
+    testUtils.testWithClient('client.lPopCount', async client => {
         assert.equal(
             await client.lPopCount('key', 1),
             null
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lPop', async cluster => {
+    testUtils.testWithCluster('cluster.lPopCount', async cluster => {
         assert.equal(
             await cluster.lPopCount('key', 1),
             null
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

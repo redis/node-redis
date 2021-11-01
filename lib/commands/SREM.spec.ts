@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SREM';
 
 describe('SREM', () => {
@@ -19,10 +19,10 @@ describe('SREM', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sRem', async client => {
+    testUtils.testWithClient('client.sRem', async client => {
         assert.equal(
             await client.sRem('key', 'member'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

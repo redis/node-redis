@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { transformArguments } from './APPEND';
 
-describe('AUTH', () => {
+describe('APPEND', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', 'value'),

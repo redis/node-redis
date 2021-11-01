@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './EXPIREAT';
 
 describe('EXPIREAT', () => {
@@ -10,7 +10,7 @@ describe('EXPIREAT', () => {
                 ['EXPIREAT', 'key', '1']
             );
         });
-    
+
         it('date', () => {
             const d = new Date();
             assert.deepEqual(
@@ -20,10 +20,10 @@ describe('EXPIREAT', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.expireAt', async client => {
+    testUtils.testWithClient('client.expireAt', async client => {
         assert.equal(
             await client.expireAt('key', 1),
             false
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

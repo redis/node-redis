@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { scriptSha1 } from '../lua-script';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SCRIPT_LOAD';
 
 describe('SCRIPT LOAD', () => {
@@ -14,10 +14,10 @@ describe('SCRIPT LOAD', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.scriptLoad', async client => {
+    testUtils.testWithClient('client.scriptLoad', async client => {
         assert.equal(
             await client.scriptLoad(SCRIPT),
             SCRIPT_SHA1
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

@@ -27,3 +27,9 @@ export class DisconnectsClientError extends Error {
         super('Disconnects client');
     }
 }
+
+export class SocketClosedUnexpectedlyError extends Error {
+    constructor() {
+        super('Socket closed unexpectedly');
+    }
+}

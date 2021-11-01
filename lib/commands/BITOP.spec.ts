@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BITOP';
 
 describe('BITOP', () => {
@@ -19,17 +19,17 @@ describe('BITOP', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.bitOp', async client => {
+    testUtils.testWithClient('client.bitOp', async client => {
         assert.equal(
             await client.bitOp('AND', 'destKey', 'key'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.bitOp', async cluster => {
+    testUtils.testWithCluster('cluster.bitOp', async cluster => {
         assert.equal(
             await cluster.bitOp('AND', '{tag}destKey', '{tag}key'),
             0
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

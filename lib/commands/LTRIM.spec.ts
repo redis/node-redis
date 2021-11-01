@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, itWithCluster, TestRedisClusters } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LTRIM';
 
 describe('LTRIM', () => {
@@ -10,17 +10,17 @@ describe('LTRIM', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.lTrim', async client => {
+    testUtils.testWithClient('client.lTrim', async client => {
         assert.equal(
             await client.lTrim('key', 0, -1),
             'OK'
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.lTrim', async cluster => {
+    testUtils.testWithCluster('cluster.lTrim', async cluster => {
         assert.equal(
             await cluster.lTrim('key', 0, -1),
             'OK'
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

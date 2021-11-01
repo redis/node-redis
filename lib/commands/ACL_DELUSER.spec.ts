@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { describeHandleMinimumRedisVersion, itWithClient, TestRedisServers } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ACL_DELUSER';
 
 describe('ACL DELUSER', () => {
-    describeHandleMinimumRedisVersion([6]);
+    testUtils.isVersionGreaterThanHook([6]);
 
     describe('transformArguments', () => {
         it('string', () => {
@@ -21,10 +21,10 @@ describe('ACL DELUSER', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.aclDelUser', async client => {
+    testUtils.testWithClient('client.aclDelUser', async client => {
         assert.equal(
             await client.aclDelUser('dosenotexists'),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GEOSEARCH';
 
 describe('GEOSEARCH', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
+    testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
         assert.deepEqual(
@@ -15,7 +15,7 @@ describe('GEOSEARCH', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.geoSearch', async client => {
+    testUtils.testWithClient('client.geoSearch', async client => {
         assert.deepEqual(
             await client.geoSearch('key', 'member', {
                 radius: 1,
@@ -23,9 +23,9 @@ describe('GEOSEARCH', () => {
             }),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.geoSearch', async cluster => {
+    testUtils.testWithCluster('cluster.geoSearch', async cluster => {
         assert.deepEqual(
             await cluster.geoSearch('key', 'member', {
                 radius: 1,
@@ -33,5 +33,5 @@ describe('GEOSEARCH', () => {
             }),
             []
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

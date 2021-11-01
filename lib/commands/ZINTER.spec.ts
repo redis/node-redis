@@ -1,10 +1,10 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, describeHandleMinimumRedisVersion } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZINTER';
 
 describe('ZINTER', () => {
-    describeHandleMinimumRedisVersion([6, 2]);
-    
+    testUtils.isVersionGreaterThanHook([6, 2]);
+
     describe('transformArguments', () => {
         it('key (string)', () => {
             assert.deepEqual(
@@ -49,10 +49,10 @@ describe('ZINTER', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zInter', async client => {
+    testUtils.testWithClient('client.zInter', async client => {
         assert.deepEqual(
             await client.zInter('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

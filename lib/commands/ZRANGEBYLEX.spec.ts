@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZRANGEBYLEX';
 
 describe('ZRANGEBYLEX', () => {
@@ -24,10 +24,10 @@ describe('ZRANGEBYLEX', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zRangeByLex', async client => {
+    testUtils.testWithClient('client.zRangeByLex', async client => {
         assert.deepEqual(
             await client.zRangeByLex('src', '-', '+'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

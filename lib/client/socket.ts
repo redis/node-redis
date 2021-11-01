@@ -1,7 +1,9 @@
 import EventEmitter from 'events';
 import net from 'net';
 import tls from 'tls';
-import { ConnectionTimeoutError, ClientClosedError } from '../errors';
+import { encodeCommand } from '../commander';
+import { RedisCommandArguments } from '../commands';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError } from '../errors';
 import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
@@ -72,8 +74,10 @@ export default class RedisSocket extends EventEmitter {
         return this.#isOpen;
     }
 
-    get isSocketExists(): boolean {
-        return !!this.#socket;
+    #isReady = false;
+
+    get isReady(): boolean {
+        return this.#isReady;
     }
 
     // `writable.writableNeedDrain` was added in v15.2.0 and therefore can't be used
@@ -93,32 +97,38 @@ export default class RedisSocket extends EventEmitter {
 
     async connect(): Promise<void> {
         if (this.#isOpen) {
-            throw new Error('Socket is connection/connecting');
+            throw new Error('Socket already opened');
         }
 
-        this.#isOpen = true;
-
-        try {
-            await this.#connect();
-        } catch (err) {
-            this.#isOpen = false;
-            throw err;
-        }
+        return this.#connect();
     }
 
     async #connect(hadError?: boolean): Promise<void> {
+        this.#isOpen = true;
         this.#socket = await this.#retryConnection(0, hadError);
+        this.#writableNeedDrain = false;
+
+        if (!this.#isOpen) {
+            this.disconnect();
+            return;
+        }
+
         this.emit('connect');
 
         if (this.#initiator) {
             try {
                 await this.#initiator();
             } catch (err) {
-                this.#socket.end();
+                this.#socket.destroy();
                 this.#socket = undefined;
+                this.#isOpen = false;
                 throw err;
             }
+
+            if (!this.#isOpen) return;
         }
+
+        this.#isReady = true;
 
         this.emit('ready');
     }
@@ -168,7 +178,7 @@ export default class RedisSocket extends EventEmitter {
                         .once('error', (err: Error) => this.#onSocketError(err))
                         .once('close', hadError => {
                             if (!hadError && this.#isOpen) {
-                                this.#onSocketError(new Error('Socket closed unexpectedly'));
+                                this.#onSocketError(new SocketClosedUnexpectedlyError());
                             }
                         })
                         .on('drain', () => {
@@ -197,33 +207,32 @@ export default class RedisSocket extends EventEmitter {
     }
 
     #onSocketError(err: Error): void {
-        this.#socket = undefined;
+        this.#isReady = false;
         this.emit('error', err);
 
-        this.#connect(true)
-            .catch(err => this.emit('error', err));
+        this.#connect(true).catch(() => {
+            // the error was already emitted, silently ignore it
+        });
     }
 
-    write(toWrite: string | Buffer): boolean {
+    writeCommand(args: RedisCommandArguments): void {
         if (!this.#socket) {
             throw new ClientClosedError();
         }
 
-        const wasFullyWritten = this.#socket.write(toWrite);
-        this.#writableNeedDrain = !wasFullyWritten;
-        return wasFullyWritten;
+        for (const toWrite of encodeCommand(args)) {
+            this.#writableNeedDrain = !this.#socket.write(toWrite);
+        }
     }
 
-    async disconnect(ignoreIsOpen = false): Promise<void> {
-        if ((!ignoreIsOpen && !this.#isOpen) || !this.#socket) {
+    disconnect(): void {
+        if (!this.#socket) {
             throw new ClientClosedError();
         } else {
-            this.#isOpen = false;
+            this.#isOpen = this.#isReady = false;
         }
 
-        this.#socket.end();
-        this.#socket.removeAllListeners('data');
-        await EventEmitter.once(this.#socket, 'end');
+        this.#socket.destroy();
         this.#socket = undefined;
         this.emit('end');
     }
@@ -234,14 +243,8 @@ export default class RedisSocket extends EventEmitter {
         }
 
         this.#isOpen = false;
-
-        try {
-            await fn();
-            await this.disconnect(true);
-        } catch (err) {
-            this.#isOpen = true;
-            throw err;
-        }
+        await fn();
+        this.disconnect();
     }
 
     #isCorked = false;

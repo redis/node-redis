@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZADD';
 
 describe('ZADD', () => {
@@ -115,7 +115,7 @@ describe('ZADD', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.zAdd', async client => {
+    testUtils.testWithClient('client.zAdd', async client => {
         assert.equal(
             await client.zAdd('key', {
                 value: '1',
@@ -123,5 +123,5 @@ describe('ZADD', () => {
             }),
             1
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

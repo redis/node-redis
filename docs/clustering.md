@@ -45,7 +45,7 @@ import { createCluster } from 'redis';
 
 Commands such as `GET`, `SET`, etc. will be routed by the first key, for instance `MGET 1 2 3` will be routed by the key `1`.
 
-### [Server Commands][https://redis.io/commands#server]
+### [Server Commands](https://redis.io/commands#server)
 
 Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the cluster, and should be executed on a specific node using `.getSlot()` or `.getAllMasters()`.
 

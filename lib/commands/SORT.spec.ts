@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SORT';
 
 describe('SORT', () => {
@@ -60,7 +60,7 @@ describe('SORT', () => {
                 ['SORT', 'key', 'ASC']
             );
         });
-        
+
         it('with ALPHA', () => {
             assert.deepEqual(
                 transformArguments('key', {
@@ -97,10 +97,10 @@ describe('SORT', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sort', async client => {
+    testUtils.testWithClient('client.sort', async client => {
         assert.deepEqual(
             await client.sort('key'),
             []
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

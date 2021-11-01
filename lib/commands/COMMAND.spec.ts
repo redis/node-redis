@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
-import { itWithClient, TestRedisServers } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './COMMAND';
-import { CommandCategories, CommandFlags } from './generic-transformers';
+import { assertPingCommand } from './COMMAND_INFO.spec';
 
 describe('COMMAND', () => {
     it('transformArguments', () => {
@@ -11,20 +11,7 @@ describe('COMMAND', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.command', async client => {
-        assert.deepEqual(
-            (await client.command()).find(command => command.name === 'ping'),
-            {
-                name: 'ping',
-                arity: -1,
-                flags: new Set([CommandFlags.STALE, CommandFlags.FAST]),
-                firstKeyIndex: 0,
-                lastKeyIndex: 0,
-                step: 0,
-                categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
-            }
-        );
-    }, {
-        minimumRedisVersion: [6]
-    });
+    testUtils.testWithClient('client.command', async client => {
+        assertPingCommand((await client.command()).find(command => command.name === 'ping'));
+    }, GLOBAL.SERVERS.OPEN);
 });

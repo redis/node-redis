@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient, TestRedisClusters, itWithCluster } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SETBIT';
 
 describe('SETBIT', () => {
@@ -10,17 +10,17 @@ describe('SETBIT', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.setBit', async client => {
+    testUtils.testWithClient('client.setBit', async client => {
         assert.equal(
             await client.setBit('key', 0, 1),
             0
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
-    itWithCluster(TestRedisClusters.OPEN, 'cluster.setBit', async cluster => {
+    testUtils.testWithCluster('cluster.setBit', async cluster => {
         assert.equal(
             await cluster.setBit('key', 0, 1),
             0
         );
-    });
+    }, GLOBAL.CLUSTERS.OPEN);
 });

@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SMOVE';
 
 describe('SMOVE', () => {
@@ -10,10 +10,10 @@ describe('SMOVE', () => {
         );
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.sMove', async client => {
+    testUtils.testWithClient('client.sMove', async client => {
         assert.equal(
             await client.sMove('source', 'destination', 'member'),
             false
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });

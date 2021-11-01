@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { TestRedisServers, itWithClient } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './XPENDING';
 
 describe('XPENDING', () => {
@@ -12,7 +12,7 @@ describe('XPENDING', () => {
         });
     });
 
-    itWithClient(TestRedisServers.OPEN, 'client.xPending', async client => {
+    testUtils.testWithClient('client.xPending', async client => {
         await client.xGroupCreate('key', 'group', '$', {
             MKSTREAM: true
         });
@@ -26,5 +26,5 @@ describe('XPENDING', () => {
                 consumers: null
             }
         );
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });
