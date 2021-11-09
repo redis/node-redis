@@ -47,47 +47,48 @@ describe('Cluster', () => {
         }
     });
 
-    // testUtils.testWithCluster('should handle live resharding', async cluster => {
-    //     const key = 'key',
-    //         value = 'value';
-    //     await cluster.set(key, value);
+    testUtils.testWithCluster('should handle live resharding', async cluster => {
+        const key = 'key',
+            value = 'value';
+        await cluster.set(key, value);
 
-    //     const slot = calculateSlot(key),
-    //         from = cluster.getSlotMaster(slot),
-    //         to = cluster.getMasters().find(node => node.id !== from.id);
+        const slot = calculateSlot(key),
+            from = cluster.getSlotMaster(slot),
+            to = cluster.getMasters().find(node => node.id !== from.id);
 
-    //     await to!.client.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, from.id);
+        await to!.client.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, from.id);
 
-    //     // should be able to get the key from the original node before it was migrated
-    //     assert.equal(
-    //         await cluster.get(key),
-    //         value
-    //     );
+        // should be able to get the key from the original node before it was migrated
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
 
-    //     await from.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, to!.id);
+        await from.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, to!.id);
 
-    //     // should be able to get the key from the original node using the "ASKING" command
-    //     assert.equal(
-    //         await cluster.get(key),
-    //         value
-    //     );
+        // should be able to get the key from the original node using the "ASKING" command
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
 
-    //     const { port: toPort } = <any>to!.client.options!.socket;
+        const { port: toPort } = <any>to!.client.options!.socket;
 
-    //     await from.client.migrate(
-    //         '127.0.0.1',
-    //         toPort,
-    //         key,
-    //         0,
-    //         10
-    //     );
+        await from.client.migrate(
+            '127.0.0.1',
+            toPort,
+            key,
+            0,
+            10
+        );
 
-    //     // should be able to get the key from the new node
-    //     assert.equal(
-    //         await cluster.get(key),
-    //         value
-    //     );
-    // }, {
-    //     serverArguments: []
-    // });
+        // should be able to get the key from the new node
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
+    }, {
+        serverArguments: [],
+        numberOfNodes: 2
+    });
 });

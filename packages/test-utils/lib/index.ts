@@ -26,6 +26,7 @@ interface ClientTestOptions<M extends RedisModules, S extends RedisScripts> exte
 interface ClusterTestOptions<M extends RedisModules, S extends RedisScripts> extends CommonTestOptions {
     serverArguments: Array<string>;
     clusterConfiguration?: Partial<RedisClusterOptions<M, S>>;
+    numberOfNodes?: number;
 }
 
 export default class TestUtils<M extends RedisModules, S extends RedisScripts> {
@@ -144,7 +145,10 @@ export default class TestUtils<M extends RedisModules, S extends RedisScripts> {
             before(function () {
                 this.timeout(30000);
 
-                dockersPromise = spawnRedisCluster(dockerImage, options.serverArguments);
+                dockersPromise = spawnRedisCluster({
+                    ...dockerImage,
+                    numberOfNodes: options?.numberOfNodes
+                }, options.serverArguments);
                 return dockersPromise;
             });
         }
