@@ -1,8 +1,6 @@
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { pushOptionalVerdictArgument, pushVerdictArgument, transformReplyTuples } from '@redis/client/dist/lib/commands/generic-transformers';
-import { type } from 'os';
-import { PropertyName, pushSortByArguments, SortByOptions } from '.';
-import { RedisSearchLanguages } from './CREATE';
+import { RedisSearchLanguages, PropertyName, pushSortByArguments, SortByOptions } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -41,7 +39,7 @@ interface SearchOptions {
         TAGS?: {
             open: string;
             close: string;
-        }
+        };
     };
     SLOP?: number;
     INORDER?: true;

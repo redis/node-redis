@@ -1,17 +1,16 @@
 import { pushOptionalVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { PropertyName } from '.';
+import { RedisSearchLanguages, PropertyName } from '.';
 
 export enum SchemaFieldTypes {
     TEXT = 'TEXT',
     NUMERIC = 'NUMERIC',
     GEO = 'GEO',
-    TAG = 'TAG',
+    TAG = 'TAG'
 }
 
 type CreateSchemaField<T extends SchemaFieldTypes, E = Record<string, never>> = T | ({
     type: T;
     AS?: string;
-    CASESENSITIVE?: true;
     SORTABLE?: true | 'UNF';
     NOINDEX?: true;
 } & E);
@@ -35,6 +34,7 @@ type CreateSchemaGeoField = CreateSchemaField<SchemaFieldTypes.GEO>;
 
 type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
     SEPERATOR?: string;
+    CASESENSITIVE?: true;
 }>;
 
 interface CreateSchema {
@@ -43,34 +43,6 @@ interface CreateSchema {
         CreateSchemaNumericField |
         CreateSchemaGeoField |
         CreateSchemaTagField
-}
-
-export enum RedisSearchLanguages {
-    ARABIC = 'Arabic',
-    BASQUE = 'Basque',
-    CATALANA = 'Catalan',
-    DANISH = 'Danish',
-    DUTCH = 'Dutch',
-    ENGLISH = 'English',
-    FINNISH = 'Finnish',
-    FRENCH = 'French',
-    GERMAN = 'German',
-    GREEK = 'Greek',
-    HUNGARIAN = 'Hungarian',
-    INDONESAIN = 'Indonesian',
-    IRISH = 'Irish',
-    ITALIAN = 'Italian',
-    LITHUANIAN = 'Lithuanian',
-    NEPALI = 'Nepali',
-    NORWEIGAN = 'Norwegian',
-    PORTUGUESE = 'Portuguese',
-    ROMANIAN = 'Romanian',
-    RUSSIAN = 'Russian',
-    SPANISH = 'Spanish',
-    SWEDISH = 'Swedish',
-    TAMIL = 'Tamil',
-    TURKISH = 'Turkish',
-    CHINESE = 'Chinese'
 }
 
 interface CreateOptions {
@@ -196,11 +168,11 @@ export function transformArguments(index: string, schema: CreateSchema, options?
                     args.push('SEPERATOR', fieldOptions.SEPERATOR);
                 }
 
-                break;
-        }
+                if (fieldOptions.CASESENSITIVE) {
+                    args.push('CASESENSITIVE');
+                }
 
-        if (fieldOptions.CASESENSITIVE) {
-            args.push('CASESENSITIVE');
+                break;
         }
 
         if (fieldOptions.SORTABLE) {

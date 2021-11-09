@@ -10,19 +10,18 @@ async function commandWithModifiers() {
   await client.del('mykey');
 
   let result = await client.set('mykey', 'myvalue', {
-      EX: 60,
-      GET: true
-    }
-  ); 
-  
+    EX: 60,
+    GET: true
+  });
+
   console.log(result); //nil
 
   result = await client.set('mykey', 'newvalue', {
-      EX: 60,
-      GET: true
-    }
-  );                        
-  
+    EX: 60,
+    GET: true
+  }
+  );
+
   console.log(result); //myvalue
 
   await client.quit();

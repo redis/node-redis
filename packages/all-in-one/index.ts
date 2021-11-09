@@ -4,6 +4,8 @@ import { RedisClientOptions, RedisClientType } from '@redis/client/dist/lib/clie
 import RedisJSON from '@redis/json';
 import RediSearch from '@redis/search';
 
+export * from '@redis/search';
+
 const modules =  {
     json: RedisJSON,
     ft: RediSearch
@@ -17,3 +19,4 @@ export function createClient<S extends RedisScripts = Record<string, never>>(
         modules
     });
 }
+

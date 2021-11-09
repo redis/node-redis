@@ -4,6 +4,9 @@
   "description": "node-redis 4 example script",
   "main": "index.js",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "redis": "../packages/all-in-one"
+  }
 }
 

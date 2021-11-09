@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { RedisSearchLanguages, SchemaFieldTypes, SchemaTextFieldPhonetics, transformArguments } from './CREATE';
+import { SchemaFieldTypes, SchemaTextFieldPhonetics, transformArguments } from './CREATE';
+import { RedisSearchLanguages } from '.';
 
 describe('CREATE', () => {
     describe('transformArguments', () => {
@@ -111,6 +112,20 @@ describe('CREATE', () => {
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'SEPERATOR', 'seperator']
                     );
                 });
+
+
+
+                it('with CASESENSITIVE', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.TAG,
+                                CASESENSITIVE: true
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'CASESENSITIVE']
+                    );
+                });
             });
 
             describe('with generic options', () => {
@@ -123,18 +138,6 @@ describe('CREATE', () => {
                             }
                         }),
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'AS', 'as', 'TEXT']
-                    );
-                });
-
-                it('with CASESENSITIVE', () => {
-                    assert.deepEqual(
-                        transformArguments('index', {
-                            field: {
-                                type: SchemaFieldTypes.TEXT,
-                                CASESENSITIVE: true
-                            }
-                        }),
-                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'CASESENSITIVE']
                     );
                 });
 

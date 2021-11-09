@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "peerDependencies": {
-    "@redis/client": "^4.0.0-rc"
+    "@redis/client": "^1.0.0-rc"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
