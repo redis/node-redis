@@ -6,4 +6,4 @@ export function transformArguments(key: string, element: string): Array<string> 
     return ['LINDEX', key, element];
 }
 
-export declare function transformReply(): number | null;
+export declare function transformReply(): string | null;
