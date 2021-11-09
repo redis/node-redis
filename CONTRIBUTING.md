@@ -45,7 +45,7 @@ A huge thank you to the original author of Node Redis, [Matthew Ranney](https://
 
 Node Redis has a full test suite with coverage setup.
 
-To run the tests, run `npm install` to install dependencies, then run `npm test`.
+To run the tests, run `npm install` to install dependencies, then run `npm run build:tests-tools && npm test`.
 
 Note that the test suite assumes that [`docker`](https://www.docker.com/) is installed in your environment.
 
