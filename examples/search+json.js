@@ -1,4 +1,4 @@
-// RediSearch & ReJSON example
+// Use Redis Search and Redis JSON
 
 import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps } from 'redis';
 
