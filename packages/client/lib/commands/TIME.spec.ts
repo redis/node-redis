@@ -10,9 +10,9 @@ describe('TIME', () => {
         );
     });
 
-    // testUtils.testWithClient('client.time', async client => {
-    //     const reply = await client.time();
-    //     assert.ok(reply instanceof Date);
-    //     assert.ok(typeof reply.microseconds === 'number');
-    // }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.time', async client => {
+        const reply = await client.time();
+        assert.ok(reply instanceof Date);
+        assert.ok(typeof reply.microseconds === 'number');
+    }, GLOBAL.SERVERS.OPEN);
 });
