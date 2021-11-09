@@ -28,6 +28,9 @@ jobs:
       - name: Install Packages
         run: npm ci
 
+      - name: Build tests tools
+        run: npm run build:tests-tools
+
       - name: Run Tests
         run: npm run test -- --forbid-only --redis-version=${{ matrix.redis-version }}
 

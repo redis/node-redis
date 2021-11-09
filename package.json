@@ -1,60 +1,19 @@
 {
-  "name": "redis",
-  "version": "4.0.0-rc.3",
-  "description": "A high performance Redis client.",
-  "keywords": [
-    "database",
-    "redis",
-    "pubsub"
+  "name": "redis-monorepo",
+  "private": true,
+  "workspaces": [
+    "./packages/*"
   ],
-  "author": "Matt Ranney <mjr@ranney.com>",
-  "license": "MIT",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "scripts": {
-    "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
-    "build": "tsc",
-    "lint": "eslint ./*.ts ./lib/**/*.ts",
-    "documentation": "typedoc"
-  },
-  "dependencies": {
-    "cluster-key-slot": "1.1.0",
-    "generic-pool": "3.8.2",
-    "redis-parser": "3.0.0",
-    "yallist": "4.0.0"
+    "test": "npm run test -ws --if-present",
+    "build:client": "npm run build -w ./packages/client",
+    "build:test-utils": "npm run build -w ./packages/test-utils",
+    "build:tests-tools": "npm run build:client && npm run build:test-utils",
+    "build:modules": "find ./packages -mindepth 1 -maxdepth 1 -type d ! -name 'client' ! -name 'test-utils' ! -name 'all-in-one' -exec npm run build -w {} \\;",
+    "build:all-in-one": "npm run build -w ./packages/all-in-one",
+    "build": "npm run build:client && npm run build:test-utils && npm run build:modules && npm run build:all-in-one"
   },
   "devDependencies": {
-    "@istanbuljs/nyc-config-typescript": "^1.0.1",
-    "@tsconfig/node12": "^1.0.9",
-    "@types/mocha": "^9.0.0",
-    "@types/node": "^16.11.6",
-    "@types/sinon": "^10.0.6",
-    "@types/yallist": "^4.0.1",
-    "@types/yargs": "^17.0.5",
-    "@typescript-eslint/eslint-plugin": "^5.2.0",
-    "@typescript-eslint/parser": "^5.2.0",
-    "eslint": "^8.1.0",
-    "mocha": "^9.1.3",
-    "nyc": "^15.1.0",
-    "release-it": "^14.11.6",
-    "sinon": "^11.1.2",
-    "source-map-support": "^0.5.20",
-    "ts-node": "^10.4.0",
-    "typedoc": "^0.22.7",
-    "typedoc-github-wiki-theme": "^0.6.0",
-    "typedoc-plugin-markdown": "^3.11.3",
-    "typescript": "^4.4.4",
-    "yargs": "^17.2.1"
-  },
-  "engines": {
-    "node": ">=12"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/redis/node-redis.git"
-  },
-  "bugs": {
-    "url": "https://github.com/redis/node-redis/issues"
-  },
-  "homepage": "https://github.com/redis/node-redis"
+    "@tsconfig/node12": "^1.0.9"
+  }
 }
