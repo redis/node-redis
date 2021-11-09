@@ -26,7 +26,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Update npm
-        run: npm i -g
+        run: npm i -g npm
 
       - name: Install Packages
         run: npm ci
