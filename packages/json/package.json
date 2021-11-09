@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
+    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
     "build": "tsc"
   },
   "peerDependencies": {
