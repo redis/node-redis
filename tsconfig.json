@@ -1,15 +1,9 @@
 {
-  "extends": "@tsconfig/node12/tsconfig",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "declaration": true,
-    "allowJs": true,
-    "useDefineForClassFields": true
+    "outDir": "./dist"
   },
-  "files": [
-    "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts",
-    "./packages/client/lib/ts-declarations/redis-parser.d.ts"
-  ],
-  "ts-node": {
-    "files": true
-  }
+  "include": [
+    "./index.ts"
+  ]
 }

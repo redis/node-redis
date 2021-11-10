@@ -6,7 +6,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "redis": "../packages/all-in-one"
+    "redis": "../"
   }
 }
 

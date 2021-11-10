@@ -1,9 +1,0 @@
-{
-    "extends": "../../tsconfig",
-    "compilerOptions": {
-      "outDir": "./dist"
-    },
-    "include": [
-      "./index.ts"
-    ]
-  }

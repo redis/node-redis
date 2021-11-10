@@ -27,6 +27,7 @@ jobs:
 
       - name: Update npm
         run: npm i -g npm
+        if: ${{ matrix.node-version <= 14.x }}
 
       - name: Install Packages
         run: npm ci

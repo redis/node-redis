@@ -1,0 +1,9 @@
+.github/
+.vscode/
+docs/
+examples/
+packages/
+.deepsource.toml
+index.ts
+tsconfig.base.json
+tsconfig.json

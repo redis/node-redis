@@ -7,8 +7,6 @@ async function searchPlusJson() {
 
   await client.connect();
 
-  await client.flushAll();
-
   // Create an index
   await client.ft.create('users', {
     '$.name': {
