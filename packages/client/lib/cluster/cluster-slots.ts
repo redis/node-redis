@@ -82,7 +82,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
             };
 
             for (const { from, to } of master.slots) {
-                for (let i = from; i < to; i++) {
+                for (let i = from; i <= to; i++) {
                     this.#slots[i] = slot;
                 }
             }

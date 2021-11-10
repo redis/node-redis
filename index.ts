@@ -19,4 +19,3 @@ export function createClient<S extends RedisScripts = Record<string, never>>(
         modules
     });
 }
-

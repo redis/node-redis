@@ -82,6 +82,12 @@ describe('Cluster', () => {
             10
         );
 
+        await Promise.all(
+            cluster.getMasters().map(({ client }) => {
+                return client.clusterSetSlot(slot, ClusterSlotStates.NODE, to!.id);
+            })
+        );
+
         // should be able to get the key from the new node
         assert.equal(
             await cluster.get(key),
