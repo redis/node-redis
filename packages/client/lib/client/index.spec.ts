@@ -444,16 +444,16 @@ describe('Client', () => {
         }
     });
 
-    // testUtils.testWithClient('executeIsolated', async client => {
-    //     await client.sendCommand(['CLIENT', 'SETNAME', 'client']);
+    testUtils.testWithClient('executeIsolated', async client => {
+        await client.sendCommand(['CLIENT', 'SETNAME', 'client']);
 
-    //     assert.equal(
-    //         await client.executeIsolated(isolatedClient =>
-    //             isolatedClient.sendCommand(['CLIENT', 'GETNAME'])
-    //         ),
-    //         null
-    //     );
-    // }, GLOBAL.SERVERS.OPEN);
+        assert.equal(
+            await client.executeIsolated(isolatedClient =>
+                isolatedClient.sendCommand(['CLIENT', 'GETNAME'])
+            ),
+            null
+        );
+    }, GLOBAL.SERVERS.OPEN);
 
     async function killClient<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
         const onceErrorPromise = once(client, 'error');

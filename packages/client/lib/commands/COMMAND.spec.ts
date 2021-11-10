@@ -11,7 +11,7 @@ describe('COMMAND', () => {
         );
     });
 
-    // testUtils.testWithClient('client.command', async client => {
-    //     assertPingCommand((await client.command()).find(command => command.name === 'ping'));
-    // }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.command', async client => {
+        assertPingCommand((await client.command()).find(command => command.name === 'ping'));
+    }, GLOBAL.SERVERS.OPEN);
 });
