@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
-import RedisClient, { RedisClientType } from '.';
+import RedisClient, { ClientLegacyCommandArguments, RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisScripts } from '../commands';
 import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
@@ -170,7 +170,7 @@ describe('Client', () => {
             }
         });
 
-        function setAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, ...args: Array<string | Buffer | RedisCommandArguments>): Promise<RedisCommandRawReply> {
+        function setAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, ...args: ClientLegacyCommandArguments): Promise<RedisCommandRawReply> {
             return new Promise((resolve, reject) => {
                 (client as any).set(...args, (err: Error | undefined, reply: RedisCommandRawReply) => {
                     if (err) return reject(err);
@@ -204,10 +204,10 @@ describe('Client', () => {
             }
         });
 
-        testUtils.testWithClient('client.{command} should accept mix of strings and array of strings', async client => {
+        testUtils.testWithClient('client.{command} should accept mix of arrays and arguments', async client => {
             assert.equal(
-                await setAsync(client, ['a'], 'b', ['XX']),
-                null
+                await setAsync(client, ['a'], 'b', ['EX', 1]),
+                'OK'
             );
         }, {
             ...GLOBAL.SERVERS.OPEN,

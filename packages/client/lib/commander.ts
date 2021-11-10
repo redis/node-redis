@@ -113,3 +113,18 @@ export function transformCommandReply(
 
     return command.transformReply(rawReply, preserved);
 }
+
+export type LegacyCommandArguments = Array<string | number | Buffer | LegacyCommandArguments>;
+
+export function transformLegacyCommandArguments(args: LegacyCommandArguments, flat: RedisCommandArguments = []): RedisCommandArguments {
+    for (const arg of args) {
+        if (Array.isArray(arg)) {
+            transformLegacyCommandArguments(arg, flat);
+            continue;
+        }
+
+        flat.push(typeof arg === 'number' ? arg.toString() : arg);
+    }
+
+    return flat;
+}

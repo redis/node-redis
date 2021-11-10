@@ -9,7 +9,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from '../command-opt
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
-import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
@@ -55,6 +55,7 @@ export interface ClientCommandOptions extends QueueCommandOptions {
 
 type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
 
+export type ClientLegacyCommandArguments = LegacyCommandArguments | [...LegacyCommandArguments, ClientLegacyCallback];
 export default class RedisClient<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
         return commandOptions(options);
@@ -246,12 +247,13 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         if (!this.#options?.legacyMode) return;
 
         (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
-        (this as any).sendCommand = (...args: Array<unknown>): void => {
-            const callback = typeof args[args.length - 1] === 'function' ?
-                    args[args.length - 1] as ClientLegacyCallback :
-                    undefined,
-                actualArgs = !callback ? args : args.slice(0, -1);
-            this.#sendCommand(actualArgs.flat() as Array<string>)
+        (this as any).sendCommand = (...args: ClientLegacyCommandArguments): void => {
+            let callback: ClientLegacyCallback;
+            if (typeof args[args.length - 1] === 'function') {
+                callback = args.pop() as ClientLegacyCallback;
+            }
+
+            this.#sendCommand(transformLegacyCommandArguments(args as LegacyCommandArguments))
                 .then((reply: RedisCommandRawReply) => {
                     if (!callback) return;
 
