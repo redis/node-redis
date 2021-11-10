@@ -53,42 +53,43 @@ describe('Cluster', () => {
         await cluster.set(key, value);
 
         const slot = calculateSlot(key),
-            from = cluster.getSlotMaster(slot),
-            to = cluster.getMasters().find(node => node.id !== from.id);
+            source = cluster.getSlotMaster(slot),
+            destination = cluster.getMasters().find(node => node.id !== source.id)!;
 
-        await to!.client.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, from.id);
+        await Promise.all([
+            source.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, destination.id),
+            destination.client.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, destination.id)
+        ]);
 
-        // should be able to get the key from the original node before it was migrated
+        // should be able to get the key from the source node using "ASKING"
         assert.equal(
             await cluster.get(key),
             value
         );
 
-        await from.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, to!.id);
+        await Promise.all([
+            source.client.migrate(
+                '127.0.0.1',
+                (<any>destination.client.options).socket.port,
+                key,
+                0,
+                10
+            )
+        ]);
 
-        // should be able to get the key from the original node using the "ASKING" command
+        // should be able to get the key from the destination node using the "ASKING" command
         assert.equal(
             await cluster.get(key),
             value
-        );
-
-        const { port: toPort } = <any>to!.client.options!.socket;
-
-        await from.client.migrate(
-            '127.0.0.1',
-            toPort,
-            key,
-            0,
-            10
         );
 
         await Promise.all(
             cluster.getMasters().map(({ client }) => {
-                return client.clusterSetSlot(slot, ClusterSlotStates.NODE, to!.id);
+                return client.clusterSetSlot(slot, ClusterSlotStates.NODE, destination.id);
             })
         );
 
-        // should be able to get the key from the new node
+        // should handle "MOVED" errors
         assert.equal(
             await cluster.get(key),
             value
