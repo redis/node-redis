@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.x, 14.x, 16.x]
+        node-version: [12, 14, 16]
         redis-version: [5, 6.0, 6.2]
 
     steps:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Update npm
         run: npm i -g npm
-        if: ${{ matrix.node-version <= 14.x }}
+        if: ${{ matrix.node-version <= 14 }}
 
       - name: Install Packages
         run: npm ci
