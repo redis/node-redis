@@ -1,16 +1,16 @@
-# Node-Redis monorpo
+# Node-Redis Monorepo
 
 ### Clients
 
 | Name                               | Description |
-|------------------------------------|-------------|
+| ---------------------------------- | ----------- |
 | [redis](./packages/all-in-one)     |             |
 | [@redis/client](./packages/client) |             |
 
 ### [Modules](https://redis.io/modules)
 
 | Name                               | Description                                                |
-|------------------------------------|------------------------------------------------------------|
+| ---------------------------------- | ---------------------------------------------------------- |
 | [@redis/json](./packages/json)     | [Redis JSON](https://oss.redis.com/redisjson/) commands    |
 | [@redis/search](./packages/search) | [Redis Search](https://oss.redis.com/redisearch/) commands |
 
