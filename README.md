@@ -6,8 +6,8 @@
 </p>
 
 <div align="center">
-    <a href="https://coveralls.io/github/redis/node-redis">
-        <img src="https://coveralls.io/repos/github/redis/node-redis/badge.svg" alt="Coverage Status"/>
+    <a href="https://codecov.io/gh/redis/node-redis" >
+      <img src="https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37" alt="Coverage"/>
     </a>
     <a href="https://www.npmjs.com/package/redis/v/next">
         <img src="https://img.shields.io/npm/dm/redis.svg" alt="Downloads"/>
@@ -209,7 +209,8 @@ import { createClient, defineScript } from 'redis';
       add: defineScript({
         NUMBER_OF_KEYS: 1,
         SCRIPT:
-          "local val = redis.pcall('GET', KEYS[1]);" + "return val + ARGV[1];",
+          'local val = redis.pcall("GET", KEYS[1]);' +
+          'return val + ARGV[1];',
         transformArguments(key: string, toAdd: number): Array<string> {
           return [key, toAdd.toString()];
         },
@@ -291,6 +292,15 @@ Node Redis is supported with the following versions of Redis:
 | < 5.0   | :x:                |
 
 > Node Redis should work with older versions of Redis, but it is not fully tested and we cannot offer support.
+
+## Packages
+
+| Name                               | Description                                                |
+|------------------------------------|------------------------------------------------------------|
+| [redis](./packages/all-in-one)     |                                                            |
+| [@redis/client](./packages/client) |                                                            |
+| [@redis/json](./packages/json)     | [Redis JSON](https://oss.redis.com/redisjson/) commands    |
+| [@redis/search](./packages/search) | [Redis Search](https://oss.redis.com/redisearch/) commands |
 
 ## Contributing
 

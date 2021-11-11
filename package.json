@@ -1,53 +1,30 @@
 {
   "name": "redis",
   "version": "4.0.0-rc.3",
-  "description": "A high performance Redis client.",
-  "keywords": [
-    "database",
-    "redis",
-    "pubsub"
-  ],
-  "author": "Matt Ranney <mjr@ranney.com>",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "workspaces": [
+    "./packages/*"
+  ],
   "scripts": {
-    "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
+    "test": "npm run test -ws --if-present",
+    "build:client": "npm run build -w ./packages/client",
+    "build:test-utils": "npm run build -w ./packages/test-utils",
+    "build:tests-tools": "npm run build:client && npm run build:test-utils",
+    "build:modules": "find ./packages -mindepth 1 -maxdepth 1 -type d ! -name 'client' ! -name 'test-utils' -exec npm run build -w {} \\;",
     "build": "tsc",
-    "lint": "eslint ./*.ts ./lib/**/*.ts",
-    "documentation": "typedoc"
+    "build-all": "npm run build:client && npm run build:test-utils && npm run build:modules && npm run build"
   },
   "dependencies": {
-    "cluster-key-slot": "1.1.0",
-    "generic-pool": "3.8.2",
-    "redis-parser": "3.0.0",
-    "yallist": "4.0.0"
+    "@redis/client": "^1.0.0-rc",
+    "@redis/json": "^1.0.0-rc",
+    "@redis/search": "^1.0.0-rc"
   },
   "devDependencies": {
-    "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@tsconfig/node12": "^1.0.9",
-    "@types/mocha": "^9.0.0",
-    "@types/node": "^16.11.6",
-    "@types/sinon": "^10.0.6",
-    "@types/yallist": "^4.0.1",
-    "@types/yargs": "^17.0.5",
-    "@typescript-eslint/eslint-plugin": "^5.2.0",
-    "@typescript-eslint/parser": "^5.2.0",
-    "eslint": "^8.1.0",
-    "mocha": "^9.1.3",
-    "nyc": "^15.1.0",
     "release-it": "^14.11.6",
-    "sinon": "^11.1.2",
-    "source-map-support": "^0.5.20",
-    "ts-node": "^10.4.0",
-    "typedoc": "^0.22.7",
-    "typedoc-github-wiki-theme": "^0.6.0",
-    "typedoc-plugin-markdown": "^3.11.3",
-    "typescript": "^4.4.4",
-    "yargs": "^17.2.1"
-  },
-  "engines": {
-    "node": ">=12"
+    "typescript": "^4.4.4"
   },
   "repository": {
     "type": "git",

@@ -1,0 +1,49 @@
+{
+  "name": "@redis/client",
+  "version": "1.0.0-rc",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
+    "build": "tsc",
+    "lint": "eslint ./*.ts ./lib/**/*.ts",
+    "documentation": "typedoc"
+  },
+  "dependencies": {
+    "cluster-key-slot": "1.1.0",
+    "generic-pool": "3.8.2",
+    "redis-parser": "3.0.0",
+    "yallist": "4.0.0"
+  },
+  "devDependencies": {
+    "@istanbuljs/nyc-config-typescript": "^1.0.1",
+    "@redis/test-utils": "*",
+    "@types/node": "^16.11.7",
+    "@types/sinon": "^10.0.6",
+    "@types/yallist": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^5.3.1",
+    "@typescript-eslint/parser": "^5.3.1",
+    "eslint": "^8.2.0",
+    "nyc": "^15.1.0",
+    "release-it": "^14.11.6",
+    "sinon": "^12.0.1",
+    "source-map-support": "^0.5.20",
+    "ts-node": "^10.4.0",
+    "typedoc": "^0.22.8",
+    "typedoc-github-wiki-theme": "^0.6.0",
+    "typedoc-plugin-markdown": "^3.11.3",
+    "typescript": "^4.4.4"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/redis/node-redis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/redis/node-redis/issues"
+  },
+  "homepage": "https://github.com/redis/node-redis"
+}

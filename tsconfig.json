@@ -1,33 +1,9 @@
 {
-  "extends": "@tsconfig/node12/tsconfig.json",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "declaration": true,
-    "useDefineForClassFields": true,
-    "allowJs": true
+    "outDir": "./dist"
   },
-  "files": [
-    "./lib/ts-declarations/cluster-key-slot.d.ts",
-    "./lib/ts-declarations/redis-parser.d.ts"
-  ],
   "include": [
-    "./index.ts",
-    "./lib/**/*.ts"
-  ],
-  "ts-node": {
-    "files": true
-  },
-  "typedocOptions": {
-    "entryPoints": [
-      "./index.ts",
-      "./lib"
-    ],
-    "entryPointStrategy": "expand",
-    "exclude": [
-      "./lib/ts-declarations",
-      "./lib/test-utils.ts"
-    ],
-    "theme": "./node_modules/typedoc-github-wiki-theme/dist",
-    "out": "documentation"
-  }
+    "./index.ts"
+  ]
 }

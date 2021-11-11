@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": [
+    "./index.ts",
+    "./lib/**/*.ts"
+  ],
+  "exclude": [
+    "./lib/test-utils.ts",
+    "./lib/**/*.spec.ts"
+  ],
+  "typedocOptions": {
+    "entryPoints": [
+      "./index.ts",
+      "./lib"
+    ],
+    "entryPointStrategy": "expand",
+    "exclude": [
+      "./lib/ts-declarations",
+      "./lib/test-utils.ts"
+    ],
+    "theme": "./node_modules/typedoc-github-wiki-theme/dist",
+    "out": "documentation"
+  }
+}

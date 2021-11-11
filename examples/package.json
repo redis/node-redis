@@ -4,8 +4,6 @@
   "description": "node-redis 4 example script",
   "main": "index.js",
   "private": true,
-  "scripts": {
-  },
   "type": "module",
   "dependencies": {
     "redis": "../"

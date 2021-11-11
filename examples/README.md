@@ -2,13 +2,14 @@
 
 This folder contains example scripts showing how to use Node Redis in different scenarios.
 
-| File Name                   | Description                          |
-|-----------------------------|--------------------------------------|
-| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user |
-| `blocking-list-pop.js`      | Block until an element is pushed to a list  |
-| `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys |
-| `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers |
-| `set-scan.js` | An example script that shows how to use the SSCAN iterator functionality  |
+| File Name                   | Description                                                                        |
+|-----------------------------|------------------------------------------------------------------------------------|
+| `blocking-list-pop.js`      | Block until an element is pushed to a list                                         |
+| `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers                |
+| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                               |
+| `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys      |
+| `search+json.js`            | Use [Redis Search](https://redisearch.io/) and [Redis JSON](https://redisjson.io/) |
+| `set-scan.js`               | An example script that shows how to use the SSCAN iterator functionality           |
 
 ## Contributing
 
@@ -21,7 +22,7 @@ To set up the examples folder so that you can run an example / develop one of yo
 ```
 $ git clone https://github.com/redis/node-redis.git
 $ cd node-redis
-$ npm install && npm run build
+$ npm install -ws && npm run build
 $ cd examples
 $ npm install
 ```
@@ -46,7 +47,7 @@ When adding a new example, please follow these guidelines:
 * Leave an empty line at the end of your `.js` file
 * Update this `README.md` file to add your example to the table
 
-Use [connect-as-acl-user.js](connect-as-acl-user.js) as a guide to develop a well formatted example script.
+Use [connect-as-acl-user.js](./connect-as-acl-user.js) as a guide to develop a well formatted example script.
 
 ### Example Template
 
@@ -62,13 +63,13 @@ Here's a starter template for adding a new example, imagine this is stored in `d
 import { createClient } from 'redis';
 
 async function doSomething() {
-  const client = createClient();
+    const client = createClient();
 
-  await client.connect();
+    await client.connect();
 
-  // Add your example code here...
+    // Add your example code here...
 
-  await client.quit();
+    await client.quit();
 }
 
 doSomething();
