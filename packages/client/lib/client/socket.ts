@@ -22,7 +22,7 @@ export interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
     path: string;
 }
 
-export interface RedisTlsSocketOptions extends RedisNetSocketOptions, tls.SecureContextOptions, tls.CommonConnectionOption {
+export interface RedisTlsSocketOptions extends RedisNetSocketOptions, tls.SecureContextOptions, tls.CommonConnectionOptions {
     tls: true;
 }
 
