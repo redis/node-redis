@@ -1,4 +1,4 @@
-import { transformArgumentNumberInfinity } from './generic-transformers';
+import { transformArgumentStringNumberInfinity } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -12,13 +12,19 @@ interface ZRangeStoreOptions {
     WITHSCORES?: true;
 }
 
-export function transformArguments(dst: string, src: string, min: number, max: number, options?: ZRangeStoreOptions): Array<string> {
+export function transformArguments(
+    dst: string,
+    src: string,
+    min: string | number,
+    max: string | number,
+    options?: ZRangeStoreOptions
+): Array<string> {
     const args = [
         'ZRANGESTORE',
         dst,
         src,
-        transformArgumentNumberInfinity(min),
-        transformArgumentNumberInfinity(max)
+        transformArgumentStringNumberInfinity(min),
+        transformArgumentStringNumberInfinity(max)
     ];
 
     switch (options?.BY) {

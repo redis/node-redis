@@ -11,13 +11,6 @@ describe('ZRANGE', () => {
             );
         });
 
-        it('using strings', () => {
-            assert.deepEqual(
-                transformArguments('src', '0', '1'),
-                ['ZRANGE', 'src', '0', '1']
-            );
-        });
-
         it('with BYSCORE', () => {
             assert.deepEqual(
                 transformArguments('src', 0, 1, {

@@ -23,7 +23,7 @@ export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArg
         pushMap(args, value);
     } else if (Array.isArray(value)) {
         pushTuples(args, value);
-    } else if (typeof value === 'object' && value !== null) {
+    } else {
         pushObject(args, value);
     }
 

@@ -69,6 +69,12 @@ export function transformArgumentNumberInfinity(num: number): string {
     }
 }
 
+export function transformArgumentStringNumberInfinity(num: string | number): string {
+    if (typeof num === 'string') return num;
+
+    return transformArgumentNumberInfinity(num);
+}
+
 export interface TuplesObject {
     [field: string]: string;
 }

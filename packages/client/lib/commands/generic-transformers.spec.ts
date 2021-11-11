@@ -7,6 +7,7 @@ import {
     transformReplyNumberInfinityArray,
     transformReplyNumberInfinityNull,
     transformArgumentNumberInfinity,
+    transformArgumentStringNumberInfinity,
     transformReplyTuples,
     transformReplyStreamMessages,
     transformReplyStreamsMessages,
@@ -171,6 +172,22 @@ describe('Generic Transformers', () => {
             assert.equal(
                 transformArgumentNumberInfinity(-Infinity),
                 '-inf'
+            );
+        });
+    });
+
+    describe('transformArgumentStringNumberInfinity', () => {
+        it("'0.5'", () => {
+            assert.equal(
+                transformArgumentStringNumberInfinity('0.5'),
+                '0.5'
+            );
+        });
+
+        it('0.5', () => {
+            assert.equal(
+                transformArgumentStringNumberInfinity(0.5),
+                '0.5'
             );
         });
     });

@@ -1,4 +1,4 @@
-import { transformArgumentNumberInfinity } from './generic-transformers';
+import { transformArgumentStringNumberInfinity } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -17,8 +17,8 @@ export function transformArguments(key: string, min: string | number, max: strin
     const args = [
         'ZRANGE',
         key,
-        typeof min === 'string' ? min : transformArgumentNumberInfinity(min),
-        typeof max === 'string' ? max : transformArgumentNumberInfinity(max)
+        transformArgumentStringNumberInfinity(min),
+        transformArgumentStringNumberInfinity(max)
     ];
 
     switch (options?.BY) {

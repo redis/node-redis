@@ -1,5 +1,5 @@
 import { RedisCommandArguments } from '.';
-import { transformArgumentNumberInfinity } from './generic-transformers';
+import { transformArgumentStringNumberInfinity } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -21,8 +21,8 @@ export function transformArguments(
     const args = [
         'ZRANGEBYLEX',
         key,
-        typeof min === 'string' ? min : transformArgumentNumberInfinity(min),
-        typeof max === 'string' ? max : transformArgumentNumberInfinity(max)
+        transformArgumentStringNumberInfinity(min),
+        transformArgumentStringNumberInfinity(max)
     ];
 
     if (options?.LIMIT) {

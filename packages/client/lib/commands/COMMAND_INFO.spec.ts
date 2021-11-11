@@ -30,7 +30,18 @@ describe('COMMAND INFO', () => {
         );
     });
 
-    testUtils.testWithClient('client.commandInfo', async client => {
-        assertPingCommand((await client.commandInfo(['PING']))[0]);
-    }, GLOBAL.SERVERS.OPEN);
+    describe('client.commandInfo', () => {
+        testUtils.testWithClient('PING', async client => {
+            assertPingCommand((await client.commandInfo(['PING']))[0]);
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('DOSE_NOT_EXISTS', async client => {
+            assert.deepEqual(
+                await client.commandInfo(['DOSE_NOT_EXISTS']),
+                [null]
+            );
+        }, GLOBAL.SERVERS.OPEN);
+    });
+
+
 });
