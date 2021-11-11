@@ -1,4 +1,4 @@
-import LinkedList from 'yallist';
+import * as LinkedList from 'yallist';
 import RedisParser from 'redis-parser';
 import { AbortError } from '../errors';
 import { RedisCommandArguments, RedisCommandRawReply } from '../commands';

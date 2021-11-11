@@ -4,7 +4,7 @@ import RedisSocket, { RedisSocketOptions, RedisNetSocketOptions, RedisTlsSocketO
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
-import EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import { CommandOptions, commandOptions, isCommandOptions } from '../command-options';
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';

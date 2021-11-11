@@ -3,7 +3,8 @@
   "compilerOptions": {
     "declaration": true,
     "allowJs": true,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    "esModuleInterop": false
   },
   "files": [
     "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts",
