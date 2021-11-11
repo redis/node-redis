@@ -101,11 +101,11 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         }
 
         if (username) {
-            parsed.username = username;
+            parsed.username = decodeURIComponent(username);
         }
 
         if (password) {
-            parsed.password = password;
+            parsed.password = decodeURIComponent(password);
         }
 
         if (pathname.length > 1) {
