@@ -42,6 +42,4 @@ describe('COMMAND INFO', () => {
             );
         }, GLOBAL.SERVERS.OPEN);
     });
-
-
 });
