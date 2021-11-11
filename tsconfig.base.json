@@ -8,7 +8,6 @@
   },
   "files": [
     "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts",
-    "./packages/client/lib/ts-declarations/redis-parser.d.ts"
   ],
   "ts-node": {
     "files": true

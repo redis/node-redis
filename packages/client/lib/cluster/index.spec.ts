@@ -1,8 +1,12 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import calculateSlot from 'cluster-key-slot';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 import { SQUARE_SCRIPT } from '../client/index.spec';
+
+// We need to use 'require', because it's not possible with Typescript to import
+// function that are exported as 'module.exports = function`, without esModuleInterop
+// set to true.
+const calculateSlot = require('cluster-key-slot');
 
 describe('Cluster', () => {
     testUtils.testWithCluster('sendCommand', async cluster => {
