@@ -20,6 +20,7 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@redis/test-utils": "*",
     "@types/node": "^16.11.7",
+    "@types/redis-parser": "^3.0.0",
     "@types/sinon": "^10.0.6",
     "@types/yallist": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^5.3.1",

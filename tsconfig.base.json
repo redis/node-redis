@@ -7,7 +7,7 @@
     "esModuleInterop": false
   },
   "files": [
-    "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts",
+    "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts"
   ],
   "ts-node": {
     "files": true
