@@ -45,5 +45,5 @@
   "bugs": {
     "url": "https://github.com/redis/node-redis/issues"
   },
-  "homepage": "https://github.com/redis/node-redis"
+  "homepage": "https://github.com/redis/node-redis/tree/master/packages/client"
 }
