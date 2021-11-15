@@ -1,20 +1,7 @@
-<p align="center">
-    <a href="https://github.com/redis/node-redis">
-        <img width="128" src="https://static.invertase.io/assets/node_redis_logo.png" />
-    </a>
-    <h2 align="center">Node Redis</h2>
-</p>
+# Node-Redis
 
-<div align="center">
-    <a href="https://codecov.io/gh/redis/node-redis" >
-      <img src="https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37" alt="Coverage"/>
-    </a>
-    <a href="https://discord.gg/XMMVgxUm">
-        <img src="https://img.shields.io/discord/697882427875393627" alt="Chat"/>
-    </a>
-</div>
-
----
+[![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
+[![Chat](https://img.shields.io/discord/697882427875393627)](https://discord.gg/XMMVgxUm)
 
 ## Installation
 
@@ -302,9 +289,7 @@ If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md)
 
 Thank you to all the people who already contributed to Node Redis!
 
-<a href="https://github.com/redis/node-redis/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=redis/node-redis"/>
-</a>
+[![Contributors](https://contrib.rocks/image?repo=redis/node-redis)](https://github.com/redis/node-redis/graphs/contributors)
 
 ## License
 
