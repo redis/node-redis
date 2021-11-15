@@ -1,0 +1,5 @@
+{
+  "git": {
+    "tagName": "client@${version}"
+  }
+}

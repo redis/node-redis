@@ -9,12 +9,6 @@
     <a href="https://codecov.io/gh/redis/node-redis" >
       <img src="https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37" alt="Coverage"/>
     </a>
-    <a href="https://www.npmjs.com/package/redis/v/next">
-        <img src="https://img.shields.io/npm/dm/redis.svg" alt="Downloads"/>
-    </a>
-    <a href="https://www.npmjs.com/package/redis/v/next">
-        <img src="https://img.shields.io/npm/v/redis/next.svg" alt="Version"/>
-    </a>
     <a href="https://discord.gg/XMMVgxUm">
         <img src="https://img.shields.io/discord/697882427875393627" alt="Chat"/>
     </a>
@@ -28,7 +22,7 @@
 npm install redis@next
 ```
 
-> :warning: The new interface is clean and cool, but if you have an existing code base, you'll want to read the [migration guide](./docs/v3-to-v4.md).
+> :warning: The new interface is clean and cool, but if you have an existing code base, you'll want to read the [migration guide](../docs/v3-to-v4.md).
 
 ## Usage
 
@@ -57,7 +51,7 @@ createClient({
 });
 ```
 
-You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](./docs/client-configuration.md).
+You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](../docs/client-configuration.md).
 
 ### Redis Commands
 
@@ -115,7 +109,7 @@ const [setKeyReply, otherKeyValue] = await client
 
 You can also [watch](https://redis.io/topics/transactions#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change.
 
-To dig deeper into transactions, check out the [Isolated Execution Guide](./docs/isolated-execution.md).
+To dig deeper into transactions, check out the [Isolated Execution Guide](../docs/isolated-execution.md).
 
 ### Blocking Commands
 
@@ -133,7 +127,7 @@ await client.lPush('key', ['1', '2']);
 await blPopPromise; // '2'
 ```
 
-To learn more about isolated execution, check out the [guide](./docs/isolated-execution.md).
+To learn more about isolated execution, check out the [guide](../docs/isolated-execution.md).
 
 ### Pub/Sub
 
@@ -278,7 +272,7 @@ await Promise.all([
 
 ### Clustering
 
-Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
+Check out the [Clustering Guide](../docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
 ## Supported Redis versions
 
@@ -295,12 +289,12 @@ Node Redis is supported with the following versions of Redis:
 
 ## Packages
 
-| Name                               | Description                                                |
-|------------------------------------|------------------------------------------------------------|
-| [redis](./packages/all-in-one)     |                                                            |
-| [@redis/client](./packages/client) |                                                            |
-| [@redis/json](./packages/json)     | [Redis JSON](https://oss.redis.com/redisjson/) commands    |
-| [@redis/search](./packages/search) | [Redis Search](https://oss.redis.com/redisearch/) commands |
+| Name                                | Description                                                                                                                                                                                                                                                                                          |
+|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [redis](../)                        | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis/v/next) [![Version](https://img.shields.io/npm/v/redis/next.svg)](https://www.npmjs.com/package/redis/v/next)                                                                                            |
+| [@redis/client](../packages/client) | [![Downloads](https://img.shields.io/npm/dm/@redis/client.svg)](https://www.npmjs.com/package/@redis/client/v/next) [![Version](https://img.shields.io/npm/v/@redis/client/next.svg)](https://www.npmjs.com/package/@redis/client/v/next)                                                            |
+| [@redis/json](../packages/json)     | [![Downloads](https://img.shields.io/npm/dm/@redis/json.svg)](https://www.npmjs.com/package/@redis/json/v/next) [![Version](https://img.shields.io/npm/v/@redis/json/next.svg)](https://www.npmjs.com/package/@redis/json/v/next) [Redis JSON](https://oss.redis.com/redisjson/) commands            |
+| [@redis/search](../packages/search) | [![Downloads](https://img.shields.io/npm/dm/@redis/search.svg)](https://www.npmjs.com/package/@redis/search/v/next) [![Version](https://img.shields.io/npm/v/@redis/search/next.svg)](https://www.npmjs.com/package/@redis/search/v/next) [Redis Search](https://oss.redis.com/redisearch/) commands |
 
 ## Contributing
 
