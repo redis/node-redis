@@ -2,4 +2,5 @@
 coverage/
 lib/
 .nycrc.json
+.release-it
 tsconfig.json

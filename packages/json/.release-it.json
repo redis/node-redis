@@ -1,5 +1,7 @@
 {
   "git": {
-    "tagName": "json@${version}"
+    "tagName": "json@${version}",
+    "commitMessage": "Release ${tagName}",
+    "tagAnnotation": "Release ${tagName}"
   }
 }

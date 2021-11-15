@@ -1,5 +1,7 @@
 {
   "git": {
-    "tagName": "client@${version}"
+    "tagName": "client@${version}",
+    "commitMessage": "Release ${tagName}",
+    "tagAnnotation": "Release ${tagName}"
   }
 }
