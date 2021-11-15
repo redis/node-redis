@@ -1,8 +1,12 @@
-import calculateSlot from 'cluster-key-slot';
 import RedisClient, { InstantiableRedisClient, RedisClientType } from '../client';
 import { RedisClusterMasterNode, RedisClusterReplicaNode } from '../commands/CLUSTER_NODES';
 import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RedisModules, RedisScripts } from '../commands';
+
+// We need to use 'require', because it's not possible with Typescript to import
+// function that are exported as 'module.exports = function`, without esModuleInterop
+// set to true.
+const calculateSlot = require('cluster-key-slot');
 
 export interface ClusterNode<M extends RedisModules, S extends RedisScripts> {
     id: string;

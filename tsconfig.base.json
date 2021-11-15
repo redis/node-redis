@@ -3,11 +3,11 @@
   "compilerOptions": {
     "declaration": true,
     "allowJs": true,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    "esModuleInterop": false
   },
   "files": [
-    "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts",
-    "./packages/client/lib/ts-declarations/redis-parser.d.ts"
+    "./packages/client/lib/ts-declarations/cluster-key-slot.d.ts"
   ],
   "ts-node": {
     "files": true

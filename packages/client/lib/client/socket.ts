@@ -1,6 +1,6 @@
-import EventEmitter from 'events';
-import net from 'net';
-import tls from 'tls';
+import { EventEmitter } from 'events';
+import * as net from 'net';
+import * as tls from 'tls';
 import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError } from '../errors';

@@ -1,7 +1,11 @@
-import LinkedList from 'yallist';
-import RedisParser from 'redis-parser';
+import * as LinkedList from 'yallist';
 import { AbortError } from '../errors';
 import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
+
+// We need to use 'require', because it's not possible with Typescript to import
+// classes that are exported as 'module.exports = class`, without esModuleInterop
+// set to true.
+const RedisParser = require('redis-parser');
 
 export interface QueueCommandOptions {
     asap?: boolean;

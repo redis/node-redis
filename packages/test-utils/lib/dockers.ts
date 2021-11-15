@@ -3,7 +3,7 @@ import { once } from 'events';
 import { RedisModules, RedisScripts } from '@redis/client/lib/commands';
 import RedisClient, { RedisClientType } from '@redis/client/lib/client';
 import { promiseTimeout } from '@redis/client/lib/utils';
-import path from 'path';
+import * as path from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
 const execAsync = promisify(exec);
