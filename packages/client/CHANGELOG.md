@@ -2,7 +2,7 @@
 
 ## v4.0.0
 
-This version is a major change and refactor, adding modern JavaScript capabilities and multiple breaking changes. See the [migration guide](./docs/v3-to-v4.md) for tips on how to upgrade.
+This version is a major change and refactor, adding modern JavaScript capabilities and multiple breaking changes. See the [migration guide](../../docs/v3-to-v4.md) for tips on how to upgrade.
 
 ### Breaking Changes
 
@@ -17,11 +17,34 @@ This version is a major change and refactor, adding modern JavaScript capabiliti
 
 - Added support for Promises
 - Added built-in TypeScript declaration files enabling code completion
-- Added support for [clustering](./README.md#cluster)
-- Added idiomatic arguments and responses to [Redis commands](./README.md#redis-commands)
-- Added full support for [Lua Scripts](./README.md#lua-scripts)
-- Added support for [SCAN iterators](./README.md#scan-iterator)
+- Added support for [clustering](../../.github/README.md#cluster)
+- Added idiomatic arguments and responses to [Redis commands](../../.github/README.md#redis-commands)
+- Added full support for [Lua Scripts](../../.github/README.md#lua-scripts)
+- Added support for [SCAN iterators](../../.github/README.md#scan-iterator)
 - Added the ability to extend Node Redis with Redis Module commands
+
+## v3.1.2
+
+### Fixes
+
+- Exclude unnecessary files from tarball
+
+## v3.1.1
+
+### Enhancements
+
+- Upgrade node and dependencies
+
+### Fixes
+
+- Fix a potential exponential regex in monitor mode
+
+## v3.1.0 - 31 Mar, 2021
+
+### Enhancements
+
+- Upgrade node and dependencies and redis-commands to support Redis 6
+- Add support for Redis 6 `auth pass [user]`
 
 ## v3.0.0 - 09 Feb, 2020
 
