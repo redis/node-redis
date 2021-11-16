@@ -1,4 +1,4 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVerdictArguments } from '@node-redis/client/dist/lib/commands/generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 

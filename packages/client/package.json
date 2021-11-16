@@ -1,5 +1,5 @@
 {
-  "name": "@redis/client",
+  "name": "@node-redis/client",
   "version": "1.0.0-rc",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
-    "@redis/test-utils": "*",
+    "@node-redis/test-utils": "*",
     "@types/node": "^16.11.7",
     "@types/redis-parser": "^3.0.0",
     "@types/sinon": "^10.0.6",

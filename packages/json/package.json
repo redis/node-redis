@@ -1,5 +1,5 @@
 {
-  "name": "@redis/json",
+  "name": "@node-redis/json",
   "version": "1.0.0-rc.0",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -9,11 +9,11 @@
     "build": "tsc"
   },
   "peerDependencies": {
-    "@redis/client": "^1.0.0-rc"
+    "@node-redis/client": "^1.0.0-rc"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
-    "@redis/test-utils": "*",
+    "@node-redis/test-utils": "*",
     "@types/node": "^16.11.7",
     "nyc": "^15.1.0",
     "release-it": "^14.11.7",

@@ -1,5 +1,5 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushOptionalVerdictArgument, pushVerdictArgument, transformReplyTuples } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { pushOptionalVerdictArgument, pushVerdictArgument, transformReplyTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
 import { RedisSearchLanguages, PropertyName, pushSortByArguments, SortByOptions } from '.';
 
 export const FIRST_KEY_INDEX = 1;
