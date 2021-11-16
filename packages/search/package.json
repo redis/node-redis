@@ -1,6 +1,6 @@
 {
   "name": "@node-redis/search",
-  "version": "1.0.0-rc.0",
+  "version": "1.0.0-rc",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
