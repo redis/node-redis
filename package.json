@@ -17,9 +17,9 @@
     "build-all": "npm run build:client && npm run build:test-utils && npm run build:modules && npm run build"
   },
   "dependencies": {
-    "@node-redis/client": "^1.0.0-rc",
-    "@node-redis/json": "^1.0.0-rc",
-    "@node-redis/search": "^1.0.0-rc"
+    "@node-redis/client": "^1.0.0-rc.0",
+    "@node-redis/json": "^1.0.0-rc.0",
+    "@node-redis/search": "^1.0.0-rc.0"
   },
   "devDependencies": {
     "@tsconfig/node12": "^1.0.9",
