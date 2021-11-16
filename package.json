@@ -1,66 +1,37 @@
 {
   "name": "redis",
-  "version": "4.0.0-rc.3",
-  "description": "A high performance Redis client.",
-  "keywords": [
-    "database",
-    "redis",
-    "pubsub"
-  ],
-  "author": "Matt Ranney <mjr@ranney.com>",
-  "contributors": [
-    {
-      "name": "Mike Diarmid (Salakar)",
-      "url": "https://github.com/salakar"
-    },
-    {
-      "name": "Ruben Bridgewater (BridgeAR)",
-      "url": "https://github.com/BridgeAR"
-    }
-  ],
+  "version": "4.0.0-rc.4",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "workspaces": [
+    "./packages/*"
+  ],
   "scripts": {
-    "test": "nyc -r text-summary -r html mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
+    "test": "npm run test -ws --if-present",
+    "build:client": "npm run build -w ./packages/client",
+    "build:test-utils": "npm run build -w ./packages/test-utils",
+    "build:tests-tools": "npm run build:client && npm run build:test-utils",
+    "build:modules": "find ./packages -mindepth 1 -maxdepth 1 -type d ! -name 'client' ! -name 'test-utils' -exec npm run build -w {} \\;",
     "build": "tsc",
-    "documentation": "typedoc"
+    "build-all": "npm run build:client && npm run build:test-utils && npm run build:modules && npm run build"
   },
   "dependencies": {
-    "cluster-key-slot": "1.1.0",
-    "generic-pool": "3.8.2",
-    "redis-parser": "3.0.0",
-    "yallist": "4.0.0"
+    "@node-redis/client": "^1.0.0-rc.0",
+    "@node-redis/json": "^1.0.0-rc.0",
+    "@node-redis/search": "^1.0.0-rc.0"
   },
   "devDependencies": {
-    "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@tsconfig/node12": "^1.0.9",
-    "@types/mocha": "^9.0.0",
-    "@types/node": "^16.10.3",
-    "@types/sinon": "^10.0.4",
-    "@types/which": "^2.0.1",
-    "@types/yallist": "^4.0.1",
-    "mocha": "^9.1.2",
-    "nyc": "^15.1.0",
-    "release-it": "^14.11.6",
-    "sinon": "^11.1.2",
-    "source-map-support": "^0.5.20",
-    "ts-node": "^10.3.0",
-    "typedoc": "^0.22.5",
-    "typedoc-github-wiki-theme": "^0.6.0",
-    "typedoc-plugin-markdown": "^3.11.3",
-    "typescript": "^4.4.3",
-    "which": "^2.0.2"
-  },
-  "engines": {
-    "node": ">=12"
+    "release-it": "^14.11.7",
+    "typescript": "^4.4.4"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/NodeRedis/node-redis.git"
+    "url": "git://github.com/redis/node-redis.git"
   },
   "bugs": {
-    "url": "https://github.com/NodeRedis/node-redis/issues"
+    "url": "https://github.com/redis/node-redis/issues"
   },
-  "homepage": "https://github.com/NodeRedis/node-redis"
+  "homepage": "https://github.com/redis/node-redis"
 }

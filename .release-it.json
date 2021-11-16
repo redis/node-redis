@@ -1,0 +1,7 @@
+{
+  "git": {
+    "tagName": "redis@${version}",
+    "commitMessage": "Release ${tagName}",
+    "tagAnnotation": "Release ${tagName}"
+  }
+}

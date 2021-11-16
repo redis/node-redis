@@ -1,8 +1,8 @@
-.vscode/
 .idea/
-node_modules/
-dist/
 .nyc_output/
+.vscode/
 coverage/
+dist/
+node_modules/
+.DS_Store
 dump.rdb
-documentation/

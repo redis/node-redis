@@ -10,7 +10,7 @@ Below are several examples of how to use isolated execution.
 
 > NOTE: Behind the scences we're using [`generic-pool`](https://www.npmjs.com/package/generic-pool) to provide a pool of connections that can be isolated. Go there to learn more.
 
-## The Simple Secnario
+## The Simple Scenario
 
 This just isolates execution on a single connection. Do what you want with that connection:
 

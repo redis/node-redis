@@ -9,21 +9,16 @@ on:
 jobs:
   documentation:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2.3.4
         with:
           fetch-depth: 1
-
       - name: Use Node.js
         uses: actions/setup-node@v2.3.0
-
       - name: Install Packages
         run: npm ci
-
       - name: Generate Documentation
         run: npm run documentation
-
       - name: Upload Documentation to Wiki
         uses: SwiftDocOrg/github-wiki-publish-action@v1
         with:

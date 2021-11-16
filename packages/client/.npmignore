@@ -1,0 +1,10 @@
+.nyc_output/
+coverage/
+documentation/
+lib/
+.eslintrc.json
+.nycrc.json
+.release-it.json
+dump.rdb
+index.ts
+tsconfig.json
