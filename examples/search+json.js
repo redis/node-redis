@@ -43,7 +43,7 @@ async function searchPlusJson() {
   //   documents: [...]
   // }
 
-  // Some aggrigrations
+  // Some aggregrations
   console.log(
     await client.ft.aggregate('users', '*', {
       STEPS: [{
@@ -51,7 +51,7 @@ async function searchPlusJson() {
         REDUCE: [{
           type: AggregateGroupByReducers.AVG,
           property: '$.age',
-          AS: 'avarageAge'
+          AS: 'averageAge'
         }, {
           type: AggregateGroupByReducers.SUM,
           property: '$.coins',
@@ -63,7 +63,7 @@ async function searchPlusJson() {
   // {
   //   total: 2,
   //   results: [{
-  //     avarageAvg: '27.5',
+  //     averageAge: '27.5',
   //     totalCoins: '115'
   //   }]
   // }
