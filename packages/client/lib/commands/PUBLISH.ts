@@ -1,4 +1,6 @@
-export function transformArguments(channel: string, message: string): Array<string> {
+import { RedisCommandArguments } from '.';
+
+export function transformArguments(channel: string | Buffer, message: string | Buffer): RedisCommandArguments {
     return ['PUBLISH', channel, message];
 }
 

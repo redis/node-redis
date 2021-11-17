@@ -150,6 +150,18 @@ Publish a message on a channel:
 await publisher.publish('channel', 'message');
 ```
 
+There is support for buffers as well:
+
+```typescript
+await subscriber.subscribe('channel', (message) => {
+  console.log(message); // <Buffer 6d 65 73 73 61 67 65>
+}, true);
+
+await subscriber.pSubscribe('channe*', (message, channel) => {
+  console.log(message, channel); // <Buffer 6d 65 73 73 61 67 65>, <Buffer 63 68 61 6e 6e 65 6c>
+}, true);
+```
+
 ### Scan Iterator
 
 [`SCAN`](https://redis.io/commands/scan) results can be looped over using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
