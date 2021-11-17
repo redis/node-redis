@@ -14,4 +14,4 @@ export function transformArguments(key: string, path?: string, index?: number): 
     return args;
 }
 
-export { transformRedisJsonNullArrayReply as transformReply } from '.';
+export { transformRedisJsonNullArrayNullReply as transformReply } from '.';
