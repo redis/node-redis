@@ -187,7 +187,8 @@ You can override the default options by providing a configuration object:
 client.scanIterator({
   TYPE: 'string', // `SCAN` only
   MATCH: 'patter*',
-  COUNT: 100
+  COUNT: 100,
+  CURSOR: 123,
 });
 ```
 
