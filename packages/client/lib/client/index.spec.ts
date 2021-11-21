@@ -500,6 +500,27 @@ describe('Client', () => {
         assert.deepEqual(keys, results);
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('scanIterator with cursor', async client => {
+        const promises = [],
+          keys = new Set();
+        for (let i = 0; i < 100; i++) {
+            const key = i.toString();
+            if (i >= 50) {
+                keys.add(key);
+            }
+            promises.push(client.set(key, ''));
+        }
+
+        await Promise.all(promises);
+
+        const results = new Set();
+        for await (const key of client.scanIterator({CURSOR: 50, COUNT: 50})) {
+            results.add(key);
+        }
+
+        assert.deepEqual(keys, results);
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('hScanIterator', async client => {
         const hash: Record<string, string> = {};
         for (let i = 0; i < 100; i++) {
@@ -516,6 +537,26 @@ describe('Client', () => {
         assert.deepEqual(hash, results);
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('hScanIterator with cursor', async client => {
+        const hash: Record<string, string> = {};
+        const expectedHash: Record<string, string> = {};
+        for (let i = 0; i < 100; i++) {
+            hash[i.toString()] = i.toString();
+            if (i >= 50) {
+                expectedHash[i.toString()] = i.toString();
+            }
+        }
+
+        await client.hSet('key', hash);
+
+        const results: Record<string, string> = {};
+        for await (const { field, value } of client.hScanIterator('key', {CURSOR: 50, COUNT: 50})) {
+            results[field] = value;
+        }
+
+        assert.deepEqual(expectedHash, results);
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('sScanIterator', async client => {
         const members = new Set<string>();
         for (let i = 0; i < 100; i++) {
@@ -530,6 +571,26 @@ describe('Client', () => {
         }
 
         assert.deepEqual(members, results);
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('sScanIterator with cursor', async client => {
+        const members = new Set<string>();
+        const expectedMembers = new Set<string>();
+        for (let i = 0; i < 100; i++) {
+            members.add(i.toString());
+            if (i >= 50) {
+                expectedMembers.add(i.toString());
+            }
+        }
+
+        await client.sAdd('key', Array.from(members));
+
+        const results = new Set<string>();
+        for await (const key of client.sScanIterator('key', {CURSOR: 50, COUNT: 50})) {
+            results.add(key);
+        }
+
+        assert.deepEqual(expectedMembers, results);
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('zScanIterator', async client => {
@@ -557,6 +618,34 @@ describe('Client', () => {
         assert.deepEqual(
             [...map.entries()].sort(sort),
             members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
+        );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('zScanIterator with cursor', async client => {
+        const members = [];
+        for (let i = 0; i < 100; i++) {
+            members.push({
+                score: 1,
+                value: i.toString()
+            });
+        }
+
+        await client.zAdd('key', members);
+
+        const map = new Map();
+        for await (const member of client.zScanIterator('key', {CURSOR: 50, COUNT: 50})) {
+            map.set(member.value, member.score);
+        }
+
+        type MemberTuple = [string, number];
+
+        function sort(a: MemberTuple, b: MemberTuple) {
+            return Number(b[0]) - Number(a[0]);
+        }
+
+        assert.deepEqual(
+          [...map.entries()].splice(50).sort(sort),
+          members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
         );
     }, GLOBAL.SERVERS.OPEN);
 

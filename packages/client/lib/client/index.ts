@@ -53,6 +53,10 @@ export interface ClientCommandOptions extends QueueCommandOptions {
     isolated?: boolean;
 }
 
+export interface ScanCursor {
+    CURSOR?: number;
+}
+
 type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
 
 export type ClientLegacyCommandArguments = LegacyCommandArguments | [...LegacyCommandArguments, ClientLegacyCallback];
@@ -528,8 +532,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         return promise;
     }
 
-    async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
-        let cursor = 0;
+    async* scanIterator(options?: ScanCommandOptions & ScanCursor): AsyncIterable<string> {
+        let cursor = options?.CURSOR ?? 0;
         do {
             const reply = await (this as any).scan(cursor, options);
             cursor = reply.cursor;
@@ -539,8 +543,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         } while (cursor !== 0);
     }
 
-    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<HScanTuple> {
-        let cursor = 0;
+    async* hScanIterator(key: string, options?: ScanOptions & ScanCursor): AsyncIterable<HScanTuple> {
+        let cursor = options?.CURSOR ?? 0;
         do {
             const reply = await (this as any).hScan(key, cursor, options);
             cursor = reply.cursor;
@@ -550,8 +554,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         } while (cursor !== 0);
     }
 
-    async* sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
-        let cursor = 0;
+    async* sScanIterator(key: string, options?: ScanOptions & ScanCursor): AsyncIterable<string> {
+        let cursor = options?.CURSOR ?? 0;
         do {
             const reply = await (this as any).sScan(key, cursor, options);
             cursor = reply.cursor;
@@ -561,8 +565,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         } while (cursor !== 0);
     }
 
-    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember> {
-        let cursor = 0;
+    async* zScanIterator(key: string, options?: ScanOptions & ScanCursor): AsyncIterable<ZMember> {
+        let cursor = options?.CURSOR ?? 0;
         do {
             const reply = await (this as any).zScan(key, cursor, options);
             cursor = reply.cursor;
