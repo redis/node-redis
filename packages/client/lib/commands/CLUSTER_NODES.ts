@@ -10,7 +10,7 @@ export enum RedisClusterNodeLinkStates {
 interface RedisClusterNodeTransformedUrl {
     host: string;
     port: number;
-    cport: number;
+    cport: number | null;
 }
 
 export interface RedisClusterReplicaNode extends RedisClusterNodeTransformedUrl {
@@ -86,7 +86,16 @@ export function transformReply(reply: string): Array<RedisClusterMasterNode> {
 
 function transformNodeUrl(url: string): RedisClusterNodeTransformedUrl {
     const indexOfColon = url.indexOf(':'),
-        indexOfAt = url.indexOf('@', indexOfColon);
+        indexOfAt = url.indexOf('@', indexOfColon),
+        host = url.substring(0, indexOfColon);
+
+    if (indexOfAt === -1) {
+        return {
+            host,
+            port: Number(url.substring(indexOfColon + 1)),
+            cport: null
+        };
+    }
 
     return {
         host: url.substring(0, indexOfColon),

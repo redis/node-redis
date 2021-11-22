@@ -157,7 +157,7 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
             const url = err.message.substring(err.message.lastIndexOf(' ') + 1);
             let node = this.#slots.getNodeByUrl(url);
             if (!node) {
-                await this.#slots.discover(client);
+                await this.#slots.rediscover(client);
                 node = this.#slots.getNodeByUrl(url);
 
                 if (!node) {
@@ -168,7 +168,7 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
             await node.client.asking();
             return node.client;
         } else if (err.message.startsWith('MOVED')) {
-            await this.#slots.discover(client);
+            await this.#slots.rediscover(client);
             return true;
         }
 
