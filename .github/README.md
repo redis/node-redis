@@ -5,13 +5,15 @@
 [![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://codecov.io/gh/redis/node-redis)
 [![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/XMMVgxUm)
 
+node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 6.2 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).  
+
 ## Installation
 
 ```bash
 npm install redis@next
 ```
 
-> :warning: The new interface is clean and cool, but if you have an existing code base, you'll want to read the [migration guide](../docs/v3-to-v4.md).
+> :warning: The new interface is clean and cool, but if you have an existing codebase, you'll want to read the [migration guide](../docs/v3-to-v4.md).
 
 ## Usage
 
