@@ -10,7 +10,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys                                  |
 | `managing-json.js`          | Store, retrieve and manipulate JSON data atomically with [RedisJSON](https://redisjson.io/)                    |
 | `search-hashes.js`          | Uses [RediSearch](https://redisearch.io) to index and search data in hashes                                    |
-| `search+json.js`            | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data |
+| `search-json.js`            | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data |
 | `set-scan.js`               | An example script that shows how to use the SSCAN iterator functionality                                       |
 
 ## Contributing
