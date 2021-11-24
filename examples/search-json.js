@@ -14,8 +14,14 @@ async function searchJSON() {
         type: SchemaFieldTypes.TEXT,
         SORTABLE: 'UNF'
       },
-      '$.age': SchemaFieldTypes.NUMERIC,
-      '$.coins': SchemaFieldTypes.NUMERIC
+      '$.age': {
+        type: SchemaFieldTypes.NUMERIC,
+        AS: 'age'
+      },
+      '$.coins': {
+        type: SchemaFieldTypes.NUMERIC,
+        AS: 'coins'
+      }
     }, {
       ON: 'JSON',
       PREFIX: 'noderedis:users'
@@ -45,14 +51,14 @@ async function searchJSON() {
   ]);
 
   // Search all users under 30
-  // https://oss.redis.com/redisearch/Commands/#ftsearch
-  // TODO: why "$.age:[-inf, 30]" does not work?
+  console.log('Users under 30 years old:');
   console.log(
-    await client.ft.search('idx:users', '*')
+    // https://oss.redis.com/redisearch/Commands/#ftsearch
+    await client.ft.search('idx:users', '@age:[0 30]')
   );
   // {
   //   total: 1,
-  //   documents: [...]
+  //   documents: [ { id: 'noderedis:users:2', value: [Object] } ]
   // }
 
   // Some aggregrations, what's the average age and total number of coins...
@@ -63,11 +69,11 @@ async function searchJSON() {
         type: AggregateSteps.GROUPBY,
         REDUCE: [{
           type: AggregateGroupByReducers.AVG,
-          property: '$.age',
+          property: 'age',
           AS: 'averageAge'
         }, {
           type: AggregateGroupByReducers.SUM,
-          property: '$.coins',
+          property: 'coins',
           AS: 'totalCoins'
         }]
       }]
