@@ -1,4 +1,4 @@
-// Use Redis Search and Redis JSON
+// This example demonstrates how to use RediSearch and RedisJSON together.
 
 import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps } from 'redis';
 
@@ -43,7 +43,7 @@ async function searchPlusJson() {
   //   documents: [...]
   // }
 
-  // Some aggregrations
+  // Some aggregrations...
   console.log(
     await client.ft.aggregate('users', '*', {
       STEPS: [{
