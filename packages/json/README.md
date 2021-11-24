@@ -55,7 +55,7 @@ const results = await client.json.get('noderedis:jsondata', {
 `results` will contain the following:
 
 ```javascript
- '.pets[1].name': 'Goldie', '.pets[1].age': 2 }
+ { '.pets[1].name': 'Goldie', '.pets[1].age': 2 }
 ```
 
 ### Performing Atomic Updates on JSON Documents Stored in Redis
