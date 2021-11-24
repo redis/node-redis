@@ -62,7 +62,7 @@ async function managingJSON() {
 
   // Add a new pet...
   await client.json.arrAppend('noderedis:jsondata', '.pets', {
-    name: '',
+    name: 'Robin',
     species: 'bird',
     isMammal: false,
     age: 1
