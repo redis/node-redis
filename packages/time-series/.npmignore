@@ -1,0 +1,6 @@
+.nyc_output/
+coverage/
+lib/
+.nycrc.json
+.release-it.json
+tsconfig.json
