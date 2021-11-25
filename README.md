@@ -180,7 +180,7 @@ This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 ```typescript
 for await (const { field, value } of client.hScanIterator('hash')) {}
 for await (const member of client.sScanIterator('set')) {}
-for await (const { score, member } of client.zScanIterator('sorted-set')) {}
+for await (const { score, value } of client.zScanIterator('sorted-set')) {}
 ```
 
 You can override the default options by providing a configuration object:
