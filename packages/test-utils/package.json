@@ -8,7 +8,7 @@
     "test": "echo \"TODO\""
   },
   "peerDependencies": {
-    "@node-redis/client": "^1.0.0-rc"
+    "@node-redis/client": "^1.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
