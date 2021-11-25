@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@node-redis/client": "^1.0.0",
-    "@node-redis/json": "^1.0.0-rc.0",
-    "@node-redis/search": "^1.0.0-rc.0"
+    "@node-redis/json": "^1.0.0",
+    "@node-redis/search": "^1.0.0"
   },
   "devDependencies": {
     "@tsconfig/node12": "^1.0.9",
