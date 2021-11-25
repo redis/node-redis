@@ -42,20 +42,8 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
         throw new Error('None of the root nodes is available');
     }
 
-    async discover(startWith: RedisClientType<M, S>): Promise<void> {
-        if (await this.#discoverNodes(startWith.options)) return;
-
-        for (const { client } of this.#nodeByUrl.values()) {
-            if (client === startWith) continue;
-
-            if (await this.#discoverNodes(client.options)) return;
-        }
-
-        throw new Error('None of the cluster nodes is available');
-    }
-
     async #discoverNodes(clientOptions?: RedisClusterClientOptions): Promise<boolean> {
-        const client = new this.#Client(clientOptions);
+        const client = this.#initiateClient(clientOptions);
 
         await client.connect();
 
@@ -70,6 +58,29 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
                 await client.disconnect();
             }
         }
+    }
+
+    #runningRediscoverPromise?: Promise<void>;
+
+    async rediscover(startWith: RedisClientType<M, S>): Promise<void> {
+        if (!this.#runningRediscoverPromise) {
+            this.#runningRediscoverPromise = this.#rediscover(startWith)
+                .finally(() => this.#runningRediscoverPromise = undefined);
+        }
+
+        return this.#runningRediscoverPromise;
+    }
+
+    async #rediscover(startWith: RedisClientType<M, S>): Promise<void> {
+        if (await this.#discoverNodes(startWith.options)) return;
+
+        for (const { client } of this.#nodeByUrl.values()) {
+            if (client === startWith) continue;
+
+            if (await this.#discoverNodes(client.options)) return;
+        }
+
+        throw new Error('None of the cluster nodes is available');
     }
 
     async #reset(masters: Array<RedisClusterMasterNode>): Promise<void> {
@@ -103,16 +114,21 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
         await Promise.all(promises);
     }
 
-    #clientOptionsDefaults(options: RedisClusterClientOptions): RedisClusterClientOptions {
+    #clientOptionsDefaults(options?: RedisClusterClientOptions): RedisClusterClientOptions | undefined {
         if (!this.#options.defaults) return options;
 
         const merged = Object.assign({}, this.#options.defaults, options);
 
-        if (options.socket && this.#options.defaults.socket) {
+        if (options?.socket && this.#options.defaults.socket) {
             Object.assign({}, this.#options.defaults.socket, options.socket);
         }
 
         return merged;
+    }
+
+    #initiateClient(options?: RedisClusterClientOptions): RedisClientType<M, S> {
+        return new this.#Client(this.#clientOptionsDefaults(options))
+            .on('error', this.#onError);
     }
 
     #initiateClientForNode(nodeData: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): ClusterNode<M, S> {
@@ -123,15 +139,13 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
         if (!node) {
             node = {
                 id: nodeData.id,
-                client: new this.#Client(
-                    this.#clientOptionsDefaults({
-                        socket: {
-                            host: nodeData.host,
-                            port: nodeData.port
-                        },
-                        readonly
-                    })
-                )
+                client: this.#initiateClient({
+                    socket: {
+                        host: nodeData.host,
+                        port: nodeData.port
+                    },
+                    readonly
+                })
             };
             promises.push(node.client.connect());
             this.#nodeByUrl.set(url, node);

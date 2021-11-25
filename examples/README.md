@@ -2,14 +2,16 @@
 
 This folder contains example scripts showing how to use Node Redis in different scenarios.
 
-| File Name                   | Description                                                                        |
-|-----------------------------|------------------------------------------------------------------------------------|
-| `blocking-list-pop.js`      | Block until an element is pushed to a list                                         |
-| `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers                |
-| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                               |
-| `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys      |
-| `search+json.js`            | Use [Redis Search](https://redisearch.io/) and [Redis JSON](https://redisjson.io/) |
-| `set-scan.js`               | An example script that shows how to use the SSCAN iterator functionality           |
+| File Name                   | Description                                                                                                    |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------|
+| `blocking-list-pop.js`      | Block until an element is pushed to a list                                                                     |
+| `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers                                            |
+| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                                                           |
+| `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys                                  |
+| `managing-json.js`          | Store, retrieve and manipulate JSON data atomically with [RedisJSON](https://redisjson.io/)                    |
+| `search-hashes.js`          | Uses [RediSearch](https://redisearch.io) to index and search data in hashes                                    |
+| `search-json.js`            | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data |
+| `set-scan.js`               | An example script that shows how to use the SSCAN iterator functionality                                       |
 
 ## Contributing
 

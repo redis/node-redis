@@ -48,6 +48,31 @@ describe('CLUSTER NODES', () => {
             );
         });
 
+        it('should support urls without cport', () => {
+            assert.deepEqual(
+                transformReply(
+                    'id 127.0.0.1:30001 master - 0 0 0 connected 0-16384\n'
+                ),
+                [{
+                    id: 'id',
+                    url: '127.0.0.1:30001',
+                    host: '127.0.0.1',
+                    port: 30001,
+                    cport: null,
+                    flags: ['master'],
+                    pingSent: 0,
+                    pongRecv: 0,
+                    configEpoch: 0,
+                    linkState: RedisClusterNodeLinkStates.CONNECTED,
+                    slots: [{
+                        from: 0,
+                        to: 16384
+                    }],
+                    replicas: []
+                }]
+            );
+        });
+
         it.skip('with importing slots', () => {
             assert.deepEqual(
                 transformReply(
