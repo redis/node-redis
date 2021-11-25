@@ -47,7 +47,7 @@ const results = await client.ft.search('idx:animals', '@species:{dog}');
 {
   total: 2,
   documents: [
-    { 
+    {
       id: 'noderedis:animals:4',
       value: {
         name: 'Fido',

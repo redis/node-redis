@@ -86,7 +86,7 @@ export function transformRedisJsonNullReply(json: string | null): RedisJSON | nu
 
 export function transformRedisJsonNullArrayNullReply(jsons: Array<string | null> | null): Array<RedisJSON | null> | null {
     if (jsons === null) return null;
-    
+
     return jsons.map(transformRedisJsonNullReply);
 }
 
