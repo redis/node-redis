@@ -1,6 +1,6 @@
 # @node-redis/json
 
-This package provides support for the [RedisJSON](https://redisjson.io) module, which adds JSON as a native data type to Redis.  It extends the [Node Redis client](https://) to include functions for each of the RedisJSON commands.
+This package provides support for the [RedisJSON](https://redisjson.io) module, which adds JSON as a native data type to Redis.  It extends the [Node Redis client](https://github.com/redis/node-redis) to include functions for each of the RedisJSON commands.
 
 To use these extra commands, your Redis server must have the RedisJSON module installed.
 
@@ -32,7 +32,7 @@ await client.json.set('noderedis:jsondata', '$', {
     species: 'fish',
     age: 2,
     isMammal: false
-    }      
+    }
   ]
 });
 ```
