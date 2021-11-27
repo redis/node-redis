@@ -2,13 +2,22 @@ import { strict as assert } from 'assert';
 import { transformArguments } from './HSET';
 import testUtils, { GLOBAL } from '../test-utils';
 
-describe('HSET', () => {
+describe.only('HSET', () => {
     describe('transformArguments', () => {
-        it('field, value', () => {
-            assert.deepEqual(
-                transformArguments('key', 'field', 'value'),
-                ['HSET', 'key', 'field', 'value']
-            );
+        describe('field, value', () => {
+            it('string', () => {
+                assert.deepEqual(
+                    transformArguments('key', 'field', 'value'),
+                    ['HSET', 'key', 'field', 'value']
+                );
+            });
+
+            it('Buffer', () => {
+                assert.deepEqual(
+                    transformArguments('key', Buffer.from('field'), Buffer.from('value')),
+                    ['HSET', 'key', Buffer.from('field'), Buffer.from('value')]
+                );
+            });
         });
 
         it('Map', () => {
