@@ -33,6 +33,8 @@ In V4, you don't need to add listener to `message` and `message_buffer` event, y
 
 The second agrument of commands is a callback, and will be triggered every time when there is a message published to the channel.
 
+The third agrument of commands is a boolean to set `bufferMode` (default `false`), if it's `true` you will receive buffer instead of string.
+
 The `subscribe`-like commands return a promise, if the server returns `ok` the promise will be fulfilled, otherwise the promise will be rejected.
 
 ```javascript
@@ -42,7 +44,7 @@ const subscriber = redis.createClient();
 subscriber.connect().then(() => { // the connect method returns promise!
     subscriber.subscribe("channel_name", (message, channelName) => {
         console.info(message, channelName);
-    }/* if you want to receive buffer please set the third argument to `true` */).then(() => {
+    }).then(() => {
         // ok
     }).catch((reason) => {
         // failed with `reason`
