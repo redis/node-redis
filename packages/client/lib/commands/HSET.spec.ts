@@ -14,7 +14,7 @@ describe('HSET', () => {
 
             it('number', () => {
                 assert.deepEqual(
-                    transformArguments('key', '1', '2'),
+                    transformArguments('key', 1, 2),
                     ['HSET', 'key', '1', '2']
                 );
             });
