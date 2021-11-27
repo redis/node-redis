@@ -12,10 +12,17 @@ describe('HSET', () => {
                 );
             });
 
+            it('number', () => {
+                assert.deepEqual(
+                    transformArguments('key', '1', '2'),
+                    ['HSET', 'key', '1', '2']
+                );
+            });
+
             it('Buffer', () => {
                 assert.deepEqual(
-                    transformArguments('key', Buffer.from('field'), Buffer.from('value')),
-                    ['HSET', 'key', Buffer.from('field'), Buffer.from('value')]
+                    transformArguments(Buffer.from('key'), Buffer.from('field'), Buffer.from('value')),
+                    ['HSET', Buffer.from('key'), Buffer.from('field'), Buffer.from('value')]
                 );
             });
         });
