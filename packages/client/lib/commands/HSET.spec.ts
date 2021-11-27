@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import { transformArguments } from './HSET';
 import testUtils, { GLOBAL } from '../test-utils';
 
-describe.only('HSET', () => {
+describe('HSET', () => {
     describe('transformArguments', () => {
         describe('field, value', () => {
             it('string', () => {
