@@ -16,15 +16,16 @@ The configuration object passed to `createClient` has changed significantly with
 
 ### No Auto Connect
 
-In V4, the client will not be auto connected to the server, you need to run `.connect()` before any command, or you will receive error `Uncaught ClientClosedError: The client is closed`.
+In V4, the client will not be auto connected to the server, you need to run `.connect()` before any command, or you will receive error `ClientClosedError: The client is closed`.
 
-```javascript
-const redis = require("redis");
-const client = redis.createClient();
+```typescript
+import { createClient } from 'redis';
 
-client.connect().then(() => { // the connect method returns promise!
-    return client.select();
-});
+const client = createClient();
+
+await client.connect();
+
+await client.ping();
 ```
 
 ### No `message` event
@@ -37,18 +38,15 @@ The third agrument of commands is a boolean to set `bufferMode` (default `false`
 
 The `subscribe`-like commands return a promise, if the server returns `ok` the promise will be fulfilled, otherwise the promise will be rejected.
 
-```javascript
-const redis = require("redis");
-const subscriber = redis.createClient();
+```typescript
+import { createClient } from 'redis';
 
-subscriber.connect().then(() => { // the connect method returns promise!
-    subscriber.subscribe("channel_name", (message, channelName) => {
-        console.info(message, channelName);
-    }).then(() => {
-        // ok
-    }).catch((reason) => {
-        // failed with `reason`
-    });
+const subscriber = createClient();
+
+await subscriber.connect();
+
+await subscriber.subscribe('channel_name', (message, channelName) => {
+    console.info(message, channelName);
 });
 ```
 
