@@ -24,32 +24,32 @@ interface SetCommonOptions {
 
 type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 
-export function transformArguments(key: string | Buffer, value: string | Buffer, options?: SetOptions): RedisCommandArguments {
-    const args = ['SET', key, value];
+export function transformArguments(key: string | Buffer, value: string | number | Buffer, options?: SetOptions): RedisCommandArguments {
+    const args = [
+        'SET',
+        key,
+        typeof value === 'number' ? value.toString() : value
+    ];
 
-    if (!options) {
-        return args;
-    }
-
-    if (options.EX) {
+    if (options?.EX) {
         args.push('EX', options.EX.toString());
-    } else if (options.PX) {
+    } else if (options?.PX) {
         args.push('PX', options.PX.toString());
-    } else if (options.EXAT) {
+    } else if (options?.EXAT) {
         args.push('EXAT', options.EXAT.toString());
-    } else if (options.PXAT) {
+    } else if (options?.PXAT) {
         args.push('PXAT', options.PXAT.toString());
-    } else if (options.KEEPTTL) {
+    } else if (options?.KEEPTTL) {
         args.push('KEEPTTL');
     }
 
-    if (options.NX) {
+    if (options?.NX) {
         args.push('NX');
-    } else if (options.XX) {
+    } else if (options?.XX) {
         args.push('XX');
     }
 
-    if (options.GET) {
+    if (options?.GET) {
         args.push('GET');
     }
 
