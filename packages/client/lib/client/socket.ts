@@ -33,7 +33,7 @@ export default class RedisSocket extends EventEmitter {
         options ??= {};
         if (!(options as net.IpcSocketConnectOpts).path) {
             (options as net.TcpSocketConnectOpts).port ??= 6379;
-            (options as net.TcpSocketConnectOpts).host ??= '127.0.0.1';
+            (options as net.TcpSocketConnectOpts).host ??= 'localhost';
         }
 
         options.connectTimeout ??= 5000;
