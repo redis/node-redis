@@ -1,6 +1,6 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
-import RedisSocket, { RedisSocketOptions, RedisNetSocketOptions, RedisTlsSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
@@ -13,6 +13,7 @@ import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
+import { TcpSocketConnectOpts } from 'net';
 
 export interface RedisClientOptions<M extends RedisModules, S extends RedisScripts> extends RedisPlugins<M, S> {
     url?: string;
@@ -97,7 +98,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         }
 
         if (port) {
-            (parsed.socket as RedisNetSocketOptions).port = Number(port);
+            (parsed.socket as TcpSocketConnectOpts).port = Number(port);
         }
 
         if (username) {
