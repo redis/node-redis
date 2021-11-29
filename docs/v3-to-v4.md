@@ -30,7 +30,7 @@ await client.ping();
 
 ### No `message` event
 
-In V4, you don't need to add listener to `message` and `message_buffer` event, you can get the message directly in `subscribe`-like commands.
+In V4, you don't need to add listener to the `message` and `message_buffer` events, you can get the message directly in `subscribe`-like commands.
 
 The second agrument of commands is a callback, and will be triggered every time when there is a message published to the channel.
 
