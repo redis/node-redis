@@ -36,5 +36,8 @@
   "homepage": "https://github.com/redis/node-redis",
   "files": [
     "dist/"
-  ]
+  ],
+  "engines": {
+    "npm": ">=7"
+  }
 }
