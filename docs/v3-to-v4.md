@@ -34,7 +34,7 @@ In V4, you don't need to add listener to the `message` and `message_buffer` even
 
 The second argument of these commands is a callback, which will be triggered every time there is a message published to the channel.
 
-The third agrument of commands is a boolean to set `bufferMode` (default `false`), if it's `true` you will receive buffer instead of string.
+The third argument to these commands is a boolean to set `bufferMode` (default `false`).  If it's set to `true` you will receive a buffer instead of a string.
 
 The `subscribe`-like commands return a promise, if the server returns `ok` the promise will be fulfilled, otherwise the promise will be rejected.
 
