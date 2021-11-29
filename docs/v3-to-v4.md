@@ -2,7 +2,7 @@
 
 Version 4 of Node Redis is a major refactor. While we have tried to maintain backwards compatibility where possible, several interfaces have changed. Read this guide to understand the differences and how to implement version 4 in your application.
 
-## All the Breaking Changes
+## All of the Breaking Changes
 
 See the [Change Log](../packages/client/CHANGELOG.md).
 
