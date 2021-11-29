@@ -289,6 +289,8 @@ Node Redis client class extends Node.js's `EventEmitter` class, and the client e
 | error        | When a network error has occurred, such as unable to connect to the server or the connection closed unexpectedly | The error object, such as `SocketClosedUnexpectedlyError: Socket closed unexpectedly` or `Error: connect ECONNREFUSED [IP]:[PORT]` |
 | reconnecting | The client is trying to reconnect to the server. | _undefined_
 
+Except for the network, the client will not emmit any events any more.
+
 ## Supported Redis versions
 
 Node Redis is supported with the following versions of Redis:
