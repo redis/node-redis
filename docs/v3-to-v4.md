@@ -36,7 +36,7 @@ The second argument of these commands is a callback, which will be triggered eve
 
 The third argument to these commands is a boolean to set `bufferMode` (default `false`).  If it's set to `true` you will receive a buffer instead of a string.
 
-The `subscribe`-like commands return a promise, if the server returns `ok` the promise will be fulfilled, otherwise the promise will be rejected.
+The `subscribe`-like commands return a promise. If the server returns `ok` the promise will be fulfilled, otherwise the promise will be rejected.
 
 ```typescript
 import { createClient } from 'redis';
