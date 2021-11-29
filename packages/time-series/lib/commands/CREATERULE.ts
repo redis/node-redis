@@ -12,6 +12,7 @@ export function transformArguments(
         'TS.CREATERULE',
         sourceKey,
         destinationKey,
+        'AGGREGATION',
         aggregationType,
         timeBucket.toString()
     ];

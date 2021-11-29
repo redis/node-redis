@@ -7,7 +7,7 @@ describe('CREATERULE', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('source', 'destination', TimeSeriesAggregationType.AVARAGE, 1),
-            ['TS.CREATERULE', 'source', 'destination', 'avg', 1]
+            ['TS.CREATERULE', 'source', 'destination', 'AGGREGATION', 'avg', '1']
         );
     });
 
