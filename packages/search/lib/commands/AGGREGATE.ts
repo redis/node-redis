@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArgument, transformReplyTuples, TuplesObject } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByOptions } from '.';
+import { PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
     GROUPBY = 'GROUPBY',
@@ -95,7 +95,7 @@ interface GroupByStep extends AggregateStep<AggregateSteps.GROUPBY> {
 }
 
 interface SortStep extends AggregateStep<AggregateSteps.SORTBY> {
-    BY: SortByOptions | Array<SortByOptions>;
+    BY: SortByProperty | Array<SortByProperty>;
     MAX?: number;
 }
 

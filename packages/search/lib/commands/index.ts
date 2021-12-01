@@ -117,12 +117,12 @@ export enum RedisSearchLanguages {
 
 export type PropertyName = `${'@' | '$.'}${string}`;
 
-export type SortByOptions = PropertyName | {
+export type SortByProperty = PropertyName | {
     BY: PropertyName;
     DIRECTION?: 'ASC' | 'DESC';
 };
 
-function pushSortByProperty(args: RedisCommandArguments, sortBy: SortByOptions): void {
+export function pushSortByProperty(args: RedisCommandArguments, sortBy: SortByProperty): void {
     if (typeof sortBy === 'string') {
         args.push(sortBy);
     } else {
@@ -134,7 +134,7 @@ function pushSortByProperty(args: RedisCommandArguments, sortBy: SortByOptions):
     }
 }
 
-export function pushSortByArguments(args: RedisCommandArguments, name: string, sortBy: SortByOptions | Array<SortByOptions>): RedisCommandArguments {
+export function pushSortByArguments(args: RedisCommandArguments, name: string, sortBy: SortByProperty | Array<SortByProperty>): RedisCommandArguments {
     const lengthBefore = args.push(
         name,
         '' // will be overwritten

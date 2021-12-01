@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushOptionalVerdictArgument, pushVerdictArgument, transformReplyTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { RedisSearchLanguages, PropertyName, pushSortByProperty, SortByOptions } from '.';
+import { RedisSearchLanguages, PropertyName, pushSortByProperty, SortByProperty } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -48,8 +48,8 @@ interface SearchOptions {
     SCORER?: string;
     // EXPLAINSCORE?: true; // TODO: WITHSCORES
     // PAYLOAD?: ;
-    SORTBY?: SortByOptions;
-    // MSORTBY?: SortByOptions | Array<SortByOptions>;
+    SORTBY?: SortByProperty;
+    // MSORTBY?: SortByProperty | Array<SortByProperty>;
     LIMIT?: {
         from: number | string;
         size: number | string;
