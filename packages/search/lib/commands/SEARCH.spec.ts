@@ -196,10 +196,10 @@ describe('SEARCH', () => {
             );
         });
 
-        it('with MSORTBY', () => {
+        it('with SORTBY', () => {
             assert.deepEqual(
-                transformArguments('index', 'query', { MSORTBY: '@by' }),
-                ['FT.SEARCH', 'index', 'query', 'MSORTBY', '1', '@by']
+                transformArguments('index', 'query', { SORTBY: '@by' }),
+                ['FT.SEARCH', 'index', 'query', 'SORTBY', '1', '@by']
             );
         });
 
