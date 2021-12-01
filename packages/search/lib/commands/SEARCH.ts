@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushOptionalVerdictArgument, pushVerdictArgument, transformReplyTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { RedisSearchLanguages, PropertyName, pushSortByArguments, SortByOptions } from '.';
+import { RedisSearchLanguages, PropertyName, pushSortByProperty, SortByOptions } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -150,7 +150,8 @@ export function transformArguments(
     // }
 
     if (options?.SORTBY) {
-        pushSortByArguments(args, 'SORTBY', options.SORTBY);
+        args.push('SORTBY');
+        pushSortByProperty(args, options.SORTBY);
     }
 
     // if (options?.MSORTBY) {

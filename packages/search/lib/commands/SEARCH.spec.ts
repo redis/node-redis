@@ -199,7 +199,7 @@ describe('SEARCH', () => {
         it('with SORTBY', () => {
             assert.deepEqual(
                 transformArguments('index', 'query', { SORTBY: '@by' }),
-                ['FT.SEARCH', 'index', 'query', 'SORTBY', '1', '@by']
+                ['FT.SEARCH', 'index', 'query', 'SORTBY', '@by']
             );
         });
 
