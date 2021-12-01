@@ -3,6 +3,8 @@ import RedisCluster from './lib/cluster';
 
 export { RedisClientType, RedisClientOptions } from './lib/client';
 
+export { RedisModules, RedisScripts } from './lib/commands';
+
 export const createClient = RedisClient.create;
 
 export const commandOptions = RedisClient.commandOptions;
