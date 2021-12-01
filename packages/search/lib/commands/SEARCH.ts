@@ -48,8 +48,8 @@ interface SearchOptions {
     SCORER?: string;
     // EXPLAINSCORE?: true; // TODO: WITHSCORES
     // PAYLOAD?: ;
-    // SORTBY?: SortByOptions;
-    MSORTBY?: SortByOptions | Array<SortByOptions>;
+    SORTBY?: SortByOptions;
+    // MSORTBY?: SortByOptions | Array<SortByOptions>;
     LIMIT?: {
         from: number | string;
         size: number | string;
@@ -149,14 +149,13 @@ export function transformArguments(
     //     args.push('PAYLOAD', options.PAYLOAD);
     // }
 
-    // if (options?.SORTBY) {
-    //     args.push('SORTBY');
-    //     pushSortByArguments(args, options.SORTBY);
-    // }
-
-    if (options?.MSORTBY) {
-        pushSortByArguments(args, 'MSORTBY', options.MSORTBY);
+    if (options?.SORTBY) {
+        pushSortByArguments(args, 'SORTBY', options.SORTBY);
     }
+
+    // if (options?.MSORTBY) {
+    //     pushSortByArguments(args, 'MSORTBY', options.MSORTBY);
+    // }
 
     if (options?.LIMIT) {
         args.push(
