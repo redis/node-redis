@@ -10,6 +10,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1']
             );
         });
+        
         it('with TIMESTAMP', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
@@ -18,6 +19,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1', 'TIMESTAMP', '*']
             );
         });
+        
         it('with RETENTION', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
@@ -26,6 +28,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1', 'RETENTION', '100']
             );
         });
+        
         it('with UNCOMPRESSED', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
@@ -34,6 +37,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1', 'UNCOMPRESSED']
             );
         });
+        
         it('without UNCOMPRESSED', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
@@ -42,6 +46,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1']
             );
         });
+        
         it('with CHUNK_SIZE', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
@@ -50,6 +55,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1', 'CHUNK_SIZE', '100']
             );
         });
+        
         it('with LABELS', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
@@ -58,6 +64,7 @@ describe('DECRBY', () => {
                 ['TS.DECRBY', 'key', '1', 'LABELS', 'label', 'value']
             );
         });
+        
         it('with TIMESTAMP, RETENTION, UNCOMPRESSED, CHUNK_SIZE and LABELS', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
