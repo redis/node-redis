@@ -277,6 +277,20 @@ await Promise.all([
 
 Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
+### Events
+
+The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
+
+| Event name   | Scenes                                                                                                            | Parameters                                                                                                                         |
+|--------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| connect      | The client is initiating a connection to the server.                                                              | _undefined_                                                                                                                        |
+| ready        | The client successfully initiated the connection to the server.                                                   | _undefined_                                                                                                                        |
+| end          | The client disconnected the connection to the server via `.quit()` or `.disconnect()`.                            | _undefined_                                                                                                                        |
+| error        | When a network error has occurred, such as unable to connect to the server or the connection closed unexpectedly. | The error object, such as `SocketClosedUnexpectedlyError: Socket closed unexpectedly` or `Error: connect ECONNREFUSED [IP]:[PORT]` |
+| reconnecting | The client is trying to reconnect to the server.                                                                  | _undefined_                                                                                                                        |
+
+The client will not emit any other events beyond those listed above.
+
 ## Supported Redis versions
 
 Node Redis is supported with the following versions of Redis:
