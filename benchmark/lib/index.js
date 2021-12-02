@@ -31,7 +31,6 @@ async function getName() {
         .parseSync().name;
 }
 
-
 const runnerPath = fileURLToPath(new URL('runner.js', import.meta.url)),
     path = new URL(`${await getName()}/`, import.meta.url),
     metadata = await import(new URL('index.js', path));

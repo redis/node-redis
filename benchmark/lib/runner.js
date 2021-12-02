@@ -1,6 +1,8 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { basename } from 'path';
+import * as hdr from 'hdr-histogram-js';
+hdr.initWebAssemblySync();
 
 const { path, times, concurrency } = yargs(hideBin(process.argv))
     .option('path', {
@@ -39,26 +41,31 @@ const [ { benchmark, teardown }, metadata ] = await Promise.all([
 
 async function run(times) {
     return new Promise(resolve => {
+        const histogram = hdr.build({ useWebAssembly: true });
         let num = 0,
             inProgress = 0;
 
         function run() {
             ++inProgress;
             ++num;
+
+            const start = process.hrtime.bigint();
             benchmark(metadata)
                 .catch(err => console.error(err))
                 .finally(() => {
+                    histogram.recordValue(Number(process.hrtime.bigint() - start));
                     --inProgress;
 
                     if (num < times) {
                         run();
                     } else if (inProgress === 0) {
-                        resolve();
+                        resolve(histogram);
                     }
                 });
         }
 
-        for (let i = 0; i < concurrency; i++) {
+        const toInitiate = Math.min(concurrency, times);
+        for (let i = 0; i < toInitiate; i++) {
             run();
         }
     });
@@ -68,9 +75,8 @@ async function run(times) {
 await run(Math.min(times * 0.1, 10_000));
 
 // benchmark
-const start = process.hrtime.bigint();
-await run(times);
-const took = (process.hrtime.bigint() - start);
-console.log(`[${basename(path)}]: took ${took / 1_000_000n}ms, ${took / BigInt(times)}ns per operation`);
+const histogram = await run(times);
+console.log(`[${basename(path)}]:`);
+console.table(histogram.toJSON());
 
 await teardown();

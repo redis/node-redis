@@ -9,7 +9,7 @@
   "dependencies": {
     "@node-redis/client-local": "../packages/client",
     "@node-redis/client-production": "npm:@node-redis/client@1.0.0",
-    "hazelcast-client": "^5.0.2",
+    "hdr-histogram-js": "2.0.1",
     "ioredis": "4.28.1",
     "redis-v3": "npm:redis@3.1.2",
     "yargs": "17.3.0"
