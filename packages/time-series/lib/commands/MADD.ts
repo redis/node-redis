@@ -1,5 +1,7 @@
 import { Timestamp, transformTimestampArgument } from '.';
 
+export const FIRST_KEY_INDEX = 1;
+
 interface MAddSample {
     key: string;
     timestamp: Timestamp;

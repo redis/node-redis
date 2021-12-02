@@ -11,11 +11,17 @@ import * as INFO_DEBUG from './INFO_DEBUG';
 import * as INFO from './INFO';
 import * as MADD from './MADD';
 import * as MGET from './MGET';
+import * as MGETWITHLABELS from './MGETWITHLABELS';
 import * as QUERYINDEX from './QUERYINDEX';
 import * as RANGE from './RANGE';
 import * as REVRANGE from './REVRANGE';
+import * as MRANGE from './MRANGE';
+import * as MRANGEWITHLABELS from './MRANGEWITHLABELS';
+import * as MREVRANGE from './MREVRANGE';
+import * as MREVRANGEWITHLABELS from './MREVRANGEWITHLABELS';
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
+import { connect } from 'http2';
 
 export default {
     ADD,
@@ -44,12 +50,22 @@ export default {
     mAdd: MADD,
     MGET,
     mGet: MGET,
+    MGETWITHLABELS,
+    mGetWithLabels: MGETWITHLABELS,
     QUERYINDEX,
     queryIndex: QUERYINDEX,
     RANGE,
     range: RANGE,
     REVRANGE,
-    revRange: REVRANGE
+    revRange: REVRANGE,
+    MRANGE,
+    mRange: MRANGE,
+    MRANGEWITHLABELS,
+    mRangeWithLabels: MRANGEWITHLABELS,
+    MREVRANGE,
+    mRevRange: MREVRANGE,
+    MREVRANGEWITHLABELS,
+    mRevRangeWithLabels: MREVRANGEWITHLABELS
 };
 
 export enum TimeSeriesAggregationType {
@@ -65,6 +81,21 @@ export enum TimeSeriesAggregationType {
     STD_S = 'std.s',
     VAR_P = 'var.p',
     VAR_S = 'var.s'
+}
+
+export enum TimeSeriesDuplicatePolicies {
+    BLOCK = 'BLOCK',
+    FIRST = 'FIRST',
+    LAST = 'LAST',
+    MIN = 'MIN',
+    MAX = 'MAX',
+    SUM = 'SUM'
+}
+
+export enum TimeSeriesReduceType {
+    SUM = 'sum',
+    MINIMUM = 'min',
+    MAXIMUM = 'max',
 }
 
 export type Timestamp = number | Date | string;
@@ -117,18 +148,19 @@ export function pushChunkSizeArgument(args: RedisCommandArguments, chunkSize?: n
     return args;
 }
 
-export enum TimeSeriesDuplicatePolicies {
-    BLOCK = 'BLOCK',
-    FIRST = 'FIRST',
-    LAST = 'LAST',
-    MIN = 'MIN',
-    MAX = 'MAX',
-    SUM = 'SUM'
-}
-
 export type Labels = {
     [label: string]: string;
 };
+
+export function transformLablesReply(reply: Array<[string, string]>): Labels {
+    const labels: Labels = {};
+    
+    for (const [key, value] of reply) {
+        labels[key] = value;
+    }
+
+    return labels
+}
 
 export function pushLabelsArgument(args: RedisCommandArguments, labels?: Labels): RedisCommandArguments {
     if (labels) {
@@ -194,7 +226,7 @@ export function transformSampleReply(reply: SampleRawReply): SampleReply {
 }
 
 export interface RangeOptions {
-    FILTER_BY_TS?: string | Array<string>;
+    FILTER_BY_TS?: Array<Timestamp>;
     FILTER_BY_VALUE?: {
         min: number;
         max: number;
@@ -205,6 +237,24 @@ export interface RangeOptions {
         type: TimeSeriesAggregationType;
         timeBucket: Timestamp;
     };
+}
+
+export interface MRangeOptions extends RangeOptions{
+    GROUPBY?: string,
+    REDUCE?: TimeSeriesReduceType
+}
+
+export function pushGroupByReduceArgument(args: RedisCommandArguments, groupBy?: string, reduce?: TimeSeriesReduceType): RedisCommandArguments {
+    if (groupBy && reduce) {
+        args.push(
+            'GROUPBY',
+            groupBy,
+            'REDUCE',
+            reduce
+        );
+    }
+
+    return args;
 }
 
 export function pushRangeArguments(
@@ -220,7 +270,9 @@ export function pushRangeArguments(
 
     if (options?.FILTER_BY_TS) {
         args.push('FILTER_BY_TS');
-        pushVerdictArguments(args, options.FILTER_BY_TS);
+        for(const ts of options.FILTER_BY_TS) {
+            args.push(transformTimestampArgument(ts));
+        }
     }
 
     if (options?.FILTER_BY_VALUE) {
@@ -256,6 +308,88 @@ export function pushRangeArguments(
     return args;
 }
 
+export function pushMRangeArguments(
+    args: RedisCommandArguments,
+    fromTimestamp: Timestamp,
+    toTimestamp: Timestamp,
+    filters: Array<string>,
+    options?: MRangeOptions
+): RedisCommandArguments {
+    pushRangeArguments(args, fromTimestamp, toTimestamp, options);
+    args.push('FILTER', ...filters);
+    pushGroupByReduceArgument(args, options?.GROUPBY, options?.REDUCE)
+    return args;
+}
+
+export function pushMRangeWithLabelsArguments(
+    args: RedisCommandArguments,
+    fromTimestamp: Timestamp,
+    toTimestamp: Timestamp,
+    filters: Array<string>,
+    options?: MRangeOptions & SelectedLabels
+): RedisCommandArguments {
+    pushRangeArguments(args, fromTimestamp, toTimestamp, options);
+    pushWithLabelsArgument(args, options?.SELECTED_LABELS);
+    args.push('FILTER', ...filters);
+    pushGroupByReduceArgument(args, options?.GROUPBY, options?.REDUCE)
+    return args;
+}
+
+export type MGetRawReply = Array<[key: string, labels: Array<[string, string]>, sample: SampleRawReply]>;
+
+export interface MRangeReply {
+    key: string,
+    samples: Array<SampleReply>
+}
+
+export interface MRangeWithLabelsReply extends MRangeReply{
+    labels: Labels
+}
+
+export type MRangeRawReply = Array<[key: string, labels: Array<[string, string]>, sample: Array<SampleRawReply>]>;
+
 export function transformRangeReply(reply: Array<SampleRawReply>): Array<SampleReply> {
     return reply.map(transformSampleReply);
+}
+
+export function transformMRangeReply(reply: MRangeRawReply): Array<MRangeReply> {
+    const args = []
+
+    for (const [key, _, sample] of reply) {
+        args.push({
+            key,
+            samples: sample.map(transformSampleReply)
+        });
+    }
+
+    return args;
+}
+
+export function transformMRangeWithLabelsReply(reply: MRangeRawReply): Array<MRangeWithLabelsReply> {
+    const args = []
+
+    for (const [key, labels, sample] of reply) {
+        args.push({
+            key,
+            labels: transformLablesReply(labels),
+            samples: sample.map(transformSampleReply)
+        });
+    }
+
+    return args;
+}
+
+export interface SelectedLabels {
+    SELECTED_LABELS?: string | Array<string>;
+}
+
+export function pushWithLabelsArgument(args: RedisCommandArguments, selectedLabels?: string | Array<string>) {
+    if (selectedLabels == undefined) {
+        args.push('WITHLABELS');
+    } else {
+        args.push('SELECTED_LABELS');
+        pushVerdictArguments(args, selectedLabels);
+    }
+
+    return args;
 }

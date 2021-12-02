@@ -1,31 +1,25 @@
-import { pushVerdictArgument, pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
+import { MGetRawReply, SampleReply, transformSampleReply } from '.';
 
 export const IS_READ_ONLY = true;
 
-interface WithLabels {
-    WITHLABELS: true;
+export interface MGetReply {
+    key: string,
+    sample: SampleReply
 }
 
-interface SelectedLabels {
-    SELECTED_LABELS: string | Array<string>;
+export function transformArguments(filters: Array<string>): Array<string> {
+    return ['TS.MGET','FILTER', ...filters];
 }
 
-type MGetOptions = WithLabels & SelectedLabels;
+export function transformReply(reply: MGetRawReply): Array<MGetReply> {
+    const args = []
 
-export function transformArguments(filter: string, options?: MGetOptions): Array<string> {
-    const args = ['TS.MGET'];
-
-    if (options?.WITHLABELS) {
-        args.push('WITHLABELS');
-    } else if (options?.SELECTED_LABELS) {
-        pushVerdictArguments(args, options.SELECTED_LABELS);
+    for (const [key, _, sample] of reply) {
+        args.push({
+            key,
+            sample: transformSampleReply(sample)
+        });
     }
 
-    args.push('FILTER', filter);
-
     return args;
-}
-
-export function transformReply() {
-
 }

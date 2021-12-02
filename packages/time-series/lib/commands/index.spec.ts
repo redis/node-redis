@@ -139,7 +139,7 @@ describe('pushRangeArguments', () => {
         it('string', () => {
             assert.deepEqual(
                 pushRangeArguments([], '-', '+', {
-                    FILTER_BY_TS: 'ts'
+                    FILTER_BY_TS: ['ts']
                 }),
                 ['-', '+', 'FILTER_BY_TS', 'ts']
             );
@@ -200,7 +200,7 @@ describe('pushRangeArguments', () => {
     it('with FILTER_BY_TS, FILTER_BY_VALUE, COUNT, ALIGN, AGGREGATION', () => {
         assert.deepEqual(
             pushRangeArguments([], '-', '+', {
-                FILTER_BY_TS: 'ts',
+                FILTER_BY_TS: ['ts'],
                 FILTER_BY_VALUE: {
                     min: 1,
                     max: 2
@@ -212,7 +212,8 @@ describe('pushRangeArguments', () => {
                     timeBucket: 1
                 }
             }),
-            ['-', '+', 'FILTER_BY_TS', 'ts', 'FILTER_BY_VALUE', '1', '2', 'COUNT', '1', 'ALIGN', '1', 'AGGREGATION', 'first', '1']
+            ['-', '+', 'FILTER_BY_TS', 'ts', 'FILTER_BY_VALUE', '1', '2', 
+            'COUNT', '1', 'ALIGN', '1', 'AGGREGATION', 'first', '1']
         );
     });
 });

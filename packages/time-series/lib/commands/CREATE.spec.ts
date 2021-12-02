@@ -51,9 +51,9 @@ describe('CREATE', () => {
         it('with LABELS', () => {
             assert.deepEqual(
                 transformArguments('key', {
-                    LABELS: { label: 'value' }
+                    LABELS: { label: 'value', label2: 'newValue' }
                 }),
-                ['TS.CREATE', 'key', 'LABELS', 'label', 'value']
+                ['TS.CREATE', 'key', 'LABELS', 'label', 'value', 'label2', 'newValue']
             );
         });
 
