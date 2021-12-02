@@ -111,6 +111,7 @@ export function* encodeCommand(args: RedisCommandArguments): IterableIterator<st
             }
         } else {
             yield strings;
+            strings = '';
             stringsLength = 0;
             yield arg;
         }
