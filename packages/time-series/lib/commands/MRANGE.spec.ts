@@ -111,17 +111,21 @@ describe('MRANGE', () => {
             [
                 {
                     key: 'key1',
-                    samples: [{
-                        timestamp: 1,
-                        value: 2
-                    }]
+                    samples: [
+                        {
+                            timestamp: 1,
+                            value: 2
+                        }
+                    ]
                 },
                 {
                     key: 'key2',
-                    samples: [{
-                        timestamp: 0,
-                        value: 2
-                    }]
+                    samples: [
+                        {
+                            timestamp: 0,
+                            value: 2
+                        }
+                    ]
                 }
             ]
         );

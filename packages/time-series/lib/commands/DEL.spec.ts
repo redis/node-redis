@@ -22,5 +22,10 @@ describe('DEL', () => {
             await client.ts.del('key', 1, 100),
             2
         );
+
+        assert.equal(
+            await client.ts.get('key'),
+            null
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

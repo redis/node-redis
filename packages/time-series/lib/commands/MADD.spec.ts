@@ -22,21 +22,24 @@ describe('MADD', () => {
 
     // Should we check empty array?
 
-    // testUtils.testWithClient('client.ts.madd', async client => {
-    //     // await Promise.all([
-    //     //     client.ts.create('key', {
-    //     //         la
-    //     //     }),
-    //     // ]);
+    testUtils.testWithClient('client.ts.madd', async client => {
+        await Promise.all([
+            client.ts.create('key')
+        ]);
         
-    //     assert.deepEqual(
-    //         await client.ts.mAdd([
-    //             {
-    //                 key: 'key', 
-    //                 timestamp: 1, 
-    //                 value: 0
-    //             }]),
-    //         [1]
-    //     );
-    // }, GLOBAL.SERVERS.OPEN);
+        assert.deepEqual(
+            await client.ts.mAdd([
+                {
+                    key: 'key', 
+                    timestamp: 1, 
+                    value: 0
+                },
+                {
+                    key: 'key', 
+                    timestamp: 2, 
+                    value: 10
+                }]),
+            [1, 2]
+        );
+    }, GLOBAL.SERVERS.OPEN);
 });

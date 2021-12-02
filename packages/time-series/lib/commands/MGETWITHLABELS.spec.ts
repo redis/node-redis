@@ -6,8 +6,8 @@ describe('MGETWITHLABELS', () => {
     describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
-                transformArguments(['name=value', 'age!=']),
-                ['TS.MGET', 'WITHLABELS', 'FILTER', 'name=value', 'age!=']
+                transformArguments(['name=value']),
+                ['TS.MGET', 'WITHLABELS', 'FILTER', 'name=value']
             );
         });
 
@@ -20,7 +20,7 @@ describe('MGETWITHLABELS', () => {
     });
     
 
-    testUtils.testWithClient('client.ts.get', async client => {
+    testUtils.testWithClient('client.ts.mgetwithlabels', async client => {
         await Promise.all([
             client.ts.create('key', {LABELS: {Test: 'This'}}),
             client.ts.add('key', 10, 15),

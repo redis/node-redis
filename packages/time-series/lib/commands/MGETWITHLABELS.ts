@@ -1,11 +1,10 @@
-import { pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
 import { Labels, MGetRawReply, pushWithLabelsArgument, SelectedLabels, transformLablesReply, transformSampleReply } from '.';
 import { MGetReply } from './MGET';
 
 export const IS_READ_ONLY = true;
 
 export interface MGetWithLabelsReply extends MGetReply{
-    labels: Labels,
+    labels: Labels
 }
 
 export function transformArguments(filters: Array<string>, options?: SelectedLabels): Array<string> {

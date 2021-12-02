@@ -120,10 +120,12 @@ describe('MRANGEWITHLABELS', () => {
                 {
                     key: 'key1',
                     labels: { MRANGEkey: 'MRANGEvalue' },
-                    samples: [{
-                        timestamp: 1,
-                        value: 2
-                    }]
+                    samples: [
+                        {
+                            timestamp: 1,
+                            value: 2
+                        }
+                    ]
                 }
             ]
         );

@@ -2,14 +2,12 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './QUERYINDEX';
 
-describe.only('QUERYINDEX', () => {
-    describe('transformArguments', () => {
-        it('onlyFilters', () => {
-            assert.deepEqual(
-                transformArguments('age=20'),
-                ['TS.QUERYINDEX', 'age=20']
-            );
-        });
+describe('QUERYINDEX', () => {
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('age=20'),
+            ['TS.QUERYINDEX', 'age=20']
+        );
     });
     
 

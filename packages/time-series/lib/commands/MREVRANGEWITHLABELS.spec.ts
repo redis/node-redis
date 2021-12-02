@@ -63,10 +63,12 @@ describe('MREVRANGEWITHLABELS', () => {
                 {
                     key: 'key1',
                     labels: { MREVRANGEkey: 'MREVRANGEvalue' },
-                    samples: [{
-                        timestamp: 1,
-                        value: 2
-                    }]
+                    samples: [
+                        {
+                            timestamp: 1,
+                            value: 2
+                        }
+                    ]
                 }
             ]
         );

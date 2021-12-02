@@ -3,17 +3,15 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MGET';
 
 describe('MGET', () => {
-    describe('transformArguments', () => {
-        it('onlyFilters', () => {
-            assert.deepEqual(
-                transformArguments(['name=value', 'age!=']),
-                ['TS.MGET', 'FILTER', 'name=value', 'age!=']
-            );
-        });
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments(['name=value', 'age!=']),
+            ['TS.MGET', 'FILTER', 'name=value', 'age!=']
+        );
     });
     
 
-    testUtils.testWithClient('client.ts.get', async client => {
+    testUtils.testWithClient('client.ts.mget', async client => {
         await Promise.all([
             client.ts.create('key', { 
                 LABELS: {Test: 'This'} 

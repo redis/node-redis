@@ -21,7 +21,6 @@ import * as MREVRANGE from './MREVRANGE';
 import * as MREVRANGEWITHLABELS from './MREVRANGEWITHLABELS';
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
-import { connect } from 'http2';
 
 export default {
     ADD,
@@ -337,6 +336,8 @@ export function pushMRangeWithLabelsArguments(
 
 export type MGetRawReply = Array<[key: string, labels: Array<[string, string]>, sample: SampleRawReply]>;
 
+export type MRangeRawReply = Array<[key: string, labels: Array<[string, string]>, sample: Array<SampleRawReply>]>;
+
 export interface MRangeReply {
     key: string,
     samples: Array<SampleReply>
@@ -345,8 +346,6 @@ export interface MRangeReply {
 export interface MRangeWithLabelsReply extends MRangeReply{
     labels: Labels
 }
-
-export type MRangeRawReply = Array<[key: string, labels: Array<[string, string]>, sample: Array<SampleRawReply>]>;
 
 export function transformRangeReply(reply: Array<SampleRawReply>): Array<SampleReply> {
     return reply.map(transformSampleReply);
