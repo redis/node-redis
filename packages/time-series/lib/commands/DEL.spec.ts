@@ -1,5 +1,4 @@
 import { strict as assert } from 'assert';
-import { TimeSeriesAggregationType } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './DEL';
 
