@@ -46,13 +46,13 @@ There were some events in V3 but removed in V4, here's the list:
 
 #### No `message`-like event
 
-In V4, you don't need to add listener to the `message`-like events(items 5 to 11 of the above list), you can get the message directly in `subscribe`-like commands.
+In V4, you don't need to add listener to the `message`-like events(items 5 to 10 of the above list), you can get the message directly in `subscribe`-like commands.
 
 The second argument of these commands is a callback, which will be triggered every time there is a message published to the channel.
 
 The third argument to these commands is a boolean to set `bufferMode` (default `false`).  If it's set to `true` you will receive a buffer instead of a string.
 
-The `subscribe`-like commands return a promise. If the server returns `ok` the promise will be fulfilled, otherwise the promise will be rejected.
+The `subscribe`-like commands return a promise. If the command is executed successfully the promise will be fulfilled, otherwise the promise will be rejected.
 
 ```typescript
 import { createClient } from 'redis';
