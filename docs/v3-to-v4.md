@@ -28,9 +28,25 @@ await client.connect();
 await client.ping();
 ```
 
-### No `message` event
+### All the removed events
 
-In V4, you don't need to add listener to the `message` and `message_buffer` events, you can get the message directly in `subscribe`-like commands.
+There were some events in V3 but removed in V4, here's the list:
+
+1. `warning`
+2. `subscribe`
+3. `psubscribe`
+4. `unsubscribe`
+5. `message`
+6. `message_buffer`
+7. `messageBuffer`
+8. `pmessage`
+9. `pmessage_buffer`
+10. `pmessageBuffer`
+11. `monitor`
+
+#### No `message`-like event
+
+In V4, you don't need to add listener to the `message`-like events(items 5 to 11 of the above list), you can get the message directly in `subscribe`-like commands.
 
 The second argument of these commands is a callback, which will be triggered every time there is a message published to the channel.
 
