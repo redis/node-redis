@@ -10,18 +10,26 @@ describe('GET', () => {
         );
     });
 
-    testUtils.testWithClient('client.ts.get', async client => {
-        await Promise.all([
-            client.ts.create('key'),
-            client.ts.add('key', 1, 2)
-        ]);
+    describe('client.ts.get', () => {
+        testUtils.testWithClient('null', async client => {
+            await client.ts.create('key');
 
-        assert.deepEqual(
-            await client.ts.get('key'),
-            {
-                timestamp: 1,
-                value: 2
-            }
-        );
-    }, GLOBAL.SERVERS.OPEN);
+            assert.equal(
+                await client.ts.get('key'),
+                null
+            );
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('with samples', async client => {
+            await client.ts.add('key', 0, 1);
+
+            assert.deepEqual(
+                await client.ts.get('key'),
+                {
+                    timestamp: 0,
+                    value: 1
+                }
+            );
+        }, GLOBAL.SERVERS.OPEN);
+    });
 });

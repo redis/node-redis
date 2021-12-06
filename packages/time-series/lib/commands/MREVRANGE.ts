@@ -1,14 +1,12 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { MRangeOptions, Timestamp, MRangeReply, pushMRangeArguments, MRangeRawReply, transformMRangeReply } from '.';
-
-// export const FIRST_KEY_INDEX = 1;
+import { MRangeOptions, Timestamp, pushMRangeArguments, Filter } from '.';
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
-    filters: Array<string>,
+    filters: Filter,
     options?: MRangeOptions
 ): RedisCommandArguments {
     return pushMRangeArguments(
@@ -20,6 +18,4 @@ export function transformArguments(
     );
 }
 
-export function transformReply(reply: MRangeRawReply): Array<MRangeReply> {
-    return transformMRangeReply(reply);
-}
+export { transformMRangeReply as transformReply } from '.';

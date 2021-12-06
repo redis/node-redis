@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MREVRANGE';
+import { transformArguments } from './MREVRANGE_WITHLABELS';
 import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
 
-describe('MREVRANGE', () => {
+describe('MREVRANGE_WITHLABELS', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('-', '+', 'label=value', {
@@ -12,6 +12,7 @@ describe('MREVRANGE', () => {
                     min: 0,
                     max: 1
                 },
+                SELECTED_LABELS: ['label'],
                 COUNT: 1,
                 ALIGN: '-',
                 AGGREGATION: {
@@ -24,22 +25,23 @@ describe('MREVRANGE', () => {
                 },
             }),
             ['TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-            'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'avg', '1', 'FILTER', 'label=value',
-            'GROUPBY', 'label', 'REDUCE', 'sum']
+            'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'avg', '1', 'SELECTED_LABELS', 'label',
+            'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'sum']
         );
     });
 
-    testUtils.testWithClient('client.ts.mRevRange', async client => {
+    testUtils.testWithClient('client.ts.mRevRangeWithLabels', async client => {
         await client.ts.add('key', 0, 0, {
             LABELS: { label: 'value'}
         });
 
         assert.deepEqual(
-            await client.ts.mRevRange('-', '+', 'label=value', {
+            await client.ts.mRevRangeWithLabels('-', '+', 'label=value', {
                 COUNT: 1
             }),
             [{
                 key: 'key',
+                labels: { label: 'value' },
                 samples: [{
                     timestamp: 0,
                     value: 0

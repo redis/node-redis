@@ -5,21 +5,22 @@ import { transformArguments } from './QUERYINDEX';
 describe('QUERYINDEX', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('age=20'),
-            ['TS.QUERYINDEX', 'age=20']
+            transformArguments('*'),
+            ['TS.QUERYINDEX', '*']
         );
     });
-    
 
-    testUtils.testWithClient('client.ts.queryindex', async client => {
+    testUtils.testWithClient('client.ts.queryIndex', async client => {
         await Promise.all([
-            client.ts.create('key', { 
-                LABELS: {age: '20'} 
+            client.ts.create('key', {
+                LABELS: {
+                    label: 'value'
+                }
             })
         ]);
 
         assert.deepEqual(
-            await client.ts.queryIndex('age=20'),
+            await client.ts.queryIndex('label=value'),
             ['key']
         );
     }, GLOBAL.SERVERS.OPEN);

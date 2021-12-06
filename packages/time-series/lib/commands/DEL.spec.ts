@@ -5,26 +5,17 @@ import { transformArguments } from './DEL';
 describe('DEL', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('key', 1, 10),
-            ['TS.DEL', 'key', '1', '10']
+            transformArguments('key', '-', '+'),
+            ['TS.DEL', 'key', '-', '+']
         );
     });
 
     testUtils.testWithClient('client.ts.del', async client => {
-        await Promise.all([
-            client.ts.create('key'),
-            client.ts.add('key', 1, 2),
-            client.ts.add('key', 2, 3)
-        ]);
+        await client.ts.create('key');
 
         assert.equal(
-            await client.ts.del('key', 1, 100),
-            2
-        );
-
-        assert.equal(
-            await client.ts.get('key'),
-            null
+            await client.ts.del('key', '-', '+'),
+            0
         );
     }, GLOBAL.SERVERS.OPEN);
 });

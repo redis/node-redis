@@ -5,41 +5,35 @@ import { transformArguments } from './MADD';
 describe('MADD', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments([
-                {
-                    key: 'key', 
-                    timestamp: 0, 
-                    value: 0
-                }, 
-                {
-                    key: 'key2', 
-                    timestamp: 1, 
-                    value: 1
-                }]),
-            ['TS.MADD', 'key', '0', '0', 'key2', '1', '1']
+            transformArguments([{
+                key: '1',
+                timestamp: 0,
+                value: 0
+            }, {
+                key: '2',
+                timestamp: 1,
+                value: 1
+            }]),
+            ['TS.MADD', '1', '0', '0', '2', '1', '1']
         );
     });
 
     // Should we check empty array?
 
-    testUtils.testWithClient('client.ts.madd', async client => {
-        await Promise.all([
-            client.ts.create('key')
-        ]);
-        
+    testUtils.testWithClient('client.ts.mAdd', async client => {
+        await client.ts.create('key');
+
         assert.deepEqual(
-            await client.ts.mAdd([
-                {
-                    key: 'key', 
-                    timestamp: 1, 
-                    value: 0
-                },
-                {
-                    key: 'key', 
-                    timestamp: 2, 
-                    value: 10
-                }]),
-            [1, 2]
+            await client.ts.mAdd([{
+                key: 'key',
+                timestamp: 0,
+                value: 0
+            }, {
+                key: 'key',
+                timestamp: 1,
+                value: 1
+            }]),
+            [0, 1]
         );
     }, GLOBAL.SERVERS.OPEN);
 });

@@ -41,7 +41,7 @@ describe('ALTER', () => {
     });
 
     testUtils.testWithClient('client.ts.alter', async client => {
-        await client.ts.create('key');
+        await client.ts.create('key'); 
 
         assert.equal(
             await client.ts.alter('key', { RETENTION: 1 }),

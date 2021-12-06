@@ -23,9 +23,9 @@ describe('INCRBY', () => {
         it('with RETENTION', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
-                    RETENTION: 100
+                    RETENTION: 1
                 }),
-                ['TS.INCRBY', 'key', '1', 'RETENTION', '100']
+                ['TS.INCRBY', 'key', '1', 'RETENTION', '1']
             );
         });
 
@@ -50,9 +50,9 @@ describe('INCRBY', () => {
         it('with CHUNK_SIZE', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
-                    CHUNK_SIZE: 100
+                    CHUNK_SIZE: 1
                 }),
-                ['TS.INCRBY', 'key', '1', 'CHUNK_SIZE', '100']
+                ['TS.INCRBY', 'key', '1', 'CHUNK_SIZE', '1']
             );
         });
 
@@ -69,35 +69,23 @@ describe('INCRBY', () => {
             assert.deepEqual(
                 transformArguments('key', 1, {
                     TIMESTAMP: '*',
-                    RETENTION: 100,
+                    RETENTION: 1,
                     UNCOMPRESSED: true,
-                    CHUNK_SIZE: 1000,
-                    LABELS: { label: 'value', label2: 'new_value' }
+                    CHUNK_SIZE: 1,
+                    LABELS: { label: 'value' }
                 }),
-                ['TS.INCRBY', 'key', '1', 'TIMESTAMP', '*', 'RETENTION', '100', 'UNCOMPRESSED',
-                'CHUNK_SIZE', '1000', 'LABELS', 'label', 'value', 'label2', 'new_value']
+                ['TS.INCRBY', 'key', '1', 'TIMESTAMP', '*', 'RETENTION', '1', 'UNCOMPRESSED',
+                'CHUNK_SIZE', '1', 'LABELS', 'label', 'value']
             );
         });
     });
 
     testUtils.testWithClient('client.ts.incrBy', async client => {
-        await Promise.all([
-            client.ts.create('key'),
-        ]);
-
         assert.equal(
             await client.ts.incrBy('key', 1, {
-                TIMESTAMP: 1638267369476
+                TIMESTAMP: 0
             }),
-            1638267369476
-        );
-
-        assert.deepEqual(
-            await client.ts.get('key'),
-            {
-                timestamp: 1638267369476,
-                value: 1
-            }
+            0
         );
     }, GLOBAL.SERVERS.OPEN);
 });

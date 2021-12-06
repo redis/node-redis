@@ -1,5 +1,5 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { MRangeOptions, Timestamp, pushMRangeArguments, Filter } from '.';
+import { Timestamp, MRangeWithLabelsOptions, pushMRangeWithLabelsArguments, Filter } from '.';
 
 export const IS_READ_ONLY = true;
 
@@ -7,10 +7,10 @@ export function transformArguments(
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filters: Filter,
-    options?: MRangeOptions
+    options?: MRangeWithLabelsOptions
 ): RedisCommandArguments {
-    return pushMRangeArguments(
-        ['TS.MRANGE'],
+    return pushMRangeWithLabelsArguments(
+        ['TS.MREVRANGE'],
         fromTimestamp,
         toTimestamp,
         filters,
@@ -18,4 +18,4 @@ export function transformArguments(
     );
 }
 
-export { transformMRangeReply as transformReply } from '.';
+export { transformMRangeWithLabelsReply as transformReply } from '.';

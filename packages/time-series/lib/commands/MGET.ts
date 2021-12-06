@@ -1,25 +1,26 @@
-import { MGetRawReply, SampleReply, transformSampleReply } from '.';
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { Filter, pushFilterArgument, RawLabels, SampleRawReply, SampleReply, transformSampleReply } from '.';
 
 export const IS_READ_ONLY = true;
+
+export function transformArguments(filter: Filter): RedisCommandArguments {
+    return pushFilterArgument(['TS.MGET'], filter);
+}
+
+export type MGetRawReply = Array<[
+    key: string,
+    labels: RawLabels,
+    sample: SampleRawReply
+]>;
 
 export interface MGetReply {
     key: string,
     sample: SampleReply
 }
 
-export function transformArguments(filters: Array<string>): Array<string> {
-    return ['TS.MGET','FILTER', ...filters];
-}
-
 export function transformReply(reply: MGetRawReply): Array<MGetReply> {
-    const args = []
-
-    for (const [key, _, sample] of reply) {
-        args.push({
-            key,
-            sample: transformSampleReply(sample)
-        });
-    }
-
-    return args;
+    return reply.map(([key, _, sample]) => ({
+        key,
+        sample: transformSampleReply(sample)
+    }));
 }
