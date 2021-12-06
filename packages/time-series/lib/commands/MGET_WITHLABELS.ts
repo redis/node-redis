@@ -33,15 +33,9 @@ export interface MGetWithLabelsReply extends MGetReply {
 };
 
 export function transformReply(reply: MGetRawReply): Array<MGetWithLabelsReply> {
-    const args = [];
-
-    for (const [key, labels, sample] of reply) {
-        args.push({
-            key,
-            labels: transformLablesReply(labels),
-            sample: transformSampleReply(sample)
-        });
-    }
-
-    return args;
+    return reply.map(([key, labels, sample]) => ({
+        key,
+        labels: transformLablesReply(labels),
+        sample: transformSampleReply(sample)
+    }));
 }
