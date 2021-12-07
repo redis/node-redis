@@ -1,6 +1,6 @@
 # Node-Redis
 
-[![Tests](https://img.shields.io/github/workflow/status/redis/node-redis/Tests/master.svg?label=tests)](https://codecov.io/gh/redis/node-redis)
+[![Tests](https://img.shields.io/github/workflow/status/redis/node-redis/Tests/master.svg?label=tests)](https://github.com/redis/node-redis/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
 [![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://codecov.io/gh/redis/node-redis)
 [![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/XMMVgxUm)
