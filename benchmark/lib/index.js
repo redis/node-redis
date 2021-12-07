@@ -4,6 +4,7 @@ import { promises as fs } from 'fs';
 import { fork } from 'child_process';
 import { URL, fileURLToPath } from 'url';
 import { once } from 'events';
+import { extname } from 'path';
 
 async function getPathChoices() {
     const dirents = await fs.readdir(new URL('.', import.meta.url), {
@@ -32,11 +33,23 @@ async function getName() {
 }
 
 const runnerPath = fileURLToPath(new URL('runner.js', import.meta.url)),
-    path = new URL(`${await getName()}/`, import.meta.url),
-    metadata = await import(new URL('index.js', path));
+    path = new URL(`${await getName()}/`, import.meta.url);
+
+async function getMetadata() {
+    try {
+        return await import(new URL('index.js', path));
+    } catch (err) {
+        if (err.code === 'ERR_MODULE_NOT_FOUND') return;
+
+        throw err;
+    }
+}
+
+const metadata = await getMetadata(),
+    timestamp = Date.now();
 
 for (const file of await fs.readdir(path)) {
-    if (file === 'index.js') continue;
+    if (file === 'index.js' || extname(file) !== '.js') continue;
 
     const benchmarkProcess = fork(runnerPath, [
         ...argv,
@@ -45,6 +58,9 @@ for (const file of await fs.readdir(path)) {
     ]);
 
     await once(benchmarkProcess, 'message');
-    benchmarkProcess.send(metadata);
+    benchmarkProcess.send({
+        metadata,
+        timestamp
+    });
     await once(benchmarkProcess, 'close');
 }

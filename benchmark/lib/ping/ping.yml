@@ -1,0 +1,9 @@
+name: "ping"
+
+clientconfig:
+  - command: |
+      npm install -ws
+      npm run build:tests-tools
+      cd benchmark
+      npm install
+      npm run start -- --name ping --redis-server-host ${server_private_ip}

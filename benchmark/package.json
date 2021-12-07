@@ -7,8 +7,7 @@
     "start": "node ."
   },
   "dependencies": {
-    "@node-redis/client-local": "../packages/client",
-    "@node-redis/client-production": "npm:@node-redis/client@1.0.0",
+    "@node-redis/client": "../packages/client",
     "hdr-histogram-js": "2.0.1",
     "ioredis": "4.28.1",
     "redis-v3": "npm:redis@3.1.2",

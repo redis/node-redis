@@ -1,10 +1,7 @@
-import Redis from 'ioredis';
+import { createClient } from '@node-redis/client';
 
 export default async (host, { randomString }) => {
-    const client = new Redis({
-        host,
-        lazyConnect: true
-    });
+    const client = createClient({ host });
 
     await client.connect();
 
@@ -19,5 +16,5 @@ export default async (host, { randomString }) => {
         teardown() {
             return client.disconnect();
         }
-    }
+    };
 };

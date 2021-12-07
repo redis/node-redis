@@ -1,10 +1,11 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { basename } from 'path';
+import { promises as fs } from 'fs';
 import * as hdr from 'hdr-histogram-js';
 hdr.initWebAssemblySync();
 
-const { path, times, concurrency } = yargs(hideBin(process.argv))
+const { path, times, concurrency, 'redis-server-host': host } = yargs(hideBin(process.argv))
     .option('path', {
         type: 'string',
         demandOption: true
@@ -19,25 +20,19 @@ const { path, times, concurrency } = yargs(hideBin(process.argv))
         default: 100,
         demandOption: true
     })
+    .option('redis-server-host', {
+        type: 'string'
+    })
     .parseSync();
 
-async function setup() {
-    const module = await import(path);
-    await module.setup();
-    return module;
-}
-
-function getMetadata() {
-    return new Promise(resolve => {
-        process.once('message', resolve);
-        process.send('ready');
-    });
-}
-
-const [ { benchmark, teardown }, metadata ] = await Promise.all([
-    setup(),
-    getMetadata()
-]);
+const [ { metadata, timestamp }, module ] = await Promise.all([
+        new Promise(resolve => {
+            process.once('message', resolve);
+            process.send('ready');
+        }),
+        import(path)
+    ]),
+    { benchmark, teardown } = await module.default(host, metadata);
 
 async function run(times) {
     return new Promise(resolve => {
@@ -45,23 +40,20 @@ async function run(times) {
         let num = 0,
             inProgress = 0;
 
-        function run() {
+        async function run() {
             ++inProgress;
             ++num;
 
             const start = process.hrtime.bigint();
-            benchmark(metadata)
-                .catch(err => console.error(err))
-                .finally(() => {
-                    histogram.recordValue(Number(process.hrtime.bigint() - start));
-                    --inProgress;
+            await benchmark(metadata);
+            histogram.recordValue(Number(process.hrtime.bigint() - start));
+            --inProgress;
 
-                    if (num < times) {
-                        run();
-                    } else if (inProgress === 0) {
-                        resolve(histogram);
-                    }
-                });
+            if (num < times) {
+                run();
+            } else if (inProgress === 0) {
+                resolve(histogram);
+            }
         }
 
         const toInitiate = Math.min(concurrency, times);
@@ -75,8 +67,20 @@ async function run(times) {
 await run(Math.min(times * 0.1, 10_000));
 
 // benchmark
-const histogram = await run(times);
+const benchmarkStart = process.hrtime.bigint(),
+    histogram = await run(times),
+    benchmarkNanoseconds = process.hrtime.bigint() - benchmarkStart,
+    json = {
+        timestamp,
+        operationsPerSecond: times / Number(benchmarkNanoseconds) * 1_000_000_000,
+        p0: histogram.getValueAtPercentile(0),
+        p50: histogram.getValueAtPercentile(50),
+        p95: histogram.getValueAtPercentile(95),
+        p99: histogram.getValueAtPercentile(99),
+        p100: histogram.getValueAtPercentile(100)
+    };
 console.log(`[${basename(path)}]:`);
-console.table(histogram.toJSON());
+console.table(json);
+await fs.writeFile(`${path}.json`, JSON.stringify(json));
 
 await teardown();

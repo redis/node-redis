@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 
-export default async (host, { randomString }) => {
+export default async (host) => {
     const client = new Redis({
         host,
         lazyConnect: true
@@ -10,11 +10,7 @@ export default async (host, { randomString }) => {
 
     return {
         benchmark() {
-            return Promise.all([
-                client.set(randomString, randomString),
-                client.get(randomString),
-                client.del(randomString)
-            ]);
+            return client.ping();
         },
         teardown() {
             return client.disconnect();
