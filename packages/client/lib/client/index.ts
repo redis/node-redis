@@ -303,9 +303,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
     #defineLegacyCommand(name: string): void {
         (this as any).#v4[name] = (this as any)[name].bind(this);
-        (this as any)[name] = (...args: Array<unknown>): void => {
-            (this as any).sendCommand(name, ...args);
-        };
+        (this as any)[name] = (this as any)[name.toLowerCase()] =
+            (...args: Array<unknown>): void => (this as any).sendCommand(name, ...args);
     }
 
     duplicate(overrides?: Partial<RedisClientOptions<M, S>>): RedisClientType<M, S> {
