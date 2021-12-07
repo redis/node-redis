@@ -96,7 +96,7 @@ export function* encodeCommand(args: RedisCommandArguments): IterableIterator<st
         stringsLength = 0;
     for (const arg of args) {
         const isString = typeof arg === 'string',
-            byteLength = isString ? Buffer.byteLength(arg): arg.length;
+            byteLength = isString ? arg.length : Buffer.byteLength(arg);
         strings += `$${byteLength}${DELIMITER}`;
 
         if (isString) {
