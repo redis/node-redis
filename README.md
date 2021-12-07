@@ -2,7 +2,7 @@
 
 [![Tests](https://img.shields.io/github/workflow/status/redis/node-redis/Tests/master.svg?label=tests)](https://github.com/redis/node-redis/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
-[![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://codecov.io/gh/redis/node-redis)
+[![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://github.com/redis/node-redis/blob/master/LICENSE)
 [![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/XMMVgxUm)
 
 node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 6.2 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).
