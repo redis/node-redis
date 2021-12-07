@@ -294,9 +294,9 @@ export default class RedisCommandsQueue {
                     }
                     resolve();
                 },
-                reject: () => {
+                reject: err => {
                     pubSubState[inProgressKey] -= channelsCounter * (isSubscribe ? 1 : -1);
-                    reject();
+                    reject(err);
                 }
             });
         });
@@ -307,11 +307,32 @@ export default class RedisCommandsQueue {
             return;
         }
 
-        // TODO: acl error on one channel/pattern will reject the whole command
-        return Promise.all([
-            this.#pushPubSubCommand(PubSubSubscribeCommands.SUBSCRIBE, [...this.#pubSubState.listeners.channels.keys()]),
-            this.#pushPubSubCommand(PubSubSubscribeCommands.PSUBSCRIBE, [...this.#pubSubState.listeners.patterns.keys()])
-        ]);
+        this.#pubSubState.subscribed = 0;
+
+        const promises = [],
+            { channels, patterns } = this.#pubSubState.listeners;
+
+        if (channels.size) {
+            promises.push(
+                this.#pushPubSubCommand(
+                    PubSubSubscribeCommands.SUBSCRIBE,
+                    [...channels.keys()]
+                )
+            );
+        }
+
+        if (patterns.size) {
+            promises.push(
+                this.#pushPubSubCommand(
+                    PubSubSubscribeCommands.PSUBSCRIBE,
+                    [...patterns.keys()]
+                )
+            );
+        }
+
+        if (promises.length) {
+            return Promise.all(promises);
+        }
     }
 
     getCommandToSend(): RedisCommandArguments | undefined {
