@@ -20,6 +20,7 @@ export interface RedisClientOptions<M extends RedisModules, S extends RedisScrip
     socket?: RedisSocketOptions;
     username?: string;
     password?: string;
+    name?: string;
     database?: number;
     commandsQueueMaxLength?: number;
     readonly?: boolean;
@@ -196,6 +197,15 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                 promises.push(
                     this.#queue.addCommand(
                         COMMANDS.READONLY.transformArguments(),
+                        { asap: true }
+                    )
+                );
+            }
+
+            if (this.#options?.name) {
+                promises.push(
+                    this.#queue.addCommand(
+                        COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
                         { asap: true }
                     )
                 );

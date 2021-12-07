@@ -7,6 +7,7 @@ import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClien
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
+import { ClientKillFilters } from '../commands/CLIENT_KILL';
 
 export const SQUARE_SCRIPT = defineScript({
     NUMBER_OF_KEYS: 0,
@@ -123,6 +124,18 @@ describe('Client', () => {
             },
             minimumDockerVersion: [6, 2]
         });
+    });
+
+    testUtils.testWithClient('should set connection name', async client => {
+        assert.equal(
+            await client.clientGetName(),
+            'name'
+        );
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+            name: 'name'
+        }
     });
 
     describe('legacyMode', () => {
@@ -445,14 +458,9 @@ describe('Client', () => {
     });
 
     testUtils.testWithClient('executeIsolated', async client => {
-        await client.sendCommand(['CLIENT', 'SETNAME', 'client']);
-
-        assert.equal(
-            await client.executeIsolated(isolatedClient =>
-                isolatedClient.sendCommand(['CLIENT', 'GETNAME'])
-            ),
-            null
-        );
+        const id = await client.clientId(),
+            isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
+        assert.ok(id !== isolatedId);
     }, GLOBAL.SERVERS.OPEN);
 
     async function killClient<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
@@ -644,7 +652,10 @@ describe('Client', () => {
 
                 await Promise.all([
                     once(subscriber, 'error'),
-                    publisher.sendCommand(['CLIENT', 'KILL', 'SKIPME', 'yes'])
+                    publisher.clientKill({
+                        filter: ClientKillFilters.SKIP_ME,
+                        skipMe: true
+                    })
                 ]);
 
                 await once(subscriber, 'ready');
