@@ -1,7 +1,11 @@
 import { createClient } from '@node-redis/client';
 
 export default async (host, { randomString }) => {
-    const client = createClient({ host });
+    const client = createClient({
+        socket: {
+            host
+        }
+    });
 
     await client.connect();
 
