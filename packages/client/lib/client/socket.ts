@@ -110,7 +110,6 @@ export default class RedisSocket extends EventEmitter {
             } catch (err) {
                 this.#socket.destroy();
                 this.#socket = undefined;
-                this.#isOpen = false;
                 throw err;
             }
 
