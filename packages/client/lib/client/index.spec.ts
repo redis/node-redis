@@ -668,6 +668,16 @@ describe('Client', () => {
                 await subscriber.disconnect();
             }
         }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should be able to quit in PubSub mode', async client => {
+            await client.subscribe('channel', () => {
+                // noop
+            });
+
+            await assert.doesNotReject(client.quit());
+
+            assert.equal(client.isOpen, false);
+        }, GLOBAL.SERVERS.OPEN);
     });
 
     testUtils.testWithClient('ConnectionTimeoutError', async client => {

@@ -1,15 +1,19 @@
 import * as LinkedList from 'yallist';
 import { AbortError } from '../errors';
 import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
+
 // We need to use 'require', because it's not possible with Typescript to import
 // classes that are exported as 'module.exports = class`, without esModuleInterop
 // set to true.
 const RedisParser = require('redis-parser');
+
 export interface QueueCommandOptions {
     asap?: boolean;
     chainId?: symbol;
     signal?: AbortSignal;
+    ignorePubSubMode?: boolean;
 }
+
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
     args: RedisCommandArguments;
     chainId?: symbol;
@@ -18,16 +22,19 @@ interface CommandWaitingToBeSent extends CommandWaitingForReply {
         listener(): void;
     };
 }
+
 interface CommandWaitingForReply {
     resolve(reply?: unknown): void;
     reject(err: Error): void;
     channelsCounter?: number;
     bufferMode?: boolean;
 }
+
 export enum PubSubSubscribeCommands {
     SUBSCRIBE = 'SUBSCRIBE',
     PSUBSCRIBE = 'PSUBSCRIBE'
 }
+
 export enum PubSubUnsubscribeCommands {
     UNSUBSCRIBE = 'UNSUBSCRIBE',
     PUNSUBSCRIBE = 'PUNSUBSCRIBE'
@@ -135,7 +142,7 @@ export default class RedisCommandsQueue {
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
-        if (this.#pubSubState) {
+        if (this.#pubSubState && !options?.ignorePubSubMode) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
             return Promise.reject(new Error('The queue is full'));
