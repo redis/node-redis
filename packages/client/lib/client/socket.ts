@@ -3,7 +3,7 @@ import * as net from 'net';
 import * as tls from 'tls';
 import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError } from '../errors';
 import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
@@ -110,6 +110,11 @@ export default class RedisSocket extends EventEmitter {
             } catch (err) {
                 this.#socket.destroy();
                 this.#socket = undefined;
+
+                if (err instanceof AuthError) {
+                    this.#isOpen = false;
+                }
+
                 throw err;
             }
 

@@ -33,3 +33,9 @@ export class SocketClosedUnexpectedlyError extends Error {
         super('Socket closed unexpectedly');
     }
 }
+
+export class AuthError extends Error {
+    constructor(message: string) {
+        super(message);
+    }
+}
