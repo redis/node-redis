@@ -73,7 +73,10 @@ export default class RedisCommandsQueue {
 
     static #emitPubSubMessage(listenersMap: PubSubListenersMap, message: Buffer, channel: Buffer, pattern?: Buffer): void {
         const keyString = (pattern || channel).toString(),
-            listeners = listenersMap.get(keyString)!;
+            listeners = listenersMap.get(keyString);
+
+        if (!listeners) return;
+
         for (const listener of listeners.buffers) {
             listener(message, channel);
         }
