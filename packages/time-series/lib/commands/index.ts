@@ -11,9 +11,14 @@ import * as INFO_DEBUG from './INFO_DEBUG';
 import * as INFO from './INFO';
 import * as MADD from './MADD';
 import * as MGET from './MGET';
+import * as MGET_WITHLABELS from './MGET_WITHLABELS';
 import * as QUERYINDEX from './QUERYINDEX';
 import * as RANGE from './RANGE';
 import * as REVRANGE from './REVRANGE';
+import * as MRANGE from './MRANGE';
+import * as MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
+import * as MREVRANGE from './MREVRANGE';
+import * as MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
 
@@ -44,12 +49,22 @@ export default {
     mAdd: MADD,
     MGET,
     mGet: MGET,
+    MGET_WITHLABELS,
+    mGetWithLabels: MGET_WITHLABELS,
     QUERYINDEX,
     queryIndex: QUERYINDEX,
     RANGE,
     range: RANGE,
     REVRANGE,
-    revRange: REVRANGE
+    revRange: REVRANGE,
+    MRANGE,
+    mRange: MRANGE,
+    MRANGE_WITHLABELS,
+    mRangeWithLabels: MRANGE_WITHLABELS,
+    MREVRANGE,
+    mRevRange: MREVRANGE,
+    MREVRANGE_WITHLABELS,
+    mRevRangeWithLabels: MREVRANGE_WITHLABELS
 };
 
 export enum TimeSeriesAggregationType {
@@ -65,6 +80,21 @@ export enum TimeSeriesAggregationType {
     STD_S = 'std.s',
     VAR_P = 'var.p',
     VAR_S = 'var.s'
+}
+
+export enum TimeSeriesDuplicatePolicies {
+    BLOCK = 'BLOCK',
+    FIRST = 'FIRST',
+    LAST = 'LAST',
+    MIN = 'MIN',
+    MAX = 'MAX',
+    SUM = 'SUM'
+}
+
+export enum TimeSeriesReducers {
+    SUM = 'sum',
+    MINIMUM = 'min',
+    MAXIMUM = 'max',
 }
 
 export type Timestamp = number | Date | string;
@@ -117,18 +147,21 @@ export function pushChunkSizeArgument(args: RedisCommandArguments, chunkSize?: n
     return args;
 }
 
-export enum TimeSeriesDuplicatePolicies {
-    BLOCK = 'BLOCK',
-    FIRST = 'FIRST',
-    LAST = 'LAST',
-    MIN = 'MIN',
-    MAX = 'MAX',
-    SUM = 'SUM'
-}
+export type RawLabels = Array<[label: string, value: string]>;
 
 export type Labels = {
     [label: string]: string;
 };
+
+export function transformLablesReply(reply: RawLabels): Labels {
+    const labels: Labels = {};
+
+    for (const [key, value] of reply) {
+        labels[key] = value;
+    }
+
+    return labels
+}
 
 export function pushLabelsArgument(args: RedisCommandArguments, labels?: Labels): RedisCommandArguments {
     if (labels) {
@@ -162,7 +195,7 @@ export function transformIncrDecrArguments(
         value.toString()
     ];
 
-    if (options?.TIMESTAMP) {
+    if (options?.TIMESTAMP !== undefined && options?.TIMESTAMP !== null) {
         args.push('TIMESTAMP', transformTimestampArgument(options.TIMESTAMP));
     }
 
@@ -194,7 +227,7 @@ export function transformSampleReply(reply: SampleRawReply): SampleReply {
 }
 
 export interface RangeOptions {
-    FILTER_BY_TS?: string | Array<string>;
+    FILTER_BY_TS?: Array<Timestamp>;
     FILTER_BY_VALUE?: {
         min: number;
         max: number;
@@ -220,7 +253,9 @@ export function pushRangeArguments(
 
     if (options?.FILTER_BY_TS) {
         args.push('FILTER_BY_TS');
-        pushVerdictArguments(args, options.FILTER_BY_TS);
+        for(const ts of options.FILTER_BY_TS) {
+            args.push(transformTimestampArgument(ts));
+        }
     }
 
     if (options?.FILTER_BY_VALUE) {
@@ -256,6 +291,121 @@ export function pushRangeArguments(
     return args;
 }
 
+interface MRangeGroupBy {
+    label: string;
+    reducer: TimeSeriesReducers;
+}
+
+export function pushMRangeGroupByArguments(args: RedisCommandArguments, groupBy?: MRangeGroupBy): RedisCommandArguments {
+    if (groupBy) {
+        args.push(
+            'GROUPBY',
+            groupBy.label,
+            'REDUCE',
+            groupBy.reducer
+        );
+    }
+
+    return args;
+}
+
+export type Filter = string | Array<string>;
+
+export function pushFilterArgument(args: RedisCommandArguments, filter: string | Array<string>): RedisCommandArguments {
+    args.push('FILTER');
+    pushVerdictArguments(args, filter);
+    return args;
+}
+
+export interface MRangeOptions extends RangeOptions {
+    GROUPBY?: MRangeGroupBy;
+}
+
+export function pushMRangeArguments(
+    args: RedisCommandArguments,
+    fromTimestamp: Timestamp,
+    toTimestamp: Timestamp,
+    filter: Filter,
+    options?: MRangeOptions
+): RedisCommandArguments {
+    pushRangeArguments(args, fromTimestamp, toTimestamp, options);
+    pushFilterArgument(args, filter);
+    pushMRangeGroupByArguments(args, options?.GROUPBY);
+    return args;
+}
+
+export type SelectedLabels = string | Array<string>;
+
+export function pushWithLabelsArgument(args: RedisCommandArguments, selectedLabels?: SelectedLabels): RedisCommandArguments {
+    if (!selectedLabels) {
+        args.push('WITHLABELS');
+    } else {
+        args.push('SELECTED_LABELS');
+        pushVerdictArguments(args, selectedLabels);
+    }
+
+    return args;
+}
+
+export interface MRangeWithLabelsOptions extends MRangeOptions {
+    SELECTED_LABELS?: SelectedLabels;
+}
+
+export function pushMRangeWithLabelsArguments(
+    args: RedisCommandArguments,
+    fromTimestamp: Timestamp,
+    toTimestamp: Timestamp,
+    filter: Filter,
+    options?: MRangeWithLabelsOptions
+): RedisCommandArguments {
+    pushRangeArguments(args, fromTimestamp, toTimestamp, options);
+    pushWithLabelsArgument(args, options?.SELECTED_LABELS);
+    pushFilterArgument(args, filter);
+    pushMRangeGroupByArguments(args, options?.GROUPBY);
+    return args;
+}
+
 export function transformRangeReply(reply: Array<SampleRawReply>): Array<SampleReply> {
     return reply.map(transformSampleReply);
+}
+
+type MRangeRawReply = Array<[
+    key: string,
+    labels: RawLabels,
+    samples: Array<SampleRawReply>
+]>;
+
+interface MRangeReplyItem {
+    key: string;
+    samples: Array<SampleReply>;
+}
+
+export function transformMRangeReply(reply: MRangeRawReply): Array<MRangeReplyItem> {
+    const args = [];
+
+    for (const [key, _, sample] of reply) {
+        args.push({
+            key,
+            samples: sample.map(transformSampleReply)
+        });
+    }
+
+    return args;
+}
+export interface MRangeWithLabelsReplyItem extends MRangeReplyItem {
+    labels: Labels;
+}
+
+export function transformMRangeWithLabelsReply(reply: MRangeRawReply): Array<MRangeWithLabelsReplyItem> {
+    const args = [];
+
+    for (const [key, labels, samples] of reply) {
+        args.push({
+            key,
+            labels: transformLablesReply(labels),
+            samples: samples.map(transformSampleReply)
+        });
+    }
+
+    return args;
 }

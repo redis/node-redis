@@ -9,9 +9,17 @@ import {
     pushLabelsArgument,
     transformIncrDecrArguments,
     transformSampleReply,
+    TimeSeriesAggregationType,
     pushRangeArguments,
+    pushMRangeGroupByArguments,
+    TimeSeriesReducers,
+    pushFilterArgument,
+    pushMRangeArguments,
+    pushWithLabelsArgument,
+    pushMRangeWithLabelsArguments,
     transformRangeReply,
-    TimeSeriesAggregationType
+    transformMRangeReply,
+    transformMRangeWithLabelsReply
 } from '.';
 
 describe('transformTimestampArgument', () => {
@@ -115,6 +123,15 @@ describe('transformIncrDecrArguments', () => {
             ['TS.INCRBY', 'key', '1', 'UNCOMPRESSED']
         );
     });
+
+    it('with UNCOMPRESSED false', () => {
+        assert.deepEqual(
+            transformIncrDecrArguments('TS.INCRBY', 'key', 1, {
+                UNCOMPRESSED: false
+            }),
+            ['TS.INCRBY', 'key', '1']
+        );
+    });
 });
 
 it('transformSampleReply', () => {
@@ -139,7 +156,7 @@ describe('pushRangeArguments', () => {
         it('string', () => {
             assert.deepEqual(
                 pushRangeArguments([], '-', '+', {
-                    FILTER_BY_TS: 'ts'
+                    FILTER_BY_TS: ['ts']
                 }),
                 ['-', '+', 'FILTER_BY_TS', 'ts']
             );
@@ -200,7 +217,7 @@ describe('pushRangeArguments', () => {
     it('with FILTER_BY_TS, FILTER_BY_VALUE, COUNT, ALIGN, AGGREGATION', () => {
         assert.deepEqual(
             pushRangeArguments([], '-', '+', {
-                FILTER_BY_TS: 'ts',
+                FILTER_BY_TS: ['ts'],
                 FILTER_BY_VALUE: {
                     min: 1,
                     max: 2
@@ -212,9 +229,89 @@ describe('pushRangeArguments', () => {
                     timeBucket: 1
                 }
             }),
-            ['-', '+', 'FILTER_BY_TS', 'ts', 'FILTER_BY_VALUE', '1', '2', 'COUNT', '1', 'ALIGN', '1', 'AGGREGATION', 'first', '1']
+            ['-', '+', 'FILTER_BY_TS', 'ts', 'FILTER_BY_VALUE', '1', '2',
+            'COUNT', '1', 'ALIGN', '1', 'AGGREGATION', 'first', '1']
         );
     });
+});
+
+describe('pushMRangeGroupByArguments', () => {
+    it('undefined', () => {
+        assert.deepEqual(
+            pushMRangeGroupByArguments([]),
+            []
+        );
+    });
+
+    it('with GROUPBY', () => {
+        assert.deepEqual(
+            pushMRangeGroupByArguments([], {
+                label: 'label',
+                reducer: TimeSeriesReducers.MAXIMUM
+            }),
+            ['GROUPBY', 'label', 'REDUCE', 'max']
+        );
+    });
+});
+
+describe('pushFilterArgument', () => {
+    it('string', () => {
+        assert.deepEqual(
+            pushFilterArgument([], 'label=value'),
+            ['FILTER', 'label=value']
+        );
+    });
+
+    it('Array', () => {
+        assert.deepEqual(
+            pushFilterArgument([], ['1=1', '2=2']),
+            ['FILTER', '1=1', '2=2']
+        );
+    });
+});
+
+describe('pushMRangeArguments', () => {
+    it('without options', () => {
+        assert.deepEqual(
+            pushMRangeArguments([], '-', '+', 'label=value'),
+            ['-', '+', 'FILTER', 'label=value']
+        );
+    });
+
+    it('with GROUPBY', () => {
+        assert.deepEqual(
+            pushMRangeArguments([], '-', '+', 'label=value', {
+                GROUPBY: {
+                    label: 'label',
+                    reducer: TimeSeriesReducers.MAXIMUM
+                }
+            }),
+            ['-', '+', 'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'max']
+        );
+    });
+});
+
+describe('pushWithLabelsArgument', () => {
+    it('without selected labels', () => {
+        assert.deepEqual(
+            pushWithLabelsArgument([]),
+            ['WITHLABELS']
+        );
+    });
+
+    it('with selected labels', () => {
+        assert.deepEqual(
+            pushWithLabelsArgument([], ['label']),
+            ['SELECTED_LABELS', 'label']
+        );
+    });
+});
+
+it('pushMRangeWithLabelsArguments', () => {
+    assert.deepEqual(
+        pushMRangeWithLabelsArguments([], '-', '+', 'label=value'),
+        ['-', '+', 'WITHLABELS', 'FILTER', 'label=value']
+    );
 });
 
 it('transformRangeReply', () => {
@@ -226,6 +323,49 @@ it('transformRangeReply', () => {
         }, {
             timestamp: 2,
             value: 2.2
+        }]
+    );
+});
+
+describe('transformMRangeReply', () => {
+    assert.deepEqual(
+        transformMRangeReply([[
+            'key',
+            [],
+            [[1, '1.1'], [2, '2.2']]
+        ]]),
+        [{
+            key: 'key',
+            samples: [{
+                timestamp: 1,
+                value: 1.1
+            }, {
+                timestamp: 2,
+                value: 2.2
+            }]
+        }]
+    );
+});
+
+describe('transformMRangeWithLabelsReply', () => {
+    assert.deepEqual(
+        transformMRangeWithLabelsReply([[
+            'key',
+            [['label', 'value']],
+            [[1, '1.1'], [2, '2.2']]
+        ]]),
+        [{
+            key: 'key',
+            labels: {
+                label: 'value'
+            },
+            samples: [{
+                timestamp: 1,
+                value: 1.1
+            }, {
+                timestamp: 2,
+                value: 2.2
+            }]
         }]
     );
 });

@@ -1,31 +1,26 @@
-import { pushVerdictArgument, pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { Filter, pushFilterArgument, RawLabels, SampleRawReply, SampleReply, transformSampleReply } from '.';
 
 export const IS_READ_ONLY = true;
 
-interface WithLabels {
-    WITHLABELS: true;
+export function transformArguments(filter: Filter): RedisCommandArguments {
+    return pushFilterArgument(['TS.MGET'], filter);
 }
 
-interface SelectedLabels {
-    SELECTED_LABELS: string | Array<string>;
+export type MGetRawReply = Array<[
+    key: string,
+    labels: RawLabels,
+    sample: SampleRawReply
+]>;
+
+export interface MGetReply {
+    key: string,
+    sample: SampleReply
 }
 
-type MGetOptions = WithLabels & SelectedLabels;
-
-export function transformArguments(filter: string, options?: MGetOptions): Array<string> {
-    const args = ['TS.MGET'];
-
-    if (options?.WITHLABELS) {
-        args.push('WITHLABELS');
-    } else if (options?.SELECTED_LABELS) {
-        pushVerdictArguments(args, options.SELECTED_LABELS);
-    }
-
-    args.push('FILTER', filter);
-
-    return args;
-}
-
-export function transformReply() {
-
+export function transformReply(reply: MGetRawReply): Array<MGetReply> {
+    return reply.map(([key, _, sample]) => ({
+        key,
+        sample: transformSampleReply(sample)
+    }));
 }
