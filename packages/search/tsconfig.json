@@ -5,5 +5,16 @@
   },
   "include": [
     "./lib/**/*.ts"
-  ]
+  ],
+  "typedocOptions": {
+    "entryPoints": [
+      "./lib"
+    ],
+    "entryPointStrategy": "expand",
+    "exclude": [
+      "./lib/test-utils.ts",
+      "./lib/**/*.spec.ts"
+    ],
+    "out": "../../documentation/search"
+  }
 }
