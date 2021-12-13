@@ -3,7 +3,7 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { ClientLegacyCommandArguments, RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisScripts } from '../commands';
-import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, AuthError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
@@ -99,7 +99,7 @@ describe('Client', () => {
 
             await assert.rejects(
                 client.connect(),
-                { message }
+                new AuthError(message)
             );
 
             assert.equal(client.isOpen, false);
