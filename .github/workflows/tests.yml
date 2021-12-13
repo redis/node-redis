@@ -34,7 +34,7 @@ jobs:
       - name: Build tests tools
         run: npm run build:tests-tools
       - name: Run Tests
-        run: npm run test -- --forbid-only --redis-version=${{ matrix.redis-version }}
+        run: npm run test -- -- --forbid-only --redis-version=${{ matrix.redis-version }}
       - name: Upload to Codecov
         run: |
           curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import

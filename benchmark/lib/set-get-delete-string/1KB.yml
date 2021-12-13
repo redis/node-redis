@@ -1,0 +1,9 @@
+name: "set-get-delete-string-1KB"
+
+clientconfig:
+  - command: |
+      npm install -ws
+      npm run build:tests-tools
+      cd benchmark
+      npm install
+      npm run start -- --name set-get-delete-string --size 1024 --redis-server-host ${server_private_ip}

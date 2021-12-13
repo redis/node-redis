@@ -17,7 +17,7 @@ describe('LINSERT', () => {
         );
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithCluster('cluster.lLen', async cluster => {
+    testUtils.testWithCluster('cluster.lInsert', async cluster => {
         assert.equal(
             await cluster.lInsert('key', 'BEFORE', 'pivot', 'element'),
             0

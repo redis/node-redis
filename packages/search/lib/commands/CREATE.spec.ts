@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes, SchemaTextFieldPhonetics, transformArguments } from './CREATE';
-import { RedisSearchLanguages } from '.';
+import { transformArguments } from './CREATE';
+import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages } from '.';
 
 describe('CREATE', () => {
     describe('transformArguments', () => {

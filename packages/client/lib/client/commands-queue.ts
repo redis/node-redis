@@ -1,15 +1,19 @@
 import * as LinkedList from 'yallist';
 import { AbortError } from '../errors';
 import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
+
 // We need to use 'require', because it's not possible with Typescript to import
 // classes that are exported as 'module.exports = class`, without esModuleInterop
 // set to true.
 const RedisParser = require('redis-parser');
+
 export interface QueueCommandOptions {
     asap?: boolean;
     chainId?: symbol;
     signal?: AbortSignal;
+    ignorePubSubMode?: boolean;
 }
+
 interface CommandWaitingToBeSent extends CommandWaitingForReply {
     args: RedisCommandArguments;
     chainId?: symbol;
@@ -18,16 +22,19 @@ interface CommandWaitingToBeSent extends CommandWaitingForReply {
         listener(): void;
     };
 }
+
 interface CommandWaitingForReply {
     resolve(reply?: unknown): void;
     reject(err: Error): void;
     channelsCounter?: number;
     bufferMode?: boolean;
 }
+
 export enum PubSubSubscribeCommands {
     SUBSCRIBE = 'SUBSCRIBE',
     PSUBSCRIBE = 'PSUBSCRIBE'
 }
+
 export enum PubSubUnsubscribeCommands {
     UNSUBSCRIBE = 'UNSUBSCRIBE',
     PUNSUBSCRIBE = 'PUNSUBSCRIBE'
@@ -66,7 +73,10 @@ export default class RedisCommandsQueue {
 
     static #emitPubSubMessage(listenersMap: PubSubListenersMap, message: Buffer, channel: Buffer, pattern?: Buffer): void {
         const keyString = (pattern || channel).toString(),
-            listeners = listenersMap.get(keyString)!;
+            listeners = listenersMap.get(keyString);
+
+        if (!listeners) return;
+
         for (const listener of listeners.buffers) {
             listener(message, channel);
         }
@@ -135,7 +145,7 @@ export default class RedisCommandsQueue {
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
-        if (this.#pubSubState) {
+        if (this.#pubSubState && !options?.ignorePubSubMode) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
             return Promise.reject(new Error('The queue is full'));
@@ -294,9 +304,9 @@ export default class RedisCommandsQueue {
                     }
                     resolve();
                 },
-                reject: () => {
+                reject: err => {
                     pubSubState[inProgressKey] -= channelsCounter * (isSubscribe ? 1 : -1);
-                    reject();
+                    reject(err);
                 }
             });
         });
@@ -307,11 +317,32 @@ export default class RedisCommandsQueue {
             return;
         }
 
-        // TODO: acl error on one channel/pattern will reject the whole command
-        return Promise.all([
-            this.#pushPubSubCommand(PubSubSubscribeCommands.SUBSCRIBE, [...this.#pubSubState.listeners.channels.keys()]),
-            this.#pushPubSubCommand(PubSubSubscribeCommands.PSUBSCRIBE, [...this.#pubSubState.listeners.patterns.keys()])
-        ]);
+        this.#pubSubState.subscribed = 0;
+
+        const promises = [],
+            { channels, patterns } = this.#pubSubState.listeners;
+
+        if (channels.size) {
+            promises.push(
+                this.#pushPubSubCommand(
+                    PubSubSubscribeCommands.SUBSCRIBE,
+                    [...channels.keys()]
+                )
+            );
+        }
+
+        if (patterns.size) {
+            promises.push(
+                this.#pushPubSubCommand(
+                    PubSubSubscribeCommands.PSUBSCRIBE,
+                    [...patterns.keys()]
+                )
+            );
+        }
+
+        if (promises.length) {
+            return Promise.all(promises);
+        }
     }
 
     getCommandToSend(): RedisCommandArguments | undefined {

@@ -1,0 +1,32 @@
+version: 0.1
+
+remote:
+  - type: oss-standalone
+  - setup: redis-small
+
+setups:
+  - oss-standalone
+
+spec:
+  setups:
+  - name: oss-standalone
+    type: oss-standalone
+    redis_topology:
+      primaries: 1
+      replicas: 0
+    resources:
+      requests:
+        cpus: "1"
+        memory: "10g"
+
+exporter:
+  output_path: "./*.js.json"
+  redistimeseries:
+    timemetric: "$.timestamp"
+    metrics:
+      - "$.p0"
+      - "$.p50"
+      - "$.p95"
+      - "$.p99"
+      - "$.p100"
+      - "$.operationsPerSecond"

@@ -15,7 +15,12 @@ import * as ASKING from '../commands/ASKING';
 import * as AUTH from '../commands/AUTH';
 import * as BGREWRITEAOF from '../commands/BGREWRITEAOF';
 import * as BGSAVE from '../commands/BGSAVE';
+import * as CLIENT_CACHING from '../commands/CLIENT_CACHING';
+import * as CLIENT_GETNAME from '../commands/CLIENT_GETNAME';
+import * as CLIENT_GETREDIR from '../commands/CLIENT_GETREDIR';
 import * as CLIENT_ID from '../commands/CLIENT_ID';
+import * as CLIENT_KILL from '../commands/CLIENT_KILL';
+import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from '../commands/CLUSTER_ADDSLOTS';
 import * as CLUSTER_FLUSHSLOTS from '../commands/CLUSTER_FLUSHSLOTS';
@@ -110,8 +115,18 @@ export default {
     bgRewriteAof: BGREWRITEAOF,
     BGSAVE,
     bgSave: BGSAVE,
+    CLIENT_CACHING,
+    clientCaching: CLIENT_CACHING,
+    CLIENT_GETNAME,
+    clientGetName: CLIENT_GETNAME,
+    CLIENT_GETREDIR,
+    clientGetRedir: CLIENT_GETREDIR,
     CLIENT_ID,
     clientId: CLIENT_ID,
+    CLIENT_KILL,
+    clientKill: CLIENT_KILL,
+    CLIENT_SETNAME,
+    clientSetName: CLIENT_SETNAME,
     CLIENT_INFO,
     clientInfo: CLIENT_INFO,
     CLUSTER_ADDSLOTS,

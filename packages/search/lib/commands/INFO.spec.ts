@@ -1,6 +1,5 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from './CREATE';
 import { transformArguments } from './INFO';
 
 describe('INFO', () => {

@@ -1,6 +1,6 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
-import RedisSocket, { RedisSocketOptions, RedisNetSocketOptions, RedisTlsSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
@@ -11,14 +11,16 @@ import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
 import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ClientClosedError, DisconnectsClientError } from '../errors';
+import { ClientClosedError, DisconnectsClientError, AuthError } from '../errors';
 import { URL } from 'url';
+import { TcpSocketConnectOpts } from 'net';
 
 export interface RedisClientOptions<M extends RedisModules, S extends RedisScripts> extends RedisPlugins<M, S> {
     url?: string;
     socket?: RedisSocketOptions;
     username?: string;
     password?: string;
+    name?: string;
     database?: number;
     commandsQueueMaxLength?: number;
     readonly?: boolean;
@@ -97,7 +99,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         }
 
         if (port) {
-            (parsed.socket as RedisNetSocketOptions).port = Number(port);
+            (parsed.socket as TcpSocketConnectOpts).port = Number(port);
         }
 
         if (username) {
@@ -200,6 +202,15 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                 );
             }
 
+            if (this.#options?.name) {
+                promises.push(
+                    this.#queue.addCommand(
+                        COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
+                        { asap: true }
+                    )
+                );
+            }
+
             if (this.#options?.username || this.#options?.password) {
                 promises.push(
                     this.#queue.addCommand(
@@ -208,7 +219,9 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                             password: this.#options.password ?? ''
                         }),
                         { asap: true }
-                    )
+                    ).catch(err => {
+                        throw new AuthError(err.message);
+                    })
                 );
             }
 
@@ -292,9 +305,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
     #defineLegacyCommand(name: string): void {
         (this as any).#v4[name] = (this as any)[name].bind(this);
-        (this as any)[name] = (...args: Array<unknown>): void => {
-            (this as any).sendCommand(name, ...args);
-        };
+        (this as any)[name] = (this as any)[name.toLowerCase()] =
+            (...args: Array<unknown>): void => (this as any).sendCommand(name, ...args);
     }
 
     duplicate(overrides?: Partial<RedisClientOptions<M, S>>): RedisClientType<M, S> {
@@ -477,7 +489,9 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
     QUIT(): Promise<void> {
         return this.#socket.quit(() => {
-            const quitPromise = this.#queue.addCommand(['QUIT']);
+            const quitPromise = this.#queue.addCommand(['QUIT'], {
+                ignorePubSubMode: true
+            });
             this.#tick();
             return Promise.all([
                 quitPromise,

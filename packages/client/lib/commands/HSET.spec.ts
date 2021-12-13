@@ -4,11 +4,27 @@ import testUtils, { GLOBAL } from '../test-utils';
 
 describe('HSET', () => {
     describe('transformArguments', () => {
-        it('field, value', () => {
-            assert.deepEqual(
-                transformArguments('key', 'field', 'value'),
-                ['HSET', 'key', 'field', 'value']
-            );
+        describe('field, value', () => {
+            it('string', () => {
+                assert.deepEqual(
+                    transformArguments('key', 'field', 'value'),
+                    ['HSET', 'key', 'field', 'value']
+                );
+            });
+
+            it('number', () => {
+                assert.deepEqual(
+                    transformArguments('key', 1, 2),
+                    ['HSET', 'key', '1', '2']
+                );
+            });
+
+            it('Buffer', () => {
+                assert.deepEqual(
+                    transformArguments(Buffer.from('key'), Buffer.from('field'), Buffer.from('value')),
+                    ['HSET', Buffer.from('key'), Buffer.from('field'), Buffer.from('value')]
+                );
+            });
         });
 
         it('Map', () => {

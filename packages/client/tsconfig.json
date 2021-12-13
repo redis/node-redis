@@ -21,7 +21,6 @@
       "./lib/ts-declarations",
       "./lib/test-utils.ts"
     ],
-    "theme": "./node_modules/typedoc-github-wiki-theme/dist",
-    "out": "documentation"
+    "out": "../../documentation/client"
   }
 }

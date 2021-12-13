@@ -4,10 +4,17 @@ import { transformArguments } from './SET';
 
 describe('SET', () => {
     describe('transformArguments', () => {
-        it('simple', () => {
+        it('string', () => {
             assert.deepEqual(
                 transformArguments('key', 'value'),
                 ['SET', 'key', 'value']
+            );
+        });
+
+        it('number', () => {
+            assert.deepEqual(
+                transformArguments('key', 1),
+                ['SET', 'key', '1']
             );
         });
 

@@ -3,7 +3,7 @@ import * as net from 'net';
 import * as tls from 'tls';
 import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError } from '../errors';
 import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
@@ -13,20 +13,13 @@ export interface RedisSocketCommonOptions {
     reconnectStrategy?(retries: number): number | Error;
 }
 
-export interface RedisNetSocketOptions extends RedisSocketCommonOptions {
-    port?: number;
-    host?: string;
-}
+export type RedisNetSocketOptions = Partial<net.SocketConnectOpts>;
 
-export interface RedisUnixSocketOptions extends RedisSocketCommonOptions {
-    path: string;
-}
-
-export interface RedisTlsSocketOptions extends RedisNetSocketOptions, tls.SecureContextOptions, tls.CommonConnectionOptions {
+export interface RedisTlsSocketOptions extends RedisSocketCommonOptions, tls.ConnectionOptions {
     tls: true;
 }
 
-export type RedisSocketOptions = RedisNetSocketOptions | RedisUnixSocketOptions | RedisTlsSocketOptions;
+export type RedisSocketOptions = RedisSocketCommonOptions & (RedisNetSocketOptions | RedisTlsSocketOptions);
 
 interface CreateSocketReturn<T> {
     connectEvent: string;
@@ -38,9 +31,9 @@ export type RedisSocketInitiator = () => Promise<void>;
 export default class RedisSocket extends EventEmitter {
     static #initiateOptions(options?: RedisSocketOptions): RedisSocketOptions {
         options ??= {};
-        if (!RedisSocket.#isUnixSocket(options)) {
-            (options as RedisNetSocketOptions).port ??= 6379;
-            (options as RedisNetSocketOptions).host ??= '127.0.0.1';
+        if (!(options as net.IpcSocketConnectOpts).path) {
+            (options as net.TcpSocketConnectOpts).port ??= 6379;
+            (options as net.TcpSocketConnectOpts).host ??= 'localhost';
         }
 
         options.connectTimeout ??= 5000;
@@ -52,10 +45,6 @@ export default class RedisSocket extends EventEmitter {
 
     static #defaultReconnectStrategy(retries: number): number {
         return Math.min(retries * 50, 500);
-    }
-
-    static #isUnixSocket(options: RedisSocketOptions): options is RedisUnixSocketOptions {
-        return Object.prototype.hasOwnProperty.call(options, 'path');
     }
 
     static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
@@ -121,7 +110,11 @@ export default class RedisSocket extends EventEmitter {
             } catch (err) {
                 this.#socket.destroy();
                 this.#socket = undefined;
-                this.#isOpen = false;
+
+                if (err instanceof AuthError) {
+                    this.#isOpen = false;
+                }
+
                 throw err;
             }
 

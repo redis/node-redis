@@ -1,7 +1,6 @@
 import { strict as assert } from 'assert';
-import { RedisSearchLanguages } from '.';
+import { RedisSearchLanguages, SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from './CREATE';
 import { transformArguments } from './SEARCH';
 
 describe('SEARCH', () => {
@@ -196,10 +195,10 @@ describe('SEARCH', () => {
             );
         });
 
-        it('with MSORTBY', () => {
+        it('with SORTBY', () => {
             assert.deepEqual(
-                transformArguments('index', 'query', { MSORTBY: '@by' }),
-                ['FT.SEARCH', 'index', 'query', 'MSORTBY', '1', '@by']
+                transformArguments('index', 'query', { SORTBY: '@by' }),
+                ['FT.SEARCH', 'index', 'query', 'SORTBY', '@by']
             );
         });
 

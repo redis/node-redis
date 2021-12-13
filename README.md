@@ -1,9 +1,10 @@
 # Node-Redis
 
-[![Tests](https://img.shields.io/github/workflow/status/redis/node-redis/Tests/master.svg?label=tests)](https://codecov.io/gh/redis/node-redis)
+[![Tests](https://img.shields.io/github/workflow/status/redis/node-redis/Tests/master.svg?label=tests)](https://github.com/redis/node-redis/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
-[![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://codecov.io/gh/redis/node-redis)
-[![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/XMMVgxUm)
+[![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://github.com/redis/node-redis/blob/master/LICENSE)
+[![LGTM alerts](https://img.shields.io/lgtm/alerts/g/redis/node-redis.svg?logo=LGTM)](https://lgtm.com/projects/g/redis/node-redis/alerts)
+[![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/redis)
 
 node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 6.2 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).
 
@@ -180,7 +181,7 @@ This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 ```typescript
 for await (const { field, value } of client.hScanIterator('hash')) {}
 for await (const member of client.sScanIterator('set')) {}
-for await (const { score, member } of client.zScanIterator('sorted-set')) {}
+for await (const { score, value } of client.zScanIterator('sorted-set')) {}
 ```
 
 You can override the default options by providing a configuration object:
@@ -277,6 +278,20 @@ await Promise.all([
 
 Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
+### Events
+
+The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
+
+| Event name   | Scenes                                                                                                            | Parameters                                                                                                                         |
+|--------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| connect      | The client is initiating a connection to the server.                                                              | _undefined_                                                                                                                        |
+| ready        | The client successfully initiated the connection to the server.                                                   | _undefined_                                                                                                                        |
+| end          | The client disconnected the connection to the server via `.quit()` or `.disconnect()`.                            | _undefined_                                                                                                                        |
+| error        | When a network error has occurred, such as unable to connect to the server or the connection closed unexpectedly. | The error object, such as `SocketClosedUnexpectedlyError: Socket closed unexpectedly` or `Error: connect ECONNREFUSED [IP]:[PORT]` |
+| reconnecting | The client is trying to reconnect to the server.                                                                  | _undefined_                                                                                                                        |
+
+The client will not emit any other events beyond those listed above.
+
 ## Supported Redis versions
 
 Node Redis is supported with the following versions of Redis:
@@ -292,12 +307,13 @@ Node Redis is supported with the following versions of Redis:
 
 ## Packages
 
-| Name                                    | Description                                                                                                                                                                                                                                                                                                              |
-|-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [redis](./)                             | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis/v/next) [![Version](https://img.shields.io/npm/v/redis/next.svg)](https://www.npmjs.com/package/redis/v/next)                                                                                                                |
-| [@node-redis/client](./packages/client) | [![Downloads](https://img.shields.io/npm/dm/@node-redis/client.svg)](https://www.npmjs.com/package/@node-redis/client/v/next) [![Version](https://img.shields.io/npm/v/@node-redis/client/next.svg)](https://www.npmjs.com/package/@node-redis/client/v/next)                                                            |
-| [@node-redis/json](./packages/json)     | [![Downloads](https://img.shields.io/npm/dm/@node-redis/json.svg)](https://www.npmjs.com/package/@node-redis/json/v/next) [![Version](https://img.shields.io/npm/v/@node-redis/json/next.svg)](https://www.npmjs.com/package/@node-redis/json/v/next) [Redis JSON](https://oss.redis.com/redisjson/) commands            |
-| [@node-redis/search](./packages/search) | [![Downloads](https://img.shields.io/npm/dm/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search/v/next) [![Version](https://img.shields.io/npm/v/@node-redis/search/next.svg)](https://www.npmjs.com/package/@node-redis/search/v/next) [Redis Search](https://oss.redis.com/redisearch/) commands |
+| -----------------------------------------         | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                  |
+|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [redis](./)                                       | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis) [![Version](https://img.shields.io/npm/v/redis.svg)](https://www.npmjs.com/package/redis)                                                                                                                                                                                                                                                             |
+| [@node-redis/client](./packages/client)           | [![Downloads](https://img.shields.io/npm/dm/@node-redis/client.svg)](https://www.npmjs.com/package/@node-redis/client) [![Version](https://img.shields.io/npm/v/@node-redis/client.svg)](https://www.npmjs.com/package/@node-redis/client) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/client/)                                                                                               |
+| [@node-redis/json](./packages/json)               | [![Downloads](https://img.shields.io/npm/dm/@node-redis/json.svg)](https://www.npmjs.com/package/@node-redis/json) [![Version](https://img.shields.io/npm/v/@node-redis/json.svg)](https://www.npmjs.com/package/@node-redis/json) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/json/) [Redis JSON](https://oss.redis.com/redisjson/) commands                                                 |
+| [@node-redis/search](./packages/search)           | [![Downloads](https://img.shields.io/npm/dm/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search) [![Version](https://img.shields.io/npm/v/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/search/) [Redis Search](https://oss.redis.com/redisearch/) commands                                    |
+| [@node-redis/time-series](./packages/time-series) | [![Downloads](https://img.shields.io/npm/dm/@node-redis/time-series.svg)](https://www.npmjs.com/package/@node-redis/time-series) [![Version](https://img.shields.io/npm/v/@node-redis/time-series.svg)](https://www.npmjs.com/package/@node-redis/time-series) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/time-series/) [Redis Time-Series](https://oss.redis.com/redistimeseries/) commands |
 
 ## Contributing
 

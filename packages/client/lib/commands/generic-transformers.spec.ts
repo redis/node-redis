@@ -320,21 +320,32 @@ describe('Generic Transformers', () => {
             );
         });
 
-        it('with COUNT', () => {
-            assert.deepEqual(
-                pushGeoCountArgument([], 1),
-                ['COUNT', '1']
-            );
-        });
+        describe('with COUNT', () => {
+            it('number', () => {
+                assert.deepEqual(
+                    pushGeoCountArgument([], 1),
+                    ['COUNT', '1']
+                );
+            });
 
-        it('with ANY', () => {
-            assert.deepEqual(
-                pushGeoCountArgument([], {
-                    value: 1,
-                    ANY: true
-                }),
-                ['COUNT', '1', 'ANY']
-            );
+            describe('object', () => {
+                it('value', () => {
+                    assert.deepEqual(
+                        pushGeoCountArgument([], { value: 1 }),
+                        ['COUNT', '1']
+                    );
+                });
+
+                it('value, ANY', () => {
+                    assert.deepEqual(
+                        pushGeoCountArgument([], {
+                            value: 1,
+                            ANY: true
+                        }),
+                        ['COUNT', '1', 'ANY']
+                    );
+                });
+            });
         });
     });
 
