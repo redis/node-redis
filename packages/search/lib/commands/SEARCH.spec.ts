@@ -1,7 +1,6 @@
 import { strict as assert } from 'assert';
-import { RedisSearchLanguages } from '.';
+import { RedisSearchLanguages, SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from './CREATE';
 import { transformArguments } from './SEARCH';
 
 describe('SEARCH', () => {

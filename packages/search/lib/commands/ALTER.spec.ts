@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ALTER';
-import { SchemaFieldTypes } from './CREATE';
+import { SchemaFieldTypes } from '.';
 
 describe('ALTER', () => {
     describe('transformArguments', () => {
