@@ -20,9 +20,10 @@
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "dependencies": {
-    "@node-redis/client": "^1.0.0",
-    "@node-redis/json": "^1.0.0",
-    "@node-redis/search": "^1.0.0"
+    "@node-redis/client": "^1.0.1",
+    "@node-redis/json": "^1.0.1",
+    "@node-redis/search": "^1.0.1",
+    "@node-redis/time-series": "^1.0.0"
   },
   "devDependencies": {
     "@tsconfig/node12": "^1.0.9",
