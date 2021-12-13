@@ -17,7 +17,7 @@
     "build": "tsc",
     "build-all": "npm run build:client && npm run build:test-utils && npm run build:modules && npm run build",
     "documentation": "npm run documentation -ws --if-present",
-    "gh-pages": "gh-pages -d ./documentation -e ./documentation"
+    "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "dependencies": {
     "@node-redis/client": "^1.0.0",
