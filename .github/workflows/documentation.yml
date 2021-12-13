@@ -17,6 +17,8 @@ jobs:
         uses: actions/setup-node@v2.3.0
       - name: Install Packages
         run: npm ci
+      - name: Build tests tools
+        run: npm run build:tests-tools
       - name: Generate Documentation
         run: npm run documentation
       - name: Upload
