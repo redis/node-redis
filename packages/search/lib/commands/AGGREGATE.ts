@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArgument, transformReplyTuples, TuplesObject } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
+import { AggregateReply, PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
     GROUPBY = 'GROUPBY',
@@ -118,14 +118,27 @@ type LoadField = PropertyName | {
     AS?: string;
 }
 
-interface AggregateOptions {
+export interface AggregateOptions {
     VERBATIM?: true;
     LOAD?: LoadField | Array<LoadField>;
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
 }
 
-export function transformArguments(index: string, query: string, options?: AggregateOptions): RedisCommandArguments {
+export function transformArguments(
+    index: string, 
+    query: string, 
+    options?: AggregateOptions
+): RedisCommandArguments {
+
     const args = ['FT.AGGREGATE', index, query];
+    pushAggregatehOptions(args, options);
+    return args;
+}
+
+export function pushAggregatehOptions(
+    args: RedisCommandArguments,
+    options?: AggregateOptions
+): RedisCommandArguments {
 
     if (options?.VERBATIM) {
         args.push('VERBATIM');
@@ -258,15 +271,10 @@ function pushGroupByReducer(args: RedisCommandArguments, reducer: GroupByReducer
     }
 }
 
-type AggregateRawReply = [
+export type AggregateRawReply = [
     total: number,
     ...results: Array<Array<string>>
 ];
-
-interface AggregateReply {
-    total: number;
-    results: Array<TuplesObject>;
-}
 
 export function transformReply(rawReply: AggregateRawReply): AggregateReply {
     const results: Array<TuplesObject> = [];
