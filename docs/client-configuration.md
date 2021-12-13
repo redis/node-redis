@@ -11,7 +11,7 @@
 | socket.connectTimeout    | `5000`                                   | The timeout for connecting to the Redis Server (in milliseconds)                                                                                                                                                                                    |
 | socket.noDelay           | `true`                                   | Enable/disable the use of [`Nagle's algorithm`](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay)                                                                                                                                      |
 | socket.keepAlive         | `5000`                                   | Enable/disable the [`keep-alive`](https://nodejs.org/api/net.html#net_socket_setkeepalive_enable_initialdelay) functionality                                                                                                                        |
-| socket.tls               |                                          | Set to `true` to enable [TLS Configuration](https://nodejs.org/api/tls.html#tls_tls_connect_options_callback)                                                                                                                                       |
+| socket.tls               |                                          | See explanation and examples [below](#TLS)                                                                                                                                                                                                          |
 | socket.reconnectStrategy | `retries => Math.min(retries * 50, 500)` | A function containing the [Reconnect Strategy](#reconnect-strategy) logic                                                                                                                                                                           |
 | username                 |                                          | ACL username ([see ACL guide](https://redis.io/topics/acl))                                                                                                                                                                                         |
 | password                 |                                          | ACL password or the old "--requirepass" password                                                                                                                                                                                                    |
@@ -26,9 +26,39 @@
 
 ## Reconnect Strategy
 
-You can implement a custom reconnect strategy as a function that should:
+You can implement a custom reconnect strategy as a function:
 
 - Receives the number of retries attempted so far.
-- Should return `number | Error`:
-    - `number`: the time in milliseconds to wait before trying to reconnect again.
-    - `Error`: close the client and flush the commands queue.
+- Returns `number | Error`:
+    - `number`: the wait time in milliseconds prior attempting to reconnect.
+    - `Error`: closes the client and flushes the internal command queues.
+
+## TLS
+
+When creating a client, set `socket.tls` to `true` to enable TLS. Below are some basic examples.
+
+> For configuration options see [tls.connect](https://nodejs.org/api/tls.html#tlsconnectoptions-callback) and [tls.createSecureContext](https://nodejs.org/api/tls.html#tlscreatesecurecontextoptions), as those are the underlying functions used by this library.
+
+### Create a SSL client
+
+```typescript
+createClient({
+  socket: {
+    tls: true,
+    ca: '...',
+    cert: '...'
+  }
+});
+```
+
+### Create a SSL client using a self-signed certificate
+
+```typescript
+createClient({
+  socket: {
+    tls: true,
+    rejectUnauthorized: true,
+    cert: '...'
+  }
+});
+```
