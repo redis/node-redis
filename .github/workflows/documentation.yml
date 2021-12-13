@@ -22,4 +22,9 @@ jobs:
       - name: Generate Documentation
         run: npm run documentation
       - name: Upload
-        run: npm run gh-pages
+        run: |
+          git remote set-url origin https://git:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          npm run gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
