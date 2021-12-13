@@ -1,5 +1,22 @@
 # Changelog
 
+## v4.0.1 - 13 Dec, 2021
+
+### Fixes
+
+- Fix `NOAUTH` error when using authentication & database (#1681)
+- Allow to `.quit()` in PubSub mode (#1766)
+- Add an option to configurate `name` on a client (#1758)
+- Lowercase commands (`client.hset`) in `legacyMode`
+- Fix PubSub resubscribe (#1764)
+- Fix `RedisSocketOptions` type (#1741)
+
+### Enhancements
+
+- Add support for `number`s and `Buffer`s in `HSET` (#1738 #1739)
+- Export `RedisClientType`, `RedisClusterType` and some more types (#1673)
+- First release of `@node-redis/time-series`
+
 ## v4.0.0 - 24 Nov, 2021
 
 This version is a major change and refactor, adding modern JavaScript capabilities and multiple breaking changes. See the [migration guide](../../docs/v3-to-v4.md) for tips on how to upgrade.
