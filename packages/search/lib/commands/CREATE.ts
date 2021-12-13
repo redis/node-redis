@@ -1,49 +1,5 @@
 import { pushOptionalVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { RedisSearchLanguages, PropertyName } from '.';
-
-export enum SchemaFieldTypes {
-    TEXT = 'TEXT',
-    NUMERIC = 'NUMERIC',
-    GEO = 'GEO',
-    TAG = 'TAG'
-}
-
-type CreateSchemaField<T extends SchemaFieldTypes, E = Record<string, never>> = T | ({
-    type: T;
-    AS?: string;
-    SORTABLE?: true | 'UNF';
-    NOINDEX?: true;
-} & E);
-
-export enum SchemaTextFieldPhonetics {
-    DM_EN = 'dm:en',
-    DM_FR = 'dm:fr',
-    FM_PT = 'dm:pt',
-    DM_ES = 'dm:es'
-}
-
-type CreateSchemaTextField = CreateSchemaField<SchemaFieldTypes.TEXT, {
-    NOSTEM?: true;
-    WEIGHT?: number;
-    PHONETIC?: SchemaTextFieldPhonetics;
-}>;
-
-type CreateSchemaNumericField = CreateSchemaField<SchemaFieldTypes.NUMERIC>;
-
-type CreateSchemaGeoField = CreateSchemaField<SchemaFieldTypes.GEO>;
-
-type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
-    SEPERATOR?: string;
-    CASESENSITIVE?: true;
-}>;
-
-interface CreateSchema {
-    [field: string]:
-        CreateSchemaTextField |
-        CreateSchemaNumericField |
-        CreateSchemaGeoField |
-        CreateSchemaTagField
-}
+import { RedisSearchLanguages, PropertyName, CreateSchema, pushSchema } from '.';
 
 interface CreateOptions {
     ON?: 'HASH' | 'JSON';
@@ -126,67 +82,8 @@ export function transformArguments(index: string, schema: CreateSchema, options?
     }
 
     pushOptionalVerdictArgument(args, 'STOPWORDS', options?.STOPWORDS);
-
     args.push('SCHEMA');
-
-    for (const [field, fieldOptions] of Object.entries(schema)) {
-        args.push(field);
-
-        if (typeof fieldOptions === 'string') {
-            args.push(fieldOptions);
-            continue;
-        }
-
-        if (fieldOptions.AS) {
-            args.push('AS', fieldOptions.AS);
-        }
-
-        args.push(fieldOptions.type);
-
-        switch (fieldOptions.type) {
-            case 'TEXT':
-                if (fieldOptions.NOSTEM) {
-                    args.push('NOSTEM');
-                }
-
-                if (fieldOptions.WEIGHT) {
-                    args.push('WEIGHT', fieldOptions.WEIGHT.toString());
-                }
-
-                if (fieldOptions.PHONETIC) {
-                    args.push('PHONETIC', fieldOptions.PHONETIC);
-                }
-
-                break;
-
-            // case 'NUMERIC':
-            // case 'GEO':
-            //     break;
-
-            case 'TAG':
-                if (fieldOptions.SEPERATOR) {
-                    args.push('SEPERATOR', fieldOptions.SEPERATOR);
-                }
-
-                if (fieldOptions.CASESENSITIVE) {
-                    args.push('CASESENSITIVE');
-                }
-
-                break;
-        }
-
-        if (fieldOptions.SORTABLE) {
-            args.push('SORTABLE');
-
-            if (fieldOptions.SORTABLE === 'UNF') {
-                args.push('UNF');
-            }
-        }
-
-        if (fieldOptions.NOINDEX) {
-            args.push('NOINDEX');
-        }
-    }
+    pushSchema(args, schema);
 
     return args;
 }
