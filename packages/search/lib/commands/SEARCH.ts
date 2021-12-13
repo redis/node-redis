@@ -1,12 +1,12 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushOptionalVerdictArgument, pushVerdictArgument, transformReplyTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { RedisSearchLanguages, PropertyName, pushSortByProperty, SortByProperty } from '.';
+import { transformReplyTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushSearchOptions, RedisSearchLanguages, PropertyName, SortByProperty, SearchReply } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
-interface SearchOptions {
+export interface SearchOptions {
     // NOCONTENT?: true; TODO
     VERBATIM?: true;
     NOSTOPWORDS?: true;
@@ -62,126 +62,13 @@ export function transformArguments(
     options?: SearchOptions
 ): RedisCommandArguments {
     const args: RedisCommandArguments = ['FT.SEARCH', index, query];
-
-    if (options?.VERBATIM) {
-        args.push('VERBATIM');
-    }
-
-    if (options?.NOSTOPWORDS) {
-        args.push('NOSTOPWORDS');
-    }
-
-    // if (options?.WITHSCORES) {
-    //     args.push('WITHSCORES');
-    // }
-
-    // if (options?.WITHPAYLOADS) {
-    //     args.push('WITHPAYLOADS');
-    // }
-
-    pushOptionalVerdictArgument(args, 'INKEYS', options?.INKEYS);
-    pushOptionalVerdictArgument(args, 'INFIELDS', options?.INFIELDS);
-    pushOptionalVerdictArgument(args, 'RETURN', options?.RETURN);
-
-    if (options?.SUMMARIZE) {
-        args.push('SUMMARIZE');
-
-        if (typeof options.SUMMARIZE === 'object') {
-            if (options.SUMMARIZE.FIELDS) {
-                args.push('FIELDS');
-                pushVerdictArgument(args, options.SUMMARIZE.FIELDS);
-            }
-
-            if (options.SUMMARIZE.FRAGS) {
-                args.push('FRAGS', options.SUMMARIZE.FRAGS.toString());
-            }
-
-            if (options.SUMMARIZE.LEN) {
-                args.push('LEN', options.SUMMARIZE.LEN.toString());
-            }
-
-            if (options.SUMMARIZE.SEPARATOR) {
-                args.push('SEPARATOR', options.SUMMARIZE.SEPARATOR);
-            }
-        }
-    }
-
-    if (options?.HIGHLIGHT) {
-        args.push('HIGHLIGHT');
-
-        if (typeof options.HIGHLIGHT === 'object') {
-            if (options.HIGHLIGHT.FIELDS) {
-                args.push('FIELDS');
-                pushVerdictArgument(args, options.HIGHLIGHT.FIELDS);
-            }
-
-            if (options.HIGHLIGHT.TAGS) {
-                args.push('TAGS', options.HIGHLIGHT.TAGS.open, options.HIGHLIGHT.TAGS.close);
-            }
-        }
-    }
-
-    if (options?.SLOP) {
-        args.push('SLOP', options.SLOP.toString());
-    }
-
-    if (options?.INORDER) {
-        args.push('INORDER');
-    }
-
-    if (options?.LANGUAGE) {
-        args.push('LANGUAGE', options.LANGUAGE);
-    }
-
-    if (options?.EXPANDER) {
-        args.push('EXPANDER', options.EXPANDER);
-    }
-
-    if (options?.SCORER) {
-        args.push('SCORER', options.SCORER);
-    }
-
-    // if (options?.EXPLAINSCORE) {
-    //     args.push('EXPLAINSCORE');
-    // }
-
-    // if (options?.PAYLOAD) {
-    //     args.push('PAYLOAD', options.PAYLOAD);
-    // }
-
-    if (options?.SORTBY) {
-        args.push('SORTBY');
-        pushSortByProperty(args, options.SORTBY);
-    }
-
-    // if (options?.MSORTBY) {
-    //     pushSortByArguments(args, 'MSORTBY', options.MSORTBY);
-    // }
-
-    if (options?.LIMIT) {
-        args.push(
-            'LIMIT',
-            options.LIMIT.from.toString(),
-            options.LIMIT.size.toString()
-        );
-    }
-
+    pushSearchOptions(args, options);
     return args;
 }
 
-interface SearchDocumentValue {
-    [key: string]: string | number | null | Array<SearchDocumentValue> | SearchDocumentValue;
-}
+export type SearchRawReply = Array<any>;
 
-interface SearchReply {
-    total: number;
-    documents: Array<{
-        id: string;
-        value: SearchDocumentValue;
-    }>;
-}
-
-export function transformReply(reply: Array<any>): SearchReply {
+export function transformReply(reply: SearchRawReply): SearchReply {
     const documents = [];
     for (let i = 1; i < reply.length; i += 2) {
         const tuples = reply[i + 1];
