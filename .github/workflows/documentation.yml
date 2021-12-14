@@ -17,11 +17,14 @@ jobs:
         uses: actions/setup-node@v2.3.0
       - name: Install Packages
         run: npm ci
+      - name: Build tests tools
+        run: npm run build:tests-tools
       - name: Generate Documentation
         run: npm run documentation
-      - name: Upload Documentation to Wiki
-        uses: SwiftDocOrg/github-wiki-publish-action@v1
-        with:
-          path: documentation
+      - name: Upload
+        run: |
+          git remote set-url origin https://git:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          npm run gh-pages
         env:
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.BOT_PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

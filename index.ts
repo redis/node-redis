@@ -2,14 +2,17 @@ import { createClient as _createClient, createCluster as _createCluster, RedisCl
 import { RedisScripts } from '@node-redis/client/dist/lib/commands';
 import RedisJSON from '@node-redis/json';
 import RediSearch from '@node-redis/search';
+import RedisTimeSeries from '@node-redis/time-series';
 
 export * from '@node-redis/client';
 export * from '@node-redis/json';
 export * from '@node-redis/search';
+export * from '@node-redis/time-series';
 
 const modules =  {
     json: RedisJSON,
-    ft: RediSearch
+    ft: RediSearch,
+    ts: RedisTimeSeries
 };
 
 export function createClient<S extends RedisScripts = Record<string, never>>(

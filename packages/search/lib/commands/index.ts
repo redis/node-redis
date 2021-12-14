@@ -30,7 +30,6 @@ import * as SYNUPDATE from './SYNUPDATE';
 import * as TAGVALS from './TAGVALS';
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushOptionalVerdictArgument, pushVerdictArgument, TuplesObject } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import internal = require('stream');
 import { SearchOptions } from './SEARCH';
 
 export default {
@@ -67,7 +66,7 @@ export default {
     INFO,
     info: INFO,
     PROFILESEARCH,
-    profileSearch: PROFILESEARCH,    
+    profileSearch: PROFILESEARCH,
     PROFILEAGGREGATE,
     profileAggregate: PROFILEAGGREGATE,
     SEARCH,
@@ -381,7 +380,7 @@ export function pushSearchOptions(
             options.LIMIT.size.toString()
         );
     }
-    
+
     return args;
 }
 

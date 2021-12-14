@@ -1,6 +1,6 @@
 {
   "git": {
-    "tagName": "search@${version}",
+    "tagName": "time-series@${version}",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}"
   },
