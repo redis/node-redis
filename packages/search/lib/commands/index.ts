@@ -273,6 +273,22 @@ export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
     }
 }
 
+export type Params = { [key: string]: string|number };
+
+export function pushParamsArgs(
+    args: RedisCommandArguments,
+    params?: Params
+): RedisCommandArguments {
+    if (params) {
+        args.push('PARAMS');
+        args.push((Object.entries(params).length * 2).toString());
+        for (const [key, value] of Object.entries(params)) {
+            args.push(key, value.toString());
+        }
+    }
+    return args;
+}
+
 export function pushSearchOptions(
     args: RedisCommandArguments,
     options?: SearchOptions
@@ -379,6 +395,10 @@ export function pushSearchOptions(
             options.LIMIT.from.toString(),
             options.LIMIT.size.toString()
         );
+    }
+
+    if (options?.PARAMS) {
+        pushParamsArgs(args, options.PARAMS);
     }
 
     return args;

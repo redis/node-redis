@@ -4,7 +4,7 @@ import { AggregateGroupByReducers, AggregateSteps, transformArguments } from './
 import { SchemaFieldTypes } from '.';
 
 describe('AGGREGATE', () => {
-    describe('transformArguments', () => {
+    describe.only('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 transformArguments('index', '*'),
@@ -433,6 +433,18 @@ describe('AGGREGATE', () => {
                     ['FT.AGGREGATE', 'index', '*', 'FILTER', '@field != ""']
                 );
             });
+        });
+
+        it('with PARAMS', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', {
+                    PARAMS: {
+                        'min': 101, 
+                        'max': 102
+                    }
+                }),
+                ['FT.AGGREGATE', 'index', '*', 'PARAMS', '4', 'min', '101', 'max', '102']
+            );
         });
     });
 

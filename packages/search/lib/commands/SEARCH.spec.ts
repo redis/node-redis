@@ -3,8 +3,8 @@ import { RedisSearchLanguages, SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SEARCH';
 
-describe('SEARCH', () => {
-    describe('transformArguments', () => {
+describe.only('SEARCH', () => {
+    describe.skip('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 transformArguments('index', 'query'),
@@ -213,6 +213,18 @@ describe('SEARCH', () => {
                 ['FT.SEARCH', 'index', 'query', 'LIMIT', '0', '1']
             );
         });
+
+        it('with PARAMS', () => {
+            assert.deepEqual(
+                transformArguments('index', 'query', {
+                    PARAMS: {
+                        'name1': 'Alice', 
+                        'name2': 'Bob'
+                    }
+                }),
+                ['FT.SEARCH', 'index', 'query', 'PARAMS', '4', 'name1', 'Alice', 'name2', 'Bob']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ft.search', async client => {
@@ -232,6 +244,45 @@ describe('SEARCH', () => {
                     value: Object.create(null, {
                         field: {
                             value: '1',
+                            configurable: true,
+                            enumerable: true
+                        }
+                    })
+                }]
+            }
+        );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('client.ft.search with params', async client => {
+        await Promise.all([
+            client.ft.create('index', {
+                numval: SchemaFieldTypes.NUMERIC
+            }),
+            client.hSet('1', 'numval', '1'),
+            client.hSet('2', 'numval', '2'),
+            client.hSet('3', 'numval', '3')
+        ]);
+
+        assert.deepEqual(
+            await client.ft.search('index', '@numval:[$min $max]', {
+                PARAMS: { 'min': 1, 'max': 2 } 
+            }),
+            {
+                total: 2,
+                documents: [{
+                    id: '1',
+                    value: Object.create(null, {
+                        field: {
+                            value: '1',
+                            configurable: true,
+                            enumerable: true
+                        }
+                    })
+                }, {
+                    id: '2',
+                    value: Object.create(null, {
+                        field: {
+                            value: '2',
                             configurable: true,
                             enumerable: true
                         }

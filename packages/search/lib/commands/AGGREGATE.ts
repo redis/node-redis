@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArgument, transformReplyTuples, TuplesObject } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { AggregateReply, PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
+import { AggregateReply, Params, PropertyName, pushArgumentsWithLength, pushParamsArgs, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
     GROUPBY = 'GROUPBY',
@@ -122,6 +122,7 @@ export interface AggregateOptions {
     VERBATIM?: true;
     LOAD?: LoadField | Array<LoadField>;
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
+    PARAMS?: Params;
 }
 
 export function transformArguments(
@@ -200,6 +201,10 @@ export function pushAggregatehOptions(
                     break;
             }
         }
+    }
+
+    if (options?.PARAMS) {
+        pushParamsArgs(args, options.PARAMS);
     }
 
     return args;
