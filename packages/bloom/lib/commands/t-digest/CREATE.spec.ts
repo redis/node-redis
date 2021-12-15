@@ -10,7 +10,7 @@ describe('TDIGEST CREATE', () => {
         );
     });
 
-    testUtils.testWithClient('client.bf.reserve', async client => {
+    testUtils.testWithClient('client.tdigest.create', async client => {
         assert.equal(
             await client.bf.create('tDigest', 100), 'OK'
         );

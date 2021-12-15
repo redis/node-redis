@@ -10,7 +10,7 @@ describe('TDIGEST MERGE', () => {
         );
     });
 
-    testUtils.testWithClient('client.bf.reserve', async client => {
+    testUtils.testWithClient('client.tdigest.merge', async client => {
         await Promise.all([
             client.bf.create('to-tDigest', 10),
             client.bf.create('from-tDigest', 10)
