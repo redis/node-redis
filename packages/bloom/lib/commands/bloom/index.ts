@@ -28,3 +28,11 @@ export default {
     INFO,
     info: INFO
 };
+
+export function transformArrayReply(reply: Array<string>): Array<boolean> {
+    return reply.map(a => a == '1');
+}
+
+export function transformStringReply(reply: string): boolean {
+    return reply == '1';
+}

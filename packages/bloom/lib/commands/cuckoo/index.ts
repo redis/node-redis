@@ -54,3 +54,11 @@ export function pushInsertOptions(args: Array<string>, items: Array<string>, opt
     args.push('ITEMS');
     pushVerdictArguments(args, items)
 }
+
+export function transformArrayReply(reply: Array<string>): Array<boolean> {
+    return reply.map(a => a == '1');
+}
+
+export function transformStringReply(reply: string): boolean {
+    return reply == '1';
+}

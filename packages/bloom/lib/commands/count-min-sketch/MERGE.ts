@@ -1,3 +1,5 @@
+export const FIRST_KEY_INDEX = 1;
+
 export function transformArguments(dest: string, src: Array<string>, weights?: Array<number>): Array<string> {
     const args = ['CMS.MERGE', dest, src.length.toString(), ...src];
     

@@ -12,10 +12,10 @@ describe('CF LOADCHUNK', () => {
         });
     });
 
-    // testUtils.testWithClient('client.cf.loadchunk', async client => {
-    //     await client.bf.add('cuckoo', 'foo');
-    //     const res = await client.bf.scanDump('cuckoo', 0)
-    //     // TODO
-    //     // assert.equal((await client.bf.loadChunk('cuckoo', res[0], res[1])), 'OK');
-    // }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.cf.loadchunk', async client => {
+        await client.cf.add('cuckoo', 'foo');
+        const res = await client.cf.scanDump('cuckoo', 0)
+        // TODO
+        // assert.equal((await client.cf.loadChunk('cuckoo', res[0], res[1])), 'OK');
+    }, GLOBAL.SERVERS.OPEN);
 });

@@ -6,4 +6,4 @@ export function transformArguments(key: string, ...items: Array<string>): Array<
     return ['CMS.QUERY', key, ...items];
 }
 
-export declare function transformReply(): number;
+export declare function transformReply(): Array<number>;

@@ -44,10 +44,10 @@ describe('CF RESERVE', () => {
         });
     });
 
-    // testUtils.testWithClient('client.cf.reserve', async client => {
-    //     assert.equal(
-    //         await client.bf.reserve('cuckoo', { capacity: 100 }),
-    //         'OK'
-    //     );
-    // }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.cf.reserve', async client => {
+        assert.equal(
+            await client.cf.reserve('cuckoo', { capacity: 100 }),
+            'OK'
+        );
+    }, GLOBAL.SERVERS.OPEN);
 });

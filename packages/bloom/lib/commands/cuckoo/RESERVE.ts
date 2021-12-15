@@ -1,3 +1,5 @@
+export const FIRST_KEY_INDEX = 1;
+
 type ReserveOptions = {
     capacity: number,
     bucketSize?: number,
@@ -9,18 +11,15 @@ export function transformArguments(key: string, options: ReserveOptions): Array<
     const args = ['CF.RESERVE', key, options.capacity.toString()];
     
     if (options?.bucketSize) {
-        args.push('BUCKETSIZE');
-        args.push(options.bucketSize.toString());
+        args.push('BUCKETSIZE', options.bucketSize.toString());
     }
 
     if (options?.maxIterations) {
-        args.push('MAXITERATIONS');
-        args.push(options.maxIterations.toString());
+        args.push('MAXITERATIONS', options.maxIterations.toString());
     }
 
     if (options?.expansion) {
-        args.push('EXPANSION');
-        args.push(options.expansion.toString());
+        args.push('EXPANSION', options.expansion.toString());
     }
 
     return args;

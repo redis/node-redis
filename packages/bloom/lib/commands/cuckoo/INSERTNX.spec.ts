@@ -26,9 +26,9 @@ describe('CF INSERTNX', () => {
         });
     });
 
-    // testUtils.testWithClient('client.cf.insertnx', async client => {
-    //     assert.deepEqual(
-    //         await client.bf.insertNX('cuckoo', {}, 'foo', 'bar'), [1, 1] 
-    //     );
-    // }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.cf.insertnx', async client => {
+        assert.deepEqual(
+            await client.cf.insertNX('cuckoo', {}, 'foo', 'bar'), [true, true] 
+        );
+    }, GLOBAL.SERVERS.OPEN);
 });

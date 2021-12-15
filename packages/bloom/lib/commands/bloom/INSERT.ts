@@ -1,30 +1,29 @@
+export const FIRST_KEY_INDEX = 1;
+
 type InsertOptions = {
     error?: number,
     capacity?: number,
     expansion?: number,
     nonScaling?: true,
-    nocreate?: true,
+    noCreate?: true,
 }
 
 export function transformArguments(key: string, options?: InsertOptions, ...items: Array<string>): Array<string> {
     const args = ['BF.INSERT', key];
     
     if (options?.capacity) {
-        args.push('CAPACITY');
-        args.push(options.capacity.toString());
+        args.push('CAPACITY', options.capacity.toString());
     }
 
     if (options?.error) {
-        args.push('ERROR');
-        args.push(options.error.toString());
+        args.push('ERROR', options.error.toString());
     }
 
     if (options?.expansion) {
-        args.push('EXPANSION');
-        args.push(options.expansion.toString());
+        args.push('EXPANSION', options.expansion.toString());
     }
 
-    if (options?.nocreate) {
+    if (options?.noCreate) {
         args.push('NOCREATE');
     }
 
@@ -32,10 +31,9 @@ export function transformArguments(key: string, options?: InsertOptions, ...item
         args.push('NONSCALING');
     }
 
-    args.push('ITEMS');
-    args.push(...items);
+    args.push('ITEMS', ...items);
 
     return args;
 }
 
-export declare function transformReply(): Array<boolean>;
+export { transformArrayReply as transformReply } from '.';

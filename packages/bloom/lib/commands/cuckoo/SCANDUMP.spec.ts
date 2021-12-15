@@ -12,10 +12,10 @@ describe('CF SCANDUMP', () => {
         });
     });
 
-    // testUtils.testWithClient('client.cf.scandump', async client => {
-    //     await client.bf.add('cuckoo', 'foo'); 
-    //     assert.equal((await client.bf.scanDump('cuckoo', 0))[0], 1); // checks the iterator
-    //     // TODO: should we check the data too?
-    //     // assert.equal((await client.bf.scanDump('cuckoo', 0))[1], 'foo');
-    // }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.cf.scandump', async client => {
+        await client.cf.add('cuckoo', 'foo'); 
+        assert.equal((await client.cf.scanDump('cuckoo', 0))[0], 1); // checks the iterator
+        // TODO: should we check the data too?
+        // assert.equal((await client.cf.scanDump('cuckoo', 0))[1], 'foo');
+    }, GLOBAL.SERVERS.OPEN);
 });

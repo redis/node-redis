@@ -1,30 +1,31 @@
-// import { strict as assert } from 'assert';
-// import testUtils, { GLOBAL } from '../../test-utils';
-// import { transformArguments } from './MADD';
+import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../../test-utils';
+import { transformArguments } from './MADD';
 
-// describe('BF MADD', () => {
-//     describe('transformArguments', () => {
-//         it('single item', () => {
-//             assert.deepEqual(
-//                 transformArguments('BLOOM', 'foo'),
-//                 ['BF.MADD', 'BLOOM', 'foo']
-//             );
-//         });
+describe('BF MADD', () => {
+    describe('transformArguments', () => {
+        it('single item', () => {
+            assert.deepEqual(
+                transformArguments('bloom', 'foo'),
+                ['BF.MADD', 'bloom', 'foo']
+            );
+        });
 
-//         it('multiple items', () => {
-//             assert.deepEqual(
-//                 transformArguments('BLOOM', 'foo', 'bar'),
-//                 ['BF.MADD', 'BLOOM', 'foo', 'bar']
-//             );
-//         });
-//     });
+        it('multiple items', () => {
+            assert.deepEqual(
+                transformArguments('bloom', 'foo', 'bar'),
+                ['BF.MADD', 'bloom', 'foo', 'bar']
+            );
+        });
+    });
 
-//     testUtils.testWithClient('client.ts.madd', async client => {
-//         await client.bf.reserve('BLOOM', {
-//             errorRate: 0.01,
-//             capacity: 100
-//         });
+    testUtils.testWithClient('client.ts.madd', async client => {
+        await client.bf.reserve('bloom', {
+            errorRate: 0.01,
+            capacity: 100
+        });
 
-//         assert.ok(await client.bf.mAdd('BLOOM', 'foo'));
-//     }, GLOBAL.SERVERS.OPEN);
-// });
+        assert.deepEqual(await client.bf.mAdd('bloom', 'foo'), [true]);
+
+    }, GLOBAL.SERVERS.OPEN);
+});

@@ -1,19 +1,19 @@
-// import { strict as assert } from 'assert';
-// import testUtils, { GLOBAL } from '../../test-utils';
-// import { transformArguments } from './EXISTS';
+import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../../test-utils';
+import { transformArguments } from './EXISTS';
 
-// describe('BF EXISTS', () => {
-//     describe('transformArguments', () => {
-//         it('basic add', () => {
-//             assert.deepEqual(
-//                 transformArguments('BLOOM', 'foo'),
-//                 ['BF.EXISTS', 'BLOOM', 'foo']
-//             );
-//         });
-//     });
+describe('BF EXISTS', () => {
+    describe('transformArguments', () => {
+        it('basic add', () => {
+            assert.deepEqual(
+                transformArguments('bloom', 'foo'),
+                ['BF.EXISTS', 'bloom', 'foo']
+            );
+        });
+    });
 
-//     testUtils.testWithClient('client.bf.exists', async client => {
-//         await client.bf.add('BLOOM', 'foo'); 
-//         assert.ok(await client.bf.exists('BLOOM', 'foo'));
-//     }, GLOBAL.SERVERS.OPEN);
-// });
+    testUtils.testWithClient('client.bf.exists', async client => {
+        await client.bf.add('bloom', 'foo'); 
+        assert.ok(await client.bf.exists('bloom', 'foo'));
+    }, GLOBAL.SERVERS.OPEN);
+});

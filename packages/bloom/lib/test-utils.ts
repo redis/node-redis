@@ -1,5 +1,5 @@
 import TestUtils from '@node-redis/test-utils';
-import RedisBloom from '.';
+import RedisBloomModules from '.';
 
 export default new TestUtils({
     dockerImageName: 'redislabs/rebloom',
@@ -12,9 +12,7 @@ export const GLOBAL = {
         OPEN: {
             serverArguments: ['--loadmodule /usr/lib/redis/modules/redisbloom.so'],
             clientOptions: {
-                modules: {
-                    bf: RedisBloom
-                }
+                modules: RedisBloomModules
             }
         }
     }
