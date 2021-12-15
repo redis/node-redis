@@ -11,16 +11,4 @@ export function transformArguments(key: string | Array<string>, timeout: number)
     return args;
 }
 
-type BRPOPReply = null | {
-    key: string;
-    element: string;
-};
-
-export function transformReply(reply: null | [string, string]): BRPOPReply {
-    if (reply === null) return null;
-
-    return {
-        key: reply[0],
-        element: reply[1]
-    };
-}
+export { transformReply } from './BLPOP';

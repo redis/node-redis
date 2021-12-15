@@ -1,10 +1,11 @@
-import { transformArguments as transformArgumentsXClaim } from './XCLAIM';
+import { RedisCommandArguments } from '.';
+import { transformArguments as transformXClaimArguments } from './XCLAIM';
 
 export { FIRST_KEY_INDEX } from './XCLAIM';
 
-export function transformArguments(...args: Parameters<typeof transformArgumentsXClaim>): Array<string> {
+export function transformArguments(...args: Parameters<typeof transformXClaimArguments>): RedisCommandArguments {
     return [
-        ...transformArgumentsXClaim(...args),
+        ...transformXClaimArguments(...args),
         'JUSTID'
     ];
 }

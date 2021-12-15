@@ -29,7 +29,7 @@ import * as SYNDUMP from './SYNDUMP';
 import * as SYNUPDATE from './SYNUPDATE';
 import * as TAGVALS from './TAGVALS';
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushOptionalVerdictArgument, pushVerdictArgument, TuplesObject } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushOptionalVerdictArgument, pushVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
 import { SearchOptions } from './SEARCH';
 
 export default {
@@ -398,7 +398,7 @@ export interface SearchReply {
 
 export interface AggregateReply {
     total: number;
-    results: Array<TuplesObject>;
+    results: Array<Record<string, string>>;
 }
 
 export interface ProfileOptions {

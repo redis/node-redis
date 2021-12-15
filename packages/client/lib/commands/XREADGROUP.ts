@@ -1,6 +1,8 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export interface XReadGroupStream {
-    key: string;
-    id: string;
+    key: RedisCommandArgument;
+    id: RedisCommandArgument;
 }
 
 export interface XReadGroupOptions {
@@ -10,21 +12,21 @@ export interface XReadGroupOptions {
 }
 
 export const FIRST_KEY_INDEX = (
-    _group: string,
-    _consumer: string,
+    _group: RedisCommandArgument,
+    _consumer: RedisCommandArgument,
     streams: Array<XReadGroupStream> | XReadGroupStream
-): string => {
+): RedisCommandArgument => {
     return Array.isArray(streams) ? streams[0].key : streams.key;
 };
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(
-    group: string,
-    consumer: string,
+    group: RedisCommandArgument,
+    consumer: RedisCommandArgument,
     streams: Array<XReadGroupStream> | XReadGroupStream,
     options?: XReadGroupOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['XREADGROUP', 'GROUP', group, consumer];
 
     if (options?.COUNT) {
@@ -52,4 +54,4 @@ export function transformArguments(
     return args;
 }
 
-export { transformReplyStreamsMessages as transformReply } from './generic-transformers';
+export { transformReplyStreamsStringMessages as transformReply } from './generic-transformers';

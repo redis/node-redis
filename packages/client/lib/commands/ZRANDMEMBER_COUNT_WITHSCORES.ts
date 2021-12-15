@@ -9,4 +9,4 @@ export function transformArguments(...args: Parameters<typeof transformZRandMemb
     ];
 }
 
-export { transformReplySortedSetWithScores as transformReply } from './generic-transformers';
+export { transformReplySortedStringsSetWithScores as transformReply } from './generic-transformers';

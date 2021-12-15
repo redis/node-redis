@@ -1,23 +1,44 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(key: string, group: string): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    group: RedisCommandArgument
+): RedisCommandArguments {
     return ['XPENDING', key, group];
 }
+
+type XPendingRawReply = [
+    pending: number,
+    firstId: string | null,
+    lastId: string | null,
+    consumers: Array<[
+        name: string,
+        deliveriesCounter: number
+    ]> | null
+]
 
 interface XPendingReply {
     pending: number;
     firstId: string | null;
-    lastId: number | null
-    consumers: Array<string> | null;
+    lastId: string | null
+    consumers: Array<{
+        name: string,
+        deliveriesCounter: number
+    }> | null;
 }
 
-export function transformReply(reply: [number, string | null, number | null, Array<string> | null]): XPendingReply {
+export function transformReply(reply: XPendingRawReply): XPendingReply {
     return {
         pending: reply[0],
         firstId: reply[1],
         lastId: reply[2],
-        consumers: reply[3]
+        consumers: reply[3] === null ? null : reply[3].map(([name, deliveriesCounter]) => ({
+            name,
+            deliveriesCounter
+        }))
     };
 }

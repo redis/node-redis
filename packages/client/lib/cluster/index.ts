@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import { ClientCommandOptions, RedisClientCommandSignature, RedisClientOptions, RedisClientType, WithModules, WithScripts } from '../client';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, extendWithCommands } from '../commander';
@@ -24,7 +24,7 @@ export type RedisClusterType<M extends RedisModules = Record<string, never>, S e
     RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
 export default class RedisCluster<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> extends EventEmitter {
-    static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): string | Buffer | undefined {
+    static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): RedisCommandArgument | undefined {
         if (command.FIRST_KEY_INDEX === undefined) {
             return undefined;
         } else if (typeof command.FIRST_KEY_INDEX === 'number') {
@@ -84,7 +84,7 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
     }
 
     async sendCommand<C extends RedisCommand>(
-        firstKey: string | Buffer | undefined,
+        firstKey: RedisCommandArgument | undefined,
         isReadonly: boolean | undefined,
         args: RedisCommandArguments,
         options?: ClientCommandOptions,
@@ -175,9 +175,9 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
         throw err;
     }
 
-    multi(routing?: string | Buffer): RedisClusterMultiCommandType<M, S> {
+    multi(routing?: RedisCommandArgument): RedisClusterMultiCommandType<M, S> {
         return new this.#Multi(
-            async (commands: Array<RedisMultiQueuedCommand>, firstKey?: string | Buffer, chainId?: symbol) => {
+            async (commands: Array<RedisMultiQueuedCommand>, firstKey?: RedisCommandArgument, chainId?: symbol) => {
                 return this.#slots
                     .getClient(firstKey)
                     .multiExecutor(commands, chainId);

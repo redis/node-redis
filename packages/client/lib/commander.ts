@@ -1,6 +1,6 @@
 
 import { CommandOptions, isCommandOptions } from './command-options';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
 
 type Instantiable<T = any> = new(...args: Array<any>) => T;
 
@@ -91,7 +91,7 @@ export function transformCommandArguments<T = unknown>(
 
 const DELIMITER = '\r\n';
 
-export function* encodeCommand(args: RedisCommandArguments): IterableIterator<string | Buffer> {
+export function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
     let strings = `*${args.length}${DELIMITER}`,
         stringsLength = 0;
     for (const arg of args) {

@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 export function transformReplyBoolean(reply: number): boolean {
     return reply === 1;
@@ -75,11 +75,7 @@ export function transformArgumentStringNumberInfinity(num: string | number): str
     return transformArgumentNumberInfinity(num);
 }
 
-export interface TuplesObject {
-    [field: string]: string;
-}
-
-export function transformReplyTuples(reply: Array<string>): TuplesObject {
+export function transformReplyStringTuples(reply: Array<string>): Record<string, string> {
     const message = Object.create(null);
 
     for (let i = 0; i < reply.length; i += 2) {
@@ -89,52 +85,110 @@ export function transformReplyTuples(reply: Array<string>): TuplesObject {
     return message;
 }
 
-export interface StreamMessageReply {
-    id: string;
-    message: TuplesObject;
+
+export function transformReplyBufferTuples(reply: Array<Buffer>): Record<string, Buffer> {
+    const message = Object.create(null);
+
+    for (let i = 0; i < reply.length; i += 2) {
+        message[reply[i].toString()] = reply[i + 1];
+    }
+
+    return message;
 }
 
-export type StreamMessagesReply = Array<StreamMessageReply>;
+export interface StreamStringsMessageReply {
+    id: string;
+    message: Record<string, string>;
+}
 
-export function transformReplyStreamMessages(reply: Array<any>): StreamMessagesReply {
+export type StreamStringsMessagesReply = Array<StreamStringsMessageReply>;
+
+export function transformReplyStreamStringMessages(reply: Array<any>): StreamStringsMessagesReply {
     const messages = [];
 
     for (const [id, message] of reply) {
         messages.push({
             id,
-            message: transformReplyTuples(message)
+            message: transformReplyStringTuples(message)
         });
     }
 
     return messages;
 }
 
-export type StreamsMessagesReply = Array<{
+interface StreamBufferMessageReply {
+    id: Buffer;
+    message: Record<string, Buffer>;
+}
+
+export type StreamBufferMessagesReply = Array<StreamBufferMessageReply>;
+
+export function transformReplyStreamBufferMessages(reply: Array<any>): StreamBufferMessagesReply {
+    const messages = [];
+
+    for (const [id, message] of reply) {
+        messages.push({
+            id,
+            message: transformReplyBufferTuples(message)
+        });
+    }
+
+    return messages;
+}
+
+export type StreamsStringMessagesReply = Array<{
     name: string;
-    messages: StreamMessagesReply;
+    messages: StreamStringsMessagesReply;
 }> | null;
 
-export function transformReplyStreamsMessages(reply: Array<any> | null): StreamsMessagesReply | null {
+export function transformReplyStreamsStringMessages(reply: Array<any> | null): StreamsStringMessagesReply | null {
     if (reply === null) return null;
 
     return reply.map(([name, rawMessages]) => ({
         name,
-        messages: transformReplyStreamMessages(rawMessages)
+        messages: transformReplyStreamStringMessages(rawMessages)
     }));
 }
 
-export interface ZMember {
-    score: number;
-    value: string;
+export type StreamsBufferMessagesReply = Array<{
+    name: Buffer;
+    messages: StreamBufferMessagesReply;
+}> | null;
+
+export function transformReplyStreamsBufferMessages(reply: Array<any> | null): StreamsBufferMessagesReply | null {
+    if (reply === null) return null;
+
+    return reply.map(([name, rawMessages]) => ({
+        name,
+        messages: transformReplyStreamBufferMessages(rawMessages)
+    }));
 }
 
-export function transformReplySortedSetWithScores(reply: Array<string>): Array<ZMember> {
+export interface ZMember<T = RedisCommandArgument> {
+    score: number;
+    value: T;
+}
+
+export function transformReplySortedStringsSetWithScores(reply: Array<string>): Array<ZMember<string>> {
     const members = [];
 
     for (let i = 0; i < reply.length; i += 2) {
         members.push({
             value: reply[i],
             score: transformReplyNumberInfinity(reply[i + 1])
+        });
+    }
+
+    return members;
+}
+
+export function transformReplySortedBuffersSetWithScores(reply: Array<Buffer>): Array<ZMember<Buffer>> {
+    const members = [];
+
+    for (let i = 0; i < reply.length; i += 2) {
+        members.push({
+            value: reply[i],
+            score: transformReplyNumberInfinity(reply[i + 1].toString())
         });
     }
 
@@ -314,7 +368,7 @@ export function pushStringTuplesArguments(args: Array<string>, tuples: StringTup
     return args;
 }
 
-export function pushVerdictArguments(args: RedisCommandArguments, value: string | Buffer | Array<string | Buffer>): RedisCommandArguments  {
+export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCommandArgument | Array<RedisCommandArgument>): RedisCommandArguments  {
     if (Array.isArray(value)) {
         args.push(...value);
     } else {

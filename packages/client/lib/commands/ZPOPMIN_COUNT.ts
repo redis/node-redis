@@ -9,4 +9,4 @@ export function transformArguments(key: string, count: number): Array<string> {
     ];
 }
 
-export { transformReplySortedSetWithScores as transformReply } from './generic-transformers';
+export { transformReplySortedStringsSetWithScores as transformReply } from './generic-transformers';

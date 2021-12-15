@@ -1,9 +1,14 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, field: string): Array<string> {
+export const IS_READ_ONLY = true;
+
+export function transformArguments(
+    key: RedisCommandArgument,
+    field: RedisCommandArgument
+): RedisCommandArguments {
     return ['HGET', key, field];
 }
 
-export function transformReply(reply?: string): string | undefined {
-    return reply;
-}
+export declare function transformReply(): string | undefined;

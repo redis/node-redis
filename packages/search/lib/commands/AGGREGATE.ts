@@ -1,5 +1,5 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushVerdictArgument, transformReplyTuples, TuplesObject } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushVerdictArgument, transformReplyStringTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
 import { AggregateReply, PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
@@ -125,8 +125,8 @@ export interface AggregateOptions {
 }
 
 export function transformArguments(
-    index: string, 
-    query: string, 
+    index: string,
+    query: string,
     options?: AggregateOptions
 ): RedisCommandArguments {
 
@@ -277,10 +277,10 @@ export type AggregateRawReply = [
 ];
 
 export function transformReply(rawReply: AggregateRawReply): AggregateReply {
-    const results: Array<TuplesObject> = [];
+    const results: Array<Record<string, string>> = [];
     for (let i = 1; i < rawReply.length; i++) {
         results.push(
-            transformReplyTuples(rawReply[i] as Array<string>)
+            transformReplyStringTuples(rawReply[i] as Array<string>)
         );
     }
 

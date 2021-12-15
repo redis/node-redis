@@ -15,10 +15,6 @@
       "./lib"
     ],
     "entryPointStrategy": "expand",
-    "exclude": [
-      "./lib/test-utils.ts",
-      "./lib/**/*.spec.ts"
-    ],
     "out": "../../documentation/time-series"
   }
 }

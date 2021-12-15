@@ -1,3 +1,4 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { pushVerdictArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -10,13 +11,13 @@ export interface XClaimOptions {
 }
 
 export function transformArguments(
-    key: string,
-    group: string,
-    consumer: string,
+    key: RedisCommandArgument,
+    group: RedisCommandArgument,
+    consumer: RedisCommandArgument,
     minIdleTime: number,
-    id: string | Array<string>,
+    id: RedisCommandArgument | Array<RedisCommandArgument>,
     options?: XClaimOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['XCLAIM', key, group, consumer, minIdleTime.toString()];
 
     pushVerdictArguments(args, id);
@@ -43,4 +44,4 @@ export function transformArguments(
     return args;
 }
 
-export { transformReplyStreamMessages as transformReply } from './generic-transformers';
+export { transformReplyStreamStringMessages as transformReply } from './generic-transformers';
