@@ -4,7 +4,7 @@ import { AggregateGroupByReducers, AggregateSteps, transformArguments } from './
 import { SchemaFieldTypes } from '.';
 
 describe('AGGREGATE', () => {
-    describe.only('transformArguments', () => {
+    describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 transformArguments('index', '*'),

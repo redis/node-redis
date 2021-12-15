@@ -3,8 +3,8 @@ import { RedisSearchLanguages, SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SEARCH';
 
-describe.only('SEARCH', () => {
-    describe.skip('transformArguments', () => {
+describe('SEARCH', () => {
+    describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 transformArguments('index', 'query'),
