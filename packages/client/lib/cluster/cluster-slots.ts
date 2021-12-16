@@ -1,7 +1,7 @@
 import RedisClient, { InstantiableRedisClient, RedisClientType } from '../client';
 import { RedisClusterMasterNode, RedisClusterReplicaNode } from '../commands/CLUSTER_NODES';
 import { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { RedisModules, RedisScripts } from '../commands';
+import { RedisCommandArgument, RedisModules, RedisScripts } from '../commands';
 
 // We need to use 'require', because it's not possible with Typescript to import
 // function that are exported as 'module.exports = function`, without esModuleInterop
@@ -202,7 +202,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
         return value.client;
     }
 
-    getClient(firstKey?: string | Buffer, isReadonly?: boolean): RedisClientType<M, S> {
+    getClient(firstKey?: RedisCommandArgument, isReadonly?: boolean): RedisClientType<M, S> {
         if (!firstKey) {
             return this.#getRandomClient();
         }

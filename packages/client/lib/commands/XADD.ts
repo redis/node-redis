@@ -1,4 +1,4 @@
-import { TuplesObject } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -9,10 +9,15 @@ interface XAddOptions {
         strategyModifier?: '=' | '~';
         threshold: number;
         limit?: number;
-    }
+    };
 }
 
-export function transformArguments(key: string, id: string, message: TuplesObject, options?: XAddOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    id: RedisCommandArgument,
+    message: Record<string, RedisCommandArgument>,
+    options?: XAddOptions
+): RedisCommandArguments {
     const args = ['XADD', key];
 
     if (options?.NOMKSTREAM) {

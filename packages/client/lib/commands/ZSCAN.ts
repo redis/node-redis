@@ -13,11 +13,11 @@ export function transformArguments(key: string, cursor: number, options?: ScanOp
 
 interface ZScanReply {
     cursor: number;
-    members: Array<ZMember>;
+    members: Array<ZMember<string>>;
 }
 
 export function transformReply([cursor, rawMembers]: [string, Array<string>]): ZScanReply {
-    const parsedMembers: Array<ZMember> = [];
+    const parsedMembers: Array<ZMember<string>> = [];
     for (let i = 0; i < rawMembers.length; i += 2) {
         parsedMembers.push({
             value: rawMembers[i],

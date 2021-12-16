@@ -11,7 +11,7 @@ export function transformArguments(key: string | Array<string>, timeout: number)
     return args;
 }
 
-interface ZMemberWithKey extends ZMember {
+interface ZMemberWithKey extends ZMember<string> {
     key: string;
 }
 
