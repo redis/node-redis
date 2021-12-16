@@ -1,5 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushVerdictArgument, transformReplyStringTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { transformReplyStringTuples } from '@node-redis/client/lib/commands/generic-transformers';
 import { AggregateReply, Params, PropertyName, pushArgumentsWithLength, pushParamsArgs, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
