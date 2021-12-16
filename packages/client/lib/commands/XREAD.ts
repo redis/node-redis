@@ -1,12 +1,14 @@
-export const FIRST_KEY_INDEX = (streams: Array<XReadStream> | XReadStream): string => {
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export const FIRST_KEY_INDEX = (streams: Array<XReadStream> | XReadStream): RedisCommandArgument => {
     return Array.isArray(streams) ? streams[0].key : streams.key;
 };
 
 export const IS_READ_ONLY = true;
 
 interface XReadStream {
-    key: string;
-    id: string;
+    key: RedisCommandArgument;
+    id: RedisCommandArgument;
 }
 
 interface XReadOptions {
@@ -14,8 +16,11 @@ interface XReadOptions {
     BLOCK?: number;
 }
 
-export function transformArguments(streams: Array<XReadStream> | XReadStream, options?: XReadOptions): Array<string> {
-    const args = ['XREAD'];
+export function transformArguments(
+    streams: Array<XReadStream> | XReadStream,
+    options?: XReadOptions
+): RedisCommandArguments {
+    const args: RedisCommandArguments = ['XREAD'];
 
     if (options?.COUNT) {
         args.push('COUNT', options.COUNT.toString());
@@ -38,4 +43,4 @@ export function transformArguments(streams: Array<XReadStream> | XReadStream, op
     return args;
 }
 
-export { transformReplyStreamsMessages as transformReply } from './generic-transformers';
+export { transformReplyStreamsStringMessages as transformReply } from './generic-transformers';

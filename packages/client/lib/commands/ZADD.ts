@@ -1,3 +1,4 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { transformArgumentNumberInfinity, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -28,7 +29,11 @@ interface INCR {
 
 type ZAddOptions = (NX | (XX & LT & GT)) & CH & INCR;
 
-export function transformArguments(key: string, members: ZMember | Array<ZMember>, options?: ZAddOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    members: ZMember | Array<ZMember>,
+    options?: ZAddOptions
+): RedisCommandArguments {
     const args = ['ZADD', key];
 
     if ((<NX>options)?.NX) {

@@ -1,3 +1,5 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
@@ -6,7 +8,12 @@ interface XRangeOptions {
     COUNT?: number;
 }
 
-export function transformArguments(key: string, start: string, end: string, options?: XRangeOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    start: RedisCommandArgument,
+    end: RedisCommandArgument,
+    options?: XRangeOptions
+): RedisCommandArguments {
     const args = ['XRANGE', key, start, end];
 
     if (options?.COUNT) {
@@ -16,4 +23,4 @@ export function transformArguments(key: string, start: string, end: string, opti
     return args;
 }
 
-export { transformReplyStreamMessages as transformReply } from './generic-transformers';
+export { transformReplyStreamStringMessages as transformReply } from './generic-transformers';

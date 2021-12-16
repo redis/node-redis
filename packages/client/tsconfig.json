@@ -17,10 +17,6 @@
       "./lib"
     ],
     "entryPointStrategy": "expand",
-    "exclude": [
-      "./lib/ts-declarations",
-      "./lib/test-utils.ts"
-    ],
     "out": "../../documentation/client"
   }
 }

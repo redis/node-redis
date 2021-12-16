@@ -1,3 +1,5 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
@@ -8,13 +10,13 @@ interface XPendingRangeOptions {
 }
 
 export function transformArguments(
-    key: string,
-    group: string,
+    key: RedisCommandArgument,
+    group: RedisCommandArgument,
     start: string,
     end: string,
     count: number,
     options?: XPendingRangeOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['XPENDING', key, group];
 
     if (options?.IDLE) {
@@ -30,4 +32,25 @@ export function transformArguments(
     return args;
 }
 
-export { transformReplyStreamMessages as transformReply } from './generic-transformers';
+type XPendingRangeRawReply = Array<[
+    id: number,
+    consumer: string,
+    millisecondsSinceLastDelivery: number,
+    deliveriesCounter: number
+]>;
+
+type XPendingRangeReply = Array<{
+    id: number;
+    owner: string;
+    millisecondsSinceLastDelivery: number;
+    deliveriesCounter: number;
+}>;
+
+export function transformReply(reply: XPendingRangeRawReply): XPendingRangeReply {
+    return reply.map(([id, owner, millisecondsSinceLastDelivery, deliveriesCounter]) => ({
+        id,
+        owner,
+        millisecondsSinceLastDelivery,
+        deliveriesCounter
+    }));
+}

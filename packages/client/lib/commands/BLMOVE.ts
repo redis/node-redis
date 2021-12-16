@@ -1,14 +1,15 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { LMoveSide } from './LMOVE';
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    source: string,
-    destination: string,
+    source: RedisCommandArgument,
+    destination: RedisCommandArgument,
     sourceDirection: LMoveSide,
     destinationDirection: LMoveSide,
     timeout: number
-): Array<string> {
+): RedisCommandArguments {
     return [
         'BLMOVE',
         source,
