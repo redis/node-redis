@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 type Types = string | number | Buffer;
 
@@ -10,7 +10,7 @@ type HSETTuples = Array<[Types, Types]> | Array<Types>;
 
 export const FIRST_KEY_INDEX = 1;
 
-type GenericArguments = [key: string | Buffer];
+type GenericArguments = [key: RedisCommandArgument];
 
 type SingleFieldArguments = [...generic: GenericArguments, field: Types, value: Types];
 

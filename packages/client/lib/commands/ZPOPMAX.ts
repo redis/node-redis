@@ -9,9 +9,9 @@ export function transformArguments(key: string): Array<string> {
     ];
 }
 
-export function transformReply(reply: [string, string] | []): ZMember | null {
+export function transformReply(reply: [string, string] | []): ZMember<string> | null {
     if (!reply.length) return null;
-    
+
     return {
         value: reply[0],
         score: transformReplyNumberInfinity(reply[1])

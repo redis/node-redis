@@ -1,6 +1,6 @@
 import * as LinkedList from 'yallist';
 import { AbortError } from '../errors';
-import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
+import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
 
 // We need to use 'require', because it's not possible with Typescript to import
 // classes that are exported as 'module.exports = class`, without esModuleInterop
@@ -39,8 +39,6 @@ export enum PubSubUnsubscribeCommands {
     UNSUBSCRIBE = 'UNSUBSCRIBE',
     PUNSUBSCRIBE = 'PUNSUBSCRIBE'
 }
-
-type PubSubArgumentTypes = Buffer | string;
 
 export type PubSubListener<
     BUFFER_MODE extends boolean = false,
@@ -197,12 +195,12 @@ export default class RedisCommandsQueue {
 
     subscribe<T extends boolean>(
         command: PubSubSubscribeCommands,
-        channels: PubSubArgumentTypes | Array<PubSubArgumentTypes>,
+        channels: RedisCommandArgument | Array<RedisCommandArgument>,
         listener: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
         const pubSubState = this.#initiatePubSubState(),
-            channelsToSubscribe: Array<PubSubArgumentTypes> = [],
+            channelsToSubscribe: Array<RedisCommandArgument> = [],
             listenersMap = command === PubSubSubscribeCommands.SUBSCRIBE ? pubSubState.listeners.channels : pubSubState.listeners.patterns;
         for (const channel of (Array.isArray(channels) ? channels : [channels])) {
             const channelString = typeof channel === 'string' ? channel : channel.toString();
@@ -271,12 +269,12 @@ export default class RedisCommandsQueue {
         return this.#pushPubSubCommand(command, channelsToUnsubscribe);
     }
 
-    #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels: number | Array<PubSubArgumentTypes>): Promise<void> {
+    #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels: number | Array<RedisCommandArgument>): Promise<void> {
         return new Promise((resolve, reject) => {
             const pubSubState = this.#initiatePubSubState(),
                 isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
                 inProgressKey = isSubscribe ? 'subscribing' : 'unsubscribing',
-                commandArgs: Array<PubSubArgumentTypes> = [command];
+                commandArgs: Array<RedisCommandArgument> = [command];
 
             let channelsCounter: number;
             if (typeof channels === 'number') { // unsubscribe only

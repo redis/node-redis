@@ -1,8 +1,9 @@
+import { RedisCommandArguments } from '.';
 import { transformArguments as transformXAutoClaimArguments } from './XAUTOCLAIM';
 
 export { FIRST_KEY_INDEX } from './XAUTOCLAIM';
 
-export function transformArguments(...args: Parameters<typeof transformXAutoClaimArguments>): Array<string> {
+export function transformArguments(...args: Parameters<typeof transformXAutoClaimArguments>): RedisCommandArguments {
     return [
         ...transformXAutoClaimArguments(...args),
         'JUSTID'

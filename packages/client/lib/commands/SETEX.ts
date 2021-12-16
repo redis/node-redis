@@ -1,8 +1,12 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string | Buffer, seconds: number, value: string): RedisCommandArguments {
+export function transformArguments(
+    key: RedisCommandArgument,
+    seconds: number,
+    value: string
+): RedisCommandArguments {
     return [
         'SETEX',
         key,

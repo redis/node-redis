@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
 import { extendWithCommands, extendWithModulesAndScripts } from '../commander';
 import RedisCluster from '.';
@@ -24,12 +24,12 @@ type WithScripts<M extends RedisModules, S extends RedisScripts> = {
 export type RedisClusterMultiCommandType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
     RedisClusterMultiCommand & WithCommands<M, S> & WithModules<M, S> & WithScripts<M, S>;
 
-export type RedisClusterMultiExecutor = (queue: Array<RedisMultiQueuedCommand>, firstKey?: string | Buffer, chainId?: symbol) => Promise<Array<RedisCommandRawReply>>;
+export type RedisClusterMultiExecutor = (queue: Array<RedisMultiQueuedCommand>, firstKey?: RedisCommandArgument, chainId?: symbol) => Promise<Array<RedisCommandRawReply>>;
 
 export default class RedisClusterMultiCommand {
     readonly #multi = new RedisMultiCommand();
     readonly #executor: RedisClusterMultiExecutor;
-    #firstKey: string | Buffer | undefined;
+    #firstKey: RedisCommandArgument | undefined;
 
     static extend<M extends RedisModules, S extends RedisScripts>(
         plugins?: RedisPlugins<M, S>
@@ -43,7 +43,7 @@ export default class RedisClusterMultiCommand {
         });
     }
 
-    constructor(executor: RedisClusterMultiExecutor, firstKey?: string | Buffer) {
+    constructor(executor: RedisClusterMultiExecutor, firstKey?: RedisCommandArgument) {
         this.#executor = executor;
         this.#firstKey = firstKey;
     }
@@ -62,7 +62,7 @@ export default class RedisClusterMultiCommand {
     }
 
     addCommand(
-        firstKey: string | Buffer | undefined,
+        firstKey: RedisCommandArgument | undefined,
         args: RedisCommandArguments,
         transformReply?: RedisCommand['transformReply']
     ): this {

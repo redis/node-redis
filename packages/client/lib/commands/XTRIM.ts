@@ -1,3 +1,5 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
 interface XTrimOptions {
@@ -5,7 +7,12 @@ interface XTrimOptions {
     LIMIT?: number;
 }
 
-export function transformArguments(key: string, strategy: 'MAXLEN' | 'MINID', threshold: number, options?: XTrimOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    strategy: 'MAXLEN' | 'MINID',
+    threshold: number,
+    options?: XTrimOptions
+): RedisCommandArguments {
     const args = ['XTRIM', key, strategy];
 
     if (options?.strategyModifier) {

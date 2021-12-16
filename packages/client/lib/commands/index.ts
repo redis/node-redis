@@ -2,10 +2,12 @@ import { RedisScriptConfig, SHA1 } from '../lua-script';
 
 export type RedisCommandRawReply = string | number | Buffer | Array<RedisCommandRawReply> | null | undefined;
 
-export type RedisCommandArguments = Array<string | Buffer> & { preserve?: unknown };
+export type RedisCommandArgument = string | Buffer;
+
+export type RedisCommandArguments = Array<RedisCommandArgument> & { preserve?: unknown };
 
 export interface RedisCommand {
-    FIRST_KEY_INDEX?: number | ((...args: Array<any>) => string);
+    FIRST_KEY_INDEX?: number | ((...args: Array<any>) => RedisCommandArgument);
     IS_READ_ONLY?: boolean;
     transformArguments(this: void, ...args: Array<any>): RedisCommandArguments;
     BUFFER_MODE?: boolean;

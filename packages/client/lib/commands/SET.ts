@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -24,7 +24,11 @@ interface SetCommonOptions {
 
 type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 
-export function transformArguments(key: string | Buffer, value: string | number | Buffer, options?: SetOptions): RedisCommandArguments {
+export function transformArguments(
+    key: RedisCommandArgument,
+    value: RedisCommandArgument | number,
+    options?: SetOptions
+): RedisCommandArguments {
     const args = [
         'SET',
         key,

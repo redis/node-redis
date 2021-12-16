@@ -15,4 +15,4 @@ export function transformArguments(
     ];
 }
 
-export { transformReplySortedSetWithScores as transformReply } from './generic-transformers';
+export { transformReplySortedStringsSetWithScores as transformReply } from './generic-transformers';

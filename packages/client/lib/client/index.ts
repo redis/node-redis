@@ -575,7 +575,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         } while (cursor !== 0);
     }
 
-    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember> {
+    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember<string>> {
         let cursor = 0;
         do {
             const reply = await (this as any).zScan(key, cursor, options);

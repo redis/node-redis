@@ -1,4 +1,5 @@
-import { StreamMessagesReply, transformReplyStreamMessages } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { StreamStringsMessagesReply, transformReplyStreamStringMessages } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -7,13 +8,13 @@ export interface XAutoClaimOptions {
 }
 
 export function transformArguments(
-    key: string,
-    group: string,
-    consumer: string,
+    key: RedisCommandArgument,
+    group: RedisCommandArgument,
+    consumer: RedisCommandArgument,
     minIdleTime: number,
     start: string,
     options?: XAutoClaimOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['XAUTOCLAIM', key, group, consumer, minIdleTime.toString(), start];
 
     if (options?.COUNT) {
@@ -25,12 +26,12 @@ export function transformArguments(
 
 interface XAutoClaimReply {
     nextId: string;
-    messages: StreamMessagesReply;
+    messages: StreamStringsMessagesReply;
 }
 
 export function transformReply(reply: [string, Array<any>]): XAutoClaimReply {
     return {
         nextId: reply[0],
-        messages: transformReplyStreamMessages(reply[1])
+        messages: transformReplyStreamStringMessages(reply[1])
     };
 }
