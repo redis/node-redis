@@ -10,7 +10,7 @@ export interface SHA1 {
     SHA1: string;
 }
 
-export function defineScript(script: RedisScriptConfig): typeof script & SHA1 {
+export function defineScript<TScript extends RedisScriptConfig>(script: TScript): TScript & SHA1 {
     return {
         ...script,
         SHA1: scriptSha1(script.SCRIPT)
