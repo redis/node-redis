@@ -57,7 +57,7 @@ createClient({
 createClient({
   socket: {
     tls: true,
-    rejectUnauthorized: true,
+    rejectUnauthorized: false,
     cert: '...'
   }
 });
