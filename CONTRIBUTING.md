@@ -48,7 +48,8 @@ makes use of [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces).
 
 To run the tests, run `npm install` to install dependencies, then run `npm run build:tests-tools && npm test`.
 
-Note that the test suite assumes that [`docker`](https://www.docker.com/) is installed in your environment.
+Note that the test suite assumes that [`docker`](https://www.docker.com/) is installed in your environment and you're
+running linux.
 
 ### Submitting Code for Review
 
