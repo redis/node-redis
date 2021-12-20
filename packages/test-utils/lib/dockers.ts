@@ -6,6 +6,7 @@ import { promiseTimeout } from '@node-redis/client/lib/utils';
 import * as path from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
+import { platform } from 'os';
 const execAsync = promisify(exec);
 
 interface ErrorWithCode extends Error {
@@ -50,14 +51,24 @@ export interface RedisServerDocker {
 const DOCKER_FODLER_PATH = path.join(__dirname, '../docker');
 
 async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
-    const port = (await portIterator.next()).value,
-        { stdout, stderr } = await execAsync(
-            'docker run -d --network host $(' +
-                `docker build ${DOCKER_FODLER_PATH} -q ` +
-                `--build-arg IMAGE=${image}:${version.join('.')} ` +
-                `--build-arg REDIS_ARGUMENTS="--save --port ${port.toString()} ${serverArguments.join(' ')}"` +
-            ')'
-        );
+    const port = (await portIterator.next()).value;
+    const command = ['docker run -d'];
+    switch (platform()) {
+        // `--network host` doesn't work as expected on macOS, so we have to do explicit port forwarding
+        case 'darwin': {
+            command.push(`-p "${port.toString()}:${port.toString()}"`);
+            break;
+        }
+        default:
+            command.push('--network host');
+    }
+    const subCommand = [
+        `docker build ${DOCKER_FODLER_PATH} -q`,
+        `--build-arg IMAGE=${image}:${version.join('.')}`,
+        `--build-arg REDIS_ARGUMENTS="--save --port ${port.toString()} ${serverArguments.join(' ')}"`,
+    ];
+    command.push(`$(${subCommand.join(' ')})`);
+    const { stdout, stderr } = await execAsync(command.join(' '));
 
     if (!stdout) {
         throw new Error(`docker run error - ${stderr}`);
