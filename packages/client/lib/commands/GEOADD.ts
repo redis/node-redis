@@ -1,7 +1,8 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { GeoCoordinates } from './generic-transformers';
 
 interface GeoMember extends GeoCoordinates {
-    member: string;
+    member: RedisCommandArgument;
 }
 
 interface NX {
@@ -22,7 +23,10 @@ type GeoAddOptions = SetGuards & GeoAddCommonOptions;
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, toAdd: GeoMember | Array<GeoMember>, options?: GeoAddOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument, toAdd: GeoMember | Array<GeoMember>,
+    options?: GeoAddOptions
+): RedisCommandArguments {
     const args = ['GEOADD', key];
 
     if ((options as NX)?.NX) {

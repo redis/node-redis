@@ -1,12 +1,12 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { ZRangeByScoreOptions, transformArguments as transformZRangeByScoreArguments } from './ZRANGEBYSCORE';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANGEBYSCORE';
 
 export function transformArguments(
-    key: string,
-    min: number | string,
-    max: number | string,
+    key: RedisCommandArgument,
+    min: string | number,
+    max: string | number,
     options?: ZRangeByScoreOptions
 ): RedisCommandArguments {
     return [
@@ -15,4 +15,4 @@ export function transformArguments(
     ];
 }
 
-export { transformReplySortedStringsSetWithScores as transformReply } from './generic-transformers';
+export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';

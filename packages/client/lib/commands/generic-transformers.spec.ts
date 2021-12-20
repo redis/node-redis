@@ -1,21 +1,16 @@
 import { strict as assert } from 'assert';
 import {
-    transformReplyBoolean,
-    transformReplyBooleanArray,
+    transformBooleanReply,
+    transformBooleanArrayReply,
     pushScanArguments,
-    transformReplyNumberInfinity,
-    transformReplyNumberInfinityArray,
-    transformReplyNumberInfinityNull,
-    transformArgumentNumberInfinity,
-    transformArgumentStringNumberInfinity,
-    transformReplyStringTuples,
-    transformReplyBufferTuples,
-    transformReplyStreamStringMessages,
-    transformReplyStreamBufferMessages,
-    transformReplyStreamsStringMessages,
-    transformReplyStreamsBufferMessages,
-    transformReplySortedStringsSetWithScores,
-    transformReplySortedBuffersSetWithScores,
+    transformNumberInfinityReply,
+    transformNumberInfinityNullReply,
+    transformNumberInfinityArgument,
+    transformStringNumberInfinityArgument,
+    transformTuplesReply,
+    transformStreamMessagesReply,
+    transformStreamsMessagesReply,
+    transformSortedSetWithScoresReply,
     pushGeoCountArgument,
     pushGeoSearchArguments,
     GeoReplyWith,
@@ -23,7 +18,6 @@ import {
     transformEXAT,
     transformPXAT,
     pushEvalArguments,
-    pushStringTuplesArguments,
     pushVerdictArguments,
     pushVerdictArgument,
     pushOptionalVerdictArgument,
@@ -33,33 +27,33 @@ import {
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
-    describe('transformReplyBoolean', () => {
+    describe('transformBooleanReply', () => {
         it('0', () => {
             assert.equal(
-                transformReplyBoolean(0),
+                transformBooleanReply(0),
                 false
             );
         });
 
         it('1', () => {
             assert.equal(
-                transformReplyBoolean(1),
+                transformBooleanReply(1),
                 true
             );
         });
     });
 
-    describe('transformReplyBooleanArray', () => {
+    describe('transformBooleanArrayReply', () => {
         it('empty array', () => {
             assert.deepEqual(
-                transformReplyBooleanArray([]),
+                transformBooleanArrayReply([]),
                 []
             );
         });
 
         it('0, 1', () => {
             assert.deepEqual(
-                transformReplyBooleanArray([0, 1]),
+                transformBooleanArrayReply([0, 1]),
                 [false, true]
             );
         });
@@ -102,103 +96,87 @@ describe('Generic Transformers', () => {
         });
     });
 
-    describe('transformReplyNumberInfinity', () => {
+    describe('transformNumberInfinityReply', () => {
         it('0.5', () => {
             assert.equal(
-                transformReplyNumberInfinity('0.5'),
+                transformNumberInfinityReply('0.5'),
                 0.5
             );
         });
 
         it('+inf', () => {
             assert.equal(
-                transformReplyNumberInfinity('+inf'),
+                transformNumberInfinityReply('+inf'),
                 Infinity
             );
         });
 
         it('-inf', () => {
             assert.equal(
-                transformReplyNumberInfinity('-inf'),
+                transformNumberInfinityReply('-inf'),
                 -Infinity
             );
         });
     });
 
-    describe('transformReplyNumberInfinityArray', () => {
-        it('empty array', () => {
-            assert.deepEqual(
-                transformReplyNumberInfinityArray([]),
-                []
-            );
-        });
-
-        it('0.5, +inf, -inf', () => {
-            assert.deepEqual(
-                transformReplyNumberInfinityArray(['0.5', '+inf', '-inf']),
-                [0.5, Infinity, -Infinity]
-            );
-        });
-    });
-
-    describe('transformReplyNumberInfinityNull', () => {
+    describe('transformNumberInfinityNullReply', () => {
         it('null', () => {
             assert.equal(
-                transformReplyNumberInfinityNull(null),
+                transformNumberInfinityNullReply(null),
                 null
             );
         });
 
         it('1', () => {
             assert.equal(
-                transformReplyNumberInfinityNull('1'),
+                transformNumberInfinityNullReply('1'),
                 1
             );
         });
     });
 
-    describe('transformArgumentNumberInfinity', () => {
+    describe('transformNumberInfinityArgument', () => {
         it('0.5', () => {
             assert.equal(
-                transformArgumentNumberInfinity(0.5),
+                transformNumberInfinityArgument(0.5),
                 '0.5'
             );
         });
 
         it('Infinity', () => {
             assert.equal(
-                transformArgumentNumberInfinity(Infinity),
+                transformNumberInfinityArgument(Infinity),
                 '+inf'
             );
         });
 
         it('-Infinity', () => {
             assert.equal(
-                transformArgumentNumberInfinity(-Infinity),
+                transformNumberInfinityArgument(-Infinity),
                 '-inf'
             );
         });
     });
 
-    describe('transformArgumentStringNumberInfinity', () => {
+    describe('transformStringNumberInfinityArgument', () => {
         it("'0.5'", () => {
             assert.equal(
-                transformArgumentStringNumberInfinity('0.5'),
+                transformStringNumberInfinityArgument('0.5'),
                 '0.5'
             );
         });
 
         it('0.5', () => {
             assert.equal(
-                transformArgumentStringNumberInfinity(0.5),
+                transformStringNumberInfinityArgument(0.5),
                 '0.5'
             );
         });
     });
 
-    it('transformReplyStringTuples', () => {
+    it('transformTuplesReply', () => {
         assert.deepEqual(
-            transformReplyStringTuples(['key1', 'value1', 'key2', 'value2']),
+            transformTuplesReply(['key1', 'value1', 'key2', 'value2']),
             Object.create(null, {
                 key1: {
                     value: 'value1',
@@ -214,27 +192,9 @@ describe('Generic Transformers', () => {
         );
     });
 
-    it('transformReplyBufferTuples', () => {
+    it('transformStreamMessagesReply', () => {
         assert.deepEqual(
-            transformReplyBufferTuples([Buffer.from('key1'), Buffer.from('value1'), Buffer.from('key2'), Buffer.from('value2')]),
-            Object.create(null, {
-                key1: {
-                    value: Buffer.from('value1'),
-                    configurable: true,
-                    enumerable: true
-                },
-                key2: {
-                    value: Buffer.from('value2'),
-                    configurable: true,
-                    enumerable: true
-                }
-            })
-        );
-    });
-
-    it('transformReplyStreamStringMessages', () => {
-        assert.deepEqual(
-            transformReplyStreamStringMessages([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
+            transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
             [{
                 id: '0-0',
                 message: Object.create(null, {
@@ -257,45 +217,17 @@ describe('Generic Transformers', () => {
         );
     });
 
-    it('transformReplyStreamBufferMessages', () => {
-        assert.deepEqual(
-            transformReplyStreamBufferMessages([
-                [Buffer.from('0-0'), [Buffer.from('0key'), Buffer.from('0value')]],
-                [Buffer.from('1-0'), [Buffer.from('1key'), Buffer.from('1value')]]
-            ]),
-            [{
-                id: Buffer.from('0-0'),
-                message: Object.create(null, {
-                    '0key': {
-                        value: Buffer.from('0value'),
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
-            }, {
-                id: Buffer.from('1-0'),
-                message: Object.create(null, {
-                    '1key': {
-                        value: Buffer.from('1value'),
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
-            }]
-        );
-    });
-
-    describe('transformReplyStreamsStringMessages', () => {
+    describe('transformStreamsMessagesReply', () => {
         it('null', () => {
             assert.equal(
-                transformReplyStreamsStringMessages(null),
+                transformStreamsMessagesReply(null),
                 null
             );
         });
 
         it('with messages', () => {
             assert.deepEqual(
-                transformReplyStreamsStringMessages([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]]),
+                transformStreamsMessagesReply([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]]),
                 [{
                     name: 'stream1',
                     messages: [{
@@ -339,77 +271,9 @@ describe('Generic Transformers', () => {
         });
     });
 
-    describe('transformReplyStreamsBufferMessages', () => {
-        it('null', () => {
-            assert.equal(
-                transformReplyStreamsBufferMessages(null),
-                null
-            );
-        });
-
-        it('with messages', () => {
-            assert.deepEqual(
-                transformReplyStreamsBufferMessages([
-                    [
-                        Buffer.from('stream1'),
-                        [
-                            [Buffer.from('0-1'), [Buffer.from('11key'), Buffer.from('11value')]],
-                            [Buffer.from('1-1'), [Buffer.from('12key'), Buffer.from('12value')]]
-                        ]
-                    ],
-                    [
-                        Buffer.from('stream2'),
-                        [
-                            [Buffer.from('0-2'), [Buffer.from('2key1'), Buffer.from('2value1'), Buffer.from('2key2'), Buffer.from('2value2')]]
-                        ]
-                    ]
-                ]),
-                [{
-                    name: Buffer.from('stream1'),
-                    messages: [{
-                        id: Buffer.from('0-1'),
-                        message: Object.create(null, {
-                            '11key': {
-                                value: Buffer.from('11value'),
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
-                    }, {
-                        id: Buffer.from('1-1'),
-                        message: Object.create(null, {
-                            '12key': {
-                                value: Buffer.from('12value'),
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
-                    }]
-                }, {
-                    name: Buffer.from('stream2'),
-                    messages: [{
-                        id: Buffer.from('0-2'),
-                        message: Object.create(null, {
-                            '2key1': {
-                                value: Buffer.from('2value1'),
-                                configurable: true,
-                                enumerable: true
-                            },
-                            '2key2': {
-                                value: Buffer.from('2value2'),
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
-                    }]
-                }]
-            );
-        });
-    });
-
-    it('transformReplySortedStringsSetWithScores', () => {
+    it('transformSortedSetWithScoresReply', () => {
         assert.deepEqual(
-            transformReplySortedStringsSetWithScores(['member1', '0.5', 'member2', '+inf', 'member3', '-inf']),
+            transformSortedSetWithScoresReply(['member1', '0.5', 'member2', '+inf', 'member3', '-inf']),
             [{
                 value: 'member1',
                 score: 0.5
@@ -418,29 +282,6 @@ describe('Generic Transformers', () => {
                 score: Infinity
             }, {
                 value: 'member3',
-                score: -Infinity
-            }]
-        );
-    });
-
-    it('transformReplySortedBuffersSetWithScores', () => {
-        assert.deepEqual(
-            transformReplySortedBuffersSetWithScores([
-                Buffer.from('member1'),
-                Buffer.from('0.5'),
-                Buffer.from('member2'),
-                Buffer.from('+inf'),
-                Buffer.from('member3'),
-                Buffer.from('-inf')
-            ]),
-            [{
-                value: Buffer.from('member1'),
-                score: 0.5
-            }, {
-                value: Buffer.from('member2'),
-                score: Infinity
-            }, {
-                value: Buffer.from('member3'),
                 score: -Infinity
             }]
         );
@@ -717,29 +558,6 @@ describe('Generic Transformers', () => {
                     arguments: ['argument']
                 }),
                 ['1', 'key', 'argument']
-            );
-        });
-    });
-
-    describe('pushStringTuplesArguments', () => {
-        it("['key1', 'value1', 'key2', 'value2']", () => {
-            assert.deepEqual(
-                pushStringTuplesArguments([], ['key1', 'value1', 'key2', 'value2']),
-                ['key1', 'value1', 'key2', 'value2']
-            );
-        });
-
-        it("[['key1', 'value1'], ['key2', 'value2']]", () => {
-            assert.deepEqual(
-                pushStringTuplesArguments([], [['key1', 'value1'], ['key2', 'value2']]),
-                ['key1', 'value1', 'key2', 'value2']
-            );
-        });
-
-        it("{key1: 'value1'. key2: 'value2'}", () => {
-            assert.deepEqual(
-                pushStringTuplesArguments([], { key1: 'value1', key2: 'value2' }),
-                ['key1', 'value1', 'key2', 'value2']
             );
         });
     });

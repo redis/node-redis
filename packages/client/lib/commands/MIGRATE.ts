@@ -1,3 +1,4 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { AuthOptions } from './AUTH';
 
 interface MigrateOptions {
@@ -7,20 +8,20 @@ interface MigrateOptions {
 }
 
 export function transformArguments(
-    host: string,
+    host: RedisCommandArgument,
     port: number,
-    key: string | Array<string>,
+    key: RedisCommandArgument | Array<RedisCommandArgument>,
     destinationDb: number,
     timeout: number,
     options?: MigrateOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['MIGRATE', host, port.toString()],
-        isKeyString = typeof key === 'string';
+        isKeyArray = Array.isArray(key);
 
-    if (isKeyString) {
-        args.push(key);
-    } else {
+    if (isKeyArray) {
         args.push('""');
+    } else {
+        args.push(key);
     }
 
     args.push(
@@ -51,7 +52,7 @@ export function transformArguments(
         }
     }
 
-    if (!isKeyString) {
+    if (isKeyArray) {
         args.push(
             'KEYS',
             ...key

@@ -4,13 +4,9 @@ import * as BITCOUNT from '../commands/BITCOUNT';
 import * as BITFIELD from '../commands/BITFIELD';
 import * as BITOP from '../commands/BITOP';
 import * as BITPOS from '../commands/BITPOS';
-import * as BLMOVE_BUFFER from '../commands/BLMOVE_BUFFER';
 import * as BLMOVE from '../commands/BLMOVE';
-import * as BLPOP_BUFFER from '../commands/BLPOP_BUFFER';
 import * as BLPOP from '../commands/BLPOP';
-import * as BRPOP_BUFFER from '../commands/BRPOP_BUFFER';
 import * as BRPOP from '../commands/BRPOP';
-import * as BRPOPLPUSH_BUFFER from '../commands/BRPOPLPUSH_BUFFER';
 import * as BRPOPLPUSH from '../commands/BRPOPLPUSH';
 import * as BZPOPMAX from '../commands/BZPOPMAX';
 import * as BZPOPMIN from '../commands/BZPOPMIN';
@@ -31,7 +27,6 @@ import * as GEOPOS from '../commands/GEOPOS';
 import * as GEOSEARCH_WITH from '../commands/GEOSEARCH_WITH';
 import * as GEOSEARCH from '../commands/GEOSEARCH';
 import * as GEOSEARCHSTORE from '../commands/GEOSEARCHSTORE';
-import * as GET_BUFFER from '../commands/GET_BUFFER';
 import * as GET from '../commands/GET';
 import * as GETBIT from '../commands/GETBIT';
 import * as GETDEL from '../commands/GETDEL';
@@ -40,16 +35,13 @@ import * as GETRANGE from '../commands/GETRANGE';
 import * as GETSET from '../commands/GETSET';
 import * as HDEL from '../commands/HDEL';
 import * as HEXISTS from '../commands/HEXISTS';
-import * as HGET_BUFFER from '../commands/HGET_BUFFER';
 import * as HGET from '../commands/HGET';
-import * as HGETALL_BUFFER from '../commands/HGETALL_BUFFER';
 import * as HGETALL from '../commands/HGETALL';
 import * as HINCRBY from '../commands/HINCRBY';
 import * as HINCRBYFLOAT from '../commands/HINCRBYFLOAT';
 import * as HKEYS from '../commands/HKEYS';
 import * as HLEN from '../commands/HLEN';
 import * as HMGET from '../commands/HMGET';
-import * as HRANDFIELD_COUNT_WITHVALUES_BUFFER from '../commands/HRANDFIELD_COUNT_WITHVALUES_BUFFER';
 import * as HRANDFIELD_COUNT_WITHVALUES from '../commands/HRANDFIELD_COUNT_WITHVALUES';
 import * as HRANDFIELD_COUNT from '../commands/HRANDFIELD_COUNT';
 import * as HRANDFIELD from '../commands/HRANDFIELD';
@@ -126,12 +118,8 @@ import * as UNLINK from '../commands/UNLINK';
 import * as WATCH from '../commands/WATCH';
 import * as XACK from '../commands/XACK';
 import * as XADD from '../commands/XADD';
-import * as XAUTOCLAIM_JUSTID_BUFFER from '../commands/XAUTOCLAIM_JUSTID_BUFFER';
-import * as XAUTOCLAIM_BUFFER from '../commands/XAUTOCLAIM_BUFFER';
 import * as XAUTOCLAIM_JUSTID from '../commands/XAUTOCLAIM_JUSTID';
 import * as XAUTOCLAIM from '../commands/XAUTOCLAIM';
-import * as XCLAIM_JUSTID_BUFFER from '../commands/XCLAIM_JUSTID_BUFFER';
-import * as XCLAIM_BUFFER from '../commands/XCLAIM_BUFFER';
 import * as XCLAIM_JUSTID from '../commands/XCLAIM_JUSTID';
 import * as XCLAIM from '../commands/XCLAIM';
 import * as XDEL from '../commands/XDEL';
@@ -146,13 +134,9 @@ import * as XINFO_STREAM from '../commands/XINFO_STREAM';
 import * as XLEN from '../commands/XLEN';
 import * as XPENDING_RANGE from '../commands/XPENDING_RANGE';
 import * as XPENDING from '../commands/XPENDING';
-import * as XRANGE_BUFFER from '../commands/XRANGE_BUFFER';
 import * as XRANGE from '../commands/XRANGE';
-import * as XREAD_BUFFER from '../commands/XREAD_BUFFER';
 import * as XREAD from '../commands/XREAD';
-import * as XREADGROUP_BUFFER from '../commands/XREADGROUP_BUFFER';
 import * as XREADGROUP from '../commands/XREADGROUP';
-import * as XREVRANGE_BUFFER from '../commands/XREVRANGE_BUFFER';
 import * as XREVRANGE from '../commands/XREVRANGE';
 import * as XTRIM from '../commands/XTRIM';
 import * as ZADD from '../commands/ZADD';
@@ -203,20 +187,12 @@ export default {
     bitOp: BITOP,
     BITPOS,
     bitPos: BITPOS,
-    BLMOVE_BUFFER,
-    blMoveBuffer: BLMOVE_BUFFER,
     BLMOVE,
     blMove: BLMOVE,
-    BLPOP_BUFFER,
-    blPopBuffer: BLPOP_BUFFER,
     BLPOP,
     blPop: BLPOP,
-    BRPOP_BUFFER,
-    brPopBuffer: BRPOP_BUFFER,
     BRPOP,
     brPop: BRPOP,
-    BRPOPLPUSH_BUFFER,
-    brPopLPushBuffer: BRPOPLPUSH_BUFFER,
     BRPOPLPUSH,
     brPopLPush: BRPOPLPUSH,
     BZPOPMAX,
@@ -257,8 +233,6 @@ export default {
     geoSearch: GEOSEARCH,
     GEOSEARCHSTORE,
     geoSearchStore: GEOSEARCHSTORE,
-    GET_BUFFER,
-    getBuffer: GET_BUFFER,
     GET,
     get: GET,
     GETBIT,
@@ -275,12 +249,8 @@ export default {
     hDel: HDEL,
     HEXISTS,
     hExists: HEXISTS,
-    HGET_BUFFER,
-    hGetBuffer: HGET_BUFFER,
     HGET,
     hGet: HGET,
-    HGETALL_BUFFER,
-    hGetAllBuffer: HGETALL_BUFFER,
     HGETALL,
     hGetAll: HGETALL,
     HINCRBY,
@@ -293,8 +263,6 @@ export default {
     hLen: HLEN,
     HMGET,
     hmGet: HMGET,
-    HRANDFIELD_COUNT_WITHVALUES_BUFFER,
-    hRandFieldCountWithValuesBuffer: HRANDFIELD_COUNT_WITHVALUES_BUFFER,
     HRANDFIELD_COUNT_WITHVALUES,
     hRandFieldCountWithValues: HRANDFIELD_COUNT_WITHVALUES,
     HRANDFIELD_COUNT,
@@ -447,20 +415,12 @@ export default {
     xAck: XACK,
     XADD,
     xAdd: XADD,
-    XAUTOCLAIM_JUSTID_BUFFER,
-    xAutoClaimJustIdBuffer: XAUTOCLAIM_JUSTID_BUFFER,
-    XAUTOCLAIM_BUFFER,
-    xAutoClaimBuffer: XAUTOCLAIM_BUFFER,
     XAUTOCLAIM_JUSTID,
     xAutoClaimJustId: XAUTOCLAIM_JUSTID,
     XAUTOCLAIM,
     xAutoClaim: XAUTOCLAIM,
     XCLAIM,
     xClaim: XCLAIM,
-    XCLAIM_JUSTID_BUFFER,
-    xClaimJustIdBuffer: XCLAIM_JUSTID_BUFFER,
-    XCLAIM_BUFFER,
-    xClaimBuffer: XCLAIM_BUFFER,
     XCLAIM_JUSTID,
     xClaimJustId: XCLAIM_JUSTID,
     XDEL,
@@ -487,20 +447,12 @@ export default {
     xPendingRange: XPENDING_RANGE,
     XPENDING,
     xPending: XPENDING,
-    XRANGE_BUFFER,
-    xRangeBuffer: XRANGE_BUFFER,
     XRANGE,
     xRange: XRANGE,
-    XREAD_BUFFER,
-    xReadBuffer: XREAD_BUFFER,
     XREAD,
     xRead: XREAD,
-    XREADGROUP_BUFFER,
-    xReadGroupBuffer: XREADGROUP_BUFFER,
     XREADGROUP,
     xReadGroup: XREADGROUP,
-    XREVRANGE_BUFFER,
-    xRevRangeBuffer: XREVRANGE_BUFFER,
     XREVRANGE,
     xRevRange: XREVRANGE,
     XTRIM,

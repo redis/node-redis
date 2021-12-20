@@ -1,11 +1,11 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { GeoSearchFrom, GeoSearchBy, GeoReplyWith, GeoSearchOptions } from './generic-transformers';
 import { transformArguments as geoSearchTransformArguments } from './GEOSEARCH';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEOSEARCH';
 
 export function transformArguments(
-    key: string,
+    key: RedisCommandArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     replyWith: Array<GeoReplyWith>,

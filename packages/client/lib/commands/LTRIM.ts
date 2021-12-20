@@ -1,6 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, start: number, stop: number): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    start: number,
+    stop: number
+): RedisCommandArguments {
     return [
         'LTRIM',
         key,
@@ -9,4 +15,4 @@ export function transformArguments(key: string, start: number, stop: number): Ar
     ];
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

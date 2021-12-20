@@ -1,6 +1,11 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(source: string, destination: string): Array<string> {
+export function transformArguments(
+    source: RedisCommandArgument,
+    destination: RedisCommandArgument
+): RedisCommandArguments {
     return ['RPOPLPUSH', source, destination];
 }
 

@@ -10,4 +10,4 @@ export function transformArguments(
     return ['XGROUP', 'SETID', key, group, id];
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): RedisCommandArgument;

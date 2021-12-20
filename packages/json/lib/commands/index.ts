@@ -62,9 +62,14 @@ export default {
     type: TYPE
 };
 
-// using two "objects" and not `Record<string | number, RedisJSON>` cause of:
-// https://github.com/microsoft/TypeScript/issues/14174
-export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | { [key: string]: RedisJSON } | { [key: number]: RedisJSON };
+// https://github.com/Microsoft/TypeScript/issues/3496#issuecomment-128553540
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface RedisJSONArray extends Array<RedisJSON> {}
+interface RedisJSONObject {
+    [key: string]: RedisJSON;
+    [key: number]: RedisJSON;
+}
+export type RedisJSON = null | boolean | number | string | Date | RedisJSONArray | RedisJSONObject;
 
 export function transformRedisJsonArgument(json: RedisJSON): string {
     return JSON.stringify(json);

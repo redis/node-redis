@@ -12,7 +12,7 @@ export function transformArguments(
 }
 
 type XInfoConsumersReply = Array<{
-    name: string;
+    name: RedisCommandArgument;
     pending: number;
     idle: number;
 }>;

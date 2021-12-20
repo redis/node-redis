@@ -1,6 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, milliseconds: number, value: string): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    milliseconds: number,
+    value: RedisCommandArgument
+): RedisCommandArguments {
     return [
         'PSETEX',
         key,
@@ -9,4 +15,4 @@ export function transformArguments(key: string, milliseconds: number, value: str
     ];
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

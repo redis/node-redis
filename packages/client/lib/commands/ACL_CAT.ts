@@ -1,5 +1,7 @@
-export function transformArguments(categoryName?: string): Array<string> {
-    const args = ['ACL', 'CAT'];
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export function transformArguments(categoryName?: RedisCommandArgument): RedisCommandArguments {
+    const args: RedisCommandArguments = ['ACL', 'CAT'];
 
     if (categoryName) {
         args.push(categoryName);
@@ -8,4 +10,4 @@ export function transformArguments(categoryName?: string): Array<string> {
     return args;
 }
 
-export declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<RedisCommandArgument>;

@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -28,8 +28,30 @@ export interface RedisClientOptions<M extends RedisModules, S extends RedisScrip
     isolationPoolOptions?: PoolOptions;
 }
 
-export type RedisClientCommandSignature<C extends RedisCommand> =
-    (...args: Parameters<C['transformArguments']> | [options: CommandOptions<ClientCommandOptions>, ...rest: Parameters<C['transformArguments']>]) => Promise<RedisCommandReply<C>>;
+type ConvertArgumentType<Type, ToType> =
+    Type extends RedisCommandArgument ? (
+        Type extends (string & ToType) ? Type : ToType
+    ) : (
+        Type extends Set<infer Member> ? Set<ConvertArgumentType<Member, ToType>> : (
+            Type extends Map<infer Key, infer Value> ? Map<Key, ConvertArgumentType<Value, ToType>> : (
+                Type extends Record<keyof any, any> ? {
+                    [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
+                } : Type
+            )
+        )
+    );
+
+export type RedisClientCommandSignature<
+    Command extends RedisCommand,
+    Params extends Array<unknown> = Parameters<Command['transformArguments']>
+> = <Options extends CommandOptions<ClientCommandOptions>>(
+    ...args: Params | [options: Options, ...rest: Params]
+) => Promise<
+    ConvertArgumentType<
+        RedisCommandReply<Command>,
+        Options['returnBuffers'] extends true ? Buffer : string
+    >
+>;
 
 type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
@@ -59,7 +81,7 @@ type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) =>
 
 export type ClientLegacyCommandArguments = LegacyCommandArguments | [...LegacyCommandArguments, ClientLegacyCallback];
 export default class RedisClient<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
-    static commandOptions(options: ClientCommandOptions): CommandOptions<ClientCommandOptions> {
+    static commandOptions<T extends ClientCommandOptions>(options: T): CommandOptions<T> {
         return commandOptions(options);
     }
 
@@ -325,17 +347,17 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
         return transformCommandReply(
             command,
-            await this.#sendCommand(redisArgs, options, command.BUFFER_MODE),
+            await this.#sendCommand(redisArgs, options),
             redisArgs.preserve
         );
     }
 
-    sendCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
-        return this.#sendCommand(args, options, bufferMode);
+    sendCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: ClientCommandOptions): Promise<T> {
+        return this.#sendCommand(args, options);
     }
 
     // using `#sendCommand` cause `sendCommand` is overwritten in legacy mode
-    #sendCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: ClientCommandOptions, bufferMode?: boolean): Promise<T> {
+    #sendCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: ClientCommandOptions): Promise<T> {
         if (!this.#socket.isOpen) {
             return Promise.reject(new ClientClosedError());
         }
@@ -349,7 +371,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             );
         }
 
-        const promise = this.#queue.addCommand<T>(args, options, bufferMode);
+        const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
         return promise;
     }
@@ -359,19 +381,19 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
 
         return transformCommandReply(
             script,
-            await this.executeScript(script, redisArgs, options, script.BUFFER_MODE),
+            await this.executeScript(script, redisArgs, options),
             redisArgs.preserve
         );
     }
 
-    async executeScript(script: RedisScript, args: RedisCommandArguments, options?: ClientCommandOptions, bufferMode?: boolean): Promise<RedisCommandReply<typeof script>> {
+    async executeScript(script: RedisScript, args: RedisCommandArguments, options?: ClientCommandOptions): Promise<RedisCommandReply<typeof script>> {
         try {
             return await this.#sendCommand([
                 'EVALSHA',
                 script.SHA1,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
-            ], options, bufferMode);
+            ], options);
         } catch (err: any) {
             if (!err?.message?.startsWith?.('NOSCRIPT')) {
                 throw err;
@@ -382,7 +404,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                 script.SCRIPT,
                 script.NUMBER_OF_KEYS.toString(),
                 ...args
-            ], options, bufferMode);
+            ], options);
         }
     }
 
@@ -553,7 +575,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         } while (cursor !== 0);
     }
 
-    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<HScanTuple> {
+    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<HScanTuple, string>> {
         let cursor = 0;
         do {
             const reply = await (this as any).hScan(key, cursor, options);
@@ -575,7 +597,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         } while (cursor !== 0);
     }
 
-    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ZMember<string>> {
+    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<ZMember, string>> {
         let cursor = 0;
         do {
             const reply = await (this as any).zScan(key, cursor, options);

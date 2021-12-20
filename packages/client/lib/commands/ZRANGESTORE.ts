@@ -1,4 +1,5 @@
-import { transformArgumentStringNumberInfinity } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { transformStringNumberInfinityArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,18 +14,18 @@ interface ZRangeStoreOptions {
 }
 
 export function transformArguments(
-    dst: string,
-    src: string,
-    min: string | number,
-    max: string | number,
+    dst: RedisCommandArgument,
+    src: RedisCommandArgument,
+    min: RedisCommandArgument | number,
+    max: RedisCommandArgument | number,
     options?: ZRangeStoreOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = [
         'ZRANGESTORE',
         dst,
         src,
-        transformArgumentStringNumberInfinity(min),
-        transformArgumentStringNumberInfinity(max)
+        transformStringNumberInfinityArgument(min),
+        transformStringNumberInfinityArgument(max)
     ];
 
     switch (options?.BY) {

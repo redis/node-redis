@@ -1,3 +1,4 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -5,12 +6,12 @@ export const FIRST_KEY_INDEX = 1;
 export const IS_READ_ONLY = true;
 
 export function transformArguments(
-    key: string,
+    key: RedisCommandArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     options?: GeoSearchOptions
-): Array<string> {
+): RedisCommandArguments {
     return pushGeoSearchArguments(['GEOSEARCH'], key, from, by, options);
 }
 
-export declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<RedisCommandArgument>;

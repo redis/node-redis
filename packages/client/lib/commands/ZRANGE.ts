@@ -1,4 +1,5 @@
-import { transformArgumentStringNumberInfinity } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { transformStringNumberInfinityArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,12 +14,17 @@ interface ZRangeOptions {
     };
 }
 
-export function transformArguments(key: string, min: string | number, max: string | number, options?: ZRangeOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    min: RedisCommandArgument | number,
+    max: RedisCommandArgument | number,
+    options?: ZRangeOptions
+): RedisCommandArguments {
     const args = [
         'ZRANGE',
         key,
-        transformArgumentStringNumberInfinity(min),
-        transformArgumentStringNumberInfinity(max)
+        transformStringNumberInfinityArgument(min),
+        transformStringNumberInfinityArgument(max)
     ];
 
     switch (options?.BY) {
@@ -42,4 +48,4 @@ export function transformArguments(key: string, min: string | number, max: strin
     return args;
 }
 
-export declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<RedisCommandArgument>;

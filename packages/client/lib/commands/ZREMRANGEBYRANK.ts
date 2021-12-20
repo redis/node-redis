@@ -1,6 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, start: number, stop: number): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    start: number,
+    stop: number
+): RedisCommandArguments {
     return ['ZREMRANGEBYRANK', key, start.toString(), stop.toString()];
 }
 

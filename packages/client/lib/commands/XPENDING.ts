@@ -13,20 +13,20 @@ export function transformArguments(
 
 type XPendingRawReply = [
     pending: number,
-    firstId: string | null,
-    lastId: string | null,
+    firstId: RedisCommandArgument | null,
+    lastId: RedisCommandArgument | null,
     consumers: Array<[
-        name: string,
+        name: RedisCommandArgument,
         deliveriesCounter: number
     ]> | null
 ]
 
 interface XPendingReply {
     pending: number;
-    firstId: string | null;
-    lastId: string | null
+    firstId: RedisCommandArgument | null;
+    lastId: RedisCommandArgument | null
     consumers: Array<{
-        name: string,
+        name: RedisCommandArgument,
         deliveriesCounter: number
     }> | null;
 }

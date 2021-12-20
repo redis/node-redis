@@ -8,4 +8,4 @@ export function transformArguments(key: RedisCommandArgument): RedisCommandArgum
     return ['GET', key];
 }
 
-export declare function transformReply(): string | null;
+export declare function transformReply(): RedisCommandArgument | null;

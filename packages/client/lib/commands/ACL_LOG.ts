@@ -1,4 +1,6 @@
-export function transformArguments(count?: number): Array<string> {
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export function transformArguments(count?: number): RedisCommandArguments {
     const args = ['ACL', 'LOG'];
 
     if (count) {
@@ -9,30 +11,30 @@ export function transformArguments(count?: number): Array<string> {
 }
 
 type AclLogRawReply = [
-    _: string,
+    _: RedisCommandArgument,
     count: number,
-    _: string,
-    reason: string,
-    _: string,
-    context: string,
-    _: string,
-    object: string,
-    _: string,
-    username: string,
-    _: string,
-    ageSeconds: string,
-    _: string,
-    clientInfo: string
+    _: RedisCommandArgument,
+    reason: RedisCommandArgument,
+    _: RedisCommandArgument,
+    context: RedisCommandArgument,
+    _: RedisCommandArgument,
+    object: RedisCommandArgument,
+    _: RedisCommandArgument,
+    username: RedisCommandArgument,
+    _: RedisCommandArgument,
+    ageSeconds: RedisCommandArgument,
+    _: RedisCommandArgument,
+    clientInfo: RedisCommandArgument
 ];
 
 interface AclLog {
     count: number;
-    reason: string;
-    context: string;
-    object: string;
-    username: string;
+    reason: RedisCommandArgument;
+    context: RedisCommandArgument;
+    object: RedisCommandArgument;
+    username: RedisCommandArgument;
     ageSeconds: number;
-    clientInfo: string;
+    clientInfo: RedisCommandArgument;
 }
 
 export function transformReply(reply: Array<AclLogRawReply>): Array<AclLog> {
