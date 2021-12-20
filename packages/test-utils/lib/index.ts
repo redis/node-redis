@@ -91,7 +91,7 @@ export default class TestUtils<M extends RedisModules, S extends RedisScripts> {
         let dockerPromise: ReturnType<typeof spawnRedisServer>;
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
             const dockerImage = this.#DOCKER_IMAGE;
-            before(function () {
+            before('spawn redis server', function () {
                 this.timeout(30000);
 
                 dockerPromise = spawnRedisServer(dockerImage, options.serverArguments);
@@ -142,7 +142,7 @@ export default class TestUtils<M extends RedisModules, S extends RedisScripts> {
         let dockersPromise: ReturnType<typeof spawnRedisCluster>;
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
             const dockerImage = this.#DOCKER_IMAGE;
-            before(function () {
+            before('spawn redis cluster', function () {
                 this.timeout(30000);
 
                 dockersPromise = spawnRedisCluster({
