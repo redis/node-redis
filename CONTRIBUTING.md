@@ -43,7 +43,8 @@ A huge thank you to the original author of Node Redis, [Matthew Ranney](https://
 
 ### Testing Code
 
-Node Redis has a full test suite with coverage setup.
+Node Redis has a full test suite with coverage setup. To get started you must be running npm version 7+ as this project
+makes use of [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces).
 
 To run the tests, run `npm install` to install dependencies, then run `npm run build:tests-tools && npm test`.
 
