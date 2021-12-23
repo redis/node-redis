@@ -15,7 +15,7 @@ const modules =  {
     ts: RedisTimeSeries
 };
 
-export function createClient<S extends RedisScripts = Record<string, never>>(
+export function createClient<S extends RedisScripts>(
     options?: Omit<RedisClientOptions<never, S>, 'modules'>
 ): RedisClientType<typeof modules, S> {
     return _createClient({
@@ -24,7 +24,7 @@ export function createClient<S extends RedisScripts = Record<string, never>>(
     });
 }
 
-export function createCluster<S extends RedisScripts = Record<string, never>>(
+export function createCluster<S extends RedisScripts>(
     options: Omit<RedisClusterOptions<never, S>, 'modules'>
 ): RedisClusterType<typeof modules, S> {
     return _createCluster({

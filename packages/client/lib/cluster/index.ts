@@ -20,10 +20,10 @@ type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
 };
 
-export type RedisClusterType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
+export type RedisClusterType<M extends RedisModules, S extends RedisScripts> =
     RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
-export default class RedisCluster<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> extends EventEmitter {
+export default class RedisCluster<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): RedisCommandArgument | undefined {
         if (command.FIRST_KEY_INDEX === undefined) {
             return undefined;
@@ -34,7 +34,7 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
         return command.FIRST_KEY_INDEX(...originalArgs);
     }
 
-    static create<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>>(options?: RedisClusterOptions<M, S>): RedisClusterType<M, S> {
+    static create<M extends RedisModules, S extends RedisScripts>(options?: RedisClusterOptions<M, S>): RedisClusterType<M, S> {
         return new (<any>extendWithModulesAndScripts({
             BaseClass: RedisCluster,
             modules: options?.modules,

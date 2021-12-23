@@ -34,9 +34,11 @@ type ConvertArgumentType<Type, ToType> =
     ) : (
         Type extends Set<infer Member> ? Set<ConvertArgumentType<Member, ToType>> : (
             Type extends Map<infer Key, infer Value> ? Map<Key, ConvertArgumentType<Value, ToType>> : (
-                Type extends Record<keyof any, any> ? {
-                    [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
-                } : Type
+                Type extends Array<infer Member> ? Array<ConvertArgumentType<Member, ToType>> : (
+                    Type extends Record<keyof any, any> ? {
+                        [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
+                    } : Type
+                )
             )
         )
     );
@@ -57,21 +59,23 @@ type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
 };
 
+export type ExcludeMappedString<S> = string extends S ? never : S;
+
 export type WithModules<M extends RedisModules> = {
-    [P in keyof M as M[P] extends never ? never : P]: {
-        [C in keyof M[P]]: RedisClientCommandSignature<M[P][C]>;
+    [P in keyof M as ExcludeMappedString<P>]: {
+        [C in keyof M[P] as ExcludeMappedString<C>]: RedisClientCommandSignature<M[P][C]>;
     };
 };
 
 export type WithScripts<S extends RedisScripts> = {
-    [P in keyof S as S[P] extends never ? never : P]: RedisClientCommandSignature<S[P]>;
+    [P in keyof S as ExcludeMappedString<P>]: RedisClientCommandSignature<S[P]>;
 };
 
-export type RedisClientType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
+export type RedisClientType<M extends RedisModules, S extends RedisScripts> =
     RedisClient<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
 export type InstantiableRedisClient<M extends RedisModules, S extends RedisScripts> =
-    new (...args: ConstructorParameters<typeof RedisClient>) => RedisClientType<M, S>;
+    new (options?: RedisClientOptions<M, S>) => RedisClientType<M, S>;
 
 export interface ClientCommandOptions extends QueueCommandOptions {
     isolated?: boolean;
@@ -85,7 +89,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         return commandOptions(options);
     }
 
-    static extend<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>>(plugins?: RedisPlugins<M, S>): InstantiableRedisClient<M, S> {
+    static extend<M extends RedisModules, S extends RedisScripts>(plugins?: RedisPlugins<M, S>): InstantiableRedisClient<M, S> {
         const Client = <any>extendWithModulesAndScripts({
             BaseClass: RedisClient,
             modules: plugins?.modules,
@@ -101,7 +105,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         return Client;
     }
 
-    static create<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
+    static create<M extends RedisModules, S extends RedisScripts>(options?: RedisClientOptions<M, S>): RedisClientType<M, S> {
         return new (RedisClient.extend(options))(options);
     }
 

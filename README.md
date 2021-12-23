@@ -122,7 +122,11 @@ This pattern works especially well for blocking commands—such as `BLPOP` and `
 ```typescript
 import { commandOptions } from 'redis';
 
-const blPopPromise = client.blPop(commandOptions({ isolated: true }), 'key', 0);
+const blPopPromise = client.blPop(
+  commandOptions({ isolated: true }),
+  'key',
+  0
+);
 
 await client.lPush('key', ['1', '2']);
 

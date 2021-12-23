@@ -573,8 +573,8 @@ describe('Client', () => {
     describe('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
             function assertStringListener(message: string, channel: string) {
-                assert.ok(typeof message === 'string');
-                assert.ok(typeof channel === 'string');
+                assert.equal(typeof message, 'string');
+                assert.equal(typeof channel, 'string');
             }
 
             function assertBufferListener(message: Buffer, channel: Buffer) {
