@@ -10,4 +10,4 @@ export function transformArguments(
     return ['BRPOPLPUSH', source, destination, timeout.toString()];
 }
 
-export declare function transformReply(): string | null;
+export declare function transformReply(): RedisCommandArgument | null;

@@ -1,3 +1,5 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 interface CopyCommandOptions {
     destinationDb?: number;
     replace?: boolean;
@@ -5,7 +7,11 @@ interface CopyCommandOptions {
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(source: string, destination: string, options?: CopyCommandOptions): Array<string> {
+export function transformArguments(
+    source: RedisCommandArgument,
+    destination: RedisCommandArgument,
+    options?: CopyCommandOptions
+): RedisCommandArguments {
     const args = ['COPY', source, destination];
 
     if (options?.destinationDb) {
@@ -19,4 +25,4 @@ export function transformArguments(source: string, destination: string, options?
     return args;
 }
 
-export { transformReplyBoolean as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from './generic-transformers';

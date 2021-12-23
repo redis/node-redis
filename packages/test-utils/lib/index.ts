@@ -5,12 +5,10 @@ import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-interface TestUtilsConfig<M extends RedisModules, S extends RedisScripts> {
+interface TestUtilsConfig {
     dockerImageName: string;
     dockerImageVersionArgument: string;
     defaultDockerVersion: string;
-    defaultClientOptions?: Partial<RedisClientOptions<M, S>>;
-    defaultClusterOptions?: Partial<RedisClusterOptions<M, S>>;
 }
 
 interface CommonTestOptions {
@@ -29,7 +27,7 @@ interface ClusterTestOptions<M extends RedisModules, S extends RedisScripts> ext
     numberOfNodes?: number;
 }
 
-export default class TestUtils<M extends RedisModules, S extends RedisScripts> {
+export default class TestUtils {
     static #getVersion(argumentName: string, defaultVersion: string): Array<number> {
         return yargs(hideBin(process.argv))
             .option(argumentName, {
@@ -52,7 +50,7 @@ export default class TestUtils<M extends RedisModules, S extends RedisScripts> {
 
     readonly #DOCKER_IMAGE: RedisServerDockerConfig;
 
-    constructor(config: TestUtilsConfig<M, S>) {
+    constructor(config: TestUtilsConfig) {
         this.#DOCKER_IMAGE = {
             image: config.dockerImageName,
             version: TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion)

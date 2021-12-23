@@ -1,6 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { transformEXAT } from './generic-transformers';
 
-export function transformArguments(key: string, timestamp: number | Date): Array<string> {
+export const FIRST_KEY_INDEX = 1;
+
+export function transformArguments(
+    key: RedisCommandArgument,
+    timestamp: number | Date
+): RedisCommandArguments {
     return [
         'EXPIREAT',
         key,
@@ -8,4 +14,4 @@ export function transformArguments(key: string, timestamp: number | Date): Array
     ];
 }
 
-export { transformReplyBoolean as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from './generic-transformers';

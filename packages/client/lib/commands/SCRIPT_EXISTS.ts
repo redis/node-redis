@@ -5,4 +5,4 @@ export function transformArguments(sha1: string | Array<string>): RedisCommandAr
     return pushVerdictArguments(['SCRIPT', 'EXISTS'], sha1);
 }
 
-export { transformReplyBooleanArray as transformReply } from './generic-transformers';
+export { transformBooleanArrayReply as transformReply } from './generic-transformers';

@@ -11,6 +11,7 @@ describe('PSETEX', () => {
     });
 
     testUtils.testWithClient('client.pSetEx', async client => {
+        const a = await client.pSetEx('key', 1, 'value');
         assert.equal(
             await client.pSetEx('key', 1, 'value'),
             'OK'

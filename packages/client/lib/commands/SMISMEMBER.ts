@@ -1,7 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, members: Array<string>): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    members: Array<RedisCommandArgument>
+): RedisCommandArguments {
     return ['SMISMEMBER', key, ...members];
 }
 
-export { transformReplyBooleanArray as transformReply } from './generic-transformers';
+export { transformBooleanArrayReply as transformReply } from './generic-transformers';

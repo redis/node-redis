@@ -1,26 +1,28 @@
-export function transformArguments(username: string): Array<string> {
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export function transformArguments(username: RedisCommandArgument): RedisCommandArguments {
     return ['ACL', 'GETUSER', username];
 }
 
 type AclGetUserRawReply = [
-    _: string,
-    flags: Array<string>,
-    _: string,
-    passwords: Array<string>,
-    _: string,
-    commands: string,
-    _: string,
-    keys: Array<string>,
-    _: string,
-    channels: Array<string>
+    _: RedisCommandArgument,
+    flags: Array<RedisCommandArgument>,
+    _: RedisCommandArgument,
+    passwords: Array<RedisCommandArgument>,
+    _: RedisCommandArgument,
+    commands: RedisCommandArgument,
+    _: RedisCommandArgument,
+    keys: Array<RedisCommandArgument>,
+    _: RedisCommandArgument,
+    channels: Array<RedisCommandArgument>
 ];
 
 interface AclUser {
-    flags: Array<string>;
-    passwords: Array<string>;
-    commands: string;
-    keys: Array<string>;
-    channels: Array<string>
+    flags: Array<RedisCommandArgument>;
+    passwords: Array<RedisCommandArgument>;
+    commands: RedisCommandArgument;
+    keys: Array<RedisCommandArgument>;
+    channels: Array<RedisCommandArgument>
 }
 
 export function transformReply(reply: AclGetUserRawReply): AclUser {

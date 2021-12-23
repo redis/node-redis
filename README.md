@@ -75,6 +75,16 @@ await client.hGetAll('key'); // { field1: 'value1', field2: 'value2' }
 await client.hVals('key'); // ['value1', 'value2']
 ```
 
+`Buffer`s are supported as well:
+
+```typescript
+await client.hSet('key', 'field', Buffer.from('value')); // 'OK'
+await client.hGetAll(
+  commandOptions({ returnBuffers: true }),
+  'key'
+); // { field: <Buffer 76 61 6c 75 65> }
+```
+
 ### Unsupported Redis Commands
 
 If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`:
@@ -112,7 +122,11 @@ This pattern works especially well for blocking commands—such as `BLPOP` and `
 ```typescript
 import { commandOptions } from 'redis';
 
-const blPopPromise = client.blPop(commandOptions({ isolated: true }), 'key', 0);
+const blPopPromise = client.blPop(
+  commandOptions({ isolated: true }),
+  'key',
+  0
+);
 
 await client.lPush('key', ['1', '2']);
 

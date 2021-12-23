@@ -18,4 +18,4 @@ export function transformArguments(
     ];
 }
 
-export declare function transfromReply(): 'OK';
+export declare function transformReply(): 'OK';

@@ -8,4 +8,4 @@ export function transformArguments(sourceKey: string, destinationKey: string): A
     ];
 }
 
-export declare function transfromReply(): 'OK';
+export declare function transformReply(): 'OK';

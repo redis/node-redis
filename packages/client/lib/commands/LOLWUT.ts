@@ -1,3 +1,5 @@
+import { RedisCommandArgument } from '.';
+
 export const IS_READ_ONLY = true;
 
 export function transformArguments(version?: number, ...optionalArguments: Array<number>): Array<string> {
@@ -14,4 +16,4 @@ export function transformArguments(version?: number, ...optionalArguments: Array
     return args;
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

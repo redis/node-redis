@@ -1,9 +1,11 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export interface AuthOptions {
-    username?: string;
-    password: string;
+    username?: RedisCommandArgument;
+    password: RedisCommandArgument;
 }
 
-export function transformArguments({username, password}: AuthOptions): Array<string> {
+export function transformArguments({ username, password }: AuthOptions): RedisCommandArguments {
     if (!username) {
         return ['AUTH', password];
     }
@@ -11,4 +13,4 @@ export function transformArguments({username, password}: AuthOptions): Array<str
     return ['AUTH', username, password];
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

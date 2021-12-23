@@ -23,4 +23,4 @@ export function transformArguments(
     return args;
 }
 
-export { transformReplyStreamStringMessages as transformReply } from './generic-transformers';
+export { transformStreamMessagesReply as transformReply } from './generic-transformers';

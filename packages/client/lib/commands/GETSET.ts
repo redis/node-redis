@@ -1,7 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, value: string): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    value: RedisCommandArgument
+): RedisCommandArguments {
     return ['GETSET', key, value];
 }
 
-export declare function transformReply(): string | null;
+export declare function transformReply(): RedisCommandArgument | null;

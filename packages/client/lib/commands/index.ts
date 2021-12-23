@@ -1,6 +1,10 @@
 import { RedisScriptConfig, SHA1 } from '../lua-script';
 
-export type RedisCommandRawReply = string | number | Buffer | Array<RedisCommandRawReply> | null | undefined;
+
+// https://github.com/Microsoft/TypeScript/issues/3496#issuecomment-128553540
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface RedisCommandRawReplyArray extends Array<RedisCommandRawReply> {}
+export type RedisCommandRawReply = string | number | Buffer | null | undefined | RedisCommandRawReplyArray;
 
 export type RedisCommandArgument = string | Buffer;
 
@@ -10,8 +14,7 @@ export interface RedisCommand {
     FIRST_KEY_INDEX?: number | ((...args: Array<any>) => RedisCommandArgument);
     IS_READ_ONLY?: boolean;
     transformArguments(this: void, ...args: Array<any>): RedisCommandArguments;
-    BUFFER_MODE?: boolean;
-    transformReply?(this: void, reply: RedisCommandRawReply, preserved?: unknown): any;
+    transformReply?(this: void, reply: any, preserved?: any): any;
 }
 
 export type RedisCommandReply<C extends RedisCommand> = C['transformReply'] extends (...args: any) => infer T ? T : RedisCommandRawReply;

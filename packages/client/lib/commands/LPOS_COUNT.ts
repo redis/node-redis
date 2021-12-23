@@ -1,8 +1,14 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { LPosOptions } from './LPOS';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './LPOS';
 
-export function transformArguments(key: string, element: string, count: number, options?: LPosOptions): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    element: RedisCommandArgument,
+    count: number,
+    options?: LPosOptions
+): RedisCommandArguments {
     const args = ['LPOS', key, element];
 
     if (typeof options?.RANK === 'number') {

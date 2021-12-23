@@ -1,4 +1,6 @@
-export function transformArguments(bits?: number): Array<string> {
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export function transformArguments(bits?: number): RedisCommandArguments {
     const args = ['ACL', 'GENPASS'];
 
     if (bits) {
@@ -8,4 +10,4 @@ export function transformArguments(bits?: number): Array<string> {
     return args;
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;
