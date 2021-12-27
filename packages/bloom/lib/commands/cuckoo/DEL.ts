@@ -4,4 +4,4 @@ export function transformArguments(key: string, item: string): Array<string> {
     return ['CF.DEL', key, item];
 }
 
-export { transformStringReply as transformReply } from '.';
+export { transformBooleanReply as transformReply } from '@node-redis/client/dist/lib/commands/generic-transformers';

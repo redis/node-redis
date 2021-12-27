@@ -5,17 +5,17 @@ import { transformArguments } from './ADD';
 describe('TOPK ADD', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('test', 'foo', 'bar'),
-            ['TOPK.ADD', 'test', 'foo', 'bar']
+            transformArguments('key', 'item'),
+            ['TOPK.ADD', 'key', 'item']
         );
     });
 
-    testUtils.testWithClient('client.topk.add', async client => {
-        await client.topk.reserve('topK', 3, [50, 3, 0.9]);
+    testUtils.testWithClient('client.topK.add', async client => {
+        await client.topK.reserve('topK', 3);
 
         assert.deepEqual(
-            await client.topk.add('topK', 'A', 'B', 'C', 'D'), 
-            [null, null, null, 'A']
+            await client.topK.add('topK', 'item'),
+            [null]
         );
 
     }, GLOBAL.SERVERS.OPEN);

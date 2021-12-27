@@ -1,14 +1,24 @@
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, iter: number): Array<string> {
-    return ['BF.SCANDUMP', key, iter.toString()];
+export const IS_READ_ONLY = true;
+
+export function transformArguments(key: string, iterator: number): Array<string> {
+    return ['BF.SCANDUMP', key, iterator.toString()];
 }
 
-type ScanDumpReply = [iter: number, data: string];
+type ScanDumpRawReply = [
+    iterator: number,
+    chunk: string
+];
 
-export function transformReply([itererator, data]: [string, string]): ScanDumpReply {
-    return [
-        Number(itererator),
-        data
-    ]; 
+interface ScanDumpReply {
+    iterator: number;
+    chunk: string;
+}
+
+export function transformReply([iterator, chunk]: ScanDumpRawReply): ScanDumpReply {
+    return {
+        iterator,
+        chunk
+    };
 }

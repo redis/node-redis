@@ -5,18 +5,17 @@ import { transformArguments } from './LIST';
 describe('TOPK LIST', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('test'),
-            ['TOPK.LIST', 'test']
+            transformArguments('key'),
+            ['TOPK.LIST', 'key']
         );
     });
 
-    testUtils.testWithClient('client.topk.list', async client => {
-        await Promise.all([
-            client.topk.reserve('topK', 3, [50, 3, 0.9]),
-            client.topk.add('topK', 'A', 'B', 'C', 'D', 'E','A', 'A', 'B', 'C',
-            'G', 'D', 'B', 'D', 'A', 'E', 'E')
-        ]);
+    testUtils.testWithClient('client.topK.list', async client => {
+        await client.topK.reserve('key', 3);
 
-        assert.deepEqual(await client.topk.list('topK'), ['A', 'B', 'E']);
+        assert.deepEqual(
+            await client.topK.list('key'),
+            []
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

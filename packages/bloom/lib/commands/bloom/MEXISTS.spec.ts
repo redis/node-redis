@@ -3,20 +3,17 @@ import testUtils, { GLOBAL } from '../../test-utils';
 import { transformArguments } from './MEXISTS';
 
 describe('BF MEXISTS', () => {
-    describe('transformArguments', () => {
-        it('basic add', () => {
-            assert.deepEqual(
-                transformArguments('BLOOM', 'foo', 'bar'),
-                ['BF.MEXISTS', 'BLOOM', 'foo', 'bar']
-            );
-        });
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('key', ['1', '2']),
+            ['BF.MEXISTS', 'key', '1', '2']
+        );
     });
 
-    testUtils.testWithClient('client.bf.exists', async client => {
-        await client.bf.add('BLOOM', 'foo');
+    testUtils.testWithClient('client.bf.mExists', async client => {
         assert.deepEqual(
-            await client.bf.mExists('BLOOM', 'foo', 'bar'), 
-            [true, false]
+            await client.bf.mExists('key', ['1', '2']),
+            [false, false]
         );
     }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,16 +1,24 @@
 export const FIRST_KEY_INDEX = 1;
 
+interface ReserveOptions {
+    width: number;
+    depth: number;
+    decay: number;
+}
+
 export function transformArguments(
-    key: string, 
-    topK: number, 
-    options?: [width: number, depth: number, decay: number]
+    key: string,
+    topK: number,
+    options?: ReserveOptions
 ): Array<string> {
     const args = ['TOPK.RESERVE', key, topK.toString()];
-    
+
     if (options) {
-        args.push(options[0].toString());
-        args.push(options[1].toString());
-        args.push(options[2].toString());
+        args.push(
+            options.width.toString(),
+            options.depth.toString(),
+            options.decay.toString()
+        );
     }
 
     return args;

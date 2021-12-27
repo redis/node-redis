@@ -7,5 +7,5 @@ export default {
     bf: Bloom,
     cms: CountMinSketch,
     cf: Cuckoo,
-    topk: TopK
+    topK: TopK
 };

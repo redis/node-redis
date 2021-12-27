@@ -12,7 +12,7 @@ export type InfoRawReply = [
     _: string,
     depth: number,
     _: string,
-    count: number,
+    count: number
 ];
 
 export interface InfoReply {

@@ -3,15 +3,40 @@ import testUtils, { GLOBAL } from '../../test-utils';
 import { transformArguments } from './INCRBY';
 
 describe('TOPK INCRBY', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('test', { foo: 10, bar: 42 }),
-            ['TOPK.INCRBY', 'test', 'foo', '10', 'bar', '42']
-        );
+    describe('transformArguments', () => {
+        it('single item', () => {
+            assert.deepEqual(
+                transformArguments('key', {
+                    item: 'item',
+                    incrementBy: 1
+                }),
+                ['TOPK.INCRBY', 'key', 'item', '1']
+            );
+        });
+
+        it('multiple items', () => {
+            assert.deepEqual(
+                transformArguments('key', [{
+                    item: 'a',
+                    incrementBy: 1
+                }, {
+                    item: 'b',
+                    incrementBy: 2
+                }]),
+                ['TOPK.INCRBY', 'key', 'a', '1', 'b', '2']
+            );
+        });
     });
 
-    testUtils.testWithClient('client.topk.incrby', async client => {
-        await client.topk.reserve('A', 5);
-        assert.deepEqual(await client.topk.incrBy('A', { foo: 10 }), [null]);
+    testUtils.testWithClient('client.topK.incrby', async client => {
+        await client.topK.reserve('key', 5);
+
+        assert.deepEqual(
+            await client.topK.incrBy('key', {
+                item: 'item',
+                incrementBy: 1
+            }),
+            [null]
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

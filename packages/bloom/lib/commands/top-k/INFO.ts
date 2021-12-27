@@ -8,20 +8,20 @@ export function transformArguments(key: string): Array<string> {
 
 export type InfoRawReply = [
     _: string,
-    K: number,
+    k: number,
     _: string,
     width: number,
     _: string,
     depth: number,
     _: string,
-    decay: string,
+    decay: string
 ];
 
 export interface InfoReply {
     k: number,
     width: number;
     depth: number;
-    decay: string;
+    decay: number;
 }
 
 export function transformReply(reply: InfoRawReply): InfoReply {
@@ -29,6 +29,6 @@ export function transformReply(reply: InfoRawReply): InfoReply {
         k: reply[1],
         width: reply[3],
         depth: reply[5],
-        decay: reply[7]
+        decay: Number(reply[7])
     };
 }

@@ -22,7 +22,7 @@ export type InfoRawReply = [
     _: string,
     expansionRate: number,
     _: string,
-    maxIteration: number,
+    maxIteration: number
 ];
 
 export interface InfoReply {

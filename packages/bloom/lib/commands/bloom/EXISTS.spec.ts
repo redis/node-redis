@@ -3,17 +3,17 @@ import testUtils, { GLOBAL } from '../../test-utils';
 import { transformArguments } from './EXISTS';
 
 describe('BF EXISTS', () => {
-    describe('transformArguments', () => {
-        it('basic add', () => {
-            assert.deepEqual(
-                transformArguments('bloom', 'foo'),
-                ['BF.EXISTS', 'bloom', 'foo']
-            );
-        });
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('key', 'item'),
+            ['BF.EXISTS', 'key', 'item']
+        );
     });
 
     testUtils.testWithClient('client.bf.exists', async client => {
-        await client.bf.add('bloom', 'foo'); 
-        assert.ok(await client.bf.exists('bloom', 'foo'));
+        assert.equal(
+            await client.bf.exists('key', 'item'),
+            false
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,7 +1,13 @@
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { pushVerdictArguments } from '@node-redis/client/dist/lib/commands/generic-transformers';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, ...items: Array<string>): Array<string> {
-    return ['TOPK.ADD', key, ...items];
+export function transformArguments(
+    key: string,
+    items: string | Array<string>
+): RedisCommandArguments {
+    return pushVerdictArguments(['TOPK.ADD', key], items);
 }
 
-export declare function transformReply(): Array<any>;
+export declare function transformReply(): Array<null | string>;

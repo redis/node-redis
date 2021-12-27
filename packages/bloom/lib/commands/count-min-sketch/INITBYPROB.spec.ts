@@ -5,12 +5,15 @@ import { transformArguments } from './INITBYPROB';
 describe('CMS INITBYPROB', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('prob', 0.001, 0.01),
-            ['CMS.INITBYPROB', 'prob', '0.001', '0.01']
+            transformArguments('key', 0.001, 0.01),
+            ['CMS.INITBYPROB', 'key', '0.001', '0.01']
         );
     });
 
-    testUtils.testWithClient('client.cms.initbyprob', async client => {
-        assert.equal(await client.cms.initByProb('prob', 0.001, 0.01), 'OK');
+    testUtils.testWithClient('client.cms.initByProb', async client => {
+        assert.equal(
+            await client.cms.initByProb('key', 0.001, 0.01),
+            'OK'
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

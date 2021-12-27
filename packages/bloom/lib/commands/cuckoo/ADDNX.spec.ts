@@ -6,13 +6,16 @@ describe('CF ADDNX', () => {
     describe('transformArguments', () => {
         it('basic add', () => {
             assert.deepEqual(
-                transformArguments('cuckoo', 'foo'),
-                ['CF.ADDNX', 'cuckoo', 'foo']
+                transformArguments('key', 'item'),
+                ['CF.ADDNX', 'key', 'item']
             );
         });
     });
 
     testUtils.testWithClient('client.cf.add', async client => {
-        assert.ok(await client.cf.addNX('cuckoo', 'foo'));
+        assert.equal(
+            await client.cf.addNX('key', 'item'),
+            true
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

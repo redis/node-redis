@@ -5,16 +5,16 @@ import { transformArguments } from './INFO';
 describe('CMS INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('cms'),
-            ['CMS.INFO', 'cms']
+            transformArguments('key'),
+            ['CMS.INFO', 'key']
         );
     });
 
     testUtils.testWithClient('client.cms.info', async client => {
-        await client.cms.initByDim('A', 1000, 5);
+        await client.cms.initByDim('key', 1000, 5);
 
         assert.deepEqual(
-            await client.cms.info('A'),
+            await client.cms.info('key'),
             {
                 width: 1000,
                 depth: 5,

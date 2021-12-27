@@ -1,64 +1,62 @@
-import * as RESERVE from './RESERVE';
+
 import * as ADD from './ADD';
 import * as ADDNX from './ADDNX';
-import * as DEL from './DEL';
 import * as COUNT from './COUNT';
+import * as DEL from './DEL';
+import * as EXISTS from './EXISTS';
+import * as INFO from './INFO';
 import * as INSERT from './INSERT';
 import * as INSERTNX from './INSERTNX';
-import * as EXISTS from './EXISTS';
-import * as SCANDUMP from './SCANDUMP';
 import * as LOADCHUNK from './LOADCHUNK';
-import * as INFO from './INFO';
+import * as RESERVE from './RESERVE';
+import * as SCANDUMP from './SCANDUMP';
 import { pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 
 export default {
-    RESERVE,
-    reserve: RESERVE,
     ADD,
     add: ADD,
     ADDNX,
     addNX: ADDNX,
-    DEL,
-    del: DEL,
     COUNT,
     count: COUNT,
-    INSERT,
-    insert: INSERT,    
-    INSERTNX,
-    insertNX: INSERTNX,
+    DEL,
+    del: DEL,
     EXISTS,
     exists: EXISTS,
-    SCANDUMP,
-    scanDump: SCANDUMP,
+    INFO,
+    info: INFO,
+    INSERT,
+    insert: INSERT,
+    INSERTNX,
+    insertNX: INSERTNX,
     LOADCHUNK,
     loadChunk: LOADCHUNK,
-    INFO,
-    info: INFO
+    RESERVE,
+    reserve: RESERVE,
+    SCANDUMP,
+    scanDump: SCANDUMP
 };
 
-export type InsertOptions = {
-    capacity?: number,
-    nocreate?: true,
+export interface InsertOptions {
+    CAPACITY?: number;
+    NOCREATE?: true;
 }
 
-export function pushInsertOptions(args: Array<string>, items: Array<string>, options?: InsertOptions) {
-    if (options?.capacity) {
+export function pushInsertOptions(
+    args: RedisCommandArguments,
+    items: string | Array<string>,
+    options?: InsertOptions
+): RedisCommandArguments {
+    if (options?.CAPACITY) {
         args.push('CAPACITY');
-        args.push(options.capacity.toString());
+        args.push(options.CAPACITY.toString());
     }
 
-    if (options?.nocreate) {
+    if (options?.NOCREATE) {
         args.push('NOCREATE');
     }
 
     args.push('ITEMS');
-    pushVerdictArguments(args, items)
-}
-
-export function transformArrayReply(reply: Array<string>): Array<boolean> {
-    return reply.map(a => a == '1');
-}
-
-export function transformStringReply(reply: string): boolean {
-    return reply == '1';
+    return pushVerdictArguments(args, items);
 }

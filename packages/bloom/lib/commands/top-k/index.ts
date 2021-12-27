@@ -1,24 +1,24 @@
-import * as RESERVE from './RESERVE';
-import * as INCRBY from './INCRBY';
 import * as ADD from './ADD';
-import * as QUERY from './QUERY';
 import * as COUNT from './COUNT';
-import * as LIST from './LIST';
+import * as INCRBY from './INCRBY';
 import * as INFO from './INFO';
+import * as LIST from './LIST';
+import * as QUERY from './QUERY';
+import * as RESERVE from './RESERVE';
 
 export default {
-    RESERVE,
-    reserve: RESERVE,
-    INCRBY,
-    incrBy: INCRBY,
     ADD,
     add: ADD,
-    QUERY,
-    query: QUERY,
     COUNT,
     count: COUNT,
+    INCRBY,
+    incrBy: INCRBY,
+    INFO,
+    info: INFO,
     LIST,
     list: LIST,
-    INFO,
-    info: INFO
+    QUERY,
+    query: QUERY,
+    RESERVE,
+    reserve: RESERVE
 };

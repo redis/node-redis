@@ -3,32 +3,20 @@ import testUtils, { GLOBAL } from '../../test-utils';
 import { transformArguments } from './INSERTNX';
 
 describe('CF INSERTNX', () => {
-    describe('transformArguments', () => {
-        it('no options, multiple items', () => {
-            assert.deepEqual(
-                transformArguments('cuckoo', {}, 'bar', 'foo'),
-                ['CF.INSERTNX', 'cuckoo', 'ITEMS', 'bar', 'foo']
-            );
-        });
-
-        it('with CAPACITY', () => {
-            assert.deepEqual(
-                transformArguments('cuckoo', { capacity: 100 }, 'foo'),
-                ['CF.INSERTNX', 'cuckoo', 'CAPACITY', '100', 'ITEMS', 'foo']
-            );
-        });
-
-        it('with NOCREATE', () => {
-            assert.deepEqual(
-                transformArguments('cuckoo', { nocreate: true }, 'foo'),
-                ['CF.INSERTNX', 'cuckoo', 'NOCREATE', 'ITEMS', 'foo']
-            );
-        });
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('key', 'item', {
+                CAPACITY: 100,
+                NOCREATE: true
+             }),
+            ['CF.INSERTNX', 'key', 'CAPACITY', '100', 'NOCREATE', 'ITEMS', 'item']
+        );
     });
 
     testUtils.testWithClient('client.cf.insertnx', async client => {
         assert.deepEqual(
-            await client.cf.insertNX('cuckoo', {}, 'foo', 'bar'), [true, true] 
+            await client.cf.insertNX('key', 'item'),
+            [true]
         );
     }, GLOBAL.SERVERS.OPEN);
 });

@@ -5,12 +5,15 @@ import { transformArguments } from './INITBYDIM';
 describe('CMS INITBYDIM', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('dim', 1000, 5),
-            ['CMS.INITBYDIM', 'dim', '1000', '5']
+            transformArguments('key', 1000, 5),
+            ['CMS.INITBYDIM', 'key', '1000', '5']
         );
     });
 
-    testUtils.testWithClient('client.cms.initbydim', async client => {
-        assert.equal(await client.cms.initByDim('dim', 1000, 5), 'OK');
+    testUtils.testWithClient('client.cms.initByDim', async client => {
+        assert.equal(
+            await client.cms.initByDim('key', 1000, 5),
+            'OK'
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

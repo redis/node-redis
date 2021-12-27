@@ -1,7 +1,7 @@
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, ...items: Array<string>): Array<string> {
+export function transformArguments(key: string, items: Array<string>): Array<string> {
     return ['BF.MADD', key, ...items];
 }
 
-export { transformArrayReply as transformReply } from '.';
+export { transformBooleanArrayReply as transformReply } from '@node-redis/client/dist/lib/commands/generic-transformers';

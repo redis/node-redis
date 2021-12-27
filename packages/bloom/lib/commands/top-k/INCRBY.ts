@@ -1,16 +1,29 @@
 export const FIRST_KEY_INDEX = 1;
 
-export type Tupels = {
-    [item: string]: number;
-};
+interface IncrByItem {
+    item: string;
+    incrementBy: number;
+}
 
-export function transformArguments(key: string, tuples: Tupels): Array<string> {
-    const args = ['TOPK.INCRBY', key]
-    for (const [item, increment] of Object.entries(tuples)) {
-        args.push(item, increment.toString());
+export function transformArguments(
+    key: string,
+    items: IncrByItem | Array<IncrByItem>
+): Array<string> {
+    const args = ['TOPK.INCRBY', key];
+
+    if (Array.isArray(items)) {
+        for (const item of items) {
+            pushIncrByItem(args, item);
+        }
+    } else {
+        pushIncrByItem(args, items);
     }
-    
+
     return args;
 }
 
-export declare function transformReply(): Array<any>;
+function pushIncrByItem(args: Array<string>, { item, incrementBy }: IncrByItem): void {
+    args.push(item, incrementBy.toString());
+}
+
+export declare function transformReply(): Array<string | null>;

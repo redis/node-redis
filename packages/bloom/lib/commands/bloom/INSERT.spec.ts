@@ -4,52 +4,66 @@ import { transformArguments } from './INSERT';
 
 describe('BF INSERT', () => {
     describe('transformArguments', () => {
-        it('no options, multiple items', () => {
+        it('simple', () => {
             assert.deepEqual(
-                transformArguments('bloom', {}, 'bar', 'foo'),
-                ['BF.INSERT', 'bloom', 'ITEMS', 'bar', 'foo']
+                transformArguments('key', 'item'),
+                ['BF.INSERT', 'key', 'ITEMS', 'item']
             );
         });
 
         it('with CAPACITY', () => {
             assert.deepEqual(
-                transformArguments('bloom', { capacity: 100 }, 'foo'),
-                ['BF.INSERT', 'bloom', 'CAPACITY', '100', 'ITEMS', 'foo']
+                transformArguments('key', 'item', { CAPACITY: 100 }),
+                ['BF.INSERT', 'key', 'CAPACITY', '100', 'ITEMS', 'item']
             );
         });
 
         it('with ERROR', () => {
             assert.deepEqual(
-                transformArguments('bloom', { error: 0.01 }, 'foo'),
-                ['BF.INSERT', 'bloom', 'ERROR', '0.01', 'ITEMS', 'foo']
+                transformArguments('key', 'item', { ERROR: 0.01 }),
+                ['BF.INSERT', 'key', 'ERROR', '0.01', 'ITEMS', 'item']
             );
         });
 
         it('with EXPANSION', () => {
             assert.deepEqual(
-                transformArguments('bloom', { expansion: 1 }, 'foo'),
-                ['BF.INSERT', 'bloom', 'EXPANSION', '1', 'ITEMS', 'foo']
+                transformArguments('key', 'item', { EXPANSION: 1 }),
+                ['BF.INSERT', 'key', 'EXPANSION', '1', 'ITEMS', 'item']
             );
         });
 
         it('with NOCREATE', () => {
             assert.deepEqual(
-                transformArguments('bloom', { noCreate: true }, 'foo'),
-                ['BF.INSERT', 'bloom', 'NOCREATE', 'ITEMS', 'foo']
+                transformArguments('key', 'item', { NOCREATE: true }),
+                ['BF.INSERT', 'key', 'NOCREATE', 'ITEMS', 'item']
             );
         });
 
         it('with NONSCALING', () => {
             assert.deepEqual(
-                transformArguments('bloom', { nonScaling: true }, 'foo'),
-                ['BF.INSERT', 'bloom', 'NONSCALING', 'ITEMS', 'foo']
+                transformArguments('key', 'item', { NONSCALING: true }),
+                ['BF.INSERT', 'key', 'NONSCALING', 'ITEMS', 'item']
+            );
+        });
+
+        it('with CAPACITY, ERROR, EXPANSION, NOCREATE and NONSCALING', () => {
+            assert.deepEqual(
+                transformArguments('key', 'item', {
+                    CAPACITY: 100,
+                    ERROR: 0.01,
+                    EXPANSION: 1,
+                    NOCREATE: true,
+                    NONSCALING: true
+                }),
+                ['BF.INSERT', 'key', 'CAPACITY', '100', 'ERROR', '0.01', 'EXPANSION', '1', 'NOCREATE', 'NONSCALING', 'ITEMS', 'item']
             );
         });
     });
 
     testUtils.testWithClient('client.bf.insert', async client => {
         assert.deepEqual(
-            await client.bf.insert('bloom', {}, 'foo', 'bar'), [true, true] 
+            await client.bf.insert('key', 'item'),
+            [true]
         );
     }, GLOBAL.SERVERS.OPEN);
 });

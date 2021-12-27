@@ -1,39 +1,46 @@
+import { pushVerdictArguments } from '@node-redis/client/dist/lib/commands/generic-transformers';
+
 export const FIRST_KEY_INDEX = 1;
 
-type InsertOptions = {
-    error?: number,
-    capacity?: number,
-    expansion?: number,
-    nonScaling?: true,
-    noCreate?: true,
+interface InsertOptions {
+    CAPACITY?: number;
+    ERROR?: number;
+    EXPANSION?: number;
+    NOCREATE?: true;
+    NONSCALING?: true;
 }
 
-export function transformArguments(key: string, options?: InsertOptions, ...items: Array<string>): Array<string> {
+export function transformArguments(
+    key: string,
+    items: string | Array<string>,
+    options?: InsertOptions
+): Array<string> {
     const args = ['BF.INSERT', key];
-    
-    if (options?.capacity) {
-        args.push('CAPACITY', options.capacity.toString());
+
+    if (options?.CAPACITY) {
+        args.push('CAPACITY', options.CAPACITY.toString());
     }
 
-    if (options?.error) {
-        args.push('ERROR', options.error.toString());
+    if (options?.ERROR) {
+        args.push('ERROR', options.ERROR.toString());
     }
 
-    if (options?.expansion) {
-        args.push('EXPANSION', options.expansion.toString());
+    if (options?.EXPANSION) {
+        args.push('EXPANSION', options.EXPANSION.toString());
     }
 
-    if (options?.noCreate) {
+    if (options?.NOCREATE) {
         args.push('NOCREATE');
     }
 
-    if (options?.nonScaling) {
+    if (options?.NONSCALING) {
         args.push('NONSCALING');
     }
 
-    args.push('ITEMS', ...items);
+    args.push('ITEMS');
+    pushVerdictArguments(args, items);
 
     return args;
 }
 
-export { transformArrayReply as transformReply } from '.';
+export { transformBooleanArrayReply as transformReply } from '@node-redis/client/dist/lib/commands/generic-transformers';

@@ -4,29 +4,29 @@ import { transformArguments } from './RESERVE';
 
 describe('TOPK RESERVE', () => {
     describe('transformArguments', () => {
-        it('mandatory options', () => {
+        it('simple', () => {
             assert.deepEqual(
                 transformArguments('topK', 3),
                 ['TOPK.RESERVE', 'topK', '3']
             );
         });
 
-        it('with optional parameters', () => {
+        it('with options', () => {
             assert.deepEqual(
-                transformArguments('topK', 3, [50, 3, 0.9]),
-                ['TOPK.RESERVE', 'topK', '3', '50', '3', '0.9']
+                transformArguments('topK', 3, {
+                    width: 8,
+                    depth: 7,
+                    decay: 0.9
+                }),
+                ['TOPK.RESERVE', 'topK', '3', '8', '7', '0.9']
             );
         });
     });
 
-    testUtils.testWithClient('client.topk.reserve', async client => {
+    testUtils.testWithClient('client.topK.reserve', async client => {
         assert.equal(
-            await client.topk.reserve('topK', 3), 'OK'
+            await client.topK.reserve('topK', 3),
+            'OK'
         );
-
-        assert.equal(
-            await client.topk.reserve('topKnew', 3, [50, 3, 0.9]), 'OK'
-        );
-        
     }, GLOBAL.SERVERS.OPEN);
 });

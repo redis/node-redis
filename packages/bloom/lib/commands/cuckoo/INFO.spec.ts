@@ -11,20 +11,17 @@ describe('CF INFO', () => {
     });
 
     testUtils.testWithClient('client.cf.info', async client => {
-        await client.cf.reserve('cuckoo', { capacity: 100 });
+        await client.cf.reserve('key', 4);
 
-        assert.deepEqual(
-            await client.cf.info('cuckoo'),
-            {
-                size: 184,
-                numberOfBuckets: 64,
-                numberOfFilters: 1,
-                numberOfInsertedItems: 0,
-                numberOfDeletedItems: 0,
-                bucketSize: 2,
-                expansionRate: 1,
-                maxIteration: 20
-            }
-        );
+        const info = await client.cf.info('key');
+        assert.equal(typeof info, 'object');
+        assert.equal(typeof info.size, 'number');
+        assert.equal(typeof info.numberOfBuckets, 'number');
+        assert.equal(typeof info.numberOfFilters, 'number');
+        assert.equal(typeof info.numberOfInsertedItems, 'number');
+        assert.equal(typeof info.numberOfDeletedItems, 'number');
+        assert.equal(typeof info.bucketSize, 'number');
+        assert.equal(typeof info.expansionRate, 'number');
+        assert.equal(typeof info.maxIteration, 'number');
     }, GLOBAL.SERVERS.OPEN);
 });

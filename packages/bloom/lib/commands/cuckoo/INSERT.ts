@@ -1,14 +1,18 @@
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { InsertOptions, pushInsertOptions } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    key: string, options?: 
-    InsertOptions, ...items: Array<string>
-): Array<string> {
-    const args = ['CF.INSERT', key];
-    pushInsertOptions(args, items, options);
-    return args;
+    key: string,
+    items: string | Array<string>,
+    options?: InsertOptions
+): RedisCommandArguments {
+    return pushInsertOptions(
+        ['CF.INSERT', key],
+        items,
+        options
+    );
 }
 
-export { transformArrayReply as transformReply } from '.';
+export { transformBooleanArrayReply as transformReply } from '@node-redis/client/dist/lib/commands/generic-transformers';

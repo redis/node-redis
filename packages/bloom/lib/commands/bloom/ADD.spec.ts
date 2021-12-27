@@ -1,18 +1,19 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments, transformReply } from './ADD';
+import { transformArguments } from './ADD';
 
 describe('BF ADD', () => {
-    describe('transformArguments', () => {
-        it('basic add', () => {
-            assert.deepEqual(
-                transformArguments('bloom', 'foo'),
-                ['BF.ADD', 'bloom', 'foo']
-            );
-        });
+    it('transformArguments', () => {
+        assert.deepEqual(
+            transformArguments('key', 'item'),
+            ['BF.ADD', 'key', 'item']
+        );
     });
 
     testUtils.testWithClient('client.bf.add', async client => {
-        assert.ok(await client.bf.add('bloom', 'foo'));
+        assert.equal(
+            await client.bf.add('key', 'item'),
+            true
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

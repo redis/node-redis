@@ -5,13 +5,15 @@ import { transformArguments } from './COUNT';
 describe('CF COUNT', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('cuckoo', 'foo'),
-            ['CF.COUNT', 'cuckoo', 'foo']
+            transformArguments('key', 'item'),
+            ['CF.COUNT', 'key', 'item']
         );
     });
 
-    testUtils.testWithClient('client.cf.del', async client => {
-        await client.cf.add('cuckoo', 'foo');
-        assert.equal(await client.cf.count('cuckoo', 'foo'), 1);
+    testUtils.testWithClient('client.cf.count', async client => {
+        assert.equal(
+            await client.cf.count('key', 'item'),
+            0
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

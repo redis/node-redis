@@ -1,38 +1,30 @@
-import * as RESERVE from './RESERVE';
 import * as ADD from './ADD';
-import * as MADD from './MADD';
-import * as INSERT from './INSERT';
 import * as EXISTS from './EXISTS';
-import * as MEXISTS from './MEXISTS';
-import * as SCANDUMP from './SCANDUMP';
-import * as LOADCHUNK from './LOADCHUNK';
 import * as INFO from './INFO';
+import * as INSERT from './INSERT';
+import * as LOADCHUNK from './LOADCHUNK';
+import * as MADD from './MADD';
+import * as MEXISTS from './MEXISTS';
+import * as RESERVE from './RESERVE';
+import * as SCANDUMP from './SCANDUMP';
 
 export default {
-    RESERVE,
-    reserve: RESERVE,
     ADD,
     add: ADD,
-    MADD,
-    mAdd: MADD,
-    INSERT,
-    insert: INSERT,
     EXISTS,
     exists: EXISTS,
-    MEXISTS,
-    mExists: MEXISTS,
-    SCANDUMP,
-    scanDump: SCANDUMP,
+    INFO,
+    info: INFO,
+    INSERT,
+    insert: INSERT,
     LOADCHUNK,
     loadChunk: LOADCHUNK,
-    INFO,
-    info: INFO
+    MADD,
+    mAdd: MADD,
+    MEXISTS,
+    mExists: MEXISTS,
+    RESERVE,
+    reserve: RESERVE,
+    SCANDUMP,
+    scanDump: SCANDUMP
 };
-
-export function transformArrayReply(reply: Array<string>): Array<boolean> {
-    return reply.map(a => a == '1');
-}
-
-export function transformStringReply(reply: string): boolean {
-    return reply == '1';
-}

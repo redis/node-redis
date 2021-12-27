@@ -5,13 +5,17 @@ import { transformArguments } from './DEL';
 describe('CF DEL', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('cuckoo', 'foo'),
-            ['CF.DEL', 'cuckoo', 'foo']
+            transformArguments('key', 'item'),
+            ['CF.DEL', 'key', 'item']
         );
     });
 
     testUtils.testWithClient('client.cf.del', async client => {
-        await client.cf.add('cuckoo', 'foo');
-        assert.ok(await client.cf.del('cuckoo', 'foo'));
+        await client.cf.reserve('key', 4);
+
+        assert.equal(
+            await client.cf.del('key', 'item'),
+            false
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

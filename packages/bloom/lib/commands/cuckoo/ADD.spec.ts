@@ -5,12 +5,15 @@ import { transformArguments, transformReply } from './ADD';
 describe('CF ADD', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('cuckoo', 'foo'),
-            ['CF.ADD', 'cuckoo', 'foo']
+            transformArguments('key', 'item'),
+            ['CF.ADD', 'key', 'item']
         );
     });
 
     testUtils.testWithClient('client.cf.add', async client => {
-        assert.ok(await client.cf.add('cuckoo', 'foo'));
+        assert.equal(
+            await client.cf.add('key', 'item'),
+            true
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

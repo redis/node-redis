@@ -1,21 +1,23 @@
 export const FIRST_KEY_INDEX = 1;
 
-type ReserveOptions = {
-    errorRate: number,
-    capacity: number,
-    expansion?: number,
-    nonScaling?: true
+interface ReserveOptions {
+    EXPANSION?: number;
+    NONSCALING?: true;
 }
 
-export function transformArguments(key: string, options: ReserveOptions): Array<string> {
-    const args = ['BF.RESERVE', key, options.errorRate.toString(), options.capacity.toString()];
-    
-    if (options?.expansion) {
-        args.push('EXPANSION');
-        args.push(options.expansion.toString());
+export function transformArguments(
+    key: string,
+    errorRate: number,
+    capacity: number,
+    options?: ReserveOptions
+): Array<string> {
+    const args = ['BF.RESERVE', key, errorRate.toString(), capacity.toString()];
+
+    if (options?.EXPANSION) {
+        args.push('EXPANSION', options.EXPANSION.toString());
     }
 
-    if (options?.nonScaling) {
+    if (options?.NONSCALING) {
         args.push('NONSCALING');
     }
 

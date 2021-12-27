@@ -1,23 +1,48 @@
 import { strict as assert } from 'assert';
-import { transformArrayReply, transformStringReply } from '.';
+import { pushInsertOptions } from '.';
 
-describe('index', () => {
-    describe('transformArrayReply', () => {
-        it('transform array reply', () => {
+describe('pushInsertOptions', () => {
+    describe('single item', () => {
+        it('single item', () => {
             assert.deepEqual(
-                transformArrayReply(['0', '1', '0']), 
-                [false, true, false]
+                pushInsertOptions([], 'item'),
+                ['ITEMS', 'item']
+            );
+        });
+
+        it('multiple items', () => {
+            assert.deepEqual(
+                pushInsertOptions([], ['1', '2']),
+                ['ITEMS', '1', '2']
             );
         });
     });
 
-    describe('transformStringReply', () => {
-        it('true', () => {
-            assert.equal(transformStringReply('1'), true);
-        });
+    it('with CAPACITY', () => {
+        assert.deepEqual(
+            pushInsertOptions([], 'item', {
+                CAPACITY: 100
+            }),
+            ['CAPACITY', '100', 'ITEMS', 'item']
+        );
+    });
 
-        it('false', () => {
-            assert.equal(transformStringReply('0'), false);
-        });
+    it('with NOCREATE', () => {
+        assert.deepEqual(
+            pushInsertOptions([], 'item', {
+                NOCREATE: true
+            }),
+            ['NOCREATE', 'ITEMS', 'item']
+        );
+    });
+
+    it('with CAPACITY and NOCREATE', () => {
+        assert.deepEqual(
+            pushInsertOptions([], 'item', {
+                CAPACITY: 100,
+                NOCREATE: true
+            }),
+            ['CAPACITY', '100', 'NOCREATE', 'ITEMS', 'item']
+        );
     });
 });
