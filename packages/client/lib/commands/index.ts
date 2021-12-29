@@ -1,6 +1,5 @@
 import { RedisScriptConfig, SHA1 } from '../lua-script';
 
-
 // https://github.com/Microsoft/TypeScript/issues/3496#issuecomment-128553540
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface RedisCommandRawReplyArray extends Array<RedisCommandRawReply> {}

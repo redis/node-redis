@@ -321,9 +321,9 @@ describe('Client', () => {
 
         testUtils.testWithClient('returnBuffers', async client => {
             assert.deepEqual(
-                await client.sendCommand(['PING'], RedisClient.commandOptions({
+                await client.sendCommand(['PING'], {
                     returnBuffers: true
-                }),),
+                }),
                 Buffer.from('PONG')
             );
         }, GLOBAL.SERVERS.OPEN);
