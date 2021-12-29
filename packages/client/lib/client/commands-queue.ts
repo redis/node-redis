@@ -360,11 +360,15 @@ export default class RedisCommandsQueue {
         return toSend?.args;
     }
 
-    parseResponse(data: Buffer): void {
+    #setReturnBuffers() {
         this.#parser.setReturnBuffers(
             !!this.#waitingForReply.head?.value.returnBuffers ||
             !!this.#pubSubState?.subscribed
         );
+    }
+
+    parseResponse(data: Buffer): void {
+        this.#setReturnBuffers();
         this.#parser.execute(data);
     }
 
@@ -372,8 +376,12 @@ export default class RedisCommandsQueue {
         if (!this.#waitingForReply.length) {
             throw new Error('Got an unexpected reply from Redis');
         }
-        return this.#waitingForReply.shift()!;
+
+        const waitingForReply = this.#waitingForReply.shift()!;
+        this.#setReturnBuffers();
+        return waitingForReply;
     }
+
     flushWaitingForReply(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         if (!this.#chainInExecution) {
@@ -384,6 +392,7 @@ export default class RedisCommandsQueue {
         }
         this.#chainInExecution = undefined;
     }
+
     flushAll(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         RedisCommandsQueue.#flushQueue(this.#waitingToBeSent, err);

@@ -89,6 +89,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         return commandOptions(options);
     }
 
+    commandOptions = RedisClient.commandOptions;
+
     static extend<M extends RedisModules, S extends RedisScripts>(plugins?: RedisPlugins<M, S>): InstantiableRedisClient<M, S> {
         const Client = <any>extendWithModulesAndScripts({
             BaseClass: RedisClient,

@@ -6,12 +6,12 @@ export function transformArguments(key: string, iterator: number): Array<string>
 
 type ScanDumpRawReply = [
     iterator: number,
-    chunk: string
+    chunk: string | null
 ];
 
 interface ScanDumpReply {
     iterator: number;
-    chunk: string;
+    chunk: string | null;
 }
 
 export function transformReply([iterator, chunk]: ScanDumpRawReply): ScanDumpReply {
