@@ -14,12 +14,9 @@ describe('XPENDING', () => {
 
     describe('client.xPending', () => {
         testUtils.testWithClient('simple', async client => {
-            await Promise.all([
-                client.xGroupCreate('key', 'group', '$', {
-                    MKSTREAM: true
-                }),
-                client.xGroupCreateConsumer('key', 'group', 'consumer')
-            ]);
+            await client.xGroupCreate('key', 'group', '$', {
+                MKSTREAM: true
+            });
 
             assert.deepEqual(
                 await client.xPending('key', 'group'),
@@ -57,8 +54,9 @@ describe('XPENDING', () => {
                     }]
                 }
             );
-        }, GLOBAL.SERVERS.OPEN);
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            minimumDockerVersion: [6, 2]
+        });
     });
-
-
 });
