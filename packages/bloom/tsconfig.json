@@ -5,5 +5,12 @@
   },
   "include": [
     "./lib/**/*.ts"
-  ]
+  ],
+  "typedocOptions": {
+    "entryPoints": [
+      "./lib"
+    ],
+    "entryPointStrategy": "expand",
+    "out": "../../documentation/bloom"
+  }
 }
