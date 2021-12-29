@@ -721,8 +721,6 @@ describe('Client', () => {
     });
 
     testUtils.testWithClient('client.disconnect', async client => {
-        await client.connect();
-
         const pingPromise = client.ping(),
             disconnectPromise = client.disconnect();
         assert.equal(client.isOpen, false);
@@ -731,8 +729,10 @@ describe('Client', () => {
             assert.doesNotReject(disconnectPromise),
             assert.rejects(client.ping(), ClientClosedError)
         ]);
-    }, {
-        ...GLOBAL.SERVERS.OPEN,
-        disableClientSetup: true
-    });
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should be able to connect after disconnect (see #1801)', async client => {
+        await client.disconnect();
+        await client.connect();
+    }, GLOBAL.SERVERS.OPEN);
 });
