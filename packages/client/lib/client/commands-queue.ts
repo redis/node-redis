@@ -71,7 +71,7 @@ export default class RedisCommandsQueue {
     }
 
     static #emitPubSubMessage(listenersMap: PubSubListenersMap, message: Buffer, channel: Buffer, pattern?: Buffer): void {
-        const keyString = (pattern || channel).toString(),
+        const keyString = (pattern ?? channel).toString(),
             listeners = listenersMap.get(keyString);
 
         if (!listeners) return;
@@ -82,7 +82,9 @@ export default class RedisCommandsQueue {
 
         if (!listeners.strings.size) return;
 
-        const messageString = message.toString(),
+        // https://github.com/redis/redis/pull/7469
+        // https://github.com/redis/redis/issues/7463
+        const messageString = (Array.isArray(message) ? message.map(m => m.toString()) as any : message.toString()),
             channelString = pattern ? channel.toString() : keyString;
         for (const listener of listeners.strings) {
             listener(messageString, channelString);
