@@ -79,20 +79,10 @@ export function transformRedisJsonReply(json: string): RedisJSON {
     return JSON.parse(json);
 }
 
-export function transformRedisJsonArrayReply(jsons: Array<string>): Array<RedisJSON> {
-    return jsons.map(transformRedisJsonReply)
-}
-
 export function transformRedisJsonNullReply(json: string | null): RedisJSON | null {
     if (json === null) return null;
 
     return transformRedisJsonReply(json);
-}
-
-export function transformRedisJsonNullArrayNullReply(jsons: Array<string | null> | null): Array<RedisJSON | null> | null {
-    if (jsons === null) return null;
-
-    return jsons.map(transformRedisJsonNullReply);
 }
 
 export function transformNumbersReply(reply: string): number | Array<number> {
