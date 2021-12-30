@@ -2,6 +2,7 @@ import RedisClient, { InstantiableRedisClient, RedisClientType } from '../client
 import { RedisClusterMasterNode, RedisClusterReplicaNode } from '../commands/CLUSTER_NODES';
 import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RedisCommandArgument, RedisModules, RedisScripts } from '../commands';
+import { RootNodesUnavailableError } from '../errors';
 
 // We need to use 'require', because it's not possible with Typescript to import
 // function that are exported as 'module.exports = function`, without esModuleInterop
@@ -39,7 +40,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
             if (await this.#discoverNodes(this.#clientOptionsDefaults(rootNode))) return;
         }
 
-        throw new Error('None of the root nodes is available');
+        throw new RootNodesUnavailableError();
     }
 
     async #discoverNodes(clientOptions?: RedisClusterClientOptions): Promise<boolean> {

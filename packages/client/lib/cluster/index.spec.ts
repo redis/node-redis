@@ -1,7 +1,9 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import RedisCluster from '.';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 import { SQUARE_SCRIPT } from '../client/index.spec';
+import { RootNodesUnavailableError } from '../errors';
 
 // We need to use 'require', because it's not possible with Typescript to import
 // function that are exported as 'module.exports = function`, without esModuleInterop
@@ -10,20 +12,14 @@ const calculateSlot = require('cluster-key-slot');
 
 describe('Cluster', () => {
     testUtils.testWithCluster('sendCommand', async cluster => {
-        await cluster.connect();
-
-        try {
-            await cluster.publish('channel', 'message');
-            await cluster.set('a', 'b');
-            await cluster.set('a{a}', 'bb');
-            await cluster.set('aa', 'bb');
-            await cluster.get('aa');
-            await cluster.get('aa');
-            await cluster.get('aa');
-            await cluster.get('aa');
-        } finally {
-            await cluster.disconnect();
-        }
+        await cluster.publish('channel', 'message');
+        await cluster.set('a', 'b');
+        await cluster.set('a{a}', 'bb');
+        await cluster.set('aa', 'bb');
+        await cluster.get('aa');
+        await cluster.get('aa');
+        await cluster.get('aa');
+        await cluster.get('aa');
     }, GLOBAL.CLUSTERS.OPEN);
 
     testUtils.testWithCluster('multi', async cluster => {
@@ -48,6 +44,22 @@ describe('Cluster', () => {
             scripts: {
                 square: SQUARE_SCRIPT
             }
+        }
+    });
+
+    it('should throw RootNodesUnavailableError', async () => {
+        const cluster = RedisCluster.create({
+            rootNodes: []
+        });
+
+        try {
+            await assert.rejects(
+                cluster.connect(),
+                RootNodesUnavailableError
+            );
+        } catch (err) {
+            await cluster.disconnect();
+            throw err;
         }
     });
 
