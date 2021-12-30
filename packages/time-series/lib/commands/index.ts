@@ -20,7 +20,7 @@ import * as MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
 import * as MREVRANGE from './MREVRANGE';
 import * as MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@node-redis/client/lib/commands/generic-transformers';
+import { pushVerdictArguments } from '@node-redis/client/dist/lib/commands/generic-transformers';
 
 export default {
     ADD,
