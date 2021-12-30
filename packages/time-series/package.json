@@ -18,7 +18,7 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@node-redis/test-utils": "*",
-    "@types/node": "^17.0.1",
+    "@types/node": "^17.0.5",
     "nyc": "^15.1.0",
     "release-it": "^14.11.8",
     "source-map-support": "^0.5.21",
