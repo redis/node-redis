@@ -23,6 +23,7 @@
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "dependencies": {
+    "@node-redis/bloom": "^1.0.0",
     "@node-redis/client": "^1.0.1",
     "@node-redis/json": "^1.0.1",
     "@node-redis/search": "^1.0.1",
