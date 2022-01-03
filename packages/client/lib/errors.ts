@@ -45,3 +45,14 @@ export class RootNodesUnavailableError extends Error {
         super('All the root nodes are unavailable');
     }
 }
+
+export class ReconnectStrategyError extends Error {
+    originalError: Error;
+    socketError: unknown;
+
+    constructor(originalError: Error, socketError: unknown) {
+        super(originalError.message);
+        this.originalError = originalError;
+        this.socketError = socketError;
+    }
+}

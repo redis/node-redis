@@ -268,7 +268,11 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             .on('data', data => this.#queue.parseResponse(data))
             .on('error', err => {
                 this.emit('error', err);
-                this.#queue.flushWaitingForReply(err);
+                if (!this.#socket.isOpen) {
+                    this.#queue.flushAll(err);
+                } else {
+                    this.#queue.flushWaitingForReply(err);
+                }
             })
             .on('connect', () => this.emit('connect'))
             .on('ready', () => {
