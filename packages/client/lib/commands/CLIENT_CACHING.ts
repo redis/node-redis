@@ -8,4 +8,4 @@ export function transformArguments(value: boolean): RedisCommandArguments {
     ];
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): 'OK' | Buffer;

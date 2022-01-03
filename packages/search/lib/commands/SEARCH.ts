@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { transformReplyStringTuples } from '@node-redis/client/lib/commands/generic-transformers';
-import { pushSearchOptions, RedisSearchLanguages, PropertyName, SortByProperty, SearchReply, Params } from '.';
+import { transformTuplesReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushSearchOptions, RedisSearchLanguages, PropertyName, SortByProperty, SearchReply } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -77,7 +77,7 @@ export function transformReply(reply: SearchRawReply): SearchReply {
             id: reply[i],
             value: tuples.length === 2 && tuples[0] === '$' ?
                 JSON.parse(tuples[1]) :
-                transformReplyStringTuples(tuples)
+                transformTuplesReply(tuples)
         });
     }
 

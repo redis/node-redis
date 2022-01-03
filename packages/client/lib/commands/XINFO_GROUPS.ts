@@ -9,10 +9,10 @@ export function transformArguments(key: RedisCommandArgument): RedisCommandArgum
 }
 
 type XInfoGroupsReply = Array<{
-    name: string;
+    name: RedisCommandArgument;
     consumers: number;
     pending: number;
-    lastDeliveredId: string;
+    lastDeliveredId: RedisCommandArgument;
 }>;
 
 export function transformReply(rawReply: Array<any>): XInfoGroupsReply {

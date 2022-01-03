@@ -10,5 +10,5 @@ export function commandOptions<T>(options: T): CommandOptions<T> {
 }
 
 export function isCommandOptions<T>(options: any): options is CommandOptions<T> {
-    return options && options[symbol] === true;
+    return options?.[symbol] === true;
 }

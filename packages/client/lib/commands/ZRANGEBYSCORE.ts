@@ -1,5 +1,5 @@
-import { RedisCommandArguments } from '.';
-import { transformArgumentStringNumberInfinity } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { transformStringNumberInfinityArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,16 +13,16 @@ export interface ZRangeByScoreOptions {
 }
 
 export function transformArguments(
-    key: string,
-    min: number | string,
-    max: number | string,
+    key: RedisCommandArgument,
+    min: string | number,
+    max: string | number,
     options?: ZRangeByScoreOptions
 ): RedisCommandArguments {
     const args = [
         'ZRANGEBYSCORE',
         key,
-        transformArgumentStringNumberInfinity(min),
-        transformArgumentStringNumberInfinity(max)
+        transformStringNumberInfinityArgument(min),
+        transformStringNumberInfinityArgument(max)
     ];
 
     if (options?.LIMIT) {
@@ -32,4 +32,4 @@ export function transformArguments(
     return args;
 }
 
-export declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<RedisCommandArgument>;

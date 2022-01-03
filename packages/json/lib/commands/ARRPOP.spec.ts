@@ -26,12 +26,32 @@ describe('ARRPOP', () => {
         });
     });
 
-    testUtils.testWithClient('client.json.arrPop', async client => {
-        await client.json.set('key', '$', []);
+    describe('client.json.arrPop', () => {
+        testUtils.testWithClient('null', async client => {
+            await client.json.set('key', '.', []);
 
-        assert.deepEqual(
-            await client.json.arrPop('key', '$'),
-            [null]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+            assert.equal(
+                await client.json.arrPop('key', '.'),
+                null
+            );
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('with value', async client => {
+            await client.json.set('key', '.', ['value']);
+
+            assert.equal(
+                await client.json.arrPop('key', '.'),
+                'value'
+            );
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('array', async client => {
+            await client.json.set('key', '$', ['value']);
+
+            assert.deepEqual(
+                await client.json.arrPop('key', '$'),
+                ['value']
+            );
+        }, GLOBAL.SERVERS.OPEN);
+    });
 });

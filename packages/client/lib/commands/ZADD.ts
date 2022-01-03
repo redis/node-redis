@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArgumentNumberInfinity, ZMember } from './generic-transformers';
+import { transformNumberInfinityArgument, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -60,7 +60,7 @@ export function transformArguments(
 
     for (const { score, value } of (Array.isArray(members) ? members : [members])) {
         args.push(
-            transformArgumentNumberInfinity(score),
+            transformNumberInfinityArgument(score),
             value
         );
     }
@@ -68,4 +68,4 @@ export function transformArguments(
     return args;
 }
 
-export { transformReplyNumberInfinity as transformReply } from './generic-transformers';
+export { transformNumberInfinityReply as transformReply } from './generic-transformers';

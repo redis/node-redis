@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { StreamStringsMessageReply, transformReplyStringTuples } from './generic-transformers';
+import { StreamMessageReply, transformTuplesReply } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
@@ -14,9 +14,9 @@ interface XInfoStreamReply {
     radixTreeKeys: number;
     radixTreeNodes: number;
     groups: number;
-    lastGeneratedId: string;
-    firstEntry: StreamStringsMessageReply | null;
-    lastEntry: StreamStringsMessageReply | null;
+    lastGeneratedId: RedisCommandArgument;
+    firstEntry: StreamMessageReply | null;
+    lastEntry: StreamMessageReply | null;
 }
 
 export function transformReply(rawReply: Array<any>): XInfoStreamReply {
@@ -47,14 +47,14 @@ export function transformReply(rawReply: Array<any>): XInfoStreamReply {
             case 'first-entry':
                 parsedReply.firstEntry = rawReply[i + 1] ? {
                     id: rawReply[i + 1][0],
-                    message: transformReplyStringTuples(rawReply[i + 1][1])
+                    message: transformTuplesReply(rawReply[i + 1][1])
                 } : null;
                 break;
 
             case 'last-entry':
                 parsedReply.lastEntry = rawReply[i + 1] ? {
                     id: rawReply[i + 1][0],
-                    message: transformReplyStringTuples(rawReply[i + 1][1])
+                    message: transformTuplesReply(rawReply[i + 1][1])
                 } : null;
                 break;
         }

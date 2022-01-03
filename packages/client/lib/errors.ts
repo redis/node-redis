@@ -39,3 +39,9 @@ export class AuthError extends Error {
         super(message);
     }
 }
+
+export class RootNodesUnavailableError extends Error {
+    constructor() {
+        super('All the root nodes are unavailable');
+    }
+}

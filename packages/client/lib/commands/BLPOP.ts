@@ -14,12 +14,14 @@ export function transformArguments(
     return args;
 }
 
+type BLPopRawReply = null | [RedisCommandArgument, RedisCommandArgument];
+
 type BLPopReply = null | {
-    key: string;
-    element: string;
+    key: RedisCommandArgument;
+    element: RedisCommandArgument;
 };
 
-export function transformReply(reply: null | [string, string]): BLPopReply {
+export function transformReply(reply: BLPopRawReply): BLPopReply {
     if (reply === null) return null;
 
     return {

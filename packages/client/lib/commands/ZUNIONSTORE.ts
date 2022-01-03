@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { pushVerdictArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -8,7 +8,11 @@ interface ZUnionOptions {
     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(destination: string, keys: Array<string> | string, options?: ZUnionOptions): RedisCommandArguments {
+export function transformArguments(
+    destination: RedisCommandArgument,
+    keys: Array<RedisCommandArgument> | RedisCommandArgument,
+    options?: ZUnionOptions
+): RedisCommandArguments {
     const args = pushVerdictArgument(['ZUNIONSTORE', destination], keys);
 
     if (options?.WEIGHTS) {

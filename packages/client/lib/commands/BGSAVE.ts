@@ -1,8 +1,10 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 interface BgSaveOptions {
     SCHEDULE?: true;
 }
 
-export function transformArguments(options?: BgSaveOptions): Array<string> {
+export function transformArguments(options?: BgSaveOptions): RedisCommandArguments {
     const args = ['BGSAVE'];
 
     if (options?.SCHEDULE) {
@@ -12,4 +14,4 @@ export function transformArguments(options?: BgSaveOptions): Array<string> {
     return args;
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

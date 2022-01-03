@@ -20,4 +20,4 @@ export function transformArguments(
     ];
 }
 
-export declare function transformReply(): string | null;
+export declare function transformReply(): RedisCommandArgument | null;

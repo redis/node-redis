@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { transformArguments as transformXClaimArguments } from './XCLAIM';
 
 export { FIRST_KEY_INDEX } from './XCLAIM';
@@ -10,4 +10,4 @@ export function transformArguments(...args: Parameters<typeof transformXClaimArg
     ];
 }
 
-export declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<RedisCommandArgument>;

@@ -60,6 +60,4 @@ export function transformArguments(
     return args;
 }
 
-export function transformReply(reply?: string): string | null {
-    return reply ?? null;
-}
+export declare function transformReply(): RedisCommandArgument | null;

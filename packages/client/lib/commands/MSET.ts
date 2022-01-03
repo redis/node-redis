@@ -1,7 +1,14 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(toSet: Array<[string, string]> | Array<string> | Record<string, string>): Array<string> {
-    const args = ['MSET'];
+export type MSetArguments =
+    Array<[RedisCommandArgument, RedisCommandArgument]> |
+    Array<RedisCommandArgument> |
+    Record<string, RedisCommandArgument>;
+
+export function transformArguments(toSet: MSetArguments): RedisCommandArguments {
+    const args: RedisCommandArguments = ['MSET'];
 
     if (Array.isArray(toSet)) {
         args.push(...toSet.flat());
@@ -14,4 +21,4 @@ export function transformArguments(toSet: Array<[string, string]> | Array<string
     return args;
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

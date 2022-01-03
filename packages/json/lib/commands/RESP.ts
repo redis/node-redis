@@ -12,4 +12,4 @@ export function transformArguments(key: string, path?: string): Array<string> {
 
 type RESPReply = Array<string | number | RESPReply>;
 
-export declare function transfromReply(): RESPReply;
+export declare function transformReply(): RESPReply;

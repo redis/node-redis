@@ -1,6 +1,6 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-type Types = string | number | Buffer;
+type Types = RedisCommandArgument | number;
 
 type HSETObject = Record<string | number, Types>;
 

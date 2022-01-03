@@ -1,6 +1,12 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, field: string, increment: number): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    field: RedisCommandArgument,
+    increment: number
+): RedisCommandArguments {
     return ['HINCRBY', key, field, increment.toString()];
 }
 

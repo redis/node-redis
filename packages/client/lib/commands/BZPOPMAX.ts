@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformReplyNumberInfinity, ZMember } from './generic-transformers';
+import { pushVerdictArguments, transformNumberInfinityReply, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -14,18 +14,16 @@ export function transformArguments(
     return args;
 }
 
-interface ZMemberWithKey extends ZMember<string> {
-    key: string;
-}
+type ZMemberRawReply = [key: RedisCommandArgument, value: RedisCommandArgument, score: RedisCommandArgument] | null;
 
-type BZPopMaxReply = ZMemberWithKey | null;
+type BZPopMaxReply = (ZMember & { key: RedisCommandArgument }) | null;
 
-export function transformReply(reply: [key: string, value: string, score: string] | null): BZPopMaxReply | null {
+export function transformReply(reply: ZMemberRawReply): BZPopMaxReply | null {
     if (!reply) return null;
 
     return {
         key: reply[0],
         value: reply[1],
-        score: transformReplyNumberInfinity(reply[2])
+        score: transformNumberInfinityReply(reply[2])
     };
 }

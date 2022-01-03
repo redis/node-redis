@@ -2,25 +2,26 @@ import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
 import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments, transformLegacyCommandArguments } from '../commander';
+import { ExcludeMappedString } from '.';
 
 type RedisClientMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisScripts> =
     (...args: Parameters<C['transformArguments']>) => RedisClientMultiCommandType<M, S>;
 
 type WithCommands<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof typeof COMMANDS]: RedisClientMultiCommandSignature<(typeof COMMANDS)[P], M, S>
+    [P in keyof typeof COMMANDS]: RedisClientMultiCommandSignature<(typeof COMMANDS)[P], M, S>;
 };
 
 type WithModules<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof M as M[P] extends never ? never : P]: {
-        [C in keyof M[P]]: RedisClientMultiCommandSignature<M[P][C], M, S>;
+    [P in keyof M as ExcludeMappedString<P>]: {
+        [C in keyof M[P] as ExcludeMappedString<C>]: RedisClientMultiCommandSignature<M[P][C], M, S>;
     };
 };
 
 type WithScripts<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof S as S[P] extends never ? never : P]: RedisClientMultiCommandSignature<S[P], M, S>
+    [P in keyof S as ExcludeMappedString<P>]: RedisClientMultiCommandSignature<S[P], M, S>;
 };
 
-export type RedisClientMultiCommandType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
+export type RedisClientMultiCommandType<M extends RedisModules, S extends RedisScripts> =
     RedisClientMultiCommand & WithCommands<M, S> & WithModules<M, S> & WithScripts<M, S>;
 
 export type RedisClientMultiExecutor = (queue: Array<RedisMultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisCommandRawReply>>;

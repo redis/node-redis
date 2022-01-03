@@ -6,7 +6,7 @@ export const IS_READ_ONLY = true;
 
 interface XPendingRangeOptions {
     IDLE?: number;
-    consumer?: string;
+    consumer?: RedisCommandArgument;
 }
 
 export function transformArguments(
@@ -34,14 +34,14 @@ export function transformArguments(
 
 type XPendingRangeRawReply = Array<[
     id: number,
-    consumer: string,
+    consumer: RedisCommandArgument,
     millisecondsSinceLastDelivery: number,
     deliveriesCounter: number
 ]>;
 
 type XPendingRangeReply = Array<{
     id: number;
-    owner: string;
+    owner: RedisCommandArgument;
     millisecondsSinceLastDelivery: number;
     deliveriesCounter: number;
 }>;
