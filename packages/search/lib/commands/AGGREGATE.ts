@@ -1,6 +1,6 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArgument, transformTuplesReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
+import { Params, PropertyName, pushArgumentsWithLength, pushParamsArgs, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
     GROUPBY = 'GROUPBY',
