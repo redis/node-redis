@@ -78,11 +78,15 @@ export default class RedisClientMultiCommand {
         for (const name of Object.keys(COMMANDS)) {
             this.#defineLegacyCommand(name);
         }
+
+        for (const name of Object.keys(COMMANDS)) {
+            (this as any)[name.toLowerCase()] = (this as any)[name];
+        }
     }
 
     #defineLegacyCommand(name: string): void {
-        (this as any).v4[name] = (this as any)[name].bind(this.v4);
-        (this as any)[name] = (this as any)[name.toLowerCase()] =
+        this.v4[name] = (this as any)[name].bind(this.v4);
+        (this as any)[name] =
             (...args: Array<unknown>): void => (this as any).addCommand(name, args);
     }
 
