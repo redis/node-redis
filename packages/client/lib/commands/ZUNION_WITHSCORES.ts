@@ -10,4 +10,4 @@ export function transformArguments(...args: Parameters<typeof transformZUnionArg
     ];
 }
 
-export { transformReplySortedStringsSetWithScores as transformReply } from './generic-transformers';
+export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';

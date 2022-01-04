@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { StreamStringsMessagesReply, transformReplyStreamStringMessages } from './generic-transformers';
+import { StreamMessagesReply, transformStreamMessagesReply } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -24,14 +24,16 @@ export function transformArguments(
     return args;
 }
 
+type XAutoClaimRawReply = [RedisCommandArgument, Array<any>];
+
 interface XAutoClaimReply {
-    nextId: string;
-    messages: StreamStringsMessagesReply;
+    nextId: RedisCommandArgument;
+    messages: StreamMessagesReply;
 }
 
-export function transformReply(reply: [string, Array<any>]): XAutoClaimReply {
+export function transformReply(reply: XAutoClaimRawReply): XAutoClaimReply {
     return {
         nextId: reply[0],
-        messages: transformReplyStreamStringMessages(reply[1])
+        messages: transformStreamMessagesReply(reply[1])
     };
 }

@@ -62,9 +62,14 @@ export default {
     type: TYPE
 };
 
-// using two "objects" and not `Record<string | number, RedisJSON>` cause of:
-// https://github.com/microsoft/TypeScript/issues/14174
-export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | { [key: string]: RedisJSON } | { [key: number]: RedisJSON };
+// https://github.com/Microsoft/TypeScript/issues/3496#issuecomment-128553540
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface RedisJSONArray extends Array<RedisJSON> {}
+interface RedisJSONObject {
+    [key: string]: RedisJSON;
+    [key: number]: RedisJSON;
+}
+export type RedisJSON = null | boolean | number | string | Date | RedisJSONArray | RedisJSONObject;
 
 export function transformRedisJsonArgument(json: RedisJSON): string {
     return JSON.stringify(json);
@@ -74,20 +79,10 @@ export function transformRedisJsonReply(json: string): RedisJSON {
     return JSON.parse(json);
 }
 
-export function transformRedisJsonArrayReply(jsons: Array<string>): Array<RedisJSON> {
-    return jsons.map(transformRedisJsonReply)
-}
-
 export function transformRedisJsonNullReply(json: string | null): RedisJSON | null {
     if (json === null) return null;
 
     return transformRedisJsonReply(json);
-}
-
-export function transformRedisJsonNullArrayNullReply(jsons: Array<string | null> | null): Array<RedisJSON | null> | null {
-    if (jsons === null) return null;
-
-    return jsons.map(transformRedisJsonNullReply);
 }
 
 export function transformNumbersReply(reply: string): number | Array<number> {

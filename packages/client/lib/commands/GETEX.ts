@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { transformEXAT, transformPXAT } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -15,7 +15,10 @@ type GetExModes = {
     PERSIST: true;
 };
 
-export function transformArguments(key: string, mode: GetExModes): RedisCommandArguments {
+export function transformArguments(
+    key: RedisCommandArgument,
+    mode: GetExModes
+): RedisCommandArguments {
     const args = ['GETEX', key];
 
     if ('EX' in mode) {
@@ -33,4 +36,4 @@ export function transformArguments(key: string, mode: GetExModes): RedisCommandA
     return args;
 }
 
-export declare function transformReply(): string | null;
+export declare function transformReply(): RedisCommandArgument | null;

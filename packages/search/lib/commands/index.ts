@@ -396,10 +396,6 @@ export interface SearchReply {
     }>;
 }
 
-export interface AggregateReply {
-    total: number;
-    results: Array<Record<string, string>>;
-}
 
 export interface ProfileOptions {
     LIMITED?: true;
@@ -420,8 +416,8 @@ export type ProfileRawReply<T> = [
 ];
 
 export interface ProfileReply {
-    results: SearchReply | AggregateReply,
-    profile: ProfileData
+    results: SearchReply | AGGREGATE.AggregateReply;
+    profile: ProfileData;
 }
 
 interface ChildIterator {

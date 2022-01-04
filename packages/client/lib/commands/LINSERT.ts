@@ -1,13 +1,15 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
 type LInsertPosition = 'BEFORE' | 'AFTER';
 
 export function transformArguments(
-    key: string,
+    key: RedisCommandArgument,
     position: LInsertPosition,
-    pivot: string,
-    element: string
-): Array<string> {
+    pivot: RedisCommandArgument,
+    element: RedisCommandArgument
+): RedisCommandArguments {
     return [
         'LINSERT',
         key,

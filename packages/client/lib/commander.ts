@@ -70,7 +70,7 @@ export function extendWithModulesAndScripts<T extends Instantiable>(config: Exte
     return (Commander ?? config.BaseClass) as any;
 }
 
-export function transformCommandArguments<T = unknown>(
+export function transformCommandArguments<T>(
     command: RedisCommand,
     args: Array<unknown>
 ): {

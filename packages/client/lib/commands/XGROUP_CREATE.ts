@@ -21,4 +21,4 @@ export function transformArguments(
     return args;
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): RedisCommandArgument;

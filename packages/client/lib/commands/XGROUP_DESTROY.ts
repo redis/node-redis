@@ -9,4 +9,4 @@ export function transformArguments(
     return ['XGROUP', 'DESTROY', key, group];
 }
 
-export { transformReplyBoolean as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from './generic-transformers';

@@ -1,7 +1,9 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { pushVerdictArguments } from './generic-transformers';
 
-export function transformArguments(keys: string | Array<string>): RedisCommandArguments {
+export function transformArguments(
+    keys: RedisCommandArgument | Array<RedisCommandArgument>
+): RedisCommandArguments {
     return pushVerdictArguments(['DEL'], keys);
 }
 

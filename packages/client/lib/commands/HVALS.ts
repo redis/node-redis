@@ -1,7 +1,9 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string): Array<string> {
+export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
     return ['HVALS', key];
 }
 
-export declare function transformReply(): Array<string>;
+export declare function transformReply(): Array<RedisCommandArgument>;

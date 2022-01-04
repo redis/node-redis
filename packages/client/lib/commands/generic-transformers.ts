@@ -1,11 +1,11 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-export function transformReplyBoolean(reply: number): boolean {
+export function transformBooleanReply(reply: number): boolean {
     return reply === 1;
 }
 
-export function transformReplyBooleanArray(reply: Array<number>): Array<boolean> {
-    return reply.map(transformReplyBoolean);
+export function transformBooleanArrayReply(reply: Array<number>): Array<boolean> {
+    return reply.map(transformBooleanReply);
 }
 
 export type BitValue = 0 | 1;
@@ -15,7 +15,11 @@ export interface ScanOptions {
     COUNT?: number;
 }
 
-export function pushScanArguments(args: Array<string>, cursor: number, options?: ScanOptions): Array<string> {
+export function pushScanArguments(
+    args: RedisCommandArguments,
+    cursor: number,
+    options?: ScanOptions
+): RedisCommandArguments {
     args.push(cursor.toString());
 
     if (options?.MATCH) {
@@ -29,8 +33,8 @@ export function pushScanArguments(args: Array<string>, cursor: number, options?:
     return args;
 }
 
-export function transformReplyNumberInfinity(reply: string): number {
-    switch (reply) {
+export function transformNumberInfinityReply(reply: RedisCommandArgument): number {
+    switch (reply.toString()) {
         case '+inf':
             return Infinity;
 
@@ -42,21 +46,17 @@ export function transformReplyNumberInfinity(reply: string): number {
     }
 }
 
-export function transformReplyNumberInfinityArray(reply: Array<string>): Array<number | null> {
-    return reply.map(transformReplyNumberInfinity);
-}
-
-export function transformReplyNumberInfinityNull(reply: string | null): number | null {
+export function transformNumberInfinityNullReply(reply: RedisCommandArgument | null): number | null {
     if (reply === null) return null;
 
-    return transformReplyNumberInfinity(reply);
+    return transformNumberInfinityReply(reply);
 }
 
-export function transformReplyNumberInfinityNullArray(reply: Array<string | null>): Array<number | null> {
-    return reply.map(transformReplyNumberInfinityNull);
+export function transformNumberInfinityNullArrayReply(reply: Array<RedisCommandArgument | null>): Array<number | null> {
+    return reply.map(transformNumberInfinityNullReply);
 }
 
-export function transformArgumentNumberInfinity(num: number): string {
+export function transformNumberInfinityArgument(num: number): string {
     switch (num) {
         case Infinity:
             return '+inf';
@@ -69,24 +69,15 @@ export function transformArgumentNumberInfinity(num: number): string {
     }
 }
 
-export function transformArgumentStringNumberInfinity(num: string | number): string {
-    if (typeof num === 'string') return num;
+export function transformStringNumberInfinityArgument(num: RedisCommandArgument | number): RedisCommandArgument {
+    if (typeof num !== 'number') return num;
 
-    return transformArgumentNumberInfinity(num);
+    return transformNumberInfinityArgument(num);
 }
 
-export function transformReplyStringTuples(reply: Array<string>): Record<string, string> {
-    const message = Object.create(null);
-
-    for (let i = 0; i < reply.length; i += 2) {
-        message[reply[i]] = reply[i + 1];
-    }
-
-    return message;
-}
-
-
-export function transformReplyBufferTuples(reply: Array<Buffer>): Record<string, Buffer> {
+export function transformTuplesReply(
+    reply: Array<RedisCommandArgument>
+): Record<string, RedisCommandArgument> {
     const message = Object.create(null);
 
     for (let i = 0; i < reply.length; i += 2) {
@@ -96,99 +87,63 @@ export function transformReplyBufferTuples(reply: Array<Buffer>): Record<string,
     return message;
 }
 
-export interface StreamStringsMessageReply {
-    id: string;
-    message: Record<string, string>;
+export interface StreamMessageReply {
+    id: RedisCommandArgument;
+    message: Record<string, RedisCommandArgument>;
 }
 
-export type StreamStringsMessagesReply = Array<StreamStringsMessageReply>;
+export type StreamMessagesReply = Array<StreamMessageReply>;
 
-export function transformReplyStreamStringMessages(reply: Array<any>): StreamStringsMessagesReply {
+export function transformStreamMessagesReply(reply: Array<any>): StreamMessagesReply {
     const messages = [];
 
     for (const [id, message] of reply) {
         messages.push({
             id,
-            message: transformReplyStringTuples(message)
+            message: transformTuplesReply(message)
         });
     }
 
     return messages;
 }
 
-interface StreamBufferMessageReply {
-    id: Buffer;
-    message: Record<string, Buffer>;
-}
-
-export type StreamBufferMessagesReply = Array<StreamBufferMessageReply>;
-
-export function transformReplyStreamBufferMessages(reply: Array<any>): StreamBufferMessagesReply {
-    const messages = [];
-
-    for (const [id, message] of reply) {
-        messages.push({
-            id,
-            message: transformReplyBufferTuples(message)
-        });
-    }
-
-    return messages;
-}
-
-export type StreamsStringMessagesReply = Array<{
-    name: string;
-    messages: StreamStringsMessagesReply;
+export type StreamsMessagesReply = Array<{
+    name: RedisCommandArgument;
+    messages: StreamMessagesReply;
 }> | null;
 
-export function transformReplyStreamsStringMessages(reply: Array<any> | null): StreamsStringMessagesReply | null {
+export function transformStreamsMessagesReply(reply: Array<any> | null): StreamsMessagesReply | null {
     if (reply === null) return null;
 
     return reply.map(([name, rawMessages]) => ({
         name,
-        messages: transformReplyStreamStringMessages(rawMessages)
+        messages: transformStreamMessagesReply(rawMessages)
     }));
 }
 
-export type StreamsBufferMessagesReply = Array<{
-    name: Buffer;
-    messages: StreamBufferMessagesReply;
-}> | null;
-
-export function transformReplyStreamsBufferMessages(reply: Array<any> | null): StreamsBufferMessagesReply | null {
-    if (reply === null) return null;
-
-    return reply.map(([name, rawMessages]) => ({
-        name,
-        messages: transformReplyStreamBufferMessages(rawMessages)
-    }));
-}
-
-export interface ZMember<T = RedisCommandArgument> {
+export interface ZMember {
     score: number;
-    value: T;
+    value: RedisCommandArgument;
 }
 
-export function transformReplySortedStringsSetWithScores(reply: Array<string>): Array<ZMember<string>> {
+export function transformSortedSetMemberNullReply(
+    reply: [RedisCommandArgument, RedisCommandArgument] | []
+): ZMember | null {
+    if (!reply.length) return null;
+
+    return {
+        value: reply[0],
+        score: transformNumberInfinityReply(reply[1])
+    };
+}
+
+export function transformSortedSetWithScoresReply(reply: Array<RedisCommandArgument>): Array<ZMember> {
     const members = [];
 
     for (let i = 0; i < reply.length; i += 2) {
         members.push({
             value: reply[i],
-            score: transformReplyNumberInfinity(reply[i + 1])
-        });
-    }
-
-    return members;
-}
-
-export function transformReplySortedBuffersSetWithScores(reply: Array<Buffer>): Array<ZMember<Buffer>> {
-    const members = [];
-
-    for (let i = 0; i < reply.length; i += 2) {
-        members.push({
-            value: reply[i],
-            score: transformReplyNumberInfinity(reply[i + 1].toString())
+            score: transformNumberInfinityReply(reply[i + 1])
         });
     }
 
@@ -200,7 +155,10 @@ type GeoCountArgument = number | {
     ANY?: true
 };
 
-export function pushGeoCountArgument(args: Array<string>, count: GeoCountArgument | undefined): Array<string> {
+export function pushGeoCountArgument(
+    args: RedisCommandArguments,
+    count: GeoCountArgument | undefined
+): RedisCommandArguments {
     if (typeof count === 'number') {
         args.push('COUNT', count.toString());
     } else if (count) {
@@ -244,12 +202,12 @@ export interface GeoSearchOptions {
 }
 
 export function pushGeoSearchArguments(
-    args: Array<string>,
-    key: string,
+    args: RedisCommandArguments,
+    key: RedisCommandArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     options?: GeoSearchOptions
-): Array<string> {
+): RedisCommandArguments {
     args.push(key);
 
     if (typeof from === 'string') {
@@ -354,20 +312,6 @@ export function pushEvalArguments(args: Array<string>, options?: EvalOptions): A
     return args;
 }
 
-export type StringTuplesArguments = Array<[string, string]> | Array<string> | Record<string, string>;
-
-export function pushStringTuplesArguments(args: Array<string>, tuples: StringTuplesArguments): Array<string> {
-    if (Array.isArray(tuples)) {
-        args.push(...tuples.flat());
-    } else {
-        for (const key of Object.keys(tuples)) {
-            args.push(key, tuples[key]);
-        }
-    }
-
-    return args;
-}
-
 export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCommandArgument | Array<RedisCommandArgument>): RedisCommandArguments  {
     if (Array.isArray(value)) {
         args.push(...value);
@@ -378,17 +322,24 @@ export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCo
     return args;
 }
 
-export function pushVerdictArgument(args: RedisCommandArguments, value: string | Array<string>): RedisCommandArguments {
-    if (typeof value === 'string') {
-        args.push('1', value);
-    } else {
+export function pushVerdictArgument(
+    args: RedisCommandArguments,
+    value: RedisCommandArgument | Array<RedisCommandArgument>
+): RedisCommandArguments {
+    if (Array.isArray(value)) {
         args.push(value.length.toString(), ...value);
+    } else {
+        args.push('1', value);
     }
 
     return args;
 }
 
-export function pushOptionalVerdictArgument(args: RedisCommandArguments, name: string, value: undefined | string | Array<string>): RedisCommandArguments {
+export function pushOptionalVerdictArgument(
+    args: RedisCommandArguments,
+    name: RedisCommandArgument,
+    value: undefined | RedisCommandArgument | Array<RedisCommandArgument>
+): RedisCommandArguments {
     if (value === undefined) return args;
 
     args.push(name);

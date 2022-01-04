@@ -93,5 +93,18 @@ describe('CLIENT KILL', () => {
                 );
             });
         });
+        
+        it('TYPE & SKIP_ME', () => {
+            assert.deepEqual(
+                transformArguments([
+                    {
+                        filter: ClientKillFilters.TYPE,
+                        type: 'master'
+                    },
+                    ClientKillFilters.SKIP_ME
+                ]),
+                ['CLIENT', 'KILL', 'TYPE', 'master', 'SKIPME']
+            );
+        });
     });
 });

@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import RedisClient from '../client';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GET';
 
@@ -11,6 +12,12 @@ describe('GET', () => {
     });
 
     testUtils.testWithClient('client.get', async client => {
+        const a = await client.get(
+            'key'
+        );
+
+
+
         assert.equal(
             await client.get('key'),
             null

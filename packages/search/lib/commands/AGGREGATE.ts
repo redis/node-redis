@@ -1,6 +1,6 @@
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushVerdictArgument, transformReplyStringTuples } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { AggregateReply, PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { pushVerdictArgument, transformTuplesReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
     GROUPBY = 'GROUPBY',
@@ -273,14 +273,19 @@ function pushGroupByReducer(args: RedisCommandArguments, reducer: GroupByReducer
 
 export type AggregateRawReply = [
     total: number,
-    ...results: Array<Array<string>>
+    ...results: Array<Array<RedisCommandArgument>>
 ];
 
+export interface AggregateReply {
+    total: number;
+    results: Array<Record<string, RedisCommandArgument>>;
+}
+
 export function transformReply(rawReply: AggregateRawReply): AggregateReply {
-    const results: Array<Record<string, string>> = [];
+    const results: Array<Record<string, RedisCommandArgument>> = [];
     for (let i = 1; i < rawReply.length; i++) {
         results.push(
-            transformReplyStringTuples(rawReply[i] as Array<string>)
+            transformTuplesReply(rawReply[i] as Array<RedisCommandArgument>)
         );
     }
 

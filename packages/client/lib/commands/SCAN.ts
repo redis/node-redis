@@ -1,11 +1,15 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { ScanOptions, pushScanArguments } from './generic-transformers';
 
 export const IS_READ_ONLY = true;
 export interface ScanCommandOptions extends ScanOptions {
-    TYPE?: string;
+    TYPE?: RedisCommandArgument;
 }
 
-export function transformArguments(cursor: number, options?: ScanCommandOptions): Array<string> {
+export function transformArguments(
+    cursor: number,
+    options?: ScanCommandOptions
+): RedisCommandArguments {
     const args = pushScanArguments(['SCAN'], cursor, options);
 
     if (options?.TYPE) {
@@ -15,12 +19,14 @@ export function transformArguments(cursor: number, options?: ScanCommandOptions)
     return args;
 }
 
+type ScanRawReply = [string, Array<string>];
+
 export interface ScanReply {
     cursor: number;
-    keys: Array<string>;
+    keys: Array<RedisCommandArgument>;
 }
 
-export function transformReply([cursor, keys]: [string, Array<string>]): ScanReply {
+export function transformReply([cursor, keys]: ScanRawReply): ScanReply {
     return {
         cursor: Number(cursor),
         keys

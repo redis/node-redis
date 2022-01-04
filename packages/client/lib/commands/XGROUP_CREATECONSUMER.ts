@@ -10,4 +10,4 @@ export function transformArguments(
     return ['XGROUP', 'CREATECONSUMER', key, group, consumer];
 }
 
-export { transformReplyBoolean as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from './generic-transformers';

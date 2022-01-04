@@ -1,9 +1,9 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
 export const IS_READ_ONLY = true;
 
-export function transformArguments(): Array<string> {
+export function transformArguments(): RedisCommandArguments {
     return ['RANDOMKEY'];
 }
 
-export function transformReply(reply: string | null): string | null {
-    return reply;
-}
+export declare function transformReply(): RedisCommandArgument | null;

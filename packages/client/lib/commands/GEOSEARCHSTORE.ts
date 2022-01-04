@@ -1,3 +1,4 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
@@ -9,12 +10,12 @@ interface GeoSearchStoreOptions extends GeoSearchOptions {
 }
 
 export function transformArguments(
-    destination: string,
-    source: string,
+    destination: RedisCommandArgument,
+    source: RedisCommandArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     options?: GeoSearchStoreOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = pushGeoSearchArguments(
         ['GEOSEARCHSTORE', destination],
         source,

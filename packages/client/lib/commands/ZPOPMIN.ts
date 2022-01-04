@@ -1,19 +1,12 @@
-import { transformReplyNumberInfinity, ZMember } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string): Array<string> {
+export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
     return [
         'ZPOPMIN',
         key
     ];
 }
 
-export function transformReply(reply: [string, string] | []): ZMember<string> | null {
-    if (!reply.length) return null;
-
-    return {
-        value: reply[0],
-        score: transformReplyNumberInfinity(reply[1])
-    };
-}
+export { transformSortedSetMemberNullReply as transformReply } from './generic-transformers';

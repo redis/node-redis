@@ -1,5 +1,12 @@
-export function transformArguments(key: string, seconds: number): Array<string> {
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export const FIRST_KEY_INDEX = 1;
+
+export function transformArguments(
+    key: RedisCommandArgument,
+    seconds: number
+): RedisCommandArguments {
     return ['EXPIRE', key, seconds.toString()];
 }
 
-export { transformReplyBoolean as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from './generic-transformers';

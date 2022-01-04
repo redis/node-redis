@@ -1,3 +1,4 @@
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { AuthOptions } from './AUTH';
 
 interface HelloOptions {
@@ -6,8 +7,8 @@ interface HelloOptions {
     clientName?: string;
 }
 
-export function transformArguments(options?: HelloOptions): Array<string> {
-    const args = ['HELLO'];
+export function transformArguments(options?: HelloOptions): RedisCommandArguments {
+    const args: RedisCommandArguments = ['HELLO'];
 
     if (options) {
         args.push(options.protover.toString());
@@ -26,29 +27,29 @@ export function transformArguments(options?: HelloOptions): Array<string> {
 
 type HelloRawReply = [
     _: never,
-    server: string,
+    server: RedisCommandArgument,
     _: never,
-    version: string,
+    version: RedisCommandArgument,
     _: never,
     proto: number,
     _: never,
     id: number,
     _: never,
-    mode: string,
+    mode: RedisCommandArgument,
     _: never,
-    role: string,
+    role: RedisCommandArgument,
     _: never,
-    modules: Array<string>
+    modules: Array<RedisCommandArgument>
 ];
 
 interface HelloTransformedReply {
-    server: string;
-    version: string;
+    server: RedisCommandArgument;
+    version: RedisCommandArgument;
     proto: number;
     id: number;
-    mode: string;
-    role: string;
-    modules: Array<string>;
+    mode: RedisCommandArgument;
+    role: RedisCommandArgument;
+    modules: Array<RedisCommandArgument>;
 }
 
 export function transformReply(reply: HelloRawReply): HelloTransformedReply {

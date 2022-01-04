@@ -1,7 +1,7 @@
-export function transformArguments(pattern: string): Array<string> {
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+
+export function transformArguments(pattern: RedisCommandArgument): RedisCommandArguments {
     return ['KEYS', pattern];
 }
 
-export function transformReply(keys: Array<string>): Array<string> {
-    return keys;
-}
+export declare function transformReply(): Array<RedisCommandArgument>;

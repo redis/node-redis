@@ -11,6 +11,7 @@ export interface QueueCommandOptions {
     asap?: boolean;
     chainId?: symbol;
     signal?: AbortSignal;
+    returnBuffers?: boolean;
     ignorePubSubMode?: boolean;
 }
 
@@ -27,7 +28,7 @@ interface CommandWaitingForReply {
     resolve(reply?: unknown): void;
     reject(err: Error): void;
     channelsCounter?: number;
-    bufferMode?: boolean;
+    returnBuffers?: boolean;
 }
 
 export enum PubSubSubscribeCommands {
@@ -41,8 +42,8 @@ export enum PubSubUnsubscribeCommands {
 }
 
 export type PubSubListener<
-    BUFFER_MODE extends boolean = false,
-    T = BUFFER_MODE extends true ? Buffer : string
+    RETURN_BUFFERS extends boolean = false,
+    T = RETURN_BUFFERS extends true ? Buffer : string
 > = (message: T, channel: T) => unknown;
 
 interface PubSubListeners {
@@ -70,7 +71,7 @@ export default class RedisCommandsQueue {
     }
 
     static #emitPubSubMessage(listenersMap: PubSubListenersMap, message: Buffer, channel: Buffer, pattern?: Buffer): void {
-        const keyString = (pattern || channel).toString(),
+        const keyString = (pattern ?? channel).toString(),
             listeners = listenersMap.get(keyString);
 
         if (!listeners) return;
@@ -81,7 +82,9 @@ export default class RedisCommandsQueue {
 
         if (!listeners.strings.size) return;
 
-        const messageString = message.toString(),
+        // https://github.com/redis/redis/pull/7469
+        // https://github.com/redis/redis/issues/7463
+        const messageString = (Array.isArray(message) ? message.map(m => m.toString()) as any : message.toString()),
             channelString = pattern ? channel.toString() : keyString;
         for (const listener of listeners.strings) {
             listener(messageString, channelString);
@@ -142,7 +145,7 @@ export default class RedisCommandsQueue {
         this.#maxLength = maxLength;
     }
 
-    addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions, bufferMode?: boolean): Promise<T> {
+    addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {
         if (this.#pubSubState && !options?.ignorePubSubMode) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
@@ -154,7 +157,7 @@ export default class RedisCommandsQueue {
             const node = new LinkedList.Node<CommandWaitingToBeSent>({
                 args,
                 chainId: options?.chainId,
-                bufferMode,
+                returnBuffers: options?.returnBuffers,
                 resolve,
                 reject
             });
@@ -197,7 +200,7 @@ export default class RedisCommandsQueue {
         command: PubSubSubscribeCommands,
         channels: RedisCommandArgument | Array<RedisCommandArgument>,
         listener: PubSubListener<T>,
-        bufferMode?: T
+        returnBuffers?: T
     ): Promise<void> {
         const pubSubState = this.#initiatePubSubState(),
             channelsToSubscribe: Array<RedisCommandArgument> = [],
@@ -215,7 +218,7 @@ export default class RedisCommandsQueue {
             }
 
             // https://github.com/microsoft/TypeScript/issues/23132
-            (bufferMode ? listeners.buffers : listeners.strings).add(listener as any);
+            (returnBuffers ? listeners.buffers : listeners.strings).add(listener as any);
         }
 
         if (!channelsToSubscribe.length) {
@@ -228,7 +231,7 @@ export default class RedisCommandsQueue {
         command: PubSubUnsubscribeCommands,
         channels?: string | Array<string>,
         listener?: PubSubListener<T>,
-        bufferMode?: T
+        returnBuffers?: T
     ): Promise<void> {
         if (!this.#pubSubState) {
             return Promise.resolve();
@@ -252,7 +255,7 @@ export default class RedisCommandsQueue {
             let shouldUnsubscribe;
             if (listener) {
                 // https://github.com/microsoft/TypeScript/issues/23132
-                (bufferMode ? sets.buffers : sets.strings).delete(listener as any);
+                (returnBuffers ? sets.buffers : sets.strings).delete(listener as any);
                 shouldUnsubscribe = !sets.buffers.size && !sets.strings.size;
             } else {
                 shouldUnsubscribe = true;
@@ -289,7 +292,7 @@ export default class RedisCommandsQueue {
             this.#waitingToBeSent.push({
                 args: commandArgs,
                 channelsCounter,
-                bufferMode: true,
+                returnBuffers: true,
                 resolve: () => {
                     pubSubState[inProgressKey] -= channelsCounter;
                     if (isSubscribe) {
@@ -350,18 +353,22 @@ export default class RedisCommandsQueue {
                 resolve: toSend.resolve,
                 reject: toSend.reject,
                 channelsCounter: toSend.channelsCounter,
-                bufferMode: toSend.bufferMode
+                returnBuffers: toSend.returnBuffers
             });
         }
         this.#chainInExecution = toSend?.chainId;
         return toSend?.args;
     }
 
-    parseResponse(data: Buffer): void {
+    #setReturnBuffers() {
         this.#parser.setReturnBuffers(
-            !!this.#waitingForReply.head?.value.bufferMode ||
+            !!this.#waitingForReply.head?.value.returnBuffers ||
             !!this.#pubSubState?.subscribed
         );
+    }
+
+    parseResponse(data: Buffer): void {
+        this.#setReturnBuffers();
         this.#parser.execute(data);
     }
 
@@ -369,8 +376,12 @@ export default class RedisCommandsQueue {
         if (!this.#waitingForReply.length) {
             throw new Error('Got an unexpected reply from Redis');
         }
-        return this.#waitingForReply.shift()!;
+
+        const waitingForReply = this.#waitingForReply.shift()!;
+        this.#setReturnBuffers();
+        return waitingForReply;
     }
+
     flushWaitingForReply(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         if (!this.#chainInExecution) {
@@ -381,6 +392,7 @@ export default class RedisCommandsQueue {
         }
         this.#chainInExecution = undefined;
     }
+
     flushAll(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         RedisCommandsQueue.#flushQueue(this.#waitingToBeSent, err);

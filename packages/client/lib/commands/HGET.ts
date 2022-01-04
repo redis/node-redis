@@ -11,4 +11,4 @@ export function transformArguments(
     return ['HGET', key, field];
 }
 
-export declare function transformReply(): string | undefined;
+export declare function transformReply(): RedisCommandArgument | undefined;

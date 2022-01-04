@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { transformArguments as transformXAutoClaimArguments } from './XAUTOCLAIM';
 
 export { FIRST_KEY_INDEX } from './XAUTOCLAIM';
@@ -10,12 +10,14 @@ export function transformArguments(...args: Parameters<typeof transformXAutoClai
     ];
 }
 
+type XAutoClaimJustIdRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
+
 interface XAutoClaimJustIdReply {
-    nextId: string;
-    messages: Array<string>;
+    nextId: RedisCommandArgument;
+    messages: Array<RedisCommandArgument>;
 }
 
-export function transformReply(reply: [string, Array<string>]): XAutoClaimJustIdReply {
+export function transformReply(reply: XAutoClaimJustIdRawReply): XAutoClaimJustIdReply {
     return {
         nextId: reply[0],
         messages: reply[1]

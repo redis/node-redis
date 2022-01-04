@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import { ClientCommandOptions, RedisClientCommandSignature, RedisClientOptions, RedisClientType, WithModules, WithScripts } from '../client';
 import RedisClusterSlots, { ClusterNode } from './cluster-slots';
 import { extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, extendWithCommands } from '../commander';
@@ -20,10 +20,10 @@ type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
 };
 
-export type RedisClusterType<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> =
+export type RedisClusterType<M extends RedisModules, S extends RedisScripts> =
     RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
-export default class RedisCluster<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>> extends EventEmitter {
+export default class RedisCluster<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): RedisCommandArgument | undefined {
         if (command.FIRST_KEY_INDEX === undefined) {
             return undefined;
@@ -34,7 +34,7 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
         return command.FIRST_KEY_INDEX(...originalArgs);
     }
 
-    static create<M extends RedisModules = Record<string, never>, S extends RedisScripts = Record<string, never>>(options?: RedisClusterOptions<M, S>): RedisClusterType<M, S> {
+    static create<M extends RedisModules, S extends RedisScripts>(options?: RedisClusterOptions<M, S>): RedisClusterType<M, S> {
         return new (<any>extendWithModulesAndScripts({
             BaseClass: RedisCluster,
             modules: options?.modules,
@@ -76,35 +76,23 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
                 RedisCluster.extractFirstKey(command, args, redisArgs),
                 command.IS_READ_ONLY,
                 redisArgs,
-                options,
-                command.BUFFER_MODE
+                options
             ),
             redisArgs.preserve
         );
     }
 
-    async sendCommand<C extends RedisCommand>(
+    async sendCommand<T = RedisCommandRawReply>(
         firstKey: RedisCommandArgument | undefined,
         isReadonly: boolean | undefined,
         args: RedisCommandArguments,
-        options?: ClientCommandOptions,
-        bufferMode?: boolean,
-        redirections = 0
-    ): Promise<RedisCommandReply<C>> {
-        const client = this.#slots.getClient(firstKey, isReadonly);
-
-        try {
-            return await client.sendCommand(args, options, bufferMode);
-        } catch (err: any) {
-            const shouldRetry = await this.#handleCommandError(err, client, redirections);
-            if (shouldRetry === true) {
-                return this.sendCommand(firstKey, isReadonly, args, options, bufferMode, redirections + 1);
-            } else if (shouldRetry) {
-                return shouldRetry.sendCommand(args, options, bufferMode);
-            }
-
-            throw err;
-        }
+        options?: ClientCommandOptions
+    ): Promise<T> {
+        return this.#execute(
+            firstKey,
+            isReadonly,
+            client => client.sendCommand<T>(args, options)
+        );
     }
 
     async scriptsExecutor(script: RedisScript, args: Array<unknown>): Promise<RedisCommandReply<typeof script>> {
@@ -126,61 +114,65 @@ export default class RedisCluster<M extends RedisModules = Record<string, never>
         script: RedisScript,
         originalArgs: Array<unknown>,
         redisArgs: RedisCommandArguments,
-        options?: ClientCommandOptions,
-        redirections = 0
+        options?: ClientCommandOptions
     ): Promise<RedisCommandReply<typeof script>> {
-        const client = this.#slots.getClient(
+        return this.#execute(
             RedisCluster.extractFirstKey(script, originalArgs, redisArgs),
-            script.IS_READ_ONLY
+            script.IS_READ_ONLY,
+            client => client.executeScript(script, redisArgs, options)
         );
-
-        try {
-            return await client.executeScript(script, redisArgs, options, script.BUFFER_MODE);
-        } catch (err: any) {
-            const shouldRetry = await this.#handleCommandError(err, client, redirections);
-            if (shouldRetry === true) {
-                return this.executeScript(script, originalArgs, redisArgs, options, redirections + 1);
-            } else if (shouldRetry) {
-                return shouldRetry.executeScript(script, redisArgs, options, script.BUFFER_MODE);
-            }
-
-            throw err;
-        }
     }
 
-    async #handleCommandError(err: Error, client: RedisClientType<M, S>, redirections: number): Promise<boolean | RedisClientType<M, S>> {
-        if (redirections > (this.#options.maxCommandRedirections ?? 16)) {
-            throw err;
-        }
-
-        if (err.message.startsWith('ASK')) {
-            const url = err.message.substring(err.message.lastIndexOf(' ') + 1);
-            let node = this.#slots.getNodeByUrl(url);
-            if (!node) {
-                await this.#slots.rediscover(client);
-                node = this.#slots.getNodeByUrl(url);
-
-                if (!node) {
-                    throw new Error(`Cannot find node ${url}`);
+    async #execute<Reply>(
+        firstKey: RedisCommandArgument | undefined,
+        isReadonly: boolean | undefined,
+        executor: (client: RedisClientType<M, S>) => Promise<Reply>
+    ): Promise<Reply> {
+        const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
+        let client = this.#slots.getClient(firstKey, isReadonly);
+        for (let i = 0;; i++) {
+            try {
+                return await executor(client);
+            } catch (err) {
+                if (++i > maxCommandRedirections || !(err instanceof Error)) {
+                    throw err;
                 }
+
+                if (err.message.startsWith('ASK')) {
+                    const url = err.message.substring(err.message.lastIndexOf(' ') + 1);
+                    if (this.#slots.getNodeByUrl(url)?.client === client) {
+                        await client.asking();
+                        continue;
+                    }
+
+                    await this.#slots.rediscover(client);
+                    const redirectTo = this.#slots.getNodeByUrl(url);
+                    if (!redirectTo) {
+                        throw new Error(`Cannot find node ${url}`);
+                    }
+
+                    await redirectTo.client.asking();
+                    client = redirectTo.client;
+                    continue;
+                } else if (err.message.startsWith('MOVED')) {
+                    await this.#slots.rediscover(client);
+                    client = this.#slots.getClient(firstKey, isReadonly);
+                    continue;
+                }
+
+                throw err;
             }
-
-            await node.client.asking();
-            return node.client;
-        } else if (err.message.startsWith('MOVED')) {
-            await this.#slots.rediscover(client);
-            return true;
         }
-
-        throw err;
     }
 
     multi(routing?: RedisCommandArgument): RedisClusterMultiCommandType<M, S> {
         return new this.#Multi(
-            async (commands: Array<RedisMultiQueuedCommand>, firstKey?: RedisCommandArgument, chainId?: symbol) => {
-                return this.#slots
-                    .getClient(firstKey)
-                    .multiExecutor(commands, chainId);
+            (commands: Array<RedisMultiQueuedCommand>, firstKey?: RedisCommandArgument, chainId?: symbol) => {
+                return this.#execute(
+                    firstKey,
+                    false,
+                    client => client.multiExecutor(commands, chainId)
+                );
             },
             routing
         );

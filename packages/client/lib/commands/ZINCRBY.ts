@@ -1,14 +1,19 @@
-import { transformArgumentNumberInfinity } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { transformNumberInfinityArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: string, increment: number, member: string): Array<string> {
+export function transformArguments(
+    key: RedisCommandArgument,
+    increment: number,
+    member: RedisCommandArgument
+): RedisCommandArguments {
     return [
         'ZINCRBY',
         key,
-        transformArgumentNumberInfinity(increment),
+        transformNumberInfinityArgument(increment),
         member
     ];
 }
 
-export { transformReplyNumberInfinity as transformReply } from './generic-transformers';
+export { transformNumberInfinityReply as transformReply } from './generic-transformers';

@@ -5,7 +5,7 @@ export const FIRST_KEY_INDEX = 1;
 export function transformArguments(
     key: RedisCommandArgument,
     seconds: number,
-    value: string
+    value: RedisCommandArgument
 ): RedisCommandArguments {
     return [
         'SETEX',
@@ -15,4 +15,4 @@ export function transformArguments(
     ];
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): RedisCommandArgument;

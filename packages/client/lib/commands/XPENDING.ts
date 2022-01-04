@@ -13,21 +13,21 @@ export function transformArguments(
 
 type XPendingRawReply = [
     pending: number,
-    firstId: string | null,
-    lastId: string | null,
+    firstId: RedisCommandArgument | null,
+    lastId: RedisCommandArgument | null,
     consumers: Array<[
-        name: string,
-        deliveriesCounter: number
+        name: RedisCommandArgument,
+        deliveriesCounter: RedisCommandArgument
     ]> | null
-]
+];
 
 interface XPendingReply {
     pending: number;
-    firstId: string | null;
-    lastId: string | null
+    firstId: RedisCommandArgument | null;
+    lastId: RedisCommandArgument | null;
     consumers: Array<{
-        name: string,
-        deliveriesCounter: number
+        name: RedisCommandArgument;
+        deliveriesCounter: number;
     }> | null;
 }
 
@@ -38,7 +38,7 @@ export function transformReply(reply: XPendingRawReply): XPendingReply {
         lastId: reply[2],
         consumers: reply[3] === null ? null : reply[3].map(([name, deliveriesCounter]) => ({
             name,
-            deliveriesCounter
+            deliveriesCounter: Number(deliveriesCounter)
         }))
     };
 }
