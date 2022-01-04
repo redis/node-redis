@@ -12,12 +12,13 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         node-version: ['12', '14', '16']
         redis-version: ['5', '6.0', '6.2']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.4
         with:
