@@ -1,21 +1,53 @@
-import { createConnection } from 'net';
-import { once } from 'events';
 import { RedisModules, RedisScripts } from '@node-redis/client/lib/commands';
 import RedisClient, { RedisClientType } from '@node-redis/client/lib/client';
 import { promiseTimeout } from '@node-redis/client/lib/utils';
 import * as path from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
-import { platform } from 'os';
+import { createConnection } from 'net';
+import { once } from 'events';
 const execAsync = promisify(exec);
+
+export async function createNetwork(name: string): Promise<void> {
+    try {
+        await execAsync(`docker network inspect ${name} -f '{{ .Id }}'`);
+
+        console.warn(`${name} network already exists, reusing it`);
+        return;
+    } catch {}
+
+    const { stderr } = await execAsync(`docker network create ${name}`);
+    if (stderr) {
+        throw new Error(`docket network create error - ${stderr}`);
+    }
+}
+
+export async function removeNetwork(name: string): Promise<void> {
+    const { stderr } = await execAsync(`docker network rm ${name}`);
+    if (stderr) {
+        throw new Error(`docket network create error - ${stderr}`);
+    }
+}
+
+async function getContainerHost(network: string, id: string): Promise<string> {
+    const { stdout, stderr } = await execAsync(`docker container inspect ${id} -f '{{ index .NetworkSettings.Networks "${network}" "IPAddress" }}'`);
+    if (stderr) {
+        throw new Error(stderr);
+    }
+
+    return stdout.trim();
+}
 
 interface ErrorWithCode extends Error {
     code: string;
 }
 
-async function isPortAvailable(port: number): Promise<boolean> {
+async function isPortAvailable(host: string, port: number): Promise<boolean> {
     try {
-        const socket = createConnection({ port });
+        const socket = createConnection({
+            host,
+            port
+        });
         await once(socket, 'connect');
         socket.end();
     } catch (err) {
@@ -27,59 +59,41 @@ async function isPortAvailable(port: number): Promise<boolean> {
     return false;
 }
 
-const portIterator = (async function*(): AsyncIterableIterator<number> {
-    for (let i = 6379; i < 65535; i++) {
-        if (await isPortAvailable(i)) {
-            yield i;
-        }
-    }
-
-    throw new Error('All ports are in use');
-})();
-
 export interface RedisServerDockerConfig {
+    network: string;
     image: string;
     version: Array<number>;
 }
 
 export interface RedisServerDocker {
-    port: number;
+    host: string;
     dockerId: string;
 }
 
 // ".." cause it'll be in `./dist`
 const DOCKER_FODLER_PATH = path.join(__dirname, '../docker');
 
-async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
-    const port = (await portIterator.next()).value;
-    const command = ['docker run -d'];
-    switch (platform()) {
-        // `--network host` doesn't work as expected on macOS, so we have to do explicit port forwarding
-        case 'darwin': {
-            command.push(`-p "${port.toString()}:${port.toString()}"`);
-            break;
-        }
-        default:
-            command.push('--network host');
-    }
-    const subCommand = [
-        `docker build ${DOCKER_FODLER_PATH} -q`,
-        `--build-arg IMAGE=${image}:${version.join('.')}`,
-        `--build-arg REDIS_ARGUMENTS="--save --port ${port.toString()} ${serverArguments.join(' ')}"`,
-    ];
-    command.push(`$(${subCommand.join(' ')})`);
-    const { stdout, stderr } = await execAsync(command.join(' '));
+async function spawnRedisServerDocker({ network, image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
+    const { stdout, stderr } = await execAsync(
+        `docker run -d --network ${network} $(` +
+            `docker build ${DOCKER_FODLER_PATH} -q ` +
+            `--build-arg IMAGE=${image}:${version.join('.')} ` +
+            `--build-arg REDIS_ARGUMENTS="--save ${serverArguments.join(' ')}"` +
+        ')'
+    );
 
     if (!stdout) {
         throw new Error(`docker run error - ${stderr}`);
     }
 
-    while (await isPortAvailable(port)) {
-        await promiseTimeout(500);
+    const dockerId = stdout.trim(),
+        host = await getContainerHost(network, dockerId);
+    while (await isPortAvailable(host, 6379)) {
+        await promiseTimeout(50);
     }
 
     return {
-        port,
+        host,
         dockerId: stdout.trim()
     };
 }
@@ -104,7 +118,7 @@ async function dockerRemove(dockerId: string): Promise<void> {
     }
 }
 
-after(() => {
+after('remove server dockers', () => {
     return Promise.all(
         [...RUNNING_SERVERS.values()].map(async dockerPromise =>
             await dockerRemove((await dockerPromise).dockerId)
@@ -122,7 +136,7 @@ async function spawnRedisClusterNodeDocker(
     fromSlot: number,
     toSlot: number,
     waitForState: boolean,
-    meetPort?: number
+    meetHost?: string
 ): Promise<RedisServerDocker> {
     const docker = await spawnRedisServerDocker(dockersConfig, [
             ...serverArguments,
@@ -131,11 +145,7 @@ async function spawnRedisClusterNodeDocker(
             '--cluster-node-timeout',
             '5000'
         ]),
-        client = RedisClient.create({
-            socket: {
-                port: docker.port
-            }
-        });
+        client = RedisClient.create({ socket: docker });
 
     await client.connect();
 
@@ -147,8 +157,8 @@ async function spawnRedisClusterNodeDocker(
 
         const promises: Array<Promise<unknown>> = [client.clusterAddSlots(range)];
 
-        if (meetPort) {
-            promises.push(client.clusterMeet('127.0.0.1', meetPort));
+        if (meetHost) {
+            promises.push(client.clusterMeet(meetHost, 6379));
         }
 
         if (waitForState) {
@@ -165,7 +175,7 @@ async function spawnRedisClusterNodeDocker(
 
 async function waitForClusterState<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
     while ((await client.clusterInfo()).state !== 'ok') {
-        await promiseTimeout(500);
+        await promiseTimeout(50);
     }
 }
 
@@ -185,22 +195,20 @@ async function spawnRedisClusterDockers(dockersConfig: RedisClusterDockersConfig
                 fromSlot,
                 toSlot,
                 waitForState,
-                i === 0 ? undefined : dockers[i - 1].port
+                i === 0 ? undefined : dockers[i - 1].host
             )
         );
     }
 
     const client = RedisClient.create({
-        socket: {
-            port: dockers[0].port
-        }
+        socket: dockers[0]
     });
 
     await client.connect();
 
     try {
         while ((await client.clusterInfo()).state !== 'ok') {
-            await promiseTimeout(500);
+            await promiseTimeout(50);
         }
     } finally {
         await client.disconnect();
@@ -222,7 +230,7 @@ export function spawnRedisCluster(dockersConfig: RedisClusterDockersConfig, serv
     return dockersPromise;
 }
 
-after(() => {
+after('remove cluster dockers', () => {
     return Promise.all(
         [...RUNNING_CLUSTERS.values()].map(async dockersPromise => {
             return Promise.all(

@@ -2,6 +2,7 @@ import TestUtils from '@node-redis/test-utils';
 import RedisJSON from '.';
 
 export default new TestUtils({
+    networkName: 'json',
     dockerImageName: 'redislabs/rejson',
     dockerImageVersionArgument: 'rejson-version',
     defaultDockerVersion: '2.0.2'

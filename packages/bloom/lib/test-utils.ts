@@ -2,6 +2,7 @@ import TestUtils from '@node-redis/test-utils';
 import RedisBloomModules from '.';
 
 export default new TestUtils({
+    networkName: 'bloom',
     dockerImageName: 'redislabs/rebloom',
     dockerImageVersionArgument: 'redisbloom-version',
     defaultDockerVersion: '2.2.9'

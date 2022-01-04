@@ -1,11 +1,12 @@
 import { RedisModules, RedisScripts } from '@node-redis/client/lib/commands';
 import RedisClient, { RedisClientOptions, RedisClientType } from '@node-redis/client/lib/client';
 import RedisCluster, { RedisClusterOptions, RedisClusterType } from '@node-redis/client/lib/cluster';
-import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
+import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster, createNetwork, removeNetwork } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 interface TestUtilsConfig {
+    networkName: string;
     dockerImageName: string;
     dockerImageVersionArgument: string;
     defaultDockerVersion: string;
@@ -52,9 +53,13 @@ export default class TestUtils {
 
     constructor(config: TestUtilsConfig) {
         this.#DOCKER_IMAGE = {
+            network: config.networkName,
             image: config.dockerImageName,
             version: TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion)
         };
+
+        before('create network', () => createNetwork(config.networkName));
+        after('remove network', () => removeNetwork(config.networkName));
     }
 
     isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {
@@ -74,7 +79,7 @@ export default class TestUtils {
 
     isVersionGreaterThanHook(minimumVersion: Array<number> | undefined): void {
         const isVersionGreaterThan = this.isVersionGreaterThan.bind(this);
-        before(function () {
+        before('validate minimum version', function () {
             if (!isVersionGreaterThan(minimumVersion)) {
                 return this.skip();
             }
@@ -104,7 +109,7 @@ export default class TestUtils {
                 ...options?.clientOptions,
                 socket: {
                     ...options?.clientOptions?.socket,
-                    port: (await dockerPromise).port
+                    ...await dockerPromise
                 }
             });
 
@@ -157,11 +162,7 @@ export default class TestUtils {
             const dockers = await dockersPromise,
                 cluster = RedisCluster.create({
                     ...options.clusterConfiguration,
-                    rootNodes: dockers.map(({ port }) => ({
-                        socket: {
-                            port
-                        }
-                    }))
+                    rootNodes: dockers.map(docker => ({ socket: docker }))
                 });
 
 

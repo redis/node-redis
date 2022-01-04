@@ -2,6 +2,7 @@ import TestUtils from '@node-redis/test-utils';
 import RediSearch from '.';
 
 export default new TestUtils({
+    networkName: 'search',
     dockerImageName: 'redislabs/redisearch',
     dockerImageVersionArgument: 'redisearch-version',
     defaultDockerVersion: '2.2.1'
