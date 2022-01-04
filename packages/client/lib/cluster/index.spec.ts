@@ -83,15 +83,13 @@ describe('Cluster', () => {
             value
         );
 
-        await Promise.all([
-            source.client.migrate(
-                '127.0.0.1',
-                (<any>destination.client.options).socket.port,
-                key,
-                0,
-                10
-            )
-        ]);
+        await source.client.migrate(
+            (<any>destination.client.options).socket.host,
+            6379,
+            key,
+            0,
+            10
+        );
 
         // should be able to get the key from the destination node using the "ASKING" command
         assert.equal(
