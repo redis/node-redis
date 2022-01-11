@@ -11,4 +11,4 @@ export function transformArguments(
     return pushVerdictArguments(['EXISTS'], keys);
 }
 
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export declare function transformReply(): number;
