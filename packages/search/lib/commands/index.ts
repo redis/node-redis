@@ -200,7 +200,7 @@ type CreateSchemaNumericField = CreateSchemaField<SchemaFieldTypes.NUMERIC>;
 type CreateSchemaGeoField = CreateSchemaField<SchemaFieldTypes.GEO>;
 
 type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
-    SEPERATOR?: string;
+    SEPARATOR?: string;
     CASESENSITIVE?: true;
 }>;
 
