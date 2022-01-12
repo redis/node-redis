@@ -30,7 +30,7 @@ await client.ping();
 
 ### All the removed events
 
-There were some events in V3 but removed in V4, here's the list:
+The following events that existed in V3 were removed in V4:
 
 1. `warning`
 2. `subscribe`
