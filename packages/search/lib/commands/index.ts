@@ -249,7 +249,7 @@ export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
 
             case 'TAG':
                 if (fieldOptions.SEPARATOR) {
-                    args.push('SEPARATOR', fieldOptions.SEPERATOR);
+                    args.push('SEPARATOR', fieldOptions.SEPARATOR);
                 }
 
                 if (fieldOptions.CASESENSITIVE) {
