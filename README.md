@@ -319,6 +319,8 @@ Node Redis is supported with the following versions of Redis:
 
 > Node Redis should work with older versions of Redis, but it is not fully tested and we cannot offer support.
 
+## Packages
+
 | Name                                              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 |---------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [redis](./)                                       | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis) [![Version](https://img.shields.io/npm/v/redis.svg)](https://www.npmjs.com/package/redis)                                                                                                                                                                                                                                                             |
