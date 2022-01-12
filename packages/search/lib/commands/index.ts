@@ -200,7 +200,7 @@ type CreateSchemaNumericField = CreateSchemaField<SchemaFieldTypes.NUMERIC>;
 type CreateSchemaGeoField = CreateSchemaField<SchemaFieldTypes.GEO>;
 
 type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
-    SEPERATOR?: string;
+    SEPARATOR?: string;
     CASESENSITIVE?: true;
 }>;
 
@@ -248,8 +248,8 @@ export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
             //     break;
 
             case 'TAG':
-                if (fieldOptions.SEPERATOR) {
-                    args.push('SEPERATOR', fieldOptions.SEPERATOR);
+                if (fieldOptions.SEPARATOR) {
+                    args.push('SEPARATOR', fieldOptions.SEPERATOR);
                 }
 
                 if (fieldOptions.CASESENSITIVE) {
