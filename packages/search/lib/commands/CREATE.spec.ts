@@ -106,14 +106,12 @@ describe('CREATE', () => {
                         transformArguments('index', {
                             field: {
                                 type: SchemaFieldTypes.TAG,
-                                SEPERATOR: 'separator'
+                                SEPARATOR: 'separator'
                             }
                         }),
-                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'SEPERATOR', 'separator']
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'SEPARATOR', 'separator']
                     );
                 });
-
-
 
                 it('with CASESENSITIVE', () => {
                     assert.deepEqual(
