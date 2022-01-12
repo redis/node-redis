@@ -1,7 +1,7 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import { ClientCommandOptions, RedisClientCommandSignature, RedisClientOptions, RedisClientType, WithModules, WithScripts } from '../client';
-import RedisClusterSlots, { ClusterNode } from './cluster-slots';
+import RedisClusterSlots, { ClusterNode, NodeAddressMap } from './cluster-slots';
 import { extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, extendWithCommands } from '../commander';
 import { EventEmitter } from 'events';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
@@ -14,6 +14,7 @@ export interface RedisClusterOptions<M extends RedisModules, S extends RedisScri
     defaults?: Partial<RedisClusterClientOptions>;
     useReplicas?: boolean;
     maxCommandRedirections?: number;
+    nodeAddressMap?: NodeAddressMap;
 }
 
 type WithCommands = {
@@ -139,16 +140,16 @@ export default class RedisCluster<M extends RedisModules, S extends RedisScripts
                 }
 
                 if (err.message.startsWith('ASK')) {
-                    const url = err.message.substring(err.message.lastIndexOf(' ') + 1);
-                    if (this.#slots.getNodeByUrl(url)?.client === client) {
+                    const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+                    if (this.#slots.getNodeByAddress(address)?.client === client) {
                         await client.asking();
                         continue;
                     }
 
                     await this.#slots.rediscover(client);
-                    const redirectTo = this.#slots.getNodeByUrl(url);
+                    const redirectTo = this.#slots.getNodeByAddress(address);
                     if (!redirectTo) {
-                        throw new Error(`Cannot find node ${url}`);
+                        throw new Error(`Cannot find node ${address}`);
                     }
 
                     await redirectTo.client.asking();
