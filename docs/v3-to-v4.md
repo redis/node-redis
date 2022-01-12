@@ -46,7 +46,7 @@ The following events that existed in V3 were removed in V4:
 
 #### No `message`-like event
 
-In V4, you don't need to add listener to the `message`-like events(items 5 to 10 of the above list), you can get the message directly in `subscribe`-like commands.
+In V4, you don't need to add a listener to the `message`-like events (items 5 to 10 of the above list), you can get the message directly in `subscribe`-like commands.
 
 The second argument of these commands is a callback, which will be triggered every time there is a message published to the channel.
 
