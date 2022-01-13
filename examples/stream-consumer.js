@@ -16,7 +16,7 @@ async function streamConsumer() {
         commandOptions({
           isolated: true
         }), [
-          // XREAD can read from multiple streams, starting at a 
+          // XREAD can read from multiple streams, starting at a
           // different ID for each...
           {
             key: 'mystream',
@@ -33,7 +33,7 @@ async function streamConsumer() {
         // Response is an array of streams, each containing an array of
         // entries:
         // [
-        //   { 
+        //   {
         //     "name": "mystream",
         //     "messages": [
         //       {
@@ -49,17 +49,16 @@ async function streamConsumer() {
 
         // Get the ID of the first (only) entry returned.
         currentId = response[0].messages[0].id;
-        console.log(currentId);  
+        console.log(currentId);
       } else {
-        // Response is null, we have read everything that is 
+        // Response is null, we have read everything that is
         // in the stream right now...
         console.log('No new stream entries.');
       }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
   }
 }
 
 streamConsumer();
-
