@@ -1,7 +1,7 @@
 // A sample stream consumer using the blocking variant of XREAD.
 // This consumes entries from a stream created by stream-producer.js
 
-import { createClient } from 'redis';
+import { createClient, commandOptions } from 'redis';
 
 async function streamConsumer() {
   const client = createClient();
@@ -11,18 +11,22 @@ async function streamConsumer() {
   let currentId = '0-0'; // Start at lowest possible stream ID
 
   while (true) {
-    let response = await client.xRead([
-      // XREAD can read from multiple streams, starting at a 
-      // different ID for each...
-      {
-        key: 'mystream',
-        id: currentId
+    let response = await client.xRead(
+      commandOptions({
+        isolated: true
+      }), [
+        // XREAD can read from multiple streams, starting at a 
+        // different ID for each...
+        {
+          key: 'mystream',
+          id: currentId
+        }
+      ], {
+        // Read 1 entry at a time, block for 5 seconds if there are none.
+        COUNT: 1,
+        BLOCK: 5000
       }
-    ], {
-      // Read 1 entry at a time, block for 5 seconds if there are none.
-      COUNT: 1,
-      BLOCK: 5000
-    });
+    );
 
     if (response) {
       // Response is an array of streams, each containing an array of
