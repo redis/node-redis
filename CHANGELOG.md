@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.0.2 - 13 Jan, 2022
+
+### Fixes
+
+- Fix v4 commands in legacy mode (#1820)
+- Fix `EXISTS` command reply (#1819)
+- Fix handler for "__redis__:invalidate" messages (#1798)
+- Fix "SEPARATOR" typo in RediSearch (#1823)
+
+### Enhancements
+
+- First release of `@node-redis/bloom`
+- Add support for `Buffer`s
+- Enhance `ASK` and `MOVED` errors handler
+
 ## v4.0.1 - 13 Dec, 2021
 
 ### Fixes
