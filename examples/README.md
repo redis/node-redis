@@ -12,6 +12,8 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `search-hashes.js`          | Uses [RediSearch](https://redisearch.io) to index and search data in hashes                                    |
 | `search-json.js`            | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data |
 | `set-scan.js`               | An example script that shows how to use the SSCAN iterator functionality                                       |
+| `stream-producer.js`        | Adds entries to a [Redis Stream](https://redis.io/topics/streams-intro) using the `XADD` command               |
+| `stream-consumer.js`        | Reads entries from a [Redis Stream](https://redis.io/topics/streams-intro) using the blocking `XREAD` command  |
 
 ## Contributing
 
@@ -24,7 +26,7 @@ To set up the examples folder so that you can run an example / develop one of yo
 ```
 $ git clone https://github.com/redis/node-redis.git
 $ cd node-redis
-$ npm install -ws && npm run build
+$ npm install -ws && npm run build-all
 $ cd examples
 $ npm install
 ```
