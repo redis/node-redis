@@ -20,7 +20,6 @@ node-redis is a modern, high performance [Redis](https://redis.io) client for No
 | [@node-redis/search](./packages/search)           | [![Downloads](https://img.shields.io/npm/dm/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search) [![Version](https://img.shields.io/npm/v/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/search/) [Redis Search](https://oss.redis.com/redisearch/) commands                                    |
 | [@node-redis/time-series](./packages/time-series) | [![Downloads](https://img.shields.io/npm/dm/@node-redis/time-series.svg)](https://www.npmjs.com/package/@node-redis/time-series) [![Version](https://img.shields.io/npm/v/@node-redis/time-series.svg)](https://www.npmjs.com/package/@node-redis/time-series) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/time-series/) [Redis Time-Series](https://oss.redis.com/redistimeseries/) commands |
 
-
 ## Installation
 
 ```bash
