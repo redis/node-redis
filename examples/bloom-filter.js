@@ -52,7 +52,7 @@ async function bloomFilter() {
   console.log(`simon ${simonExists ? 'may' : 'does not'} exist in the Bloom Filter.`);
 
   // Check whether multiple members exist with the BF.MEXISTS command:
-  const [ lanceExists, leibaleExists] = await client.bf.mExists('mybloom', [
+  const [ lanceExists, leibaleExists ] = await client.bf.mExists('mybloom', [
     'lance',
     'leibale'
   ]);
