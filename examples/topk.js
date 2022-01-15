@@ -91,6 +91,4 @@ async function topK() {
   await client.quit();
 }
 
-
-
 topK();
