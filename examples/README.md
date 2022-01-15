@@ -14,6 +14,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `set-scan.js`               | An example script that shows how to use the SSCAN iterator functionality                                       |
 | `stream-producer.js`        | Adds entries to a [Redis Stream](https://redis.io/topics/streams-intro) using the `XADD` command               |
 | `stream-consumer.js`        | Reads entries from a [Redis Stream](https://redis.io/topics/streams-intro) using the blocking `XREAD` command  |
+| `topk.js`                   | Use the [RedisBloom](https://redisbloom.io) TopK to track the most frequently seen items.                      |
 
 ## Contributing
 
