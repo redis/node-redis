@@ -2,7 +2,7 @@
 // Requires the RedisTimeSeries module: https://redistimeseries.io/
 
 import { createClient } from 'redis';
-import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding} from '@node-redis/time-series';
+import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationType } from '@node-redis/time-series';
 
 async function timeSeries() {
   const client = createClient();
@@ -38,7 +38,7 @@ async function timeSeries() {
 
       num += 1;
       value = Math.floor(Math.random() * 1000) + 1; // Get another random value
-      currentTimestamp += 60000; // Move on one minute.
+      currentTimestamp += 1000; // Move on one second.
     }
 
     // Add multiple values to the timeseries in round trip to the server:
@@ -70,14 +70,29 @@ async function timeSeries() {
 
     // Query the timeseries with TS.RANGE:
     // https://oss.redis.com/redistimeseries/commands/#tsrangetsrevrange
-    const fromTimestamp = 0; // TODO UPDATE THESE...
-    const toTimestamp = 0;
-    //const rangeResponse = await client.ts.range('mytimeseries', fromTimestamp, toTimestamp, {
-      // TODO SOME OPTIONS HERE...
-    //});
+    const fromTimestamp = 1640995200000; // Jan 1 2022 00:00:00
+    const toTimestamp = 1640995260000; // Jan 1 2022 00:01:00
+    const rangeResponse = await client.ts.range('mytimeseries', fromTimestamp, toTimestamp, {
+      // Group into 10 second averages.
+      AGGREGATION: {
+        type: TimeSeriesAggregationType.AVERAGE,
+        timeBucket: 10000
+      }
+    });
 
-    //console.log('RANGE RESPONSE:');
-    //console.log(rangeResponse);
+    console.log('RANGE RESPONSE:');
+    // rangeResponse looks like:
+    // [
+    //   { timestamp: 1640995200000, value: 356.8 },
+    //   { timestamp: 1640995210000, value: 534.8 },
+    //   { timestamp: 1640995220000, value: 481.3 },
+    //   { timestamp: 1640995230000, value: 437 },
+    //   { timestamp: 1640995240000, value: 507.3 },
+    //   { timestamp: 1640995250000, value: 581.2 },
+    //   { timestamp: 1640995260000, value: 600 }
+    // ]
+
+    console.log(rangeResponse);
 
     // Get some information about the state of the timeseries.
     // https://oss.redis.com/redistimeseries/commands/#tsinfo
