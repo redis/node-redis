@@ -2,8 +2,7 @@
 // Requires the RedisTimeSeries module: https://redistimeseries.io/
 
 import { createClient } from 'redis';
-import ts from 'typescript';
-//import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding} from 'time-series';
+import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding} from '@node-redis/time-series';
 
 async function timeSeries() {
   const client = createClient();
@@ -15,9 +14,9 @@ async function timeSeries() {
     // Create a timeseries 
     // https://oss.redis.com/redistimeseries/commands/#tscreate
     const created = await client.ts.create('mytimeseries', {
-      RETENTION: 86400000 // 1 day in milliseconds
-      //ENCODING: TimeSeriesEncoding.UNCOMPRESSED, // No compression
-      //DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK // No duplicates
+      RETENTION: 86400000, // 1 day in milliseconds
+      ENCODING: TimeSeriesEncoding.UNCOMPRESSED, // No compression
+      DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK // No duplicates
     });
 
     if (created === 'OK') {
@@ -73,12 +72,12 @@ async function timeSeries() {
     // https://oss.redis.com/redistimeseries/commands/#tsrangetsrevrange
     const fromTimestamp = 0; // TODO UPDATE THESE...
     const toTimestamp = 0;
-    const rangeResponse = await client.ts.range('mytimeseries', fromTimestamp, toTimestamp, {
+    //const rangeResponse = await client.ts.range('mytimeseries', fromTimestamp, toTimestamp, {
       // TODO SOME OPTIONS HERE...
-    });
+    //});
 
-    console.log('RANGE RESPONSE:');
-    console.log(rangeResponse);
+    //console.log('RANGE RESPONSE:');
+    //console.log(rangeResponse);
 
     // Get some information about the state of the timeseries.
     // https://oss.redis.com/redistimeseries/commands/#tsinfo
