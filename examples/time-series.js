@@ -82,6 +82,23 @@ async function timeSeries() {
     // Get some information about the state of the timeseries.
     // https://oss.redis.com/redistimeseries/commands/#tsinfo
     const tsInfo = await client.ts.info('mytimeseries');
+    
+    // tsInfo looks like this:
+    // {
+    //   totalSamples: 1440,
+    //   memoryUsage: 28904,
+    //   firstTimestamp: 1641508920000,
+    //   lastTimestamp: 1641595320000,
+    //   retentionTime: 86400000,
+    //   chunkCount: 7,
+    //   chunkSize: 4096,
+    //   chunkType: 'uncompressed',
+    //   duplicatePolicy: 'block',
+    //   labels: [],
+    //   sourceKey: null,
+    //   rules: []
+    // }
+
     console.log('Timeseries info:');
     console.log(tsInfo);
   } catch (e) {
