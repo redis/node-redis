@@ -1,3 +1,3 @@
 export { default } from './commands';
 
-// TODO
+export { TimeSeriesDuplicatePolicies, TimeSeriesEncoding } from './commands';
