@@ -6,7 +6,7 @@ import { transformArguments } from './CREATERULE';
 describe('CREATERULE', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('source', 'destination', TimeSeriesAggregationType.AVARAGE, 1),
+            transformArguments('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1),
             ['TS.CREATERULE', 'source', 'destination', 'AGGREGATION', 'avg', '1']
         );
     });
@@ -18,7 +18,7 @@ describe('CREATERULE', () => {
         ]);
 
         assert.equal(
-            await client.ts.createRule('source', 'destination', TimeSeriesAggregationType.AVARAGE, 1),
+            await client.ts.createRule('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1),
             'OK'
         );
     }, GLOBAL.SERVERS.OPEN);
