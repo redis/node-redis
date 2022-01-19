@@ -15,7 +15,7 @@ describe('DELETERULE', () => {
         await Promise.all([
             client.ts.create('source'),
             client.ts.create('destination'),
-            client.ts.createRule('source', 'destination', TimeSeriesAggregationType.AVARAGE, 1)
+            client.ts.createRule('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1)
         ]);
 
         assert.equal(
