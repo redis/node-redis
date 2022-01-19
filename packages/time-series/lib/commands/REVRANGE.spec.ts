@@ -55,7 +55,7 @@ describe('REVRANGE', () => {
             assert.deepEqual(
                 transformArguments('key', '-', '+', {
                     AGGREGATION: {
-                        type: TimeSeriesAggregationType.AVARAGE,
+                        type: TimeSeriesAggregationType.AVERAGE,
                         timeBucket: 1
                     }
                 }),
@@ -74,7 +74,7 @@ describe('REVRANGE', () => {
                     COUNT: 1,
                     ALIGN: '-',
                     AGGREGATION: {
-                        type: TimeSeriesAggregationType.AVARAGE,
+                        type: TimeSeriesAggregationType.AVERAGE,
                         timeBucket: 1
                     }
                 }),
