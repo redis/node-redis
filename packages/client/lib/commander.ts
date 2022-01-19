@@ -91,35 +91,39 @@ export function transformCommandArguments<T>(
 
 const DELIMITER = '\r\n';
 
-export function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
+export function encodeCommand(args: RedisCommandArguments): Array<RedisCommandArgument> {
+    const command = [];
+
     let strings = `*${args.length}${DELIMITER}`,
         stringsLength = 0;
     for (const arg of args) {
-        const isString = typeof arg === 'string',
-            byteLength = isString ? Buffer.byteLength(arg): arg.length;
-        strings += `$${byteLength}${DELIMITER}`;
+        if (typeof arg === 'string') {
+            const byteLength = Buffer.byteLength(arg);
+            strings += `$${byteLength}${DELIMITER}`;
 
-        if (isString) {
             const totalLength = stringsLength + byteLength;
-            if (totalLength > 1024) {
-                yield strings;
-                strings = arg;
-                stringsLength = byteLength;
-            } else {
+            if (totalLength < 1024) {
                 strings += arg;
                 stringsLength = totalLength;
+            } else {
+                command.push(strings);
+                strings = arg;
+                stringsLength = byteLength;
             }
-        } else {
-            yield strings;
+        } else if (Buffer.isBuffer(arg)) {
+            command.push(`${strings}$${arg.length}${DELIMITER}`);
             strings = '';
             stringsLength = 0;
-            yield arg;
+            command.push(arg);
+        } else {
+            throw new TypeError('argument must be a string or Buffer');
         }
 
         strings += DELIMITER;
     }
 
-    yield strings;
+    command.push(strings);
+    return command;
 }
 
 export function transformCommandReply(

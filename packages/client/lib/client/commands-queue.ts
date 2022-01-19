@@ -26,7 +26,7 @@ interface CommandWaitingToBeSent extends CommandWaitingForReply {
 
 interface CommandWaitingForReply {
     resolve(reply?: unknown): void;
-    reject(err: Error): void;
+    reject(err: unknown): void;
     channelsCounter?: number;
     returnBuffers?: boolean;
 }
@@ -140,7 +140,9 @@ export default class RedisCommandsQueue {
         },
         returnError: (err: Error) => this.#shiftWaitingForReply().reject(err)
     });
+
     #chainInExecution: symbol | undefined;
+
     constructor(maxLength: number | null | undefined) {
         this.#maxLength = maxLength;
     }
@@ -360,6 +362,11 @@ export default class RedisCommandsQueue {
         return toSend?.args;
     }
 
+    rejectLastCommand(err: unknown): void {
+        this.#waitingForReply.pop()?.reject(err);
+        this.#flushChainInExecution();
+    }
+
     #setReturnBuffers() {
         this.#parser.setReturnBuffers(
             !!this.#waitingForReply.head?.value.returnBuffers ||
@@ -384,12 +391,18 @@ export default class RedisCommandsQueue {
 
     flushWaitingForReply(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
+        this.#flushChainInExecution();
+    }
+
+    #flushChainInExecution() {
         if (!this.#chainInExecution) {
             return;
         }
+
         while (this.#waitingToBeSent.head?.value.chainId === this.#chainInExecution) {
             this.#waitingToBeSent.shift();
         }
+
         this.#chainInExecution = undefined;
     }
 

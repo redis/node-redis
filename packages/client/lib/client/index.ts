@@ -549,7 +549,11 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             const args = this.#queue.getCommandToSend();
             if (args === undefined) break;
 
-            this.#socket.writeCommand(args);
+            try {
+                this.#socket.writeCommand(args);
+            } catch (err) {
+                this.#queue.rejectLastCommand(err);
+            }
         }
     }
 

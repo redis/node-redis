@@ -353,6 +353,18 @@ describe('Client', () => {
                 );
             }, GLOBAL.SERVERS.OPEN);
         });
+
+        testUtils.testWithClient('undefined and null should not break the client', async client => {
+            await assert.rejects(
+                client.sendCommand([null as any, undefined as any]),
+                TypeError
+            );
+
+            assert.equal(
+                await client.ping(),
+                'PONG'
+            );
+        }, GLOBAL.SERVERS.OPEN);
     });
 
     describe('multi', () => {
