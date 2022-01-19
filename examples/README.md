@@ -8,6 +8,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `bloom-filter.js`           | Space efficient set membership checks with a [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter) using [RedisBloom](https://redisbloom.io)   |
 | `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers                                                                                 |
 | `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                                                                                                |
+| `count-min-sketch.js`       | Estimate the frequency of a given event using the [RedisBloom](https://redisbloom.io) Count-Min Sketch                                              |
 | `cuckoo-filter.js`          | Space efficient set membership checks with a [Cuckoo Filter](https://en.wikipedia.org/wiki/Cuckoo_filter) using [RedisBloom](https://redisbloom.io) |
 | `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys                                                                       |
 | `managing-json.js`          | Store, retrieve and manipulate JSON data atomically with [RedisJSON](https://redisjson.io/)                                                         |
