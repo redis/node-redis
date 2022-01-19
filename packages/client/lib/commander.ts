@@ -91,39 +91,35 @@ export function transformCommandArguments<T>(
 
 const DELIMITER = '\r\n';
 
-export function encodeCommand(args: RedisCommandArguments): Array<RedisCommandArgument> {
-    const command = [];
-
+export function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
     let strings = `*${args.length}${DELIMITER}`,
         stringsLength = 0;
     for (const arg of args) {
-        if (typeof arg === 'string') {
-            const byteLength = Buffer.byteLength(arg);
+        if (Buffer.isBuffer(arg)) {
+            yield `${strings}$${arg.length}${DELIMITER}`;
+            strings = '';
+            stringsLength = 0;
+            yield arg;
+        } else {
+            const string = arg?.toString?.() ?? '',
+                byteLength = Buffer.byteLength(string);
             strings += `$${byteLength}${DELIMITER}`;
 
             const totalLength = stringsLength + byteLength;
-            if (totalLength < 1024) {
-                strings += arg;
-                stringsLength = totalLength;
-            } else {
-                command.push(strings);
-                strings = arg;
+            if (totalLength > 1024) {
+                yield strings;
+                strings = string;
                 stringsLength = byteLength;
+            } else {
+                strings += string;
+                stringsLength = totalLength;
             }
-        } else if (Buffer.isBuffer(arg)) {
-            command.push(`${strings}$${arg.length}${DELIMITER}`);
-            strings = '';
-            stringsLength = 0;
-            command.push(arg);
-        } else {
-            throw new TypeError('argument must be a string or Buffer');
         }
 
         strings += DELIMITER;
     }
 
-    command.push(strings);
-    return command;
+    yield strings;
 }
 
 export function transformCommandReply(
@@ -136,19 +132,4 @@ export function transformCommandReply(
     }
 
     return command.transformReply(rawReply, preserved);
-}
-
-export type LegacyCommandArguments = Array<string | number | Buffer | LegacyCommandArguments>;
-
-export function transformLegacyCommandArguments(args: LegacyCommandArguments, flat: RedisCommandArguments = []): RedisCommandArguments {
-    for (const arg of args) {
-        if (Array.isArray(arg)) {
-            transformLegacyCommandArguments(arg, flat);
-            continue;
-        }
-
-        flat.push(typeof arg === 'number' ? arg.toString() : arg);
-    }
-
-    return flat;
 }

@@ -155,6 +155,7 @@ export default class RedisCommandsQueue {
         } else if (options?.signal?.aborted) {
             return Promise.reject(new AbortError());
         }
+
         return new Promise((resolve, reject) => {
             const node = new LinkedList.Node<CommandWaitingToBeSent>({
                 args,
@@ -178,6 +179,7 @@ export default class RedisCommandsQueue {
                     once: true
                 });
             }
+
             if (options?.asap) {
                 this.#waitingToBeSent.unshiftNode(node);
             } else {
@@ -362,11 +364,6 @@ export default class RedisCommandsQueue {
         return toSend?.args;
     }
 
-    rejectLastCommand(err: unknown): void {
-        this.#waitingForReply.pop()?.reject(err);
-        this.#flushChainInExecution();
-    }
-
     #setReturnBuffers() {
         this.#parser.setReturnBuffers(
             !!this.#waitingForReply.head?.value.returnBuffers ||
@@ -391,13 +388,8 @@ export default class RedisCommandsQueue {
 
     flushWaitingForReply(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
-        this.#flushChainInExecution();
-    }
 
-    #flushChainInExecution() {
-        if (!this.#chainInExecution) {
-            return;
-        }
+        if (!this.#chainInExecution) return;
 
         while (this.#waitingToBeSent.head?.value.chainId === this.#chainInExecution) {
             this.#waitingToBeSent.shift();
