@@ -314,45 +314,45 @@ describe('Client', () => {
         });
     });
 
-    describe.only('sendCommand', () => {
-        // testUtils.testWithClient('PING', async client => {
-        //     assert.equal(await client.sendCommand(['PING']), 'PONG');
-        // }, GLOBAL.SERVERS.OPEN);
+    describe('sendCommand', () => {
+        testUtils.testWithClient('PING', async client => {
+            assert.equal(await client.sendCommand(['PING']), 'PONG');
+        }, GLOBAL.SERVERS.OPEN);
 
-        // testUtils.testWithClient('returnBuffers', async client => {
-        //     assert.deepEqual(
-        //         await client.sendCommand(['PING'], {
-        //             returnBuffers: true
-        //         }),
-        //         Buffer.from('PONG')
-        //     );
-        // }, GLOBAL.SERVERS.OPEN);
+        testUtils.testWithClient('returnBuffers', async client => {
+            assert.deepEqual(
+                await client.sendCommand(['PING'], {
+                    returnBuffers: true
+                }),
+                Buffer.from('PONG')
+            );
+        }, GLOBAL.SERVERS.OPEN);
 
-        // describe('AbortController', () => {
-        //     before(function () {
-        //         if (!global.AbortController) {
-        //             this.skip();
-        //         }
-        //     });
+        describe('AbortController', () => {
+            before(function () {
+                if (!global.AbortController) {
+                    this.skip();
+                }
+            });
 
-        //     testUtils.testWithClient('success', async client => {
-        //         await client.sendCommand(['PING'], {
-        //             signal: new AbortController().signal
-        //         });
-        //     }, GLOBAL.SERVERS.OPEN);
+            testUtils.testWithClient('success', async client => {
+                await client.sendCommand(['PING'], {
+                    signal: new AbortController().signal
+                });
+            }, GLOBAL.SERVERS.OPEN);
 
-        //     testUtils.testWithClient('AbortError', client => {
-        //         const controller = new AbortController();
-        //         controller.abort();
+            testUtils.testWithClient('AbortError', client => {
+                const controller = new AbortController();
+                controller.abort();
 
-        //         return assert.rejects(
-        //             client.sendCommand(['PING'], {
-        //                 signal: controller.signal
-        //             }),
-        //             AbortError
-        //         );
-        //     }, GLOBAL.SERVERS.OPEN);
-        // });
+                return assert.rejects(
+                    client.sendCommand(['PING'], {
+                        signal: controller.signal
+                    }),
+                    AbortError
+                );
+            }, GLOBAL.SERVERS.OPEN);
+        });
 
         testUtils.testWithClient('undefined and null should not break the client', async client => {
             await assert.rejects(
