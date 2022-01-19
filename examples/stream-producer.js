@@ -6,7 +6,6 @@ async function streamProducer() {
   const client = createClient();
 
   await client.connect();
-  await client.del('mystream');
 
   let num = 0;
 

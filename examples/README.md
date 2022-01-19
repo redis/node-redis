@@ -19,6 +19,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `stream-consumer.js`        | Reads entries from a [Redis Stream](https://redis.io/topics/streams-intro) using the blocking `XREAD` command                                       |
 | `time-series.js`            | Create, populate and query timeseries data with [Redis Timeseries](https://redistimeseries.io)                                                      |
 | `topk.js`                   | Use the [RedisBloom](https://redisbloom.io) TopK to track the most frequently seen items.                                                           |
+| `stream-consumer-group.js`  | Reads entties from a [Redis Stream](https://redis.io/topics/streams-intro) as part of a consumer group using the blocking `XREADGROUP` command      |
 
 ## Contributing
 
