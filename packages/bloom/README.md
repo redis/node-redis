@@ -12,5 +12,3 @@ RedisBloom provides the following probabilistic data structures:
 * Top-K: Maintain a list of k most frequently seen items.
 
 For complete examples, see `bloom-filter.js`, `cuckoo-filter.js`, `count-min-sketch.js` and `topk.js` in the Node Redis examples folder.
-
-The source code for this package can be found in the main [node-redis](https://github.com/redis/node-redis) repo.
