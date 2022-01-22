@@ -4,7 +4,7 @@ Version 4 of Node Redis is a major refactor. While we have tried to maintain bac
 
 ## All of the Breaking Changes
 
-See the [Change Log](../packages/client/CHANGELOG.md).
+See the [Change Log](../../CHANGELOG.md).
 
 ### Promises
 
