@@ -20,7 +20,7 @@
     "@node-redis/test-utils": "*",
     "@types/node": "^17.0.10",
     "nyc": "^15.1.0",
-    "release-it": "^14.12.3",
+    "release-it": "^14.12.4",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.4.0",
     "typedoc": "^0.22.11",
