@@ -82,10 +82,12 @@ export default class RedisCommandsQueue {
 
         if (!listeners.strings.size) return;
 
-        // https://github.com/redis/redis/pull/7469
-        // https://github.com/redis/redis/issues/7463
-        const messageString = (Array.isArray(message) ? message.map(m => m.toString()) as any : message.toString()),
-            channelString = pattern ? channel.toString() : keyString;
+        const channelString = pattern ? channel.toString() : keyString,
+            messageString = channelString === '__redis__:invalidate' ?
+                // https://github.com/redis/redis/pull/7469
+                // https://github.com/redis/redis/issues/7463
+                (message === null ? null : (message as any as Array<Buffer>).map(x => x.toString())) as any :
+                message.toString();
         for (const listener of listeners.strings) {
             listener(messageString, channelString);
         }
