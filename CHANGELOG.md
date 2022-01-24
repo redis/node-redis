@@ -34,7 +34,7 @@
 
 ## v4.0.0 - 24 Nov, 2021
 
-This version is a major change and refactor, adding modern JavaScript capabilities and multiple breaking changes. See the [migration guide](../../docs/v3-to-v4.md) for tips on how to upgrade.
+This version is a major change and refactor, adding modern JavaScript capabilities and multiple breaking changes. See the [migration guide](./docs/v3-to-v4.md) for tips on how to upgrade.
 
 ### Breaking Changes
 
@@ -49,10 +49,10 @@ This version is a major change and refactor, adding modern JavaScript capabiliti
 
 - Added support for Promises
 - Added built-in TypeScript declaration files enabling code completion
-- Added support for [clustering](../../README.md#cluster)
-- Added idiomatic arguments and responses to [Redis commands](../../README.md#redis-commands)
-- Added full support for [Lua Scripts](../../README.md#lua-scripts)
-- Added support for [SCAN iterators](../../README.md#scan-iterator)
+- Added support for [clustering](./README.md#cluster)
+- Added idiomatic arguments and responses to [Redis commands](./README.md#redis-commands)
+- Added full support for [Lua Scripts](./README.md#lua-scripts)
+- Added support for [SCAN iterators](./README.md#scan-iterator)
 - Added the ability to extend Node Redis with Redis Module commands
 
 ## v3.1.2
@@ -450,7 +450,7 @@ No code change
 
 ## v2.2.0 - 12 Oct, 2015 - The peregrino falcon
 
-The peregrino falcon is the fasted bird on earth and this is what this release is all about: Increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](README.md) for further details.
+The peregrino falcon is the fasted bird on earth and this is what this release is all about: Increased performance for heavy usage by up to **400%** [sic!] and increased overall performance for any command as well. Please check the benchmarks in the [README.md](./README.md) for further details.
 
 Features
 
