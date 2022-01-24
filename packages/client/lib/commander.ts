@@ -95,25 +95,25 @@ export function* encodeCommand(args: RedisCommandArguments): IterableIterator<Re
     let strings = `*${args.length}${DELIMITER}`,
         stringsLength = 0;
     for (const arg of args) {
-        const isString = typeof arg === 'string',
-            byteLength = isString ? Buffer.byteLength(arg): arg.length;
-        strings += `$${byteLength}${DELIMITER}`;
-
-        if (isString) {
-            const totalLength = stringsLength + byteLength;
-            if (totalLength > 1024) {
-                yield strings;
-                strings = arg;
-                stringsLength = byteLength;
-            } else {
-                strings += arg;
-                stringsLength = totalLength;
-            }
-        } else {
-            yield strings;
+        if (Buffer.isBuffer(arg)) {
+            yield `${strings}$${arg.length}${DELIMITER}`;
             strings = '';
             stringsLength = 0;
             yield arg;
+        } else {
+            const string = arg?.toString?.() ?? '',
+                byteLength = Buffer.byteLength(string);
+            strings += `$${byteLength}${DELIMITER}`;
+
+            const totalLength = stringsLength + byteLength;
+            if (totalLength > 1024) {
+                yield strings;
+                strings = string;
+                stringsLength = byteLength;
+            } else {
+                strings += string;
+                stringsLength = totalLength;
+            }
         }
 
         strings += DELIMITER;
@@ -132,19 +132,4 @@ export function transformCommandReply(
     }
 
     return command.transformReply(rawReply, preserved);
-}
-
-export type LegacyCommandArguments = Array<string | number | Buffer | LegacyCommandArguments>;
-
-export function transformLegacyCommandArguments(args: LegacyCommandArguments, flat: RedisCommandArguments = []): RedisCommandArguments {
-    for (const arg of args) {
-        if (Array.isArray(arg)) {
-            transformLegacyCommandArguments(arg, flat);
-            continue;
-        }
-
-        flat.push(typeof arg === 'number' ? arg.toString() : arg);
-    }
-
-    return flat;
 }
