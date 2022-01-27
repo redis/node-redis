@@ -9,7 +9,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from '../command-opt
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
-import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError, AuthError } from '../errors';
 import { URL } from 'url';
@@ -83,7 +83,6 @@ export interface ClientCommandOptions extends QueueCommandOptions {
 
 type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
 
-export type ClientLegacyCommandArguments = LegacyCommandArguments | [...LegacyCommandArguments, ClientLegacyCallback];
 export default class RedisClient<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static commandOptions<T extends ClientCommandOptions>(options: T): CommandOptions<T> {
         return commandOptions(options);
@@ -268,7 +267,11 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             .on('data', data => this.#queue.parseResponse(data))
             .on('error', err => {
                 this.emit('error', err);
-                this.#queue.flushWaitingForReply(err);
+                if (this.#socket.isOpen) {
+                    this.#queue.flushWaitingForReply(err);
+                } else {
+                    this.#queue.flushAll(err);
+                }
             })
             .on('connect', () => this.emit('connect'))
             .on('ready', () => {
@@ -288,13 +291,13 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         if (!this.#options?.legacyMode) return;
 
         (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
-        (this as any).sendCommand = (...args: ClientLegacyCommandArguments): void => {
+        (this as any).sendCommand = (...args: Array<any>): void => {
             let callback: ClientLegacyCallback;
             if (typeof args[args.length - 1] === 'function') {
                 callback = args.pop() as ClientLegacyCallback;
             }
 
-            this.#sendCommand(transformLegacyCommandArguments(args as LegacyCommandArguments))
+            this.#sendCommand(args.flat())
                 .then((reply: RedisCommandRawReply) => {
                     if (!callback) return;
 
@@ -316,6 +319,10 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             this.#defineLegacyCommand(name);
         }
 
+        for (const name of Object.keys(COMMANDS)) {
+            (this as any)[name.toLowerCase()] = (this as any)[name];
+        }
+
         // hard coded commands
         this.#defineLegacyCommand('SELECT');
         this.#defineLegacyCommand('select');
@@ -332,8 +339,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     }
 
     #defineLegacyCommand(name: string): void {
-        (this as any).#v4[name] = (this as any)[name].bind(this);
-        (this as any)[name] = (this as any)[name.toLowerCase()] =
+        this.#v4[name] = (this as any)[name].bind(this);
+        (this as any)[name] =
             (...args: Array<unknown>): void => (this as any).sendCommand(name, ...args);
     }
 
