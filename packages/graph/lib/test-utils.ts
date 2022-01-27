@@ -12,7 +12,9 @@ export const GLOBAL = {
         OPEN: {
             serverArguments: ['--loadmodule /usr/lib/redis/modules/redisgraph.so'],
             clientOptions: {
-                graph: RedisGraph
+                modules: {
+                    graph: RedisGraph
+                }
             }
         }
     }

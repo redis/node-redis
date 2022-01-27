@@ -1,12 +1,13 @@
-import CONFIG_GET from './CONFIG_GET';
-import CONFIG_SET from './CONFIG_SET';;
-import DELETE from './DELETE';
-import EXPLAIN from './EXPLAIN';
-import LIST from './LIST';
-import PROFILE from './PROFILE';
-import QUERY_RO from './QUERY_RO';
-import QUERY from './QUERY';
-import SLOWLOG from './SLOWLOG';
+import * as CONFIG_GET from './CONFIG_GET';
+import * as CONFIG_SET from './CONFIG_SET';;
+import * as DELETE from './DELETE';
+import * as EXPLAIN from './EXPLAIN';
+import * as LIST from './LIST';
+import * as PROFILE from './PROFILE';
+import * as QUERY_RO from './QUERY_RO';
+import * as QUERY from './QUERY';
+import * as SLOWLOG from './SLOWLOG';
+import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 
 export default {
     CONFIG_GET,
@@ -28,3 +29,21 @@ export default {
     SLOWLOG,
     slowLog: SLOWLOG
 };
+
+export function pushQueryArguments(
+    args: RedisCommandArguments,
+    graph: RedisCommandArgument,
+    query: RedisCommandArgument,
+    timeout?: number
+): RedisCommandArguments {
+    args.push(
+        graph,
+        query
+    );
+
+    if (timeout !== undefined) {
+        args.push(timeout.toString());
+    }
+
+    return args;
+}

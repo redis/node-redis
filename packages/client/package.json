@@ -22,9 +22,9 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@node-redis/test-utils": "*",
-    "@types/node": "^17.0.10",
+    "@types/node": "^17.0.13",
     "@types/redis-parser": "^3.0.0",
-    "@types/sinon": "^10.0.8",
+    "@types/sinon": "^10.0.9",
     "@types/yallist": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^5.10.1",
     "@typescript-eslint/parser": "^5.10.1",
