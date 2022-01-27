@@ -1,0 +1,8 @@
+*7\r\n
+    +OK\r\n
+    -ERR\r\n
+    :0\r\n
+    $6\r\nstring\r\n
+    $-1\r\n
+    *-1\r\n
+    *0\r\n
