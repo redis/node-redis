@@ -1,4 +1,3 @@
-import { SpawnSyncOptionsWithStringEncoding } from 'child_process';
 import {
     transformArguments as transformInfoArguments,
     InfoRawReply,
