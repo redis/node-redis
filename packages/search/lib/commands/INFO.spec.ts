@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { SchemaFieldTypes } from '../../dist';
+import { SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './INFO';
 
