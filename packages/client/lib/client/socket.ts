@@ -13,13 +13,15 @@ export interface RedisSocketCommonOptions {
     reconnectStrategy?(retries: number): number | Error;
 }
 
-export type RedisNetSocketOptions = Partial<net.SocketConnectOpts>;
-
-export interface RedisTlsSocketOptions extends RedisSocketCommonOptions, tls.ConnectionOptions {
-    tls: boolean;
+export interface RedisNetSocketOptions extends Partial<net.SocketConnectOpts>, RedisSocketCommonOptions {
+    tls: false;
 }
 
-export type RedisSocketOptions = RedisSocketCommonOptions & (RedisNetSocketOptions | RedisTlsSocketOptions);
+export interface RedisTlsSocketOptions extends tls.ConnectionOptions, RedisSocketCommonOptions {
+    tls: true;
+}
+
+export type RedisSocketOptions = RedisNetSocketOptions | RedisTlsSocketOptions;
 
 interface CreateSocketReturn<T> {
     connectEvent: string;
