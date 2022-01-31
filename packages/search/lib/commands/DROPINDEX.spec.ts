@@ -22,7 +22,7 @@ describe('DROPINDEX', () => {
 
     testUtils.testWithClient('client.ft.dropIndex', async client => {
         await client.ft.create('index', {
-            field: SchemaFieldTypes.TEXT // TODO: shouldn't be mandatory
+            field: SchemaFieldTypes.TEXT
         });
 
         assert.equal(

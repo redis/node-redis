@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './INFO';
 
@@ -11,8 +12,8 @@ describe('INFO', () => {
     });
 
     testUtils.testWithClient('client.ft.info', async client => {
-        await client.ft.create('index', {}, {
-            ON: 'HASH' // TODO: shouldn't be mandatory
+        await client.ft.create('index', {
+            field: SchemaFieldTypes.TEXT
         });
 
         assert.deepEqual(
@@ -25,7 +26,16 @@ describe('INFO', () => {
                     keyType: 'HASH',
                     prefixes: ['']
                 },
-                attributes: [],
+                attributes: [[
+                    'identifier',
+                    'field',
+                    'attribute',
+                    'field',
+                    'type',
+                    'TEXT',
+                    'WEIGHT',
+                    '1'
+                ]],
                 numDocs: '0',
                 maxDocId: '0',
                 numTerms: '0',

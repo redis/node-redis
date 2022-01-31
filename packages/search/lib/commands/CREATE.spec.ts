@@ -340,7 +340,7 @@ describe('CREATE', () => {
     testUtils.testWithClient('client.ft.create', async client => {
         assert.equal(
             await client.ft.create('index', {
-                field: SchemaFieldTypes.TEXT // TODO: shouldn't be mandatory
+                field: SchemaFieldTypes.TEXT
             }),
             'OK'
         );
