@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CONFIG_SET';
 
-describe('CONFIG GET', () => {
+describe('CONFIG SET', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('TIMEOUT', 0),
@@ -10,7 +10,7 @@ describe('CONFIG GET', () => {
         );
     });
 
-    testUtils.testWithClient('client.graph.configGet', async client => {
+    testUtils.testWithClient('client.graph.configSet', async client => {
         assert.equal(
             await client.graph.configSet('TIMEOUT', 0),
             'OK'
