@@ -191,6 +191,10 @@ export default class RedisCluster<M extends RedisModules, S extends RedisScripts
         return this.#slots.getSlotMaster(slot);
     }
 
+    quit(): Promise<void> {
+        return this.#slots.quit();
+    }
+
     disconnect(): Promise<void> {
         return this.#slots.disconnect();
     }
