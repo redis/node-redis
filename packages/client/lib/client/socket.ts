@@ -14,7 +14,7 @@ export interface RedisSocketCommonOptions {
 }
 
 type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
-    tls: false;
+    tls?: false;
 };
 
 export interface RedisTlsSocketOptions extends tls.ConnectionOptions {
