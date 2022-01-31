@@ -13,9 +13,11 @@ export interface RedisSocketCommonOptions {
     reconnectStrategy?(retries: number): number | Error;
 }
 
-export type RedisNetSocketOptions = Partial<net.SocketConnectOpts>;
+type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
+    tls?: false;
+};
 
-export interface RedisTlsSocketOptions extends RedisSocketCommonOptions, tls.ConnectionOptions {
+export interface RedisTlsSocketOptions extends tls.ConnectionOptions {
     tls: true;
 }
 
