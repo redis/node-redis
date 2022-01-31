@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SYNDUMP';
+import { SchemaFieldTypes } from '.';
 
 describe('SYNDUMP', () => {
     it('transformArguments', () => {
@@ -11,8 +12,8 @@ describe('SYNDUMP', () => {
     });
 
     testUtils.testWithClient('client.ft.synDump', async client => {
-        await client.ft.create('index', {}, {
-            ON: 'HASH' // TODO: shouldn't be mandatory
+        await client.ft.create('index', {
+            field: SchemaFieldTypes.TEXT
         });
 
         assert.deepEqual(

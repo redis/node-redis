@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": [
+    "./lib/**/*.ts"
+  ],
+  "exclude": [
+    "./lib/test-utils.ts",
+    "./lib/**/*.spec.ts"
+  ],
+  "typedocOptions": {
+    "entryPoints": [
+      "./lib"
+    ],
+    "entryPointStrategy": "expand",
+    "out": "../../documentation/graph"
+  }
+}

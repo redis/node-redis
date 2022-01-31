@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
-import RedisClient, { ClientLegacyCommandArguments, RedisClientType } from '.';
+import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisScripts } from '../commands';
 import { AbortError, AuthError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
@@ -183,7 +183,7 @@ describe('Client', () => {
             }
         });
 
-        function setAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, ...args: ClientLegacyCommandArguments): Promise<RedisCommandRawReply> {
+        function setAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, ...args: Array<any>): Promise<RedisCommandRawReply> {
             return new Promise((resolve, reject) => {
                 (client as any).set(...args, (err: Error | undefined, reply: RedisCommandRawReply) => {
                     if (err) return reject(err);
@@ -353,6 +353,18 @@ describe('Client', () => {
                 );
             }, GLOBAL.SERVERS.OPEN);
         });
+
+        testUtils.testWithClient('undefined and null should not break the client', async client => {
+            await assert.rejects(
+                client.sendCommand([null as any, undefined as any]),
+                'ERR unknown command ``, with args beginning with: ``'
+            );
+
+            assert.equal(
+                await client.ping(),
+                'PONG'
+            );
+        }, GLOBAL.SERVERS.OPEN);
     });
 
     describe('multi', () => {
