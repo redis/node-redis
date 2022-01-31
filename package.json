@@ -25,6 +25,7 @@
   "dependencies": {
     "@node-redis/bloom": "^1.0.0",
     "@node-redis/client": "^1.0.2",
+    "@node-redis/graph": "^1.0.0-rc",
     "@node-redis/json": "^1.0.2",
     "@node-redis/search": "^1.0.2",
     "@node-redis/time-series": "^1.0.1"
