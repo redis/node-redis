@@ -7,9 +7,12 @@ import { EventEmitter } from 'events';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 
-export type RedisClusterClientOptions = Omit<RedisClientOptions<Record<string, never>, Record<string, never>>, 'modules' | 'scripts'>;
+export type RedisClusterClientOptions = Omit<RedisClientOptions, 'modules' | 'scripts'>;
 
-export interface RedisClusterOptions<M extends RedisModules, S extends RedisScripts> extends RedisPlugins<M, S> {
+export interface RedisClusterOptions<
+    M extends RedisModules = Record<string, never>,
+    S extends RedisScripts = Record<string, never>
+> extends RedisPlugins<M, S> {
     rootNodes: Array<RedisClusterClientOptions>;
     defaults?: Partial<RedisClusterClientOptions>;
     useReplicas?: boolean;
@@ -20,8 +23,10 @@ type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
 };
 
-export type RedisClusterType<M extends RedisModules, S extends RedisScripts> =
-    RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
+export type RedisClusterType<
+    M extends RedisModules = Record<string, never>,
+    S extends RedisScripts = Record<string, never>
+> = RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
 export default class RedisCluster<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): RedisCommandArgument | undefined {
