@@ -23,12 +23,12 @@
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "dependencies": {
-    "@node-redis/bloom": "^1.0.0",
-    "@node-redis/client": "^1.0.2",
-    "@node-redis/graph": "^1.0.0-rc",
-    "@node-redis/json": "^1.0.2",
-    "@node-redis/search": "^1.0.2",
-    "@node-redis/time-series": "^1.0.1"
+    "@node-redis/bloom": "1.0.1",
+    "@node-redis/client": "1.0.3",
+    "@node-redis/graph": "1.0.0",
+    "@node-redis/json": "1.0.2",
+    "@node-redis/search": "1.0.2",
+    "@node-redis/time-series": "1.0.1"
   },
   "devDependencies": {
     "@tsconfig/node12": "^1.0.9",
