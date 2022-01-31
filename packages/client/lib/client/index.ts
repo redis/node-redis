@@ -35,9 +35,11 @@ type ConvertArgumentType<Type, ToType> =
         Type extends Set<infer Member> ? Set<ConvertArgumentType<Member, ToType>> : (
             Type extends Map<infer Key, infer Value> ? Map<Key, ConvertArgumentType<Value, ToType>> : (
                 Type extends Array<infer Member> ? Array<ConvertArgumentType<Member, ToType>> : (
-                    Type extends Record<keyof any, any> ? {
-                        [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
-                    } : Type
+                    Type extends Date ? Type : (
+                        Type extends Record<keyof any, any> ? {
+                            [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
+                        } : Type
+                    )
                 )
             )
         )
