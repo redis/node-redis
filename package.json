@@ -42,9 +42,5 @@
   "bugs": {
     "url": "https://github.com/redis/node-redis/issues"
   },
-  "homepage": "https://github.com/redis/node-redis",
-  "engines": {
-    "npm": ">=7",
-    "typescript": ">=4"
-  }
+  "homepage": "https://github.com/redis/node-redis"
 }
