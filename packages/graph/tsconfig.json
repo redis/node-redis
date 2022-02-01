@@ -15,6 +15,6 @@
       "./lib"
     ],
     "entryPointStrategy": "expand",
-    "out": "../../documentation/bloom"
+    "out": "../../documentation/graph"
   }
 }

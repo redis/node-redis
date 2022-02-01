@@ -232,10 +232,21 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
         return this.#nodeByUrl.get(url);
     }
 
-    async disconnect(): Promise<void> {
-        await Promise.all(
-            [...this.#nodeByUrl.values()].map(({ client }) => client.disconnect())
-        );
+    quit(): Promise<void> {
+        return this.#destroy(client => client.quit());
+    }
+
+    disconnect(): Promise<void> {
+        return this.#destroy(client => client.disconnect());
+    }
+
+    async #destroy(fn: (client: RedisClientType<M, S>) => Promise<unknown>): Promise<void> {
+        const promises = [];
+        for (const { client } of this.#nodeByUrl.values()) {
+            promises.push(fn(client));
+        }
+
+        await Promise.all(promises);
 
         this.#nodeByUrl.clear();
         this.#slots.splice(0);

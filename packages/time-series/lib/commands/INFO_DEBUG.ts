@@ -16,6 +16,8 @@ export function transformArguments(key: string): Array<string> {
 type InfoDebugRawReply = [
     ...infoArgs: InfoRawReply,
     _: string,
+    keySelfName: string,
+    _: string,
     chunks: Array<[
         _: string,
         startTimestamp: number,
@@ -31,6 +33,7 @@ type InfoDebugRawReply = [
 ]
 
 interface InfoDebugReply extends InfoReply {
+    keySelfName: string;
     chunks: Array<{
         startTimestamp: number;
         endTimestamp: number;
@@ -42,7 +45,8 @@ interface InfoDebugReply extends InfoReply {
 
 export function transformReply(rawReply: InfoDebugRawReply): InfoDebugReply {
     const reply = transformInfoReply(rawReply as unknown as InfoRawReply);
-    (reply as InfoDebugReply).chunks = rawReply[25].map(chunk => ({
+    (reply as InfoDebugReply).keySelfName = rawReply[25];
+    (reply as InfoDebugReply).chunks = rawReply[27].map(chunk => ({
         startTimestamp: chunk[1],
         endTimestamp: chunk[3],
         samples: chunk[5],

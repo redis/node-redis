@@ -33,14 +33,14 @@ export function transformArguments(
 }
 
 type XPendingRangeRawReply = Array<[
-    id: number,
+    id: RedisCommandArgument,
     consumer: RedisCommandArgument,
     millisecondsSinceLastDelivery: number,
     deliveriesCounter: number
 ]>;
 
 type XPendingRangeReply = Array<{
-    id: number;
+    id: RedisCommandArgument;
     owner: RedisCommandArgument;
     millisecondsSinceLastDelivery: number;
     deliveriesCounter: number;
