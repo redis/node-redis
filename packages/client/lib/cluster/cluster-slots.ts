@@ -264,7 +264,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
 
     async #destroy(fn: (client: RedisClientType<M, S>) => Promise<unknown>): Promise<void> {
         const promises = [];
-        for (const { client } of this.#nodeByUrl.values()) {
+        for (const { client } of this.#getNodeByAddress.values()) {
             promises.push(fn(client));
         }
 
