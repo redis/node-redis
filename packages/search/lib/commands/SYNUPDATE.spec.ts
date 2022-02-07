@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SYNUPDATE';
+import { SchemaFieldTypes } from '.';
 
 describe('SYNUPDATE', () => {
     describe('transformArguments', () => {
@@ -27,8 +28,8 @@ describe('SYNUPDATE', () => {
     });
 
     testUtils.testWithClient('client.ft.synUpdate', async client => {
-        await client.ft.create('index', {}, {
-            ON: 'HASH' // TODO: shouldn't be mandatory
+        await client.ft.create('index', {
+            field: SchemaFieldTypes.TEXT
         });
 
         assert.equal(

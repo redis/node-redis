@@ -19,8 +19,7 @@ async function commandWithModifiers() {
   result = await client.set('mykey', 'newvalue', {
     EX: 60,
     GET: true
-  }
-  );
+  });
 
   console.log(result); //myvalue
 

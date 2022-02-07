@@ -9,13 +9,16 @@ import { CommandOptions, commandOptions, isCommandOptions } from '../command-opt
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
-import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError, AuthError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 
-export interface RedisClientOptions<M extends RedisModules, S extends RedisScripts> extends RedisPlugins<M, S> {
+export interface RedisClientOptions<
+    M extends RedisModules = Record<string, never>,
+    S extends RedisScripts = Record<string, never>
+> extends RedisPlugins<M, S> {
     url?: string;
     socket?: RedisSocketOptions;
     username?: string;
@@ -35,9 +38,11 @@ type ConvertArgumentType<Type, ToType> =
         Type extends Set<infer Member> ? Set<ConvertArgumentType<Member, ToType>> : (
             Type extends Map<infer Key, infer Value> ? Map<Key, ConvertArgumentType<Value, ToType>> : (
                 Type extends Array<infer Member> ? Array<ConvertArgumentType<Member, ToType>> : (
-                    Type extends Record<keyof any, any> ? {
-                        [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
-                    } : Type
+                    Type extends Date ? Type : (
+                        Type extends Record<keyof any, any> ? {
+                            [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
+                        } : Type
+                    )
                 )
             )
         )
@@ -71,8 +76,10 @@ export type WithScripts<S extends RedisScripts> = {
     [P in keyof S as ExcludeMappedString<P>]: RedisClientCommandSignature<S[P]>;
 };
 
-export type RedisClientType<M extends RedisModules, S extends RedisScripts> =
-    RedisClient<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
+export type RedisClientType<
+    M extends RedisModules = Record<string, never>,
+    S extends RedisScripts = Record<string, never>
+> = RedisClient<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
 export type InstantiableRedisClient<M extends RedisModules, S extends RedisScripts> =
     new (options?: RedisClientOptions<M, S>) => RedisClientType<M, S>;
@@ -83,7 +90,6 @@ export interface ClientCommandOptions extends QueueCommandOptions {
 
 type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
 
-export type ClientLegacyCommandArguments = LegacyCommandArguments | [...LegacyCommandArguments, ClientLegacyCallback];
 export default class RedisClient<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static commandOptions<T extends ClientCommandOptions>(options: T): CommandOptions<T> {
         return commandOptions(options);
@@ -111,10 +117,10 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         return new (RedisClient.extend(options))(options);
     }
 
-    static parseURL(url: string): RedisClientOptions<Record<string, never>, Record<string, never>> {
+    static parseURL(url: string): RedisClientOptions {
         // https://www.iana.org/assignments/uri-schemes/prov/redis
         const { hostname, port, protocol, username, password, pathname } = new URL(url),
-            parsed: RedisClientOptions<Record<string, never>, Record<string, never>> = {
+            parsed: RedisClientOptions = {
                 socket: {
                     host: hostname
                 }
@@ -292,13 +298,13 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         if (!this.#options?.legacyMode) return;
 
         (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
-        (this as any).sendCommand = (...args: ClientLegacyCommandArguments): void => {
+        (this as any).sendCommand = (...args: Array<any>): void => {
             let callback: ClientLegacyCallback;
             if (typeof args[args.length - 1] === 'function') {
                 callback = args.pop() as ClientLegacyCallback;
             }
 
-            this.#sendCommand(transformLegacyCommandArguments(args as LegacyCommandArguments))
+            this.#sendCommand(args.flat())
                 .then((reply: RedisCommandRawReply) => {
                     if (!callback) return;
 

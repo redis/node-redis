@@ -68,7 +68,7 @@ export default {
 };
 
 export enum TimeSeriesAggregationType {
-    AVARAGE = 'avg',
+    AVERAGE = 'avg',
     SUM = 'sum',
     MINIMUM = 'min',
     MAXIMUM = 'max',
