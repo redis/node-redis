@@ -1,6 +1,6 @@
-import { CreateSchema, pushSchema } from '.';
+import { RediSearchSchema, pushSchema } from '.';
 
-export function transformArguments(index: string, schema: CreateSchema): Array<string> {
+export function transformArguments(index: string, schema: RediSearchSchema): Array<string> {
     const args = ['FT.ALTER', index, 'SCHEMA', 'ADD'];
     pushSchema(args, schema);
 

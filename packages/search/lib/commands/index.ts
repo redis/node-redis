@@ -204,7 +204,7 @@ type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
     CASESENSITIVE?: true;
 }>;
 
-export interface CreateSchema {
+export interface RediSearchSchema {
     [field: string]:
         CreateSchemaTextField |
         CreateSchemaNumericField |
@@ -212,7 +212,7 @@ export interface CreateSchema {
         CreateSchemaTagField
 }
 
-export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
+export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
     for (const [field, fieldOptions] of Object.entries(schema)) {
         args.push(field);
 
@@ -395,7 +395,6 @@ export interface SearchReply {
         value: SearchDocumentValue;
     }>;
 }
-
 
 export interface ProfileOptions {
     LIMITED?: true;
