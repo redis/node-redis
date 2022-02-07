@@ -21,10 +21,14 @@ describe('Socket', () => {
                 return time;
             });
 
-            const socket = new RedisSocket(undefined, {
-                host: 'error',
-                reconnectStrategy
-            });
+            const socket = new RedisSocket(
+                () => Promise.resolve(),
+                () => false,
+                {
+                    host: 'error',
+                    reconnectStrategy
+                }
+            );
 
             socket.on('error', () => {
                 // ignore errors

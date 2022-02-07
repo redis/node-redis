@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/client/RESP/*.spec.ts'",
+    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
     "build": "tsc",
     "lint": "eslint ./*.ts ./lib/**/*.ts",
     "documentation": "typedoc"
@@ -16,14 +16,12 @@
   "dependencies": {
     "cluster-key-slot": "1.1.0",
     "generic-pool": "3.8.2",
-    "redis-parser": "3.0.0",
     "yallist": "4.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@node-redis/test-utils": "*",
     "@types/node": "^17.0.13",
-    "@types/redis-parser": "^3.0.0",
     "@types/sinon": "^10.0.9",
     "@types/yallist": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^5.10.1",

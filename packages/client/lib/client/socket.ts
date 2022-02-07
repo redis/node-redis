@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events';
 import * as net from 'net';
 import * as tls from 'tls';
-import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
-
+import encodeCommand from './RESP2/encoder';
+import RESP2Decoder, { Reply, ReturnStringsAsBuffers } from './RESP2/decoder';
 export interface RedisSocketCommonOptions {
     connectTimeout?: number;
     noDelay?: boolean;
@@ -53,7 +53,9 @@ export default class RedisSocket extends EventEmitter {
         return (options as RedisTlsSocketOptions).tls === true;
     }
 
-    readonly #initiator?: RedisSocketInitiator;
+    readonly #initiator: RedisSocketInitiator;
+
+    readonly #returnStringsAsBuffers: ReturnStringsAsBuffers;
 
     readonly #options: RedisSocketOptions;
 
@@ -79,10 +81,15 @@ export default class RedisSocket extends EventEmitter {
         return this.#writableNeedDrain;
     }
 
-    constructor(initiator?: RedisSocketInitiator, options?: RedisSocketOptions) {
+    constructor(
+        initiator: RedisSocketInitiator,
+        returnStringsAsBuffers: ReturnStringsAsBuffers,
+        options?: RedisSocketOptions
+    ) {
         super();
 
         this.#initiator = initiator;
+        this.#returnStringsAsBuffers = returnStringsAsBuffers;
         this.#options = RedisSocket.#initiateOptions(options);
     }
 
@@ -113,22 +120,21 @@ export default class RedisSocket extends EventEmitter {
 
         this.emit('connect');
 
-        if (this.#initiator) {
-            try {
-                await this.#initiator();
-            } catch (err) {
-                this.#socket.destroy();
-                this.#socket = undefined;
 
-                if (err instanceof AuthError) {
-                    this.#isOpen = false;
-                }
+        try {
+            await this.#initiator();
+        } catch (err) {
+            this.#socket.destroy();
+            this.#socket = undefined;
 
-                throw err;
+            if (err instanceof AuthError) {
+                this.#isOpen = false;
             }
 
-            if (!this.#isOpen) return;
+            throw err;
         }
+
+        if (!this.#isOpen) return;
 
         this.#isReady = true;
 
@@ -186,7 +192,10 @@ export default class RedisSocket extends EventEmitter {
                             this.#writableNeedDrain = false;
                             this.emit('drain');
                         })
-                        .on('data', (data: Buffer) => this.emit('data', data));
+                        .pipe(new RESP2Decoder({
+                            returnStringsAsBuffers: this.#returnStringsAsBuffers
+                        }))
+                        .on('data', (reply: Reply) => this.emit('reply', reply));
 
                     resolve(socket);
                 });

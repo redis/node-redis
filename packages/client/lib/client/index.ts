@@ -157,8 +157,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     }
 
     readonly #options?: RedisClientOptions<M, S>;
-    readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
+    readonly #socket: RedisSocket;
     readonly #isolationPool: Pool<RedisClientType<M, S>>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
@@ -182,8 +182,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     constructor(options?: RedisClientOptions<M, S>) {
         super();
         this.#options = this.#initiateOptions(options);
-        this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
+        this.#socket = this.#initiateSocket();
         this.#isolationPool = createPool({
             create: async () => {
                 const duplicate = this.duplicate({
@@ -212,6 +212,10 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         }
 
         return options;
+    }
+
+    #initiateQueue(): RedisCommandsQueue {
+        return new RedisCommandsQueue(this.#options?.commandsQueueMaxLength);
     }
 
     #initiateSocket(): RedisSocket {
@@ -270,8 +274,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             }
         };
 
-        return new RedisSocket(socketInitiator, this.#options?.socket)
-            .on('data', data => this.#queue.parseResponse(data))
+        return new RedisSocket(socketInitiator, () => this.#queue.returnStringsAsBuffers(), this.#options?.socket)
+            .on('reply', reply => this.#queue.handleReply(reply))
             .on('error', err => {
                 this.emit('error', err);
                 if (this.#socket.isOpen) {
@@ -288,10 +292,6 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             .on('reconnecting', () => this.emit('reconnecting'))
             .on('drain', () => this.#tick())
             .on('end', () => this.emit('end'));
-    }
-
-    #initiateQueue(): RedisCommandsQueue {
-        return new RedisCommandsQueue(this.#options?.commandsQueueMaxLength);
     }
 
     #legacyMode(): void {

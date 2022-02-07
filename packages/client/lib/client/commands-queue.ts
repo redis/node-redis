@@ -1,11 +1,7 @@
 import * as LinkedList from 'yallist';
-import { AbortError } from '../errors';
+import { AbortError, ErrorReply } from '../errors';
 import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
-
-// We need to use 'require', because it's not possible with Typescript to import
-// classes that are exported as 'module.exports = class`, without esModuleInterop
-// set to true.
-const RedisParser = require('redis-parser');
+import { Reply } from './RESP2/decoder';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -95,7 +91,6 @@ export default class RedisCommandsQueue {
 
     readonly #maxLength: number | null | undefined;
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
-
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
 
     #pubSubState: PubSubState | undefined;
@@ -105,43 +100,9 @@ export default class RedisCommandsQueue {
         pMessage: Buffer.from('pmessage'),
         subscribe: Buffer.from('subscribe'),
         pSubscribe: Buffer.from('psubscribe'),
-        unsubscribe: Buffer.from('unsunscribe'),
+        unsubscribe: Buffer.from('unsubscribe'),
         pUnsubscribe: Buffer.from('punsubscribe')
     };
-
-    readonly #parser = new RedisParser({
-        returnReply: (reply: unknown) => {
-            if (this.#pubSubState && Array.isArray(reply)) {
-                if (RedisCommandsQueue.#PUB_SUB_MESSAGES.message.equals(reply[0])) {
-                    return RedisCommandsQueue.#emitPubSubMessage(
-                        this.#pubSubState.listeners.channels,
-                        reply[2],
-                        reply[1]
-                    );
-                } else if (RedisCommandsQueue.#PUB_SUB_MESSAGES.pMessage.equals(reply[0])) {
-                    return RedisCommandsQueue.#emitPubSubMessage(
-                        this.#pubSubState.listeners.patterns,
-                        reply[3],
-                        reply[2],
-                        reply[1]
-                    );
-                } else if (
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.subscribe.equals(reply[0]) ||
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.pSubscribe.equals(reply[0]) ||
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.unsubscribe.equals(reply[0]) ||
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.pUnsubscribe.equals(reply[0])
-                ) {
-                    if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
-                        this.#shiftWaitingForReply().resolve();
-                    }
-                    return;
-                }
-            }
-
-            this.#shiftWaitingForReply().resolve(reply);
-        },
-        returnError: (err: Error) => this.#shiftWaitingForReply().reject(err)
-    });
 
     #chainInExecution: symbol | undefined;
 
@@ -272,9 +233,11 @@ export default class RedisCommandsQueue {
                 listeners.delete(channel);
             }
         }
+
         if (!channelsToUnsubscribe.length) {
             return Promise.resolve();
         }
+
         return this.#pushPubSubCommand(command, channelsToUnsubscribe);
     }
 
@@ -356,36 +319,66 @@ export default class RedisCommandsQueue {
         const toSend = this.#waitingToBeSent.shift();
         if (toSend) {
             this.#waitingForReply.push({
+                args: toSend.args,
                 resolve: toSend.resolve,
                 reject: toSend.reject,
                 channelsCounter: toSend.channelsCounter,
                 returnBuffers: toSend.returnBuffers
-            });
+            } as any);
         }
         this.#chainInExecution = toSend?.chainId;
         return toSend?.args;
     }
 
-    #setReturnBuffers() {
-        this.#parser.setReturnBuffers(
-            !!this.#waitingForReply.head?.value.returnBuffers ||
-            !!this.#pubSubState?.subscribed
-        );
+    returnStringsAsBuffers(): boolean {
+        return !!this.#waitingForReply.head?.value.returnBuffers ||
+            !!this.#pubSubState;
     }
 
-    parseResponse(data: Buffer): void {
-        this.#setReturnBuffers();
-        this.#parser.execute(data);
-    }
-
-    #shiftWaitingForReply(): CommandWaitingForReply {
-        if (!this.#waitingForReply.length) {
+    handleReply(reply: Reply): void {
+        if (this.#handlePubSubReply(reply)) {
+            return;
+        } else if (!this.#waitingForReply.length) {
             throw new Error('Got an unexpected reply from Redis');
         }
 
-        const waitingForReply = this.#waitingForReply.shift()!;
-        this.#setReturnBuffers();
-        return waitingForReply;
+        const { resolve, reject } = this.#waitingForReply.shift()!;
+        if (reply instanceof ErrorReply) {
+            reject(reply);
+        } else {
+            resolve(reply);
+        }
+    }
+
+    #handlePubSubReply(reply: any): boolean {
+        if (!this.#pubSubState || !Array.isArray(reply)) return false;
+
+        if (RedisCommandsQueue.#PUB_SUB_MESSAGES.message.equals(reply[0])) {
+            RedisCommandsQueue.#emitPubSubMessage(
+                this.#pubSubState.listeners.channels,
+                reply[2],
+                reply[1]
+            );
+        } else if (RedisCommandsQueue.#PUB_SUB_MESSAGES.pMessage.equals(reply[0])) {
+            RedisCommandsQueue.#emitPubSubMessage(
+                this.#pubSubState.listeners.patterns,
+                reply[3],
+                reply[2],
+                reply[1]
+            );
+        } else if (
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.subscribe.equals(reply[0]) ||
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.pSubscribe.equals(reply[0]) ||
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.unsubscribe.equals(reply[0]) ||
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.pUnsubscribe.equals(reply[0])
+        ) {
+            const a = this.#waitingForReply.head!.value as any;
+            if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
+                this.#waitingForReply.shift()!.resolve();
+            }
+        }
+
+        return true;
     }
 
     flushWaitingForReply(err: Error): void {

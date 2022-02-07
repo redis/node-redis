@@ -89,39 +89,6 @@ export function transformCommandArguments<T>(
     };
 }
 
-const DELIMITER = '\r\n';
-
-export function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
-    let strings = `*${args.length}${DELIMITER}`,
-        stringsLength = 0;
-    for (const arg of args) {
-        if (Buffer.isBuffer(arg)) {
-            yield `${strings}$${arg.length}${DELIMITER}`;
-            strings = '';
-            stringsLength = 0;
-            yield arg;
-        } else {
-            const string = arg?.toString?.() ?? '',
-                byteLength = Buffer.byteLength(string);
-            strings += `$${byteLength}${DELIMITER}`;
-
-            const totalLength = stringsLength + byteLength;
-            if (totalLength > 1024) {
-                yield strings;
-                strings = string;
-                stringsLength = byteLength;
-            } else {
-                strings += string;
-                stringsLength = totalLength;
-            }
-        }
-
-        strings += DELIMITER;
-    }
-
-    yield strings;
-}
-
 export function transformCommandReply(
     command: RedisCommand,
     rawReply: RedisCommandRawReply,
