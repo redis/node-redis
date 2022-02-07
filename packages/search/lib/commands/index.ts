@@ -396,7 +396,6 @@ export interface SearchReply {
     }>;
 }
 
-
 export interface ProfileOptions {
     LIMITED?: true;
 }
