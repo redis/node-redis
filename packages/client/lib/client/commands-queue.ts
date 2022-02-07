@@ -372,7 +372,6 @@ export default class RedisCommandsQueue {
             RedisCommandsQueue.#PUB_SUB_MESSAGES.unsubscribe.equals(reply[0]) ||
             RedisCommandsQueue.#PUB_SUB_MESSAGES.pUnsubscribe.equals(reply[0])
         ) {
-            const a = this.#waitingForReply.head!.value as any;
             if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
                 this.#waitingForReply.shift()!.resolve();
             }

@@ -1,6 +1,6 @@
 
 import { CommandOptions, isCommandOptions } from './command-options';
-import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
 
 type Instantiable<T = any> = new(...args: Array<any>) => T;
 
