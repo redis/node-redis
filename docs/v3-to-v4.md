@@ -16,7 +16,7 @@ The configuration object passed to `createClient` has changed significantly with
 
 ### No Auto Connect
 
-In V4, the client does not automatically connect to the server, you need to run `.connect()` before any command, or you will receive error `ClientClosedError: The client is closed`.
+In V4, the client does not automatically connect to the server. Instead you need to run `.connect()` after creating the client or you will receive an error: `ClientClosedError: The client is closed`.
 
 ```typescript
 import { createClient } from 'redis';
