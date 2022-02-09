@@ -1,7 +1,7 @@
 import * as LinkedList from 'yallist';
 import { AbortError, ErrorReply } from '../errors';
 import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
-import { Reply } from './RESP2/decoder';
+import RESP2Decoder from './RESP2/decoder';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -105,6 +105,26 @@ export default class RedisCommandsQueue {
     };
 
     #chainInExecution: symbol | undefined;
+
+    #decoder = new RESP2Decoder({
+        returnStringsAsBuffers: () => {
+            return !!this.#waitingForReply.head?.value.returnBuffers || !!this.#pubSubState;
+        },
+        onReply: reply => {
+            if (this.#handlePubSubReply(reply)) {
+                return;
+            } else if (!this.#waitingForReply.length) {
+                throw new Error('Got an unexpected reply from Redis');
+            }
+
+            const { resolve, reject } = this.#waitingForReply.shift()!;
+            if (reply instanceof ErrorReply) {
+                reject(reply);
+            } else {
+                resolve(reply);
+            }
+        }
+    });
 
     constructor(maxLength: number | null | undefined) {
         this.#maxLength = maxLength;
@@ -330,24 +350,8 @@ export default class RedisCommandsQueue {
         return toSend?.args;
     }
 
-    returnStringsAsBuffers(): boolean {
-        return !!this.#waitingForReply.head?.value.returnBuffers ||
-            !!this.#pubSubState;
-    }
-
-    handleReply(reply: Reply): void {
-        if (this.#handlePubSubReply(reply)) {
-            return;
-        } else if (!this.#waitingForReply.length) {
-            throw new Error('Got an unexpected reply from Redis');
-        }
-
-        const { resolve, reject } = this.#waitingForReply.shift()!;
-        if (reply instanceof ErrorReply) {
-            reject(reply);
-        } else {
-            resolve(reply);
-        }
+    onReplyChunk(chunk: Buffer): void {
+        this.#decoder.write(chunk);
     }
 
     #handlePubSubReply(reply: any): boolean {

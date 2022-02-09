@@ -274,8 +274,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             }
         };
 
-        return new RedisSocket(socketInitiator, () => this.#queue.returnStringsAsBuffers(), this.#options?.socket)
-            .on('reply', reply => this.#queue.handleReply(reply))
+        return new RedisSocket(socketInitiator, this.#options?.socket)
+            .on('data', chunk => this.#queue.onReplyChunk(chunk))
             .on('error', err => {
                 this.emit('error', err);
                 if (this.#socket.isOpen) {

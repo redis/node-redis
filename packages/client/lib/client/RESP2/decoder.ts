@@ -1,4 +1,3 @@
-import { Transform, TransformCallback } from 'stream';
 import { ErrorReply } from '../../errors';
 import { Composer } from './composers/interface';
 import BufferComposer from './composers/buffer';
@@ -21,7 +20,8 @@ type ArrayReply = Array<Reply> | null;
 export type ReturnStringsAsBuffers = () => boolean;
 
 interface RESP2Options {
-    returnStringsAsBuffers: ReturnStringsAsBuffers
+    returnStringsAsBuffers: ReturnStringsAsBuffers;
+    onReply(reply: Reply): unknown;
 }
 
 interface ArrayInProcess {
@@ -29,12 +29,10 @@ interface ArrayInProcess {
     pushCounter: number;
 }
 
-export default class RESP2Decoder extends Transform {
+export default class RESP2Decoder {
     #options: RESP2Options;
 
     constructor(options: RESP2Options) {
-        super({ readableObjectMode: true });
-
         this.#options = options;
     }
 
@@ -48,7 +46,7 @@ export default class RESP2Decoder extends Transform {
 
     #composer: BufferComposer | StringComposer = this.#stringComposer;
 
-    _transform(chunk: Buffer, _: BufferEncoding, callback: TransformCallback): void {
+    write(chunk: Buffer): void {
         while (this.#cursor < chunk.length) {
             if (!this.#type) {
                 this.#composer = this.#options.returnStringsAsBuffers() ?
@@ -63,11 +61,10 @@ export default class RESP2Decoder extends Transform {
             if (reply === undefined) break;
 
             this.#type = undefined;
-            this.emit('data', reply);
+            this.#options.onReply(reply);
         }
 
         this.#cursor -= chunk.length;
-        callback();
     }
 
     #parseType(chunk: Buffer, type: Types, arraysToKeep?: number): Reply | undefined {

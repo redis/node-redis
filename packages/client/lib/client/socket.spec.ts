@@ -23,7 +23,6 @@ describe('Socket', () => {
 
             const socket = new RedisSocket(
                 () => Promise.resolve(),
-                () => false,
                 {
                     host: 'error',
                     reconnectStrategy

@@ -3,21 +3,23 @@ import { SinonSpy, spy } from 'sinon';
 import RESP2Decoder from './decoder';
 import { ErrorReply } from '../../errors';
 
-interface Stream {
-    stream: RESP2Decoder;
+interface DecoderAndSpies {
+    decoder: RESP2Decoder;
     returnStringsAsBuffersSpy: SinonSpy;
-    repliesSpy: SinonSpy;
+    onReplySpy: SinonSpy;
 }
 
-function createStreamAndSpies(returnStringsAsBuffers: boolean): Stream {
+function createDecoderAndSpies(returnStringsAsBuffers: boolean): DecoderAndSpies {
     const returnStringsAsBuffersSpy = spy(() => returnStringsAsBuffers),
-        repliesSpy = spy();
+        onReplySpy = spy();
 
     return {
-        stream: new RESP2Decoder({ returnStringsAsBuffers: returnStringsAsBuffersSpy })
-            .on('data', repliesSpy),
+        decoder: new RESP2Decoder({
+            returnStringsAsBuffers: returnStringsAsBuffersSpy,
+            onReply: onReplySpy
+        }),
         returnStringsAsBuffersSpy,
-        repliesSpy
+        onReplySpy
     };
 }
 
@@ -43,19 +45,19 @@ function generateTests({
 }: TestsOptions): void {
 
     it('single chunk', () => {
-        const { stream, returnStringsAsBuffersSpy, repliesSpy } =
-            createStreamAndSpies(returnStringsAsBuffers);
-        stream.write(toWrite);
+        const { decoder, returnStringsAsBuffersSpy, onReplySpy } =
+            createDecoderAndSpies(returnStringsAsBuffers);
+        decoder.write(toWrite);
         assert.equal(returnStringsAsBuffersSpy.callCount, replies.length);
-        testReplies(repliesSpy, replies);
+        testReplies(onReplySpy, replies);
     });
 
     it('multiple chunks', () => {
-        const { stream, returnStringsAsBuffersSpy, repliesSpy } =
-            createStreamAndSpies(returnStringsAsBuffers);
-        writeChunks(stream, toWrite);
+        const { decoder, returnStringsAsBuffersSpy, onReplySpy } =
+            createDecoderAndSpies(returnStringsAsBuffers);
+        writeChunks(decoder, toWrite);
         assert.equal(returnStringsAsBuffersSpy.callCount, replies.length);
-        testReplies(repliesSpy, replies);
+        testReplies(onReplySpy, replies);
     });
 }
 

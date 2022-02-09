@@ -5,7 +5,6 @@ import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
 import encodeCommand from './RESP2/encoder';
-import RESP2Decoder, { Reply, ReturnStringsAsBuffers } from './RESP2/decoder';
 export interface RedisSocketCommonOptions {
     connectTimeout?: number;
     noDelay?: boolean;
@@ -55,8 +54,6 @@ export default class RedisSocket extends EventEmitter {
 
     readonly #initiator: RedisSocketInitiator;
 
-    readonly #returnStringsAsBuffers: ReturnStringsAsBuffers;
-
     readonly #options: RedisSocketOptions;
 
     #socket?: net.Socket | tls.TLSSocket;
@@ -83,13 +80,11 @@ export default class RedisSocket extends EventEmitter {
 
     constructor(
         initiator: RedisSocketInitiator,
-        returnStringsAsBuffers: ReturnStringsAsBuffers,
         options?: RedisSocketOptions
     ) {
         super();
 
         this.#initiator = initiator;
-        this.#returnStringsAsBuffers = returnStringsAsBuffers;
         this.#options = RedisSocket.#initiateOptions(options);
     }
 
@@ -192,10 +187,7 @@ export default class RedisSocket extends EventEmitter {
                             this.#writableNeedDrain = false;
                             this.emit('drain');
                         })
-                        .pipe(new RESP2Decoder({
-                            returnStringsAsBuffers: this.#returnStringsAsBuffers
-                        }))
-                        .on('data', (reply: Reply) => this.emit('reply', reply));
+                        .on('data', data => this.emit('data', data));
 
                     resolve(socket);
                 });
