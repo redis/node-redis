@@ -5,7 +5,8 @@ const CRLF = '\r\n';
 export default function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
     let strings = `*${args.length}${CRLF}`,
         stringsLength = 0;
-    for (const arg of args) {
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
         if (Buffer.isBuffer(arg)) {
             yield `${strings}$${arg.length}${CRLF}`;
             strings = '';

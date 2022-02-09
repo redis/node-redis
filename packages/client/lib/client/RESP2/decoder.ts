@@ -130,7 +130,7 @@ export default class RESP2Decoder extends Transform {
     #parseInteger(chunk: Buffer): number | undefined {
         const number = this.#parseSimpleString(chunk, this.#stringComposer);
         if (number !== undefined) {
-            return Number(number);
+            return parseInt(number);
         }
     }
 

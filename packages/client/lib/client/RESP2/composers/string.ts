@@ -4,15 +4,15 @@ import { Composer } from './interface';
 export default class StringComposer implements Composer<string> {
     #decoder = new StringDecoder();
 
-    #chunks: Array<string> = [];
+    #string = '';
 
     write(buffer: Buffer): void {
-        this.#chunks.push(
-            this.#decoder.write(buffer)
-        );
+        this.#string += this.#decoder.write(buffer);
     }
 
     end(buffer: Buffer): string {
-        return this.#chunks.splice(0).join('') + this.#decoder.end(buffer);
+        const string = this.#string + this.#decoder.end(buffer);
+        this.#string = '';
+        return string;
     }
 }
