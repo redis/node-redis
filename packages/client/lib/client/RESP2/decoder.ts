@@ -107,7 +107,7 @@ export default class RESP2Decoder extends Transform {
 
         const toWrite = chunk.slice(this.#cursor);
         composer.write(toWrite);
-        this.#cursor = toWrite.length;
+        this.#cursor = chunk.length;
     }
 
     #findCRLF(chunk: Buffer): number {
@@ -144,7 +144,6 @@ export default class RESP2Decoder extends Transform {
 
             this.#bulkStringRemainingLength = length;
 
-
             if (this.#cursor >= chunk.length) return;
         }
 
@@ -161,7 +160,7 @@ export default class RESP2Decoder extends Transform {
         const toWrite = chunk.slice(this.#cursor);
         this.#composer.write(toWrite);
         this.#bulkStringRemainingLength -= toWrite.length;
-        this.#cursor = toWrite.length;
+        this.#cursor = chunk.length;
     }
 
     #arraysInProcess: Array<ArrayInProcess> = [];
