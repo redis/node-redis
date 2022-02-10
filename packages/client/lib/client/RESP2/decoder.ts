@@ -36,222 +36,211 @@ interface ArrayInProcess {
     pushCounter: number;
 }
 
+// Using TypeScript `private` and not the build-in `#` to avoid __classPrivateFieldGet and __classPrivateFieldSet
+
 export default class RESP2Decoder {
-    #options: RESP2Options;
+    constructor(private options: RESP2Options) {}
 
-    constructor(options: RESP2Options) {
-        this.#options = options;
-    }
+    private cursor = 0;
 
-    #cursor = 0;
+    private type?: Types;
 
-    #type?: Types;
+    private bufferComposer = new BufferComposer();
 
-    #bufferComposer = new BufferComposer();
+    private stringComposer = new StringComposer();
 
-    #stringComposer = new StringComposer();
-
-    #currentStringComposer: BufferComposer | StringComposer = this.#stringComposer;
+    private currentStringComposer: BufferComposer | StringComposer = this.stringComposer;
 
     write(chunk: Buffer): void {
-        while (this.#cursor < chunk.length) {
-            if (!this.#type) {
-                this.#currentStringComposer = this.#options.returnStringsAsBuffers() ?
-                    this.#bufferComposer :
-                    this.#stringComposer;
+        while (this.cursor < chunk.length) {
+            if (!this.type) {
+                this.currentStringComposer = this.options.returnStringsAsBuffers() ?
+                    this.bufferComposer :
+                    this.stringComposer;
 
-                this.#type = chunk[this.#cursor];
-                if (++this.#cursor >= chunk.length) break;
+                this.type = chunk[this.cursor];
+                if (++this.cursor >= chunk.length) break;
             }
 
-            const reply = this.#parseType(chunk, this.#type);
+            const reply = this.parseType(chunk, this.type);
             if (reply === undefined) break;
 
-            this.#type = undefined;
-            this.#options.onReply(reply);
+            this.type = undefined;
+            this.options.onReply(reply);
         }
 
-        this.#cursor -= chunk.length;
+        this.cursor -= chunk.length;
     }
 
-    #parseType(chunk: Buffer, type: Types, arraysToKeep?: number): Reply | undefined {
+    private parseType(chunk: Buffer, type: Types, arraysToKeep?: number): Reply | undefined {
         switch (type) {
             case Types.SIMPLE_STRING:
-                return this.#parseSimpleString(chunk);
+                return this.parseSimpleString(chunk);
 
             case Types.ERROR:
-                return this.#parseError(chunk);
+                return this.parseError(chunk);
 
             case Types.INTEGER:
-                return this.#parseInteger(chunk);
+                return this.parseInteger(chunk);
 
             case Types.BULK_STRING:
-                return this.#parseBulkString(chunk);
+                return this.parseBulkString(chunk);
 
             case Types.ARRAY:
-                return this.#parseArray(chunk, arraysToKeep);
+                return this.parseArray(chunk, arraysToKeep);
         }
     }
 
-    #compose<
+    private compose<
         C extends Composer<T>,
         T = C extends Composer<infer TT> ? TT : never
     >(
         chunk: Buffer,
         composer: C
-    ) {
-        const crIndex = this.#findCRLF(chunk);
-        if (crIndex !== -1) {
-            const reply = composer.end(
-                chunk.slice(this.#cursor, crIndex)
-            );
-            this.#cursor = crIndex + 2;
-            return reply;
-        }
-
-        const toWrite = chunk.slice(this.#cursor);
-        composer.write(toWrite);
-        this.#cursor = chunk.length;
-    }
-
-    #findCRLF(chunk: Buffer): number {
-        for (let i = this.#cursor; i < chunk.length; i++) {
+    ): T | undefined {
+        for (let i = this.cursor; i < chunk.length; i++) {
             if (chunk[i] === ASCII.CR) {
-                return i;
+                const reply = composer.end(
+                    chunk.slice(this.cursor, i)
+                );
+                this.cursor = i + 2;
+                return reply;
             }
         }
 
-        return -1;
+        const toWrite = chunk.slice(this.cursor);
+        composer.write(toWrite);
+        this.cursor = chunk.length;
     }
 
-    #parseSimpleString(chunk: Buffer): string | Buffer | undefined {
-        return this.#compose(chunk, this.#currentStringComposer);
+    private parseSimpleString(chunk: Buffer): string | Buffer | undefined {
+        return this.compose(chunk, this.currentStringComposer);
     }
 
-    #parseError(chunk: Buffer): ErrorReply | undefined {
-        const message = this.#compose(chunk, this.#stringComposer);
+    private parseError(chunk: Buffer): ErrorReply | undefined {
+        const message = this.compose(chunk, this.stringComposer);
         if (message !== undefined) {
             return new ErrorReply(message);
         }
     }
 
-    #integer = 0;
+    private integer = 0;
 
-    #isNegativeInteger?: boolean;
+    private isNegativeInteger?: boolean;
 
-    #parseInteger(chunk: Buffer): number | undefined {
-        if (this.#isNegativeInteger === undefined) {
-            this.#isNegativeInteger = chunk[this.#cursor] === ASCII.MINUS;
-            if (this.#isNegativeInteger) {
-                if (++this.#cursor === chunk.length) return;
+    private parseInteger(chunk: Buffer): number | undefined {
+        if (this.isNegativeInteger === undefined) {
+            this.isNegativeInteger = chunk[this.cursor] === ASCII.MINUS;
+            if (this.isNegativeInteger) {
+                if (++this.cursor === chunk.length) return;
             }
         }
 
         do {
-            const byte = chunk[this.#cursor];
+            const byte = chunk[this.cursor];
             if (byte === ASCII.CR) {
-                const integer = this.#isNegativeInteger ? -this.#integer : this.#integer;
-                this.#integer = 0;
-                this.#isNegativeInteger = undefined;
-                this.#cursor += 2;
+                const integer = this.isNegativeInteger ? -this.integer : this.integer;
+                this.integer = 0;
+                this.isNegativeInteger = undefined;
+                this.cursor += 2;
                 return integer;
             }
 
-            this.#integer = this.#integer * 10 + byte - ASCII.ZERO;
-        } while (++this.#cursor < chunk.length);
+            this.integer = this.integer * 10 + byte - ASCII.ZERO;
+        } while (++this.cursor < chunk.length);
     }
 
-    #bulkStringRemainingLength?: number;
+    private bulkStringRemainingLength?: number;
 
-    #parseBulkString(chunk: Buffer): string | Buffer | null | undefined {
-        if (this.#bulkStringRemainingLength === undefined) {
-            const length = this.#parseInteger(chunk);
+    private parseBulkString(chunk: Buffer): string | Buffer | null | undefined {
+        if (this.bulkStringRemainingLength === undefined) {
+            const length = this.parseInteger(chunk);
             if (length === undefined) return;
             else if (length === -1) return null;
 
-            this.#bulkStringRemainingLength = length;
+            this.bulkStringRemainingLength = length;
 
-            if (this.#cursor >= chunk.length) return;
+            if (this.cursor >= chunk.length) return;
         }
 
-        const end = this.#cursor + this.#bulkStringRemainingLength;
+        const end = this.cursor + this.bulkStringRemainingLength;
         if (chunk.length >= end) {
-            const reply = this.#currentStringComposer.end(
-                chunk.slice(this.#cursor, end)
+            const reply = this.currentStringComposer.end(
+                chunk.slice(this.cursor, end)
             );
-            this.#bulkStringRemainingLength = undefined;
-            this.#cursor = end + 2;
+            this.bulkStringRemainingLength = undefined;
+            this.cursor = end + 2;
             return reply;
         }
 
-        const toWrite = chunk.slice(this.#cursor);
-        this.#currentStringComposer.write(toWrite);
-        this.#bulkStringRemainingLength -= toWrite.length;
-        this.#cursor = chunk.length;
+        const toWrite = chunk.slice(this.cursor);
+        this.currentStringComposer.write(toWrite);
+        this.bulkStringRemainingLength -= toWrite.length;
+        this.cursor = chunk.length;
     }
 
-    #arraysInProcess: Array<ArrayInProcess> = [];
+    private arraysInProcess: Array<ArrayInProcess> = [];
 
-    #initializeArray = false;
+    private initializeArray = false;
 
-    #arrayItemType?: Types;
+    private arrayItemType?: Types;
 
-    #parseArray(chunk: Buffer, arraysToKeep = 0): ArrayReply | undefined {
-        if (this.#initializeArray || this.#arraysInProcess.length === arraysToKeep) {
-            const length = this.#parseInteger(chunk);
+    private parseArray(chunk: Buffer, arraysToKeep = 0): ArrayReply | undefined {
+        if (this.initializeArray || this.arraysInProcess.length === arraysToKeep) {
+            const length = this.parseInteger(chunk);
             if (length === undefined) {
-                this.#initializeArray = true;
+                this.initializeArray = true;
                 return undefined;
             }
 
-            this.#initializeArray = false;
-            this.#arrayItemType = undefined;
+            this.initializeArray = false;
+            this.arrayItemType = undefined;
 
             if (length === -1) {
-                return this.#returnArrayReply(null, arraysToKeep);
+                return this.returnArrayReply(null, arraysToKeep);
             } else if (length === 0) {
-                return this.#returnArrayReply([], arraysToKeep);
+                return this.returnArrayReply([], arraysToKeep);
             }
 
-            this.#arraysInProcess.push({
+            this.arraysInProcess.push({
                 array: new Array(length),
                 pushCounter: 0
             });
         }
 
-        while (this.#cursor < chunk.length) {
-            if (!this.#arrayItemType) {
-                this.#arrayItemType = chunk[this.#cursor];
+        while (this.cursor < chunk.length) {
+            if (!this.arrayItemType) {
+                this.arrayItemType = chunk[this.cursor];
 
-                if (++this.#cursor >= chunk.length) break;
+                if (++this.cursor >= chunk.length) break;
             }
 
-            const item = this.#parseType(
+            const item = this.parseType(
                 chunk,
-                this.#arrayItemType,
+                this.arrayItemType,
                 arraysToKeep + 1
             );
             if (item === undefined) break;
 
-            this.#arrayItemType = undefined;
+            this.arrayItemType = undefined;
 
-            const reply = this.#pushArrayItem(item, arraysToKeep);
+            const reply = this.pushArrayItem(item, arraysToKeep);
             if (reply !== undefined) return reply;
         }
     }
 
-    #returnArrayReply(reply: ArrayReply, arraysToKeep: number): ArrayReply | undefined {
-        if (this.#arraysInProcess.length <= arraysToKeep) return reply;
+    private returnArrayReply(reply: ArrayReply, arraysToKeep: number): ArrayReply | undefined {
+        if (this.arraysInProcess.length <= arraysToKeep) return reply;
 
-        return this.#pushArrayItem(reply, arraysToKeep);
+        return this.pushArrayItem(reply, arraysToKeep);
     }
 
-    #pushArrayItem(item: Reply, arraysToKeep: number): ArrayReply | undefined {
-        const to = this.#arraysInProcess[this.#arraysInProcess.length - 1]!;
+    private pushArrayItem(item: Reply, arraysToKeep: number): ArrayReply | undefined {
+        const to = this.arraysInProcess[this.arraysInProcess.length - 1]!;
         to.array[to.pushCounter] = item;
         if (++to.pushCounter === to.array.length) {
-            return this.#returnArrayReply(
-                this.#arraysInProcess.pop()!.array,
+            return this.returnArrayReply(
+                this.arraysInProcess.pop()!.array,
                 arraysToKeep
             );
         }
