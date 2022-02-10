@@ -1,6 +1,6 @@
 import * as LinkedList from 'yallist';
 import { AbortError, ErrorReply } from '../errors';
-import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
+import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
 import RESP2Decoder from './RESP2/decoder';
 import encodeCommand from './RESP2/encoder';
 
