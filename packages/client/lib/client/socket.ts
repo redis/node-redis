@@ -4,7 +4,7 @@ import * as tls from 'tls';
 import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
-import encodeCommand from './RESP2/encoder';
+
 export interface RedisSocketCommonOptions {
     connectTimeout?: number;
     noDelay?: boolean;
@@ -222,7 +222,7 @@ export default class RedisSocket extends EventEmitter {
             throw new ClientClosedError();
         }
 
-        for (const toWrite of encodeCommand(args)) {
+        for (const toWrite of args) {
             this.#writableNeedDrain = !this.#socket.write(toWrite);
         }
     }

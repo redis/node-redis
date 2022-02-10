@@ -9,7 +9,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from '../command-opt
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
-import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError, AuthError } from '../errors';
 import { URL } from 'url';
@@ -304,7 +304,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                 callback = args.pop() as ClientLegacyCallback;
             }
 
-            this.#sendCommand(args.flat())
+            this.#sendCommand(transformLegacyCommandArguments(args))
                 .then((reply: RedisCommandRawReply) => {
                     if (!callback) return;
 

@@ -1,7 +1,8 @@
 import * as LinkedList from 'yallist';
 import { AbortError, ErrorReply } from '../errors';
-import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
 import RESP2Decoder from './RESP2/decoder';
+import encodeCommand from './RESP2/encoder';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -337,17 +338,28 @@ export default class RedisCommandsQueue {
 
     getCommandToSend(): RedisCommandArguments | undefined {
         const toSend = this.#waitingToBeSent.shift();
-        if (toSend) {
-            this.#waitingForReply.push({
-                args: toSend.args,
-                resolve: toSend.resolve,
-                reject: toSend.reject,
-                channelsCounter: toSend.channelsCounter,
-                returnBuffers: toSend.returnBuffers
-            } as any);
+        if (!toSend) return;
+
+        let encoded: RedisCommandArguments;
+        try {
+            encoded = encodeCommand(toSend.args);
+        } catch (err) {
+            toSend.reject(err);
+            return;
         }
-        this.#chainInExecution = toSend?.chainId;
-        return toSend?.args;
+
+        this.#waitingForReply.push({
+            resolve: toSend.resolve,
+            reject: toSend.reject,
+            channelsCounter: toSend.channelsCounter,
+            returnBuffers: toSend.returnBuffers
+        });
+        this.#chainInExecution = toSend.chainId;
+        return encoded;
+    }
+
+    rejectLastCommand(err: unknown): void {
+        this.#waitingForReply.pop()!.reject(err);
     }
 
     onReplyChunk(chunk: Buffer): void {

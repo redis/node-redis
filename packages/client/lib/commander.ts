@@ -89,6 +89,10 @@ export function transformCommandArguments<T>(
     };
 }
 
+export function transformLegacyCommandArguments(args: Array<any>): Array<any> {
+    return args.flat().map(x => x?.toString?.());
+}
+
 export function transformCommandReply(
     command: RedisCommand,
     rawReply: RedisCommandRawReply,

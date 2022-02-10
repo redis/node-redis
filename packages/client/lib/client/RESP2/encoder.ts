@@ -2,34 +2,29 @@ import { RedisCommandArgument, RedisCommandArguments } from '../../commands';
 
 const CRLF = '\r\n';
 
-export default function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
-    let strings = `*${args.length}${CRLF}`,
-        stringsLength = 0;
+export default function encodeCommand(args: RedisCommandArguments): Array<RedisCommandArgument> {
+    const toWrite: Array<RedisCommandArgument> = [];
+
+    let strings = `*${args.length}${CRLF}`;
+
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        if (Buffer.isBuffer(arg)) {
-            yield `${strings}$${arg.length}${CRLF}`;
-            strings = '';
-            stringsLength = 0;
-            yield arg;
-        } else {
-            const string = arg?.toString?.() ?? '',
-                byteLength = Buffer.byteLength(string);
+        if (typeof arg === 'string') {
+            const byteLength = Buffer.byteLength(arg);
             strings += `$${byteLength}${CRLF}`;
-
-            const totalLength = stringsLength + byteLength;
-            if (totalLength > 1024) {
-                yield strings;
-                strings = string;
-                stringsLength = byteLength;
-            } else {
-                strings += string;
-                stringsLength = totalLength;
-            }
+            strings += arg;
+        } else if (arg instanceof Buffer) {
+            toWrite.push(`${strings}$${arg.length}${CRLF}`);
+            strings = '';
+            toWrite.push(arg);
+        } else {
+            throw new TypeError('Invalid argument type');
         }
 
         strings += CRLF;
     }
 
-    yield strings;
+    toWrite.push(strings);
+
+    return toWrite;
 }
