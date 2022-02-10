@@ -3,6 +3,9 @@ import { Composer } from './composers/interface';
 import BufferComposer from './composers/buffer';
 import StringComposer from './composers/string';
 
+// RESP2 specification
+// https://redis.io/topics/protocol
+
 enum Types {
     SIMPLE_STRING = 43, // +
     ERROR = 45, // -
