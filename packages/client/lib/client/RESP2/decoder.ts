@@ -14,7 +14,11 @@ enum Types {
     ARRAY = 42 // *
 }
 
-const CR = 13; // \r
+enum ASCII {
+    CR = 13, // \r
+    ZERO = 48,
+    MINUS = 45
+}
 
 export type Reply = string | Buffer | ErrorReply | number | null | Array<Reply>;
 
@@ -47,12 +51,12 @@ export default class RESP2Decoder {
 
     #stringComposer = new StringComposer();
 
-    #composer: BufferComposer | StringComposer = this.#stringComposer;
+    #currentStringComposer: BufferComposer | StringComposer = this.#stringComposer;
 
     write(chunk: Buffer): void {
         while (this.#cursor < chunk.length) {
             if (!this.#type) {
-                this.#composer = this.#options.returnStringsAsBuffers() ?
+                this.#currentStringComposer = this.#options.returnStringsAsBuffers() ?
                     this.#bufferComposer :
                     this.#stringComposer;
 
@@ -73,7 +77,7 @@ export default class RESP2Decoder {
     #parseType(chunk: Buffer, type: Types, arraysToKeep?: number): Reply | undefined {
         switch (type) {
             case Types.SIMPLE_STRING:
-                return this.#parseSimpleString(chunk, this.#composer);
+                return this.#parseSimpleString(chunk);
 
             case Types.ERROR:
                 return this.#parseError(chunk);
@@ -89,13 +93,13 @@ export default class RESP2Decoder {
         }
     }
 
-    #parseSimpleString<
+    #compose<
         C extends Composer<T>,
         T = C extends Composer<infer TT> ? TT : never
     >(
         chunk: Buffer,
         composer: C
-    ): T | undefined {
+    ) {
         const crIndex = this.#findCRLF(chunk);
         if (crIndex !== -1) {
             const reply = composer.end(
@@ -112,7 +116,7 @@ export default class RESP2Decoder {
 
     #findCRLF(chunk: Buffer): number {
         for (let i = this.#cursor; i < chunk.length; i++) {
-            if (chunk[i] === CR) {
+            if (chunk[i] === ASCII.CR) {
                 return i;
             }
         }
@@ -120,18 +124,41 @@ export default class RESP2Decoder {
         return -1;
     }
 
+    #parseSimpleString(chunk: Buffer): string | Buffer | undefined {
+        return this.#compose(chunk, this.#currentStringComposer);
+    }
+
     #parseError(chunk: Buffer): ErrorReply | undefined {
-        const message = this.#parseSimpleString(chunk, this.#stringComposer);
+        const message = this.#compose(chunk, this.#stringComposer);
         if (message !== undefined) {
             return new ErrorReply(message);
         }
     }
 
+    #integer = 0;
+
+    #isNegativeInteger?: boolean;
+
     #parseInteger(chunk: Buffer): number | undefined {
-        const number = this.#parseSimpleString(chunk, this.#stringComposer);
-        if (number !== undefined) {
-            return parseInt(number);
+        if (this.#isNegativeInteger === undefined) {
+            this.#isNegativeInteger = chunk[this.#cursor] === ASCII.MINUS;
+            if (this.#isNegativeInteger) {
+                if (++this.#cursor === chunk.length) return;
+            }
         }
+
+        do {
+            const byte = chunk[this.#cursor];
+            if (byte === ASCII.CR) {
+                const integer = this.#isNegativeInteger ? -this.#integer : this.#integer;
+                this.#integer = 0;
+                this.#isNegativeInteger = undefined;
+                this.#cursor += 2;
+                return integer;
+            }
+
+            this.#integer = this.#integer * 10 + byte - ASCII.ZERO;
+        } while (++this.#cursor < chunk.length);
     }
 
     #bulkStringRemainingLength?: number;
@@ -149,7 +176,7 @@ export default class RESP2Decoder {
 
         const end = this.#cursor + this.#bulkStringRemainingLength;
         if (chunk.length >= end) {
-            const reply = this.#composer.end(
+            const reply = this.#currentStringComposer.end(
                 chunk.slice(this.#cursor, end)
             );
             this.#bulkStringRemainingLength = undefined;
@@ -158,7 +185,7 @@ export default class RESP2Decoder {
         }
 
         const toWrite = chunk.slice(this.#cursor);
-        this.#composer.write(toWrite);
+        this.#currentStringComposer.write(toWrite);
         this.#bulkStringRemainingLength -= toWrite.length;
         this.#cursor = chunk.length;
     }

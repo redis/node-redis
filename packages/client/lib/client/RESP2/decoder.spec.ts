@@ -43,7 +43,6 @@ function generateTests({
     returnStringsAsBuffers,
     replies
 }: TestsOptions): void {
-
     it('single chunk', () => {
         const { decoder, returnStringsAsBuffersSpy, onReplySpy } =
             createDecoderAndSpies(returnStringsAsBuffers);
@@ -98,16 +97,26 @@ describe('RESP2Parser', () => {
     describe('Error', () => {
         generateTests({
             toWrite: Buffer.from('-ERR\r\n'),
-            returnStringsAsBuffers: true,
+            returnStringsAsBuffers: false,
             replies: [[new ErrorReply('ERR')]]
         });
     });
 
     describe('Integer', () => {
-        generateTests({
-            toWrite: Buffer.from(':0\r\n'),
-            returnStringsAsBuffers: true,
-            replies: [[0]]
+        describe('-1', () => {
+            generateTests({
+                toWrite: Buffer.from(':-1\r\n'),
+                returnStringsAsBuffers: false,
+                replies: [[-1]]
+            });
+        });
+
+        describe('0', () => {
+            generateTests({
+                toWrite: Buffer.from(':0\r\n'),
+                returnStringsAsBuffers: false,
+                replies: [[0]]
+            });
         });
     });
 
