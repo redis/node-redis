@@ -175,7 +175,7 @@ export enum SchemaFieldTypes {
     TAG = 'TAG'
 }
 
-type CreateSchemaField<T extends SchemaFieldTypes, E = Record<string, never>> = T | ({
+type CreateSchemaField<T extends SchemaFieldTypes, E = Record<keyof any, any>> = T | ({
     type: T;
     AS?: string;
     SORTABLE?: true | 'UNF';
@@ -209,7 +209,7 @@ export interface RediSearchSchema {
         CreateSchemaTextField |
         CreateSchemaNumericField |
         CreateSchemaGeoField |
-        CreateSchemaTagField
+        CreateSchemaTagField;
 }
 
 export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
@@ -228,7 +228,7 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
         args.push(fieldOptions.type);
 
         switch (fieldOptions.type) {
-            case 'TEXT':
+            case SchemaFieldTypes.TEXT:
                 if (fieldOptions.NOSTEM) {
                     args.push('NOSTEM');
                 }
@@ -243,11 +243,11 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
 
                 break;
 
-            // case 'NUMERIC':
-            // case 'GEO':
+            // case SchemaFieldTypes.NUMERIC:
+            // case SchemaFieldTypes.GEO:
             //     break;
 
-            case 'TAG':
+            case SchemaFieldTypes.TAG:
                 if (fieldOptions.SEPARATOR) {
                     args.push('SEPARATOR', fieldOptions.SEPARATOR);
                 }
