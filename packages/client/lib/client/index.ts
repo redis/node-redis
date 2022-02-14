@@ -26,6 +26,7 @@ export interface RedisClientOptions<
     name?: string;
     database?: number;
     commandsQueueMaxLength?: number;
+    disableOfflineQueue?: boolean;
     readonly?: boolean;
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
@@ -38,9 +39,11 @@ type ConvertArgumentType<Type, ToType> =
         Type extends Set<infer Member> ? Set<ConvertArgumentType<Member, ToType>> : (
             Type extends Map<infer Key, infer Value> ? Map<Key, ConvertArgumentType<Value, ToType>> : (
                 Type extends Array<infer Member> ? Array<ConvertArgumentType<Member, ToType>> : (
-                    Type extends Record<keyof any, any> ? {
-                        [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
-                    } : Type
+                    Type extends Date ? Type : (
+                        Type extends Record<keyof any, any> ? {
+                            [Property in keyof Type]: ConvertArgumentType<Type[Property], ToType>
+                        } : Type
+                    )
                 )
             )
         )
@@ -272,7 +275,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             .on('data', data => this.#queue.parseResponse(data))
             .on('error', err => {
                 this.emit('error', err);
-                if (this.#socket.isOpen) {
+                if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
                     this.#queue.flushWaitingForReply(err);
                 } else {
                     this.#queue.flushAll(err);

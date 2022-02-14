@@ -175,7 +175,7 @@ export enum SchemaFieldTypes {
     TAG = 'TAG'
 }
 
-type CreateSchemaField<T extends SchemaFieldTypes, E = Record<string, never>> = T | ({
+type CreateSchemaField<T extends SchemaFieldTypes, E = Record<keyof any, any>> = T | ({
     type: T;
     AS?: string;
     SORTABLE?: true | 'UNF';
@@ -204,15 +204,15 @@ type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
     CASESENSITIVE?: true;
 }>;
 
-export interface CreateSchema {
+export interface RediSearchSchema {
     [field: string]:
         CreateSchemaTextField |
         CreateSchemaNumericField |
         CreateSchemaGeoField |
-        CreateSchemaTagField
+        CreateSchemaTagField;
 }
 
-export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
+export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
     for (const [field, fieldOptions] of Object.entries(schema)) {
         args.push(field);
 
@@ -228,7 +228,7 @@ export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
         args.push(fieldOptions.type);
 
         switch (fieldOptions.type) {
-            case 'TEXT':
+            case SchemaFieldTypes.TEXT:
                 if (fieldOptions.NOSTEM) {
                     args.push('NOSTEM');
                 }
@@ -243,11 +243,11 @@ export function pushSchema(args: RedisCommandArguments, schema: CreateSchema) {
 
                 break;
 
-            // case 'NUMERIC':
-            // case 'GEO':
+            // case SchemaFieldTypes.NUMERIC:
+            // case SchemaFieldTypes.GEO:
             //     break;
 
-            case 'TAG':
+            case SchemaFieldTypes.TAG:
                 if (fieldOptions.SEPARATOR) {
                     args.push('SEPARATOR', fieldOptions.SEPARATOR);
                 }
@@ -395,7 +395,6 @@ export interface SearchReply {
         value: SearchDocumentValue;
     }>;
 }
-
 
 export interface ProfileOptions {
     LIMITED?: true;
