@@ -1,5 +1,13 @@
-import { createClient as _createClient, createCluster as _createCluster, RedisClientOptions, RedisClientType, RedisClusterOptions, RedisClusterType } from '@node-redis/client';
-import { RedisScripts } from '@node-redis/client/dist/lib/commands';
+import {
+    RedisModules,
+    RedisScripts,
+    createClient as _createClient,
+    RedisClientOptions,
+    RedisClientType as _RedisClientType,
+    createCluster as _createCluster,
+    RedisClusterOptions,
+    RedisClusterType as _RedisClusterType
+} from '@node-redis/client';
 import RedisBloomModules from '@node-redis/bloom';
 import RedisGraph from '@node-redis/graph';
 import RedisJSON from '@node-redis/json';
@@ -13,7 +21,7 @@ export * from '@node-redis/json';
 export * from '@node-redis/search';
 export * from '@node-redis/time-series';
 
-const modules =  {
+const modules = {
     ...RedisBloomModules,
     graph: RedisGraph,
     json: RedisJSON,
@@ -21,20 +29,38 @@ const modules =  {
     ts: RedisTimeSeries
 };
 
-export function createClient<S extends RedisScripts>(
-    options?: Omit<RedisClientOptions<never, S>, 'modules'>
-): RedisClientType<typeof modules, S> {
+export type RedisDefaultModules = typeof modules;
+
+export type RedisClientType<
+    M extends RedisModules = RedisDefaultModules,
+    S extends RedisScripts = Record<string, never>
+> = _RedisClientType<M, S>;
+
+export function createClient<M extends RedisModules, S extends RedisScripts>(
+    options?: RedisClientOptions<M, S>
+): _RedisClientType<RedisDefaultModules & M, S> {
     return _createClient({
         ...options,
-        modules
+        modules: {
+            ...modules,
+            ...(options?.modules as M)
+        }
     });
 }
 
-export function createCluster<S extends RedisScripts>(
-    options: Omit<RedisClusterOptions<never, S>, 'modules'>
-): RedisClusterType<typeof modules, S> {
+export type RedisClusterType<
+    M extends RedisModules = RedisDefaultModules,
+    S extends RedisScripts = Record<string, never>
+> = _RedisClusterType<M, S>;
+
+export function createCluster<M extends RedisModules, S extends RedisScripts>(
+    options: RedisClusterOptions<M, S>
+): RedisClusterType<RedisDefaultModules & M, S> {
     return _createCluster({
         ...options,
-        modules
+        modules: {
+            ...modules,
+            ...(options?.modules as M)
+        }
     });
 }
