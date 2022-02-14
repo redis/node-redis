@@ -19,7 +19,7 @@ describe('CLUSTER NODES', () => {
                 ].join('\n')),
                 [{
                     id: 'master',
-                    url: '127.0.0.1:30001@31001',
+                    address: '127.0.0.1:30001@31001',
                     host: '127.0.0.1',
                     port: 30001,
                     cport: 31001,
@@ -34,7 +34,7 @@ describe('CLUSTER NODES', () => {
                     }],
                     replicas: [{
                         id: 'slave',
-                        url: '127.0.0.1:30002@31002',
+                        address: '127.0.0.1:30002@31002',
                         host: '127.0.0.1',
                         port: 30002,
                         cport: 31002,
@@ -48,14 +48,14 @@ describe('CLUSTER NODES', () => {
             );
         });
 
-        it('should support urls without cport', () => {
+        it('should support addresses without cport', () => {
             assert.deepEqual(
                 transformReply(
                     'id 127.0.0.1:30001 master - 0 0 0 connected 0-16384\n'
                 ),
                 [{
                     id: 'id',
-                    url: '127.0.0.1:30001',
+                    address: '127.0.0.1:30001',
                     host: '127.0.0.1',
                     port: 30001,
                     cport: null,
@@ -80,7 +80,7 @@ describe('CLUSTER NODES', () => {
                 ),
                 [{
                     id: 'id',
-                    url: '127.0.0.1:30001@31001',
+                    address: '127.0.0.1:30001@31001',
                     host: '127.0.0.1',
                     port: 30001,
                     cport: 31001,
@@ -102,7 +102,7 @@ describe('CLUSTER NODES', () => {
                 ),
                 [{
                     id: 'id',
-                    url: '127.0.0.1:30001@31001',
+                    address: '127.0.0.1:30001@31001',
                     host: '127.0.0.1',
                     port: 30001,
                     cport: 31001,
