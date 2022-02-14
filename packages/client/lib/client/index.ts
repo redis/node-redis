@@ -26,6 +26,7 @@ export interface RedisClientOptions<
     name?: string;
     database?: number;
     commandsQueueMaxLength?: number;
+    disableOfflineQueue?: boolean;
     readonly?: boolean;
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
@@ -274,7 +275,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             .on('data', data => this.#queue.parseResponse(data))
             .on('error', err => {
                 this.emit('error', err);
-                if (this.#socket.isOpen) {
+                if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
                     this.#queue.flushWaitingForReply(err);
                 } else {
                     this.#queue.flushAll(err);
