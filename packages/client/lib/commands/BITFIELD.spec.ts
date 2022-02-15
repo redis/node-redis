@@ -10,14 +10,14 @@ describe('BITFIELD', () => {
                 behavior: 'WRAP'
             }, {
                 operation: 'GET',
-                type: 'i8',
+                encoding: 'i8',
                 offset: 0
             }, {
                 operation: 'OVERFLOW',
                 behavior: 'SAT'
             }, {
                 operation: 'SET',
-                type: 'i16',
+                encoding: 'i16',
                 offset: 1,
                 value: 0
             }, {
@@ -25,7 +25,7 @@ describe('BITFIELD', () => {
                 behavior: 'FAIL'
             }, {
                 operation: 'INCRBY',
-                type: 'i32',
+                encoding: 'i32',
                 offset: 2,
                 increment: 1
             }]),
@@ -35,8 +35,12 @@ describe('BITFIELD', () => {
 
     testUtils.testWithClient('client.bitField', async client => {
         assert.deepEqual(
-            await client.bitField('key', []),
-            []
+            await client.bitField('key', [{
+                operation: 'GET',
+                encoding: 'i8',
+                offset: 0
+            }]),
+            [0]
         );
     }, GLOBAL.SERVERS.OPEN);
 });
