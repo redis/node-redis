@@ -6,14 +6,14 @@ describe('pushSortByArguments', () => {
         it('string', () => {
             assert.deepEqual(
                 pushSortByArguments([], 'SORTBY', '@property'),
-                ['SORTBT', '1', '@property']
+                ['SORTBY', '1', '@property']
             );
         });
 
         it('.BY', () => {
             assert.deepEqual(
                 pushSortByArguments([], 'SORTBY', { BY: '@property' }),
-                ['SORTBT', '1', '@property']
+                ['SORTBY', '1', '@property']
             );
         });
 
