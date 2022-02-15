@@ -5,15 +5,15 @@ describe('pushSortByArguments', () => {
     describe('single', () => {
         it('string', () => {
             assert.deepEqual(
-                pushSortByArguments([], 'SORTBT', '@property'),
-                ['SORTBT', '1', '@property']
+                pushSortByArguments([], 'SORTBY', '@property'),
+                ['SORTBY', '1', '@property']
             );
         });
 
         it('.BY', () => {
             assert.deepEqual(
-                pushSortByArguments([], 'SORTBT', { BY: '@property' }),
-                ['SORTBT', '1', '@property']
+                pushSortByArguments([], 'SORTBY', { BY: '@property' }),
+                ['SORTBY', '1', '@property']
             );
         });
 
