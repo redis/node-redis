@@ -1,7 +1,7 @@
 import RedisClient from './lib/client';
 import RedisCluster from './lib/cluster';
 
-export { RedisClientType, RedisClientOptions } from './lib/client';
+export { RedisClientType, RedisClientOptions, RedisClientMultiCommandType } from './lib/client';
 
 export { RedisModules, RedisScripts } from './lib/commands';
 
@@ -16,3 +16,4 @@ export const createCluster = RedisCluster.create;
 export { defineScript } from './lib/lua-script';
 
 export * from './lib/errors';
+

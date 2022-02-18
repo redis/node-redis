@@ -91,6 +91,8 @@ export interface ClientCommandOptions extends QueueCommandOptions {
 
 type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
 
+export { RedisClientMultiCommandType };
+
 export default class RedisClient<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static commandOptions<T extends ClientCommandOptions>(options: T): CommandOptions<T> {
         return commandOptions(options);
