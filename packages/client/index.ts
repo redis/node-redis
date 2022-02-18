@@ -16,4 +16,3 @@ export const createCluster = RedisCluster.create;
 export { defineScript } from './lib/lua-script';
 
 export * from './lib/errors';
-
