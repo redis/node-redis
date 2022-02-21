@@ -20,13 +20,11 @@ describe('QUERYINDEX', () => {
     });
 
     testUtils.testWithClient('client.ts.queryIndex', async client => {
-        await Promise.all([
-            client.ts.create('key', {
-                LABELS: {
-                    label: 'value'
-                }
-            })
-        ]);
+        await client.ts.create('key', {
+            LABELS: {
+                label: 'value'
+            }
+        });
 
         assert.deepEqual(
             await client.ts.queryIndex('label=value'),
