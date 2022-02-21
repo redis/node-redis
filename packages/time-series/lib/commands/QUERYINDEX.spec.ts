@@ -13,7 +13,7 @@ describe('QUERYINDEX', () => {
         
         it('multiple filters', () => {
             assert.deepEqual(
-                transformArguments(['a=1', 'b=2'),
+                transformArguments(['a=1', 'b=2']),
                 ['TS.QUERYINDEX', 'a=1', 'b=2']
             );
         });
