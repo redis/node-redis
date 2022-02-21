@@ -3,18 +3,20 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './QUERYINDEX';
 
 describe('QUERYINDEX', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('*'),
-            ['TS.QUERYINDEX', '*']
-        );
-    });
-
-    it('transformArguments multiple', () => {
-        assert.deepEqual(
-            transformArguments(['a', 'b', 'c']),
-            ['TS.QUERYINDEX', 'a', 'b', 'c']
-        );
+    describe('transformArguments', () => {
+        it('single filter', () => {
+            assert.deepEqual(
+                transformArguments('*'),
+                ['TS.QUERYINDEX', '*']
+            );
+        });
+        
+        it('multiple filters', () => {
+            assert.deepEqual(
+                transformArguments(['a=1', 'b=2'),
+                ['TS.QUERYINDEX', 'a=1', 'b=2']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ts.queryIndex', async client => {
@@ -23,22 +25,12 @@ describe('QUERYINDEX', () => {
                 LABELS: {
                     label: 'value'
                 }
-            }),
-            client.ts.create('key2', {
-                LABELS: {
-                    label1: 'value1',
-                    label2: 'value2'
-                }
             })
         ]);
 
         assert.deepEqual(
             await client.ts.queryIndex('label=value'),
             ['key']
-        );
-        assert.deepEqual(
-            await client.ts.queryIndex(['label1=value1', 'label2=value2']),
-            ['key2']
         );
     }, GLOBAL.SERVERS.OPEN);
 });
