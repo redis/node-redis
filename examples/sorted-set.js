@@ -19,8 +19,7 @@ async function addToSortedSet() {
     {
       score: 101,
       value: 'One Hundred and One'
-    },
-
+    }
   ]);
 
   // Get all of the values/scores from the sorted set using
