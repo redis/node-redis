@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, FilterBy } from './COMMAND_LIST';
 
-describe.only('COMMAND COUNT', () => {
+describe('COMMAND COUNT', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
