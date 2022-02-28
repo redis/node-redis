@@ -2,6 +2,7 @@
 import * as APPEND from '../commands/APPEND';
 import * as BITCOUNT from '../commands/BITCOUNT';
 import * as BITFIELD from '../commands/BITFIELD';
+import * as BITFIELD_RO from '../commands/BITFIELD_RO';
 import * as BITOP from '../commands/BITOP';
 import * as BITPOS from '../commands/BITPOS';
 import * as BLMOVE from '../commands/BLMOVE';
@@ -183,6 +184,8 @@ export default {
     bitCount: BITCOUNT,
     BITFIELD,
     bitField: BITFIELD,
+    BITFIELD_RO,
+    bitFieldReadOnly: BITFIELD_RO,
     BITOP,
     bitOp: BITOP,
     BITPOS,

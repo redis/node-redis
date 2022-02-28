@@ -8,7 +8,7 @@ interface BitFieldOperation<S extends string> {
     operation: S;
 }
 
-interface BitFieldGetOperation extends BitFieldOperation<'GET'> {
+export interface BitFieldGetOperation extends BitFieldOperation<'GET'> {
     type: BitFieldType;
     offset: number | string;
 }
