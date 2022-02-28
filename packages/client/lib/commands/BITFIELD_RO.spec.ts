@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BITFIELD_RO';
 
-describe.only('BITFIELD_RO', () => {
+describe('BITFIELD_RO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', {

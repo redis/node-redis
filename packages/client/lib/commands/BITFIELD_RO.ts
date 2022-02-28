@@ -4,7 +4,6 @@ export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
-
 export function transformArguments(key: string, getOperation: BitFieldGetOperation): Array<string> {
     const args = ['BITFIELD_RO', key];
 
