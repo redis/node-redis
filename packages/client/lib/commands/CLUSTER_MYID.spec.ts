@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_MYID';
 
-describe.only('CLUSTER MYID', () => {
+describe('CLUSTER MYID', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),

@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_SET-CONFIG-EPOCH';
 
-describe.only('CLUSTER SET-CONFIG-EPOCH', () => {
+describe('CLUSTER SET-CONFIG-EPOCH', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(0),
