@@ -8,7 +8,7 @@ export enum FilterBy {
     PATTERN = 'PATTERN',
 }
 
-export function transformArguments(filterBy?: FilterBy, value?: String): RedisCommandArguments {
+export function transformArguments(filterBy?: FilterBy, value?: string): RedisCommandArguments {
     const args = ['COMMAND', 'LIST'];
 
     if (filterBy != null && value) {

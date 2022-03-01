@@ -2,7 +2,9 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, FilterBy } from './COMMAND_LIST';
 
-describe('COMMAND COUNT', () => {
+describe('COMMAND LIST', () => {
+    testUtils.isVersionGreaterThanHook([7,0]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
