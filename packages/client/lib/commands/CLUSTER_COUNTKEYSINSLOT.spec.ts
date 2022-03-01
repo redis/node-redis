@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_COUNTKEYSINSLOT';
 
 describe('CLUSTER COUNTKEYSINSLOT', () => {
@@ -8,4 +9,11 @@ describe('CLUSTER COUNTKEYSINSLOT', () => {
             ['CLUSTER', 'COUNTKEYSINSLOT', '1']
         );
     });
+
+    testUtils.testWithClient('cluster.clusterInfo', async cluster => {
+        assert.equal(
+            typeof await cluster.clusterInfo(),
+            'number'
+        );
+    }, GLOBAL.CLUSTERS.OPEN);
 });

@@ -10,7 +10,7 @@ describe('CLUSTER MYID', () => {
         );
     });
 
-    testUtils.testWithCluster('cluster.clusterMyId', async cluster => {
+    testUtils.testWithClient('cluster.clusterMyId', async cluster => {
         assert.notEqual(
             await cluster.clusterMyId(),
             null

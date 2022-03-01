@@ -10,7 +10,7 @@ describe('CLUSTER COUNT-FAILURE-REPORTS', () => {
         );
     });
 
-    testUtils.testWithCluster('cluster.clusterCountFailureReports', async cluster => {
+    testUtils.testWithClient('cluster.clusterCountFailureReports', async cluster => {
         const id: string = await cluster.clusterMyId();
         assert.equal(
             await cluster.clusterCountFailureReports(id),

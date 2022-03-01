@@ -10,7 +10,7 @@ describe('CLUSTER BUMPEPOCH', () => {
         );
     });
 
-    testUtils.testWithCluster('cluster.clusterBumpEpoch', async cluster => {
+    testUtils.testWithClient('cluster.clusterBumpEpoch', async cluster => {
         assert.equal(
             typeof await cluster.clusterBumpEpoch(),
             'string'
