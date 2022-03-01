@@ -10,6 +10,13 @@ import * as BRPOP from '../commands/BRPOP';
 import * as BRPOPLPUSH from '../commands/BRPOPLPUSH';
 import * as BZPOPMAX from '../commands/BZPOPMAX';
 import * as BZPOPMIN from '../commands/BZPOPMIN';
+import * as CLUSTER_BUMPEPOCH from '../commands/CLUSTER_BUMPEPOCH';
+import * as CLUSTER_COUNT_FAILURE_REPORTS from '../commands/CLUSTER_COUNT-FAILURE-REPORTS';
+import * as CLUSTER_INFO from '../commands/CLUSTER_INFO';
+import * as CLUSTER_MYID from '../commands/CLUSTER_MYID';
+import * as CLUSTER_RESET from '../commands/CLUSTER_RESET';
+import * as CLUSTER_SAVECONFIG from '../commands/CLUSTER_SAVECONFIG';
+import * as CLUSTER_SET_CONFIG_EPOCH from '../commands/CLUSTER_SET-CONFIG-EPOCH';
 import * as COPY from '../commands/COPY';
 import * as DECR from '../commands/DECR';
 import * as DECRBY from '../commands/DECRBY';
@@ -199,6 +206,20 @@ export default {
     bzPopMax: BZPOPMAX,
     BZPOPMIN,
     bzPopMin: BZPOPMIN,
+    CLUSTER_BUMPEPOCH,
+    clusterBumpEpoch: CLUSTER_BUMPEPOCH,
+    CLUSTER_COUNT_FAILURE_REPORTS,
+    clusterCountFailureReports: CLUSTER_COUNT_FAILURE_REPORTS,
+    CLUSTER_INFO,
+    clusterInfo: CLUSTER_INFO,    
+    CLUSTER_MYID,
+    clusterMyId: CLUSTER_MYID,
+    CLUSTER_RESET,
+    clusterReset: CLUSTER_RESET,
+    CLUSTER_SAVECONFIG,
+    clusterSaveConfig: CLUSTER_SAVECONFIG,
+    CLUSTER_SET_CONFIG_EPOCH,
+    clusterSetConfigEpoch: CLUSTER_SET_CONFIG_EPOCH,
     COPY,
     copy: COPY,
     DECR,

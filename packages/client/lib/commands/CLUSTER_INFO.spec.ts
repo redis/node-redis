@@ -1,7 +1,8 @@
 import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './CLUSTER_INFO';
 
-describe('CLUSTER INFO', () => {
+describe.only('CLUSTER INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
@@ -43,4 +44,11 @@ describe('CLUSTER INFO', () => {
             }
         );
     });
+
+    testUtils.testWithCluster('cluster.clusterInfo', async cluster => {
+        assert.notEqual(
+            await cluster.clusterInfo(),
+            null
+        );
+    }, GLOBAL.CLUSTERS.OPEN);
 });

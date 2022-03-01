@@ -1,7 +1,8 @@
 import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_RESET';
 
-describe('CLUSTER RESET', () => {
+describe.only('CLUSTER RESET', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
@@ -24,4 +25,11 @@ describe('CLUSTER RESET', () => {
             );
         });
     });
+
+    testUtils.testWithCluster('cluster.clusterReset', async cluster => {
+        assert.equal(
+            await cluster.clusterReset('SOFT'),
+            'OK'
+        );
+    }, GLOBAL.CLUSTERS.OPEN);
 });
