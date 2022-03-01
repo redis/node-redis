@@ -25,11 +25,4 @@ describe('CLUSTER RESET', () => {
             );
         });
     });
-
-    testUtils.testWithCluster('cluster.clusterReset', async cluster => {
-        assert.equal(
-            await cluster.clusterReset('SOFT'),
-            'OK'
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
 });
