@@ -233,6 +233,34 @@ export function pushGeoSearchArguments(
     return args;
 }
 
+export function pushGeoRadiusArguments(
+    args: RedisCommandArguments,
+    key: RedisCommandArgument,
+    from: GeoSearchFrom,
+    radius: number,
+    unit: GeoUnits,
+    options?: GeoSearchOptions
+): RedisCommandArguments {
+    args.push(key);
+
+    if (typeof from === 'string') {
+        args.push(from);
+    } else {
+        args.push(from.longitude.toString(), from.latitude.toString());
+    }
+
+    args.push(radius.toString());
+    args.push(unit);
+
+    if (options?.SORT) {
+        args.push(options.SORT);
+    }
+
+    pushGeoCountArgument(args, options?.COUNT);
+
+    return args;
+}
+
 export enum GeoReplyWith {
     DISTANCE = 'WITHDIST',
     HASH = 'WITHHASH',
