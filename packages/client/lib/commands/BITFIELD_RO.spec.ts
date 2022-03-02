@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BITFIELD_RO';
 
 describe('BITFIELD RO', () => {
+    testUtils.isVersionGreaterThanHook([6, 2]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', [{
