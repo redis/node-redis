@@ -1,4 +1,4 @@
-import { RedisModules, RedisScripts } from '@node-redis/client/lib/commands';
+import { RedisModules, RedisFunctions, RedisScripts } from '@node-redis/client/lib/commands';
 import RedisClient, { RedisClientOptions, RedisClientType } from '@node-redis/client/lib/client';
 import RedisCluster, { RedisClusterOptions, RedisClusterType } from '@node-redis/client/lib/cluster';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
@@ -15,61 +15,81 @@ interface CommonTestOptions {
     minimumDockerVersion?: Array<number>;
 }
 
-interface ClientTestOptions<M extends RedisModules, S extends RedisScripts> extends CommonTestOptions {
+interface ClientTestOptions<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> extends CommonTestOptions {
     serverArguments: Array<string>;
-    clientOptions?: Partial<RedisClientOptions<M, S>>;
+    clientOptions?: Partial<RedisClientOptions<M, F, S>>;
     disableClientSetup?: boolean;
 }
 
-interface ClusterTestOptions<M extends RedisModules, S extends RedisScripts> extends CommonTestOptions {
+interface ClusterTestOptions<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> extends CommonTestOptions {
     serverArguments: Array<string>;
-    clusterConfiguration?: Partial<RedisClusterOptions<M, S>>;
+    clusterConfiguration?: Partial<RedisClusterOptions<M, F, S>>;
     numberOfNodes?: number;
 }
 
+interface Version {
+    string: string;
+    numbers: Array<number>;
+}
+
 export default class TestUtils {
-    static #getVersion(argumentName: string, defaultVersion: string): Array<number> {
+    static #getVersion(argumentName: string, defaultVersion: string): Version {
         return yargs(hideBin(process.argv))
             .option(argumentName, {
                 type: 'string',
                 default: defaultVersion
             })
             .coerce(argumentName, (arg: string) => {
-                return arg.split('.').map(x => {
-                    const value = Number(x);
-                    if (Number.isNaN(value)) {
-                        throw new TypeError(`${arg} is not a valid redis version`);
-                    }
+                const indexOfDash = arg.indexOf('-');
+                return {
+                    string: arg,
+                    numbers: (indexOfDash === -1 ? arg : arg.substring(0, indexOfDash)).split(',').map(x => {
+                        const value = Number(x);
+                        if (Number.isNaN(value)) {
+                            throw new TypeError(`${arg} is not a valid redis version`);
+                        }
 
-                    return value;
-                });
+                        return value;
+                    })
+                };
             })
             .demandOption(argumentName)
             .parseSync()[argumentName];
     }
 
+    readonly #VERSION_NUMBERS: Array<number>;
     readonly #DOCKER_IMAGE: RedisServerDockerConfig;
 
     constructor(config: TestUtilsConfig) {
+        const { string, numbers } = TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion);
+        this.#VERSION_NUMBERS = numbers;
         this.#DOCKER_IMAGE = {
             image: config.dockerImageName,
-            version: TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion)
+            version: string
         };
     }
 
     isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {
         if (minimumVersion === undefined) return true;
 
-        const lastIndex = Math.min(this.#DOCKER_IMAGE.version.length, minimumVersion.length) - 1;
+        const lastIndex = Math.min(this.#VERSION_NUMBERS.length, minimumVersion.length) - 1;
         for (let i = 0; i < lastIndex; i++) {
-            if (this.#DOCKER_IMAGE.version[i] > minimumVersion[i]) {
+            if (this.#VERSION_NUMBERS[i] > minimumVersion[i]) {
                 return true;
-            } else if (minimumVersion[i] > this.#DOCKER_IMAGE.version[i]) {
+            } else if (minimumVersion[i] > this.#VERSION_NUMBERS[i]) {
                 return false;
             }
         }
 
-        return this.#DOCKER_IMAGE.version[lastIndex] >= minimumVersion[lastIndex];
+        return this.#VERSION_NUMBERS[lastIndex] >= minimumVersion[lastIndex];
     }
 
     isVersionGreaterThanHook(minimumVersion: Array<number> | undefined): void {
@@ -81,10 +101,14 @@ export default class TestUtils {
         });
     }
 
-    testWithClient<M extends RedisModules, S extends RedisScripts>(
+    testWithClient<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(
         title: string,
-        fn: (client: RedisClientType<M, S>) => Promise<unknown>,
-        options: ClientTestOptions<M, S>
+        fn: (client: RedisClientType<M, F, S>) => Promise<unknown>,
+        options: ClientTestOptions<M, F, S>
     ): void {
         let dockerPromise: ReturnType<typeof spawnRedisServer>;
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
@@ -126,16 +150,24 @@ export default class TestUtils {
         });
     }
 
-    static async #clusterFlushAll<M extends RedisModules, S extends RedisScripts>(cluster: RedisClusterType<M, S>): Promise<void> {
+    static async #clusterFlushAll<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(cluster: RedisClusterType<M, F, S>): Promise<void> {
         await Promise.all(
             cluster.getMasters().map(({ client }) => client.flushAll())
         );
     }
 
-    testWithCluster<M extends RedisModules, S extends RedisScripts>(
+    testWithCluster<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(
         title: string,
-        fn: (cluster: RedisClusterType<M, S>) => Promise<void>,
-        options: ClusterTestOptions<M, S>
+        fn: (cluster: RedisClusterType<M, F, S>) => Promise<void>,
+        options: ClusterTestOptions<M, F, S>
     ): void {
         let dockersPromise: ReturnType<typeof spawnRedisCluster>;
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {

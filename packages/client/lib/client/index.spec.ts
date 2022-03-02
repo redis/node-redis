@@ -2,23 +2,42 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
-import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisScripts } from '../commands';
+import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
 import { AbortError, AuthError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
+import { RedisFunctionEngines } from '../commands/FUNCTION_LOAD';
 
 export const SQUARE_SCRIPT = defineScript({
-    NUMBER_OF_KEYS: 0,
     SCRIPT: 'return ARGV[1] * ARGV[1];',
+    NUMBER_OF_KEYS: 0,
     transformArguments(number: number): Array<string> {
         return [number.toString()];
-    },
-    transformReply(reply: number): number {
-        return reply;
     }
 });
+
+const MATH_FUNCTION = {
+    code: 'redis.register_function("square", function(keys, args) return args[1] * args[1] end)',
+    library: {
+        square: {
+            NAME: 'square',
+            NUMBER_OF_KEYS: 0,
+            transformArguments(number: number): Array<string> {
+                return [number.toString()];
+            }
+        }
+    }
+};
+
+export async function loadMathLibrary(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>): Promise<void> {
+    await client.functionLoad(
+        RedisFunctionEngines.LUA,
+        'math',
+        MATH_FUNCTION.code
+    );
+}
 
 describe('Client', () => {
     describe('parseURL', () => {
@@ -139,7 +158,14 @@ describe('Client', () => {
     });
 
     describe('legacyMode', () => {
-        function sendCommandAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, args: RedisCommandArguments): Promise<RedisCommandRawReply> {
+        function sendCommandAsync<
+            M extends RedisModules,
+            F extends RedisFunctions,
+            S extends RedisScripts
+        >(
+            client: RedisClientType<M, F, S>,
+            args: RedisCommandArguments
+        ): Promise<RedisCommandRawReply> {
             return new Promise((resolve, reject) => {
                 (client as any).sendCommand(args, (err: Error | undefined, reply: RedisCommandRawReply) => {
                     if (err) return reject(err);
@@ -183,7 +209,14 @@ describe('Client', () => {
             }
         });
 
-        function setAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, ...args: Array<any>): Promise<RedisCommandRawReply> {
+        function setAsync<
+            M extends RedisModules,
+            F extends RedisFunctions,
+            S extends RedisScripts
+        >(
+            client: RedisClientType<M, F, S>,
+            ...args: Array<any>
+        ): Promise<RedisCommandRawReply> {
             return new Promise((resolve, reject) => {
                 (client as any).set(...args, (err: Error | undefined, reply: RedisCommandRawReply) => {
                     if (err) return reject(err);
@@ -229,7 +262,11 @@ describe('Client', () => {
             }
         });
 
-        function multiExecAsync<M extends RedisModules, S extends RedisScripts>(multi: RedisClientMultiCommandType<M, S>): Promise<Array<RedisCommandRawReply>> {
+        function multiExecAsync<
+            M extends RedisModules,
+            F extends RedisFunctions,
+            S extends RedisScripts
+        >(multi: RedisClientMultiCommandType<M, F, S>): Promise<Array<RedisCommandRawReply>> {
             return new Promise((resolve, reject) => {
                 (multi as any).exec((err: Error | undefined, replies: Array<RedisCommandRawReply>) => {
                     if (err) return reject(err);
@@ -448,25 +485,43 @@ describe('Client', () => {
         }
     });
 
+    const module = {
+        echo: {
+            transformArguments(message: string): Array<string> {
+                return ['ECHO', message];
+            },
+            transformReply(reply: string): string {
+                return reply;
+            }
+        }
+    };
+
     testUtils.testWithClient('modules', async client => {
-        // assert.equal(
-        //     await client.module.echo('message'),
-        //     'message'
-        // );
+        assert.equal(
+            await client.module.echo('message'),
+            'message'
+        );
     }, {
         ...GLOBAL.SERVERS.OPEN,
         clientOptions: {
             modules: {
-                module: {
-                    echo: {
-                        transformArguments(message: string): Array<string> {
-                            return ['ECHO', message];
-                        },
-                        transformReply(reply: string): string {
-                            return reply;
-                        }
-                    }
-                }
+                module
+            }
+        }
+    });
+
+    testUtils.testWithClient('functions', async client => {
+        await loadMathLibrary(client);
+
+        assert.equal(
+            await client.math.square(2),
+            4
+        );
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+            functions: {
+                math: MATH_FUNCTION.library
             }
         }
     });
@@ -477,7 +532,11 @@ describe('Client', () => {
         assert.ok(id !== isolatedId);
     }, GLOBAL.SERVERS.OPEN);
 
-    async function killClient<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
+    async function killClient<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(client: RedisClientType<M, F, S>): Promise<void> {
         const onceErrorPromise = once(client, 'error');
         await client.sendCommand(['QUIT']);
         await Promise.all([

@@ -1,6 +1,6 @@
 import { createConnection } from 'net';
 import { once } from 'events';
-import { RedisModules, RedisScripts } from '@node-redis/client/lib/commands';
+import { RedisModules, RedisFunctions, RedisScripts } from '@node-redis/client/lib/commands';
 import RedisClient, { RedisClientType } from '@node-redis/client/lib/client';
 import { promiseTimeout } from '@node-redis/client/lib/utils';
 import * as path from 'path';
@@ -38,7 +38,7 @@ const portIterator = (async function*(): AsyncIterableIterator<number> {
 
 export interface RedisServerDockerConfig {
     image: string;
-    version: Array<number>;
+    version: string;
 }
 
 export interface RedisServerDocker {
@@ -54,7 +54,7 @@ async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfi
         { stdout, stderr } = await execAsync(
             'docker run -d --network host $(' +
                 `docker build ${DOCKER_FODLER_PATH} -q ` +
-                `--build-arg IMAGE=${image}:${version.join('.')} ` +
+                `--build-arg IMAGE=${image}:${version} ` +
                 `--build-arg REDIS_ARGUMENTS="--save --port ${port.toString()} ${serverArguments.join(' ')}"` +
             ')'
         );
@@ -152,7 +152,11 @@ async function spawnRedisClusterNodeDocker(
     }
 }
 
-async function waitForClusterState<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
+async function waitForClusterState<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+>(client: RedisClientType<M, F, S>): Promise<void> {
     while ((await client.clusterInfo()).state !== 'ok') {
         await promiseTimeout(500);
     }
