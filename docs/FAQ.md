@@ -4,7 +4,9 @@ Nobody has *actually* asked these questions. But, we needed somewhere to put all
 
 ## What happens when the network goes down?
 
-When a socket closed unexpectedly, all the commands that were already sent will reject as they might have been executed on the server. The rest will remain queued in memory until a new socket is established. If the client is closed—either by returning an error from [`reconnectStrategy`](./client-configuration.md#reconnect-strategy) or by manually calling `.disconnect()`—they will be rejected.
+When a socket closes unexpectedly, all the commands that were already sent will reject as they might have been executed on the server. The rest will remain queued in memory until a new socket is established. If the client is closed—either by returning an error from [`reconnectStrategy`](./client-configuration.md#reconnect-strategy) or by manually calling `.disconnect()`—they will be rejected.
+
+If don't want to queue commands in memory until a new socket is established, set the `disableOfflineQueue` option to `true` in the [client configuration](./client-configuration.md). This will result in those commands being rejected.
 
 ## How are commands batched?
 

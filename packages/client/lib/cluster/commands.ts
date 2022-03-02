@@ -1,6 +1,7 @@
 
 import * as APPEND from '../commands/APPEND';
 import * as BITCOUNT from '../commands/BITCOUNT';
+import * as BITFIELD_RO from '../commands/BITFIELD_RO';
 import * as BITFIELD from '../commands/BITFIELD';
 import * as BITOP from '../commands/BITOP';
 import * as BITPOS from '../commands/BITPOS';
@@ -181,6 +182,8 @@ export default {
     append: APPEND,
     BITCOUNT,
     bitCount: BITCOUNT,
+    BITFIELD_RO,
+    bitFieldRo: BITFIELD_RO,
     BITFIELD,
     bitField: BITFIELD,
     BITOP,

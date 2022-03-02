@@ -14,6 +14,15 @@ export interface ClusterNode<M extends RedisModules, S extends RedisScripts> {
     client: RedisClientType<M, S>;
 }
 
+interface NodeAddress {
+    host: string;
+    port: number;
+}
+
+export type NodeAddressMap = {
+    [address: string]: NodeAddress;
+} | ((address: string) => NodeAddress | undefined);
+
 interface SlotNodes<M extends RedisModules, S extends RedisScripts> {
     master: ClusterNode<M, S>;
     replicas: Array<ClusterNode<M, S>>;
@@ -26,7 +35,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
     readonly #options: RedisClusterOptions<M, S>;
     readonly #Client: InstantiableRedisClient<M, S>;
     readonly #onError: OnError;
-    readonly #nodeByUrl = new Map<string, ClusterNode<M, S>>();
+    readonly #nodeByAddress = new Map<string, ClusterNode<M, S>>();
     readonly #slots: Array<SlotNodes<M, S>> = [];
 
     constructor(options: RedisClusterOptions<M, S>, onError: OnError) {
@@ -37,7 +46,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
 
     async connect(): Promise<void> {
         for (const rootNode of this.#options.rootNodes) {
-            if (await this.#discoverNodes(this.#clientOptionsDefaults(rootNode))) return;
+            if (await this.#discoverNodes(rootNode)) return;
         }
 
         throw new RootNodesUnavailableError();
@@ -75,7 +84,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
     async #rediscover(startWith: RedisClientType<M, S>): Promise<void> {
         if (await this.#discoverNodes(startWith.options)) return;
 
-        for (const { client } of this.#nodeByUrl.values()) {
+        for (const { client } of this.#nodeByAddress.values()) {
             if (client === startWith) continue;
 
             if (await this.#discoverNodes(client.options)) return;
@@ -85,7 +94,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
     }
 
     async #reset(masters: Array<RedisClusterMasterNode>): Promise<void> {
-        // Override this.#slots and add not existing clients to this.#nodeByUrl
+        // Override this.#slots and add not existing clients to this.#nodeByAddress
         const promises: Array<Promise<void>> = [],
             clientsInUse = new Set<string>();
         for (const master of masters) {
@@ -94,7 +103,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
                 replicas: this.#options.useReplicas ?
                     master.replicas.map(replica => this.#initiateClientForNode(replica, true, clientsInUse, promises)) :
                     [],
-                    clientIterator: undefined // will be initiated in use
+                clientIterator: undefined // will be initiated in use
             };
 
             for (const { from, to } of master.slots) {
@@ -104,12 +113,12 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
             }
         }
 
-        // Remove unused clients from this.#nodeByUrl using clientsInUse
-        for (const [url, { client }] of this.#nodeByUrl.entries()) {
-            if (clientsInUse.has(url)) continue;
+        // Remove unused clients from this.#nodeByAddress using clientsInUse
+        for (const [address, { client }] of this.#nodeByAddress.entries()) {
+            if (clientsInUse.has(address)) continue;
 
             promises.push(client.disconnect());
-            this.#nodeByUrl.delete(url);
+            this.#nodeByAddress.delete(address);
         }
 
         await Promise.all(promises);
@@ -118,13 +127,14 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
     #clientOptionsDefaults(options?: RedisClusterClientOptions): RedisClusterClientOptions | undefined {
         if (!this.#options.defaults) return options;
 
-        const merged = Object.assign({}, this.#options.defaults, options);
-
-        if (options?.socket && this.#options.defaults.socket) {
-            Object.assign({}, this.#options.defaults.socket, options.socket);
-        }
-
-        return merged;
+        return {
+            ...this.#options.defaults,
+            ...options,
+            socket: this.#options.defaults.socket && options?.socket ? {
+                ...this.#options.defaults.socket,
+                ...options.socket
+            } : this.#options.defaults.socket ?? options?.socket
+        };
     }
 
     #initiateClient(options?: RedisClusterClientOptions): RedisClientType<M, S> {
@@ -132,16 +142,26 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
             .on('error', this.#onError);
     }
 
-    #initiateClientForNode(nodeData: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): ClusterNode<M, S> {
-        const url = `${nodeData.host}:${nodeData.port}`;
-        clientsInUse.add(url);
+    #getNodeAddress(address: string): NodeAddress | undefined {
+        switch (typeof this.#options.nodeAddressMap) {
+            case 'object':
+                return this.#options.nodeAddressMap[address];
 
-        let node = this.#nodeByUrl.get(url);
+            case 'function':
+                return this.#options.nodeAddressMap(address);
+        }
+    }
+
+    #initiateClientForNode(nodeData: RedisClusterMasterNode | RedisClusterReplicaNode, readonly: boolean, clientsInUse: Set<string>, promises: Array<Promise<void>>): ClusterNode<M, S> {
+        const address = `${nodeData.host}:${nodeData.port}`;
+        clientsInUse.add(address);
+
+        let node = this.#nodeByAddress.get(address);
         if (!node) {
             node = {
                 id: nodeData.id,
                 client: this.#initiateClient({
-                    socket: {
+                    socket: this.#getNodeAddress(address) ?? {
                         host: nodeData.host,
                         port: nodeData.port
                     },
@@ -149,7 +169,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
                 })
             };
             promises.push(node.client.connect());
-            this.#nodeByUrl.set(url, node);
+            this.#nodeByAddress.set(address, node);
         }
 
         return node;
@@ -186,12 +206,12 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
     #randomClientIterator?: IterableIterator<ClusterNode<M, S>>;
 
     #getRandomClient(): RedisClientType<M, S> {
-        if (!this.#nodeByUrl.size) {
+        if (!this.#nodeByAddress.size) {
             throw new Error('Cluster is not connected');
         }
 
         if (!this.#randomClientIterator) {
-            this.#randomClientIterator = this.#nodeByUrl.values();
+            this.#randomClientIterator = this.#nodeByAddress.values();
         }
 
         const {done, value} = this.#randomClientIterator.next();
@@ -218,8 +238,7 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
 
     getMasters(): Array<ClusterNode<M, S>> {
         const masters = [];
-
-        for (const node of this.#nodeByUrl.values()) {
+        for (const node of this.#nodeByAddress.values()) {
             if (node.client.options?.readonly) continue;
 
             masters.push(node);
@@ -228,8 +247,11 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
         return masters;
     }
 
-    getNodeByUrl(url: string): ClusterNode<M, S> | undefined {
-        return this.#nodeByUrl.get(url);
+    getNodeByAddress(address: string): ClusterNode<M, S> | undefined {
+        const mappedAddress = this.#getNodeAddress(address);
+        return this.#nodeByAddress.get(
+            mappedAddress ? `${mappedAddress.host}:${mappedAddress.port}` : address
+        );
     }
 
     quit(): Promise<void> {
@@ -242,13 +264,13 @@ export default class RedisClusterSlots<M extends RedisModules, S extends RedisSc
 
     async #destroy(fn: (client: RedisClientType<M, S>) => Promise<unknown>): Promise<void> {
         const promises = [];
-        for (const { client } of this.#nodeByUrl.values()) {
+        for (const { client } of this.#nodeByAddress.values()) {
             promises.push(fn(client));
         }
 
         await Promise.all(promises);
 
-        this.#nodeByUrl.clear();
+        this.#nodeByAddress.clear();
         this.#slots.splice(0);
     }
 }

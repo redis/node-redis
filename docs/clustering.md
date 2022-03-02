@@ -38,8 +38,31 @@ import { createCluster } from 'redis';
 | defaults               |         | The default configuration values for every client in the cluster.  Use this for example when specifying an ACL user to connect with                                                                                                                                                                                 |
 | useReplicas            | `false` | When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes. When `false`, only use master nodes                                                                                                                                                        |
 | maxCommandRedirections | `16`    | The maximum number of times a command will be redirected due to `MOVED` or `ASK` errors                                                                                                                                                                                                                             |
+| nodeAddressMap         |         | Object defining the [node address mapping](#node-address-map)                                                                                                                                                                                                                                                       |
 | modules                |         | Object defining which [Redis Modules](../README.md#modules) to include                                                                                                                                                                                                                                              |
 | scripts                |         | Object defining Lua Scripts to use with this client (see [Lua Scripts](../README.md#lua-scripts))                                                                                                                                                                                                                   |
+
+## Node Address Map
+
+Your cluster might be configured to work within an internal network that your local environment doesn't have access to. For example, your development machine could only have access to external addresses, but the cluster returns its internal addresses. In this scenario, it's useful to provide a map from those internal addresses to the external ones.
+
+The configuration for this is a simple mapping. Just provide a `nodeAddressMap` property mapping the internal addresses and ports to the external addresses and ports. Then, any address provided to `rootNodes` or returned from the cluster will be mapped accordingly:
+
+```javascript
+createCluster({
+  rootNodes: [{
+    url: '10.0.0.1:30001'
+  }, {
+    url: '10.0.0.2:30002'
+  }],
+  nodeAddressMap: {
+    '10.0.0.1:30001': 'external-host-1.io:30001',
+    '10.0.0.2:30002': 'external-host-2.io:30002'
+  }
+});
+```
+
+> This is a common problem when using ElastiCache. See [Accessing ElastiCache from outside AWS](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/accessing-elasticache.html) for more information on that.
 
 ## Command Routing
 
