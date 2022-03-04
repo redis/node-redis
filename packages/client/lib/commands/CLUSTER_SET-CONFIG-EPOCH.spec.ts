@@ -13,7 +13,7 @@ describe('CLUSTER SET-CONFIG-EPOCH', () => {
     testUtils.testWithCluster('cluster.clusterSetConfigEpoch', async cluster => {
         try {
             assert.equal(
-                await cluster.clusterSetConfigEpoch(1),
+                await cluster.getSlotMaster(0).client.clusterSetConfigEpoch(1),
                 'OK'
             );
         } catch (ReplyError) {

@@ -12,7 +12,7 @@ describe('CLUSTER COUNTKEYSINSLOT', () => {
 
     testUtils.testWithCluster('cluster.clusterInfo', async cluster => {
         assert.equal(
-            typeof await cluster.clusterCountKeysInSlot(1),
+            typeof await cluster.getSlotMaster(0).client.clusterCountKeysInSlot(1),
             'number'
         );
     }, GLOBAL.CLUSTERS.OPEN);

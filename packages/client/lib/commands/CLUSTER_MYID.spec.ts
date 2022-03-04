@@ -12,7 +12,7 @@ describe('CLUSTER MYID', () => {
 
     testUtils.testWithCluster('cluster.clusterMyId', async cluster => {
         assert.notEqual(
-            await cluster.clusterMyId(),
+            await cluster.getSlotMaster(0).client.clusterMyId(),
             null
         );
     }, GLOBAL.CLUSTERS.OPEN);

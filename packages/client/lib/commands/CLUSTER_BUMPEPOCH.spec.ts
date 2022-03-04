@@ -12,7 +12,7 @@ describe('CLUSTER BUMPEPOCH', () => {
 
     testUtils.testWithCluster('cluster.clusterBumpEpoch', async cluster => {
         assert.equal(
-            typeof await cluster.clusterBumpEpoch(),
+            typeof await cluster.getSlotMaster(0).client.clusterBumpEpoch(),
             'string'
         );
     }, GLOBAL.SERVERS.OPEN);

@@ -12,7 +12,7 @@ describe('CLUSTER SAVECONFIG', () => {
 
     testUtils.testWithCluster('cluster.clusterSaveConfig', async cluster => {
         assert.equal(
-            await cluster.clusterSaveConfig(),
+            await cluster.getSlotMaster(0).client.clusterSaveConfig(),
             'OK'
         );
     }, GLOBAL.CLUSTERS.OPEN);
