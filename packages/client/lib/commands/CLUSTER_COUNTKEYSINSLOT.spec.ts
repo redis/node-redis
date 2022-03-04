@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_COUNTKEYSINSLOT';
 
-describe('CLUSTER COUNTKEYSINSLOT', () => {
+describe.only('CLUSTER COUNTKEYSINSLOT', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(1),
@@ -10,9 +10,9 @@ describe('CLUSTER COUNTKEYSINSLOT', () => {
         );
     });
 
-    testUtils.testWithClient('cluster.clusterInfo', async cluster => {
+    testUtils.testWithCluster('cluster.clusterInfo', async cluster => {
         assert.equal(
-            typeof await cluster.clusterInfo(),
+            typeof await cluster.clusterCountKeysInSlot(1),
             'number'
         );
     }, GLOBAL.CLUSTERS.OPEN);

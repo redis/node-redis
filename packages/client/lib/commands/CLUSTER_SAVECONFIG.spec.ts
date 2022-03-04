@@ -10,7 +10,7 @@ describe('CLUSTER SAVECONFIG', () => {
         );
     });
 
-    testUtils.testWithClient('cluster.clusterSaveConfig', async cluster => {
+    testUtils.testWithCluster('cluster.clusterSaveConfig', async cluster => {
         assert.equal(
             await cluster.clusterSaveConfig(),
             'OK'
