@@ -2,7 +2,6 @@ export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
-
 interface SortOptions {
     BY?: string;
     LIMIT?: {
@@ -25,7 +24,7 @@ export function transformArguments(key: string, options?: SortOptions): Array<st
     if (options?.LIMIT) {
         args.push(
             'LIMIT',
-            options.LIMIT.offset.toString(), 
+            options.LIMIT.offset.toString(),
             options.LIMIT.count.toString()
         );
     }

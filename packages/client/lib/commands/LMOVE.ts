@@ -1,8 +1,8 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-export type LMoveSide = 'LEFT' | 'RIGHT';
-
 export const FIRST_KEY_INDEX = 1;
+
+export type LMoveSide = 'LEFT' | 'RIGHT';
 
 export function transformArguments(
     source: RedisCommandArgument,
