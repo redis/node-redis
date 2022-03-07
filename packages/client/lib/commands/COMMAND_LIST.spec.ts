@@ -3,40 +3,54 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, FilterBy } from './COMMAND_LIST';
 
 describe('COMMAND LIST', () => {
-    testUtils.isVersionGreaterThanHook([7,0]);
+    testUtils.isVersionGreaterThanHook([7, 0]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['COMMAND', 'LIST']
-        );
-    });
+    describe('transformArguments', () => {
+        it('simple', () => {
+            assert.deepEqual(
+                transformArguments(),
+                ['COMMAND', 'LIST']
+            );
+        });
 
-    it('transformArguments FILTERBY MODULE', () => {
-        assert.deepEqual(
-            transformArguments(FilterBy.MODULE, "json"),
-            ['COMMAND', 'LIST', 'FILTERBY', 'MODULE', 'json']
-        );
-    });
+        describe('with FILTERBY', () => {
+            it('MODULE', () => {
+                assert.deepEqual(
+                    transformArguments({
+                        filterBy: FilterBy.MODULE,
+                        value: 'json'
+                    }),
+                    ['COMMAND', 'LIST', 'FILTERBY', 'MODULE', 'json']
+                );
+            });
 
-    it('transformArguments FILTERBY ACLCAT', () => {
-        assert.deepEqual(
-            transformArguments(FilterBy.ACLCAT, "admin"),
-            ['COMMAND', 'LIST', 'FILTERBY', 'ACLCAT', 'admin']
-        );
-    });
+            it('ACLCAT', () => {
+                assert.deepEqual(
+                    transformArguments({
+                        filterBy: FilterBy.ACLCAT,
+                        value: 'admin'
+                    }),
+                    ['COMMAND', 'LIST', 'FILTERBY', 'ACLCAT', 'admin']
+                );
+            });
 
-    it('transformArguments FILTERBY PATTERN', () => {
-        assert.deepEqual(
-            transformArguments(FilterBy.PATTERN, "a*"),
-            ['COMMAND', 'LIST', 'FILTERBY', 'PATTERN', 'a*']
-        );
+            it('PATTERN', () => {
+                assert.deepEqual(
+                    transformArguments({
+                        filterBy: FilterBy.PATTERN,
+                        value: 'a*'
+                    }),
+                    ['COMMAND', 'LIST', 'FILTERBY', 'PATTERN', 'a*']
+                );
+            });
+        });
     });
 
     testUtils.testWithClient('client.commandList', async client => {
-        assert.equal(
-            typeof await client.commandList(),
-            'Array<String>'
-        );
+        const commandList = await client.commandList();
+        assert.ok(Array.isArray(commandList));
+        for (const command of commandList) {
+            assert.ok(typeof command === 'string');
+        }
     }, GLOBAL.SERVERS.OPEN);
 });
