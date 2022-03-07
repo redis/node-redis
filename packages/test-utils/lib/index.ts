@@ -51,7 +51,7 @@ export default class TestUtils {
                 const indexOfDash = arg.indexOf('-');
                 return {
                     string: arg,
-                    numbers: (indexOfDash === -1 ? arg : arg.substring(0, indexOfDash)).split(',').map(x => {
+                    numbers: (indexOfDash === -1 ? arg : arg.substring(0, indexOfDash)).split('.').map(x => {
                         const value = Number(x);
                         if (Number.isNaN(value)) {
                             throw new TypeError(`${arg} is not a valid redis version`);
