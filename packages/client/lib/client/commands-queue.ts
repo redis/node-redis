@@ -369,7 +369,8 @@ export default class RedisCommandsQueue {
     #setReturnBuffers() {
         this.#parser.setReturnBuffers(
             !!this.#waitingForReply.head?.value.returnBuffers ||
-            !!this.#pubSubState?.subscribed
+            !!this.#pubSubState?.subscribed ||
+            !!this.#pubSubState?.subscribing
         );
     }
 
