@@ -16,7 +16,7 @@ describe('MREVRANGE_WITHLABELS', () => {
                 COUNT: 1,
                 ALIGN: '-',
                 AGGREGATION: {
-                    type: TimeSeriesAggregationType.AVARAGE,
+                    type: TimeSeriesAggregationType.AVERAGE,
                     timeBucket: 1
                 },
                 GROUPBY: {

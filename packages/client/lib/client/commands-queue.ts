@@ -26,7 +26,7 @@ interface CommandWaitingToBeSent extends CommandWaitingForReply {
 
 interface CommandWaitingForReply {
     resolve(reply?: unknown): void;
-    reject(err: Error): void;
+    reject(err: unknown): void;
     channelsCounter?: number;
     returnBuffers?: boolean;
 }
@@ -82,10 +82,12 @@ export default class RedisCommandsQueue {
 
         if (!listeners.strings.size) return;
 
-        // https://github.com/redis/redis/pull/7469
-        // https://github.com/redis/redis/issues/7463
-        const messageString = (Array.isArray(message) ? message.map(m => m.toString()) as any : message.toString()),
-            channelString = pattern ? channel.toString() : keyString;
+        const channelString = pattern ? channel.toString() : keyString,
+            messageString = channelString === '__redis__:invalidate' ?
+                // https://github.com/redis/redis/pull/7469
+                // https://github.com/redis/redis/issues/7463
+                (message === null ? null : (message as any as Array<Buffer>).map(x => x.toString())) as any :
+                message.toString();
         for (const listener of listeners.strings) {
             listener(messageString, channelString);
         }
@@ -140,7 +142,9 @@ export default class RedisCommandsQueue {
         },
         returnError: (err: Error) => this.#shiftWaitingForReply().reject(err)
     });
+
     #chainInExecution: symbol | undefined;
+
     constructor(maxLength: number | null | undefined) {
         this.#maxLength = maxLength;
     }
@@ -153,6 +157,7 @@ export default class RedisCommandsQueue {
         } else if (options?.signal?.aborted) {
             return Promise.reject(new AbortError());
         }
+
         return new Promise((resolve, reject) => {
             const node = new LinkedList.Node<CommandWaitingToBeSent>({
                 args,
@@ -176,6 +181,7 @@ export default class RedisCommandsQueue {
                     once: true
                 });
             }
+
             if (options?.asap) {
                 this.#waitingToBeSent.unshiftNode(node);
             } else {
@@ -363,7 +369,8 @@ export default class RedisCommandsQueue {
     #setReturnBuffers() {
         this.#parser.setReturnBuffers(
             !!this.#waitingForReply.head?.value.returnBuffers ||
-            !!this.#pubSubState?.subscribed
+            !!this.#pubSubState?.subscribed ||
+            !!this.#pubSubState?.subscribing
         );
     }
 
@@ -384,12 +391,13 @@ export default class RedisCommandsQueue {
 
     flushWaitingForReply(err: Error): void {
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
-        if (!this.#chainInExecution) {
-            return;
-        }
+
+        if (!this.#chainInExecution) return;
+
         while (this.#waitingToBeSent.head?.value.chainId === this.#chainInExecution) {
             this.#waitingToBeSent.shift();
         }
+
         this.#chainInExecution = undefined;
     }
 

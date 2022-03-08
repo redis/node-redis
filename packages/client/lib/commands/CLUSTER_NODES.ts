@@ -7,15 +7,15 @@ export enum RedisClusterNodeLinkStates {
     DISCONNECTED = 'disconnected'
 }
 
-interface RedisClusterNodeTransformedUrl {
+interface RedisClusterNodeAddress {
     host: string;
     port: number;
     cport: number | null;
 }
 
-export interface RedisClusterReplicaNode extends RedisClusterNodeTransformedUrl {
+export interface RedisClusterReplicaNode extends RedisClusterNodeAddress {
     id: string;
-    url: string;
+    address: string;
     flags: Array<string>;
     pingSent: number;
     pongRecv: number;
@@ -39,11 +39,11 @@ export function transformReply(reply: string): Array<RedisClusterMasterNode> {
         replicasMap = new Map<string, Array<RedisClusterReplicaNode>>();
 
     for (const line of lines) {
-        const [id, url, flags, masterId, pingSent, pongRecv, configEpoch, linkState, ...slots] = line.split(' '),
+        const [id, address, flags, masterId, pingSent, pongRecv, configEpoch, linkState, ...slots] = line.split(' '),
             node = {
                 id,
-                url,
-                ...transformNodeUrl(url),
+                address,
+                ...transformNodeAddress(address),
                 flags: flags.split(','),
                 pingSent: Number(pingSent),
                 pongRecv: Number(pongRecv),
@@ -84,22 +84,22 @@ export function transformReply(reply: string): Array<RedisClusterMasterNode> {
     return [...mastersMap.values()];
 }
 
-function transformNodeUrl(url: string): RedisClusterNodeTransformedUrl {
-    const indexOfColon = url.indexOf(':'),
-        indexOfAt = url.indexOf('@', indexOfColon),
-        host = url.substring(0, indexOfColon);
+function transformNodeAddress(address: string): RedisClusterNodeAddress {
+    const indexOfColon = address.indexOf(':'),
+        indexOfAt = address.indexOf('@', indexOfColon),
+        host = address.substring(0, indexOfColon);
 
     if (indexOfAt === -1) {
         return {
             host,
-            port: Number(url.substring(indexOfColon + 1)),
+            port: Number(address.substring(indexOfColon + 1)),
             cport: null
         };
     }
 
     return {
-        host: url.substring(0, indexOfColon),
-        port: Number(url.substring(indexOfColon + 1, indexOfAt)),
-        cport: Number(url.substring(indexOfAt + 1))
+        host: address.substring(0, indexOfColon),
+        port: Number(address.substring(indexOfColon + 1, indexOfAt)),
+        cport: Number(address.substring(indexOfAt + 1))
     };
 }

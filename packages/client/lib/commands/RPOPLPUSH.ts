@@ -9,4 +9,4 @@ export function transformArguments(
     return ['RPOPLPUSH', source, destination];
 }
 
-export declare function transformReply(): number | null;
+export declare function transformReply(): RedisCommandArgument | null;

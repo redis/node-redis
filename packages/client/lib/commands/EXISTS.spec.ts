@@ -22,7 +22,7 @@ describe('EXISTS', () => {
     testUtils.testWithClient('client.exists', async client => {
         assert.equal(
             await client.exists('key'),
-            false
+            0
         );
     }, GLOBAL.SERVERS.OPEN);
 });

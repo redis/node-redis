@@ -1,26 +1,24 @@
 export const FIRST_KEY_INDEX = 1;
 
-export const IS_READ_ONLY = true;
+export type BitFieldEncoding = `${'i' | 'u'}${number}`;
 
-type BitFieldType = string; // TODO 'i[1-64]' | 'u[1-63]'
-
-interface BitFieldOperation<S extends string> {
+export interface BitFieldOperation<S extends string> {
     operation: S;
 }
 
-interface BitFieldGetOperation extends BitFieldOperation<'GET'> {
-    type: BitFieldType;
+export interface BitFieldGetOperation extends BitFieldOperation<'GET'> {
+    encoding: BitFieldEncoding;
     offset: number | string;
 }
 
 interface BitFieldSetOperation extends BitFieldOperation<'SET'> {
-    type: BitFieldType;
+    encoding: BitFieldEncoding;
     offset: number | string;
     value: number;
 }
 
 interface BitFieldIncrByOperation extends BitFieldOperation<'INCRBY'> {
-    type: BitFieldType;
+    encoding: BitFieldEncoding;
     offset: number | string;
     increment: number;
 }
@@ -44,7 +42,7 @@ export function transformArguments(key: string, operations: BitFieldOperations):
             case 'GET':
                 args.push(
                     'GET',
-                    options.type,
+                    options.encoding,
                     options.offset.toString()
                 );
                 break;
@@ -52,7 +50,7 @@ export function transformArguments(key: string, operations: BitFieldOperations):
             case 'SET':
                 args.push(
                     'SET',
-                    options.type,
+                    options.encoding,
                     options.offset.toString(),
                     options.value.toString()
                 );
@@ -61,7 +59,7 @@ export function transformArguments(key: string, operations: BitFieldOperations):
             case 'INCRBY':
                 args.push(
                     'INCRBY',
-                    options.type,
+                    options.encoding,
                     options.offset.toString(),
                     options.increment.toString()
                 );

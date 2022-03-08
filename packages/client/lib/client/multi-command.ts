@@ -1,7 +1,7 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
-import { extendWithCommands, extendWithModulesAndScripts, LegacyCommandArguments, transformLegacyCommandArguments } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts } from '../commander';
 import { ExcludeMappedString } from '.';
 
 type RedisClientMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisScripts> =
@@ -53,8 +53,8 @@ export default class RedisClientMultiCommand {
 
     #legacyMode(): void {
         this.v4.addCommand = this.addCommand.bind(this);
-        (this as any).addCommand = (...args: LegacyCommandArguments): this => {
-            this.#multi.addCommand(transformLegacyCommandArguments(args));
+        (this as any).addCommand = (...args: Array<any>): this => {
+            this.#multi.addCommand(args.flat());
             return this;
         };
         this.v4.exec = this.exec.bind(this);
@@ -78,11 +78,15 @@ export default class RedisClientMultiCommand {
         for (const name of Object.keys(COMMANDS)) {
             this.#defineLegacyCommand(name);
         }
+
+        for (const name of Object.keys(COMMANDS)) {
+            (this as any)[name.toLowerCase()] = (this as any)[name];
+        }
     }
 
     #defineLegacyCommand(name: string): void {
-        (this as any).v4[name] = (this as any)[name].bind(this.v4);
-        (this as any)[name] = (this as any)[name.toLowerCase()] =
+        this.v4[name] = (this as any)[name].bind(this.v4);
+        (this as any)[name] =
             (...args: Array<unknown>): void => (this as any).addCommand(name, args);
     }
 

@@ -44,6 +44,7 @@ describe('INFO_DEBUG', () => {
                     key: 'key2',
                     timeBucket: 5
                 }],
+                keySelfName: 'key',
                 chunks: [{
                     startTimestamp: 1,
                     endTimestamp: 1,

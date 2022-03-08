@@ -3,7 +3,7 @@ import * as net from 'net';
 import * as tls from 'tls';
 import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
@@ -13,9 +13,11 @@ export interface RedisSocketCommonOptions {
     reconnectStrategy?(retries: number): number | Error;
 }
 
-export type RedisNetSocketOptions = Partial<net.SocketConnectOpts>;
+type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
+    tls?: false;
+};
 
-export interface RedisTlsSocketOptions extends RedisSocketCommonOptions, tls.ConnectionOptions {
+export interface RedisTlsSocketOptions extends tls.ConnectionOptions {
     tls: true;
 }
 
@@ -93,9 +95,16 @@ export default class RedisSocket extends EventEmitter {
     }
 
     async #connect(hadError?: boolean): Promise<void> {
-        this.#isOpen = true;
-        this.#socket = await this.#retryConnection(0, hadError);
-        this.#writableNeedDrain = false;
+        try {
+            this.#isOpen = true;
+            this.#socket = await this.#retryConnection(0, hadError);
+            this.#writableNeedDrain = false;
+        } catch (err) {
+            this.#isOpen = false;
+            this.emit('error', err);
+            this.emit('end');
+            throw err;
+        }
 
         if (!this.#isOpen) {
             this.disconnect();
@@ -134,17 +143,16 @@ export default class RedisSocket extends EventEmitter {
         try {
             return await this.#createSocket();
         } catch (err) {
-            this.emit('error', err);
-
             if (!this.#isOpen) {
                 throw err;
             }
 
             const retryIn = (this.#options?.reconnectStrategy ?? RedisSocket.#defaultReconnectStrategy)(retries);
             if (retryIn instanceof Error) {
-                throw retryIn;
+                throw new ReconnectStrategyError(retryIn, err);
             }
 
+            this.emit('error', err);
             await promiseTimeout(retryIn);
             return this.#retryConnection(retries + 1);
         }
@@ -243,18 +251,16 @@ export default class RedisSocket extends EventEmitter {
     #isCorked = false;
 
     cork(): void {
-        if (!this.#socket) {
+        if (!this.#socket || this.#isCorked) {
             return;
         }
 
-        if (!this.#isCorked) {
-            this.#socket.cork();
-            this.#isCorked = true;
+        this.#socket.cork();
+        this.#isCorked = true;
 
-            queueMicrotask(() => {
-                this.#socket?.uncork();
-                this.#isCorked = false;
-            });
-        }
+        queueMicrotask(() => {
+            this.#socket?.uncork();
+            this.#isCorked = false;
+        });
     }
 }

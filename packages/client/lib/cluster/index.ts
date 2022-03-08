@@ -1,27 +1,33 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
 import { ClientCommandOptions, RedisClientCommandSignature, RedisClientOptions, RedisClientType, WithModules, WithScripts } from '../client';
-import RedisClusterSlots, { ClusterNode } from './cluster-slots';
+import RedisClusterSlots, { ClusterNode, NodeAddressMap } from './cluster-slots';
 import { extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, extendWithCommands } from '../commander';
 import { EventEmitter } from 'events';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 
-export type RedisClusterClientOptions = Omit<RedisClientOptions<Record<string, never>, Record<string, never>>, 'modules' | 'scripts'>;
+export type RedisClusterClientOptions = Omit<RedisClientOptions, 'modules' | 'scripts'>;
 
-export interface RedisClusterOptions<M extends RedisModules, S extends RedisScripts> extends RedisPlugins<M, S> {
+export interface RedisClusterOptions<
+    M extends RedisModules = Record<string, never>,
+    S extends RedisScripts = Record<string, never>
+> extends RedisPlugins<M, S> {
     rootNodes: Array<RedisClusterClientOptions>;
     defaults?: Partial<RedisClusterClientOptions>;
     useReplicas?: boolean;
     maxCommandRedirections?: number;
+    nodeAddressMap?: NodeAddressMap;
 }
 
 type WithCommands = {
     [P in keyof typeof COMMANDS]: RedisClientCommandSignature<(typeof COMMANDS)[P]>;
 };
 
-export type RedisClusterType<M extends RedisModules, S extends RedisScripts> =
-    RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
+export type RedisClusterType<
+    M extends RedisModules = Record<string, never>,
+    S extends RedisScripts = Record<string, never>
+> = RedisCluster<M, S> & WithCommands & WithModules<M> & WithScripts<S>;
 
 export default class RedisCluster<M extends RedisModules, S extends RedisScripts> extends EventEmitter {
     static extractFirstKey(command: RedisCommand, originalArgs: Array<unknown>, redisArgs: RedisCommandArguments): RedisCommandArgument | undefined {
@@ -139,16 +145,16 @@ export default class RedisCluster<M extends RedisModules, S extends RedisScripts
                 }
 
                 if (err.message.startsWith('ASK')) {
-                    const url = err.message.substring(err.message.lastIndexOf(' ') + 1);
-                    if (this.#slots.getNodeByUrl(url)?.client === client) {
+                    const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+                    if (this.#slots.getNodeByAddress(address)?.client === client) {
                         await client.asking();
                         continue;
                     }
 
                     await this.#slots.rediscover(client);
-                    const redirectTo = this.#slots.getNodeByUrl(url);
+                    const redirectTo = this.#slots.getNodeByAddress(address);
                     if (!redirectTo) {
-                        throw new Error(`Cannot find node ${url}`);
+                        throw new Error(`Cannot find node ${address}`);
                     }
 
                     await redirectTo.client.asking();
@@ -184,6 +190,10 @@ export default class RedisCluster<M extends RedisModules, S extends RedisScripts
 
     getSlotMaster(slot: number): ClusterNode<M, S> {
         return this.#slots.getSlotMaster(slot);
+    }
+
+    quit(): Promise<void> {
+        return this.#slots.quit();
     }
 
     disconnect(): Promise<void> {

@@ -1,5 +1,5 @@
 import { pushOptionalVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { RedisSearchLanguages, PropertyName, CreateSchema, pushSchema } from '.';
+import { RedisSearchLanguages, PropertyName, RediSearchSchema, pushSchema } from '.';
 
 interface CreateOptions {
     ON?: 'HASH' | 'JSON';
@@ -20,7 +20,7 @@ interface CreateOptions {
     STOPWORDS?: string | Array<string>;
 }
 
-export function transformArguments(index: string, schema: CreateSchema, options?: CreateOptions): Array<string> {
+export function transformArguments(index: string, schema: RediSearchSchema, options?: CreateOptions): Array<string> {
     const args = ['FT.CREATE', index];
 
     if (options?.ON) {
