@@ -45,7 +45,7 @@ describe('CLUSTER INFO', () => {
         );
     });
 
-    testUtils.testWithCluster('cluster.clusterInfo', async cluster => {
+    testUtils.testWithCluster('clusterNode.clusterInfo', async cluster => {
         assert.notEqual(
             await cluster.getSlotMaster(0).client.clusterInfo(),
             null
