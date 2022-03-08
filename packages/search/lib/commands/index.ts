@@ -230,13 +230,27 @@ type CreateSchemaVectorField<
     ATTRIBUTES: A;
 }>;
 
-type CreateSchemaFlatVectorField = CreateSchemaVectorField<VectorAlgo.FLAT, {
+type FlatAttributes = {
+    TYPE: string,
+    DIM: number,
+    DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE',
+    INITIAL_CAP?: number,
+    BLOCK_SIZE?: number
+}
 
-}>;
+type CreateSchemaFlatVectorField = CreateSchemaVectorField<VectorAlgo.FLAT, FlatAttributes>;
 
-type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgo.HNSW, {
-    
-}>;
+type HNSWAttributes = {
+    TYPE: string,
+    DIM: number,
+    DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE',
+    INITIAL_CAP?: number,
+    M?: number,
+    EF_CONSTRUCTION?: number,
+    EF_RUNTIME?: number
+}
+
+type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgo.HNSW, HNSWAttributes>;
 
 export interface RediSearchSchema {
     [field: string]:
@@ -297,9 +311,19 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
             case SchemaFieldTypes.VECTOR:
                 args.push(fieldOptions.ALGORITHM);
 
-                // SWITCH CASE on ATTRIBUTES types
+                switch(fieldOptions.ALGORITHM) {
+                    case VectorAlgo.FLAT:
+                        pushFlatAlgoAttr(args, fieldOptions.ATTRIBUTES);
 
-                continue; // explain 
+                        break;
+
+                    case VectorAlgo.HNSW:
+                        pushHNSWAlgoAttr(args, fieldOptions.ATTRIBUTES);
+
+                        break;
+                }
+
+                continue; // vector fileds does not contain SORTABLE and NOINDEX options
         }
 
         if (fieldOptions.SORTABLE) {
@@ -313,6 +337,46 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
         if (fieldOptions.NOINDEX) {
             args.push('NOINDEX');
         }
+    }
+}
+
+function pushFlatAlgoAttr(args: RedisCommandArguments, attr: FlatAttributes) {
+    args.push(
+        'TYPE', attr.TYPE, 
+        'DIM', attr.DIM.toString(),
+        'DISTANCE_METRIC', attr.DISTANCE_METRIC
+    );
+
+    if (attr?.INITIAL_CAP) {
+        args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
+    }
+
+    if (attr?.BLOCK_SIZE) {
+        args.push('BLOCK_SIZE', attr.BLOCK_SIZE.toString());
+    }
+}
+
+function pushHNSWAlgoAttr(args: RedisCommandArguments, attr: HNSWAttributes) {
+    args.push(
+        'TYPE', attr.TYPE, 
+        'DIM', attr.DIM.toString(),
+        'DISTANCE_METRIC', attr.DISTANCE_METRIC
+    );
+
+    if (attr?.INITIAL_CAP) {
+        args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
+    }
+
+    if (attr?.M) {
+        args.push('M', attr.M.toString());
+    }
+
+    if (attr?.EF_CONSTRUCTION) {
+        args.push('EF_CONSTRUCTION', attr.EF_CONSTRUCTION.toString());
+    }
+
+    if (attr?.EF_RUNTIME) {
+        args.push('EF_RUNTIME', attr.EF_RUNTIME.toString());
     }
 }
 
