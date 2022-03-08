@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CREATE';
-import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages } from '.';
+import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages, VectorAlgo } from '.';
 
 describe('CREATE', () => {
     describe('transformArguments', () => {
@@ -122,6 +122,56 @@ describe('CREATE', () => {
                             }
                         }),
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'CASESENSITIVE']
+                    );
+                });
+            });
+
+            describe.only('VECTOR', () => {
+                it('Flat algorithm', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.VECTOR,
+                                ALGORITHM: VectorAlgo.FLAT,
+                                ATTRIBUTES: {
+                                    TYPE: 'FLOAT32',
+                                    DIM: 2,
+                                    DISTANCE_METRIC: 'L2',
+                                    INITIAL_CAP: 1000000,
+                                    BLOCK_SIZE: 1000
+                                }
+                            }
+                        }),
+                        [
+                            'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'FLAT', '10', 'TYPE', 
+                            'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'INITIAL_CAP', '1000000',
+                            'BLOCK_SIZE', '1000'
+                        ]
+                    );
+                });
+
+                it('HNSW algorithm', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.VECTOR,
+                                ALGORITHM: VectorAlgo.HNSW,
+                                ATTRIBUTES: {
+                                    TYPE: 'FLOAT32',
+                                    DIM: 2,
+                                    DISTANCE_METRIC: 'L2',
+                                    INITIAL_CAP: 1000000,
+                                    M: 40,
+                                    EF_CONSTRUCTION: 250,
+                                    EF_RUNTIME: 20
+                                }
+                            }
+                        }),
+                        [
+                            'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'HNSW', '14', 'TYPE',
+                            'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'INITIAL_CAP', '1000000',
+                            'M', '40', 'EF_CONSTRUCTION', '250', 'EF_RUNTIME', '20'
+                        ]
                     );
                 });
             });

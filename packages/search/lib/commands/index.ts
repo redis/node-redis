@@ -341,43 +341,61 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
 }
 
 function pushFlatAlgoAttr(args: RedisCommandArguments, attr: FlatAttributes) {
+    const index = args.length;
+    args.push('');
+    
     args.push(
         'TYPE', attr.TYPE, 
         'DIM', attr.DIM.toString(),
         'DISTANCE_METRIC', attr.DISTANCE_METRIC
     );
 
+    let i = 3;
     if (attr?.INITIAL_CAP) {
+        i++;
         args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
     }
 
     if (attr?.BLOCK_SIZE) {
+        i++;
         args.push('BLOCK_SIZE', attr.BLOCK_SIZE.toString());
     }
+
+    args[index] = (i*2).toString(); 
 }
 
 function pushHNSWAlgoAttr(args: RedisCommandArguments, attr: HNSWAttributes) {
+    const index = args.length;
+    args.push('');
+
     args.push(
         'TYPE', attr.TYPE, 
         'DIM', attr.DIM.toString(),
         'DISTANCE_METRIC', attr.DISTANCE_METRIC
     );
 
+    let i = 3;
     if (attr?.INITIAL_CAP) {
+        i++;
         args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
     }
 
     if (attr?.M) {
+        i++;
         args.push('M', attr.M.toString());
     }
 
     if (attr?.EF_CONSTRUCTION) {
+        i++;
         args.push('EF_CONSTRUCTION', attr.EF_CONSTRUCTION.toString());
     }
 
     if (attr?.EF_RUNTIME) {
+        i++;
         args.push('EF_RUNTIME', attr.EF_RUNTIME.toString());
     }
+
+    args[index] = (i*2).toString(); 
 }
 
 export type Params = { [key: string]: string|number };
