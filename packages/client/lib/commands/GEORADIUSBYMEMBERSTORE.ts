@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushGeoRadiusArguments, GeoUnits, GeoSearchOptions } from './generic-transformers';
+import { GeoUnits, GeoRadiusStoreOptions, pushGeoRadiusStoreArguments } from './generic-transformers';
 
 export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEORADIUSBYMEMBER';
 
@@ -9,21 +9,11 @@ export function transformArguments(
     radius: number,
     unit: GeoUnits,
     destination: RedisCommandArgument,
-    options?: GeoSearchOptions,
-    storeDist?: boolean,
+    options?: GeoRadiusStoreOptions,
 ): RedisCommandArguments {
-    const args = pushGeoRadiusArguments(
-        ['GEORADIUSBYMEMBER'], key, member, radius, unit, options
+    return pushGeoRadiusStoreArguments(
+        ['GEORADIUSBYMEMBER'], key, member, radius, unit, destination, options
     );
-
-    if (storeDist) {
-        args.push('STOREDIST', destination);
-    }
-    else {
-        args.push('STORE', destination);
-    }
-
-    return args;
 }
 
 export function transformReply(reply: number): number {

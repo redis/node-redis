@@ -19,7 +19,7 @@ describe('GEORADIUSSTORE', () => {
 
         it('STOREDIST', () => {
             assert.deepEqual(
-                transformArguments('key', {longitude: 1, latitude: 2}, 3 , 'm', 'dest', {}, true),
+                transformArguments('key', {longitude: 1, latitude: 2}, 3 , 'm', 'dest', { STOREDIST: true }),
                 ['GEORADIUS', 'key', '1', '2', '3', 'm', 'STOREDIST', 'dest']
             );
         });

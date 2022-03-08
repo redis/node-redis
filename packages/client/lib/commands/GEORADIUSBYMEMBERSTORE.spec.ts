@@ -19,7 +19,7 @@ describe('GEORADIUSBYMEMBERSTORE', () => {
 
         it('STOREDIST', () => {
             assert.deepEqual(
-                transformArguments('key', 'member', 3 , 'm', 'dest', {}, true),
+                transformArguments('key', 'member', 3 , 'm', 'dest', { STOREDIST: true }),
                 ['GEORADIUSBYMEMBER', 'key', 'member', '3', 'm', 'STOREDIST', 'dest']
             );
         });
