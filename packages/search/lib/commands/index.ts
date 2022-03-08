@@ -323,7 +323,7 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                         break;
                 }
 
-                continue; // vector fileds does not contain SORTABLE and NOINDEX options
+                continue; // vector fileds do not contain SORTABLE and NOINDEX options
         }
 
         if (fieldOptions.SORTABLE) {
