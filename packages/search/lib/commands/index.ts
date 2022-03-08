@@ -172,15 +172,28 @@ export enum SchemaFieldTypes {
     TEXT = 'TEXT',
     NUMERIC = 'NUMERIC',
     GEO = 'GEO',
-    TAG = 'TAG'
+    TAG = 'TAG',
+    VECTOR = 'VECTOR'
 }
 
-type CreateSchemaField<T extends SchemaFieldTypes, E = Record<keyof any, any>> = T | ({
+type CreateSchemaField<
+    T extends SchemaFieldTypes, 
+    E = Record<keyof any, any>
+> = T | ({
     type: T;
     AS?: string;
-    SORTABLE?: true | 'UNF';
-    NOINDEX?: true;
 } & E);
+
+type CreateSchemaCommonField<
+    T extends SchemaFieldTypes, 
+    E = Record<string, never>
+> = CreateSchemaField<
+    T,
+    ({
+        SORTABLE?: true | 'UNF';
+        NOINDEX?: true;
+    } & E)
+>;
 
 export enum SchemaTextFieldPhonetics {
     DM_EN = 'dm:en',
@@ -189,19 +202,40 @@ export enum SchemaTextFieldPhonetics {
     DM_ES = 'dm:es'
 }
 
-type CreateSchemaTextField = CreateSchemaField<SchemaFieldTypes.TEXT, {
+type CreateSchemaTextField = CreateSchemaCommonField<SchemaFieldTypes.TEXT, {
     NOSTEM?: true;
     WEIGHT?: number;
     PHONETIC?: SchemaTextFieldPhonetics;
 }>;
 
-type CreateSchemaNumericField = CreateSchemaField<SchemaFieldTypes.NUMERIC>;
+type CreateSchemaNumericField = CreateSchemaCommonField<SchemaFieldTypes.NUMERIC>;
 
-type CreateSchemaGeoField = CreateSchemaField<SchemaFieldTypes.GEO>;
+type CreateSchemaGeoField = CreateSchemaCommonField<SchemaFieldTypes.GEO>;
 
-type CreateSchemaTagField = CreateSchemaField<SchemaFieldTypes.TAG, {
+type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     SEPARATOR?: string;
     CASESENSITIVE?: true;
+}>;
+
+export enum VectorAlgo {
+    FLAT = 'FLAT',
+    HNSW = 'HNSW'
+}
+
+type CreateSchemaVectorField<
+    T extends VectorAlgo, 
+    A extends Record<string, unknown>
+> = CreateSchemaField<SchemaFieldTypes.VECTOR, {
+    ALGORITHM: T;
+    ATTRIBUTES: A;
+}>;
+
+type CreateSchemaFlatVectorField = CreateSchemaVectorField<VectorAlgo.FLAT, {
+
+}>;
+
+type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgo.HNSW, {
+    
 }>;
 
 export interface RediSearchSchema {
@@ -209,7 +243,9 @@ export interface RediSearchSchema {
         CreateSchemaTextField |
         CreateSchemaNumericField |
         CreateSchemaGeoField |
-        CreateSchemaTagField;
+        CreateSchemaTagField |
+        CreateSchemaFlatVectorField |
+        CreateSchemaHNSWVectorField;
 }
 
 export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
@@ -257,6 +293,13 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                 }
 
                 break;
+
+            case SchemaFieldTypes.VECTOR:
+                args.push(fieldOptions.ALGORITHM);
+
+                // SWITCH CASE on ATTRIBUTES types
+
+                continue; // explain 
         }
 
         if (fieldOptions.SORTABLE) {
