@@ -25,13 +25,6 @@ describe('GEORADIUSBYMEMBERSTORE', () => {
         });
     });
 
-    it('transformReply with empty array (https://github.com/redis/redis/issues/9261)', () => {
-        assert.throws(
-            () => (transformReply as any)([]),
-            TypeError
-        );
-    });
-
     testUtils.testWithClient('client.geoRadiusByMemberStore', async client => {
         await client.geoAdd('source', {
             longitude: 1,

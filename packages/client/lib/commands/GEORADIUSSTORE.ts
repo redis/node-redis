@@ -16,10 +16,4 @@ export function transformArguments(
     );
 }
 
-export function transformReply(reply: number): number {
-    if (typeof reply !== 'number') {
-        throw new TypeError(`https://github.com/redis/redis/issues/9261`);
-    }
-
-    return reply;
-}
+export declare function transformReply(): number 
