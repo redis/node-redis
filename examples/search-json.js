@@ -85,7 +85,7 @@ async function searchJSON() {
   // in the email address.  This applies for other punctuation too.
   // https://oss.redis.com/redisearch/Tags/#including_punctuation_in_tags
   console.log('Users with email "bob@somewhere.gov":');
-  const emailAddress = 'bob@somewhere.gov'.replace(/\./g, '\\.').replace(/\@/g, '\\@');
+  const emailAddress = 'bob@somewhere.gov'.replace(/[.@]/g, '\\$&');
   console.log(
     JSON.stringify(
       await client.ft.search('idx:users', `@email:{${emailAddress}}`), 
