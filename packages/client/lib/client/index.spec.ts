@@ -683,6 +683,21 @@ describe('Client', () => {
             }
         }, GLOBAL.SERVERS.OPEN);
 
+        testUtils.testWithClient('should not fail when message arrives right after subscribe', async publisher => {
+            const subscriber = publisher.duplicate();
+
+            await subscriber.connect();
+
+            try {
+                await assert.doesNotReject(Promise.all([
+                    subscriber.subscribe('channel', () => {}),
+                    publisher.publish('channel', 'message')
+                ]));
+            } finally {
+                await subscriber.disconnect();
+            }
+        }, GLOBAL.SERVERS.OPEN);
+
         testUtils.testWithClient('should be able to quit in PubSub mode', async client => {
             await client.subscribe('channel', () => {
                 // noop
