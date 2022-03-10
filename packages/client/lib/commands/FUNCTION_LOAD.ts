@@ -4,10 +4,6 @@ export enum RedisFunctionEngines {
     LUA = 'LUA'
 }
 
-export enum RedisFunctionFlags {
-    NO_WRITES = 'no-writes'
-}
-
 interface FunctionLoadOptions {
     REPLACE?: boolean;
     DESCRIPTION?: string;

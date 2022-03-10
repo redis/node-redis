@@ -18,8 +18,14 @@ export const SQUARE_SCRIPT = defineScript({
     }
 });
 
-const MATH_FUNCTION = {
-    code: 'redis.register_function("square", function(keys, args) return args[1] * args[1] end)',
+export const MATH_FUNCTION = {
+    engine: RedisFunctionEngines.LUA,
+    name: 'math',
+    code: `redis.register_function{
+        function_name = "square",
+        callback = function(keys, args) return args[1] * args[1] end,
+        flags = { "no-writes" }
+    }`,
     library: {
         square: {
             NAME: 'square',
@@ -31,11 +37,14 @@ const MATH_FUNCTION = {
     }
 };
 
-export async function loadMathLibrary(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>): Promise<void> {
+export async function loadMathFunction(
+    client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>
+): Promise<void> {
     await client.functionLoad(
-        RedisFunctionEngines.LUA,
-        'math',
-        MATH_FUNCTION.code
+        MATH_FUNCTION.engine,
+        MATH_FUNCTION.name,
+        MATH_FUNCTION.code,
+        { REPLACE: true }
     );
 }
 
@@ -511,7 +520,7 @@ describe('Client', () => {
     });
 
     testUtils.testWithClient('functions', async client => {
-        await loadMathLibrary(client);
+        await loadMathFunction(client);
 
         assert.equal(
             await client.math.square(2),
@@ -519,6 +528,7 @@ describe('Client', () => {
         );
     }, {
         ...GLOBAL.SERVERS.OPEN,
+        minimumDockerVersion: [7, 0],
         clientOptions: {
             functions: {
                 math: MATH_FUNCTION.library

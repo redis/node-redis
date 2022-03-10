@@ -1,8 +1,11 @@
 import { strict as assert } from 'assert';
+import { MATH_FUNCTION, loadMathFunction } from '../client/index.spec';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './FUNCTION_DELETE';
 
 describe('FUNCTION DELETE', () => {
+    testUtils.isVersionGreaterThanHook([7, 0]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('library'),
@@ -11,6 +14,11 @@ describe('FUNCTION DELETE', () => {
     });
 
     testUtils.testWithClient('client.functionDelete', async client => {
-        // TODO
+        await loadMathFunction(client);
+
+        assert.equal(
+            await client.functionDelete(MATH_FUNCTION.name),
+            'OK'
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

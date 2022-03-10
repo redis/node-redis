@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './FUNCTION_DUMP';
 
 describe('FUNCTION DUMP', () => {
+    testUtils.isVersionGreaterThanHook([7, 0]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
@@ -11,6 +13,9 @@ describe('FUNCTION DUMP', () => {
     });
 
     testUtils.testWithClient('client.functionDump', async client => {
-        console.log(await client.functionDump());
+        assert.equal(
+            typeof await client.functionDump(),
+            'string'
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

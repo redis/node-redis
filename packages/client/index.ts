@@ -13,6 +13,8 @@ export { RedisClusterType, RedisClusterOptions } from './lib/cluster';
 
 export const createCluster = RedisCluster.create;
 
+export { RedisFunctionEngines } from './lib/commands/FUNCTION_LOAD';
+
 export { defineScript } from './lib/lua-script';
 
 export * from './lib/errors';

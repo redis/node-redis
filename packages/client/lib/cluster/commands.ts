@@ -16,11 +16,15 @@ import * as DECR from '../commands/DECR';
 import * as DECRBY from '../commands/DECRBY';
 import * as DEL from '../commands/DEL';
 import * as DUMP from '../commands/DUMP';
+import * as EVAL_RO from '../commands/EVAL_RO';
 import * as EVAL from '../commands/EVAL';
+import * as EVALSHA_RO from '../commands/EVALSHA_RO';
 import * as EVALSHA from '../commands/EVALSHA';
 import * as EXISTS from '../commands/EXISTS';
 import * as EXPIRE from '../commands/EXPIRE';
 import * as EXPIREAT from '../commands/EXPIREAT';
+import * as FCALL_RO from '../commands/FCALL_RO';
+import * as FCALL from '../commands/FCALL';
 import * as GEOADD from '../commands/GEOADD';
 import * as GEODIST from '../commands/GEODIST';
 import * as GEOHASH from '../commands/GEOHASH';
@@ -212,16 +216,24 @@ export default {
     del: DEL,
     DUMP,
     dump: DUMP,
+    EVAL_RO,
+    evalRo: EVAL_RO,
     EVAL,
     eval: EVAL,
     EVALSHA,
     evalSha: EVALSHA,
+    EVALSHA_RO,
+    evalShaRo: EVALSHA_RO,
     EXISTS,
     exists: EXISTS,
     EXPIRE,
     expire: EXPIRE,
     EXPIREAT,
     expireAt: EXPIREAT,
+    FCALL_RO,
+    fCallRo: FCALL_RO,
+    FCALL,
+    fCall: FCALL,
     GEOADD,
     geoAdd: GEOADD,
     GEODIST,

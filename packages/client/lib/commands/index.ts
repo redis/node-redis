@@ -9,7 +9,7 @@ export type RedisCommandArgument = string | Buffer;
 export type RedisCommandArguments = Array<RedisCommandArgument> & { preserve?: unknown };
 
 export interface RedisCommand {
-    FIRST_KEY_INDEX?: number | ((...args: Array<any>) => RedisCommandArgument);
+    FIRST_KEY_INDEX?: number | ((...args: Array<any>) => RedisCommandArgument | undefined);
     IS_READ_ONLY?: boolean;
     transformArguments(this: void, ...args: Array<any>): RedisCommandArguments;
     transformReply?(this: void, reply: any, preserved?: any): any;
