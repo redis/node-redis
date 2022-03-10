@@ -11,10 +11,9 @@ describe('OBJECT ENCODING', () => {
     });
 
     testUtils.testWithClient('client.objectEncoding', async client => {
-        client.lPush('key', 'hello world');
         assert.equal(
             await client.objectEncoding('key'),
-            'quicklist'
+            null
         );
     }, GLOBAL.SERVERS.OPEN);
 });

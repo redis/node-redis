@@ -11,10 +11,9 @@ describe('OBJECT REFCOUNT', () => {
     });
 
     testUtils.testWithClient('client.objectRefCount', async client => {
-        client.lPush('key', 'hello world');
         assert.equal(
             await client.objectRefCount('key'),
-            1
+            null
         );
     }, GLOBAL.SERVERS.OPEN);
 });

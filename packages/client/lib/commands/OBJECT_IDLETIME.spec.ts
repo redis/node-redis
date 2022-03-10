@@ -11,10 +11,9 @@ describe('OBJECT IDLETIME', () => {
     });
 
     testUtils.testWithClient('client.objectIdleTime', async client => {
-        client.lPush('key', 'hello world');
         assert.equal(
             await client.objectIdleTime('key'),
-            0
+            null
         );
     }, GLOBAL.SERVERS.OPEN);
 });

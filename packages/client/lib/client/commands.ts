@@ -58,10 +58,6 @@ import * as MODULE_LIST from '../commands/MODULE_LIST';
 import * as MODULE_LOAD from '../commands/MODULE_LOAD';
 import * as MODULE_UNLOAD from '../commands/MODULE_UNLOAD';
 import * as MOVE from '../commands/MOVE';
-import * as OBJECT_ENCODING from '../commands/OBJECT_ENCODING';
-import * as OBJECT_FREQ from '../commands/OBJECT_FREQ';
-import * as OBJECT_IDLETIME from '../commands/OBJECT_IDLETIME';
-import * as OBJECT_REFCOUNT from '../commands/OBJECT_REFCOUNT';
 import * as PING from '../commands/PING';
 import * as PUBSUB_CHANNELS from '../commands/PUBSUB_CHANNELS';
 import * as PUBSUB_NUMPAT from '../commands/PUBSUB_NUMPAT';
@@ -205,14 +201,6 @@ export default {
     moduleUnload: MODULE_UNLOAD,
     MOVE,
     move: MOVE,
-    OBJECT_ENCODING,
-    objectEncoding: OBJECT_ENCODING,
-    OBJECT_FREQ,
-    objectFreq: OBJECT_FREQ,
-    OBJECT_IDLETIME,
-    objectIdleTime: OBJECT_IDLETIME,
-    OBJECT_REFCOUNT,
-    objectRefCount: OBJECT_REFCOUNT,
     PING,
     ping: PING,
     PUBSUB_CHANNELS,
