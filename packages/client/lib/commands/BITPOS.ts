@@ -9,7 +9,8 @@ export function transformArguments(
     key: RedisCommandArgument,
     bit: BitValue,
     start?: number,
-    end?: number
+    end?: number,
+    bitRange?: boolean
 ): RedisCommandArguments {
     const args = ['BITPOS', key, bit.toString()];
 
@@ -19,6 +20,10 @@ export function transformArguments(
 
     if (typeof end === 'number') {
         args.push(end.toString());
+    }
+
+    if (bitRange) {
+        args.push('BIT');
     }
 
     return args;

@@ -7,11 +7,12 @@ export const IS_READ_ONLY = true;
 interface BitCountRange {
     start: number;
     end: number;
+    bit?: boolean;
 }
 
 export function transformArguments(
     key: RedisCommandArgument,
-    range?: BitCountRange
+    range?: BitCountRange,
 ): RedisCommandArguments {
     const args = ['BITCOUNT', key];
 
@@ -20,6 +21,10 @@ export function transformArguments(
             range.start.toString(),
             range.end.toString()
         );
+
+        if (range?.bit) {
+            args.push('BIT')
+        }
     }
 
     return args;

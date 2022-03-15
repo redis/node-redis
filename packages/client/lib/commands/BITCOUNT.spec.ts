@@ -20,6 +20,17 @@ describe('BITCOUNT', () => {
                 ['BITCOUNT', 'key', '0', '1']
             );
         });
+
+        it('with bit range', () => {
+            assert.deepEqual(
+                transformArguments('key', {
+                    start: 0,
+                    end: 1,
+                    bit: true
+                }),
+                ['BITCOUNT', 'key', '0', '1', 'BIT']
+            );
+        });
     });
 
     testUtils.testWithClient('client.bitCount', async client => {
