@@ -253,9 +253,7 @@ describe('SEARCH', () => {
         );
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('client.ft.search with params', async client => {
-        testUtils.isVersionGreaterThanHook([7, 0]);
-        
+    testUtils.testWithClient('client.ft.search with params', async client => {      
         await Promise.all([
             client.ft.create('index', {
                 numval: SchemaFieldTypes.NUMERIC

@@ -126,7 +126,7 @@ describe('CREATE', () => {
                 });
             });
 
-            describe.only('VECTOR', () => {
+            describe('VECTOR', () => {
                 it('Flat algorithm', () => {
                     assert.deepEqual(
                         transformArguments('index', {
