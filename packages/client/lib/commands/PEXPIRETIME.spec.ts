@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PEXPIRETIME';
 
 describe('PEXPIRETIME', () => {
+    testUtils.isVersionGreaterThanHook([7, 0]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key'),
@@ -11,8 +13,6 @@ describe('PEXPIRETIME', () => {
     });
 
     testUtils.testWithClient('client.pExpireTime', async client => {
-        testUtils.isVersionGreaterThanHook([7, 0]);
-        
         assert.equal(
             await client.pExpireTime('key'),
             -2
