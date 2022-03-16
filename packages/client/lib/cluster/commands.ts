@@ -103,6 +103,7 @@ import * as SISMEMBER from '../commands/SISMEMBER';
 import * as SMEMBERS from '../commands/SMEMBERS';
 import * as SMISMEMBER from '../commands/SMISMEMBER';
 import * as SMOVE from '../commands/SMOVE';
+import * as SORT_RO from '../commands/SORT_RO';
 import * as SORT from '../commands/SORT';
 import * as SPOP from '../commands/SPOP';
 import * as SRANDMEMBER_COUNT from '../commands/SRANDMEMBER_COUNT';
@@ -386,6 +387,8 @@ export default {
     smIsMember: SMISMEMBER,
     SMOVE,
     sMove: SMOVE,
+    SORT_RO,
+    sortReadOnly: SORT_RO,
     SORT,
     sort: SORT,
     SPOP,
