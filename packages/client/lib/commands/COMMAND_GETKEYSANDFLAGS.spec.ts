@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './COMMAND_GETKEYSANDFLAGS';
 
-describe.only('COMMAND GETKEYSANDFLAGS', () => {
+describe('COMMAND GETKEYSANDFLAGS', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(['GET', 'key']),
