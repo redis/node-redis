@@ -29,7 +29,7 @@ export function transformReply(rawReply: Array<any>): CommandDocsReply {
                 since: rawReply[i][3],
                 group: rawReply[i][5],
                 complexity: rawReply[i][7],
-                history: rawReply[i][8] == 'history' ? rawReply[i][9]  : null
+                history: rawReply[i][8] == 'history' ? rawReply[i][9] : null
             }
         ]);
     }
