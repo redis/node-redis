@@ -12,7 +12,7 @@ interface BitCountRange {
 
 export function transformArguments(
     key: RedisCommandArgument,
-    range?: BitCountRange,
+    range?: BitCountRange
 ): RedisCommandArguments {
     const args = ['BITCOUNT', key];
 
