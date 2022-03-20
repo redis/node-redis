@@ -1,12 +1,20 @@
-export function transformArguments(
-    parameter: string,
-    value: string,
-    mulitipleParams?: Array<[parameter: string, value: string]>
-): Array<string> {
-    const args = ['CONFIG', 'SET', parameter, value];
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-    if (mulitipleParams) {
-        mulitipleParams.forEach(pair => args.push(pair[0], pair[1]));
+type SingleParameter = [parameter: RedisCommandArgument, value: RedisCommandArgument];
+
+type MultipleParameters = [config: Record<string, RedisCommandArgument>];
+
+export function transformArguments(
+    ...[parameterOrConfig, value]: SingleParameter | MultipleParameters
+): RedisCommandArguments {
+    const args: RedisCommandArguments = ['CONFIG', 'SET'];
+
+    if (typeof parameterOrConfig === 'string') {
+        args.push(parameterOrConfig, value!);
+    } else {
+        for (const [key, value] of Object.entries(parameterOrConfig)) {
+            args.push(key, value);
+        }
     }
 
     return args;

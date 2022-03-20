@@ -12,8 +12,12 @@ describe('CONFIG SET', () => {
 
         it('set muiltiple parameters', () => {
             assert.deepEqual(
-                transformArguments('parameter', 'value', [['parameter2', 'value2'], ['parameter3', 'value3']]),
-                ['CONFIG', 'SET', 'parameter', 'value', 'parameter2', 'value2', 'parameter3', 'value3']
+                transformArguments({
+                    1: 'a',
+                    2: 'b',
+                    3: 'c'
+                }),
+                ['CONFIG', 'SET', '1', 'a', '2', 'b', '3', 'c']
             );
         });
     });
