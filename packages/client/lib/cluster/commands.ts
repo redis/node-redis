@@ -98,6 +98,7 @@ import * as SETEX from '../commands/SETEX';
 import * as SETNX from '../commands/SETNX';
 import * as SETRANGE from '../commands/SETRANGE';
 import * as SINTER from '../commands/SINTER';
+import * as SINTERCARD from '../commands/SINTERCARD';
 import * as SINTERSTORE from '../commands/SINTERSTORE';
 import * as SISMEMBER from '../commands/SISMEMBER';
 import * as SMEMBERS from '../commands/SMEMBERS';
@@ -149,6 +150,7 @@ import * as ZDIFFSTORE from '../commands/ZDIFFSTORE';
 import * as ZINCRBY from '../commands/ZINCRBY';
 import * as ZINTER_WITHSCORES from '../commands/ZINTER_WITHSCORES';
 import * as ZINTER from '../commands/ZINTER';
+import * as ZINTERCARD from '../commands/ZINTERCARD';
 import * as ZINTERSTORE from '../commands/ZINTERSTORE';
 import * as ZLEXCOUNT from '../commands/ZLEXCOUNT';
 import * as ZMSCORE from '../commands/ZMSCORE';
@@ -366,6 +368,8 @@ export default {
     sDiffStore: SDIFFSTORE,
     SINTER,
     sInter: SINTER,
+    SINTERCARD,
+    sInterCard: SINTERCARD,
     SINTERSTORE,
     sInterStore: SINTERSTORE,
     SET,
@@ -478,6 +482,8 @@ export default {
     zInterWithScores: ZINTER_WITHSCORES,
     ZINTER,
     zInter: ZINTER,
+    ZINTERCARD,
+    zInterCard: ZINTERCARD,
     ZINTERSTORE,
     zInterStore: ZINTERSTORE,
     ZLEXCOUNT,
