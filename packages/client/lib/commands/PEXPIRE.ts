@@ -5,12 +5,12 @@ export const FIRST_KEY_INDEX = 1;
 export function transformArguments(
     key: RedisCommandArgument,
     milliseconds: number,
-    setOptions?: 'NX' | 'XX' | 'GT' | 'LT'
+    mode?: 'NX' | 'XX' | 'GT' | 'LT'
 ): RedisCommandArguments {
     const args = ['PEXPIRE', key, milliseconds.toString()];
 
-    if (setOptions != null) {
-        args.push(setOptions);
+    if (mode) {
+        args.push(mode);
     }
 
     return args;

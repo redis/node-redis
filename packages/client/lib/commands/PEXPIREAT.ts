@@ -6,7 +6,7 @@ export const FIRST_KEY_INDEX = 1;
 export function transformArguments(
     key: RedisCommandArgument,
     millisecondsTimestamp: number | Date,
-    setOptions?: 'NX' | 'XX' | 'GT' | 'LT'
+    mode?: 'NX' | 'XX' | 'GT' | 'LT'
 ): RedisCommandArguments {
     const args = [
         'PEXPIREAT',
@@ -14,8 +14,8 @@ export function transformArguments(
         transformPXAT(millisecondsTimestamp)
     ];
 
-    if (setOptions != null) {
-        args.push(setOptions);
+    if (mode) {
+        args.push(mode);
     }
 
     return args;

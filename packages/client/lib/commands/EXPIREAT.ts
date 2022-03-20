@@ -6,7 +6,7 @@ export const FIRST_KEY_INDEX = 1;
 export function transformArguments(
     key: RedisCommandArgument,
     timestamp: number | Date,
-    setOptions?: 'NX' | 'XX' | 'GT' | 'LT'
+    mode?: 'NX' | 'XX' | 'GT' | 'LT'
 ): RedisCommandArguments {
     const args = [
         'EXPIREAT',
@@ -14,10 +14,10 @@ export function transformArguments(
         transformEXAT(timestamp)
     ];
 
-    if (setOptions != null) {
-        args.push(setOptions);
+    if (mode) {
+        args.push(mode);
     }
-    
+
     return args;
 }
 
