@@ -25,9 +25,9 @@ describe('BITPOS', () => {
             );
         });
 
-        it('with start, end and bit', () => {
+        it('with start, end and mode', () => {
             assert.deepEqual(
-                transformArguments('key', 1, 1, -1, true),
+                transformArguments('key', 1, 1, -1, 'BIT'),
                 ['BITPOS', 'key', '1', '1', '-1', 'BIT']
             );
         });

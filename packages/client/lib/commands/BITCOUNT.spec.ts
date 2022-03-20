@@ -26,7 +26,7 @@ describe('BITCOUNT', () => {
                 transformArguments('key', {
                     start: 0,
                     end: 1,
-                    bit: true
+                    mode: 'BIT'
                 }),
                 ['BITCOUNT', 'key', '0', '1', 'BIT']
             );
