@@ -8,15 +8,15 @@ describe('ZINTERCARD', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments(['zset1', 'zset2']),
-                ['ZINTERCARD', '2', 'zset1', 'zset2']
+                transformArguments(['1', '2']),
+                ['ZINTERCARD', '2', '1', '2']
             );
         });
 
         it('with limit', () => {
             assert.deepEqual(
-                transformArguments(['zset1', 'zset2'], 1),
-                ['ZINTERCARD', '2', 'zset1', 'zset2', 'LIMIT', '1']
+                transformArguments(['1', '2'], 1),
+                ['ZINTERCARD', '2', '1', '2', 'LIMIT', '1']
             );
         });
     });

@@ -8,15 +8,15 @@ describe('SINTERCARD', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments(['set1', 'set2']),
-                ['SINTERCARD', '2', 'set1', 'set2']
+                transformArguments(['1', '2']),
+                ['SINTERCARD', '2', '1', '2']
             );
         });
 
         it('with limit', () => {
             assert.deepEqual(
-                transformArguments(['set1', 'set2'], 1),
-                ['SINTERCARD', '2', 'set1', 'set2', 'LIMIT', '1']
+                transformArguments(['1', '2'], 1),
+                ['SINTERCARD', '2', '1', '2', 'LIMIT', '1']
             );
         });
     });
