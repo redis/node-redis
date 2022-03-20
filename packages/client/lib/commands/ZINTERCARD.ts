@@ -18,4 +18,4 @@ export function transformArguments(
     return args;
 }
 
-export declare function transformReply(): Number;
+export declare function transformReply(): number;
