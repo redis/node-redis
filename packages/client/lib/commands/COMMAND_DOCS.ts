@@ -18,7 +18,7 @@ type CommandDocumentation = {
 type CommandDocsReply = Array<[CommandName: string, CommandDocumentation: CommandDocumentation]>;
 
 export function transformReply(rawReply: Array<any>): CommandDocsReply {
-    const replyArray:CommandDocsReply = []
+    const replyArray:CommandDocsReply = [];
 
     for (let i = 0; i < rawReply.length; i++) {
         
