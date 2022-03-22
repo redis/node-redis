@@ -1,4 +1,4 @@
-import { pushSortReadOnlyArgs, SortReadOnlyOptions } from "./SORT_RO";
+import { pushSortReadOnlyArgs, SortReadOnlyOptions } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 

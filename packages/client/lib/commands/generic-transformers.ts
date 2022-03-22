@@ -422,3 +422,42 @@ export function transformCommandReply(
         categories: new Set(categories)
     };
 }
+
+export interface SortReadOnlyOptions {
+    BY?: string;
+    LIMIT?: {
+        offset: number;
+        count: number;
+    },
+    GET?: string | Array<string>;
+    DIRECTION?: 'ASC' | 'DESC';
+    ALPHA?: true;
+}
+
+export function pushSortReadOnlyArgs(args: Array<string>, options?: SortReadOnlyOptions) {
+    if (options?.BY) {
+        args.push('BY', options.BY);
+    }
+
+    if (options?.LIMIT) {
+        args.push(
+            'LIMIT',
+            options.LIMIT.offset.toString(),
+            options.LIMIT.count.toString()
+        );
+    }
+
+    if (options?.GET) {
+        for (const pattern of (typeof options.GET === 'string' ? [options.GET] : options.GET)) {
+            args.push('GET', pattern);
+        }
+    }
+
+    if (options?.DIRECTION) {
+        args.push(options.DIRECTION);
+    }
+
+    if (options?.ALPHA) {
+        args.push('ALPHA');
+    }
+}
