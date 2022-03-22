@@ -12,7 +12,7 @@ type CommandDocumentation = {
     since: string;
     group: string;
     complexity: string;
-    history?: Array<[versio: string, feature: string]>;
+    history?: Array<[version: string, feature: string]>;
 };
 
 type CommandDocsReply = Array<[CommandName: string, CommandDocumentation: CommandDocumentation]>;
