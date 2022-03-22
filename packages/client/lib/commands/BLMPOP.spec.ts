@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './BLMPOP';
 
-describe.only('BLMPOP', () => {
+describe('BLMPOP', () => {
     testUtils.isVersionGreaterThanHook([7, 0]);
 
     describe('transformArguments', () => {
