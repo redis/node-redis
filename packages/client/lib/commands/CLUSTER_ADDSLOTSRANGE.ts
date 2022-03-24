@@ -1,11 +1,13 @@
-export function transformArguments(...slots: Array<[startSlot: number, endSlot: number]>): Array<string> {
-    const args =  ['CLUSTER', 'DELSLOTSRANGE'];
+import { RedisCommandArguments } from '.';
+import { pushSlotRangesArguments, SlotRange } from './generic-transformers';
 
-    for(const [start, end] of slots) {
-        args.push(start.toString(), end.toString());
-    }
-
-    return args;
+export function transformArguments(
+    ranges: SlotRange | Array<SlotRange>
+): RedisCommandArguments {
+    return pushSlotRangesArguments(
+        ['CLUSTER', 'ADDSLOTSRANGE'],
+        ranges
+    );
 }
 
 export declare function transformReply(): 'OK';

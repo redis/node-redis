@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_LINKS';
 
 describe('CLUSTER LINKS', () => {
+    testUtils.isVersionGreaterThanHook([7, 0]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
@@ -10,13 +12,16 @@ describe('CLUSTER LINKS', () => {
         );
     });
 
-    testUtils.isVersionGreaterThanHook([7, 0]);
-    
-    testUtils.testWithCluster('clusterNode.clusterSaveConfig', async cluster => {
+    testUtils.testWithCluster('clusterNode.clusterLinks', async cluster => {
         const links = await cluster.getSlotMaster(0).client.clusterLinks();
-
-        assert.notEqual(links, null);
-        assert.equal(typeof links[0].node, 'string');
-
+        assert.ok(Array.isArray(links));
+        for (const link of links) {
+            assert.equal(typeof link.direction, 'string');
+            assert.equal(typeof link.node, 'string');
+            assert.equal(typeof link.createTime, 'number');
+            assert.equal(typeof link.events, 'string');
+            assert.equal(typeof link.sendBufferAllocated, 'number');
+            assert.equal(typeof link.sendBufferUsed, 'number');
+        }
     }, GLOBAL.CLUSTERS.OPEN);
 });
