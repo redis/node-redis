@@ -21,6 +21,7 @@ import * as EVALSHA from '../commands/EVALSHA';
 import * as EXISTS from '../commands/EXISTS';
 import * as EXPIRE from '../commands/EXPIRE';
 import * as EXPIREAT from '../commands/EXPIREAT';
+import * as EXPIRETIME from '../commands/EXPIRETIME';
 import * as GEOADD from '../commands/GEOADD';
 import * as GEODIST from '../commands/GEODIST';
 import * as GEOHASH from '../commands/GEOHASH';
@@ -75,6 +76,7 @@ import * as MSETNX from '../commands/MSETNX';
 import * as PERSIST from '../commands/PERSIST';
 import * as PEXPIRE from '../commands/PEXPIRE';
 import * as PEXPIREAT from '../commands/PEXPIREAT';
+import * as PEXPIRETIME from '../commands/PEXPIRETIME';
 import * as PFADD from '../commands/PFADD';
 import * as PFCOUNT from '../commands/PFCOUNT';
 import * as PFMERGE from '../commands/PFMERGE';
@@ -224,6 +226,8 @@ export default {
     expire: EXPIRE,
     EXPIREAT,
     expireAt: EXPIREAT,
+    EXPIRETIME,
+    expireTime: EXPIRETIME,
     GEOADD,
     geoAdd: GEOADD,
     GEODIST,
@@ -332,6 +336,8 @@ export default {
     pExpire: PEXPIRE,
     PEXPIREAT,
     pExpireAt: PEXPIREAT,
+    PEXPIRETIME,
+    pExpireTime: PEXPIRETIME,
     PFADD,
     pfAdd: PFADD,
     PFCOUNT,
