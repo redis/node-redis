@@ -23,7 +23,8 @@ import {
     pushOptionalVerdictArgument,
     transformCommandReply,
     CommandFlags,
-    CommandCategories
+    CommandCategories,
+    pushSlotRangesArguments
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
@@ -638,5 +639,30 @@ describe('Generic Transformers', () => {
                 categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
             }
         );
+    });
+
+    describe('pushSlotRangesArguments', () => {
+        it('single range', () => {
+            assert.deepEqual(
+                pushSlotRangesArguments([], {
+                    start: 0,
+                    end: 1
+                }),
+                ['0', '1']
+            );
+        });
+
+        it('multiple ranges', () => {
+            assert.deepEqual(
+                pushSlotRangesArguments([], [{
+                    start: 0,
+                    end: 1
+                }, {
+                    start: 2,
+                    end: 3
+                }]),
+                ['0', '1', '2', '3']
+            );
+        });
     });
 });
