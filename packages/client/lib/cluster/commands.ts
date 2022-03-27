@@ -73,6 +73,10 @@ import * as MGET from '../commands/MGET';
 import * as MIGRATE from '../commands/MIGRATE';
 import * as MSET from '../commands/MSET';
 import * as MSETNX from '../commands/MSETNX';
+import * as OBJECT_ENCODING from '../commands/OBJECT_ENCODING';
+import * as OBJECT_FREQ from '../commands/OBJECT_FREQ';
+import * as OBJECT_IDLETIME from '../commands/OBJECT_IDLETIME';
+import * as OBJECT_REFCOUNT from '../commands/OBJECT_REFCOUNT';
 import * as PERSIST from '../commands/PERSIST';
 import * as PEXPIRE from '../commands/PEXPIRE';
 import * as PEXPIREAT from '../commands/PEXPIREAT';
@@ -330,6 +334,14 @@ export default {
     mSet: MSET,
     MSETNX,
     mSetNX: MSETNX,
+    OBJECT_ENCODING,
+    objectEncoding: OBJECT_ENCODING,
+    OBJECT_FREQ,
+    objectFreq: OBJECT_FREQ,
+    OBJECT_IDLETIME,
+    objectIdleTime: OBJECT_IDLETIME,
+    OBJECT_REFCOUNT,
+    objectRefCount: OBJECT_REFCOUNT,
     PERSIST,
     persist: PERSIST,
     PEXPIRE,
