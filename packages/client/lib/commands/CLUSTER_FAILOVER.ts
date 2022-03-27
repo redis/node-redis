@@ -4,7 +4,7 @@ export enum FailoverModes {
 }
 
 export function transformArguments(mode?: FailoverModes): Array<string> {
-    const args =  ['CLUSTER', 'FAILOVER'];
+    const args = ['CLUSTER', 'FAILOVER'];
 
     if (mode) {
         args.push(mode);
@@ -13,4 +13,4 @@ export function transformArguments(mode?: FailoverModes): Array<string> {
     return args;
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): 'OK';

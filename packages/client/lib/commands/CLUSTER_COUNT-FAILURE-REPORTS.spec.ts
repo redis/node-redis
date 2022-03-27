@@ -5,16 +5,18 @@ import { transformArguments } from './CLUSTER_COUNT-FAILURE-REPORTS';
 describe('CLUSTER COUNT-FAILURE-REPORTS', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('1'),
-            ['CLUSTER', 'COUNT-FAILURE-REPORTS', '1']
+            transformArguments('0'),
+            ['CLUSTER', 'COUNT-FAILURE-REPORTS', '0']
         );
     });
 
     testUtils.testWithCluster('clusterNode.clusterCountFailureReports', async cluster => {
-        const id: string = await cluster.getSlotMaster(0).client.clusterMyId();
+        const { client } = cluster.getSlotMaster(0);
         assert.equal(
-            await cluster.getSlotMaster(0).client.clusterCountFailureReports(id),
-            0
+            typeof await client.clusterCountFailureReports(
+                await client.clusterMyId()
+            ),
+            'number'
         );
     }, GLOBAL.CLUSTERS.OPEN);
 });

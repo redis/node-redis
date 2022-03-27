@@ -9,6 +9,7 @@ describe('CLUSTER FAILOVER', () => {
                 ['CLUSTER', 'FAILOVER']
             );
         });
+        
         it('with mode', () => {
             assert.deepEqual(
                 transformArguments(FailoverModes.FORCE),

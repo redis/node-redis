@@ -11,9 +11,9 @@ describe('CLUSTER MYID', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterMyId', async cluster => {
-        assert.notEqual(
-            await cluster.getSlotMaster(0).client.clusterMyId(),
-            null
+        assert.equal(
+            typeof await cluster.getSlotMaster(0).client.clusterMyId(),
+            'string'
         );
     }, GLOBAL.CLUSTERS.OPEN);
 });

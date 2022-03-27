@@ -322,6 +322,21 @@ export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCo
     return args;
 }
 
+export function pushVerdictNumberArguments(
+    args: RedisCommandArguments,
+    value: number | Array<number>
+): RedisCommandArguments  {
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            args.push(item.toString());
+        }
+    } else {
+        args.push(value.toString());
+    }
+
+    return args;
+}
+
 export function pushVerdictArgument(
     args: RedisCommandArguments,
     value: RedisCommandArgument | Array<RedisCommandArgument>

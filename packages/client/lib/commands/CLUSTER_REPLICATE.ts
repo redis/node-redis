@@ -1,5 +1,5 @@
 export function transformArguments(nodeId: string): Array<string> {
-    return  ['CLUSTER', 'REPLICATE', nodeId];
+    return ['CLUSTER', 'REPLICATE', nodeId];
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): 'OK';

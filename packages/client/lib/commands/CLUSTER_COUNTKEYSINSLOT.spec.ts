@@ -5,14 +5,14 @@ import { transformArguments } from './CLUSTER_COUNTKEYSINSLOT';
 describe('CLUSTER COUNTKEYSINSLOT', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments(1),
-            ['CLUSTER', 'COUNTKEYSINSLOT', '1']
+            transformArguments(0),
+            ['CLUSTER', 'COUNTKEYSINSLOT', '0']
         );
     });
 
-    testUtils.testWithCluster('clusterNode.clusterInfo', async cluster => {
+    testUtils.testWithCluster('clusterNode.clusterCountKeysInSlot', async cluster => {
         assert.equal(
-            typeof await cluster.getSlotMaster(0).client.clusterCountKeysInSlot(1),
+            typeof await cluster.getSlotMaster(0).client.clusterCountKeysInSlot(0),
             'number'
         );
     }, GLOBAL.CLUSTERS.OPEN);
