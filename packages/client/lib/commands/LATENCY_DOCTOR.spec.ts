@@ -10,7 +10,7 @@ describe('LATENCY DOCTOR', () => {
         );
     });
 
-    testUtils.testWithClient('client.latencyLatest', async client => {
+    testUtils.testWithClient('client.latencyDoctor', async client => {
         assert.equal(
             typeof (await client.latencyDoctor()),
             'string'
