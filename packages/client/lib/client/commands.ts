@@ -84,6 +84,7 @@ import * as SWAPDB from '../commands/SWAPDB';
 import * as TIME from '../commands/TIME';
 import * as UNWATCH from '../commands/UNWATCH';
 import * as WAIT from '../commands/WAIT';
+import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
 
 export default {
     ...CLUSTER_COMMANDS,
@@ -193,6 +194,8 @@ export default {
     keys: KEYS,
     LASTSAVE,
     lastSave: LASTSAVE,
+    LATENCY_DOCTOR,
+    latencyDoctor: LATENCY_DOCTOR,
     LOLWUT,
     lolwut: LOLWUT,
     MEMOERY_DOCTOR,
