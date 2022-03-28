@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './COMMAND_GETKEYSANDFLAGS';
 
 describe('COMMAND GETKEYSANDFLAGS', () => {
+    testUtils.isVersionGreaterThanHook([7, 0]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(['GET', 'key']),
@@ -10,8 +12,6 @@ describe('COMMAND GETKEYSANDFLAGS', () => {
         );
     });
 
-    testUtils.isVersionGreaterThanHook([7, 0]);
-    
     testUtils.testWithClient('client.commandGetKeysAndFlags', async client => {
         assert.deepEqual(
             await client.commandGetKeysAndFlags(['GET', 'key']),

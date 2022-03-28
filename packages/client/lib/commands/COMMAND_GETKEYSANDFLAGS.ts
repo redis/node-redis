@@ -6,20 +6,19 @@ export function transformArguments(args: Array<RedisCommandArgument>): RedisComm
     return ['COMMAND', 'GETKEYSANDFLAGS', ...args];
 }
 
-type KeysAndFlagsRawReply = [RedisCommandArgument, RedisCommandArguments];
+type KeysAndFlagsRawReply = Array<[
+    RedisCommandArgument,
+    RedisCommandArguments
+]>;
 
-type KeysAndFlagsReply = {
+type KeysAndFlagsReply = Array<{
     key: RedisCommandArgument;
     flags: RedisCommandArguments;
-};
+}>;
 
-export function transformReply(reply: Array<KeysAndFlagsRawReply>): Array<KeysAndFlagsReply> {
-    return reply.map(KeyAndFlags => {
-        return {
-            // key: String(KeyAndFlags[0]),
-            // flags: KeyAndFlags[1].map(String)
-            key: KeyAndFlags[0],
-            flags: KeyAndFlags[1]
-        };
-    });
+export function transformReply(reply: KeysAndFlagsRawReply): KeysAndFlagsReply {
+    return reply.map(([key, flags]) => ({
+        key,
+        flags
+    }));
 }
