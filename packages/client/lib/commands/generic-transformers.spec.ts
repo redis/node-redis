@@ -19,6 +19,7 @@ import {
     transformPXAT,
     pushEvalArguments,
     pushVerdictArguments,
+    pushVerdictNumberArguments,
     pushVerdictArgument,
     pushOptionalVerdictArgument,
     transformCommandReply,
@@ -575,6 +576,22 @@ describe('Generic Transformers', () => {
             assert.deepEqual(
                 pushVerdictArguments([], ['1', '2']),
                 ['1', '2']
+            );
+        });
+    });
+
+    describe('pushVerdictNumberArguments', () => {
+        it('number', () => {
+            assert.deepEqual(
+                pushVerdictNumberArguments([], 0),
+                ['0']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                pushVerdictNumberArguments([], [0, 1]),
+                ['0', '1']
             );
         });
     });

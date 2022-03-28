@@ -24,13 +24,26 @@ import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from '../commands/CLUSTER_ADDSLOTS';
 import * as CLUSTER_ADDSLOTSRANGE from '../commands/CLUSTER_ADDSLOTSRANGE';
+import * as CLUSTER_BUMPEPOCH from '../commands/CLUSTER_BUMPEPOCH';
+import * as CLUSTER_COUNT_FAILURE_REPORTS from '../commands/CLUSTER_COUNT-FAILURE-REPORTS';
+import * as CLUSTER_COUNTKEYSINSLOT from '../commands/CLUSTER_COUNTKEYSINSLOT';
+import * as CLUSTER_DELSLOTS from '../commands/CLUSTER_DELSLOTS';
 import * as CLUSTER_DELSLOTSRANGE from '../commands/CLUSTER_DELSLOTSRANGE';
+import * as CLUSTER_FAILOVER from '../commands/CLUSTER_FAILOVER';
 import * as CLUSTER_FLUSHSLOTS from '../commands/CLUSTER_FLUSHSLOTS';
+import * as CLUSTER_FORGET from '../commands/CLUSTER_FORGET';
+import * as CLUSTER_GETKEYSINSLOT from '../commands/CLUSTER_GETKEYSINSLOT';
 import * as CLUSTER_INFO from '../commands/CLUSTER_INFO';
+import * as CLUSTER_KEYSLOT from '../commands/CLUSTER_KEYSLOT';
 import * as CLUSTER_LINKS from '../commands/CLUSTER_LINKS';
-import * as CLUSTER_NODES from '../commands/CLUSTER_NODES';
 import * as CLUSTER_MEET from '../commands/CLUSTER_MEET';
+import * as CLUSTER_MYID from '../commands/CLUSTER_MYID';
+import * as CLUSTER_NODES from '../commands/CLUSTER_NODES';
+import * as CLUSTER_REPLICAS from '../commands/CLUSTER_REPLICAS';
+import * as CLUSTER_REPLICATE from '../commands/CLUSTER_REPLICATE';
 import * as CLUSTER_RESET from '../commands/CLUSTER_RESET';
+import * as CLUSTER_SAVECONFIG from '../commands/CLUSTER_SAVECONFIG';
+import * as CLUSTER_SET_CONFIG_EPOCH from '../commands/CLUSTER_SET-CONFIG-EPOCH';
 import * as CLUSTER_SETSLOT from '../commands/CLUSTER_SETSLOT';
 import * as CLUSTER_SLOTS from '../commands/CLUSTER_SLOTS';
 import * as COMMAND_COUNT from '../commands/COMMAND_COUNT';
@@ -138,20 +151,46 @@ export default {
     clusterAddSlots: CLUSTER_ADDSLOTS,
     CLUSTER_ADDSLOTSRANGE,
     clusterAddSlotsRange: CLUSTER_ADDSLOTSRANGE,
+    CLUSTER_BUMPEPOCH,
+    clusterBumpEpoch: CLUSTER_BUMPEPOCH,
+    CLUSTER_COUNT_FAILURE_REPORTS,
+    clusterCountFailureReports: CLUSTER_COUNT_FAILURE_REPORTS,
+    CLUSTER_COUNTKEYSINSLOT,
+    clusterCountKeysInSlot: CLUSTER_COUNTKEYSINSLOT,
+    CLUSTER_DELSLOTS,
+    clusterDelSlots: CLUSTER_DELSLOTS,
     CLUSTER_DELSLOTSRANGE,
     clusterDelSlotsRange: CLUSTER_DELSLOTSRANGE,
+    CLUSTER_FAILOVER,
+    clusterFailover: CLUSTER_FAILOVER,
     CLUSTER_FLUSHSLOTS,
     clusterFlushSlots: CLUSTER_FLUSHSLOTS,
+    CLUSTER_FORGET,
+    clusterForget: CLUSTER_FORGET,
+    CLUSTER_GETKEYSINSLOT,
+    clusterGetKeysInSlot: CLUSTER_GETKEYSINSLOT,
     CLUSTER_INFO,
     clusterInfo: CLUSTER_INFO,
+    CLUSTER_KEYSLOT,
+    clusterKeySlot: CLUSTER_KEYSLOT,
     CLUSTER_LINKS,
     clusterLinks: CLUSTER_LINKS,
-    CLUSTER_NODES,
-    clusterNodes: CLUSTER_NODES,
     CLUSTER_MEET,
     clusterMeet: CLUSTER_MEET,
+    CLUSTER_MYID,
+    clusterMyId: CLUSTER_MYID,
+    CLUSTER_NODES,
+    clusterNodes: CLUSTER_NODES,
+    CLUSTER_REPLICAS,
+    clusterReplicas: CLUSTER_REPLICAS,
+    CLUSTER_REPLICATE,
+    clusterReplicate: CLUSTER_REPLICATE,
     CLUSTER_RESET,
     clusterReset: CLUSTER_RESET,
+    CLUSTER_SAVECONFIG,
+    clusterSaveConfig: CLUSTER_SAVECONFIG,
+    CLUSTER_SET_CONFIG_EPOCH,
+    clusterSetConfigEpoch: CLUSTER_SET_CONFIG_EPOCH,
     CLUSTER_SETSLOT,
     clusterSetSlot: CLUSTER_SETSLOT,
     CLUSTER_SLOTS,

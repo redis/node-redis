@@ -1,5 +1,5 @@
 export function transformArguments(): Array<string> {
-    return ['CLUSTER', 'FLUSHSLOTS'];
+    return  ['CLUSTER', 'SAVECONFIG'];
 }
 
 export declare function transformReply(): 'OK';

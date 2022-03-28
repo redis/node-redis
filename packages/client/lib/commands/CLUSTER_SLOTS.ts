@@ -6,7 +6,12 @@ export function transformArguments(): RedisCommandArguments {
 
 type ClusterSlotsRawNode = [ip: string, port: number, id: string];
 
-type ClusterSlotsRawReply = Array<[from: number, to: number, master: ClusterSlotsRawNode, ...replicas: Array<ClusterSlotsRawNode>]>;
+type ClusterSlotsRawReply = Array<[
+    from: number,
+    to: number,
+    master: ClusterSlotsRawNode,
+    ...replicas: Array<ClusterSlotsRawNode>
+]>;
 
 type ClusterSlotsNode = {
     ip: string;

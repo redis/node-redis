@@ -1,19 +1,19 @@
 import { strict as assert } from 'assert';
-import { transformArguments } from './CLUSTER_RESET';
+import { FailoverModes, transformArguments } from './CLUSTER_FAILOVER';
 
-describe('CLUSTER RESET', () => {
+describe('CLUSTER FAILOVER', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
                 transformArguments(),
-                ['CLUSTER', 'RESET']
+                ['CLUSTER', 'FAILOVER']
             );
         });
-
+        
         it('with mode', () => {
             assert.deepEqual(
-                transformArguments('HARD'),
-                ['CLUSTER', 'RESET', 'HARD']
+                transformArguments(FailoverModes.FORCE),
+                ['CLUSTER', 'FAILOVER', 'FORCE']
             );
         });
     });
