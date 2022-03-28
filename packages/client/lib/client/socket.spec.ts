@@ -6,7 +6,7 @@ describe('Socket', () => {
     describe('reconnectStrategy', () => {
         let clock: SinonFakeTimers;
         beforeEach(() => clock = useFakeTimers());
-        afterEach(() => clock.uninstall());
+        afterEach(() => clock.restore());
 
         it('custom strategy', () => {
             const reconnectStrategy = spy((retries: number): number | Error => {

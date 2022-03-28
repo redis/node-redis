@@ -23,8 +23,11 @@ import * as CLIENT_KILL from '../commands/CLIENT_KILL';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from '../commands/CLUSTER_ADDSLOTS';
+import * as CLUSTER_ADDSLOTSRANGE from '../commands/CLUSTER_ADDSLOTSRANGE';
+import * as CLUSTER_DELSLOTSRANGE from '../commands/CLUSTER_DELSLOTSRANGE';
 import * as CLUSTER_FLUSHSLOTS from '../commands/CLUSTER_FLUSHSLOTS';
 import * as CLUSTER_INFO from '../commands/CLUSTER_INFO';
+import * as CLUSTER_LINKS from '../commands/CLUSTER_LINKS';
 import * as CLUSTER_NODES from '../commands/CLUSTER_NODES';
 import * as CLUSTER_MEET from '../commands/CLUSTER_MEET';
 import * as CLUSTER_RESET from '../commands/CLUSTER_RESET';
@@ -81,6 +84,7 @@ import * as SWAPDB from '../commands/SWAPDB';
 import * as TIME from '../commands/TIME';
 import * as UNWATCH from '../commands/UNWATCH';
 import * as WAIT from '../commands/WAIT';
+import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
 
 export default {
     ...CLUSTER_COMMANDS,
@@ -132,10 +136,16 @@ export default {
     clientInfo: CLIENT_INFO,
     CLUSTER_ADDSLOTS,
     clusterAddSlots: CLUSTER_ADDSLOTS,
+    CLUSTER_ADDSLOTSRANGE,
+    clusterAddSlotsRange: CLUSTER_ADDSLOTSRANGE,
+    CLUSTER_DELSLOTSRANGE,
+    clusterDelSlotsRange: CLUSTER_DELSLOTSRANGE,
     CLUSTER_FLUSHSLOTS,
     clusterFlushSlots: CLUSTER_FLUSHSLOTS,
     CLUSTER_INFO,
     clusterInfo: CLUSTER_INFO,
+    CLUSTER_LINKS,
+    clusterLinks: CLUSTER_LINKS,
     CLUSTER_NODES,
     clusterNodes: CLUSTER_NODES,
     CLUSTER_MEET,
@@ -184,6 +194,8 @@ export default {
     keys: KEYS,
     LASTSAVE,
     lastSave: LASTSAVE,
+    LATENCY_DOCTOR,
+    latencyDoctor: LATENCY_DOCTOR,
     LOLWUT,
     lolwut: LOLWUT,
     MEMOERY_DOCTOR,

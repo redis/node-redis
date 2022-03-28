@@ -466,3 +466,33 @@ export function pushSortArguments(
 
     return args;
 }
+
+export interface SlotRange {
+    start: number;
+    end: number;
+}
+
+function pushSlotRangeArguments(
+    args: RedisCommandArguments,
+    range: SlotRange
+): void {
+    args.push(
+        range.start.toString(),
+        range.end.toString()
+    );
+}
+
+export function pushSlotRangesArguments(
+    args: RedisCommandArguments,
+    ranges: SlotRange | Array<SlotRange>
+): RedisCommandArguments {
+    if (Array.isArray(ranges)) {
+        for (const range of ranges) {
+            pushSlotRangeArguments(args, range);
+        }
+    } else {
+        pushSlotRangeArguments(args, ranges);
+    }
+
+    return args;
+}

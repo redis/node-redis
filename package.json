@@ -33,8 +33,8 @@
   "devDependencies": {
     "@tsconfig/node12": "^1.0.9",
     "gh-pages": "^3.2.3",
-    "release-it": "^14.12.1",
-    "typescript": "^4.5.4"
+    "release-it": "^14.13.1",
+    "typescript": "^4.6.3"
   },
   "repository": {
     "type": "git",
