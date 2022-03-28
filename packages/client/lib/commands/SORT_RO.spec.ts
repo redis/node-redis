@@ -1,13 +1,15 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SORT';
+import { transformArguments } from './SORT_RO';
 
-describe('SORT', () => {
+describe('SORT_RO', () => {
+    testUtils.isVersionGreaterThanHook([7, 0]);
+
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
                 transformArguments('key'),
-                ['SORT', 'key']
+                ['SORT_RO', 'key']
             );
         });
 
@@ -16,7 +18,7 @@ describe('SORT', () => {
                 transformArguments('key', {
                     BY: 'pattern'
                 }),
-                ['SORT', 'key', 'BY', 'pattern']
+                ['SORT_RO', 'key', 'BY', 'pattern']
             );
         });
 
@@ -28,7 +30,7 @@ describe('SORT', () => {
                         count: 1
                     }
                 }),
-                ['SORT', 'key', 'LIMIT', '0', '1']
+                ['SORT_RO', 'key', 'LIMIT', '0', '1']
             );
         });
 
@@ -38,7 +40,7 @@ describe('SORT', () => {
                     transformArguments('key', {
                         GET: 'pattern'
                     }),
-                    ['SORT', 'key', 'GET', 'pattern']
+                    ['SORT_RO', 'key', 'GET', 'pattern']
                 );
             });
 
@@ -47,7 +49,7 @@ describe('SORT', () => {
                     transformArguments('key', {
                         GET: ['1', '2']
                     }),
-                    ['SORT', 'key', 'GET', '1', 'GET', '2']
+                    ['SORT_RO', 'key', 'GET', '1', 'GET', '2']
                 );
             });
         });
@@ -57,7 +59,7 @@ describe('SORT', () => {
                 transformArguments('key', {
                     DIRECTION: 'ASC'
                 }),
-                ['SORT', 'key', 'ASC']
+                ['SORT_RO', 'key', 'ASC']
             );
         });
 
@@ -66,7 +68,7 @@ describe('SORT', () => {
                 transformArguments('key', {
                     ALPHA: true
                 }),
-                ['SORT', 'key', 'ALPHA']
+                ['SORT_RO', 'key', 'ALPHA']
             );
         });
 
@@ -80,16 +82,16 @@ describe('SORT', () => {
                     },
                     GET: 'pattern',
                     DIRECTION: 'ASC',
-                    ALPHA: true
+                    ALPHA: true,
                 }),
-                ['SORT', 'key', 'BY', 'pattern', 'LIMIT', '0', '1', 'GET', 'pattern', 'ASC', 'ALPHA']
+                ['SORT_RO', 'key', 'BY', 'pattern', 'LIMIT', '0', '1', 'GET', 'pattern', 'ASC', 'ALPHA']
             );
         });
     });
 
-    testUtils.testWithClient('client.sort', async client => {
+    testUtils.testWithClient('client.sortRo', async client => {
         assert.deepEqual(
-            await client.sort('key'),
+            await client.sortRo('key'),
             []
         );
     }, GLOBAL.SERVERS.OPEN);
