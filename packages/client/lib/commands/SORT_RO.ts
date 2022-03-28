@@ -1,15 +1,15 @@
-import { pushSortReadOnlyArgs, SortReadOnlyOptions } from "./generic-transformers";
+import { RedisCommandArguments } from '.';
+import { pushSortArguments, SortOptions } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(key: string, options?: SortReadOnlyOptions): Array<string> {
-    const args = ['SORT_RO', key];
-
-    pushSortReadOnlyArgs(args, options);
-
-    return args;
+export function transformArguments(
+    key: string,
+    options?: SortOptions
+): RedisCommandArguments {
+    return pushSortArguments(['SORT_RO', key], options);
 }
 
 export declare function transformReply(): Array<string>;

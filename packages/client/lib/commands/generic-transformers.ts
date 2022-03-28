@@ -423,7 +423,7 @@ export function transformCommandReply(
     };
 }
 
-export interface SortReadOnlyOptions {
+export interface SortOptions {
     BY?: string;
     LIMIT?: {
         offset: number;
@@ -434,7 +434,10 @@ export interface SortReadOnlyOptions {
     ALPHA?: true;
 }
 
-export function pushSortReadOnlyArgs(args: Array<string>, options?: SortReadOnlyOptions) {
+export function pushSortArguments(
+    args: RedisCommandArguments,
+    options?: SortOptions
+): RedisCommandArguments {
     if (options?.BY) {
         args.push('BY', options.BY);
     }
@@ -460,4 +463,6 @@ export function pushSortReadOnlyArgs(args: Array<string>, options?: SortReadOnly
     if (options?.ALPHA) {
         args.push('ALPHA');
     }
+
+    return args;
 }
