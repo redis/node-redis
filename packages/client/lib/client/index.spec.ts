@@ -477,8 +477,11 @@ describe('Client', () => {
         assert.ok(id !== isolatedId);
     }, GLOBAL.SERVERS.OPEN);
 
-    async function killClient<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
-        const onceErrorPromise = once(client, 'error');
+    async function killClient<M extends RedisModules, S extends RedisScripts>(
+        client: RedisClientType<M, S>,
+        errorClient: RedisClientType<M, S> = client
+    ): Promise<void> {
+        const onceErrorPromise = once(errorClient, 'error');
         await client.sendCommand(['QUIT']);
         await Promise.all([
             onceErrorPromise,
@@ -502,6 +505,10 @@ describe('Client', () => {
         ...GLOBAL.SERVERS.OPEN,
         minimumDockerVersion: [6, 2] // CLIENT INFO
     });
+
+    testUtils.testWithClient('should propagated errors from "isolated" clients', client => {
+        return client.executeIsolated(isolated => killClient(isolated, client));
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('scanIterator', async client => {
         const promises = [],

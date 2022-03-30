@@ -189,7 +189,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             create: async () => {
                 const duplicate = this.duplicate({
                     isolationPoolOptions: undefined
-                });
+                }).on('error', err => this.emit('error', err));
                 await duplicate.connect();
                 return duplicate;
             },
