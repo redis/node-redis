@@ -48,6 +48,7 @@ import * as CLUSTER_SETSLOT from '../commands/CLUSTER_SETSLOT';
 import * as CLUSTER_SLOTS from '../commands/CLUSTER_SLOTS';
 import * as COMMAND_COUNT from '../commands/COMMAND_COUNT';
 import * as COMMAND_GETKEYS from '../commands/COMMAND_GETKEYS';
+import * as COMMAND_GETKEYSANDFLAGS from '../commands/COMMAND_GETKEYSANDFLAGS';
 import * as COMMAND_INFO from '../commands/COMMAND_INFO';
 import * as COMMAND_LIST from '../commands/COMMAND_LIST';
 import * as COMMAND from '../commands/COMMAND';
@@ -199,6 +200,8 @@ export default {
     commandCount: COMMAND_COUNT,
     COMMAND_GETKEYS,
     commandGetKeys: COMMAND_GETKEYS,
+    COMMAND_GETKEYSANDFLAGS,
+    commandGetKeysAndFlags: COMMAND_GETKEYSANDFLAGS,
     COMMAND_INFO,
     commandInfo: COMMAND_INFO,
     COMMAND_LIST,
