@@ -27,49 +27,61 @@ interface ClusterTestOptions<M extends RedisModules, S extends RedisScripts> ext
     numberOfNodes?: number;
 }
 
+interface Version {
+    string: string;
+    numbers: Array<number>;
+}
+
 export default class TestUtils {
-    static #getVersion(argumentName: string, defaultVersion: string): Array<number> {
+    static #getVersion(argumentName: string, defaultVersion: string): Version {
         return yargs(hideBin(process.argv))
             .option(argumentName, {
                 type: 'string',
                 default: defaultVersion
             })
             .coerce(argumentName, (arg: string) => {
-                return arg.split('.').map(x => {
-                    const value = Number(x);
-                    if (Number.isNaN(value)) {
-                        throw new TypeError(`${arg} is not a valid redis version`);
-                    }
+                const indexOfDash = arg.indexOf('-');
+                return {
+                    string: arg,
+                    numbers: (indexOfDash === -1 ? arg : arg.substring(0, indexOfDash)).split('.').map(x => {
+                        const value = Number(x);
+                        if (Number.isNaN(value)) {
+                            throw new TypeError(`${arg} is not a valid redis version`);
+                        }
 
-                    return value;
-                });
+                        return value;
+                    })
+                };
             })
             .demandOption(argumentName)
             .parseSync()[argumentName];
     }
 
+    readonly #VERSION_NUMBERS: Array<number>;
     readonly #DOCKER_IMAGE: RedisServerDockerConfig;
 
     constructor(config: TestUtilsConfig) {
+        const { string, numbers } = TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion);
+        this.#VERSION_NUMBERS = numbers;
         this.#DOCKER_IMAGE = {
             image: config.dockerImageName,
-            version: TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion)
+            version: string
         };
     }
 
     isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {
         if (minimumVersion === undefined) return true;
 
-        const lastIndex = Math.min(this.#DOCKER_IMAGE.version.length, minimumVersion.length) - 1;
+        const lastIndex = Math.min(this.#VERSION_NUMBERS.length, minimumVersion.length) - 1;
         for (let i = 0; i < lastIndex; i++) {
-            if (this.#DOCKER_IMAGE.version[i] > minimumVersion[i]) {
+            if (this.#VERSION_NUMBERS[i] > minimumVersion[i]) {
                 return true;
-            } else if (minimumVersion[i] > this.#DOCKER_IMAGE.version[i]) {
+            } else if (minimumVersion[i] > this.#VERSION_NUMBERS[i]) {
                 return false;
             }
         }
 
-        return this.#DOCKER_IMAGE.version[lastIndex] >= minimumVersion[lastIndex];
+        return this.#VERSION_NUMBERS[lastIndex] >= minimumVersion[lastIndex];
     }
 
     isVersionGreaterThanHook(minimumVersion: Array<number> | undefined): void {
