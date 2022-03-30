@@ -439,11 +439,19 @@ describe('AGGREGATE', () => {
             assert.deepEqual(
                 transformArguments('index', '*', {
                     PARAMS: {
-                        'min': 101, 
-                        'max': 102
+                        param: 'value'
                     }
                 }),
-                ['FT.AGGREGATE', 'index', '*', 'PARAMS', '4', 'min', '101', 'max', '102']
+                ['FT.AGGREGATE', 'index', '*', 'PARAMS', '2', 'param', 'value']
+            );
+        });
+
+        it('with DIALECT', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', {
+                    DIALECT: 1
+                }),
+                ['FT.AGGREGATE', 'index', '*', 'DIALECT', '1']
             );
         });
     });

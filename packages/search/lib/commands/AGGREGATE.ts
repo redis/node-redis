@@ -123,6 +123,7 @@ export interface AggregateOptions {
     LOAD?: LoadField | Array<LoadField>;
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
     PARAMS?: Params;
+    DIALECT?: number;
 }
 
 export function transformArguments(
@@ -130,17 +131,16 @@ export function transformArguments(
     query: string,
     options?: AggregateOptions
 ): RedisCommandArguments {
-
-    const args = ['FT.AGGREGATE', index, query];
-    pushAggregatehOptions(args, options);
-    return args;
+    return pushAggregatehOptions(
+        ['FT.AGGREGATE', index, query],
+        options
+    );
 }
 
 export function pushAggregatehOptions(
     args: RedisCommandArguments,
     options?: AggregateOptions
 ): RedisCommandArguments {
-
     if (options?.VERBATIM) {
         args.push('VERBATIM');
     }
@@ -203,8 +203,10 @@ export function pushAggregatehOptions(
         }
     }
 
-    if (options?.PARAMS) {
-        pushParamsArgs(args, options.PARAMS);
+    pushParamsArgs(args, options?.PARAMS);
+
+    if (options?.DIALECT) {
+        args.push('DIALECT', options.DIALECT.toString());
     }
 
     return args;
@@ -262,7 +264,6 @@ function pushGroupByReducer(args: RedisCommandArguments, reducer: GroupByReducer
                     }
                 }
             });
-
             break;
         }
 

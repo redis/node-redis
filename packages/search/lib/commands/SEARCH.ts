@@ -55,6 +55,7 @@ export interface SearchOptions {
         size: number | string;
     };
     PARAMS?: Params;
+    DIALECT?: number;
 }
 
 export function transformArguments(
@@ -62,9 +63,10 @@ export function transformArguments(
     query: string,
     options?: SearchOptions
 ): RedisCommandArguments {
-    const args: RedisCommandArguments = ['FT.SEARCH', index, query];
-    pushSearchOptions(args, options);
-    return args;
+    return pushSearchOptions(
+        ['FT.SEARCH', index, query],
+        options
+    );
 }
 
 export type SearchRawReply = Array<any>;

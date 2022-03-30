@@ -28,7 +28,7 @@ import * as SUGLEN from './SUGLEN';
 import * as SYNDUMP from './SYNDUMP';
 import * as SYNUPDATE from './SYNUPDATE';
 import * as TAGVALS from './TAGVALS';
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushOptionalVerdictArgument, pushVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
 import { SearchOptions } from './SEARCH';
 
@@ -177,7 +177,7 @@ export enum SchemaFieldTypes {
 }
 
 type CreateSchemaField<
-    T extends SchemaFieldTypes, 
+    T extends SchemaFieldTypes,
     E = Record<keyof any, any>
 > = T | ({
     type: T;
@@ -185,7 +185,7 @@ type CreateSchemaField<
 } & E);
 
 type CreateSchemaCommonField<
-    T extends SchemaFieldTypes, 
+    T extends SchemaFieldTypes,
     E = Record<string, never>
 > = CreateSchemaField<
     T,
@@ -223,7 +223,7 @@ export enum VectorAlgo {
 }
 
 type CreateSchemaVectorField<
-    T extends VectorAlgo, 
+    T extends VectorAlgo,
     A extends Record<string, unknown>
 > = CreateSchemaField<SchemaFieldTypes.VECTOR, {
     ALGORITHM: T;
@@ -311,15 +311,13 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
             case SchemaFieldTypes.VECTOR:
                 args.push(fieldOptions.ALGORITHM);
 
-                switch(fieldOptions.ALGORITHM) {
+                switch (fieldOptions.ALGORITHM) {
                     case VectorAlgo.FLAT:
                         pushFlatAlgoAttr(args, fieldOptions.ATTRIBUTES);
-
                         break;
 
                     case VectorAlgo.HNSW:
                         pushHNSWAlgoAttr(args, fieldOptions.ATTRIBUTES);
-
                         break;
                 }
 
@@ -341,76 +339,65 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
 }
 
 function pushFlatAlgoAttr(args: RedisCommandArguments, attr: FlatAttributes) {
-    const index = args.length;
-    args.push('');
-    
-    args.push(
-        'TYPE', attr.TYPE, 
-        'DIM', attr.DIM.toString(),
-        'DISTANCE_METRIC', attr.DISTANCE_METRIC
-    );
+    pushArgumentsWithLength(args, () => {
+        args.push(
+            'TYPE', attr.TYPE,
+            'DIM', attr.DIM.toString(),
+            'DISTANCE_METRIC', attr.DISTANCE_METRIC
+        );
 
-    let i = 3;
-    if (attr?.INITIAL_CAP) {
-        i++;
-        args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
-    }
+        if (attr.INITIAL_CAP) {
+            args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
+        }
 
-    if (attr?.BLOCK_SIZE) {
-        i++;
-        args.push('BLOCK_SIZE', attr.BLOCK_SIZE.toString());
-    }
-
-    args[index] = (i*2).toString(); 
+        if (attr.BLOCK_SIZE) {
+            args.push('BLOCK_SIZE', attr.BLOCK_SIZE.toString());
+        }
+    });
 }
 
 function pushHNSWAlgoAttr(args: RedisCommandArguments, attr: HNSWAttributes) {
-    const index = args.length;
-    args.push('');
+    pushArgumentsWithLength(args, () => {
+        args.push(
+            'TYPE', attr.TYPE,
+            'DIM', attr.DIM.toString(),
+            'DISTANCE_METRIC', attr.DISTANCE_METRIC
+        );
 
-    args.push(
-        'TYPE', attr.TYPE, 
-        'DIM', attr.DIM.toString(),
-        'DISTANCE_METRIC', attr.DISTANCE_METRIC
-    );
+        if (attr.INITIAL_CAP) {
+            args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
+        }
 
-    let i = 3;
-    if (attr?.INITIAL_CAP) {
-        i++;
-        args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
-    }
+        if (attr.M) {
+            args.push('M', attr.M.toString());
+        }
 
-    if (attr?.M) {
-        i++;
-        args.push('M', attr.M.toString());
-    }
+        if (attr.EF_CONSTRUCTION) {
+            args.push('EF_CONSTRUCTION', attr.EF_CONSTRUCTION.toString());
+        }
 
-    if (attr?.EF_CONSTRUCTION) {
-        i++;
-        args.push('EF_CONSTRUCTION', attr.EF_CONSTRUCTION.toString());
-    }
-
-    if (attr?.EF_RUNTIME) {
-        i++;
-        args.push('EF_RUNTIME', attr.EF_RUNTIME.toString());
-    }
-
-    args[index] = (i*2).toString(); 
+        if (attr.EF_RUNTIME) {
+            args.push('EF_RUNTIME', attr.EF_RUNTIME.toString());
+        }
+    });
 }
 
-export type Params = { [key: string]: string|number };
+export type Params = {
+    [key: string]: RedisCommandArgument | number;
+};
 
 export function pushParamsArgs(
     args: RedisCommandArguments,
     params?: Params
 ): RedisCommandArguments {
     if (params) {
-        args.push('PARAMS');
-        args.push((Object.entries(params).length * 2).toString());
-        for (const [key, value] of Object.entries(params)) {
+        const enrties = Object.entries(params);
+        args.push('PARAMS', (enrties.length * 2).toString());
+        for (const [key, value] of enrties) {
             args.push(key, value.toString());
         }
     }
+
     return args;
 }
 
@@ -418,7 +405,6 @@ export function pushSearchOptions(
     args: RedisCommandArguments,
     options?: SearchOptions
 ): RedisCommandArguments {
-
     if (options?.VERBATIM) {
         args.push('VERBATIM');
     }
@@ -524,6 +510,10 @@ export function pushSearchOptions(
 
     if (options?.PARAMS) {
         pushParamsArgs(args, options.PARAMS);
+    }
+
+    if (options?.DIALECT) {
+        args.push('DIALECT', options.DIALECT.toString());
     }
 
     return args;
