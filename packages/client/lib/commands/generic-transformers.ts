@@ -322,6 +322,21 @@ export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCo
     return args;
 }
 
+export function pushVerdictNumberArguments(
+    args: RedisCommandArguments,
+    value: number | Array<number>
+): RedisCommandArguments  {
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            args.push(item.toString());
+        }
+    } else {
+        args.push(value.toString());
+    }
+
+    return args;
+}
+
 export function pushVerdictArgument(
     args: RedisCommandArguments,
     value: RedisCommandArgument | Array<RedisCommandArgument>
@@ -421,4 +436,78 @@ export function transformCommandReply(
         step,
         categories: new Set(categories)
     };
+}
+
+export interface SortOptions {
+    BY?: string;
+    LIMIT?: {
+        offset: number;
+        count: number;
+    },
+    GET?: string | Array<string>;
+    DIRECTION?: 'ASC' | 'DESC';
+    ALPHA?: true;
+}
+
+export function pushSortArguments(
+    args: RedisCommandArguments,
+    options?: SortOptions
+): RedisCommandArguments {
+    if (options?.BY) {
+        args.push('BY', options.BY);
+    }
+
+    if (options?.LIMIT) {
+        args.push(
+            'LIMIT',
+            options.LIMIT.offset.toString(),
+            options.LIMIT.count.toString()
+        );
+    }
+
+    if (options?.GET) {
+        for (const pattern of (typeof options.GET === 'string' ? [options.GET] : options.GET)) {
+            args.push('GET', pattern);
+        }
+    }
+
+    if (options?.DIRECTION) {
+        args.push(options.DIRECTION);
+    }
+
+    if (options?.ALPHA) {
+        args.push('ALPHA');
+    }
+
+    return args;
+}
+
+export interface SlotRange {
+    start: number;
+    end: number;
+}
+
+function pushSlotRangeArguments(
+    args: RedisCommandArguments,
+    range: SlotRange
+): void {
+    args.push(
+        range.start.toString(),
+        range.end.toString()
+    );
+}
+
+export function pushSlotRangesArguments(
+    args: RedisCommandArguments,
+    ranges: SlotRange | Array<SlotRange>
+): RedisCommandArguments {
+    if (Array.isArray(ranges)) {
+        for (const range of ranges) {
+            pushSlotRangeArguments(args, range);
+        }
+    } else {
+        pushSlotRangeArguments(args, ranges);
+    }
+
+    return args;
 }

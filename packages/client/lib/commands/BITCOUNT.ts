@@ -7,6 +7,7 @@ export const IS_READ_ONLY = true;
 interface BitCountRange {
     start: number;
     end: number;
+    mode?: 'BYTE' | 'BIT';
 }
 
 export function transformArguments(
@@ -20,6 +21,10 @@ export function transformArguments(
             range.start.toString(),
             range.end.toString()
         );
+
+        if (range?.mode) {
+            args.push(range.mode);
+        }
     }
 
     return args;

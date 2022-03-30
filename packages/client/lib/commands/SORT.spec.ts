@@ -70,16 +70,7 @@ describe('SORT', () => {
             );
         });
 
-        it('with STORE', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    STORE: 'destination'
-                }),
-                ['SORT', 'key', 'STORE', 'destination']
-            );
-        });
-
-        it('with BY, LIMIT, GET, DIRECTION, ALPHA, STORE', () => {
+        it('with BY, LIMIT, GET, DIRECTION, ALPHA', () => {
             assert.deepEqual(
                 transformArguments('key', {
                     BY: 'pattern',
@@ -89,10 +80,9 @@ describe('SORT', () => {
                     },
                     GET: 'pattern',
                     DIRECTION: 'ASC',
-                    ALPHA: true,
-                    STORE: 'destination'
+                    ALPHA: true
                 }),
-                ['SORT', 'key', 'BY', 'pattern', 'LIMIT', '0', '1', 'GET', 'pattern', 'ASC', 'ALPHA', 'STORE', 'destination']
+                ['SORT', 'key', 'BY', 'pattern', 'LIMIT', '0', '1', 'GET', 'pattern', 'ASC', 'ALPHA']
             );
         });
     });

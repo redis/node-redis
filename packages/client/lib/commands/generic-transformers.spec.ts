@@ -19,11 +19,13 @@ import {
     transformPXAT,
     pushEvalArguments,
     pushVerdictArguments,
+    pushVerdictNumberArguments,
     pushVerdictArgument,
     pushOptionalVerdictArgument,
     transformCommandReply,
     CommandFlags,
-    CommandCategories
+    CommandCategories,
+    pushSlotRangesArguments
 } from './generic-transformers';
 
 describe('Generic Transformers', () => {
@@ -578,6 +580,22 @@ describe('Generic Transformers', () => {
         });
     });
 
+    describe('pushVerdictNumberArguments', () => {
+        it('number', () => {
+            assert.deepEqual(
+                pushVerdictNumberArguments([], 0),
+                ['0']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                pushVerdictNumberArguments([], [0, 1]),
+                ['0', '1']
+            );
+        });
+    });
+
     describe('pushVerdictArgument', () => {
         it('string', () => {
             assert.deepEqual(
@@ -638,5 +656,30 @@ describe('Generic Transformers', () => {
                 categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
             }
         );
+    });
+
+    describe('pushSlotRangesArguments', () => {
+        it('single range', () => {
+            assert.deepEqual(
+                pushSlotRangesArguments([], {
+                    start: 0,
+                    end: 1
+                }),
+                ['0', '1']
+            );
+        });
+
+        it('multiple ranges', () => {
+            assert.deepEqual(
+                pushSlotRangesArguments([], [{
+                    start: 0,
+                    end: 1
+                }, {
+                    start: 2,
+                    end: 3
+                }]),
+                ['0', '1', '2', '3']
+            );
+        });
     });
 });
