@@ -22,7 +22,7 @@ export function transformArguments(
             range.end.toString()
         );
 
-        if (range?.mode) {
+        if (range.mode) {
             args.push(range.mode);
         }
     }
