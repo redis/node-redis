@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CREATE';
-import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages, VectorAlgo } from '.';
+import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages, VectorAlgorithms } from '.';
 
 describe('CREATE', () => {
     describe('transformArguments', () => {
@@ -132,18 +132,16 @@ describe('CREATE', () => {
                         transformArguments('index', {
                             field: {
                                 type: SchemaFieldTypes.VECTOR,
-                                ALGORITHM: VectorAlgo.FLAT,
-                                ATTRIBUTES: {
-                                    TYPE: 'FLOAT32',
-                                    DIM: 2,
-                                    DISTANCE_METRIC: 'L2',
-                                    INITIAL_CAP: 1000000,
-                                    BLOCK_SIZE: 1000
-                                }
+                                ALGORITHM: VectorAlgorithms.FLAT,
+                                TYPE: 'FLOAT32',
+                                DIM: 2,
+                                DISTANCE_METRIC: 'L2',
+                                INITIAL_CAP: 1000000,
+                                BLOCK_SIZE: 1000
                             }
                         }),
                         [
-                            'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'FLAT', '10', 'TYPE', 
+                            'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'FLAT', '10', 'TYPE',
                             'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'INITIAL_CAP', '1000000',
                             'BLOCK_SIZE', '1000'
                         ]
@@ -155,16 +153,14 @@ describe('CREATE', () => {
                         transformArguments('index', {
                             field: {
                                 type: SchemaFieldTypes.VECTOR,
-                                ALGORITHM: VectorAlgo.HNSW,
-                                ATTRIBUTES: {
-                                    TYPE: 'FLOAT32',
-                                    DIM: 2,
-                                    DISTANCE_METRIC: 'L2',
-                                    INITIAL_CAP: 1000000,
-                                    M: 40,
-                                    EF_CONSTRUCTION: 250,
-                                    EF_RUNTIME: 20
-                                }
+                                ALGORITHM: VectorAlgorithms.HNSW,
+                                TYPE: 'FLOAT32',
+                                DIM: 2,
+                                DISTANCE_METRIC: 'L2',
+                                INITIAL_CAP: 1000000,
+                                M: 40,
+                                EF_CONSTRUCTION: 250,
+                                EF_RUNTIME: 20
                             }
                         }),
                         [

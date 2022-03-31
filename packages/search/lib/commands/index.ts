@@ -217,40 +217,31 @@ type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     CASESENSITIVE?: true;
 }>;
 
-export enum VectorAlgo {
+export enum VectorAlgorithms {
     FLAT = 'FLAT',
     HNSW = 'HNSW'
 }
 
 type CreateSchemaVectorField<
-    T extends VectorAlgo,
+    T extends VectorAlgorithms,
     A extends Record<string, unknown>
 > = CreateSchemaField<SchemaFieldTypes.VECTOR, {
     ALGORITHM: T;
-    ATTRIBUTES: A;
+    TYPE: string;
+    DIM: number;
+    DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE';
+    INITIAL_CAP?: number;
+} & A>;
+
+type CreateSchemaFlatVectorField = CreateSchemaVectorField<VectorAlgorithms.FLAT, {
+    BLOCK_SIZE?: number;
 }>;
 
-type FlatAttributes = {
-    TYPE: string,
-    DIM: number,
-    DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE',
-    INITIAL_CAP?: number,
-    BLOCK_SIZE?: number
-}
-
-type CreateSchemaFlatVectorField = CreateSchemaVectorField<VectorAlgo.FLAT, FlatAttributes>;
-
-type HNSWAttributes = {
-    TYPE: string,
-    DIM: number,
-    DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE',
-    INITIAL_CAP?: number,
-    M?: number,
-    EF_CONSTRUCTION?: number,
-    EF_RUNTIME?: number
-}
-
-type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgo.HNSW, HNSWAttributes>;
+type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgorithms.HNSW, {
+    M?: number;
+    EF_CONSTRUCTION?: number;
+    EF_RUNTIME?: number;
+}>;
 
 export interface RediSearchSchema {
     [field: string]:
@@ -311,17 +302,43 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
             case SchemaFieldTypes.VECTOR:
                 args.push(fieldOptions.ALGORITHM);
 
-                switch (fieldOptions.ALGORITHM) {
-                    case VectorAlgo.FLAT:
-                        pushFlatAlgoAttr(args, fieldOptions.ATTRIBUTES);
-                        break;
+                pushArgumentsWithLength(args, () => {
+                    args.push(
+                        'TYPE', fieldOptions.TYPE,
+                        'DIM', fieldOptions.DIM.toString(),
+                        'DISTANCE_METRIC', fieldOptions.DISTANCE_METRIC
+                    );
 
-                    case VectorAlgo.HNSW:
-                        pushHNSWAlgoAttr(args, fieldOptions.ATTRIBUTES);
-                        break;
-                }
+                    if (fieldOptions.INITIAL_CAP) {
+                        args.push('INITIAL_CAP', fieldOptions.INITIAL_CAP.toString());
+                    }
 
-                continue; // vector fileds do not contain SORTABLE and NOINDEX options
+                    switch (fieldOptions.ALGORITHM) {
+                        case VectorAlgorithms.FLAT:
+                            if (fieldOptions.BLOCK_SIZE) {
+                                args.push('BLOCK_SIZE', fieldOptions.BLOCK_SIZE.toString());
+                            }
+
+                            break;
+
+                        case VectorAlgorithms.HNSW:
+                            if (fieldOptions.M) {
+                                args.push('M', fieldOptions.M.toString());
+                            }
+
+                            if (fieldOptions.EF_CONSTRUCTION) {
+                                args.push('EF_CONSTRUCTION', fieldOptions.EF_CONSTRUCTION.toString());
+                            }
+
+                            if (fieldOptions.EF_RUNTIME) {
+                                args.push('EF_RUNTIME', fieldOptions.EF_RUNTIME.toString());
+                            }
+
+                            break;
+                    }
+                });
+
+                continue; // vector fields do not contain SORTABLE and NOINDEX options
         }
 
         if (fieldOptions.SORTABLE) {
@@ -338,53 +355,7 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
     }
 }
 
-function pushFlatAlgoAttr(args: RedisCommandArguments, attr: FlatAttributes) {
-    pushArgumentsWithLength(args, () => {
-        args.push(
-            'TYPE', attr.TYPE,
-            'DIM', attr.DIM.toString(),
-            'DISTANCE_METRIC', attr.DISTANCE_METRIC
-        );
-
-        if (attr.INITIAL_CAP) {
-            args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
-        }
-
-        if (attr.BLOCK_SIZE) {
-            args.push('BLOCK_SIZE', attr.BLOCK_SIZE.toString());
-        }
-    });
-}
-
-function pushHNSWAlgoAttr(args: RedisCommandArguments, attr: HNSWAttributes) {
-    pushArgumentsWithLength(args, () => {
-        args.push(
-            'TYPE', attr.TYPE,
-            'DIM', attr.DIM.toString(),
-            'DISTANCE_METRIC', attr.DISTANCE_METRIC
-        );
-
-        if (attr.INITIAL_CAP) {
-            args.push('INITIAL_CAP', attr.INITIAL_CAP.toString());
-        }
-
-        if (attr.M) {
-            args.push('M', attr.M.toString());
-        }
-
-        if (attr.EF_CONSTRUCTION) {
-            args.push('EF_CONSTRUCTION', attr.EF_CONSTRUCTION.toString());
-        }
-
-        if (attr.EF_RUNTIME) {
-            args.push('EF_RUNTIME', attr.EF_RUNTIME.toString());
-        }
-    });
-}
-
-export type Params = {
-    [key: string]: RedisCommandArgument | number;
-};
+export type Params = Record<string, RedisCommandArgument | number>;
 
 export function pushParamsArgs(
     args: RedisCommandArguments,
@@ -515,6 +486,8 @@ export function pushSearchOptions(
     if (options?.DIALECT) {
         args.push('DIALECT', options.DIALECT.toString());
     }
+
+    console.log('!@#', args);
 
     return args;
 }
