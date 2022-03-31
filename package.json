@@ -27,7 +27,7 @@
     "@node-redis/client": "1.0.5",
     "@node-redis/graph": "1.0.0",
     "@node-redis/json": "1.0.2",
-    "@node-redis/search": "1.0.4",
+    "@node-redis/search": "1.0.5",
     "@node-redis/time-series": "1.0.2"
   },
   "devDependencies": {
