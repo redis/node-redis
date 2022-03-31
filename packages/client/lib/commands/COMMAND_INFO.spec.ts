@@ -9,7 +9,11 @@ export function assertPingCommand(commandInfo: CommandReply | null | undefined):
         {
             name: 'ping',
             arity: -1,
-            flags: new Set([CommandFlags.STALE, CommandFlags.FAST]),
+            flags: new Set(
+                testUtils.isVersionGreaterThan([7]) ?
+                    [CommandFlags.FAST] :
+                    [CommandFlags.STALE, CommandFlags.FAST]
+            ),
             firstKeyIndex: 0,
             lastKeyIndex: 0,
             step: 0,
