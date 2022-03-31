@@ -434,6 +434,26 @@ describe('AGGREGATE', () => {
                 );
             });
         });
+
+        it('with PARAMS', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', {
+                    PARAMS: {
+                        param: 'value'
+                    }
+                }),
+                ['FT.AGGREGATE', 'index', '*', 'PARAMS', '2', 'param', 'value']
+            );
+        });
+
+        it('with DIALECT', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', {
+                    DIALECT: 1
+                }),
+                ['FT.AGGREGATE', 'index', '*', 'DIALECT', '1']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ft.aggregate', async client => {

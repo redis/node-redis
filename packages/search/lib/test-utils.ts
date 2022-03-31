@@ -4,7 +4,7 @@ import RediSearch from '.';
 export default new TestUtils({
     dockerImageName: 'redislabs/redisearch',
     dockerImageVersionArgument: 'redisearch-version',
-    defaultDockerVersion: '2.2.7'
+    defaultDockerVersion: '2.4.3'
 });
 
 export const GLOBAL = {
