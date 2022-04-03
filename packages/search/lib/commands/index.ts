@@ -487,8 +487,6 @@ export function pushSearchOptions(
         args.push('DIALECT', options.DIALECT.toString());
     }
 
-    console.log('!@#', args);
-
     return args;
 }
 
