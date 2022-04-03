@@ -1,5 +1,6 @@
 import { SearchOptions, SearchRawReply, transformReply as transformSearchReply } from './SEARCH';
 import { pushSearchOptions, ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from '.';
+import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 
 export const IS_READ_ONLY = true;
 
@@ -7,7 +8,7 @@ export function transformArguments(
     index: string,
     query: string,
     options?: ProfileOptions & SearchOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['FT.PROFILE', index, 'SEARCH'];
 
     if (options?.LIMITED) {
@@ -15,8 +16,7 @@ export function transformArguments(
     }
 
     args.push('QUERY', query);
-    pushSearchOptions(args, options)
-    return args;
+    return pushSearchOptions(args, options);
 }
 
 type ProfileSearchRawReply = ProfileRawReply<SearchRawReply>;

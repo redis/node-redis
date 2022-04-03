@@ -1,13 +1,11 @@
-export function transformArguments(slots: number | Array<number>): Array<string> {
-    const args =  ['CLUSTER', 'ADDSLOTS'];
+import { RedisCommandArguments } from '.';
+import { pushVerdictNumberArguments } from './generic-transformers';
 
-    if (typeof slots === 'number') {
-        args.push(slots.toString());
-    } else {
-        args.push(...slots.map(String));
-    }
-
-    return args;
+export function transformArguments(slots: number | Array<number>): RedisCommandArguments {
+    return pushVerdictNumberArguments(
+        ['CLUSTER', 'ADDSLOTS'],
+        slots
+    );
 }
 
 export declare function transformReply(): string;

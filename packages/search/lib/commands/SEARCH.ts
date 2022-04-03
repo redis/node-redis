@@ -1,6 +1,6 @@
 import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { transformTuplesReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { pushSearchOptions, RedisSearchLanguages, PropertyName, SortByProperty, SearchReply } from '.';
+import { pushSearchOptions, RedisSearchLanguages, Params, PropertyName, SortByProperty, SearchReply } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -54,6 +54,8 @@ export interface SearchOptions {
         from: number | string;
         size: number | string;
     };
+    PARAMS?: Params;
+    DIALECT?: number;
 }
 
 export function transformArguments(
@@ -61,9 +63,10 @@ export function transformArguments(
     query: string,
     options?: SearchOptions
 ): RedisCommandArguments {
-    const args: RedisCommandArguments = ['FT.SEARCH', index, query];
-    pushSearchOptions(args, options);
-    return args;
+    return pushSearchOptions(
+        ['FT.SEARCH', index, query],
+        options
+    );
 }
 
 export type SearchRawReply = Array<any>;

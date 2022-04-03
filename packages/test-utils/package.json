@@ -12,13 +12,13 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/mocha": "^9.1.0",
-    "@types/node": "^17.0.13",
-    "@types/yargs": "^17.0.8",
-    "mocha": "^9.2.0",
+    "@types/node": "^17.0.23",
+    "@types/yargs": "^17.0.10",
+    "mocha": "^9.2.2",
     "nyc": "^15.1.0",
     "source-map-support": "^0.5.21",
-    "ts-node": "^10.4.0",
-    "typescript": "^4.5.5",
-    "yargs": "^17.3.1"
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.3",
+    "yargs": "^17.4.0"
   }
 }

@@ -1,121 +1,118 @@
+import { RedisCommandArgument } from '@node-redis/client/dist/lib/commands';
+import { transformTuplesReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
+
 export function transformArguments(index: string): Array<string> {
     return ['FT.INFO', index];
 }
 
 type InfoRawReply = [
-    _: string,
-    indexName: string,
-    _: string,
-    indexOptions: Array<string>,
-    _: string,
-    indexDefinition: [
-        _: string,
-        keyType: string,
-        _: string,
-        prefixes: Array<string>,
-        _: string,
-        defaultScore: string
+    'index_name',
+    RedisCommandArgument,
+    'index_options',
+    Array<RedisCommandArgument>,
+    'index_definition',
+    Array<RedisCommandArgument>,
+    'attributes',
+    Array<Array<RedisCommandArgument>>,
+    'num_docs',
+    RedisCommandArgument,
+    'max_doc_id',
+    RedisCommandArgument,
+    'num_terms',
+    RedisCommandArgument,
+    'num_records',
+    RedisCommandArgument,
+    'inverted_sz_mb',
+    RedisCommandArgument,
+    'vector_index_sz_mb',
+    RedisCommandArgument,
+    'total_inverted_index_blocks',
+    RedisCommandArgument,
+    'offset_vectors_sz_mb',
+    RedisCommandArgument,
+    'doc_table_size_mb',
+    RedisCommandArgument,
+    'sortable_values_size_mb',
+    RedisCommandArgument,
+    'key_table_size_mb',
+    RedisCommandArgument,
+    'records_per_doc_avg',
+    RedisCommandArgument,
+    'bytes_per_record_avg',
+    RedisCommandArgument,
+    'offsets_per_term_avg',
+    RedisCommandArgument,
+    'offset_bits_per_record_avg',
+    RedisCommandArgument,
+    'hash_indexing_failures',
+    RedisCommandArgument,
+    'indexing',
+    RedisCommandArgument,
+    'percent_indexed',
+    RedisCommandArgument,
+    'gc_stats',
+    [
+        'bytes_collected',
+        RedisCommandArgument,
+        'total_ms_run',
+        RedisCommandArgument,
+        'total_cycles',
+        RedisCommandArgument,
+        'average_cycle_time_ms',
+        RedisCommandArgument,
+        'last_run_time_ms',
+        RedisCommandArgument,
+        'gc_numeric_trees_missed',
+        RedisCommandArgument,
+        'gc_blocks_denied',
+        RedisCommandArgument
     ],
-    _: string,
-    attributes: Array<Array<string>>,
-    _: string,
-    numDocs: string,
-    _: string,
-    maxDocId: string,
-    _: string,
-    numTerms: string,
-    _: string,
-    numRecords: string,
-    _: string,
-    invertedSzMb: string,
-    _: string,
-    totalInvertedIndexBlocks: string,
-    _: string,
-    offsetVectorsSzMb: string,
-    _: string,
-    docTableSizeMb: string,
-    _: string,
-    sortableValuesSizeMb: string,
-    _: string,
-    keyTableSizeMb: string,
-    _: string,
-    recordsPerDocAvg: string,
-    _: string,
-    bytesPerRecordAvg: string,
-    _: string,
-    offsetsPerTermAvg: string,
-    _: string,
-    offsetBitsPerRecordAvg: string,
-    _: string,
-    hashIndexingFailures: string,
-    _: string,
-    indexing: string,
-    _: string,
-    percentIndexed: string,
-    _: string,
-    gcStats: [
-        _: string,
-        bytesCollected: string,
-        _: string,
-        totalMsRun: string,
-        _: string,
-        totalCycles: string,
-        _: string,
-        averageCycleTimeMs: string,
-        _: string,
-        lastRunTimeMs: string,
-        _: string,
-        gcNumericTreesMissed: string,
-        _: string,
-        gcBlocksDenied: string
+    'cursor_stats',
+    [
+        'global_idle',
+        number,
+        'global_total',
+        number,
+        'index_capacity',
+        number,
+        'index_total',
+        number
     ],
-    _: string,
-    cursorStats: [
-        _: string,
-        globalIdle: number,
-        _: string,
-        globalTotal: number,
-        _: string,
-        indexCapacity: number,
-        _: string,
-        idnexTotal: number
-    ]
+    'stopwords_list'?,
+    Array<RedisCommandArgument>?
 ];
 
 interface InfoReply {
-    indexName: string;
-    indexOptions: Array<string>;
-    indexDefinition: {
-        keyType: string;
-        prefixes: Array<string>;
-        defaultScore: string;
-    };
-    attributes: Array<Array<string>>;
-    numDocs: string;
-    maxDocId: string;
-    numTerms: string;
-    numRecords: string;
-    invertedSzMb: string;
-    totalInvertedIndexBlocks: string;
-    offsetVectorsSzMb: string;
-    docTableSizeMb: string;
-    sortableValuesSizeMb: string;
-    keyTableSizeMb: string;
-    recordsPerDocAvg: string;
-    bytesPerRecordAvg: string;
-    offsetsPerTermAvg: string;
-    offsetBitsPerRecordAvg: string;
-    hashIndexingFailures: string;
-    indexing: string;
-    percentIndexed: string;
+    indexName: RedisCommandArgument;
+    indexOptions: Array<RedisCommandArgument>;
+    indexDefinition: Record<string, RedisCommandArgument>;
+    attributes: Array<Record<string, RedisCommandArgument>>;
+    numDocs: RedisCommandArgument;
+    maxDocId: RedisCommandArgument;
+    numTerms: RedisCommandArgument;
+    numRecords: RedisCommandArgument;
+    invertedSzMb: RedisCommandArgument;
+    vectorIndexSzMb: RedisCommandArgument;
+    totalInvertedIndexBlocks: RedisCommandArgument;
+    offsetVectorsSzMb: RedisCommandArgument;
+    docTableSizeMb: RedisCommandArgument;
+    sortableValuesSizeMb: RedisCommandArgument;
+    keyTableSizeMb: RedisCommandArgument;
+    recordsPerDocAvg: RedisCommandArgument;
+    bytesPerRecordAvg: RedisCommandArgument;
+    offsetsPerTermAvg: RedisCommandArgument;
+    offsetBitsPerRecordAvg: RedisCommandArgument;
+    hashIndexingFailures: RedisCommandArgument;
+    indexing: RedisCommandArgument;
+    percentIndexed: RedisCommandArgument;
     gcStats: {
-        bytesCollected: string;
-        totalMsRun: string;
-        totalCycles: string;
-        averageCycleTimeMs: string;
-        lastRunTimeMs: string;
-        gcNumericTreesMissed: string;
-        gcBlocksDenied: string;
+        bytesCollected: RedisCommandArgument;
+        totalMsRun: RedisCommandArgument;
+        totalCycles: RedisCommandArgument;
+        averageCycleTimeMs: RedisCommandArgument;
+        lastRunTimeMs: RedisCommandArgument;
+        gcNumericTreesMissed: RedisCommandArgument;
+        gcBlocksDenied: RedisCommandArgument;
     };
     cursorStats: {
         globalIdle: number;
@@ -123,49 +120,49 @@ interface InfoReply {
         indexCapacity: number;
         idnexTotal: number;
     };
+    stopWords: Array<RedisCommandArgument> | undefined;
 }
 
 export function transformReply(rawReply: InfoRawReply): InfoReply {
+    console.log(rawReply);
     return {
         indexName: rawReply[1],
         indexOptions: rawReply[3],
-        indexDefinition: {
-            keyType: rawReply[5][1],
-            prefixes: rawReply[5][3],
-            defaultScore: rawReply[5][5]
-        },
-        attributes: rawReply[7],
+        indexDefinition: transformTuplesReply(rawReply[5]),
+        attributes: rawReply[7].map(attribute => transformTuplesReply(attribute)),
         numDocs: rawReply[9],
         maxDocId: rawReply[11],
         numTerms: rawReply[13],
         numRecords: rawReply[15],
         invertedSzMb: rawReply[17],
-        totalInvertedIndexBlocks: rawReply[19],
-        offsetVectorsSzMb: rawReply[21],
-        docTableSizeMb: rawReply[23],
-        sortableValuesSizeMb: rawReply[25],
-        keyTableSizeMb: rawReply[27],
-        recordsPerDocAvg: rawReply[29],
-        bytesPerRecordAvg: rawReply[31],
-        offsetsPerTermAvg: rawReply[33],
-        offsetBitsPerRecordAvg: rawReply[35],
-        hashIndexingFailures: rawReply[37],
-        indexing: rawReply[39],
-        percentIndexed: rawReply[41],
+        vectorIndexSzMb: rawReply[19],
+        totalInvertedIndexBlocks: rawReply[21],
+        offsetVectorsSzMb: rawReply[23],
+        docTableSizeMb: rawReply[25],
+        sortableValuesSizeMb: rawReply[27],
+        keyTableSizeMb: rawReply[29],
+        recordsPerDocAvg: rawReply[31],
+        bytesPerRecordAvg: rawReply[33],
+        offsetsPerTermAvg: rawReply[35],
+        offsetBitsPerRecordAvg: rawReply[37],
+        hashIndexingFailures: rawReply[39],
+        indexing: rawReply[41],
+        percentIndexed: rawReply[43],
         gcStats: {
-            bytesCollected: rawReply[43][1],
-            totalMsRun: rawReply[43][3],
-            totalCycles: rawReply[43][5],
-            averageCycleTimeMs: rawReply[43][7],
-            lastRunTimeMs: rawReply[43][9],
-            gcNumericTreesMissed: rawReply[43][11],
-            gcBlocksDenied: rawReply[43][13]
+            bytesCollected: rawReply[45][1],
+            totalMsRun: rawReply[45][3],
+            totalCycles: rawReply[45][5],
+            averageCycleTimeMs: rawReply[45][7],
+            lastRunTimeMs: rawReply[45][9],
+            gcNumericTreesMissed: rawReply[45][11],
+            gcBlocksDenied: rawReply[45][13]
         },
         cursorStats: {
-            globalIdle: rawReply[45][1],
-            globalTotal: rawReply[45][3],
-            indexCapacity: rawReply[45][5],
-            idnexTotal: rawReply[45][7]
-        }
+            globalIdle: rawReply[47][1],
+            globalTotal: rawReply[47][3],
+            indexCapacity: rawReply[47][5],
+            idnexTotal: rawReply[47][7]
+        },
+        stopWords: rawReply[49]
     };
 }

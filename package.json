@@ -1,7 +1,7 @@
 {
   "name": "redis",
   "description": "A modern, high performance Redis client",
-  "version": "4.0.4",
+  "version": "4.0.6",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -24,17 +24,17 @@
   },
   "dependencies": {
     "@node-redis/bloom": "1.0.1",
-    "@node-redis/client": "1.0.4",
+    "@node-redis/client": "1.0.5",
     "@node-redis/graph": "1.0.0",
     "@node-redis/json": "1.0.2",
-    "@node-redis/search": "1.0.3",
+    "@node-redis/search": "1.0.5",
     "@node-redis/time-series": "1.0.2"
   },
   "devDependencies": {
     "@tsconfig/node12": "^1.0.9",
     "gh-pages": "^3.2.3",
-    "release-it": "^14.12.1",
-    "typescript": "^4.5.4"
+    "release-it": "^14.13.1",
+    "typescript": "^4.6.3"
   },
   "repository": {
     "type": "git",

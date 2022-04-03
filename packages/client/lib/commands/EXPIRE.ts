@@ -4,9 +4,16 @@ export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    seconds: number
+    seconds: number,
+    mode?: 'NX' | 'XX' | 'GT' | 'LT'
 ): RedisCommandArguments {
-    return ['EXPIRE', key, seconds.toString()];
+    const args = ['EXPIRE', key, seconds.toString()];
+
+    if (mode) {
+        args.push(mode);
+    }
+
+    return args;
 }
 
 export { transformBooleanReply as transformReply } from './generic-transformers';

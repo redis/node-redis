@@ -18,10 +18,17 @@ describe('BITPOS', () => {
             );
         });
 
-        it('with start, end', () => {
+        it('with start and end', () => {
             assert.deepEqual(
                 transformArguments('key', 1, 1, -1),
                 ['BITPOS', 'key', '1', '1', '-1']
+            );
+        });
+
+        it('with start, end and mode', () => {
+            assert.deepEqual(
+                transformArguments('key', 1, 1, -1, 'BIT'),
+                ['BITPOS', 'key', '1', '1', '-1', 'BIT']
             );
         });
     });
