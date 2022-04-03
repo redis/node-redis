@@ -4,13 +4,7 @@ import { pushVerdictArguments } from './generic-transformers';
 export const IS_READ_ONLY = true;
 
 export function transformArguments(...commandNames: Array<string>): RedisCommandArguments {
-    const args = ['COMMAND', 'DOCS'];
-
-    if (commandNames) {
-        pushVerdictArguments(args, commandNames);
-    }
-
-    return args;
+    return pushVerdictArguments(['COMMAND', 'DOCS'], commandNames);
 }
 
 interface ArgumentsDoc {
