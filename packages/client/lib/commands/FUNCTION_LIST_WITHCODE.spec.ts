@@ -26,7 +26,7 @@ describe('FUNCTION LIST WITHCODE', () => {
         await loadMathFunction(client);
 
         assert.deepEqual(
-            await client.functionList(),
+            await client.functionListWithCode(),
             [{
                 libraryName: MATH_FUNCTION.name,
                 engine: MATH_FUNCTION.engine,
@@ -36,7 +36,7 @@ describe('FUNCTION LIST WITHCODE', () => {
                     description: null,
                     flags: ['no-writes']
                 }],
-                code: MATH_FUNCTION.code
+                libraryCode: MATH_FUNCTION.code
             }]
         );
     }, GLOBAL.SERVERS.OPEN);

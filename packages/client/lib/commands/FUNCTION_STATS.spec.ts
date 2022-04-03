@@ -15,8 +15,8 @@ describe('FUNCTION STATS', () => {
     testUtils.testWithClient('client.functionStats', async client => {
         const stats = await client.functionStats();
         assert.equal(stats.runningScript, null);
-        assert.ok(Array.isArray(stats.engines));
-        for (const { engine, librariesCount, functionsCount } of stats.engines) {
+        assert.equal(typeof stats.engines, 'object');
+        for (const [engine, { librariesCount, functionsCount }] of Object.entries(stats.engines)) {
             assert.equal(typeof engine, 'string');
             assert.equal(typeof librariesCount, 'number');
             assert.equal(typeof functionsCount, 'number');

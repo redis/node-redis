@@ -16,15 +16,13 @@ type FunctionStatsRawReply = [
         number
     ],
     'engines',
-    Array<[
-        RedisFunctionEngines,
-        [
-            'libraries_count',
-            number,
-            'functions_count',
-            number
-        ]
-    ]>
+    Array<any> // "flat tuples" (there is no way to type that)
+    // ...[RedisFunctionEngines, [
+    //     'libraries_count',
+    //     number,
+    //     'functions_count',
+    //     number
+    // ]]
 ];
 
 interface FunctionStatsReply {
@@ -33,24 +31,27 @@ interface FunctionStatsReply {
         command: string;
         durationMs: number;
     };
-    engines: Array<{
-        engine: RedisFunctionEngines;
+    engines: Record<RedisFunctionEngines, {
         librariesCount: number;
         functionsCount: number;
     }>;
 }
 
 export function transformReply(reply: FunctionStatsRawReply): FunctionStatsReply {
+    const engines = Object.create(null);
+    for (let i = 0; i < reply[3].length; i++) {
+        engines[reply[3][i]] = {
+            librariesCount: reply[3][++i][1],
+            functionsCount: reply[3][i][3]
+        };
+    }
+
     return {
         runningScript: reply[1] === null ? null : {
             name: reply[1][1],
             command: reply[1][3],
             durationMs: reply[1][5]
         },
-        engines: reply[3].map(([engine, data]) => ({
-            engine,
-            librariesCount: data[1],
-            functionsCount: data[3]
-        }))
+        engines
     };
 }
