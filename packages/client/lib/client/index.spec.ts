@@ -546,8 +546,11 @@ describe('Client', () => {
         M extends RedisModules,
         F extends RedisFunctions,
         S extends RedisScripts
-    >(client: RedisClientType<M, F, S>): Promise<void> {
-        const onceErrorPromise = once(client, 'error');
+    >(
+        client: RedisClientType<M, F, S>,
+        errorClient: RedisClientType<M, F, S> = client
+    ): Promise<void> {
+        const onceErrorPromise = once(errorClient, 'error');
         await client.sendCommand(['QUIT']);
         await Promise.all([
             onceErrorPromise,
@@ -571,6 +574,10 @@ describe('Client', () => {
         ...GLOBAL.SERVERS.OPEN,
         minimumDockerVersion: [6, 2] // CLIENT INFO
     });
+
+    testUtils.testWithClient('should propagated errors from "isolated" clients', client => {
+        return client.executeIsolated(isolated => killClient(isolated, client));
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('scanIterator', async client => {
         const promises = [],
@@ -747,6 +754,21 @@ describe('Client', () => {
                     waitTillBeenCalled(listener),
                     publisher.publish('channel', 'message')
                 ]);
+            } finally {
+                await subscriber.disconnect();
+            }
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should not fail when message arrives right after subscribe', async publisher => {
+            const subscriber = publisher.duplicate();
+
+            await subscriber.connect();
+
+            try {
+                await assert.doesNotReject(Promise.all([
+                    subscriber.subscribe('channel', () => {}),
+                    publisher.publish('channel', 'message')
+                ]));
             } finally {
                 await subscriber.disconnect();
             }

@@ -11,14 +11,27 @@ describe('BITCOUNT', () => {
             );
         });
 
-        it('with range', () => {
-            assert.deepEqual(
-                transformArguments('key', {
-                    start: 0,
-                    end: 1
-                }),
-                ['BITCOUNT', 'key', '0', '1']
-            );
+        describe('with range', () => {
+            it('simple', () => {
+                assert.deepEqual(
+                    transformArguments('key', {
+                        start: 0,
+                        end: 1
+                    }),
+                    ['BITCOUNT', 'key', '0', '1']
+                );
+            });
+
+            it('with mode', () => {
+                assert.deepEqual(
+                    transformArguments('key', {
+                        start: 0,
+                        end: 1,
+                        mode: 'BIT'
+                    }),
+                    ['BITCOUNT', 'key', '0', '1', 'BIT']
+                );
+            });
         });
     });
 

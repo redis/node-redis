@@ -1,6 +1,6 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
 import { pushVerdictArgument, transformTuplesReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
-import { PropertyName, pushArgumentsWithLength, pushSortByArguments, SortByProperty } from '.';
+import { Params, PropertyName, pushArgumentsWithLength, pushParamsArgs, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
     GROUPBY = 'GROUPBY',
@@ -122,6 +122,8 @@ export interface AggregateOptions {
     VERBATIM?: true;
     LOAD?: LoadField | Array<LoadField>;
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
+    PARAMS?: Params;
+    DIALECT?: number;
 }
 
 export function transformArguments(
@@ -129,17 +131,16 @@ export function transformArguments(
     query: string,
     options?: AggregateOptions
 ): RedisCommandArguments {
-
-    const args = ['FT.AGGREGATE', index, query];
-    pushAggregatehOptions(args, options);
-    return args;
+    return pushAggregatehOptions(
+        ['FT.AGGREGATE', index, query],
+        options
+    );
 }
 
 export function pushAggregatehOptions(
     args: RedisCommandArguments,
     options?: AggregateOptions
 ): RedisCommandArguments {
-
     if (options?.VERBATIM) {
         args.push('VERBATIM');
     }
@@ -202,6 +203,12 @@ export function pushAggregatehOptions(
         }
     }
 
+    pushParamsArgs(args, options?.PARAMS);
+
+    if (options?.DIALECT) {
+        args.push('DIALECT', options.DIALECT.toString());
+    }
+
     return args;
 }
 
@@ -257,7 +264,6 @@ function pushGroupByReducer(args: RedisCommandArguments, reducer: GroupByReducer
                     }
                 }
             });
-
             break;
         }
 

@@ -18,6 +18,13 @@ describe('PEXPIREAT', () => {
                 ['PEXPIREAT', 'key', d.getTime().toString()]
             );
         });
+
+        it('with set option', () => {
+            assert.deepEqual(
+                transformArguments('key', 1, 'XX'),
+                ['PEXPIREAT', 'key', '1', 'XX']
+            );
+        });
     });
 
     testUtils.testWithClient('client.pExpireAt', async client => {

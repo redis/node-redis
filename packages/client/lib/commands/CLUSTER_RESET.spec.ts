@@ -10,17 +10,10 @@ describe('CLUSTER RESET', () => {
             );
         });
 
-        it('HARD', () => {
+        it('with mode', () => {
             assert.deepEqual(
                 transformArguments('HARD'),
                 ['CLUSTER', 'RESET', 'HARD']
-            );
-        });
-
-        it('SOFT', () => {
-            assert.deepEqual(
-                transformArguments('SOFT'),
-                ['CLUSTER', 'RESET', 'SOFT']
             );
         });
     });

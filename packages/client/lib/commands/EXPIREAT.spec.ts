@@ -18,6 +18,13 @@ describe('EXPIREAT', () => {
                 ['EXPIREAT', 'key', Math.floor(d.getTime() / 1000).toString()]
             );
         });
+        
+        it('with set option', () => {
+            assert.deepEqual(
+                transformArguments('key', 1, 'GT'),
+                ['EXPIREAT', 'key', '1', 'GT']
+            );
+        });
     });
 
     testUtils.testWithClient('client.expireAt', async client => {
