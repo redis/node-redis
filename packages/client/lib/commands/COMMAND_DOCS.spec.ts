@@ -7,8 +7,8 @@ describe('COMMAND DOCS', () => {
 
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('SORT'),
-            ['COMMAND', 'DOCS', 'SORT']
+            transformArguments('sort'),
+            ['COMMAND', 'DOCS', 'sort']
         );
     });
 
@@ -34,14 +34,6 @@ describe('COMMAND DOCS', () => {
             }
             if (item.subCommands) assert.equal(typeof item.subCommands, 'object');
         }
-
-        // check with commands names
-        const specifiedDocs = await client.commandDocs('sort', 'get', 'cluster')
-        assert.equal(typeof specifiedDocs, 'object');
-
-        // check with non existing command
-        const nonExistingCommandDocs = await client.commandDocs('foo')
-        assert.equal(typeof specifiedDocs, 'object');
 
     }, GLOBAL.SERVERS.OPEN);
 });

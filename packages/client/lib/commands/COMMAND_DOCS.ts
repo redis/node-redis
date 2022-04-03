@@ -53,7 +53,7 @@ export function transformReply(rawReply: Array<any>): CommandDocsReply {
 }
 
 function createDocumentationInterface(rawDocumentation: Array<any>): Doc {
-    const doc:Doc = {}
+    const doc:Doc = {};
 
     for (let j = 0; j < rawDocumentation.length; j++) {
         switch (rawDocumentation[j++]) {
@@ -70,7 +70,7 @@ function createDocumentationInterface(rawDocumentation: Array<any>): Doc {
                 doc['complexity'] = rawDocumentation[j];
                 break;
             case 'history':
-                const historyArray = []
+                const historyArray = [];
                 for (let k = 0; k < rawDocumentation[j].length; k++) {
                     historyArray.push({
                         version: rawDocumentation[j][k][0],
@@ -92,12 +92,12 @@ function createDocumentationInterface(rawDocumentation: Array<any>): Doc {
 }
 
 function createArgumentsDocumentation(rawDocumentation: Array<any>): ArgumentsDocsReply {
-    const doc:ArgumentsDocsReply = {}
+    const doc:ArgumentsDocsReply = {};
 
     for (let k = 0; k < rawDocumentation.length; k++) {
         let argumentName = "";
         const argumentData:ArgumentsDoc = {};
-        
+
         for (let l = 0; l < rawDocumentation[k].length; l++) {
             switch (rawDocumentation[k][l++]) {
                 case 'name':
