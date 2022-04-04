@@ -6,6 +6,7 @@ interface SpellCheckTerms {
 interface SpellCheckOptions {
     DISTANCE?: number;
     TERMS?: SpellCheckTerms | Array<SpellCheckTerms>;
+    DIALECT?: number;
 }
 
 export function transformArguments(index: string, query: string, options?: SpellCheckOptions): Array<string> {
@@ -23,6 +24,10 @@ export function transformArguments(index: string, query: string, options?: Spell
         } else {
             pushTerms(args, options.TERMS);
         }
+    }
+
+    if (options?.DIALECT) {
+        args.push('DIALECT', options.DIALECT.toString());
     }
 
     return args;

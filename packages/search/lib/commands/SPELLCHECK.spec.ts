@@ -47,6 +47,15 @@ describe('SPELLCHECK', () => {
                 );
             });
         });
+
+        it('with DIALECT', () => {
+            assert.deepEqual(
+                transformArguments('index', 'query', {
+                    DIALECT: 1
+                }),
+                ['FT.SPELLCHECK', 'index', 'query', 'DIALECT', '1']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ft.spellCheck', async client => {

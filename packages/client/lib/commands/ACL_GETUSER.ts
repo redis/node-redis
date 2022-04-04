@@ -5,24 +5,27 @@ export function transformArguments(username: RedisCommandArgument): RedisCommand
 }
 
 type AclGetUserRawReply = [
-    _: RedisCommandArgument,
-    flags: Array<RedisCommandArgument>,
-    _: RedisCommandArgument,
-    passwords: Array<RedisCommandArgument>,
-    _: RedisCommandArgument,
-    commands: RedisCommandArgument,
-    _: RedisCommandArgument,
-    keys: Array<RedisCommandArgument>,
-    _: RedisCommandArgument,
-    channels: Array<RedisCommandArgument>
+    'flags',
+    Array<RedisCommandArgument>,
+    'passwords',
+    Array<RedisCommandArgument>,
+    'commands',
+    RedisCommandArgument,
+    'keys',
+    Array<RedisCommandArgument> | RedisCommandArgument,
+    'channels',
+    Array<RedisCommandArgument> | RedisCommandArgument,
+    'selectors' | undefined,
+    Array<Array<string>> | undefined
 ];
 
 interface AclUser {
     flags: Array<RedisCommandArgument>;
     passwords: Array<RedisCommandArgument>;
     commands: RedisCommandArgument;
-    keys: Array<RedisCommandArgument>;
-    channels: Array<RedisCommandArgument>
+    keys: Array<RedisCommandArgument> | RedisCommandArgument;
+    channels: Array<RedisCommandArgument> | RedisCommandArgument;
+    selectors?: Array<Array<string>>;
 }
 
 export function transformReply(reply: AclGetUserRawReply): AclUser {
@@ -31,6 +34,7 @@ export function transformReply(reply: AclGetUserRawReply): AclUser {
         passwords: reply[3],
         commands: reply[5],
         keys: reply[7],
-        channels: reply[9]
+        channels: reply[9],
+        selectors: reply[11]
     };
 }
