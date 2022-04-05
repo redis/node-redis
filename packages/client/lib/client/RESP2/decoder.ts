@@ -101,14 +101,14 @@ export default class RESP2Decoder {
         for (let i = this.cursor; i < chunk.length; i++) {
             if (chunk[i] === ASCII.CR) {
                 const reply = composer.end(
-                    chunk.slice(this.cursor, i)
+                    chunk.subarray(this.cursor, i)
                 );
                 this.cursor = i + 2;
                 return reply;
             }
         }
 
-        const toWrite = chunk.slice(this.cursor);
+        const toWrite = chunk.subarray(this.cursor);
         composer.write(toWrite);
         this.cursor = chunk.length;
     }
@@ -131,9 +131,7 @@ export default class RESP2Decoder {
     private parseInteger(chunk: Buffer): number | undefined {
         if (this.isNegativeInteger === undefined) {
             this.isNegativeInteger = chunk[this.cursor] === ASCII.MINUS;
-            if (this.isNegativeInteger) {
-                if (++this.cursor === chunk.length) return;
-            }
+            if (this.isNegativeInteger && ++this.cursor === chunk.length) return;
         }
 
         do {
@@ -156,7 +154,7 @@ export default class RESP2Decoder {
         if (this.bulkStringRemainingLength === undefined) {
             const length = this.parseInteger(chunk);
             if (length === undefined) return;
-            else if (length === -1) return null;
+            if (length === -1) return null;
 
             this.bulkStringRemainingLength = length;
 
@@ -166,14 +164,14 @@ export default class RESP2Decoder {
         const end = this.cursor + this.bulkStringRemainingLength;
         if (chunk.length >= end) {
             const reply = this.currentStringComposer.end(
-                chunk.slice(this.cursor, end)
+                chunk.subarray(this.cursor, end)
             );
             this.bulkStringRemainingLength = undefined;
             this.cursor = end + 2;
             return reply;
         }
 
-        const toWrite = chunk.slice(this.cursor);
+        const toWrite = chunk.subarray(this.cursor);
         this.currentStringComposer.write(toWrite);
         this.bulkStringRemainingLength -= toWrite.length;
         this.cursor = chunk.length;
