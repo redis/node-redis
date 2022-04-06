@@ -170,11 +170,12 @@ export default class RedisSocket extends EventEmitter {
 
             socket
                 .setNoDelay(this.#options.noDelay)
-                .setKeepAlive(this.#options.keepAlive !== false, this.#options.keepAlive || 0)
                 .once('error', reject)
                 .once(connectEvent, () => {
                     socket
                         .setTimeout(0)
+                        // https://github.com/nodejs/node/issues/31663
+                        .setKeepAlive(this.#options.keepAlive !== false, this.#options.keepAlive || 0)
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))
                         .once('close', hadError => {
