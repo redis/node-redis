@@ -365,7 +365,7 @@ export function pushParamsArgs(
         const enrties = Object.entries(params);
         args.push('PARAMS', (enrties.length * 2).toString());
         for (const [key, value] of enrties) {
-            args.push(key, value.toString());
+            args.push(key, typeof value === 'number' ? value.toString() : value);
         }
     }
 
