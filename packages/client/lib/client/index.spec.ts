@@ -294,6 +294,20 @@ describe('Client', () => {
                 }
             }
         });
+
+        testUtils.testWithClient('client.multi.{command}.exec should flatten array arguments', async client => {
+            assert.deepEqual(
+                await client.multi()
+                    .sAdd('a', ['b', 'c'])
+                    .v4.exec(),
+                [2])
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
     });
 
     describe('events', () => {
