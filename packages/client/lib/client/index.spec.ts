@@ -8,7 +8,6 @@ import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
-import { RedisFunctionEngines } from '../commands/FUNCTION_LOAD';
 
 export const SQUARE_SCRIPT = defineScript({
     SCRIPT: 'return ARGV[1] * ARGV[1];',
@@ -19,13 +18,13 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 export const MATH_FUNCTION = {
-    engine: RedisFunctionEngines.LUA,
     name: 'math',
-    code: `redis.register_function{
-        function_name = "square",
-        callback = function(keys, args) return args[1] * args[1] end,
-        flags = { "no-writes" }
-    }`,
+    code: `#!lua name=math
+        redis.register_function{
+            function_name = "square",
+            callback = function(keys, args) return args[1] * args[1] end,
+            flags = { "no-writes" }
+        }`,
     library: {
         square: {
             NAME: 'square',
@@ -41,8 +40,6 @@ export async function loadMathFunction(
     client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>
 ): Promise<void> {
     await client.functionLoad(
-        MATH_FUNCTION.engine,
-        MATH_FUNCTION.name,
         MATH_FUNCTION.code,
         { REPLACE: true }
     );
@@ -346,7 +343,8 @@ describe('Client', () => {
                 await client.multi()
                     .sAdd('a', ['b', 'c'])
                     .v4.exec(),
-                [2])
+                [2]
+            );
         }, {
             ...GLOBAL.SERVERS.OPEN,
             clientOptions: {
@@ -780,7 +778,9 @@ describe('Client', () => {
 
             try {
                 await assert.doesNotReject(Promise.all([
-                    subscriber.subscribe('channel', () => {}),
+                    subscriber.subscribe('channel', () => {
+                        // noop
+                    }),
                     publisher.publish('channel', 'message')
                 ]));
             } finally {

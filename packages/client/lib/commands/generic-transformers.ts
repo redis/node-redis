@@ -1,5 +1,4 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { RedisFunctionEngines } from './FUNCTION_LOAD';
 
 export function transformBooleanReply(reply: number): boolean {
     return reply === 1;
@@ -454,7 +453,7 @@ export type FunctionListRawItemReply = [
     'library_name',
     string,
     'engine',
-    RedisFunctionEngines,
+    string,
     'description',
     string,
     'functions',
@@ -470,7 +469,7 @@ export type FunctionListRawItemReply = [
 
 export interface FunctionListItemReply {
     libraryName: string;
-    engine: RedisFunctionEngines;
+    engine: string;
     description: string;
     functions: Array<{
         name: string;

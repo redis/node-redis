@@ -1,5 +1,4 @@
 import { RedisCommandArguments } from '.';
-import { RedisFunctionEngines } from './FUNCTION_LOAD';
 
 export function transformArguments(): RedisCommandArguments {
     return ['FUNCTION', 'STATS'];
@@ -17,7 +16,7 @@ type FunctionStatsRawReply = [
     ],
     'engines',
     Array<any> // "flat tuples" (there is no way to type that)
-    // ...[RedisFunctionEngines, [
+    // ...[string, [
     //     'libraries_count',
     //     number,
     //     'functions_count',
@@ -31,7 +30,7 @@ interface FunctionStatsReply {
         command: string;
         durationMs: number;
     };
-    engines: Record<RedisFunctionEngines, {
+    engines: Record<string, {
         librariesCount: number;
         functionsCount: number;
     }>;
