@@ -13,20 +13,32 @@ describe('ACL GETUSER', () => {
     });
 
     testUtils.testWithClient('client.aclGetUser', async client => {
+        const expectedReply: any = {
+            passwords: [],
+            commands: '+@all',
+        };
+
+        if (testUtils.isVersionGreaterThan([7])) {
+            expectedReply.flags = ['on', 'nopass'];
+            expectedReply.keys = '~*';
+            expectedReply.channels = '&*';
+            expectedReply.selectors = [];
+        } else {
+            expectedReply.keys = ['*'];
+            expectedReply.selectors = undefined;
+
+            if (testUtils.isVersionGreaterThan([6, 2])) {
+                expectedReply.flags = ['on', 'allkeys', 'allchannels', 'allcommands', 'nopass'];
+                expectedReply.channels = ['*'];
+            } else {
+                expectedReply.flags = ['on', 'allkeys', 'allcommands', 'nopass'];
+                expectedReply.channels = undefined;
+            }
+        }
+
         assert.deepEqual(
             await client.aclGetUser('default'),
-            {
-                passwords: [],
-                commands: '+@all',
-                keys: ['*'],
-                ...(testUtils.isVersionGreaterThan([6, 2]) ? {
-                    flags: ['on', 'allkeys', 'allchannels', 'allcommands', 'nopass'],
-                    channels: ['*']
-                } : {
-                    flags: ['on', 'allkeys', 'allcommands', 'nopass'],
-                    channels: undefined
-                })
-            }
+            expectedReply
         );
     }, GLOBAL.SERVERS.OPEN);
 });

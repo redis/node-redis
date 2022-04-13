@@ -23,6 +23,7 @@ import * as EVALSHA from '../commands/EVALSHA';
 import * as EXISTS from '../commands/EXISTS';
 import * as EXPIRE from '../commands/EXPIRE';
 import * as EXPIREAT from '../commands/EXPIREAT';
+import * as EXPIRETIME from '../commands/EXPIRETIME';
 import * as GEOADD from '../commands/GEOADD';
 import * as GEODIST from '../commands/GEODIST';
 import * as GEOHASH from '../commands/GEOHASH';
@@ -75,9 +76,14 @@ import * as MGET from '../commands/MGET';
 import * as MIGRATE from '../commands/MIGRATE';
 import * as MSET from '../commands/MSET';
 import * as MSETNX from '../commands/MSETNX';
+import * as OBJECT_ENCODING from '../commands/OBJECT_ENCODING';
+import * as OBJECT_FREQ from '../commands/OBJECT_FREQ';
+import * as OBJECT_IDLETIME from '../commands/OBJECT_IDLETIME';
+import * as OBJECT_REFCOUNT from '../commands/OBJECT_REFCOUNT';
 import * as PERSIST from '../commands/PERSIST';
 import * as PEXPIRE from '../commands/PEXPIRE';
 import * as PEXPIREAT from '../commands/PEXPIREAT';
+import * as PEXPIRETIME from '../commands/PEXPIRETIME';
 import * as PFADD from '../commands/PFADD';
 import * as PFCOUNT from '../commands/PFCOUNT';
 import * as PFMERGE from '../commands/PFMERGE';
@@ -107,6 +113,8 @@ import * as SISMEMBER from '../commands/SISMEMBER';
 import * as SMEMBERS from '../commands/SMEMBERS';
 import * as SMISMEMBER from '../commands/SMISMEMBER';
 import * as SMOVE from '../commands/SMOVE';
+import * as SORT_RO from '../commands/SORT_RO';
+import * as SORT_STORE from '../commands/SORT_STORE';
 import * as SORT from '../commands/SORT';
 import * as SPOP from '../commands/SPOP';
 import * as SRANDMEMBER_COUNT from '../commands/SRANDMEMBER_COUNT';
@@ -232,6 +240,8 @@ export default {
     expire: EXPIRE,
     EXPIREAT,
     expireAt: EXPIREAT,
+    EXPIRETIME,
+    expireTime: EXPIRETIME,
     GEOADD,
     geoAdd: GEOADD,
     GEODIST,
@@ -336,12 +346,22 @@ export default {
     mSet: MSET,
     MSETNX,
     mSetNX: MSETNX,
+    OBJECT_ENCODING,
+    objectEncoding: OBJECT_ENCODING,
+    OBJECT_FREQ,
+    objectFreq: OBJECT_FREQ,
+    OBJECT_IDLETIME,
+    objectIdleTime: OBJECT_IDLETIME,
+    OBJECT_REFCOUNT,
+    objectRefCount: OBJECT_REFCOUNT,
     PERSIST,
     persist: PERSIST,
     PEXPIRE,
     pExpire: PEXPIRE,
     PEXPIREAT,
     pExpireAt: PEXPIREAT,
+    PEXPIRETIME,
+    pExpireTime: PEXPIRETIME,
     PFADD,
     pfAdd: PFADD,
     PFCOUNT,
@@ -400,6 +420,10 @@ export default {
     smIsMember: SMISMEMBER,
     SMOVE,
     sMove: SMOVE,
+    SORT_RO,
+    sortRo: SORT_RO,
+    SORT_STORE,
+    sortStore: SORT_STORE,
     SORT,
     sort: SORT,
     SPOP,

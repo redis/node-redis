@@ -213,31 +213,98 @@ describe('SEARCH', () => {
                 ['FT.SEARCH', 'index', 'query', 'LIMIT', '0', '1']
             );
         });
+
+        it('with PARAMS', () => {
+            assert.deepEqual(
+                transformArguments('index', 'query', {
+                    PARAMS: {
+                        param: 'value'
+                    }
+                }),
+                ['FT.SEARCH', 'index', 'query', 'PARAMS', '2', 'param', 'value']
+            );
+        });
+
+        it('with DIALECT', () => {
+            assert.deepEqual(
+                transformArguments('index', 'query', {
+                    DIALECT: 1
+                }),
+                ['FT.SEARCH', 'index', 'query', 'DIALECT', '1']
+            );
+        });
     });
 
-    testUtils.testWithClient('client.ft.search', async client => {
-        await Promise.all([
-            client.ft.create('index', {
-                field: SchemaFieldTypes.NUMERIC
-            }),
-            client.hSet('1', 'field', '1')
-        ]);
+    describe('client.ft.search', () => {
+        testUtils.testWithClient('DIALECT 1', async client => {
+            await Promise.all([
+                client.ft.create('index', {
+                    field: SchemaFieldTypes.NUMERIC
+                }),
+                client.hSet('1', 'field', '1')
+            ]);
 
-        assert.deepEqual(
-            await client.ft.search('index', '*'),
-            {
-                total: 1,
-                documents: [{
-                    id: '1',
-                    value: Object.create(null, {
-                        field: {
-                            value: '1',
-                            configurable: true,
-                            enumerable: true
-                        }
-                    })
-                }]
-            }
-        );
-    }, GLOBAL.SERVERS.OPEN);
+            assert.deepEqual(
+                await client.ft.search('index', '*', {
+                    DIALECT: 1
+                }),
+                {
+                    total: 1,
+                    documents: [{
+                        id: '1',
+                        value: Object.create(null, {
+                            field: {
+                                value: '1',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }]
+                }
+            );
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('DIALECT 2', async client => {
+            await Promise.all([
+                client.ft.create('index', {
+                    field: SchemaFieldTypes.NUMERIC
+                }),
+                client.hSet('1', 'field', '1'),
+                client.hSet('2', 'field', '2'),
+                client.hSet('3', 'field', '3')
+            ]);
+
+            assert.deepEqual(
+                await client.ft.search('index', '@field:[$min $max]', {
+                    PARAMS: {
+                        min: 1,
+                        max: 2
+                    },
+                    DIALECT: 2
+                }),
+                {
+                    total: 2,
+                    documents: [{
+                        id: '1',
+                        value: Object.create(null, {
+                            field: {
+                                value: '1',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }, {
+                        id: '2',
+                        value: Object.create(null, {
+                            field: {
+                                value: '2',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }]
+                }
+            );
+        }, GLOBAL.SERVERS.OPEN);
+    });
 });

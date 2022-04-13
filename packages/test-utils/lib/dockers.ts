@@ -38,7 +38,7 @@ const portIterator = (async function*(): AsyncIterableIterator<number> {
 
 export interface RedisServerDockerConfig {
     image: string;
-    version: Array<number>;
+    version: string;
 }
 
 export interface RedisServerDocker {
@@ -54,7 +54,7 @@ async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfi
         { stdout, stderr } = await execAsync(
             'docker run -d --network host $(' +
                 `docker build ${DOCKER_FODLER_PATH} -q ` +
-                `--build-arg IMAGE=${image}:${version.join('.')} ` +
+                `--build-arg IMAGE=${image}:${version} ` +
                 `--build-arg REDIS_ARGUMENTS="--save --port ${port.toString()} ${serverArguments.join(' ')}"` +
             ')'
         );
