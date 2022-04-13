@@ -19,7 +19,8 @@ export const SQUARE_SCRIPT = defineScript({
 
 export const MATH_FUNCTION = {
     name: 'math',
-    code: `#!lua name=math
+    engine: 'LUA',
+    code: `#!LUA name=math
         redis.register_function{
             function_name = "square",
             callback = function(keys, args) return args[1] * args[1] end,
