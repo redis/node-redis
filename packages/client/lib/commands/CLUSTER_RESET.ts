@@ -1,6 +1,4 @@
-export type ClusterResetModes = 'HARD' | 'SOFT';
-
-export function transformArguments(mode?: ClusterResetModes): Array<string> {
+export function transformArguments(mode?: 'HARD' | 'SOFT'): Array<string> {
     const args = ['CLUSTER', 'RESET'];
 
     if (mode) {

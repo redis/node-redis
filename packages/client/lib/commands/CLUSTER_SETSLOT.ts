@@ -5,7 +5,11 @@ export enum ClusterSlotStates {
     NODE = 'NODE'
 }
 
-export function transformArguments(slot: number, state: ClusterSlotStates, nodeId?: string): Array<string> {
+export function transformArguments(
+    slot: number,
+    state: ClusterSlotStates,
+    nodeId?: string
+): Array<string> {
     const args = ['CLUSTER', 'SETSLOT', slot.toString(), state];
 
     if (nodeId) {
@@ -15,4 +19,4 @@ export function transformArguments(slot: number, state: ClusterSlotStates, nodeI
     return args;
 }
 
-export declare function transformReply(): string;
+export declare function transformReply(): 'OK';

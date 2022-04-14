@@ -1,5 +1,7 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
 
+export const FIRST_KEY_INDEX = 1;
+
 type Types = RedisCommandArgument | number;
 
 type HSETObject = Record<string | number, Types>;
@@ -7,8 +9,6 @@ type HSETObject = Record<string | number, Types>;
 type HSETMap = Map<Types, Types>;
 
 type HSETTuples = Array<[Types, Types]> | Array<Types>;
-
-export const FIRST_KEY_INDEX = 1;
 
 type GenericArguments = [key: RedisCommandArgument];
 

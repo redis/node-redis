@@ -15,32 +15,56 @@ describe('INFO', () => {
         await client.ft.create('index', {
             field: SchemaFieldTypes.TEXT
         });
-
         assert.deepEqual(
             await client.ft.info('index'),
             {
                 indexName: 'index',
                 indexOptions: [],
-                indexDefinition: {
-                    defaultScore: '1',
-                    keyType: 'HASH',
-                    prefixes: ['']
-                },
-                attributes: [[
-                    'identifier',
-                    'field',
-                    'attribute',
-                    'field',
-                    'type',
-                    'TEXT',
-                    'WEIGHT',
-                    '1'
-                ]],
+                indexDefinition: Object.create(null, {
+                    default_score: {
+                        value: '1',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    key_type: {
+                        value: 'HASH',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    prefixes: {
+                        value: [''],
+                        configurable: true,
+                        enumerable: true
+                    }
+                }),
+                attributes: [Object.create(null, {
+                    identifier: {
+                        value: 'field',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    attribute: {
+                        value: 'field',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    type: {
+                        value: 'TEXT',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    WEIGHT: {
+                        value: '1',
+                        configurable: true,
+                        enumerable: true
+                    }
+                })],
                 numDocs: '0',
                 maxDocId: '0',
                 numTerms: '0',
                 numRecords: '0',
                 invertedSzMb: '0',
+                vectorIndexSzMb: '0',
                 totalInvertedIndexBlocks: '0',
                 offsetVectorsSzMb: '0',
                 docTableSizeMb: '0',
@@ -67,7 +91,8 @@ describe('INFO', () => {
                     globalTotal: 0,
                     indexCapacity: 128,
                     idnexTotal: 0
-                }
+                },
+                stopWords: undefined
             }
         );
     }, GLOBAL.SERVERS.OPEN);

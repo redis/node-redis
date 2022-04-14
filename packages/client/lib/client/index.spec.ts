@@ -294,6 +294,20 @@ describe('Client', () => {
                 }
             }
         });
+
+        testUtils.testWithClient('client.multi.{command}.exec should flatten array arguments', async client => {
+            assert.deepEqual(
+                await client.multi()
+                    .sAdd('a', ['b', 'c'])
+                    .v4.exec(),
+                [2])
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
     });
 
     describe('events', () => {
@@ -477,8 +491,11 @@ describe('Client', () => {
         assert.ok(id !== isolatedId);
     }, GLOBAL.SERVERS.OPEN);
 
-    async function killClient<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
-        const onceErrorPromise = once(client, 'error');
+    async function killClient<M extends RedisModules, S extends RedisScripts>(
+        client: RedisClientType<M, S>,
+        errorClient: RedisClientType<M, S> = client
+    ): Promise<void> {
+        const onceErrorPromise = once(errorClient, 'error');
         await client.sendCommand(['QUIT']);
         await Promise.all([
             onceErrorPromise,
@@ -502,6 +519,10 @@ describe('Client', () => {
         ...GLOBAL.SERVERS.OPEN,
         minimumDockerVersion: [6, 2] // CLIENT INFO
     });
+
+    testUtils.testWithClient('should propagated errors from "isolated" clients', client => {
+        return client.executeIsolated(isolated => killClient(isolated, client));
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('scanIterator', async client => {
         const promises = [],
@@ -678,6 +699,21 @@ describe('Client', () => {
                     waitTillBeenCalled(listener),
                     publisher.publish('channel', 'message')
                 ]);
+            } finally {
+                await subscriber.disconnect();
+            }
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should not fail when message arrives right after subscribe', async publisher => {
+            const subscriber = publisher.duplicate();
+
+            await subscriber.connect();
+
+            try {
+                await assert.doesNotReject(Promise.all([
+                    subscriber.subscribe('channel', () => {}),
+                    publisher.publish('channel', 'message')
+                ]));
             } finally {
                 await subscriber.disconnect();
             }
