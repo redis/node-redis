@@ -8,17 +8,14 @@ describe('BZMPOP', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments(0, 'key', {
-                    SCORE: 'MIN'
-                }),
+                transformArguments(0, 'key', 'MIN'),
                 ['BZMPOP', '0', '1', 'key', 'MIN']
             );
         });
 
-        it('with score and count', () => {
+        it('with COUNT', () => {
             assert.deepEqual(
-                transformArguments(0, 'key', {
-                    SCORE: 'MIN',
+                transformArguments(0, 'key', 'MIN', {
                     COUNT: 2
                 }),
                 ['BZMPOP', '0', '1', 'key', 'MIN', 'COUNT', '2']
@@ -26,11 +23,9 @@ describe('BZMPOP', () => {
         });
     });
 
-    testUtils.testWithClient('client.zmScore', async client => {
+    testUtils.testWithClient('client.bzmPop', async client => {
         assert.deepEqual(
-            await client.bzmPop(0, 'key', {
-                SCORE: 'MAX'
-            }),
+            await client.bzmPop(0, 'key', 'MAX'),
             null
         );
     }, GLOBAL.SERVERS.OPEN);

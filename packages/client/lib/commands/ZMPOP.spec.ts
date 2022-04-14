@@ -8,17 +8,14 @@ describe('ZMPOP', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments('key', {
-                    SCORE: 'MIN'
-                }),
+                transformArguments('key', 'MIN'),
                 ['ZMPOP', '1', 'key', 'MIN']
             );
         });
 
         it('with score and count', () => {
             assert.deepEqual(
-                transformArguments('key', {
-                    SCORE: 'MIN',
+                transformArguments('key', 'MIN', {
                     COUNT: 2
                 }),
                 ['ZMPOP', '1', 'key', 'MIN', 'COUNT', '2']
@@ -28,9 +25,7 @@ describe('ZMPOP', () => {
 
     testUtils.testWithClient('client.zmScore', async client => {
         assert.deepEqual(
-            await client.zmPop('key', {
-                SCORE: 'MAX'
-            }),
+            await client.zmPop('key', 'MIN'),
             null
         );
     }, GLOBAL.SERVERS.OPEN);

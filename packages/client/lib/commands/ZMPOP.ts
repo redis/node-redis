@@ -1,26 +1,34 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformSortedSetMemberReply, transformZMPopArguments, ZMember, ZMPopOptions } from './generic-transformers';
+import { SortedSetSide, transformSortedSetMemberReply, transformZMPopArguments, ZMember, ZMPopOptions } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
-export const IS_READ_ONLY = true;
-
 export function transformArguments(
-    keys: string | Array<string>,
-    options: ZMPopOptions
+    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+    side: SortedSetSide,
+    options?: ZMPopOptions
 ): RedisCommandArguments {
-    return transformZMPopArguments(['ZMPOP'], keys, options);
+    return transformZMPopArguments(
+        ['ZMPOP'],
+        keys,
+        side,
+        options
+    );
 }
 
-type ZMPopRawReply = null | [string, Array<[RedisCommandArgument, RedisCommandArgument]>];
-
-type ZMPopReply = null | [
-    key: string, 
-    elements: Array<ZMember>
+type ZMPopRawReply = null | [
+    key: string,
+    elements: Array<[RedisCommandArgument, RedisCommandArgument]>
 ];
 
-export function transformReply(reply: ZMPopRawReply): ZMPopReply {
-    if (reply == null) return null;
+type ZMPopReply = null | {
+    key: string,
+    elements: Array<ZMember>
+};
 
-    return [reply[0], reply[1].map(transformSortedSetMemberReply)];
+export function transformReply(reply: ZMPopRawReply): ZMPopReply {
+    return reply === null ? null : {
+        key: reply[0],
+        elements: reply[1].map(transformSortedSetMemberReply)
+    };
 }

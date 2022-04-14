@@ -157,20 +157,21 @@ export function transformSortedSetWithScoresReply(reply: Array<RedisCommandArgum
     return members;
 }
 
+export type SortedSetSide = 'MIN' | 'MAX';
 
 export interface ZMPopOptions {
-    SCORE: 'MIN' | 'MAX';
     COUNT?: number;
 }
 
 export function transformZMPopArguments(
     args: RedisCommandArguments,
-    keys: string | Array<string>,
-    options: ZMPopOptions
+    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+    side: SortedSetSide,
+    options?: ZMPopOptions
 ): RedisCommandArguments {
     pushVerdictArgument(args, keys);
 
-    args.push(options.SCORE);
+    args.push(side);
 
     if (options?.COUNT) {
         args.push('COUNT', options.COUNT.toString());
@@ -179,19 +180,21 @@ export function transformZMPopArguments(
     return args;
 }
 
+export type ListSide = 'LEFT' | 'RIGHT';
+
 export interface LMPopOptions {
-    SIDE: 'LEFT' | 'RIGHT';
     COUNT?: number;
 }
 
 export function transformLMPopArguments(
     args: RedisCommandArguments,
-    keys: string | Array<string>,
-    options: LMPopOptions
+    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+    side: ListSide,
+    options?: LMPopOptions
 ): RedisCommandArguments {
     pushVerdictArgument(args, keys);
 
-    args.push(options.SIDE);
+    args.push(side);
 
     if (options?.COUNT) {
         args.push('COUNT', options.COUNT.toString());

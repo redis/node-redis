@@ -1,20 +1,22 @@
-import { RedisCommandArguments } from '.';
-import { transformLMPopArguments, LMPopOptions } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { transformLMPopArguments, LMPopOptions, ListSide } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 2;
 
-export const IS_READ_ONLY = true;
-
 export function transformArguments(
-    keys: string | Array<string>,
-    options: LMPopOptions
+    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+    side: ListSide,
+    options?: LMPopOptions
 ): RedisCommandArguments {
-    return transformLMPopArguments(['LMPOP'], keys, options);
+    return transformLMPopArguments(
+        ['LMPOP'],
+        keys,
+        side,
+        options
+    );
 }
 
-type LMPopReply = null | [
-    key: string, 
-    elements: Array<String>
+export declare function transformReply(): null | [
+    key: string,
+    elements: Array<string>
 ];
-
-export declare function transformReply(): LMPopReply;

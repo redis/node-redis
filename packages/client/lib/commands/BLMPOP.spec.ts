@@ -8,17 +8,14 @@ describe('BLMPOP', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments(0, 'key', {
-                    SIDE: 'LEFT'
-                }),
+                transformArguments(0, 'key', 'LEFT'),
                 ['BLMPOP', '0', '1', 'key', 'LEFT']
             );
         });
 
-        it('with score and count', () => {
+        it('with COUNT', () => {
             assert.deepEqual(
-                transformArguments(0, 'key', {
-                    SIDE: 'LEFT',
+                transformArguments(0, 'key', 'LEFT', {
                     COUNT: 2
                 }),
                 ['BLMPOP', '0', '1', 'key', 'LEFT', 'COUNT', '2']
@@ -28,9 +25,7 @@ describe('BLMPOP', () => {
 
     testUtils.testWithClient('client.zmScore', async client => {
         assert.deepEqual(
-            await client.blmPop(0, 'key', {
-                SIDE: 'LEFT'
-            }),
+            await client.blmPop(0, 'key', 'RIGHT'),
             null
         );
     }, GLOBAL.SERVERS.OPEN);

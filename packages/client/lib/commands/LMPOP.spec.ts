@@ -8,17 +8,14 @@ describe('LMPOP', () => {
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
-                transformArguments('key', {
-                    SIDE: 'LEFT'
-                }),
+                transformArguments('key', 'LEFT'),
                 ['LMPOP', '1', 'key', 'LEFT']
             );
         });
 
-        it('with score and count', () => {
+        it('with COUNT', () => {
             assert.deepEqual(
-                transformArguments('key', {
-                    SIDE: 'LEFT',
+                transformArguments('key', 'LEFT', {
                     COUNT: 2
                 }),
                 ['LMPOP', '1', 'key', 'LEFT', 'COUNT', '2']
@@ -26,11 +23,9 @@ describe('LMPOP', () => {
         });
     });
 
-    testUtils.testWithClient('client.zmScore', async client => {
+    testUtils.testWithClient('client.lmPop', async client => {
         assert.deepEqual(
-            await client.lmPop('key', {
-                SIDE: 'RIGHT'
-            }),
+            await client.lmPop('key', 'RIGHT'),
             null
         );
     }, GLOBAL.SERVERS.OPEN);
