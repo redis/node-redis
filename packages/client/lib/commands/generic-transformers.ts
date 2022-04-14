@@ -454,8 +454,6 @@ export type FunctionListRawItemReply = [
     string,
     'engine',
     string,
-    'description',
-    string,
     'functions',
     Array<[
         'name',
@@ -470,7 +468,6 @@ export type FunctionListRawItemReply = [
 export interface FunctionListItemReply {
     libraryName: string;
     engine: string;
-    description: string;
     functions: Array<{
         name: string;
         description: string | null;
@@ -482,8 +479,7 @@ export function transformFunctionListItemReply(reply: FunctionListRawItemReply):
     return {
         libraryName: reply[1],
         engine: reply[3],
-        description: reply[5],
-        functions: reply[7].map(fn => ({
+        functions: reply[5].map(fn => ({
             name: fn[1],
             description: fn[3],
             flags: fn[5]

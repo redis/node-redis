@@ -30,7 +30,7 @@ describe('FUNCTION LOAD', () => {
                 MATH_FUNCTION.code,
                 { REPLACE: true }
             ),
-            'OK'
+            MATH_FUNCTION.name
         );
     }, GLOBAL.SERVERS.OPEN);
 });

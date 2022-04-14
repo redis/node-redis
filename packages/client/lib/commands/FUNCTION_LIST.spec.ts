@@ -30,7 +30,6 @@ describe('FUNCTION LIST', () => {
             [{
                 libraryName: MATH_FUNCTION.name,
                 engine: MATH_FUNCTION.engine,
-                description: null,
                 functions: [{
                     name: MATH_FUNCTION.library.square.NAME,
                     description: null,

@@ -21,6 +21,6 @@ interface FunctionListWithCodeItemReply extends FunctionListItemReply {
 export function transformReply(reply: Array<FunctionListWithCodeRawItemReply>): Array<FunctionListWithCodeItemReply> {
     return reply.map(library => ({
         ...transformFunctionListItemReply(library as unknown as FunctionListRawItemReply),
-        libraryCode: library[9]
+        libraryCode: library[7]
     }));
 }
