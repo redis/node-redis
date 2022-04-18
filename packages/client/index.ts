@@ -15,4 +15,6 @@ export const createCluster = RedisCluster.create;
 
 export { defineScript } from './lib/lua-script';
 
+export { GeoReplyWith } from './lib/commands/generic-transformers';
+
 export * from './lib/errors';

@@ -124,7 +124,6 @@ interface InfoReply {
 }
 
 export function transformReply(rawReply: InfoRawReply): InfoReply {
-    console.log(rawReply);
     return {
         indexName: rawReply[1],
         indexOptions: rawReply[3],
