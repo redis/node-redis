@@ -108,7 +108,8 @@ export default class RedisCommandsQueue {
 
     #decoder = new RESP2Decoder({
         returnStringsAsBuffers: () => {
-            return !!this.#waitingForReply.head?.value.returnBuffers || !!this.#pubSubState;
+            return !!this.#waitingForReply.head?.value.returnBuffers ||
+                this.#pubSubState.isActive;
         },
         onReply: reply => {
             if (this.#handlePubSubReply(reply)) {
