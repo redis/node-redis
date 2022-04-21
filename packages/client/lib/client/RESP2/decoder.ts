@@ -51,6 +51,14 @@ export default class RESP2Decoder {
 
     private currentStringComposer: BufferComposer | StringComposer = this.stringComposer;
 
+    reset() {
+        this.cursor = 0;
+        this.type = undefined;
+        this.bufferComposer.reset();
+        this.stringComposer.reset();
+        this.currentStringComposer = this.stringComposer;
+    }
+
     write(chunk: Buffer): void {
         while (this.cursor < chunk.length) {
             if (!this.type) {

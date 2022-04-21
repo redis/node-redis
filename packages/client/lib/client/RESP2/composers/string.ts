@@ -15,4 +15,8 @@ export default class StringComposer implements Composer<string> {
         this.string = '';
         return string;
     }
+
+    reset() {
+        this.string = '';
+    }
 }

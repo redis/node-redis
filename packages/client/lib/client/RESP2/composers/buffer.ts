@@ -11,4 +11,8 @@ export default class BufferComposer implements Composer<Buffer> {
         this.write(buffer);
         return Buffer.concat(this.chunks.splice(0));
     }
+
+    reset() {
+        this.chunks = [];
+    }
 }
