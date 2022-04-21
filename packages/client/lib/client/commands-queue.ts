@@ -390,6 +390,7 @@ export default class RedisCommandsQueue {
     }
 
     flushWaitingForReply(err: Error): void {
+        this.#parser.reset();
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
 
         if (!this.#chainInExecution) return;

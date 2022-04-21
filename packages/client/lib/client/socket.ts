@@ -116,13 +116,12 @@ export default class RedisSocket extends EventEmitter {
         if (this.#initiator) {
             try {
                 await this.#initiator();
-            } catch (err) {
-                this.#socket.destroy();
-                this.#socket = undefined;
-
+            } catch (err: any) {
                 if (err instanceof AuthError) {
                     this.#isOpen = false;
                 }
+
+                this.#socket.destroy(err);
 
                 throw err;
             }
