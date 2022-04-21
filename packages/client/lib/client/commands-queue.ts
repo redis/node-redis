@@ -391,6 +391,7 @@ export default class RedisCommandsQueue {
 
     flushWaitingForReply(err: Error): void {
         this.#parser.reset();
+        this.#pubSubState = undefined;
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
 
         if (!this.#chainInExecution) return;
