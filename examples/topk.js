@@ -66,6 +66,24 @@ async function topK() {
   // ]
   console.log(top10);
 
+  // List out the top 10 with their counts (requires RedisBloom >=2.2.9)
+  const top10WithCounts = await client.topK.listWithCount('mytopk');
+  console.log('The top 10 with counts:');
+  console.log(top10WithCounts);
+  // top10WithCounts looks like this:
+  // [
+  //    { item: 'suze', count: 42363 },
+  //    { item: 'lance', count: 41982 },
+  //    { item: 'simon', count: 41831 },
+  //    { item: 'steve', count: 39237 },
+  //    { item: 'guy', count: 39078 },
+  //    { item: 'kyleb', count: 37338 },
+  //    { item: 'leibale', count: 34230 },
+  //    { item: 'kyleo', count: 33812 },
+  //    { item: 'alex', count: 33679 },
+  //    { item: 'nava', count: 32663 }
+  // ]
+
   // Check if a few team members are in the top 10 with TOPK.QUERY:
   const [ steve, suze, leibale, frederick ] = await client.topK.query('mytopk', [
     'steve',
