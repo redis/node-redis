@@ -50,16 +50,6 @@ interface PubSubListeners {
 
 type PubSubListenersMap = Map<string, PubSubListeners>;
 
-interface PubSubState {
-    subscribing: number;
-    subscribed: number;
-    unsubscribing: number;
-    listeners: {
-        channels: PubSubListenersMap;
-        patterns: PubSubListenersMap;
-    };
-}
-
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
         while (queue.length) {
@@ -94,7 +84,16 @@ export default class RedisCommandsQueue {
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
 
-    #pubSubState: PubSubState | undefined;
+    readonly #pubSubState = {
+        isActive: false,
+        subscribing: 0,
+        subscribed: 0,
+        unsubscribing: 0,
+        listeners: {
+            channels: new Map(),
+            patterns: new Map()
+        }
+    };
 
     static readonly #PUB_SUB_MESSAGES = {
         message: Buffer.from('message'),
@@ -132,7 +131,7 @@ export default class RedisCommandsQueue {
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {
-        if (this.#pubSubState && !options?.ignorePubSubMode) {
+        if (this.#pubSubState.isActive && !options?.ignorePubSubMode) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
             return Promise.reject(new Error('The queue is full'));
@@ -172,27 +171,16 @@ export default class RedisCommandsQueue {
         });
     }
 
-    #initiatePubSubState(): PubSubState {
-        return this.#pubSubState ??= {
-            subscribed: 0,
-            subscribing: 0,
-            unsubscribing: 0,
-            listeners: {
-                channels: new Map(),
-                patterns: new Map()
-            }
-        };
-    }
-
     subscribe<T extends boolean>(
         command: PubSubSubscribeCommands,
         channels: RedisCommandArgument | Array<RedisCommandArgument>,
         listener: PubSubListener<T>,
         returnBuffers?: T
     ): Promise<void> {
-        const pubSubState = this.#initiatePubSubState(),
-            channelsToSubscribe: Array<RedisCommandArgument> = [],
-            listenersMap = command === PubSubSubscribeCommands.SUBSCRIBE ? pubSubState.listeners.channels : pubSubState.listeners.patterns;
+        const channelsToSubscribe: Array<RedisCommandArgument> = [],
+            listenersMap = command === PubSubSubscribeCommands.SUBSCRIBE ?
+                this.#pubSubState.listeners.channels :
+                this.#pubSubState.listeners.patterns;
         for (const channel of (Array.isArray(channels) ? channels : [channels])) {
             const channelString = typeof channel === 'string' ? channel : channel.toString();
             let listeners = listenersMap.get(channelString);
@@ -212,6 +200,7 @@ export default class RedisCommandsQueue {
         if (!channelsToSubscribe.length) {
             return Promise.resolve();
         }
+
         return this.#pushPubSubCommand(command, channelsToSubscribe);
     }
 
@@ -221,10 +210,6 @@ export default class RedisCommandsQueue {
         listener?: PubSubListener<T>,
         returnBuffers?: T
     ): Promise<void> {
-        if (!this.#pubSubState) {
-            return Promise.resolve();
-        }
-
         const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ?
             this.#pubSubState.listeners.channels :
             this.#pubSubState.listeners.patterns;
@@ -264,8 +249,7 @@ export default class RedisCommandsQueue {
 
     #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels: number | Array<RedisCommandArgument>): Promise<void> {
         return new Promise((resolve, reject) => {
-            const pubSubState = this.#initiatePubSubState(),
-                isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
+            const isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
                 inProgressKey = isSubscribe ? 'subscribing' : 'unsubscribing',
                 commandArgs: Array<RedisCommandArgument> = [command];
 
@@ -277,38 +261,42 @@ export default class RedisCommandsQueue {
                 channelsCounter = channels.length;
             }
 
-            pubSubState[inProgressKey] += channelsCounter;
+            this.#pubSubState.isActive = true;
+            this.#pubSubState[inProgressKey] += channelsCounter;
 
             this.#waitingToBeSent.push({
                 args: commandArgs,
                 channelsCounter,
                 returnBuffers: true,
                 resolve: () => {
-                    pubSubState[inProgressKey] -= channelsCounter;
-                    if (isSubscribe) {
-                        pubSubState.subscribed += channelsCounter;
-                    } else {
-                        pubSubState.subscribed -= channelsCounter;
-                        if (!pubSubState.subscribed && !pubSubState.subscribing && !pubSubState.subscribed) {
-                            this.#pubSubState = undefined;
-                        }
-                    }
+                    this.#pubSubState[inProgressKey] -= channelsCounter;
+                    this.#pubSubState.subscribed += channelsCounter * (isSubscribe ? 1 : -1);
+                    this.#updatePubSubActiveState();
                     resolve();
                 },
                 reject: err => {
-                    pubSubState[inProgressKey] -= channelsCounter * (isSubscribe ? 1 : -1);
+                    this.#pubSubState[inProgressKey] -= channelsCounter * (isSubscribe ? 1 : -1);
+                    this.#updatePubSubActiveState();
                     reject(err);
                 }
             });
         });
     }
 
-    resubscribe(): Promise<any> | undefined {
-        if (!this.#pubSubState) {
-            return;
+    #updatePubSubActiveState(): void {
+        if (
+            !this.#pubSubState.subscribed &&
+            !this.#pubSubState.subscribing &&
+            !this.#pubSubState.subscribed
+        ) {
+            this.#pubSubState.isActive = false;
         }
+    }
 
+    resubscribe(): Promise<any> | undefined {
         this.#pubSubState.subscribed = 0;
+        this.#pubSubState.subscribing = 0;
+        this.#pubSubState.unsubscribing = 0;
 
         const promises = [],
             { channels, patterns } = this.#pubSubState.listeners;
@@ -398,7 +386,7 @@ export default class RedisCommandsQueue {
 
     flushWaitingForReply(err: Error): void {
         this.#decoder.reset();
-        this.#pubSubState = undefined;
+        this.#pubSubState.isActive = false;
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
 
         if (!this.#chainInExecution) return;
