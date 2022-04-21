@@ -356,7 +356,7 @@ export default class RedisCommandsQueue {
     }
 
     #handlePubSubReply(reply: any): boolean {
-        if (!this.#pubSubState || !Array.isArray(reply)) return false;
+        if (!this.#pubSubState.isActive || !Array.isArray(reply)) return false;
 
         if (RedisCommandsQueue.#PUB_SUB_MESSAGES.message.equals(reply[0])) {
             RedisCommandsQueue.#emitPubSubMessage(
