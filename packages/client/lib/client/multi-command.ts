@@ -87,7 +87,7 @@ export default class RedisClientMultiCommand {
     #defineLegacyCommand(name: string): void {
         this.v4[name] = (this as any)[name].bind(this.v4);
         (this as any)[name] =
-            (...args: Array<unknown>): void => (this as any).addCommand(name, args);
+            (...args: Array<unknown>): void => (this as any).addCommand(name, ...args);
     }
 
     commandsExecutor(command: RedisCommand, args: Array<unknown>): this {
