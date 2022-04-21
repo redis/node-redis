@@ -3,7 +3,7 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisScripts } from '../commands';
-import { AbortError, AuthError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
@@ -86,30 +86,6 @@ describe('Client', () => {
                 'PONG'
             );
         }, GLOBAL.SERVERS.PASSWORD);
-
-        testUtils.testWithClient('should not retry connecting if failed due to wrong auth', async client => {
-            let message;
-            if (testUtils.isVersionGreaterThan([6, 2])) {
-                message = 'WRONGPASS invalid username-password pair or user is disabled.';
-            } else if (testUtils.isVersionGreaterThan([6])) {
-                message = 'WRONGPASS invalid username-password pair';
-            } else {
-                message = 'ERR invalid password';
-            }
-
-            await assert.rejects(
-                client.connect(),
-                new AuthError(message)
-            );
-
-            assert.equal(client.isOpen, false);
-        }, {
-            ...GLOBAL.SERVERS.PASSWORD,
-            clientOptions: {
-                password: 'wrongpassword'
-            },
-            disableClientSetup: true
-        });
 
         testUtils.testWithClient('should execute AUTH before SELECT', async client => {
             assert.equal(
@@ -300,7 +276,8 @@ describe('Client', () => {
                 await client.multi()
                     .sAdd('a', ['b', 'c'])
                     .v4.exec(),
-                [2])
+                [2]
+            );
         }, {
             ...GLOBAL.SERVERS.OPEN,
             clientOptions: {
@@ -680,10 +657,6 @@ describe('Client', () => {
             try {
                 const listener = spy();
                 await subscriber.subscribe('channel', listener);
-
-                subscriber.on('error', err => {
-                    console.error('subscriber err', err.message);
-                });
 
                 await Promise.all([
                     once(subscriber, 'error'),
