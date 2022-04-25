@@ -4,7 +4,7 @@ import { MATH_FUNCTION } from '../client/index.spec';
 import { transformArguments } from './FUNCTION_LOAD';
 
 describe('FUNCTION LOAD', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     describe('transformArguments', () => {
         it('simple', () => {

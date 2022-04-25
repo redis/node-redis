@@ -3,7 +3,7 @@ import testUtils from '../test-utils';
 import { transformArguments } from './FUNCTION_KILL';
 
 describe('FUNCTION KILL', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     it('transformArguments', () => {
         assert.deepEqual(

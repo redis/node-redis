@@ -3,7 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './ZMPOP';
 
 describe('ZMPOP', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     describe('transformArguments', () => {
         it('simple', () => {
