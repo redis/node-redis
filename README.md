@@ -36,16 +36,14 @@ npm install redis
 ```typescript
 import { createClient } from 'redis';
 
-(async () => {
-  const client = createClient();
+const client = createClient();
 
-  client.on('error', (err) => console.log('Redis Client Error', err));
+client.on('error', (err) => console.log('Redis Client Error', err));
 
-  await client.connect();
+await client.connect();
 
-  await client.set('key', 'value');
-  const value = await client.get('key');
-})();
+await client.set('key', 'value');
+const value = await client.get('key');
 ```
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
