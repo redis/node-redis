@@ -65,7 +65,7 @@ describe('BLPOP', () => {
                 'key',
                 1
             ),
-            cluster.lPush('key', 'element'),
+            cluster.lPush('key', 'element')
         ]);
 
         assert.deepEqual(
