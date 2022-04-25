@@ -6,9 +6,11 @@ import * as BITFIELD from '../commands/BITFIELD';
 import * as BITOP from '../commands/BITOP';
 import * as BITPOS from '../commands/BITPOS';
 import * as BLMOVE from '../commands/BLMOVE';
+import * as BLMPOP from '../commands/BLMPOP';
 import * as BLPOP from '../commands/BLPOP';
 import * as BRPOP from '../commands/BRPOP';
 import * as BRPOPLPUSH from '../commands/BRPOPLPUSH';
+import * as BZMPOP from '../commands/BZMPOP';
 import * as BZPOPMAX from '../commands/BZPOPMAX';
 import * as BZPOPMIN from '../commands/BZPOPMIN';
 import * as COPY from '../commands/COPY';
@@ -59,6 +61,7 @@ import * as LINDEX from '../commands/LINDEX';
 import * as LINSERT from '../commands/LINSERT';
 import * as LLEN from '../commands/LLEN';
 import * as LMOVE from '../commands/LMOVE';
+import * as LMPOP from '../commands/LMPOP';
 import * as LPOP_COUNT from '../commands/LPOP_COUNT';
 import * as LPOP from '../commands/LPOP';
 import * as LPOS_COUNT from '../commands/LPOS_COUNT';
@@ -161,6 +164,7 @@ import * as ZINTER from '../commands/ZINTER';
 import * as ZINTERCARD from '../commands/ZINTERCARD';
 import * as ZINTERSTORE from '../commands/ZINTERSTORE';
 import * as ZLEXCOUNT from '../commands/ZLEXCOUNT';
+import * as ZMPOP from '../commands/ZMPOP';
 import * as ZMSCORE from '../commands/ZMSCORE';
 import * as ZPOPMAX_COUNT from '../commands/ZPOPMAX_COUNT';
 import * as ZPOPMAX from '../commands/ZPOPMAX';
@@ -202,12 +206,16 @@ export default {
     bitPos: BITPOS,
     BLMOVE,
     blMove: BLMOVE,
+    BLMPOP,
+    blmPop: BLMPOP,
     BLPOP,
     blPop: BLPOP,
     BRPOP,
     brPop: BRPOP,
     BRPOPLPUSH,
     brPopLPush: BRPOPLPUSH,
+    BZMPOP,
+    bzmPop: BZMPOP,
     BZPOPMAX,
     bzPopMax: BZPOPMAX,
     BZPOPMIN,
@@ -308,6 +316,8 @@ export default {
     lLen: LLEN,
     LMOVE,
     lMove: LMOVE,
+    LMPOP,
+    lmPop: LMPOP,
     LPOP_COUNT,
     lPopCount: LPOP_COUNT,
     LPOP,
@@ -512,6 +522,8 @@ export default {
     zInterStore: ZINTERSTORE,
     ZLEXCOUNT,
     zLexCount: ZLEXCOUNT,
+    ZMPOP,
+    zmPop: ZMPOP,
     ZMSCORE,
     zmScore: ZMSCORE,
     ZPOPMAX_COUNT,

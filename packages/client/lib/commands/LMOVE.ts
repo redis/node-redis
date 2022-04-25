@@ -1,14 +1,13 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ListSide } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
-
-export type LMoveSide = 'LEFT' | 'RIGHT';
 
 export function transformArguments(
     source: RedisCommandArgument,
     destination: RedisCommandArgument,
-    sourceSide: LMoveSide,
-    destinationSide: LMoveSide
+    sourceSide: ListSide,
+    destinationSide: ListSide
 ): RedisCommandArguments {
     return [
         'LMOVE',
