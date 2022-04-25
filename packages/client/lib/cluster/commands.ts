@@ -155,6 +155,7 @@ import * as XRANGE from '../commands/XRANGE';
 import * as XREAD from '../commands/XREAD';
 import * as XREADGROUP from '../commands/XREADGROUP';
 import * as XREVRANGE from '../commands/XREVRANGE';
+import * as XSETID from '../commands/XSETID';
 import * as XTRIM from '../commands/XTRIM';
 import * as ZADD from '../commands/ZADD';
 import * as ZCARD from '../commands/ZCARD';
@@ -508,6 +509,8 @@ export default {
     xReadGroup: XREADGROUP,
     XREVRANGE,
     xRevRange: XREVRANGE,
+    XSETID,
+    xSetId: XSETID,
     XTRIM,
     xTrim: XTRIM,
     ZADD,
