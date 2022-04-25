@@ -11,7 +11,7 @@ import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
 import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ClientClosedError, DisconnectsClientError, AuthError } from '../errors';
+import { ClientClosedError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 
@@ -254,9 +254,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                             password: this.#options.password ?? ''
                         }),
                         { asap: true }
-                    ).catch(err => {
-                        throw new AuthError(err.message);
-                    })
+                    )
                 );
             }
 

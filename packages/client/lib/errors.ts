@@ -34,12 +34,6 @@ export class SocketClosedUnexpectedlyError extends Error {
     }
 }
 
-export class AuthError extends Error {
-    constructor(message: string) {
-        super(message);
-    }
-}
-
 export class RootNodesUnavailableError extends Error {
     constructor() {
         super('All the root nodes are unavailable');

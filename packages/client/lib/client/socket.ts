@@ -3,7 +3,7 @@ import * as net from 'net';
 import * as tls from 'tls';
 import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, AuthError, ReconnectStrategyError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
@@ -53,7 +53,7 @@ export default class RedisSocket extends EventEmitter {
         return (options as RedisTlsSocketOptions).tls === true;
     }
 
-    readonly #initiator?: RedisSocketInitiator;
+    readonly #initiator: RedisSocketInitiator;
 
     readonly #options: RedisSocketOptions;
 
@@ -79,7 +79,7 @@ export default class RedisSocket extends EventEmitter {
         return this.#writableNeedDrain;
     }
 
-    constructor(initiator?: RedisSocketInitiator, options?: RedisSocketOptions) {
+    constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
         super();
 
         this.#initiator = initiator;
@@ -91,70 +91,40 @@ export default class RedisSocket extends EventEmitter {
             throw new Error('Socket already opened');
         }
 
-        return this.#connect();
+        return this.#connect(0);
     }
 
-    async #connect(hadError?: boolean): Promise<void> {
-        try {
-            this.#isOpen = true;
-            this.#socket = await this.#retryConnection(0, hadError);
-            this.#writableNeedDrain = false;
-        } catch (err) {
-            this.#isOpen = false;
-            this.emit('error', err);
-            this.emit('end');
-            throw err;
-        }
-
-        if (!this.#isOpen) {
-            this.disconnect();
-            return;
-        }
-
-        this.emit('connect');
-
-        if (this.#initiator) {
-            try {
-                await this.#initiator();
-            } catch (err) {
-                this.#socket.destroy();
-                this.#socket = undefined;
-
-                if (err instanceof AuthError) {
-                    this.#isOpen = false;
-                }
-
-                throw err;
-            }
-
-            if (!this.#isOpen) return;
-        }
-
-        this.#isReady = true;
-
-        this.emit('ready');
-    }
-
-    async #retryConnection(retries: number, hadError?: boolean): Promise<net.Socket | tls.TLSSocket> {
+    async #connect(retries: number, hadError?: boolean): Promise<void> {
         if (retries > 0 || hadError) {
             this.emit('reconnecting');
         }
 
         try {
-            return await this.#createSocket();
-        } catch (err) {
-            if (!this.#isOpen) {
+            this.#isOpen = true;
+            this.#socket = await this.#createSocket();
+            this.#writableNeedDrain = false;
+            this.emit('connect');
+
+            try {
+                await this.#initiator();
+            } catch (err) {
+                this.#socket.destroy();
+                this.#socket = undefined;
                 throw err;
             }
+            this.#isReady = true;
+            this.emit('ready');
+        } catch (err) {
+            this.emit('error', err);
 
             const retryIn = (this.#options?.reconnectStrategy ?? RedisSocket.#defaultReconnectStrategy)(retries);
             if (retryIn instanceof Error) {
+                this.#isOpen = false;
                 throw new ReconnectStrategyError(retryIn, err);
             }
 
-            this.emit('error', err);
             await promiseTimeout(retryIn);
-            return this.#retryConnection(retries + 1);
+            return this.#connect(retries + 1);
         }
     }
 
@@ -212,7 +182,7 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = false;
         this.emit('error', err);
 
-        this.#connect(true).catch(() => {
+        this.#connect(0, true).catch(() => {
             // the error was already emitted, silently ignore it
         });
     }
