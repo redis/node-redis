@@ -1,28 +1,63 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisPlugins, RedisScript, RedisScripts } from '../commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, ExcludeMappedString, RedisFunction } from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
-import { extendWithCommands, extendWithModulesAndScripts, transformLegacyCommandArguments } from '../commander';
-import { ExcludeMappedString } from '.';
+import { attachCommands, attachExtensions, transformLegacyCommandArguments } from '../commander';
 
-type RedisClientMultiCommandSignature<C extends RedisCommand, M extends RedisModules, S extends RedisScripts> =
-    (...args: Parameters<C['transformArguments']>) => RedisClientMultiCommandType<M, S>;
+type CommandSignature<
+    C extends RedisCommand,
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = (...args: Parameters<C['transformArguments']>) => RedisClientMultiCommandType<M, F, S>;
 
-type WithCommands<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof typeof COMMANDS]: RedisClientMultiCommandSignature<(typeof COMMANDS)[P], M, S>;
+type WithCommands<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = {
+    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], M, F, S>;
 };
 
-type WithModules<M extends RedisModules, S extends RedisScripts> = {
+type WithModules<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = {
     [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P] as ExcludeMappedString<C>]: RedisClientMultiCommandSignature<M[P][C], M, S>;
+        [C in keyof M[P] as ExcludeMappedString<C>]: CommandSignature<M[P][C], M, F, S>;
     };
 };
 
-type WithScripts<M extends RedisModules, S extends RedisScripts> = {
-    [P in keyof S as ExcludeMappedString<P>]: RedisClientMultiCommandSignature<S[P], M, S>;
+type WithFunctions<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = {
+    [P in keyof F as ExcludeMappedString<P>]: {
+        [FF in keyof F[P] as ExcludeMappedString<FF>]: CommandSignature<F[P][FF], M, F, S>;
+    };
 };
 
-export type RedisClientMultiCommandType<M extends RedisModules, S extends RedisScripts> =
-    RedisClientMultiCommand & WithCommands<M, S> & WithModules<M, S> & WithScripts<M, S>;
+type WithScripts<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = {
+    [P in keyof S as ExcludeMappedString<P>]: CommandSignature<S[P], M, F, S>;
+};
+
+export type RedisClientMultiCommandType<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = RedisClientMultiCommand & WithCommands<M, F, S> & WithModules<M, F, S> & WithFunctions<M, F, S> & WithScripts<M, F, S>;
+
+type InstantiableRedisMultiCommand<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<M, F, S>;
+
 
 export type RedisClientMultiExecutor = (queue: Array<RedisMultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisCommandRawReply>>;
 
@@ -30,15 +65,19 @@ export default class RedisClientMultiCommand {
     readonly #multi = new RedisMultiCommand();
     readonly #executor: RedisClientMultiExecutor;
 
-    static extend<M extends RedisModules, S extends RedisScripts>(
-        plugins?: RedisPlugins<M, S>
-    ): new (...args: ConstructorParameters<typeof RedisMultiCommand>) => RedisClientMultiCommandType<M, S> {
-        return <any>extendWithModulesAndScripts({
+    static extend<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(extensions?: RedisExtensions<M, F, S>): InstantiableRedisMultiCommand<M, F, S> {
+        return attachExtensions({
             BaseClass: RedisClientMultiCommand,
-            modules: plugins?.modules,
-            modulesCommandsExecutor: RedisClientMultiCommand.prototype.commandsExecutor,
-            scripts: plugins?.scripts,
-            scriptsExecutor: RedisClientMultiCommand.prototype.scriptsExecutor
+            modulesExecutor: RedisClientMultiCommand.prototype.commandsExecutor,
+            modules: extensions?.modules,
+            functionsExecutor: RedisClientMultiCommand.prototype.functionsExecutor,
+            functions: extensions?.functions,
+            scriptsExecutor: RedisClientMultiCommand.prototype.scriptsExecutor,
+            scripts: extensions?.scripts
         });
     }
 
@@ -102,6 +141,11 @@ export default class RedisClientMultiCommand {
         return this;
     }
 
+    functionsExecutor(fn: RedisFunction, args: Array<unknown>): this {
+        this.#multi.addFunction(fn, args);
+        return this;
+    }
+
     scriptsExecutor(script: RedisScript, args: Array<unknown>): this {
         this.#multi.addScript(script, args);
         return this;
@@ -123,15 +167,13 @@ export default class RedisClientMultiCommand {
     EXEC = this.exec;
 
     async execAsPipeline(): Promise<Array<RedisCommandRawReply>> {
-        if (!this.#multi.queue.length) return [];
-
         return this.#multi.transformReplies(
             await this.#executor(this.#multi.queue)
         );
     }
 }
 
-extendWithCommands({
+attachCommands({
     BaseClass: RedisClientMultiCommand,
     commands: COMMANDS,
     executor: RedisClientMultiCommand.prototype.commandsExecutor

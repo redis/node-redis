@@ -348,6 +348,10 @@ export interface EvalOptions {
     arguments?: Array<string>;
 }
 
+export function evalFirstKeyIndex(options?: EvalOptions): string | undefined {
+    return options?.keys?.[0];
+}
+
 export function pushEvalArguments(args: Array<string>, options?: EvalOptions): Array<string> {
     if (options?.keys) {
         args.push(
@@ -488,6 +492,51 @@ export function transformCommandReply(
         lastKeyIndex,
         step,
         categories: new Set(categories)
+    };
+}
+
+export enum RedisFunctionFlags {
+    NO_WRITES = 'no-writes',
+    ALLOW_OOM = 'allow-oom',
+    ALLOW_STALE = 'allow-stale',
+    NO_CLUSTER = 'no-cluster'
+}
+
+export type FunctionListRawItemReply = [
+    'library_name',
+    string,
+    'engine',
+    string,
+    'functions',
+    Array<[
+        'name',
+        string,
+        'description',
+        string | null,
+        'flags',
+        Array<RedisFunctionFlags>
+    ]>
+];
+
+export interface FunctionListItemReply {
+    libraryName: string;
+    engine: string;
+    functions: Array<{
+        name: string;
+        description: string | null;
+        flags: Array<RedisFunctionFlags>;
+    }>;
+}
+
+export function transformFunctionListItemReply(reply: FunctionListRawItemReply): FunctionListItemReply {
+    return {
+        libraryName: reply[1],
+        engine: reply[3],
+        functions: reply[5].map(fn => ({
+            name: fn[1],
+            description: fn[3],
+            flags: fn[5]
+        }))
     };
 }
 

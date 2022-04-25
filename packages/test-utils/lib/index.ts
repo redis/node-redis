@@ -1,4 +1,4 @@
-import { RedisModules, RedisScripts } from '@node-redis/client/lib/commands';
+import { RedisModules, RedisFunctions, RedisScripts } from '@node-redis/client/lib/commands';
 import RedisClient, { RedisClientOptions, RedisClientType } from '@node-redis/client/lib/client';
 import RedisCluster, { RedisClusterOptions, RedisClusterType } from '@node-redis/client/lib/cluster';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
@@ -15,15 +15,23 @@ interface CommonTestOptions {
     minimumDockerVersion?: Array<number>;
 }
 
-interface ClientTestOptions<M extends RedisModules, S extends RedisScripts> extends CommonTestOptions {
+interface ClientTestOptions<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> extends CommonTestOptions {
     serverArguments: Array<string>;
-    clientOptions?: Partial<RedisClientOptions<M, S>>;
+    clientOptions?: Partial<RedisClientOptions<M, F, S>>;
     disableClientSetup?: boolean;
 }
 
-interface ClusterTestOptions<M extends RedisModules, S extends RedisScripts> extends CommonTestOptions {
+interface ClusterTestOptions<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+> extends CommonTestOptions {
     serverArguments: Array<string>;
-    clusterConfiguration?: Partial<RedisClusterOptions<M, S>>;
+    clusterConfiguration?: Partial<RedisClusterOptions<M, F, S>>;
     numberOfNodes?: number;
 }
 
@@ -93,10 +101,14 @@ export default class TestUtils {
         });
     }
 
-    testWithClient<M extends RedisModules, S extends RedisScripts>(
+    testWithClient<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(
         title: string,
-        fn: (client: RedisClientType<M, S>) => Promise<unknown>,
-        options: ClientTestOptions<M, S>
+        fn: (client: RedisClientType<M, F, S>) => Promise<unknown>,
+        options: ClientTestOptions<M, F, S>
     ): void {
         let dockerPromise: ReturnType<typeof spawnRedisServer>;
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
@@ -138,16 +150,24 @@ export default class TestUtils {
         });
     }
 
-    static async #clusterFlushAll<M extends RedisModules, S extends RedisScripts>(cluster: RedisClusterType<M, S>): Promise<void> {
+    static async #clusterFlushAll<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(cluster: RedisClusterType<M, F, S>): Promise<void> {
         await Promise.all(
             cluster.getMasters().map(({ client }) => client.flushAll())
         );
     }
 
-    testWithCluster<M extends RedisModules, S extends RedisScripts>(
+    testWithCluster<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(
         title: string,
-        fn: (cluster: RedisClusterType<M, S>) => Promise<void>,
-        options: ClusterTestOptions<M, S>
+        fn: (cluster: RedisClusterType<M, F, S>) => Promise<void>,
+        options: ClusterTestOptions<M, F, S>
     ): void {
         let dockersPromise: ReturnType<typeof spawnRedisCluster>;
         if (this.isVersionGreaterThan(options.minimumDockerVersion)) {

@@ -4,7 +4,7 @@ import RedisJSON from '.';
 export default new TestUtils({
     dockerImageName: 'redislabs/rejson',
     dockerImageVersionArgument: 'rejson-version',
-    defaultDockerVersion: '2.0.6'
+    defaultDockerVersion: '2.0.7'
 });
 
 export const GLOBAL = {

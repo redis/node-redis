@@ -62,6 +62,15 @@ import * as ECHO from '../commands/ECHO';
 import * as FAILOVER from '../commands/FAILOVER';
 import * as FLUSHALL from '../commands/FLUSHALL';
 import * as FLUSHDB from '../commands/FLUSHDB';
+import * as FUNCTION_DELETE from '../commands/FUNCTION_DELETE';
+import * as FUNCTION_DUMP from '../commands/FUNCTION_DUMP';
+import * as FUNCTION_FLUSH from '../commands/FUNCTION_FLUSH';
+import * as FUNCTION_KILL from '../commands/FUNCTION_KILL';
+import * as FUNCTION_LIST_WITHCODE from '../commands/FUNCTION_LIST_WITHCODE';
+import * as FUNCTION_LIST from '../commands/FUNCTION_LIST';
+import * as FUNCTION_LOAD from '../commands/FUNCTION_LOAD';
+import * as FUNCTION_RESTORE from '../commands/FUNCTION_RESTORE';
+import * as FUNCTION_STATS from '../commands/FUNCTION_STATS';
 import * as HELLO from '../commands/HELLO';
 import * as INFO from '../commands/INFO';
 import * as KEYS from '../commands/KEYS';
@@ -228,6 +237,24 @@ export default {
     flushAll: FLUSHALL,
     FLUSHDB,
     flushDb: FLUSHDB,
+    FUNCTION_DELETE,
+    functionDelete: FUNCTION_DELETE,
+    FUNCTION_DUMP,
+    functionDump: FUNCTION_DUMP,
+    FUNCTION_FLUSH,
+    functionFlush: FUNCTION_FLUSH,
+    FUNCTION_KILL,
+    functionKill: FUNCTION_KILL,
+    FUNCTION_LIST_WITHCODE,
+    functionListWithCode: FUNCTION_LIST_WITHCODE,
+    FUNCTION_LIST,
+    functionList: FUNCTION_LIST,
+    FUNCTION_LOAD,
+    functionLoad: FUNCTION_LOAD,
+    FUNCTION_RESTORE,
+    functionRestore: FUNCTION_RESTORE,
+    FUNCTION_STATS,
+    functionStats: FUNCTION_STATS,
     HELLO,
     hello: HELLO,
     INFO,

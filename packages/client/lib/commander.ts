@@ -1,16 +1,23 @@
 
 import { CommandOptions, isCommandOptions } from './command-options';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandReply, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts } from './commands';
 
-type Instantiable<T = any> = new(...args: Array<any>) => T;
+type Instantiable<T = any> = new (...args: Array<any>) => T;
 
-interface ExtendWithCommandsConfig<T extends Instantiable> {
-    BaseClass: T;
-    commands: RedisCommands;
-    executor(command: RedisCommand, args: Array<unknown>): unknown;
+type CommandsExecutor<C extends RedisCommand = RedisCommand> =
+    (command: C, args: Array<unknown>) => unknown;
+
+interface AttachCommandsConfig<C extends RedisCommand> {
+    BaseClass: Instantiable;
+    commands: Record<string, C>;
+    executor: CommandsExecutor<C>;
 }
 
-export function extendWithCommands<T extends Instantiable>({ BaseClass, commands, executor }: ExtendWithCommandsConfig<T>): void {
+export function attachCommands<C extends RedisCommand>({
+    BaseClass,
+    commands,
+    executor
+}: AttachCommandsConfig<C>): void {
     for (const [name, command] of Object.entries(commands)) {
         BaseClass.prototype[name] = function (...args: Array<unknown>): unknown {
             return executor.call(this, command, args);
@@ -18,56 +25,82 @@ export function extendWithCommands<T extends Instantiable>({ BaseClass, commands
     }
 }
 
-interface ExtendWithModulesAndScriptsConfig<T extends Instantiable> {
+interface AttachExtensionsConfig<T extends Instantiable = Instantiable> {
     BaseClass: T;
+    modulesExecutor: CommandsExecutor;
     modules?: RedisModules;
-    modulesCommandsExecutor(this: InstanceType<T>, command: RedisCommand, args: Array<unknown>): unknown;
+    functionsExecutor: CommandsExecutor<RedisFunction>;
+    functions?: RedisFunctions;
+    scriptsExecutor: CommandsExecutor<RedisScript>;
     scripts?: RedisScripts;
-    scriptsExecutor(this: InstanceType<T>, script: RedisScript, args: Array<unknown>): unknown;
 }
 
-export function extendWithModulesAndScripts<T extends Instantiable>(config: ExtendWithModulesAndScriptsConfig<T>): T {
-    let Commander: T | undefined;
+export function attachExtensions(config: AttachExtensionsConfig): any {
+    let Commander;
 
     if (config.modules) {
-        Commander = class extends config.BaseClass {
-            constructor(...args: Array<any>) {
-                super(...args);
+        Commander = attachWithNamespaces({
+            BaseClass: config.BaseClass,
+            namespaces: config.modules,
+            executor: config.modulesExecutor
+        });
+    }
 
-                for (const module of Object.keys(config.modules!)) {
-                    this[module] = new this[module](this);
-                }
-            }
-        };
-
-        for (const [moduleName, module] of Object.entries(config.modules)) {
-            Commander.prototype[moduleName] = class {
-                readonly self: T;
-
-                constructor(self: InstanceType<T>) {
-                    this.self = self;
-                }
-            };
-
-            for (const [commandName, command] of Object.entries(module)) {
-                Commander.prototype[moduleName].prototype[commandName] = function (...args: Array<unknown>): unknown {
-                    return config.modulesCommandsExecutor.call(this.self, command, args);
-                };
-            }
-        }
+    if (config.functions) {
+        Commander = attachWithNamespaces({
+            BaseClass: Commander ?? config.BaseClass,
+            namespaces: config.functions,
+            executor: config.functionsExecutor
+        });
     }
 
     if (config.scripts) {
         Commander ??= class extends config.BaseClass {};
+        attachCommands({
+            BaseClass: Commander,
+            commands: config.scripts,
+            executor: config.scriptsExecutor
+        });
+    }
 
-        for (const [name, script] of Object.entries(config.scripts)) {
-            Commander.prototype[name] = function (...args: Array<unknown>): unknown {
-                return config.scriptsExecutor.call(this, script, args);
+    return Commander ?? config.BaseClass;
+}
+
+interface AttachWithNamespacesConfig<C extends RedisCommand> {
+    BaseClass: Instantiable;
+    namespaces: Record<string, Record<string, C>>;
+    executor: CommandsExecutor<C>;
+}
+
+function attachWithNamespaces<C extends RedisCommand>({
+    BaseClass,
+    namespaces,
+    executor
+}: AttachWithNamespacesConfig<C>): any {
+    const Commander = class extends BaseClass {
+        constructor(...args: Array<any>) {
+            super(...args);
+
+            for (const namespace of Object.keys(namespaces)) {
+                this[namespace] = Object.create(this[namespace], {
+                    self: {
+                        value: this
+                    }
+                });
+            }
+        }
+    };
+
+    for (const [namespace, commands] of Object.entries(namespaces)) {
+        Commander.prototype[namespace] = {};
+        for (const [name, command] of Object.entries(commands)) {
+            Commander.prototype[namespace][name] = function (...args: Array<unknown>): unknown {
+                return executor.call(this.self, command, args);
             };
         }
     }
 
-    return (Commander ?? config.BaseClass) as any;
+    return Commander;
 }
 
 export function transformCommandArguments<T>(
@@ -93,14 +126,29 @@ export function transformLegacyCommandArguments(args: Array<any>): Array<any> {
     return args.flat().map(x => x?.toString?.());
 }
 
-export function transformCommandReply(
-    command: RedisCommand,
-    rawReply: RedisCommandRawReply,
+export function transformCommandReply<C extends RedisCommand>(
+    command: C,
+    rawReply: unknown,
     preserved: unknown
-): RedisCommandReply<typeof command> {
+): RedisCommandReply<C> {
     if (!command.transformReply) {
-        return rawReply;
+        return rawReply as RedisCommandReply<C>;
     }
 
     return command.transformReply(rawReply, preserved);
+}
+
+export function fCallArguments(fn: RedisFunction, args: RedisCommandArguments): RedisCommandArguments {
+    const actualArgs: RedisCommandArguments = [
+        fn.IS_READ_ONLY ? 'FCALL_RO' : 'FCALL',
+        fn.NAME
+    ];
+
+    if (fn.NUMBER_OF_KEYS !== undefined) {
+        actualArgs.push(fn.NUMBER_OF_KEYS.toString());
+    }
+
+    actualArgs.push(...args);
+
+    return actualArgs;
 }

@@ -2,6 +2,8 @@ import { evalFirstKeyIndex, EvalOptions, pushEvalArguments } from './generic-tra
 
 export const FIRST_KEY_INDEX = evalFirstKeyIndex;
 
+export const IS_READ_ONLY = true;
+
 export function transformArguments(sha1: string, options?: EvalOptions): Array<string> {
-    return pushEvalArguments(['EVALSHA', sha1], options);
+    return pushEvalArguments(['EVALSHA_RO', sha1], options);
 }

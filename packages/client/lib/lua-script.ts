@@ -3,7 +3,7 @@ import { RedisCommand } from './commands';
 
 export interface RedisScriptConfig extends RedisCommand {
     SCRIPT: string;
-    NUMBER_OF_KEYS: number;
+    NUMBER_OF_KEYS?: number;
 }
 
 export interface SHA1 {

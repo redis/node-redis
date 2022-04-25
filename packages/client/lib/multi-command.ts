@@ -1,4 +1,5 @@
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisScript } from './commands';
+import { fCallArguments } from './commander';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunction, RedisScript } from './commands';
 import { WatchError } from './errors';
 
 export interface RedisMultiQueuedCommand {
@@ -22,6 +23,18 @@ export default class RedisMultiCommand {
         });
     }
 
+    addFunction(fn: RedisFunction, args: Array<unknown>): RedisCommandArguments {
+        const transformedArguments = fCallArguments(
+            fn,
+            fn.transformArguments(...args)
+        );
+        this.queue.push({
+            args: transformedArguments,
+            transformReply: fn.transformReply
+        });
+        return transformedArguments;
+    }
+
     addScript(script: RedisScript, args: Array<unknown>): RedisCommandArguments {
         const transformedArguments: RedisCommandArguments = [];
         if (this.scriptsInUse.has(script.SHA1)) {
@@ -37,7 +50,9 @@ export default class RedisMultiCommand {
             );
         }
 
-        transformedArguments.push(script.NUMBER_OF_KEYS.toString());
+        if (script.NUMBER_OF_KEYS !== undefined) {
+            transformedArguments.push(script.NUMBER_OF_KEYS.toString());
+        }
 
         const scriptArguments = script.transformArguments(...args);
         transformedArguments.push(...scriptArguments);
