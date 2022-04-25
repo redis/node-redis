@@ -25,7 +25,7 @@ describe('BZMPOP', () => {
 
     testUtils.testWithClient('client.bzmPop', async client => {
         assert.deepEqual(
-            await client.bzmPop(0, 'key', 'MAX'),
+            await client.bzmPop(1, 'key', 'MAX'),
             null
         );
     }, GLOBAL.SERVERS.OPEN);

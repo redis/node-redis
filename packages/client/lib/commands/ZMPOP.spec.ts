@@ -23,7 +23,7 @@ describe('ZMPOP', () => {
         });
     });
 
-    testUtils.testWithClient('client.zmScore', async client => {
+    testUtils.testWithClient('client.zmPop', async client => {
         assert.deepEqual(
             await client.zmPop('key', 'MIN'),
             null

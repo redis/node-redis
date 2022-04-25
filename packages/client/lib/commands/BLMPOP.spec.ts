@@ -23,9 +23,9 @@ describe('BLMPOP', () => {
         });
     });
 
-    testUtils.testWithClient('client.zmScore', async client => {
+    testUtils.testWithClient('client.blmPop', async client => {
         assert.deepEqual(
-            await client.blmPop(0, 'key', 'RIGHT'),
+            await client.blmPop(1, 'key', 'RIGHT'),
             null
         );
     }, GLOBAL.SERVERS.OPEN);
