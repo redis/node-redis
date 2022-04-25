@@ -44,6 +44,6 @@ export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
             throw new Error('Waiting for more than 1 second');
         }
 
-        await promiseTimeout(1);
+        await promiseTimeout(50);
     } while (spy.callCount === calls);
 }

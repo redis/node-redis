@@ -45,7 +45,7 @@ describe('BZPOPMAX', () => {
             client.bzPopMax(
                 commandOptions({ isolated: true }),
                 'key',
-                0
+                1
             ),
             client.zAdd('key', [{
                 value: '1',

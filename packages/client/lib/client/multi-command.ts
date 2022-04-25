@@ -1,7 +1,7 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, ExcludeMappedString, RedisFunction } from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
-import { attachCommands, attachExtensions } from '../commander';
+import { attachCommands, attachExtensions, transformLegacyCommandArguments } from '../commander';
 
 type CommandSignature<
     C extends RedisCommand,
@@ -93,7 +93,7 @@ export default class RedisClientMultiCommand {
     #legacyMode(): void {
         this.v4.addCommand = this.addCommand.bind(this);
         (this as any).addCommand = (...args: Array<any>): this => {
-            this.#multi.addCommand(args.flat());
+            this.#multi.addCommand(transformLegacyCommandArguments(args));
             return this;
         };
         this.v4.exec = this.exec.bind(this);

@@ -131,6 +131,13 @@ export function transformSortedSetMemberNullReply(
 ): ZMember | null {
     if (!reply.length) return null;
 
+    return transformSortedSetMemberReply(reply);
+}
+
+export function transformSortedSetMemberReply(
+    reply: [RedisCommandArgument, RedisCommandArgument]
+): ZMember {
+
     return {
         value: reply[0],
         score: transformNumberInfinityReply(reply[1])
@@ -148,6 +155,52 @@ export function transformSortedSetWithScoresReply(reply: Array<RedisCommandArgum
     }
 
     return members;
+}
+
+export type SortedSetSide = 'MIN' | 'MAX';
+
+export interface ZMPopOptions {
+    COUNT?: number;
+}
+
+export function transformZMPopArguments(
+    args: RedisCommandArguments,
+    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+    side: SortedSetSide,
+    options?: ZMPopOptions
+): RedisCommandArguments {
+    pushVerdictArgument(args, keys);
+
+    args.push(side);
+
+    if (options?.COUNT) {
+        args.push('COUNT', options.COUNT.toString());
+    }
+
+    return args;
+}
+
+export type ListSide = 'LEFT' | 'RIGHT';
+
+export interface LMPopOptions {
+    COUNT?: number;
+}
+
+export function transformLMPopArguments(
+    args: RedisCommandArguments,
+    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+    side: ListSide,
+    options?: LMPopOptions
+): RedisCommandArguments {
+    pushVerdictArgument(args, keys);
+
+    args.push(side);
+
+    if (options?.COUNT) {
+        args.push('COUNT', options.COUNT.toString());
+    }
+
+    return args;
 }
 
 type GeoCountArgument = number | {

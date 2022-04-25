@@ -1,11 +1,8 @@
 import * as LinkedList from 'yallist';
-import { AbortError } from '../errors';
+import { AbortError, ErrorReply } from '../errors';
 import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
-
-// We need to use 'require', because it's not possible with Typescript to import
-// classes that are exported as 'module.exports = class`, without esModuleInterop
-// set to true.
-const RedisParser = require('redis-parser');
+import RESP2Decoder from './RESP2/decoder';
+import encodeCommand from './RESP2/encoder';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -53,16 +50,6 @@ interface PubSubListeners {
 
 type PubSubListenersMap = Map<string, PubSubListeners>;
 
-interface PubSubState {
-    subscribing: number;
-    subscribed: number;
-    unsubscribing: number;
-    listeners: {
-        channels: PubSubListenersMap;
-        patterns: PubSubListenersMap;
-    };
-}
-
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
         while (queue.length) {
@@ -95,62 +82,57 @@ export default class RedisCommandsQueue {
 
     readonly #maxLength: number | null | undefined;
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
-
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
 
-    #pubSubState: PubSubState | undefined;
+    readonly #pubSubState = {
+        isActive: false,
+        subscribing: 0,
+        subscribed: 0,
+        unsubscribing: 0,
+        listeners: {
+            channels: new Map(),
+            patterns: new Map()
+        }
+    };
 
     static readonly #PUB_SUB_MESSAGES = {
         message: Buffer.from('message'),
         pMessage: Buffer.from('pmessage'),
         subscribe: Buffer.from('subscribe'),
         pSubscribe: Buffer.from('psubscribe'),
-        unsubscribe: Buffer.from('unsunscribe'),
+        unsubscribe: Buffer.from('unsubscribe'),
         pUnsubscribe: Buffer.from('punsubscribe')
     };
 
-    readonly #parser = new RedisParser({
-        returnReply: (reply: unknown) => {
-            if (this.#pubSubState && Array.isArray(reply)) {
-                if (RedisCommandsQueue.#PUB_SUB_MESSAGES.message.equals(reply[0])) {
-                    return RedisCommandsQueue.#emitPubSubMessage(
-                        this.#pubSubState.listeners.channels,
-                        reply[2],
-                        reply[1]
-                    );
-                } else if (RedisCommandsQueue.#PUB_SUB_MESSAGES.pMessage.equals(reply[0])) {
-                    return RedisCommandsQueue.#emitPubSubMessage(
-                        this.#pubSubState.listeners.patterns,
-                        reply[3],
-                        reply[2],
-                        reply[1]
-                    );
-                } else if (
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.subscribe.equals(reply[0]) ||
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.pSubscribe.equals(reply[0]) ||
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.unsubscribe.equals(reply[0]) ||
-                    RedisCommandsQueue.#PUB_SUB_MESSAGES.pUnsubscribe.equals(reply[0])
-                ) {
-                    if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
-                        this.#shiftWaitingForReply().resolve();
-                    }
-                    return;
-                }
+    #chainInExecution: symbol | undefined;
+
+    #decoder = new RESP2Decoder({
+        returnStringsAsBuffers: () => {
+            return !!this.#waitingForReply.head?.value.returnBuffers ||
+                this.#pubSubState.isActive;
+        },
+        onReply: reply => {
+            if (this.#handlePubSubReply(reply)) {
+                return;
+            } else if (!this.#waitingForReply.length) {
+                throw new Error('Got an unexpected reply from Redis');
             }
 
-            this.#shiftWaitingForReply().resolve(reply);
-        },
-        returnError: (err: Error) => this.#shiftWaitingForReply().reject(err)
+            const { resolve, reject } = this.#waitingForReply.shift()!;
+            if (reply instanceof ErrorReply) {
+                reject(reply);
+            } else {
+                resolve(reply);
+            }
+        }
     });
-
-    #chainInExecution: symbol | undefined;
 
     constructor(maxLength: number | null | undefined) {
         this.#maxLength = maxLength;
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {
-        if (this.#pubSubState && !options?.ignorePubSubMode) {
+        if (this.#pubSubState.isActive && !options?.ignorePubSubMode) {
             return Promise.reject(new Error('Cannot send commands in PubSub mode'));
         } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
             return Promise.reject(new Error('The queue is full'));
@@ -190,27 +172,16 @@ export default class RedisCommandsQueue {
         });
     }
 
-    #initiatePubSubState(): PubSubState {
-        return this.#pubSubState ??= {
-            subscribed: 0,
-            subscribing: 0,
-            unsubscribing: 0,
-            listeners: {
-                channels: new Map(),
-                patterns: new Map()
-            }
-        };
-    }
-
     subscribe<T extends boolean>(
         command: PubSubSubscribeCommands,
         channels: RedisCommandArgument | Array<RedisCommandArgument>,
         listener: PubSubListener<T>,
         returnBuffers?: T
     ): Promise<void> {
-        const pubSubState = this.#initiatePubSubState(),
-            channelsToSubscribe: Array<RedisCommandArgument> = [],
-            listenersMap = command === PubSubSubscribeCommands.SUBSCRIBE ? pubSubState.listeners.channels : pubSubState.listeners.patterns;
+        const channelsToSubscribe: Array<RedisCommandArgument> = [],
+            listenersMap = command === PubSubSubscribeCommands.SUBSCRIBE ?
+                this.#pubSubState.listeners.channels :
+                this.#pubSubState.listeners.patterns;
         for (const channel of (Array.isArray(channels) ? channels : [channels])) {
             const channelString = typeof channel === 'string' ? channel : channel.toString();
             let listeners = listenersMap.get(channelString);
@@ -230,6 +201,7 @@ export default class RedisCommandsQueue {
         if (!channelsToSubscribe.length) {
             return Promise.resolve();
         }
+
         return this.#pushPubSubCommand(command, channelsToSubscribe);
     }
 
@@ -239,10 +211,6 @@ export default class RedisCommandsQueue {
         listener?: PubSubListener<T>,
         returnBuffers?: T
     ): Promise<void> {
-        if (!this.#pubSubState) {
-            return Promise.resolve();
-        }
-
         const listeners = command === PubSubUnsubscribeCommands.UNSUBSCRIBE ?
             this.#pubSubState.listeners.channels :
             this.#pubSubState.listeners.patterns;
@@ -272,16 +240,17 @@ export default class RedisCommandsQueue {
                 listeners.delete(channel);
             }
         }
+
         if (!channelsToUnsubscribe.length) {
             return Promise.resolve();
         }
+
         return this.#pushPubSubCommand(command, channelsToUnsubscribe);
     }
 
     #pushPubSubCommand(command: PubSubSubscribeCommands | PubSubUnsubscribeCommands, channels: number | Array<RedisCommandArgument>): Promise<void> {
         return new Promise((resolve, reject) => {
-            const pubSubState = this.#initiatePubSubState(),
-                isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
+            const isSubscribe = command === PubSubSubscribeCommands.SUBSCRIBE || command === PubSubSubscribeCommands.PSUBSCRIBE,
                 inProgressKey = isSubscribe ? 'subscribing' : 'unsubscribing',
                 commandArgs: Array<RedisCommandArgument> = [command];
 
@@ -293,38 +262,42 @@ export default class RedisCommandsQueue {
                 channelsCounter = channels.length;
             }
 
-            pubSubState[inProgressKey] += channelsCounter;
+            this.#pubSubState.isActive = true;
+            this.#pubSubState[inProgressKey] += channelsCounter;
 
             this.#waitingToBeSent.push({
                 args: commandArgs,
                 channelsCounter,
                 returnBuffers: true,
                 resolve: () => {
-                    pubSubState[inProgressKey] -= channelsCounter;
-                    if (isSubscribe) {
-                        pubSubState.subscribed += channelsCounter;
-                    } else {
-                        pubSubState.subscribed -= channelsCounter;
-                        if (!pubSubState.subscribed && !pubSubState.subscribing && !pubSubState.subscribed) {
-                            this.#pubSubState = undefined;
-                        }
-                    }
+                    this.#pubSubState[inProgressKey] -= channelsCounter;
+                    this.#pubSubState.subscribed += channelsCounter * (isSubscribe ? 1 : -1);
+                    this.#updatePubSubActiveState();
                     resolve();
                 },
                 reject: err => {
-                    pubSubState[inProgressKey] -= channelsCounter * (isSubscribe ? 1 : -1);
+                    this.#pubSubState[inProgressKey] -= channelsCounter * (isSubscribe ? 1 : -1);
+                    this.#updatePubSubActiveState();
                     reject(err);
                 }
             });
         });
     }
 
-    resubscribe(): Promise<any> | undefined {
-        if (!this.#pubSubState) {
-            return;
+    #updatePubSubActiveState(): void {
+        if (
+            !this.#pubSubState.subscribed &&
+            !this.#pubSubState.subscribing &&
+            !this.#pubSubState.subscribed
+        ) {
+            this.#pubSubState.isActive = false;
         }
+    }
 
+    resubscribe(): Promise<any> | undefined {
         this.#pubSubState.subscribed = 0;
+        this.#pubSubState.subscribing = 0;
+        this.#pubSubState.unsubscribing = 0;
 
         const promises = [],
             { channels, patterns } = this.#pubSubState.listeners;
@@ -354,42 +327,67 @@ export default class RedisCommandsQueue {
 
     getCommandToSend(): RedisCommandArguments | undefined {
         const toSend = this.#waitingToBeSent.shift();
-        if (toSend) {
-            this.#waitingForReply.push({
-                resolve: toSend.resolve,
-                reject: toSend.reject,
-                channelsCounter: toSend.channelsCounter,
-                returnBuffers: toSend.returnBuffers
-            });
-        }
-        this.#chainInExecution = toSend?.chainId;
-        return toSend?.args;
-    }
+        if (!toSend) return;
 
-    #setReturnBuffers() {
-        this.#parser.setReturnBuffers(
-            !!this.#waitingForReply.head?.value.returnBuffers ||
-            !!this.#pubSubState?.subscribed ||
-            !!this.#pubSubState?.subscribing
-        );
-    }
-
-    parseResponse(data: Buffer): void {
-        this.#setReturnBuffers();
-        this.#parser.execute(data);
-    }
-
-    #shiftWaitingForReply(): CommandWaitingForReply {
-        if (!this.#waitingForReply.length) {
-            throw new Error('Got an unexpected reply from Redis');
+        let encoded: RedisCommandArguments;
+        try {
+            encoded = encodeCommand(toSend.args);
+        } catch (err) {
+            toSend.reject(err);
+            return;
         }
 
-        const waitingForReply = this.#waitingForReply.shift()!;
-        this.#setReturnBuffers();
-        return waitingForReply;
+        this.#waitingForReply.push({
+            resolve: toSend.resolve,
+            reject: toSend.reject,
+            channelsCounter: toSend.channelsCounter,
+            returnBuffers: toSend.returnBuffers
+        });
+        this.#chainInExecution = toSend.chainId;
+        return encoded;
+    }
+
+    rejectLastCommand(err: unknown): void {
+        this.#waitingForReply.pop()!.reject(err);
+    }
+
+    onReplyChunk(chunk: Buffer): void {
+        this.#decoder.write(chunk);
+    }
+
+    #handlePubSubReply(reply: any): boolean {
+        if (!this.#pubSubState.isActive || !Array.isArray(reply)) return false;
+
+        if (RedisCommandsQueue.#PUB_SUB_MESSAGES.message.equals(reply[0])) {
+            RedisCommandsQueue.#emitPubSubMessage(
+                this.#pubSubState.listeners.channels,
+                reply[2],
+                reply[1]
+            );
+        } else if (RedisCommandsQueue.#PUB_SUB_MESSAGES.pMessage.equals(reply[0])) {
+            RedisCommandsQueue.#emitPubSubMessage(
+                this.#pubSubState.listeners.patterns,
+                reply[3],
+                reply[2],
+                reply[1]
+            );
+        } else if (
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.subscribe.equals(reply[0]) ||
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.pSubscribe.equals(reply[0]) ||
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.unsubscribe.equals(reply[0]) ||
+            RedisCommandsQueue.#PUB_SUB_MESSAGES.pUnsubscribe.equals(reply[0])
+        ) {
+            if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
+                this.#waitingForReply.shift()!.resolve();
+            }
+        }
+
+        return true;
     }
 
     flushWaitingForReply(err: Error): void {
+        this.#decoder.reset();
+        this.#pubSubState.isActive = false;
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
 
         if (!this.#chainInExecution) return;
