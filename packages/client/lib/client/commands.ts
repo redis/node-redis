@@ -1,6 +1,7 @@
 import CLUSTER_COMMANDS from '../cluster/commands';
 import * as ACL_CAT from '../commands/ACL_CAT';
 import * as ACL_DELUSER from '../commands/ACL_DELUSER';
+import * as ACL_DRYRUN from '../commands/ACL_DRYRUN';
 import * as ACL_GENPASS from '../commands/ACL_GENPASS';
 import * as ACL_GETUSER from '../commands/ACL_GETUSER';
 import * as ACL_LIST from '../commands/ACL_LIST';
@@ -115,6 +116,8 @@ export default {
     aclCat: ACL_CAT,
     ACL_DELUSER,
     aclDelUser: ACL_DELUSER,
+    ACL_DRYRUN,
+    aclDryRun: ACL_DRYRUN,
     ACL_GENPASS,
     aclGenPass: ACL_GENPASS,
     ACL_GETUSER,
