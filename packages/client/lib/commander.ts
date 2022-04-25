@@ -1,6 +1,6 @@
 
 import { CommandOptions, isCommandOptions } from './command-options';
-import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisCommands, RedisModules, RedisScript, RedisScripts } from './commands';
 
 type Instantiable<T = any> = new(...args: Array<any>) => T;
 
@@ -89,37 +89,8 @@ export function transformCommandArguments<T>(
     };
 }
 
-const DELIMITER = '\r\n';
-
-export function* encodeCommand(args: RedisCommandArguments): IterableIterator<RedisCommandArgument> {
-    let strings = `*${args.length}${DELIMITER}`,
-        stringsLength = 0;
-    for (const arg of args) {
-        if (Buffer.isBuffer(arg)) {
-            yield `${strings}$${arg.length}${DELIMITER}`;
-            strings = '';
-            stringsLength = 0;
-            yield arg;
-        } else {
-            const string = arg?.toString?.() ?? '',
-                byteLength = Buffer.byteLength(string);
-            strings += `$${byteLength}${DELIMITER}`;
-
-            const totalLength = stringsLength + byteLength;
-            if (totalLength > 1024) {
-                yield strings;
-                strings = string;
-                stringsLength = byteLength;
-            } else {
-                strings += string;
-                stringsLength = totalLength;
-            }
-        }
-
-        strings += DELIMITER;
-    }
-
-    yield strings;
+export function transformLegacyCommandArguments(args: Array<any>): Array<any> {
+    return args.flat().map(x => x?.toString?.());
 }
 
 export function transformCommandReply(

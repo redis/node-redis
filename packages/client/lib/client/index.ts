@@ -9,7 +9,7 @@ import { CommandOptions, commandOptions, isCommandOptions } from '../command-opt
 import { ScanOptions, ZMember } from '../commands/generic-transformers';
 import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
-import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply } from '../commander';
+import { extendWithCommands, extendWithModulesAndScripts, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
@@ -158,8 +158,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     }
 
     readonly #options?: RedisClientOptions<M, S>;
-    readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
+    readonly #socket: RedisSocket;
     readonly #isolationPool: Pool<RedisClientType<M, S>>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
@@ -183,8 +183,8 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
     constructor(options?: RedisClientOptions<M, S>) {
         super();
         this.#options = this.#initiateOptions(options);
-        this.#socket = this.#initiateSocket();
         this.#queue = this.#initiateQueue();
+        this.#socket = this.#initiateSocket();
         this.#isolationPool = createPool({
             create: async () => {
                 const duplicate = this.duplicate({
@@ -213,6 +213,10 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         }
 
         return options;
+    }
+
+    #initiateQueue(): RedisCommandsQueue {
+        return new RedisCommandsQueue(this.#options?.commandsQueueMaxLength);
     }
 
     #initiateSocket(): RedisSocket {
@@ -270,7 +274,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
         };
 
         return new RedisSocket(socketInitiator, this.#options?.socket)
-            .on('data', data => this.#queue.parseResponse(data))
+            .on('data', chunk => this.#queue.onReplyChunk(chunk))
             .on('error', err => {
                 this.emit('error', err);
                 if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
@@ -289,10 +293,6 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
             .on('end', () => this.emit('end'));
     }
 
-    #initiateQueue(): RedisCommandsQueue {
-        return new RedisCommandsQueue(this.#options?.commandsQueueMaxLength);
-    }
-
     #legacyMode(): void {
         if (!this.#options?.legacyMode) return;
 
@@ -303,7 +303,7 @@ export default class RedisClient<M extends RedisModules, S extends RedisScripts>
                 callback = args.pop() as ClientLegacyCallback;
             }
 
-            this.#sendCommand(args.flat())
+            this.#sendCommand(transformLegacyCommandArguments(args))
                 .then((reply: RedisCommandRawReply) => {
                     if (!callback) return;
 

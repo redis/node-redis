@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events';
 import * as net from 'net';
 import * as tls from 'tls';
-import { encodeCommand } from '../commander';
 import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
@@ -157,7 +156,7 @@ export default class RedisSocket extends EventEmitter {
                             this.#writableNeedDrain = false;
                             this.emit('drain');
                         })
-                        .on('data', (data: Buffer) => this.emit('data', data));
+                        .on('data', data => this.emit('data', data));
 
                     resolve(socket);
                 });
@@ -192,7 +191,7 @@ export default class RedisSocket extends EventEmitter {
             throw new ClientClosedError();
         }
 
-        for (const toWrite of encodeCommand(args)) {
+        for (const toWrite of args) {
             this.#writableNeedDrain = !this.#socket.write(toWrite);
         }
     }

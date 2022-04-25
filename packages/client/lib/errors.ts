@@ -50,3 +50,10 @@ export class ReconnectStrategyError extends Error {
         this.socketError = socketError;
     }
 }
+
+export class ErrorReply extends Error {
+    constructor(message: string) {
+        super(message);
+        this.stack = undefined;
+    }
+}

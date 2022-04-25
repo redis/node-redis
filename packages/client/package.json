@@ -16,14 +16,12 @@
   "dependencies": {
     "cluster-key-slot": "1.1.0",
     "generic-pool": "3.8.2",
-    "redis-parser": "3.0.0",
     "yallist": "4.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@node-redis/test-utils": "*",
     "@types/node": "^17.0.23",
-    "@types/redis-parser": "^3.0.0",
     "@types/sinon": "^10.0.11",
     "@types/yallist": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^5.19.0",
