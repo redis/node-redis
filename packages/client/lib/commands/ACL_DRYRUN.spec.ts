@@ -8,7 +8,7 @@ describe('ACL DRYRUN', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('default', ['GET', 'key']),
-            ['ACL', 'DRYRUN', 'GET', 'key']
+            ['ACL', 'DRYRUN', 'default', 'GET', 'key']
         );
     });
 
