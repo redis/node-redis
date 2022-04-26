@@ -28,11 +28,6 @@ async function addToSortedSet() {
   for await (const memberWithScore of client.zScanIterator('mysortedset')) {
     console.log(memberWithScore);
   }
-
-  console.log('ZREVRANGE:');
-  console.log(await client.zRevRange('mysortedset', 0, -1, {
-    BY: 'SCORE'
-  }));
   
   await client.quit();
 }
