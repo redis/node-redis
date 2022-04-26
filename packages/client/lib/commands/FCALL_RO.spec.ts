@@ -4,7 +4,7 @@ import { MATH_FUNCTION, loadMathFunction } from '../client/index.spec';
 import { transformArguments } from './FCALL_RO';
 
 describe('FCALL_RO', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     it('transformArguments', () => {
         assert.deepEqual(

@@ -3,7 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './FUNCTION_FLUSH';
 
 describe('FUNCTION FLUSH', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     describe('transformArguments', () => {
         it('simple', () => {

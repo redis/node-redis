@@ -3,7 +3,7 @@ import testUtils from '../test-utils';
 import { transformArguments } from './EVALSHA_RO';
 
 describe('EVALSHA_RO', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     it('transformArguments', () => {
         assert.deepEqual(

@@ -4,7 +4,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './FUNCTION_DELETE';
 
 describe('FUNCTION DELETE', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     it('transformArguments', () => {
         assert.deepEqual(
