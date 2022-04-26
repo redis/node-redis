@@ -1,5 +1,5 @@
 // Add several values with their scores to a Sorted Set,
-// then retrieve them all using ZSCAN, ZRANGE and ZREVRANGE.
+// then retrieve them all using ZSCAN and ZRANGE.
 
 import { createClient } from 'redis';
 
@@ -7,6 +7,8 @@ async function addToSortedSet() {
   const client = createClient();
   await client.connect();
 
+  // Add to a sorted set, creating it if it doesn't already exist.
+  // https://redis.io/commands/zadd
   await client.zAdd('mysortedset', [
     {
       score: 99,
@@ -42,13 +44,6 @@ async function addToSortedSet() {
       REV: true
     })
   );
-
-  // Get all of the values/scores from the sorted set using 
-  // ZREVRANGE, for versions of Redis prior to 6.2 (this is 
-  // considered deprecated from 6.2 onwards)
-  // https://redis.io/commands/zrevrange
-  console.log('');
-  console.log('TODO zRevRange appears to be missing?');
   
   await client.quit();
 }
