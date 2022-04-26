@@ -5,16 +5,14 @@ async function streamProducer() {
   const client = createClient();
 
   await client.connect();
-
-  let num = 0;
-
-  while (num < 9999) {
-    let id = await client.xAdd(
+  
+  for (let i = 0; i < 10000; i++) {
+    await client.xAdd(
       'mystream',
       '*', // * = Let Redis generate a timestamp ID for this new entry.
       // Payload to add to the stream:
       {
-        num: `${num}`
+        i: i.toString()
         // Other name/value pairs can go here as required...
       }
     );
@@ -28,7 +26,7 @@ async function streamProducer() {
       id, // Re-use the ID from the previous stream.
       // Payload to add to the stream:
       {
-        num: `${num}`
+        i: i.toString()
         // Other name/value pairs can go here as required...
       },
       // Specify a trimming strategy...
@@ -40,9 +38,6 @@ async function streamProducer() {
         }
       }
     );
-
-    console.log(`Added ${id} to the streams.`);    
-    num += 1;
   }
 
   // Take a look at how many entries are in the streams...
