@@ -1,4 +1,4 @@
-import { pushVerdictArguments } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -43,4 +43,4 @@ export function transformArguments(
     return args;
 }
 
-export { transformBooleanArrayReply as transformReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
+export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';

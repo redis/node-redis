@@ -7,7 +7,7 @@ import * as PROFILE from './PROFILE';
 import * as QUERY_RO from './QUERY_RO';
 import * as QUERY from './QUERY';
 import * as SLOWLOG from './SLOWLOG';
-import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export default {
     CONFIG_GET,

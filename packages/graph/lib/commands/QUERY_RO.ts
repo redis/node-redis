@@ -1,4 +1,4 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { pushQueryArguments } from '.';
 
 export { FIRST_KEY_INDEX } from './QUERY';

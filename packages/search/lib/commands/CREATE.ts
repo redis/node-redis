@@ -1,4 +1,4 @@
-import { pushOptionalVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { pushOptionalVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisSearchLanguages, PropertyName, RediSearchSchema, pushSchema } from '.';
 
 interface CreateOptions {

@@ -1,5 +1,5 @@
 {
-  "name": "@node-redis/client-benchmark",
+  "name": "@redis/client-benchmark",
   "private": true,
   "main": "./lib",
   "type": "module",
@@ -7,7 +7,7 @@
     "start": "node ."
   },
   "dependencies": {
-    "@node-redis/client": "../packages/client",
+    "@redis/client": "../packages/client",
     "hdr-histogram-js": "3.0.0",
     "ioredis": "5.0.4",
     "redis-v3": "npm:redis@4.0.6",

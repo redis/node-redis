@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { Timestamp, MRangeWithLabelsOptions, pushMRangeWithLabelsArguments } from '.';
 
 export const IS_READ_ONLY = true;

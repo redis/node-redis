@@ -1,5 +1,5 @@
 {
-  "name": "@node-redis/test-utils",
+  "name": "@redis/test-utils",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -7,7 +7,7 @@
     "build": "tsc"
   },
   "peerDependencies": {
-    "@node-redis/client": "^1.0.0"
+    "@redis/client": "^1.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",

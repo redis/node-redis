@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { InsertOptions, pushInsertOptions } from ".";
 
 export const FIRST_KEY_INDEX = 1;
@@ -15,4 +15,4 @@ export function transformArguments(
     );
 }
 
-export { transformBooleanArrayReply as transformReply } from '@node-redis/client/dist/lib/commands/generic-transformers';
+export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';
