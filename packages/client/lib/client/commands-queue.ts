@@ -347,10 +347,6 @@ export default class RedisCommandsQueue {
         return encoded;
     }
 
-    rejectLastCommand(err: unknown): void {
-        this.#waitingForReply.pop()!.reject(err);
-    }
-
     onReplyChunk(chunk: Buffer): void {
         this.#decoder.write(chunk);
     }

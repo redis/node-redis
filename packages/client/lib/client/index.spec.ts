@@ -29,6 +29,7 @@ export const MATH_FUNCTION = {
     library: {
         square: {
             NAME: 'square',
+            IS_READ_ONLY: true,
             NUMBER_OF_KEYS: 0,
             transformArguments(number: number): Array<string> {
                 return [number.toString()];
@@ -722,8 +723,11 @@ describe('Client', () => {
             await subscriber.connect();
 
             try {
-                const listener = spy();
-                await subscriber.subscribe('channel', listener);
+                const channelListener = spy();
+                await subscriber.subscribe('channel', channelListener);
+
+                const patternListener = spy();
+                await subscriber.pSubscribe('channe*', patternListener);
 
                 await Promise.all([
                     once(subscriber, 'error'),
@@ -736,7 +740,8 @@ describe('Client', () => {
                 await once(subscriber, 'ready');
 
                 await Promise.all([
-                    waitTillBeenCalled(listener),
+                    waitTillBeenCalled(channelListener),
+                    waitTillBeenCalled(patternListener),
                     publisher.publish('channel', 'message')
                 ]);
             } finally {
