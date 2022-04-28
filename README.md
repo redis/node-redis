@@ -6,7 +6,7 @@
 [![LGTM alerts](https://img.shields.io/lgtm/alerts/g/redis/node-redis.svg?logo=LGTM)](https://lgtm.com/projects/g/redis/node-redis/alerts)
 [![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/redis)
 
-node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 6.2 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).
+node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 7 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).
 
 
 ## Packages
@@ -219,36 +219,70 @@ client.scanIterator({
 });
 ```
 
-### Lua Scripts
+### Programmability
 
-Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
+https://redis.io/docs/manual/programmability/
+
+#### Functions
+
+https://redis.io/docs/manual/programmability/functions-intro/
+
+```
+> FUNCTION LOAD "#!lua name=library\nredis.register_function{function_name=\"add\", callback=function(keys, args) return redis.call('GET', keys[1])+args[1] end, flags={\"no-writes\"}}"
+```
 
 ```typescript
-import { createClient, defineScript } from 'redis';
+import { createClient } from 'redis';
 
-(async () => {
-  const client = createClient({
-    scripts: {
-      add: defineScript({
+const client = createClient({
+  functions: {
+    library: {
+      add: {
         NUMBER_OF_KEYS: 1,
-        SCRIPT:
-          'local val = redis.pcall("GET", KEYS[1]);' +
-          'return val + ARGV[1];',
         transformArguments(key: string, toAdd: number): Array<string> {
           return [key, toAdd.toString()];
         },
         transformReply(reply: number): number {
           return reply;
         }
-      })
+      }
     }
-  });
+  }
+});
 
-  await client.connect();
+await client.connect();
 
-  await client.set('key', '1');
-  await client.add('key', 2); // 3
-})();
+await client.set('key', '1');
+await client.library.add('key', 2); // 3
+```
+
+#### Lua Scripts
+
+https://redis.io/docs/manual/programmability/eval-intro/
+
+```typescript
+import { createClient, defineScript } from 'redis';
+
+const client = createClient({
+  scripts: {
+    add: defineScript({
+      NUMBER_OF_KEYS: 1,
+      SCRIPT:
+        'return redis.call("GET", KEYS[1]) + ARGV[1];',
+      transformArguments(key: string, toAdd: number): Array<string> {
+        return [key, toAdd.toString()];
+      },
+      transformReply(reply: number): number {
+        return reply;
+      }
+    })
+  }
+});
+
+await client.connect();
+
+await client.set('key', '1');
+await client.add('key', 2); // 3
 ```
 
 ### Disconnecting
@@ -323,9 +357,10 @@ Node Redis is supported with the following versions of Redis:
 
 | Version | Supported          |
 |---------|--------------------|
+| 7.0.z   | :heavy_check_mark: |
 | 6.2.z   | :heavy_check_mark: |
 | 6.0.z   | :heavy_check_mark: |
-| 5.y.z   | :heavy_check_mark: |
+| 5.0.z   | :heavy_check_mark: |
 | < 5.0   | :x:                |
 
 > Node Redis should work with older versions of Redis, but it is not fully tested and we cannot offer support.

@@ -399,23 +399,25 @@ export default class RedisClient<
 
     async functionsExecuter<F extends RedisFunction>(
         fn: F,
-        args: Array<unknown>
+        args: Array<unknown>,
+        name: string
     ): Promise<RedisCommandReply<F>> {
         const { args: redisArgs, options } = transformCommandArguments(fn, args);
         return transformCommandReply(
             fn,
-            await this.executeFunction(fn, redisArgs, options),
+            await this.executeFunction(name, fn, redisArgs, options),
             redisArgs.preserve
         );
     }
 
     executeFunction(
+        name: string,
         fn: RedisFunction,
         args: RedisCommandArguments,
         options?: ClientCommandOptions
     ): Promise<RedisCommandRawReply> {
         return this.#sendCommand(
-            fCallArguments(fn, args),
+            fCallArguments(name, fn, args),
             options
         );
     }

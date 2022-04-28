@@ -1,11 +1,11 @@
 
 import { CommandOptions, isCommandOptions } from './command-options';
-import { RedisCommand, RedisCommandArguments, RedisCommandReply, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts } from './commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandReply, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts } from './commands';
 
 type Instantiable<T = any> = new (...args: Array<any>) => T;
 
 type CommandsExecutor<C extends RedisCommand = RedisCommand> =
-    (command: C, args: Array<unknown>) => unknown;
+    (command: C, args: Array<unknown>, name: string) => unknown;
 
 interface AttachCommandsConfig<C extends RedisCommand> {
     BaseClass: Instantiable;
@@ -20,7 +20,7 @@ export function attachCommands<C extends RedisCommand>({
 }: AttachCommandsConfig<C>): void {
     for (const [name, command] of Object.entries(commands)) {
         BaseClass.prototype[name] = function (...args: Array<unknown>): unknown {
-            return executor.call(this, command, args);
+            return executor.call(this, command, args, name);
         };
     }
 }
@@ -95,7 +95,7 @@ function attachWithNamespaces<C extends RedisCommand>({
         Commander.prototype[namespace] = {};
         for (const [name, command] of Object.entries(commands)) {
             Commander.prototype[namespace][name] = function (...args: Array<unknown>): unknown {
-                return executor.call(this.self, command, args);
+                return executor.call(this.self, command, args, name);
             };
         }
     }
@@ -138,10 +138,14 @@ export function transformCommandReply<C extends RedisCommand>(
     return command.transformReply(rawReply, preserved);
 }
 
-export function fCallArguments(fn: RedisFunction, args: RedisCommandArguments): RedisCommandArguments {
+export function fCallArguments(
+    name: RedisCommandArgument,
+    fn: RedisFunction,
+    args: RedisCommandArguments
+): RedisCommandArguments {
     const actualArgs: RedisCommandArguments = [
         fn.IS_READ_ONLY ? 'FCALL_RO' : 'FCALL',
-        fn.NAME
+        name
     ];
 
     if (fn.NUMBER_OF_KEYS !== undefined) {

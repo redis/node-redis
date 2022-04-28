@@ -141,8 +141,8 @@ export default class RedisClientMultiCommand {
         return this;
     }
 
-    functionsExecutor(fn: RedisFunction, args: Array<unknown>): this {
-        this.#multi.addFunction(fn, args);
+    functionsExecutor(fn: RedisFunction, args: Array<unknown>, name: string): this {
+        this.#multi.addFunction(name, fn, args);
         return this;
     }
 

@@ -1,5 +1,5 @@
 import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
-import { transformTuplesReply } from '@-redis/client/dist/lib/commands/generic-transformers';
+import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export function transformArguments(index: string): Array<string> {
     return ['FT.INFO', index];
