@@ -4,9 +4,13 @@
 [![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
 [![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://github.com/redis/node-redis/blob/master/LICENSE)
 [![LGTM alerts](https://img.shields.io/lgtm/alerts/g/redis/node-redis.svg?logo=LGTM)](https://lgtm.com/projects/g/redis/node-redis/alerts)
-[![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/redis)
 
-node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 7 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).
+[![Discord](https://img.shields.io/discord/697882427875393627.svg?style=social&logo=discord)](https://discord.gg/redis)
+[![Twitch](https://img.shields.io/twitch/status/redisinc?style=social)](https://www.twitch.tv/redisinc)
+[![YouTube](https://img.shields.io/youtube/channel/views/UCD78lHSwYqMlyetR0_P4Vig?style=social)](https://www.youtube.com/redisinc)
+[![Twitter](https://img.shields.io/twitter/follow/redisinc?style=social)](https://twitter.com/redisinc)
+
+node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
 
 
 ## Packages
