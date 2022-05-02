@@ -36,15 +36,14 @@ const value = await cluster.get('key');
 | defaults               |         | The default configuration values for every client in the cluster.  Use this for example when specifying an ACL user to connect with                                                                                                                                                                                 |
 | useReplicas            | `false` | When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes. When `false`, only use master nodes                                                                                                                                                        |
 | maxCommandRedirections | `16`    | The maximum number of times a command will be redirected due to `MOVED` or `ASK` errors                                                                                                                                                                                                                             |
-| nodeAddressMap         |         | Object defining the [node address mapping](#node-address-map)                                                                                                                                                                                                                                                       |
-| modules                |         | Object defining which [Redis Modules](../README.md#modules) to include                                                                                                                                                                                                                                              |
+| nodeAddressMap         |         | Defines the [node address mapping](#node-address-map)                                                                                                                                                                                                                                                       |
+| modules                |         | Defines which [Redis Modules](../README.md#modules) to include                                                                                                                                                                                                                                              |
 | scripts                |         | Object defining Lua Scripts to use with this client (see [Lua Scripts](../README.md#lua-scripts))                                                                                                                                                                                                                   |
 
 ## Node Address Map
 
-Your cluster might be configured to work within an internal network that your local environment doesn't have access to. For example, your development machine could only have access to external addresses, but the cluster returns its internal addresses. In this scenario, it's useful to provide a map from those internal addresses to the external ones.
-
-The configuration for this is a simple mapping. Just provide a `nodeAddressMap` property mapping the internal addresses and ports to the external addresses and ports. Then, any address provided to `rootNodes` or returned from the cluster will be mapped accordingly:
+A node address map is required when a redis cluster is configured with addresses that are inaccessible by the machine running the redis client.
+This is a mapping of addresses and ports, with the values being the accessible address/port combination. Example:
 
 ```javascript
 createCluster({
@@ -66,12 +65,12 @@ createCluster({
 
 ### Commands that operate on Redis Keys
 
-Commands such as `GET`, `SET`, etc. will be routed by the first key, for instance `MGET 1 2 3` will be routed by the key `1`.
+Commands such as `GET`, `SET`, etc. are routed by the first key, for instance `MGET 1 2 3` will be routed by the key `1`.
 
 ### [Server Commands](https://redis.io/commands#server)
 
-Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the cluster, and should be executed on a specific node using `.getSlot()` or `.getAllMasters()`.
+Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the cluster, and must be executed on a specific node via `.getSlotMaster()`.
 
 ### "Forwarded Commands"
 
-Some commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client will send these commands to a random node in order to spread the load across the cluster.
+Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. This client sends these commands to a random node in order to spread the load across the cluster.
