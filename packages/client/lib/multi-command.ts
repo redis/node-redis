@@ -23,8 +23,9 @@ export default class RedisMultiCommand {
         });
     }
 
-    addFunction(fn: RedisFunction, args: Array<unknown>): RedisCommandArguments {
+    addFunction(name: string, fn: RedisFunction, args: Array<unknown>): RedisCommandArguments {
         const transformedArguments = fCallArguments(
+            name,
             fn,
             fn.transformArguments(...args)
         );

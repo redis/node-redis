@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { RangeOptions, Timestamp, pushRangeArguments, SampleRawReply, SampleReply, transformRangeReply } from '.';
 
 export const FIRST_KEY_INDEX = 1;

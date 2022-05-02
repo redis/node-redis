@@ -124,12 +124,14 @@ export default class RedisCluster<
 
     async functionsExecutor<F extends RedisFunction>(
         fn: F,
-        args: Array<unknown>
+        args: Array<unknown>,
+        name: string,
     ): Promise<RedisCommandReply<F>> {
         const { args: redisArgs, options } = transformCommandArguments(fn, args);
         return transformCommandReply(
             fn,
             await this.executeFunction(
+                name,
                 fn,
                 args,
                 redisArgs,
@@ -140,6 +142,7 @@ export default class RedisCluster<
     }
 
     async executeFunction(
+        name: string,
         fn: RedisFunction,
         originalArgs: Array<unknown>,
         redisArgs: RedisCommandArguments,
@@ -148,7 +151,7 @@ export default class RedisCluster<
         return this.#execute(
             RedisCluster.extractFirstKey(fn, originalArgs, redisArgs),
             fn.IS_READ_ONLY,
-            client => client.executeFunction(fn, redisArgs, options)
+            client => client.executeFunction(name, fn, redisArgs, options)
         );
     }
 

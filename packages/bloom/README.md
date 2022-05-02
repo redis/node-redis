@@ -1,4 +1,4 @@
-# @node-redis/bloom
+# @redis/bloom
 
 This package provides support for the [RedisBloom](https://redisbloom.io) module, which adds additional probabilistic data structures to Redis.  It extends the [Node Redis client](https://github.com/redis/node-redis) to include functions for each of the RediBloom commands.
 

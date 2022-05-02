@@ -103,8 +103,8 @@ export default class RedisClusterMultiCommand {
         return this;
     }
 
-    functionsExecutor(fn: RedisFunction, args: Array<unknown>): this {
-        const transformedArguments = this.#multi.addFunction(fn, args);
+    functionsExecutor(fn: RedisFunction, args: Array<unknown>, name: string): this {
+        const transformedArguments = this.#multi.addFunction(name, fn, args);
         this.#firstKey ??= RedisCluster.extractFirstKey(fn, args, transformedArguments);
         return this;
     }

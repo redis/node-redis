@@ -28,8 +28,8 @@ import * as SUGLEN from './SUGLEN';
 import * as SYNDUMP from './SYNDUMP';
 import * as SYNUPDATE from './SYNUPDATE';
 import * as TAGVALS from './TAGVALS';
-import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushOptionalVerdictArgument, pushVerdictArgument } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { pushOptionalVerdictArgument, pushVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { SearchOptions } from './SEARCH';
 
 export default {

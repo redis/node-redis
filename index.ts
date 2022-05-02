@@ -8,19 +8,19 @@ import {
     createCluster as _createCluster,
     RedisClusterOptions,
     RedisClusterType as _RedisClusterType
-} from '@node-redis/client';
-import RedisBloomModules from '@node-redis/bloom';
-import RedisGraph from '@node-redis/graph';
-import RedisJSON from '@node-redis/json';
-import RediSearch from '@node-redis/search';
-import RedisTimeSeries from '@node-redis/time-series';
+} from '@redis/client';
+import RedisBloomModules from '@redis/bloom';
+import RedisGraph from '@redis/graph';
+import RedisJSON from '@redis/json';
+import RediSearch from '@redis/search';
+import RedisTimeSeries from '@redis/time-series';
 
-export * from '@node-redis/client';
-export * from '@node-redis/bloom';
-export * from '@node-redis/graph';
-export * from '@node-redis/json';
-export * from '@node-redis/search';
-export * from '@node-redis/time-series';
+export * from '@redis/client';
+export * from '@redis/bloom';
+export * from '@redis/graph';
+export * from '@redis/json';
+export * from '@redis/search';
+export * from '@redis/time-series';
 
 const modules = {
     ...RedisBloomModules,

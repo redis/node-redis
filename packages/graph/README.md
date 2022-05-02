@@ -1,1 +1,1 @@
-# @node-redis/graph
+# @redis/graph

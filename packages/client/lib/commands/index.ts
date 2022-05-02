@@ -60,7 +60,6 @@ export interface RedisModules {
 }
 
 export interface RedisFunction extends RedisCommand {
-    NAME: string;
     NUMBER_OF_KEYS?: number;
 }
 

@@ -1,4 +1,4 @@
-import TestUtils from '@node-redis/test-utils';
+import TestUtils from '@redis/test-utils';
 import RedisGraph from '.';
 
 export default new TestUtils({
