@@ -11,12 +11,13 @@ export default function encodeCommand(args: RedisCommandArguments): Array<RedisC
         const arg = args[i];
         if (typeof arg === 'string') {
             const byteLength = Buffer.byteLength(arg);
-            strings += `$${byteLength}${CRLF}`;
-            strings += arg;
+            strings += '$' + byteLength + CRLF + arg;
         } else if (arg instanceof Buffer) {
-            toWrite.push(`${strings}$${arg.length}${CRLF}`);
+            toWrite.push(
+                `${strings}$${arg.length}${CRLF}`,
+                arg
+            );
             strings = '';
-            toWrite.push(arg);
         } else {
             throw new TypeError('Invalid argument type');
         }
