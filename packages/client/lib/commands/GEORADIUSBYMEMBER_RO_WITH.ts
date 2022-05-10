@@ -12,7 +12,13 @@ export function transformArguments(
     replyWith: Array<GeoReplyWith>,
     options?: GeoSearchOptions
 ): RedisCommandArguments {
-    const args: RedisCommandArguments = geoRadiusTransformArguments(key, member, radius, unit, options);
+    const args: RedisCommandArguments = geoRadiusTransformArguments(
+        key,
+        member,
+        radius,
+        unit,
+        options
+    );
 
     args.push(...replyWith);
 

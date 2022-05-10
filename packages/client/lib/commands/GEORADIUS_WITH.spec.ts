@@ -10,21 +10,30 @@ describe('GEORADIUS WITH', () => {
         expectedReply.preserve = ['WITHDIST'];
 
         assert.deepEqual(
-            transformArguments('key', {longitude: 1, latitude: 2}, 3 , 'm', [GeoReplyWith.DISTANCE]),
+            transformArguments('key', {
+                longitude: 1,
+                latitude: 2
+            }, 3 , 'm', [GeoReplyWith.DISTANCE]),
             expectedReply
         );
     });
 
     testUtils.testWithClient('client.geoRadiusWith', async client => {
         assert.deepEqual(
-            await client.geoRadiusWith('key', {longitude: 1, latitude: 2}, 3 , 'm', [GeoReplyWith.DISTANCE]),
+            await client.geoRadiusWith('key', {
+                longitude: 1,
+                latitude: 2
+            }, 3 , 'm', [GeoReplyWith.DISTANCE]),
             []
         );
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithCluster('cluster.geoRadiusWith', async cluster => {
         assert.deepEqual(
-            await cluster.geoRadiusWith('key', {longitude: 1, latitude: 2}, 3 , 'm', [GeoReplyWith.DISTANCE]),
+            await cluster.geoRadiusWith('key', {
+                longitude: 1,
+                latitude: 2
+            }, 3 , 'm', [GeoReplyWith.DISTANCE]),
             []
         );
     }, GLOBAL.CLUSTERS.OPEN);

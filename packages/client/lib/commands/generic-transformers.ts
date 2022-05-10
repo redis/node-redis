@@ -254,10 +254,6 @@ export interface GeoSearchOptions {
     COUNT?: GeoCountArgument;
 }
 
-export interface GeoRadiusStoreOptions extends GeoSearchOptions {
-    STOREDIST?: boolean;
-}
-
 export function pushGeoSearchArguments(
     args: RedisCommandArguments,
     key: RedisCommandArgument,
@@ -303,11 +299,16 @@ export function pushGeoRadiusArguments(
     if (typeof from === 'string') {
         args.push(from);
     } else {
-        args.push(from.longitude.toString(), from.latitude.toString());
+        args.push(
+            from.longitude.toString(),
+            from.latitude.toString()
+        );
     }
 
-    args.push(radius.toString());
-    args.push(unit);
+    args.push(
+        radius.toString(),
+        unit
+    );
 
     if (options?.SORT) {
         args.push(options.SORT);
@@ -316,6 +317,10 @@ export function pushGeoRadiusArguments(
     pushGeoCountArgument(args, options?.COUNT);
 
     return args;
+}
+
+export interface GeoRadiusStoreOptions extends GeoSearchOptions {
+    STOREDIST?: boolean;
 }
 
 export function pushGeoRadiusStoreArguments(
@@ -327,13 +332,11 @@ export function pushGeoRadiusStoreArguments(
     destination: RedisCommandArgument,
     options?: GeoRadiusStoreOptions
 ): RedisCommandArguments {
-
     pushGeoRadiusArguments(args, key, from, radius, unit, options);
 
     if (options?.STOREDIST) {
         args.push('STOREDIST', destination);
-    }
-    else {
+    } else {
         args.push('STORE', destination);
     }
 

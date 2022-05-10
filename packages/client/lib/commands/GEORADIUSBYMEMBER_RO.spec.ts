@@ -10,16 +10,16 @@ describe('GEORADIUSBYMEMBER_RO', () => {
         );
     });
 
-    testUtils.testWithClient('client.geoRadiusByMemberReadOnly', async client => {
+    testUtils.testWithClient('client.geoRadiusByMemberRo', async client => {
         assert.deepEqual(
-            await client.geoRadiusByMemberReadOnly('key',  'member', 3 , 'm'),
+            await client.geoRadiusByMemberRo('key',  'member', 3 , 'm'),
             []
         );
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithCluster('cluster.geoRadiusByMemberReadOnly', async cluster => {
+    testUtils.testWithCluster('cluster.geoRadiusByMemberRo', async cluster => {
         assert.deepEqual(
-            await cluster.geoRadiusByMemberReadOnly('key', 'member', 3 , 'm'),
+            await cluster.geoRadiusByMemberRo('key', 'member', 3 , 'm'),
             []
         );
     }, GLOBAL.CLUSTERS.OPEN);

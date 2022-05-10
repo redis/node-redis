@@ -12,8 +12,14 @@ export function transformArguments(
     options?: GeoRadiusStoreOptions,
 ): RedisCommandArguments {
     return pushGeoRadiusStoreArguments(
-        ['GEORADIUSBYMEMBER'], key, member, radius, unit, destination, options
+        ['GEORADIUSBYMEMBER'],
+        key,
+        member,
+        radius,
+        unit,
+        destination,
+        options
     );
 }
 
-export declare function transformReply(): number 
+export declare function transformReply(): number

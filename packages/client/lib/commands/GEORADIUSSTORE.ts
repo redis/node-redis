@@ -5,15 +5,21 @@ export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEORADIUS';
 
 export function transformArguments(
     key: RedisCommandArgument,
-    coor: GeoCoordinates,
+    coordinates: GeoCoordinates,
     radius: number,
     unit: GeoUnits,
     destination: RedisCommandArgument,
     options?: GeoRadiusStoreOptions,
 ): RedisCommandArguments {
     return pushGeoRadiusStoreArguments(
-        ['GEORADIUS'], key, coor, radius, unit, destination, options
+        ['GEORADIUS'],
+        key,
+        coordinates,
+        radius,
+        unit,
+        destination,
+        options
     );
 }
 
-export declare function transformReply(): number 
+export declare function transformReply(): number;

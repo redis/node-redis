@@ -12,7 +12,14 @@ export function transformArguments(
     unit: GeoUnits,
     options?: GeoSearchOptions
 ): RedisCommandArguments {
-    return pushGeoRadiusArguments(['GEORADIUSBYMEMBER_RO'], key, member, radius, unit, options);
+    return pushGeoRadiusArguments(
+        ['GEORADIUSBYMEMBER_RO'],
+        key,
+        member,
+        radius,
+        unit,
+        options
+    );
 }
 
 export declare function transformReply(): Array<RedisCommandArgument>;

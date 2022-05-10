@@ -7,12 +7,19 @@ export const IS_READ_ONLY = true;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    coor: GeoCoordinates,
+    coordinates: GeoCoordinates,
     radius: number,
     unit: GeoUnits,
     options?: GeoSearchOptions
 ): RedisCommandArguments {
-    return pushGeoRadiusArguments(['GEORADIUS'], key, coor, radius, unit, options);
+    return pushGeoRadiusArguments(
+        ['GEORADIUS'],
+        key,
+        coordinates,
+        radius,
+        unit,
+        options
+    );
 }
 
 export declare function transformReply(): Array<RedisCommandArgument>;
