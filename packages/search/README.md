@@ -1,4 +1,4 @@
-# @node-redis/search
+# @redis/search
 
 This package provides support for the [RediSearch](https://redisearch.io) module, which adds indexing and querying support for data stored in Redis Hashes or as JSON documents with the RedisJSON module.  It extends the [Node Redis client](https://github.com/redis/node-redis) to include functions for each of the RediSearch commands.
 

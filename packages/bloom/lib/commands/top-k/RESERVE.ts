@@ -1,5 +1,7 @@
 export const FIRST_KEY_INDEX = 1;
 
+export const IS_READ_ONLY = true;
+
 interface ReserveOptions {
     width: number;
     depth: number;

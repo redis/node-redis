@@ -3,7 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './COMMAND_GETKEYSANDFLAGS';
 
 describe('COMMAND GETKEYSANDFLAGS', () => {
-    testUtils.isVersionGreaterThanHook([7, 0]);
+    testUtils.isVersionGreaterThanHook([7]);
 
     it('transformArguments', () => {
         assert.deepEqual(

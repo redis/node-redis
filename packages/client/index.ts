@@ -3,7 +3,7 @@ import RedisCluster from './lib/cluster';
 
 export { RedisClientType, RedisClientOptions } from './lib/client';
 
-export { RedisModules, RedisScripts } from './lib/commands';
+export { RedisModules, RedisFunctions, RedisScripts } from './lib/commands';
 
 export const createClient = RedisClient.create;
 
@@ -14,5 +14,7 @@ export { RedisClusterType, RedisClusterOptions } from './lib/cluster';
 export const createCluster = RedisCluster.create;
 
 export { defineScript } from './lib/lua-script';
+
+export { GeoReplyWith } from './lib/commands/generic-transformers';
 
 export * from './lib/errors';

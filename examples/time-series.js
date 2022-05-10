@@ -2,7 +2,7 @@
 // Requires the RedisTimeSeries module: https://redistimeseries.io/
 
 import { createClient } from 'redis';
-import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationType } from '@node-redis/time-series';
+import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationType } from '@redis/time-series';
 
 async function timeSeries() {
   const client = createClient();
@@ -11,7 +11,7 @@ async function timeSeries() {
   await client.del('mytimeseries');
 
   try {
-    // Create a timeseries 
+    // Create a timeseries
     // https://oss.redis.com/redistimeseries/commands/#tscreate
     const created = await client.ts.create('mytimeseries', {
       RETENTION: 86400000, // 1 day in milliseconds
@@ -97,7 +97,7 @@ async function timeSeries() {
     // Get some information about the state of the timeseries.
     // https://oss.redis.com/redistimeseries/commands/#tsinfo
     const tsInfo = await client.ts.info('mytimeseries');
-    
+
     // tsInfo looks like this:
     // {
     //   totalSamples: 1440,

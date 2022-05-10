@@ -1,4 +1,4 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
 

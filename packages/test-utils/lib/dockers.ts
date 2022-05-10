@@ -1,8 +1,8 @@
 import { createConnection } from 'net';
 import { once } from 'events';
-import { RedisModules, RedisScripts } from '@node-redis/client/lib/commands';
-import RedisClient, { RedisClientType } from '@node-redis/client/lib/client';
-import { promiseTimeout } from '@node-redis/client/lib/utils';
+import { RedisModules, RedisFunctions, RedisScripts } from '@redis/client/lib/commands';
+import RedisClient, { RedisClientType } from '@redis/client/lib/client';
+import { promiseTimeout } from '@redis/client/lib/utils';
 import * as path from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
@@ -152,7 +152,11 @@ async function spawnRedisClusterNodeDocker(
     }
 }
 
-async function waitForClusterState<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>): Promise<void> {
+async function waitForClusterState<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts
+>(client: RedisClientType<M, F, S>): Promise<void> {
     while ((await client.clusterInfo()).state !== 'ok') {
         await promiseTimeout(500);
     }

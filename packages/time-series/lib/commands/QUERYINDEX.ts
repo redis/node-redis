@@ -1,5 +1,5 @@
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@node-redis/client/dist/lib/commands/generic-transformers';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { Filter } from '.';
 
 export const IS_READ_ONLY = true;

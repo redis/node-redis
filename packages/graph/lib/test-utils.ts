@@ -1,10 +1,10 @@
-import TestUtils from '@node-redis/test-utils';
+import TestUtils from '@redis/test-utils';
 import RedisGraph from '.';
 
 export default new TestUtils({
     dockerImageName: 'redislabs/redisgraph',
     dockerImageVersionArgument: 'redisgraph-version',
-    defaultDockerVersion: '2.8.7'
+    defaultDockerVersion: '2.8.9'
 });
 
 export const GLOBAL = {

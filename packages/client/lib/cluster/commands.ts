@@ -6,9 +6,11 @@ import * as BITFIELD from '../commands/BITFIELD';
 import * as BITOP from '../commands/BITOP';
 import * as BITPOS from '../commands/BITPOS';
 import * as BLMOVE from '../commands/BLMOVE';
+import * as BLMPOP from '../commands/BLMPOP';
 import * as BLPOP from '../commands/BLPOP';
 import * as BRPOP from '../commands/BRPOP';
 import * as BRPOPLPUSH from '../commands/BRPOPLPUSH';
+import * as BZMPOP from '../commands/BZMPOP';
 import * as BZPOPMAX from '../commands/BZPOPMAX';
 import * as BZPOPMIN from '../commands/BZPOPMIN';
 import * as COPY from '../commands/COPY';
@@ -16,12 +18,16 @@ import * as DECR from '../commands/DECR';
 import * as DECRBY from '../commands/DECRBY';
 import * as DEL from '../commands/DEL';
 import * as DUMP from '../commands/DUMP';
+import * as EVAL_RO from '../commands/EVAL_RO';
 import * as EVAL from '../commands/EVAL';
+import * as EVALSHA_RO from '../commands/EVALSHA_RO';
 import * as EVALSHA from '../commands/EVALSHA';
 import * as EXISTS from '../commands/EXISTS';
 import * as EXPIRE from '../commands/EXPIRE';
 import * as EXPIREAT from '../commands/EXPIREAT';
 import * as EXPIRETIME from '../commands/EXPIRETIME';
+import * as FCALL_RO from '../commands/FCALL_RO';
+import * as FCALL from '../commands/FCALL';
 import * as GEOADD from '../commands/GEOADD';
 import * as GEODIST from '../commands/GEODIST';
 import * as GEOHASH from '../commands/GEOHASH';
@@ -69,6 +75,7 @@ import * as LINDEX from '../commands/LINDEX';
 import * as LINSERT from '../commands/LINSERT';
 import * as LLEN from '../commands/LLEN';
 import * as LMOVE from '../commands/LMOVE';
+import * as LMPOP from '../commands/LMPOP';
 import * as LPOP_COUNT from '../commands/LPOP_COUNT';
 import * as LPOP from '../commands/LPOP';
 import * as LPOS_COUNT from '../commands/LPOS_COUNT';
@@ -158,6 +165,7 @@ import * as XRANGE from '../commands/XRANGE';
 import * as XREAD from '../commands/XREAD';
 import * as XREADGROUP from '../commands/XREADGROUP';
 import * as XREVRANGE from '../commands/XREVRANGE';
+import * as XSETID from '../commands/XSETID';
 import * as XTRIM from '../commands/XTRIM';
 import * as ZADD from '../commands/ZADD';
 import * as ZCARD from '../commands/ZCARD';
@@ -171,6 +179,7 @@ import * as ZINTER from '../commands/ZINTER';
 import * as ZINTERCARD from '../commands/ZINTERCARD';
 import * as ZINTERSTORE from '../commands/ZINTERSTORE';
 import * as ZLEXCOUNT from '../commands/ZLEXCOUNT';
+import * as ZMPOP from '../commands/ZMPOP';
 import * as ZMSCORE from '../commands/ZMSCORE';
 import * as ZPOPMAX_COUNT from '../commands/ZPOPMAX_COUNT';
 import * as ZPOPMAX from '../commands/ZPOPMAX';
@@ -212,12 +221,16 @@ export default {
     bitPos: BITPOS,
     BLMOVE,
     blMove: BLMOVE,
+    BLMPOP,
+    blmPop: BLMPOP,
     BLPOP,
     blPop: BLPOP,
     BRPOP,
     brPop: BRPOP,
     BRPOPLPUSH,
     brPopLPush: BRPOPLPUSH,
+    BZMPOP,
+    bzmPop: BZMPOP,
     BZPOPMAX,
     bzPopMax: BZPOPMAX,
     BZPOPMIN,
@@ -232,10 +245,14 @@ export default {
     del: DEL,
     DUMP,
     dump: DUMP,
+    EVAL_RO,
+    evalRo: EVAL_RO,
     EVAL,
     eval: EVAL,
     EVALSHA,
     evalSha: EVALSHA,
+    EVALSHA_RO,
+    evalShaRo: EVALSHA_RO,
     EXISTS,
     exists: EXISTS,
     EXPIRE,
@@ -244,6 +261,10 @@ export default {
     expireAt: EXPIREAT,
     EXPIRETIME,
     expireTime: EXPIRETIME,
+    FCALL_RO,
+    fCallRo: FCALL_RO,
+    FCALL,
+    fCall: FCALL,
     GEOADD,
     geoAdd: GEOADD,
     GEODIST,
@@ -338,6 +359,8 @@ export default {
     lLen: LLEN,
     LMOVE,
     lMove: LMOVE,
+    LMPOP,
+    lmPop: LMPOP,
     LPOP_COUNT,
     lPopCount: LPOP_COUNT,
     LPOP,
@@ -516,6 +539,8 @@ export default {
     xReadGroup: XREADGROUP,
     XREVRANGE,
     xRevRange: XREVRANGE,
+    XSETID,
+    xSetId: XSETID,
     XTRIM,
     xTrim: XTRIM,
     ZADD,
@@ -542,6 +567,8 @@ export default {
     zInterStore: ZINTERSTORE,
     ZLEXCOUNT,
     zLexCount: ZLEXCOUNT,
+    ZMPOP,
+    zmPop: ZMPOP,
     ZMSCORE,
     zmScore: ZMSCORE,
     ZPOPMAX_COUNT,

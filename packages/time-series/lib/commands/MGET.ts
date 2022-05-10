@@ -1,4 +1,4 @@
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { Filter, pushFilterArgument, RawLabels, SampleRawReply, SampleReply, transformSampleReply } from '.';
 
 export const IS_READ_ONLY = true;

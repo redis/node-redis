@@ -1,6 +1,6 @@
 {
-  "name": "@node-redis/client",
-  "version": "1.0.5",
+  "name": "@redis/client",
+  "version": "1.1.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,29 +16,27 @@
   "dependencies": {
     "cluster-key-slot": "1.1.0",
     "generic-pool": "3.8.2",
-    "redis-parser": "3.0.0",
     "yallist": "4.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@node-redis/test-utils": "*",
-    "@types/node": "^17.0.23",
-    "@types/redis-parser": "^3.0.0",
+    "@redis/test-utils": "*",
+    "@types/node": "^17.0.31",
     "@types/sinon": "^10.0.11",
     "@types/yallist": "^4.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.16.0",
-    "@typescript-eslint/parser": "^5.16.0",
-    "eslint": "^8.12.0",
+    "@typescript-eslint/eslint-plugin": "^5.21.0",
+    "@typescript-eslint/parser": "^5.21.0",
+    "eslint": "^8.14.0",
     "nyc": "^15.1.0",
-    "release-it": "^14.13.1",
-    "sinon": "^13.0.1",
+    "release-it": "^15.0.0",
+    "sinon": "^13.0.2",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.7.0",
-    "typedoc": "^0.22.13",
-    "typescript": "^4.6.3"
+    "typedoc": "^0.22.15",
+    "typescript": "^4.6.4"
   },
   "engines": {
-    "node": ">=12"
+    "node": ">=14"
   },
   "repository": {
     "type": "git",

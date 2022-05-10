@@ -4,22 +4,28 @@
 [![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
 [![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://github.com/redis/node-redis/blob/master/LICENSE)
 [![LGTM alerts](https://img.shields.io/lgtm/alerts/g/redis/node-redis.svg?logo=LGTM)](https://lgtm.com/projects/g/redis/node-redis/alerts)
-[![Chat](https://img.shields.io/discord/697882427875393627.svg)](https://discord.gg/redis)
 
-node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js with built-in support for Redis 6.2 commands and modules including [RediSearch](https://redisearch.io) and [RedisJSON](https://redisjson.io).
+[![Discord](https://img.shields.io/discord/697882427875393627.svg?style=social&logo=discord)](https://discord.gg/redis)
+[![Twitch](https://img.shields.io/twitch/status/redisinc?style=social)](https://www.twitch.tv/redisinc)
+[![YouTube](https://img.shields.io/youtube/channel/views/UCD78lHSwYqMlyetR0_P4Vig?style=social)](https://www.youtube.com/redisinc)
+[![Twitter](https://img.shields.io/twitter/follow/redisinc?style=social)](https://twitter.com/redisinc)
+
+node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
 
 
 ## Packages
 
-| Name                                              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [redis](./)                                       | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis) [![Version](https://img.shields.io/npm/v/redis.svg)](https://www.npmjs.com/package/redis)                                                                                                                                                                                                                                                             |
-| [@node-redis/client](./packages/client)           | [![Downloads](https://img.shields.io/npm/dm/@node-redis/client.svg)](https://www.npmjs.com/package/@node-redis/client) [![Version](https://img.shields.io/npm/v/@node-redis/client.svg)](https://www.npmjs.com/package/@node-redis/client) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/client/)                                                                                               |
-| [@node-redis/bloom](./packages/bloom)             | [![Downloads](https://img.shields.io/npm/dm/@node-redis/bloom.svg)](https://www.npmjs.com/package/@node-redis/bloom) [![Version](https://img.shields.io/npm/v/@node-redis/bloom.svg)](https://www.npmjs.com/package/@node-redis/bloom) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/bloom/) [Redis Bloom](https://oss.redis.com/redisbloom/) commands                                          |
-| [@node-redis/graph](./packages/graph)             | [![Downloads](https://img.shields.io/npm/dm/@node-redis/graph.svg)](https://www.npmjs.com/package/@node-redis/graph) [![Version](https://img.shields.io/npm/v/@node-redis/graph.svg)](https://www.npmjs.com/package/@node-redis/graph) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/graph/) [Redis Graph](https://oss.redis.com/redisgraph/) commands                                          |
-| [@node-redis/json](./packages/json)               | [![Downloads](https://img.shields.io/npm/dm/@node-redis/json.svg)](https://www.npmjs.com/package/@node-redis/json) [![Version](https://img.shields.io/npm/v/@node-redis/json.svg)](https://www.npmjs.com/package/@node-redis/json) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/json/) [Redis JSON](https://oss.redis.com/redisjson/) commands                                                 |
-| [@node-redis/search](./packages/search)           | [![Downloads](https://img.shields.io/npm/dm/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search) [![Version](https://img.shields.io/npm/v/@node-redis/search.svg)](https://www.npmjs.com/package/@node-redis/search) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/search/) [Redis Search](https://oss.redis.com/redisearch/) commands                                    |
-| [@node-redis/time-series](./packages/time-series) | [![Downloads](https://img.shields.io/npm/dm/@node-redis/time-series.svg)](https://www.npmjs.com/package/@node-redis/time-series) [![Version](https://img.shields.io/npm/v/@node-redis/time-series.svg)](https://www.npmjs.com/package/@node-redis/time-series) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/time-series/) [Redis Time-Series](https://oss.redis.com/redistimeseries/) commands |
+| Name                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                    |
+|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [redis](./)                                  | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis) [![Version](https://img.shields.io/npm/v/redis.svg)](https://www.npmjs.com/package/redis)                                                                                                                                                                                                                                         |
+| [@redis/client](./packages/client)           | [![Downloads](https://img.shields.io/npm/dm/@redis/client.svg)](https://www.npmjs.com/package/@redis/client) [![Version](https://img.shields.io/npm/v/@redis/client.svg)](https://www.npmjs.com/package/@redis/client) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/client/)                                                                                               |
+| [@redis/bloom](./packages/bloom)             | [![Downloads](https://img.shields.io/npm/dm/@redis/bloom.svg)](https://www.npmjs.com/package/@redis/bloom) [![Version](https://img.shields.io/npm/v/@redis/bloom.svg)](https://www.npmjs.com/package/@redis/bloom) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/bloom/) [Redis Bloom](https://oss.redis.com/redisbloom/) commands                                          |
+| [@redis/graph](./packages/graph)             | [![Downloads](https://img.shields.io/npm/dm/@redis/graph.svg)](https://www.npmjs.com/package/@redis/graph) [![Version](https://img.shields.io/npm/v/@redis/graph.svg)](https://www.npmjs.com/package/@redis/graph) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/graph/) [Redis Graph](https://oss.redis.com/redisgraph/) commands                                          |
+| [@redis/json](./packages/json)               | [![Downloads](https://img.shields.io/npm/dm/@redis/json.svg)](https://www.npmjs.com/package/@redis/json) [![Version](https://img.shields.io/npm/v/@redis/json.svg)](https://www.npmjs.com/package/@redis/json) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/json/) [Redis JSON](https://oss.redis.com/redisjson/) commands                                                 |
+| [@redis/search](./packages/search)           | [![Downloads](https://img.shields.io/npm/dm/@redis/search.svg)](https://www.npmjs.com/package/@redis/search) [![Version](https://img.shields.io/npm/v/@redis/search.svg)](https://www.npmjs.com/package/@redis/search) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/search/) [Redis Search](https://oss.redis.com/redisearch/) commands                                    |
+| [@redis/time-series](./packages/time-series) | [![Downloads](https://img.shields.io/npm/dm/@redis/time-series.svg)](https://www.npmjs.com/package/@redis/time-series) [![Version](https://img.shields.io/npm/v/@redis/time-series.svg)](https://www.npmjs.com/package/@redis/time-series) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/time-series/) [Redis Time-Series](https://oss.redis.com/redistimeseries/) commands |
+
+> :warning: In version 4.1.0 we moved our subpackages from `@node-redis` to `@redis`. If you're just using `npm install redis`, you don't need to do anything—it'll upgrade automatically. If you're using the subpackages directly, you'll need to point to the new scope (e.g. `@redis/client` instead of `@node-redis/client`).
 
 ## Installation
 
@@ -36,16 +42,14 @@ npm install redis
 ```typescript
 import { createClient } from 'redis';
 
-(async () => {
-  const client = createClient();
+const client = createClient();
 
-  client.on('error', (err) => console.log('Redis Client Error', err));
+client.on('error', (err) => console.log('Redis Client Error', err));
 
-  await client.connect();
+await client.connect();
 
-  await client.set('key', 'value');
-  const value = await client.get('key');
-})();
+await client.set('key', 'value');
+const value = await client.get('key');
 ```
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
@@ -221,36 +225,84 @@ client.scanIterator({
 });
 ```
 
-### Lua Scripts
+### [Programmability](https://redis.io/docs/manual/programmability/)
 
-Define new functions using [Lua scripts](https://redis.io/commands/eval) which execute on the Redis server:
+Redis provides a programming interface allowing code execution on the redis server.
+
+#### [Functions](https://redis.io/docs/manual/programmability/functions-intro/)
+
+The following example retrieves a key in redis, returning the value of the key, incremented by an integer. For example, if your key _foo_ has the value _17_ and we run `add('foo', 25)`, it returns the answer to Life, the Universe and Everything.
+
+```lua
+#!lua name=library
+
+redis.register_function {
+  function_name = 'add',
+  callback = function(keys, args) return redis.call('GET', keys[1]) + args[1] end,
+  flags = { 'no-writes' }
+}
+```
+
+Here is the same example, but in a format that can be pasted into the `redis-cli`.
+
+```
+FUNCTION LOAD "#!lua name=library\nredis.register_function{function_name=\"add\", callback=function(keys, args) return redis.call('GET', keys[1])+args[1] end, flags={\"no-writes\"}}"
+```
+
+Load the prior redis function on the _redis server_ before running the example below.
 
 ```typescript
-import { createClient, defineScript } from 'redis';
+import { createClient } from 'redis';
 
-(async () => {
-  const client = createClient({
-    scripts: {
-      add: defineScript({
+const client = createClient({
+  functions: {
+    library: {
+      add: {
         NUMBER_OF_KEYS: 1,
-        SCRIPT:
-          'local val = redis.pcall("GET", KEYS[1]);' +
-          'return val + ARGV[1];',
         transformArguments(key: string, toAdd: number): Array<string> {
           return [key, toAdd.toString()];
         },
         transformReply(reply: number): number {
           return reply;
         }
-      })
+      }
     }
-  });
+  }
+});
 
-  await client.connect();
+await client.connect();
 
-  await client.set('key', '1');
-  await client.add('key', 2); // 3
-})();
+await client.set('key', '1');
+await client.library.add('key', 2); // 3
+```
+
+#### [Lua Scripts](https://redis.io/docs/manual/programmability/eval-intro/)
+
+The following is an end-to-end example of the prior concept.
+
+```typescript
+import { createClient, defineScript } from 'redis';
+
+const client = createClient({
+  scripts: {
+    add: defineScript({
+      NUMBER_OF_KEYS: 1,
+      SCRIPT:
+        'return redis.call("GET", KEYS[1]) + ARGV[1];',
+      transformArguments(key: string, toAdd: number): Array<string> {
+        return [key, toAdd.toString()];
+      },
+      transformReply(reply: number): number {
+        return reply;
+      }
+    })
+  }
+});
+
+await client.connect();
+
+await client.set('key', '1');
+await client.add('key', 2); // 3
 ```
 
 ### Disconnecting
@@ -325,9 +377,10 @@ Node Redis is supported with the following versions of Redis:
 
 | Version | Supported          |
 |---------|--------------------|
+| 7.0.z   | :heavy_check_mark: |
 | 6.2.z   | :heavy_check_mark: |
 | 6.0.z   | :heavy_check_mark: |
-| 5.y.z   | :heavy_check_mark: |
+| 5.0.z   | :heavy_check_mark: |
 | < 5.0   | :x:                |
 
 > Node Redis should work with older versions of Redis, but it is not fully tested and we cannot offer support.

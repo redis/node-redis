@@ -2,23 +2,50 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
-import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisScripts } from '../commands';
-import { AbortError, AuthError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
+import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
 
 export const SQUARE_SCRIPT = defineScript({
-    NUMBER_OF_KEYS: 0,
     SCRIPT: 'return ARGV[1] * ARGV[1];',
+    NUMBER_OF_KEYS: 0,
     transformArguments(number: number): Array<string> {
         return [number.toString()];
-    },
-    transformReply(reply: number): number {
-        return reply;
     }
 });
+
+export const MATH_FUNCTION = {
+    name: 'math',
+    engine: 'LUA',
+    code: `#!LUA name=math
+        redis.register_function{
+            function_name = "square",
+            callback = function(keys, args) return args[1] * args[1] end,
+            flags = { "no-writes" }
+        }`,
+    library: {
+        square: {
+            NAME: 'square',
+            IS_READ_ONLY: true,
+            NUMBER_OF_KEYS: 0,
+            transformArguments(number: number): Array<string> {
+                return [number.toString()];
+            }
+        }
+    }
+};
+
+export async function loadMathFunction(
+    client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>
+): Promise<void> {
+    await client.functionLoad(
+        MATH_FUNCTION.code,
+        { REPLACE: true }
+    );
+}
 
 describe('Client', () => {
     describe('parseURL', () => {
@@ -87,30 +114,6 @@ describe('Client', () => {
             );
         }, GLOBAL.SERVERS.PASSWORD);
 
-        testUtils.testWithClient('should not retry connecting if failed due to wrong auth', async client => {
-            let message;
-            if (testUtils.isVersionGreaterThan([6, 2])) {
-                message = 'WRONGPASS invalid username-password pair or user is disabled.';
-            } else if (testUtils.isVersionGreaterThan([6])) {
-                message = 'WRONGPASS invalid username-password pair';
-            } else {
-                message = 'ERR invalid password';
-            }
-
-            await assert.rejects(
-                client.connect(),
-                new AuthError(message)
-            );
-
-            assert.equal(client.isOpen, false);
-        }, {
-            ...GLOBAL.SERVERS.PASSWORD,
-            clientOptions: {
-                password: 'wrongpassword'
-            },
-            disableClientSetup: true
-        });
-
         testUtils.testWithClient('should execute AUTH before SELECT', async client => {
             assert.equal(
                 (await client.clientInfo()).db,
@@ -139,7 +142,14 @@ describe('Client', () => {
     });
 
     describe('legacyMode', () => {
-        function sendCommandAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, args: RedisCommandArguments): Promise<RedisCommandRawReply> {
+        function sendCommandAsync<
+            M extends RedisModules,
+            F extends RedisFunctions,
+            S extends RedisScripts
+        >(
+            client: RedisClientType<M, F, S>,
+            args: RedisCommandArguments
+        ): Promise<RedisCommandRawReply> {
             return new Promise((resolve, reject) => {
                 (client as any).sendCommand(args, (err: Error | undefined, reply: RedisCommandRawReply) => {
                     if (err) return reject(err);
@@ -183,7 +193,14 @@ describe('Client', () => {
             }
         });
 
-        function setAsync<M extends RedisModules, S extends RedisScripts>(client: RedisClientType<M, S>, ...args: Array<any>): Promise<RedisCommandRawReply> {
+        function setAsync<
+            M extends RedisModules,
+            F extends RedisFunctions,
+            S extends RedisScripts
+        >(
+            client: RedisClientType<M, F, S>,
+            ...args: Array<any>
+        ): Promise<RedisCommandRawReply> {
             return new Promise((resolve, reject) => {
                 (client as any).set(...args, (err: Error | undefined, reply: RedisCommandRawReply) => {
                     if (err) return reject(err);
@@ -229,7 +246,11 @@ describe('Client', () => {
             }
         });
 
-        function multiExecAsync<M extends RedisModules, S extends RedisScripts>(multi: RedisClientMultiCommandType<M, S>): Promise<Array<RedisCommandRawReply>> {
+        function multiExecAsync<
+            M extends RedisModules,
+            F extends RedisFunctions,
+            S extends RedisScripts
+        >(multi: RedisClientMultiCommandType<M, F, S>): Promise<Array<RedisCommandRawReply>> {
             return new Promise((resolve, reject) => {
                 (multi as any).exec((err: Error | undefined, replies: Array<RedisCommandRawReply>) => {
                     if (err) return reject(err);
@@ -300,7 +321,8 @@ describe('Client', () => {
                 await client.multi()
                     .sAdd('a', ['b', 'c'])
                     .v4.exec(),
-                [2])
+                [2]
+            );
         }, {
             ...GLOBAL.SERVERS.OPEN,
             clientOptions: {
@@ -371,7 +393,7 @@ describe('Client', () => {
         testUtils.testWithClient('undefined and null should not break the client', async client => {
             await assert.rejects(
                 client.sendCommand([null as any, undefined as any]),
-                'ERR unknown command ``, with args beginning with: ``'
+                TypeError
             );
 
             assert.equal(
@@ -462,25 +484,44 @@ describe('Client', () => {
         }
     });
 
+    const module = {
+        echo: {
+            transformArguments(message: string): Array<string> {
+                return ['ECHO', message];
+            },
+            transformReply(reply: string): string {
+                return reply;
+            }
+        }
+    };
+
     testUtils.testWithClient('modules', async client => {
-        // assert.equal(
-        //     await client.module.echo('message'),
-        //     'message'
-        // );
+        assert.equal(
+            await client.module.echo('message'),
+            'message'
+        );
     }, {
         ...GLOBAL.SERVERS.OPEN,
         clientOptions: {
             modules: {
-                module: {
-                    echo: {
-                        transformArguments(message: string): Array<string> {
-                            return ['ECHO', message];
-                        },
-                        transformReply(reply: string): string {
-                            return reply;
-                        }
-                    }
-                }
+                module
+            }
+        }
+    });
+
+    testUtils.testWithClient('functions', async client => {
+        await loadMathFunction(client);
+
+        assert.equal(
+            await client.math.square(2),
+            4
+        );
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        minimumDockerVersion: [7, 0],
+        clientOptions: {
+            functions: {
+                math: MATH_FUNCTION.library
             }
         }
     });
@@ -491,9 +532,13 @@ describe('Client', () => {
         assert.ok(id !== isolatedId);
     }, GLOBAL.SERVERS.OPEN);
 
-    async function killClient<M extends RedisModules, S extends RedisScripts>(
-        client: RedisClientType<M, S>,
-        errorClient: RedisClientType<M, S> = client
+    async function killClient<
+        M extends RedisModules,
+        F extends RedisFunctions,
+        S extends RedisScripts
+    >(
+        client: RedisClientType<M, F, S>,
+        errorClient: RedisClientType<M, F, S> = client
     ): Promise<void> {
         const onceErrorPromise = once(errorClient, 'error');
         await client.sendCommand(['QUIT']);
@@ -678,12 +723,11 @@ describe('Client', () => {
             await subscriber.connect();
 
             try {
-                const listener = spy();
-                await subscriber.subscribe('channel', listener);
+                const channelListener = spy();
+                await subscriber.subscribe('channel', channelListener);
 
-                subscriber.on('error', err => {
-                    console.error('subscriber err', err.message);
-                });
+                const patternListener = spy();
+                await subscriber.pSubscribe('channe*', patternListener);
 
                 await Promise.all([
                     once(subscriber, 'error'),
@@ -696,7 +740,8 @@ describe('Client', () => {
                 await once(subscriber, 'ready');
 
                 await Promise.all([
-                    waitTillBeenCalled(listener),
+                    waitTillBeenCalled(channelListener),
+                    waitTillBeenCalled(patternListener),
                     publisher.publish('channel', 'message')
                 ]);
             } finally {
@@ -711,7 +756,9 @@ describe('Client', () => {
 
             try {
                 await assert.doesNotReject(Promise.all([
-                    subscriber.subscribe('channel', () => {}),
+                    subscriber.subscribe('channel', () => {
+                        // noop
+                    }),
                     publisher.publish('channel', 'message')
                 ]));
             } finally {

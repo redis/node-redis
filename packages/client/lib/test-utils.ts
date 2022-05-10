@@ -1,9 +1,9 @@
-import TestUtils from '@node-redis/test-utils';
+import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
 import { promiseTimeout } from './utils';
 
 export default new TestUtils({
-    defaultDockerVersion: '6.2',
+    defaultDockerVersion: '7.0-rc3',
     dockerImageName: 'redis',
     dockerImageVersionArgument: 'redis-version'
 });
@@ -44,6 +44,6 @@ export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
             throw new Error('Waiting for more than 1 second');
         }
 
-        await promiseTimeout(1);
+        await promiseTimeout(50);
     } while (spy.callCount === calls);
 }

@@ -1,6 +1,6 @@
 import { SearchOptions, SearchRawReply, transformReply as transformSearchReply } from './SEARCH';
 import { pushSearchOptions, ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from '.';
-import { RedisCommandArguments } from '@node-redis/client/dist/lib/commands';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const IS_READ_ONLY = true;
 
