@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLIENT_UNPAUSE';
 
-describe('ACL CAT', () => {
+describe('CLIENT UNPAUSE', () => {
     testUtils.isVersionGreaterThanHook([6, 2]);
 
     it('transformArguments', () => {
@@ -14,7 +14,7 @@ describe('ACL CAT', () => {
 
     testUtils.testWithClient('client.unpause', async client => {
         assert.equal(
-            client.clientUnpause(),
+            await client.clientUnpause(),
             'OK'
         );
     }, GLOBAL.SERVERS.OPEN);
