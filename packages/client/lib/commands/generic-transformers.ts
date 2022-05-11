@@ -670,3 +670,20 @@ export function pushSlotRangesArguments(
 
     return args;
 }
+
+export type RawRangeReply = [
+    start: number,
+    end: number
+];
+
+export interface RangeReply {
+    start: number;
+    end: number;
+}
+
+export function transformRangeReply([start, end]: RawRangeReply): RangeReply {
+    return {
+        start,
+        end
+    };
+}

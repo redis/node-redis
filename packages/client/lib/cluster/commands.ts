@@ -71,6 +71,10 @@ import * as HVALS from '../commands/HVALS';
 import * as INCR from '../commands/INCR';
 import * as INCRBY from '../commands/INCRBY';
 import * as INCRBYFLOAT from '../commands/INCRBYFLOAT';
+import * as LCS_IDX_WITHMATCHLEN from '../commands/LCS_IDX_WITHMATCHLEN';
+import * as LCS_IDX from '../commands/LCS_IDX';
+import * as LCS_LEN from '../commands/LCS_LEN';
+import * as LCS from '../commands/LCS';
 import * as LINDEX from '../commands/LINDEX';
 import * as LINSERT from '../commands/LINSERT';
 import * as LLEN from '../commands/LLEN';
@@ -351,6 +355,14 @@ export default {
     incrBy: INCRBY,
     INCRBYFLOAT,
     incrByFloat: INCRBYFLOAT,
+    LCS_IDX_WITHMATCHLEN,
+    lcsIdxWithMatchLen: LCS_IDX_WITHMATCHLEN,
+    LCS_IDX,
+    lcsIdx: LCS_IDX,
+    LCS_LEN,
+    lcsLen: LCS_LEN,
+    LCS,
+    lcs: LCS,
     LINDEX,
     lIndex: LINDEX,
     LINSERT,
