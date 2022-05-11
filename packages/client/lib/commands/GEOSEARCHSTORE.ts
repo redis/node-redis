@@ -1,9 +1,7 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
 import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
+export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEOSEARCH';
 
 interface GeoSearchStoreOptions extends GeoSearchOptions {
     STOREDIST?: true;

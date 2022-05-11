@@ -32,6 +32,16 @@ import * as GEOADD from '../commands/GEOADD';
 import * as GEODIST from '../commands/GEODIST';
 import * as GEOHASH from '../commands/GEOHASH';
 import * as GEOPOS from '../commands/GEOPOS';
+import * as GEORADIUS_RO_WITH from '../commands/GEORADIUS_RO_WITH';
+import * as GEORADIUS_RO from '../commands/GEORADIUS_RO';
+import * as GEORADIUS_WITH from '../commands/GEORADIUS_WITH';
+import * as GEORADIUS from '../commands/GEORADIUS';
+import * as GEORADIUSBYMEMBER_RO_WITH from '../commands/GEORADIUSBYMEMBER_RO_WITH';
+import * as GEORADIUSBYMEMBER_RO from '../commands/GEORADIUSBYMEMBER_RO';
+import * as GEORADIUSBYMEMBER_WITH from '../commands/GEORADIUSBYMEMBER_WITH';
+import * as GEORADIUSBYMEMBER from '../commands/GEORADIUSBYMEMBER';
+import * as GEORADIUSBYMEMBERSTORE from '../commands/GEORADIUSBYMEMBERSTORE';
+import * as GEORADIUSSTORE from '../commands/GEORADIUSSTORE';
 import * as GEOSEARCH_WITH from '../commands/GEOSEARCH_WITH';
 import * as GEOSEARCH from '../commands/GEOSEARCH';
 import * as GEOSEARCHSTORE from '../commands/GEOSEARCHSTORE';
@@ -263,6 +273,26 @@ export default {
     geoHash: GEOHASH,
     GEOPOS,
     geoPos: GEOPOS,
+    GEORADIUS_RO_WITH,
+    geoRadiusRoWith: GEORADIUS_RO_WITH,
+    GEORADIUS_RO,
+    geoRadiusRo: GEORADIUS_RO,
+    GEORADIUS_WITH,
+    geoRadiusWith: GEORADIUS_WITH,
+    GEORADIUS,
+    geoRadius: GEORADIUS,
+    GEORADIUSBYMEMBER_RO_WITH,
+    geoRadiusByMemberRoWith: GEORADIUSBYMEMBER_RO_WITH,
+    GEORADIUSBYMEMBER_RO,
+    geoRadiusByMemberRo: GEORADIUSBYMEMBER_RO,
+    GEORADIUSBYMEMBER_WITH,
+    geoRadiusByMemberWith: GEORADIUSBYMEMBER_WITH,
+    GEORADIUSBYMEMBER,
+    geoRadiusByMember: GEORADIUSBYMEMBER,
+    GEORADIUSBYMEMBERSTORE,
+    geoRadiusByMemberStore: GEORADIUSBYMEMBERSTORE,
+    GEORADIUSSTORE,
+    geoRadiusStore: GEORADIUSSTORE,
     GEOSEARCH_WITH,
     geoSearchWith: GEOSEARCH_WITH,
     GEOSEARCH,
