@@ -166,6 +166,10 @@ export default class RedisClient<
         return this.#socket.isOpen;
     }
 
+    get isReady(): boolean {
+        return this.#socket.isReady;
+    }
+
     get v4(): Record<string, any> {
         if (!this.#options?.legacyMode) {
             throw new Error('the client is not in "legacy mode"');

@@ -286,6 +286,63 @@ export function pushGeoSearchArguments(
     return args;
 }
 
+export function pushGeoRadiusArguments(
+    args: RedisCommandArguments,
+    key: RedisCommandArgument,
+    from: GeoSearchFrom,
+    radius: number,
+    unit: GeoUnits,
+    options?: GeoSearchOptions
+): RedisCommandArguments {
+    args.push(key);
+
+    if (typeof from === 'string') {
+        args.push(from);
+    } else {
+        args.push(
+            from.longitude.toString(),
+            from.latitude.toString()
+        );
+    }
+
+    args.push(
+        radius.toString(),
+        unit
+    );
+
+    if (options?.SORT) {
+        args.push(options.SORT);
+    }
+
+    pushGeoCountArgument(args, options?.COUNT);
+
+    return args;
+}
+
+export interface GeoRadiusStoreOptions extends GeoSearchOptions {
+    STOREDIST?: boolean;
+}
+
+export function pushGeoRadiusStoreArguments(
+    args: RedisCommandArguments,
+    key: RedisCommandArgument,
+    from: GeoSearchFrom,
+    radius: number,
+    unit: GeoUnits,
+    destination: RedisCommandArgument,
+    options?: GeoRadiusStoreOptions
+): RedisCommandArguments {
+    pushGeoRadiusArguments(args, key, from, radius, unit, options);
+
+    if (options?.STOREDIST) {
+        args.push('STOREDIST', destination);
+    } else {
+        args.push('STORE', destination);
+    }
+
+    return args;
+}
+
 export enum GeoReplyWith {
     DISTANCE = 'WITHDIST',
     HASH = 'WITHHASH',

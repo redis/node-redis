@@ -21,6 +21,7 @@ import * as CLIENT_GETNAME from '../commands/CLIENT_GETNAME';
 import * as CLIENT_GETREDIR from '../commands/CLIENT_GETREDIR';
 import * as CLIENT_ID from '../commands/CLIENT_ID';
 import * as CLIENT_KILL from '../commands/CLIENT_KILL';
+import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
@@ -78,7 +79,7 @@ import * as INFO from '../commands/INFO';
 import * as KEYS from '../commands/KEYS';
 import * as LASTSAVE from '../commands/LASTSAVE';
 import * as LOLWUT from '../commands/LOLWUT';
-import * as MEMOERY_DOCTOR from '../commands/MEMORY_DOCTOR';
+import * as MEMORY_DOCTOR from '../commands/MEMORY_DOCTOR';
 import * as MEMORY_MALLOC_STATS from '../commands/MEMORY_MALLOC-STATS';
 import * as MEMORY_PURGE from '../commands/MEMORY_PURGE';
 import * as MEMORY_STATS from '../commands/MEMORY_STATS';
@@ -159,6 +160,8 @@ export default {
     clientKill: CLIENT_KILL,
     CLIENT_PAUSE,
     clientPause: CLIENT_PAUSE,
+    'CLIENT_NO-EVICT': CLIENT_NO_EVICT,
+    clientNoEvict: CLIENT_NO_EVICT,
     CLIENT_SETNAME,
     clientSetName: CLIENT_SETNAME,
     CLIENT_INFO,
@@ -273,8 +276,8 @@ export default {
     latencyDoctor: LATENCY_DOCTOR,
     LOLWUT,
     lolwut: LOLWUT,
-    MEMOERY_DOCTOR,
-    memoryDoctor: MEMOERY_DOCTOR,
+    MEMORY_DOCTOR,
+    memoryDoctor: MEMORY_DOCTOR,
     'MEMORY_MALLOC-STATS': MEMORY_MALLOC_STATS,
     memoryMallocStats: MEMORY_MALLOC_STATS,
     MEMORY_PURGE,
