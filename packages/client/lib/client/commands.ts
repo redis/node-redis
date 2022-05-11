@@ -22,6 +22,7 @@ import * as CLIENT_GETREDIR from '../commands/CLIENT_GETREDIR';
 import * as CLIENT_ID from '../commands/CLIENT_ID';
 import * as CLIENT_KILL from '../commands/CLIENT_KILL';
 import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
+import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from '../commands/CLUSTER_ADDSLOTS';
@@ -157,10 +158,12 @@ export default {
     clientId: CLIENT_ID,
     CLIENT_KILL,
     clientKill: CLIENT_KILL,
-    CLIENT_SETNAME,
-    clientSetName: CLIENT_SETNAME,
     'CLIENT_NO-EVICT': CLIENT_NO_EVICT,
     clientNoEvict: CLIENT_NO_EVICT,
+    CLIENT_PAUSE,
+    clientPause: CLIENT_PAUSE,
+    CLIENT_SETNAME,
+    clientSetName: CLIENT_SETNAME,
     CLIENT_INFO,
     clientInfo: CLIENT_INFO,
     CLUSTER_ADDSLOTS,
