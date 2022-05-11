@@ -24,6 +24,7 @@ import * as CLIENT_KILL from '../commands/CLIENT_KILL';
 import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
+import * as CLIENT_UNPAUSE from '../commands/CLIENT_UNPAUSE';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from '../commands/CLUSTER_ADDSLOTS';
 import * as CLUSTER_ADDSLOTSRANGE from '../commands/CLUSTER_ADDSLOTSRANGE';
@@ -164,6 +165,8 @@ export default {
     clientPause: CLIENT_PAUSE,
     CLIENT_SETNAME,
     clientSetName: CLIENT_SETNAME,
+    CLIENT_UNPAUSE,
+    clientUnpause: CLIENT_UNPAUSE,
     CLIENT_INFO,
     clientInfo: CLIENT_INFO,
     CLUSTER_ADDSLOTS,
