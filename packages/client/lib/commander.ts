@@ -123,7 +123,11 @@ export function transformCommandArguments<T>(
 }
 
 export function transformLegacyCommandArguments(args: Array<any>): Array<any> {
-    return args.flat().map(x => x?.toString?.());
+    return args.flat().map(arg => {
+        return typeof arg === 'number' || arg instanceof Date ?
+            arg.toString() :
+            arg;
+    });
 }
 
 export function transformCommandReply<C extends RedisCommand>(
