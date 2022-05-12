@@ -25,6 +25,7 @@ import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_TRACKING from '../commands/CLIENT_TRACKING';
+import * as CLIENT_TRACKINGINFO from '../commands/CLIENT_TRACKINGINFO';
 import * as CLIENT_UNPAUSE from '../commands/CLIENT_UNPAUSE';
 import * as CLIENT_INFO from '../commands/CLIENT_INFO';
 import * as CLUSTER_ADDSLOTS from '../commands/CLUSTER_ADDSLOTS';
@@ -168,6 +169,8 @@ export default {
     clientSetName: CLIENT_SETNAME,
     CLIENT_TRACKING,
     clientTracking: CLIENT_TRACKING,
+    CLIENT_TRACKINGINFO,
+    clientTrackingInfo: CLIENT_TRACKINGINFO,
     CLIENT_UNPAUSE,
     clientUnpause: CLIENT_UNPAUSE,
     CLIENT_INFO,
