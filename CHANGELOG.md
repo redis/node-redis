@@ -39,21 +39,21 @@ This version is a major change and refactor, adding modern JavaScript capabiliti
 ### Breaking Changes
 
 - All functions return Promises by default
-- Dropped support for Node.js 10.x, the minimum supported Node.js version is now 12.x
-- `createClient` takes new and different arguments
-- The `prefix`, `rename_commands` configuration options to `createClient` have been removed
-- The `enable_offline_queue` configuration option is removed, executing commands on a closed client (without calling `.connect()` or after calling `.disconnect()`) will reject immediately
+- Drop support for Node.js 10.x, the minimum supported Node.js version is now 12.x
+- Modify arguments to `createClient`
+- Remove `prefix`, `rename_commands` configuration options to `createClient`
+- Remove `enable_offline_queue` configuration option, executing commands on a closed client (without calling `.connect()` or after calling `.disconnect()`) will reject immediately
 - Login credentials are no longer saved when using `.auth()` directly
 
 ### Features
 
-- Added support for Promises
-- Added built-in TypeScript declaration files enabling code completion
-- Added support for [clustering](./README.md#cluster)
-- Added idiomatic arguments and responses to [Redis commands](./README.md#redis-commands)
-- Added full support for [Lua Scripts](./README.md#lua-scripts)
-- Added support for [SCAN iterators](./README.md#scan-iterator)
-- Added the ability to extend Node Redis with Redis Module commands
+- Add support for Promises
+- Add built-in TypeScript declaration files enabling code completion
+- Add support for [clustering](./README.md#cluster)
+- Add idiomatic arguments and responses to [Redis commands](./README.md#redis-commands)
+- Add full support for [Lua Scripts](./README.md#lua-scripts)
+- Add support for [SCAN iterators](./README.md#scan-iterator)
+- Add the ability to extend Node Redis with Redis Module commands
 
 ## v3.1.2
 
@@ -85,25 +85,25 @@ a lot of old deprecated features and old internals in preparation for an upcomin
 
 ### Breaking Changes
 
-- Dropped support for Node.js < 6
-- Dropped support for `hiredis` (no longer required)
-- Removed previously deprecated `drain` event
-- Removed previously deprecated `idle` event
-- Removed previously deprecated `parser` option
-- Removed previously deprecated `max_delay` option
-- Removed previously deprecated `max_attempts` option
-- Removed previously deprecated `socket_no_delay` option
+- Drop support for Node.js < 6
+- Drop support for `hiredis` (no longer required)
+- Remove previously deprecated `drain` event
+- Remove previously deprecated `idle` event
+- Remove previously deprecated `parser` option
+- Remove previously deprecated `max_delay` option
+- Remove previously deprecated `max_attempts` option
+- Remove previously deprecated `socket_no_delay` option
 
 ### Bug Fixes
 
-- Removed development files from published package (#1370)
+- Remove development files from published package (#1370)
 - Duplicate function now allows db param to be passed (#1311)
 
 ### Features
 
-- Upgraded to latest `redis-commands` package
-- Upgraded to latest `redis-parser` package, v3.0.0, which brings performance improvements
-- Replaced `double-ended-queue` with `denque`, which brings performance improvements
+- Upgrade to latest `redis-commands` package
+- Upgrade to latest `redis-parser` package, v3.0.0, which brings performance improvements
+- Replace `double-ended-queue` with `denque`, which brings performance improvements
 - Add timestamps to debug traces
 - Add `socket_initial_delay` option for `socket.setKeepAlive` (#1396)
 - Add support for `rediss` protocol in url (#1282)
@@ -117,39 +117,39 @@ Features
 
 Bugfixes
 
-- Fixed not always copying subscribe unsubscribe arguments
-- Fixed emitting internal errors while reconnecting with auth
-- Fixed crashing with invalid url option
+- Fix not always copying subscribe unsubscribe arguments
+- Fix emitting internal errors while reconnecting with auth
+- Fix crashing with invalid url option
 
 ## v2.7.1 - 14 Mar, 2017
 
 Bugfixes
 
-- Fixed monitor mode not working in combination with IPv6 (2.6.0 regression)
+- Fix monitor mode not working in combination with IPv6 (2.6.0 regression)
 
 ## v2.7.0 - 11 Mar, 2017
 
 Features
 
-- All returned errors are from now a subclass of `RedisError`.
+- All returned errors are now from a subclass of `RedisError`.
 
 Bugfixes
 
-- Fixed rename_commands not accepting `null` as value
-- Fixed `AbortError`s and `AggregateError`s not showing the error message in the stack trace
+- Fix rename_commands not accepting `null` as value
+- Fix `AbortError`s and `AggregateError`s not showing the error message in the stack trace
 
 ## v2.6.5 - 15 Jan, 2017
 
 Bugfixes
 
-- Fixed parser not being reset in case the redis connection closed ASAP for overcoming of output buffer limits
-- Fixed parser reset if (p)message_buffer listener is attached
+- Fix parser not being reset in case the redis connection closed ASAP for overcoming of output buffer limits
+- Fix parser reset if (p)message_buffer listener is attached
 
 ## v2.6.4 - 12 Jan, 2017
 
 Bugfixes
 
-- Fixed monitor mode not working in combination with IPv6, sockets or lua scripts (2.6.0 regression)
+- Fix monitor mode not working in combination with IPv6, sockets or lua scripts (2.6.0 regression)
 
 ## v2.6.3 - 31 Oct, 2016
 
@@ -162,13 +162,13 @@ Bugfixes
 
 Bugfixes
 
-- Fixed individual callbacks of a transaction not being called (2.6.0 regression)
+- Fix individual callbacks of a transaction not being called (2.6.0 regression)
 
 ## v2.6.1 - 02 Jun, 2016
 
 Bugfixes
 
-- Fixed invalid function name being exported
+- Fix invalid function name being exported
 
 ## v2.6.0 - 01 Jun, 2016
 
@@ -176,15 +176,15 @@ In addition to the pre-releases the following changes exist in v.2.6.0:
 
 Features
 
-- Updated [redis-parser](https://github.com/NodeRedis/node-redis-parser) dependency ([changelog](https://github.com/NodeRedis/node-redis-parser/releases/tag/v.2.0.0))
+- Update [redis-parser](https://github.com/NodeRedis/node-redis-parser) dependency ([changelog](https://github.com/NodeRedis/node-redis-parser/releases/tag/v.2.0.0))
 - The JS parser is from now on the new default as it is a lot faster than the hiredis parser
-- This is no BC as there is no changed behavior for the user at all but just a performance improvement. Explicitly requireing the Hiredis parser is still possible.
-- Added name property to all Redis functions (Node.js >= 4.0)
-- Improved stack traces in development and debug mode
+- This is no BC as there is no changed behavior for the user at all but just a performance improvement. Explicitly requiring the Hiredis parser is still possible.
+- Add name property to all Redis functions (Node.js >= 4.0)
+- Improve stack traces in development and debug mode
 
 Bugfixes
 
-- Reverted support for `__proto__` (v.2.6.0-2) to prevent and breaking change
+- Revert support for `__proto__` (v.2.6.0-2) to prevent and breaking change
 
 Deprecations
 
@@ -194,37 +194,37 @@ Deprecations
 
 Features
 
-- Added support for the new [CLIENT REPLY ON|OFF|SKIP](http://redis.io/commands/client-reply) command (Redis v.3.2)
-- Added support for camelCase
+- Add support for the new [CLIENT REPLY ON|OFF|SKIP](http://redis.io/commands/client-reply) command (Redis v.3.2)
+- Add support for camelCase
 - The Node.js landscape default is to use camelCase. node_redis is a bit out of the box here
   but from now on it is possible to use both, just as you prefer!
-- If there's any documented variable missing as camelCased, please open a issue for it
+- If there's any documented variable missing as camelCase, please open an issue for it
 - Improve error handling significantly
 - Only emit an error if the error has not already been handled in a callback
-- Improved unspecific error messages e.g. "Connection gone from end / close event"
-- Added `args` to command errors to improve identification of the error
-- Added origin to errors if there's e.g. a connection error
-- Added ReplyError class. All Redis errors are from now on going to be of that class
-- Added AbortError class. A subclass of AbortError. All unresolved and by node_redis rejected commands are from now on of that class
-- Added AggregateError class. If a unresolved and by node_redis rejected command has no callback and
+- Improve unspecific error messages e.g. "Connection gone from end / close event"
+- Add `args` to command errors to improve identification of the error
+- Add origin to errors if there's e.g. a connection error
+- Add ReplyError class. All Redis errors are from now on going to be of that class
+- Add AbortError class. A subclass of AbortError. All unresolved and by node_redis rejected commands are from now on of that class
+- Add AggregateError class. If a unresolved and by node_redis rejected command has no callback and
   this applies to more than a single command, the errors for the commands without callback are aggregated
   to a single error that is emitted in debug_mode in that case.
-- Added `message_buffer` / `pmessage_buffer` events. That event is always going to emit a buffer
+- Add `message_buffer` / `pmessage_buffer` events. That event is always going to emit a buffer
 - Listening to the `message` event at the same time is always going to return the same message as string
-- Added callback option to the duplicate function
-- Added support for `__proto__` and other reserved keywords as hgetall field
-- Updated [redis-commands](https://github.com/NodeRedis/redis-commands) dependency ([changelog](https://github.com/NodeRedis/redis-commands/releases/tag/v.1.2.0))
+- Add callback option to the duplicate function
+- Add support for `__proto__` and other reserved keywords as hgetall field
+- Update [redis-commands](https://github.com/NodeRedis/redis-commands) dependency ([changelog](https://github.com/NodeRedis/redis-commands/releases/tag/v.1.2.0))
 
 Bugfixes
 
-- Fixed v.2.5.0 auth command regression (under special circumstances a reconnect would not authenticate properly)
-- Fixed v.2.6.0-0 pub sub mode and quit command regressions:
+- Fix v.2.5.0 auth command regression (under special circumstances a reconnect would not authenticate properly)
+- Fix v.2.6.0-0 pub sub mode and quit command regressions:
 - Entering pub sub mode not working if a earlier called and still running command returned an error
 - Unsubscribe callback not called if unsubscribing from all channels and resubscribing right away
 - Quit command resulting in an error in some cases
-- Fixed special handled functions in batch and multi context not working the same as without (e.g. select and info)
+- Fix special handled functions in batch and multi context not working the same as without (e.g. select and info)
 - Be aware that not all commands work in combination with transactions but they all work with batch
-- Fixed address always set to 127.0.0.1:6379 in case host / port is set in the `tls` options instead of the general options
+- Fix address always set to 127.0.0.1:6379 in case host / port is set in the `tls` options instead of the general options
 
 ## v2.6.0-1 - 01 Apr, 2016
 
@@ -232,14 +232,14 @@ A second pre-release with further fixes. This is likely going to be released as 
 
 Features
 
-- Added type validations for client.send_command arguments
+- Add type validations for client.send_command arguments
 
 Bugfixes
 
-- Fixed client.send_command not working properly with every command and every option
-- Fixed pub sub mode unsubscribing from all channels in combination with the new `string_numbers` option crashing
-- Fixed pub sub mode unsubscribing from all channels not respected while reconnecting
-- Fixed pub sub mode events in combination with the `string_numbers` option emitting the number of channels not as number
+- Fix client.send_command not working properly with every command and every option
+- Fix pub sub mode unsubscribing from all channels in combination with the new `string_numbers` option crashing
+- Fix pub sub mode unsubscribing from all channels not respected while reconnecting
+- Fix pub sub mode events in combination with the `string_numbers` option emitting the number of channels not as number
 
 ## v2.6.0-0 - 27 Mar, 2016
 
@@ -251,20 +251,20 @@ Features
 - All commands that were send after a connection loss are now going to be send after reconnecting
 - Activating monitor mode does now work together with arbitrary commands including pub sub mode
 - Pub sub mode is completely rewritten and all known issues fixed
-- Added `string_numbers` option to get back strings instead of numbers
+- Add `string_numbers` option to get back strings instead of numbers
 - Quit command is from now on always going to end the connection properly
 
 Bugfixes
 
-- Fixed calling monitor command while other commands are still running
-- Fixed monitor and pub sub mode not working together
-- Fixed monitor mode not working in combination with the offline queue
-- Fixed pub sub mode not working in combination with the offline queue
-- Fixed pub sub mode resubscribing not working with non utf8 buffer channels
-- Fixed pub sub mode crashing if calling unsubscribe / subscribe in various combinations
-- Fixed pub sub mode emitting unsubscribe even if no channels were unsubscribed
-- Fixed pub sub mode emitting a message without a message published
-- Fixed quit command not ending the connection and resulting in further reconnection if called while reconnecting
+- Fix calling monitor command while other commands are still running
+- Fix monitor and pub sub mode not working together
+- Fix monitor mode not working in combination with the offline queue
+- Fix pub sub mode not working in combination with the offline queue
+- Fix pub sub mode resubscribing not working with non utf8 buffer channels
+- Fix pub sub mode crashing if calling unsubscribe / subscribe in various combinations
+- Fix pub sub mode emitting unsubscribe even if no channels were unsubscribed
+- Fix pub sub mode emitting a message without a message published
+- Fix quit command not ending the connection and resulting in further reconnection if called while reconnecting
 
 The quit command did not end connections earlier if the connection was down at that time and this could have
 lead to strange situations, therefor this was fixed to end the connection right away in those cases.
@@ -279,13 +279,13 @@ Bugfixes
 
 Bugfixes
 
-- Fixed breaking changes against Redis 2.4 introduced in 2.5.0 / 2.5.1
+- Fix breaking changes against Redis 2.4 introduced in 2.5.0 / 2.5.1
 
 ## v2.5.1 - 15 Mar, 2016
 
 Bugfixes
 
-- Fixed info command not working anymore with optional section argument
+- Fix info command not working anymore with optional section argument
 
 ## v2.5.0 - 15 Mar, 2016
 
@@ -304,36 +304,36 @@ Features
 - The parsers moved into the [redis-parser](https://github.com/NodeRedis/node-redis-parser) module and will be maintained in there from now on
 - Improve js parser speed significantly for big SUNION/SINTER/LRANGE/ZRANGE
 - Improve redis-url parsing to also accept the database-number and options as query parameters as suggested in [IANA](http://www.iana.org/assignments/uri-schemes/prov/redis)
-- Added a `retry_unfulfilled_commands` option
+- Add a `retry_unfulfilled_commands` option
 - Setting this to 'true' results in retrying all commands that were not fulfilled on a connection loss after the reconnect. Use with caution
-- Added a `db` option to select the database while connecting (this is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg))
-- Added a `password` option as alias for auth_pass
+- Add a `db` option to select the database while connecting (this is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg))
+- Add a `password` option as alias for auth_pass
 - The client.server_info is from now on updated while using the info command
-- Gracefuly handle redis protocol errors from now on
-- Added a `warning` emitter that receives node_redis warnings like auth not required and deprecation messages
-- Added a `retry_strategy` option that replaces all reconnect options
+- Gracefully handle redis protocol errors from now on
+- Add a `warning` emitter that receives node_redis warnings like auth not required and deprecation messages
+- Add a `retry_strategy` option that replaces all reconnect options
 - The reconnecting event from now on also receives:
 - The error message why the reconnect happened (params.error)
 - The amount of times the client was connected (params.times_connected)
 - The total reconnecting time since the last time connected (params.total_retry_time)
 - Always respect the command execution order no matter if the reply could be returned sync or not (former exceptions: [#937](https://github.com/NodeRedis/node_redis/issues/937#issuecomment-167525939))
 - redis.createClient is now checking input values stricter and detects more faulty input
-- Started refactoring internals into individual modules
+- Start refactoring internals into individual modules
 - Pipelining speed improvements
 
 Bugfixes
 
-- Fixed explicit undefined as a command callback in a multi context
-- Fixed hmset failing to detect the first key as buffer or date if the key is of that type
-- Fixed do not run toString on an array argument and throw a "invalid data" error instead
+- Fix explicit undefined as a command callback in a multi context
+- Fix hmset failing to detect the first key as buffer or date if the key is of that type
+- Fix do not run toString on an array argument and throw a "invalid data" error instead
 - This is not considered as breaking change, as this is likely a error in your code and if you want to have such a behavior you should handle this beforehand
 - The same applies to Map / Set and individual Object types
-- Fixed redis url not accepting the protocol being omitted or protocols other than the redis protocol for convenience
-- Fixed parsing the db keyspace even if the first database does not begin with a zero
-- Fixed handling of errors occurring while receiving pub sub messages
-- Fixed huge string pipelines crashing NodeJS (Pipeline size above 256mb)
-- Fixed rename_commands and prefix option not working together
-- Fixed ready being emitted to early in case a slave is still syncing / master down
+- Fix redis url not accepting the protocol being omitted or protocols other than the redis protocol for convenience
+- Fix parsing the db keyspace even if the first database does not begin with a zero
+- Fix handling of errors occurring while receiving pub sub messages
+- Fix huge string pipelines crashing NodeJS (Pipeline size above 256mb)
+- Fix rename_commands and prefix option not working together
+- Fix ready being emitted to early in case a slave is still syncing / master down
 
 Deprecations
 
@@ -354,41 +354,41 @@ Deprecations
 - The drain event is deprecated and will be removed in v.3.0.0. Please listen to the stream drain event instead
 - The idle event is deprecated and will likely be removed in v.3.0.0. If you rely on this feature please open a new ticket in node_redis with your use case
 - Redis < v. 2.6 is not officially supported anymore and might not work in all cases. Please update to a newer redis version as it is not possible to test for these old versions
-- Removed non documented command syntax (adding the callback to an arguments array instead of passing it as individual argument)
+- Remove non-documented command syntax (adding the callback to an arguments array instead of passing it as individual argument)
 
 ## v2.4.2 - 27 Nov, 2015
 
 Bugfixes
 
-- Fixed not emitting ready after reconnect with disable_resubscribing ([@maxgalbu](https://github.com/maxgalbu))
+- Fix not emitting ready after reconnect with disable_resubscribing ([@maxgalbu](https://github.com/maxgalbu))
 
 ## v2.4.1 - 25 Nov, 2015
 
 Bugfixes
 
-- Fixed a js parser regression introduced in 2.4.0 ([@BridgeAR](https://github.com/BridgeAR))
+- Fix a js parser regression introduced in 2.4.0 ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v2.4.0 - 25 Nov, 2015
 
 Features
 
-- Added `tls` option to initiate a connection to a redis server behind a TLS proxy. Thanks ([@paddybyers](https://github.com/paddybyers))
-- Added `prefix` option to auto key prefix any command with the provided prefix ([@luin](https://github.com/luin) & [@BridgeAR](https://github.com/BridgeAR))
-- Added `url` option to pass the connection url with the options object ([@BridgeAR](https://github.com/BridgeAR))
-- Added `client.duplicate([options])` to duplicate the current client and return a new one with the same options ([@BridgeAR](https://github.com/BridgeAR))
+- Add `tls` option to initiate a connection to a redis server behind a TLS proxy. Thanks ([@paddybyers](https://github.com/paddybyers))
+- Add `prefix` option to auto key prefix any command with the provided prefix ([@luin](https://github.com/luin) & [@BridgeAR](https://github.com/BridgeAR))
+- Add `url` option to pass the connection url with the options object ([@BridgeAR](https://github.com/BridgeAR))
+- Add `client.duplicate([options])` to duplicate the current client and return a new one with the same options ([@BridgeAR](https://github.com/BridgeAR))
 - Improve performance by up to 20% on almost all use cases ([@BridgeAR](https://github.com/BridgeAR))
 
 Bugfixes
 
-- Fixed js parser handling big values slow ([@BridgeAR](https://github.com/BridgeAR))
+- Fix js parser handling big values slow ([@BridgeAR](https://github.com/BridgeAR))
 - The speed is now on par with the hiredis parser.
 
 ## v2.3.1 - 18 Nov, 2015
 
 Bugfixes
 
-- Fixed saving buffers with charsets other than utf-8 while using multi ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed js parser handling big values very slow ([@BridgeAR](https://github.com/BridgeAR))
+- Fix saving buffers with charsets other than utf-8 while using multi ([@BridgeAR](https://github.com/BridgeAR))
+- Fix js parser handling big values very slow ([@BridgeAR](https://github.com/BridgeAR))
 - The speed is up to ~500% faster than before but still up to ~50% slower than the hiredis parser.
 
 ## v2.3.0 - 30 Oct, 2015
@@ -396,53 +396,53 @@ Bugfixes
 Features
 
 - Improve speed further for: ([@BridgeAR](https://github.com/BridgeAR))
-- saving big strings (up to +300%)
-- using .multi / .batch (up to +50% / on Node.js 0.10.x +300%)
-- saving small buffers
-- Increased coverage to 99% ([@BridgeAR](https://github.com/BridgeAR))
-- Refactored manual backpressure control ([@BridgeAR](https://github.com/BridgeAR))
-- Removed the high water mark and low water mark. Such a mechanism should be implemented by a user instead
+- Saving big strings (up to +300%)
+- Using .multi / .batch (up to +50% / on Node.js 0.10.x +300%)
+- Saving small buffers
+- Increase coverage to 99% ([@BridgeAR](https://github.com/BridgeAR))
+- Refactor manual backpressure control ([@BridgeAR](https://github.com/BridgeAR))
+- Remove the high water mark and low water mark. Such a mechanism should be implemented by a user instead
 - The `drain` event is from now on only emitted if the stream really had to buffer
-- Reduced the default connect_timeout to be one hour instead of 24h ([@BridgeAR](https://github.com/BridgeAR))
-- Added .path to redis.createClient(options); ([@BridgeAR](https://github.com/BridgeAR))
+- Reduce the default connect_timeout to be one hour instead of 24h ([@BridgeAR](https://github.com/BridgeAR))
+- Add .path to redis.createClient(options); ([@BridgeAR](https://github.com/BridgeAR))
 - Ignore info command, if not available on server ([@ivanB1975](https://github.com/ivanB1975))
 
 Bugfixes
 
-- Fixed a js parser error that could result in a timeout ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed .multi / .batch used with Node.js 0.10.x not working properly after a reconnect ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed fired but not yet returned commands not being rejected after a connection loss ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed connect_timeout not respected if no connection has ever been established ([@gagle](https://github.com/gagle) & [@benjie](https://github.com/benjie))
-- Fixed return_buffers in pub sub mode ([@komachi](https://github.com/komachi))
+- Fix a js parser error that could result in a timeout ([@BridgeAR](https://github.com/BridgeAR))
+- Fix .multi / .batch used with Node.js 0.10.x not working properly after a reconnect ([@BridgeAR](https://github.com/BridgeAR))
+- Fix fired but not yet returned commands not being rejected after a connection loss ([@BridgeAR](https://github.com/BridgeAR))
+- Fix connect_timeout not respected if no connection has ever been established ([@gagle](https://github.com/gagle) & [@benjie](https://github.com/benjie))
+- Fix return_buffers in pub sub mode ([@komachi](https://github.com/komachi))
 
 ## v2.2.5 - 18 Oct, 2015
 
 Bugfixes
 
-- Fixed undefined options passed to a new instance not accepted (possible with individual .createClient functions) ([@BridgeAR](https://github.com/BridgeAR))
+- Fix undefined options passed to a new instance not accepted (possible with individual .createClient functions) ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v2.2.4 - 17 Oct, 2015
 
 Bugfixes
 
-- Fixed unspecific error message for unresolvable commands ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed not allowed command error in pubsub mode not being returned in a provided callback ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed to many commands forbidden in pub sub mode ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed mutation of the arguments array passed to .multi / .batch constructor ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed mutation of the options object passed to createClient ([@BridgeAR](https://github.com/BridgeAR))
-- Fixed error callback in .multi not called if connection in broken mode ([@BridgeAR](https://github.com/BridgeAR))
+- Fix unspecific error message for unresolvable commands ([@BridgeAR](https://github.com/BridgeAR))
+- Fix not allowed command error in pubsub mode not being returned in a provided callback ([@BridgeAR](https://github.com/BridgeAR))
+- Fix to many commands forbidden in pub sub mode ([@BridgeAR](https://github.com/BridgeAR))
+- Fix mutation of the arguments array passed to .multi / .batch constructor ([@BridgeAR](https://github.com/BridgeAR))
+- Fix mutation of the options object passed to createClient ([@BridgeAR](https://github.com/BridgeAR))
+- Fix error callback in .multi not called if connection in broken mode ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v2.2.3 - 14 Oct, 2015
 
 Bugfixes
 
-- Fixed multi not being executed on Node 0.10.x if node_redis not yet ready ([@BridgeAR](https://github.com/BridgeAR))
+- Fix multi not being executed on Node 0.10.x if node_redis not yet ready ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v2.2.2 - 14 Oct, 2015
 
 Bugfixes
 
-- Fixed regular commands not being executed after a .multi until .exec was called ([@BridgeAR](https://github.com/BridgeAR))
+- Fix regular commands not being executed after a .multi until .exec was called ([@BridgeAR](https://github.com/BridgeAR))
 
 ## v2.2.1 - 12 Oct, 2015
 
@@ -454,20 +454,20 @@ The peregrino falcon is the fasted bird on earth and this is what this release i
 
 Features
 
-- Added rename_commands options to handle renamed commands from the redis config ([@digmxl](https://github.com/digmxl) & [@BridgeAR](https://github.com/BridgeAR))
-- Added disable_resubscribing option to prevent a client from resubscribing after reconnecting ([@BridgeAR](https://github.com/BridgeAR))
-- Increased performance ([@BridgeAR](https://github.com/BridgeAR))
-- exchanging built in queue with [@petkaantonov](https://github.com/petkaantonov)'s [double-ended queue](https://github.com/petkaantonov/deque)
-- prevent polymorphism
-- optimize statements
-- Added _.batch_ command, similar to .multi but without transaction ([@BridgeAR](https://github.com/BridgeAR))
-- Improved pipelining to minimize the [RTT](http://redis.io/topics/pipelining) further ([@BridgeAR](https://github.com/BridgeAR))
+- Add rename_commands options to handle renamed commands from the redis config ([@digmxl](https://github.com/digmxl) & [@BridgeAR](https://github.com/BridgeAR))
+- Add disable_resubscribing option to prevent a client from resubscribing after reconnecting ([@BridgeAR](https://github.com/BridgeAR))
+- Increase performance ([@BridgeAR](https://github.com/BridgeAR))
+- Exchange built-in queue with [@petkaantonov](https://github.com/petkaantonov)'s [double-ended queue](https://github.com/petkaantonov/deque)
+- Prevent polymorphism
+- Optimize statements
+- Add _.batch_ command, similar to .multi but without transaction ([@BridgeAR](https://github.com/BridgeAR))
+- Improve pipelining to minimize the [RTT](http://redis.io/topics/pipelining) further ([@BridgeAR](https://github.com/BridgeAR))
 
 Bugfixes
 
-- Fixed a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
+- Fix a javascript parser regression introduced in 2.0 that could result in timeouts on high load. ([@BridgeAR](https://github.com/BridgeAR))
 - I was not able to write a regression test for this, since the error seems to only occur under heavy load with special conditions. So please have a look for timeouts with the js parser, if you use it and report all issues and switch to the hiredis parser in the meanwhile. If you're able to come up with a reproducable test case, this would be even better :)
-- Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
+- Fix should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
 
 If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
 Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
@@ -510,8 +510,8 @@ Known issues
 
 Features:
 
-- Addded optional flush parameter to `.end`. If set to true, commands fired after using .end are going to be rejected instead of being ignored. (@crispy1989)
-- Addded: host and port can now be provided in a single options object. E.g. redis.createClient({ host: 'localhost', port: 1337, max_attempts: 5 }); (@BridgeAR)
+- Addd optional flush parameter to `.end`. If set to true, commands fired after using .end are going to be rejected instead of being ignored. (@crispy1989)
+- Addd: host and port can now be provided in a single options object. E.g. redis.createClient({ host: 'localhost', port: 1337, max_attempts: 5 }); (@BridgeAR)
 - Speedup common cases (@BridgeAR)
 
 Bugfixes:
@@ -546,14 +546,14 @@ This is the biggest release that node_redis had since it was released in 2010. A
 
 ## Features:
 
-- Added a "redis connection is broken" mode after reaching max connection attempts / exceeding connection timeout. (@BridgeAR)
-- Added NODE_DEBUG=redis env to activate the debug_mode (@BridgeAR)
-- Added a default connection timeout of 24h instead of never timing out as a default (@BridgeAR)
-- Added: Network errors and other stream errors will from now on include the error code as `err.code` property (@BridgeAR)
-- Added: Errors thrown by redis will now include the redis error code as `err.code` property. (@skeggse & @BridgeAR)
-- Added: Errors thrown by node_redis will now include a `err.command` property for the command used (@BridgeAR)
-- Added new commands and drop support for deprecated _substr_ (@BridgeAR)
-- Added new possibilities how to provide the command arguments (@BridgeAR)
+- Add a "redis connection is broken" mode after reaching max connection attempts / exceeding connection timeout. (@BridgeAR)
+- Add NODE_DEBUG=redis env to activate the debug_mode (@BridgeAR)
+- Add a default connection timeout of 24h instead of never timing out as a default (@BridgeAR)
+- Add: Network errors and other stream errors will from now on include the error code as `err.code` property (@BridgeAR)
+- Add: Errors thrown by redis will now include the redis error code as `err.code` property. (@skeggse & @BridgeAR)
+- Add: Errors thrown by node_redis will now include a `err.command` property for the command used (@BridgeAR)
+- Add new commands and drop support for deprecated _substr_ (@BridgeAR)
+- Add new possibilities how to provide the command arguments (@BridgeAR)
 - The entries in the keyspace of the server_info is now an object instead of a string. (@SinisterLight & @BridgeAR)
 - Small speedup here and there (e.g. by not using .toLowerCase() anymore) (@BridgeAR)
 - Full windows support (@bcoe)
@@ -687,10 +687,10 @@ From now on we'll push new releases more frequently out and fix further long out
 Many contributed features and fixes, including:
 
 - Ignore password set if not needed. (jbergknoff)
-- Improved compatibility with 0.10.X for tests and client.end() (Bryce Baril)
+- Improve compatibility with 0.10.X for tests and client.end() (Bryce Baril)
 - Protect connection retries from application exceptions. (Amos Barreto)
 - Better exception handling for Multi/Exec (Thanasis Polychronakis)
-- Renamed pubsub mode to subscriber mode (Luke Plaster)
+- Rename pubsub mode to subscriber mode (Luke Plaster)
 - Treat SREM like SADD when passed an array (Martin Ciparelli)
 - Fix empty unsub/punsub TypeError (Jeff Barczewski)
 - Only attempt to run a callback if it one was provided (jifeng)
@@ -724,7 +724,7 @@ Many contributed features and fixes, including:
 Another version bump because 0.8.1 didn't get applied properly for some mysterious reason.
 Sorry about that.
 
-Changed name of "faster" parser to "javascript".
+Change name of "faster" parser to "javascript".
 
 ## v0.8.1 - September 11, 2012
 
@@ -843,7 +843,7 @@ pointed out to me that DISCARD can be used to flush the WATCH set.
 
 ## v0.5.10 - April 6, 2011
 
-Added HVALS
+Add HVALS
 
 ## v0.5.9 - March 14, 2011
 
@@ -911,7 +911,7 @@ Some bug fixes:
 
 - An important bug fix in reconnection logic. Previously, reply callbacks would be invoked twice after
   a reconnect.
-- Changed error callback argument to be an actual Error object.
+- Change error callback argument to be an actual Error object.
 
 New feature:
 
@@ -949,9 +949,9 @@ Send a friendlier "error" event message on stream errors like connection refused
 
 A few bug fixes.
 
-- Fixed bug with `nil` multi-bulk reply lengths that showed up with `BLPOP` timeouts.
+- Fix bug with `nil` multi-bulk reply lengths that showed up with `BLPOP` timeouts.
 - Only emit `end` once when connection goes away.
-- Fixed bug in `test.js` where driver finished before all tests completed.
+- Fix bug in `test.js` where driver finished before all tests completed.
 
 ## unversioned wasteland
 
