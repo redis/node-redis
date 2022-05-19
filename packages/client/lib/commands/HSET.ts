@@ -53,7 +53,13 @@ function pushTuples(args: RedisCommandArguments, tuples: HSETTuples): void {
 
 function pushObject(args: RedisCommandArguments, object: HSETObject): void {
     for (const key of Object.keys(object)) {
-        args.push(key.toString(), object[key].toString());
+        const value = object[key];
+        args.push(
+            key.toString(),
+            Buffer.isBuffer(value) ?
+                value :
+                value.toString()
+        );
     }
 }
 
