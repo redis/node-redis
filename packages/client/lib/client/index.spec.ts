@@ -468,6 +468,20 @@ describe('Client', () => {
                 ['PONG']
             );
         }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should remember selected db', async client => {
+            await client.multi()
+                .select(1)
+                .exec();
+            await killClient(client);
+            assert.equal(
+                (await client.clientInfo()).db,
+                1
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            minimumDockerVersion: [6, 2] // CLIENT INFO
+        });
     });
 
     testUtils.testWithClient('scripts', async client => {
