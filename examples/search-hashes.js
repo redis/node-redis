@@ -40,29 +40,38 @@ async function searchHashes() {
     client.hSet('noderedis:animals:4', {name: 'Fido', species: 'dog', age: 7})
   ]);
 
-  // Perform a search query, find all the dogs...
+  // Perform a search query, find all the dogs... sort by age, descending.
   // Documentation: https://oss.redis.com/redisearch/Commands/#ftsearch
   // Query synatax: https://oss.redis.com/redisearch/Query_Syntax/
-  const results = await client.ft.search('idx:animals', '@species:{dog}');
+  const results = await client.ft.search(
+    'idx:animals', 
+    '@species:{dog}',
+    {
+      SORTBY: {
+        BY: 'age',
+        DIRECTION: 'DESC' // or 'ASC' (default if DIRECTION is not present)
+      }
+    }
+  );
 
   // results:
   // {
   //   total: 2,
   //   documents: [
-  //     { 
-  //       id: 'noderedis:animals:4',
-  //       value: {
-  //         name: 'Fido',
-  //         species: 'dog',
-  //         age: '7'
-  //       }
-  //     },
   //     {
   //       id: 'noderedis:animals:3',
   //       value: {
+  //         age: '9',
   //         name: 'Rover',
-  //         species: 'dog',
-  //         age: '9'
+  //         species: 'dog'
+  //       }
+  //     },
+  //     {
+  //       id: 'noderedis:animals:4',
+  //       value: {
+  //         age: '7',
+  //         name: 'Fido',
+  //         species: 'dog'
   //       }
   //     }
   //   ]
@@ -71,9 +80,9 @@ async function searchHashes() {
   console.log(`Results found: ${results.total}.`);
 
   for (const doc of results.documents) {
-    // noderedis:animals:4: Fido
-    // noderedis:animals:3: Rover
-    console.log(`${doc.id}: ${doc.value.name}`);
+    // noderedis:animals:3: Rover, 9 years old.
+    // noderedis:animals:4: Fido, 7 years old.
+    console.log(`${doc.id}: ${doc.value.name}, ${doc.value.age} years old.`);
   }
 
   await client.quit();
