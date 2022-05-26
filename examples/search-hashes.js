@@ -56,22 +56,22 @@ async function searchHashes() {
 
   // results:
   // {
-  //   'total': 2,
-  //   'documents': [
+  //   total: 2,
+  //   documents: [
   //     {
-  //       'id': 'noderedis:animals:3',
-  //       'value': {
-  //         'age': '9',
-  //         'name': 'Rover',
-  //         'species': 'dog'
+  //       id: 'noderedis:animals:3',
+  //       value: {
+  //         age: '9',
+  //         name: 'Rover',
+  //         species: 'dog'
   //       }
   //     },
   //     {
-  //       'id': 'noderedis:animals:4',
-  //       'value': {
-  //         'age': '7',
-  //         'name': 'Fido',
-  //         'species': 'dog'
+  //       id: 'noderedis:animals:4',
+  //       value: {
+  //         age: '7',
+  //         name: 'Fido',
+  //         species: 'dog'
   //       }
   //     }
   //   ]
