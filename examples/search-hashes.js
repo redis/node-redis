@@ -42,7 +42,7 @@ async function searchHashes() {
 
   // Perform a search query, find all the dogs... sort by age, descending.
   // Documentation: https://oss.redis.com/redisearch/Commands/#ftsearch
-  // Query synatax: https://oss.redis.com/redisearch/Query_Syntax/
+  // Query syntax: https://oss.redis.com/redisearch/Query_Syntax/
   const results = await client.ft.search(
     'idx:animals', 
     '@species:{dog}',
