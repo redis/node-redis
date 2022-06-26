@@ -6,7 +6,8 @@ export function transformArguments(
     sourceKey: string,
     destinationKey: string,
     aggregationType: TimeSeriesAggregationType,
-    timeBucket: number
+    timeBucket: number,
+    alignTimestamp: number
 ): Array<string> {
     return [
         'TS.CREATERULE',
@@ -14,7 +15,8 @@ export function transformArguments(
         destinationKey,
         'AGGREGATION',
         aggregationType,
-        timeBucket.toString()
+        timeBucket.toString(),
+        alignTimestamp.toString()
     ];
 }
 
