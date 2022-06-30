@@ -606,18 +606,26 @@ export default class RedisClient<
         );
     }
 
-    multiExecutor(commands: Array<RedisMultiQueuedCommand>, chainId?: symbol): Promise<Array<RedisCommandRawReply>> {
+    async multiExecutor(
+        commands: Array<RedisMultiQueuedCommand>,
+        selectedDB?: number,
+        chainId?: symbol
+    ): Promise<Array<RedisCommandRawReply>> {
         const promise = Promise.all(
             commands.map(({ args }) => {
-                return this.#queue.addCommand(args, RedisClient.commandOptions({
-                    chainId
-                }));
+                return this.#queue.addCommand(args, { chainId });
             })
         );
 
         this.#tick();
 
-        return promise;
+        const results = await promise;
+
+        if (selectedDB !== undefined) {
+            this.#selectedDB = selectedDB;
+        }
+
+        return results;
     }
 
     async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {

@@ -58,13 +58,13 @@ type InstantiableRedisMultiCommand<
     S extends RedisScripts
 > = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<M, F, S>;
 
-
-export type RedisClientMultiExecutor = (queue: Array<RedisMultiQueuedCommand>, chainId?: symbol) => Promise<Array<RedisCommandRawReply>>;
+export type RedisClientMultiExecutor = (
+    queue: Array<RedisMultiQueuedCommand>,
+    selectedDB?: number,
+    chainId?: symbol
+) => Promise<Array<RedisCommandRawReply>>;
 
 export default class RedisClientMultiCommand {
-    readonly #multi = new RedisMultiCommand();
-    readonly #executor: RedisClientMultiExecutor;
-
     static extend<
         M extends RedisModules,
         F extends RedisFunctions,
@@ -81,7 +81,10 @@ export default class RedisClientMultiCommand {
         });
     }
 
+    readonly #multi = new RedisMultiCommand();
+    readonly #executor: RedisClientMultiExecutor;
     readonly v4: Record<string, any> = {};
+    #selectedDB?: number;
 
     constructor(executor: RedisClientMultiExecutor, legacyMode = false) {
         this.#executor = executor;
@@ -136,6 +139,13 @@ export default class RedisClientMultiCommand {
         );
     }
 
+    SELECT(db: number, transformReply?: RedisCommand['transformReply']): this {
+        this.#selectedDB = db;
+        return this.addCommand(['SELECT', db.toString()], transformReply);
+    }
+
+    select = this.SELECT;
+
     addCommand(args: RedisCommandArguments, transformReply?: RedisCommand['transformReply']): this {
         this.#multi.addCommand(args, transformReply);
         return this;
@@ -160,7 +170,11 @@ export default class RedisClientMultiCommand {
         if (!commands) return [];
 
         return this.#multi.handleExecReplies(
-            await this.#executor(commands, RedisMultiCommand.generateChainId())
+            await this.#executor(
+                commands,
+                this.#selectedDB,
+                RedisMultiCommand.generateChainId()
+            )
         );
     }
 
@@ -168,7 +182,10 @@ export default class RedisClientMultiCommand {
 
     async execAsPipeline(): Promise<Array<RedisCommandRawReply>> {
         return this.#multi.transformReplies(
-            await this.#executor(this.#multi.queue)
+            await this.#executor(
+                this.#multi.queue,
+                this.#selectedDB
+            )
         );
     }
 }

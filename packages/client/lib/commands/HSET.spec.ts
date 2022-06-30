@@ -41,11 +41,20 @@ describe('HSET', () => {
             );
         });
 
-        it('Object', () => {
-            assert.deepEqual(
-                transformArguments('key', { field: 'value' }),
-                ['HSET', 'key', 'field', 'value']
-            );
+        describe('Object', () => {
+            it('string', () => {
+                assert.deepEqual(
+                    transformArguments('key', { field: 'value' }),
+                    ['HSET', 'key', 'field', 'value']
+                );
+            });
+            
+            it('Buffer', () => {
+                assert.deepEqual(
+                    transformArguments('key', { field: Buffer.from('value') }),
+                    ['HSET', 'key', 'field', Buffer.from('value')]
+                );
+            });
         });
     });
 

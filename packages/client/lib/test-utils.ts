@@ -3,7 +3,7 @@ import { SinonSpy } from 'sinon';
 import { promiseTimeout } from './utils';
 
 export default new TestUtils({
-    defaultDockerVersion: '7.0-rc3',
+    defaultDockerVersion: '7.0.2',
     dockerImageName: 'redis',
     dockerImageVersionArgument: 'redis-version'
 });

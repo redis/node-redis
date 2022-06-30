@@ -15,7 +15,7 @@ async function countMinSketch() {
   // https://oss.redis.com/redisbloom/CountMinSketch_Commands/#cmsinitbyprob
   try {
     await client.cms.initByProb('mycms', 0.001, 0.01);
-    console.log('Reserved Top K.');
+    console.log('Initialized Count-Min Sketch.');
   } catch (e) {
     console.log('Error, maybe RedisBloom is not installed?:');
     console.log(e);
