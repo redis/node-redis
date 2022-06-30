@@ -428,9 +428,7 @@ export function pushEvalArguments(args: Array<string>, options?: EvalOptions): A
 
 export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCommandArgument | Array<RedisCommandArgument>): RedisCommandArguments  {
     if (Array.isArray(value)) {
-        for(const item of value) {
-            args.push(item);
-        }
+       args = args.concat(value);
     } else {
         args.push(value);
     }
