@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@redis/bloom": "1.0.2",
-    "@redis/client": "1.1.1",
+    "@redis/client": "1.2.0",
     "@redis/graph": "1.0.1",
     "@redis/json": "1.0.3",
     "@redis/search": "1.0.6",
