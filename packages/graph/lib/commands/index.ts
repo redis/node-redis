@@ -30,17 +30,10 @@ export default {
     slowLog: SLOWLOG
 };
 
-export function pushQueryArguments(
+export function pushTimeoutArgument(
     args: RedisCommandArguments,
-    graph: RedisCommandArgument,
-    query: RedisCommandArgument,
     timeout?: number
 ): RedisCommandArguments {
-    args.push(
-        graph,
-        query
-    );
-
     if (timeout !== undefined) {
         args.push(timeout.toString());
     }

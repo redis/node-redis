@@ -5,8 +5,8 @@ import { transformArguments } from './PROFILE';
 describe('PROFILE', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('key', 'RETURN 0'),
-            ['GRAPH.PROFILE', 'key', 'RETURN 0']
+            transformArguments('key', 'RETURN 0', 100),
+            ['GRAPH.PROFILE', 'key', 'RETURN 0', '100']
         );
     });
 

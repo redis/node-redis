@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands/index';
-import { pushQueryArguments } from '.';
+import { pushTimeoutArgument } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -8,10 +8,8 @@ export function transformArguments(
     query: RedisCommandArgument,
     timeout?: number
 ): RedisCommandArguments {
-    return pushQueryArguments(
-        ['GRAPH.QUERY'],
-        graph,
-        query,
+    return pushTimeoutArgument(
+        ['GRAPH.QUERY', graph, query],
         timeout
     );
 }
@@ -29,10 +27,10 @@ type QueryRawReply = [
 ];
 
 interface QueryReply {
-    headers: Headers,
-    data: Data,
-    metadata: Metadata
-};
+    headers: Headers;
+    data: Data;
+    metadata: Metadata;
+}
 
 export function transformReply(reply: QueryRawReply): QueryReply {
     return {
