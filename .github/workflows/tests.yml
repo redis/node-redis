@@ -9,6 +9,8 @@ on:
     branches:
       - master
       - v4.0
+  schedule:
+    - cron: '0 1 * * *' # nightly build
 
 jobs:
   tests:
