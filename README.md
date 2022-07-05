@@ -35,6 +35,8 @@ npm install redis
 
 > :warning: The new interface is clean and cool, but if you have an existing codebase, you'll want to read the [migration guide](./docs/v3-to-v4.md).
 
+Looking for a high-level library to handle object mapping? See [redis-om-node](https://github.com/redis/redis-om-node)!
+
 ## Usage
 
 ### Basic Example
