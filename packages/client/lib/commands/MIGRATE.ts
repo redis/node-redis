@@ -19,7 +19,7 @@ export function transformArguments(
         isKeyArray = Array.isArray(key);
 
     if (isKeyArray) {
-        args.push('""');
+        args.push('');
     } else {
         args.push(key);
     }
