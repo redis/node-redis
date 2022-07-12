@@ -38,9 +38,7 @@ export function transformArguments(
     }
 
     args.push('ITEMS');
-    pushVerdictArguments(args, items);
-
-    return args;
+    return pushVerdictArguments(args, items);
 }
 
 export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';

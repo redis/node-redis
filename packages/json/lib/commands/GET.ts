@@ -13,10 +13,10 @@ interface GetOptions {
 }
 
 export function transformArguments(key: string, options?: GetOptions): Array<string> {
-    const args = ['JSON.GET', key];
+    let args = ['JSON.GET', key];
 
     if (options?.path) {
-        pushVerdictArguments(args, options.path);
+        args = pushVerdictArguments(args, options.path);
     }
 
     if (options?.INDENT) {

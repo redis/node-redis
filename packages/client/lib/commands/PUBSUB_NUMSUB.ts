@@ -5,9 +5,7 @@ export const IS_READ_ONLY = true;
 export function transformArguments(channels?: Array<string> | string): Array<string> {
     const args = ['PUBSUB', 'NUMSUB'];
 
-    if (channels) {
-        pushVerdictArguments(args, channels);
-    }
+    if (channels) return pushVerdictArguments(args, channels);
 
     return args;
 }

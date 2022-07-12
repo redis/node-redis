@@ -19,13 +19,8 @@ export function transformArguments(
     filter: Filter,
     options?: MGetWithLabelsOptions
 ): Array<string> {
-    const args = ['TS.MGET'];
-
-    pushWithLabelsArgument(args, options?.SELECTED_LABELS);
-
-    pushFilterArgument(args, filter);
-
-    return args;
+    const args = pushWithLabelsArgument(['TS.MGET'], options?.SELECTED_LABELS);
+    return pushFilterArgument(args, filter);
 }
 
 export interface MGetWithLabelsReply extends MGetReply {

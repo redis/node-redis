@@ -578,19 +578,6 @@ describe('Generic Transformers', () => {
                 ['1', '2']
             );
         });
-
-        it('handles large arrays', () => {
-            const arr: string[] = [];
-            for(let i = 0; i < 200_000; i++) {
-                arr.push(i.toString());
-            }
-            assert.deepEqual(
-                pushVerdictArguments([], arr),
-                arr
-            );
-        });
-
-
     });
 
     describe('pushVerdictNumberArguments', () => {
