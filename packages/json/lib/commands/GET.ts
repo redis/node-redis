@@ -14,7 +14,7 @@ interface GetOptions {
 }
 
 export function transformArguments(key: string, options?: GetOptions): RedisCommandArguments {
-    let args = ['JSON.GET', key];
+    let args: RedisCommandArguments = ['JSON.GET', key];
 
     if (options?.path) {
         args = pushVerdictArguments(args, options.path);
