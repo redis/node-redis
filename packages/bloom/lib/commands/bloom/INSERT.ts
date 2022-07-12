@@ -1,4 +1,5 @@
 import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -12,9 +13,9 @@ interface InsertOptions {
 
 export function transformArguments(
     key: string,
-    items: string | Array<string>,
+    items: RedisCommandArgument | Array<RedisCommandArguments>,
     options?: InsertOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = ['BF.INSERT', key];
 
     if (options?.CAPACITY) {

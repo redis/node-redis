@@ -8,6 +8,7 @@ import {
     pushFilterArgument
 } from '.';
 import { MGetRawReply, MGetReply } from './MGET';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const IS_READ_ONLY = true;
 
@@ -18,7 +19,7 @@ interface MGetWithLabelsOptions {
 export function transformArguments(
     filter: Filter,
     options?: MGetWithLabelsOptions
-): Array<string> {
+): RedisCommandArguments {
     const args = pushWithLabelsArgument(['TS.MGET'], options?.SELECTED_LABELS);
     return pushFilterArgument(args, filter);
 }

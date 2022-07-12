@@ -1,8 +1,11 @@
 import { pushVerdictArguments } from './generic-transformers';
+import { RedisCommandArgument, RedisCommandArguments } from '.';
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(channels?: Array<string> | string): Array<string> {
+export function transformArguments(
+    channels?: Array<RedisCommandArgument> | RedisCommandArgument
+): RedisCommandArguments {
     const args = ['PUBSUB', 'NUMSUB'];
 
     if (channels) return pushVerdictArguments(args, channels);
