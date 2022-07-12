@@ -682,6 +682,14 @@ export default class RedisClient<
         await this.#isolationPool.drain();
         await this.#isolationPool.clear();
     }
+
+    ref(): void {
+        this.#socket.ref();
+    }
+
+    unref(): void {
+        this.#socket.unref();
+    }
 }
 
 attachCommands({
