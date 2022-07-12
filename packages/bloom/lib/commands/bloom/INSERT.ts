@@ -13,7 +13,7 @@ interface InsertOptions {
 
 export function transformArguments(
     key: string,
-    items: RedisCommandArgument | Array<RedisCommandArguments>,
+    items: RedisCommandArgument | Array<RedisCommandArgument>,
     options?: InsertOptions
 ): RedisCommandArguments {
     const args = ['BF.INSERT', key];
