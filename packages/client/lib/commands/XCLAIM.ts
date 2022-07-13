@@ -18,9 +18,10 @@ export function transformArguments(
     id: RedisCommandArgument | Array<RedisCommandArgument>,
     options?: XClaimOptions
 ): RedisCommandArguments {
-    const args = ['XCLAIM', key, group, consumer, minIdleTime.toString()];
-
-    pushVerdictArguments(args, id);
+    const args =  pushVerdictArguments(
+        ['XCLAIM', key, group, consumer, minIdleTime.toString()],
+        id
+    );
 
     if (options?.IDLE) {
         args.push('IDLE', options.IDLE.toString());

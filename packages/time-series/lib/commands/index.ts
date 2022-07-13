@@ -313,8 +313,7 @@ export type Filter = string | Array<string>;
 
 export function pushFilterArgument(args: RedisCommandArguments, filter: string | Array<string>): RedisCommandArguments {
     args.push('FILTER');
-    pushVerdictArguments(args, filter);
-    return args;
+    return pushVerdictArguments(args, filter);
 }
 
 export interface MRangeOptions extends RangeOptions {
@@ -328,10 +327,9 @@ export function pushMRangeArguments(
     filter: Filter,
     options?: MRangeOptions
 ): RedisCommandArguments {
-    pushRangeArguments(args, fromTimestamp, toTimestamp, options);
-    pushFilterArgument(args, filter);
-    pushMRangeGroupByArguments(args, options?.GROUPBY);
-    return args;
+    args = pushRangeArguments(args, fromTimestamp, toTimestamp, options);
+    args = pushFilterArgument(args, filter);
+    return pushMRangeGroupByArguments(args, options?.GROUPBY);
 }
 
 export type SelectedLabels = string | Array<string>;
@@ -341,7 +339,7 @@ export function pushWithLabelsArgument(args: RedisCommandArguments, selectedLabe
         args.push('WITHLABELS');
     } else {
         args.push('SELECTED_LABELS');
-        pushVerdictArguments(args, selectedLabels);
+        args = pushVerdictArguments(args, selectedLabels);
     }
 
     return args;
@@ -358,11 +356,10 @@ export function pushMRangeWithLabelsArguments(
     filter: Filter,
     options?: MRangeWithLabelsOptions
 ): RedisCommandArguments {
-    pushRangeArguments(args, fromTimestamp, toTimestamp, options);
-    pushWithLabelsArgument(args, options?.SELECTED_LABELS);
-    pushFilterArgument(args, filter);
-    pushMRangeGroupByArguments(args, options?.GROUPBY);
-    return args;
+    args = pushRangeArguments(args, fromTimestamp, toTimestamp, options);
+    args = pushWithLabelsArgument(args, options?.SELECTED_LABELS);
+    args = pushFilterArgument(args, filter);
+    return pushMRangeGroupByArguments(args, options?.GROUPBY);
 }
 
 export function transformRangeReply(reply: Array<SampleRawReply>): Array<SampleReply> {
