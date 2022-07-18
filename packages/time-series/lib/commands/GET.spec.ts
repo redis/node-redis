@@ -3,11 +3,22 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './GET';
 
 describe('GET', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['TS.GET', 'key']
-        );
+    describe('transformArguments', () => {
+        it('without options', () => {
+            assert.deepEqual(
+                transformArguments('key'),
+                ['TS.GET', 'key']
+            );
+        });
+
+        it('with LATEST', () => {
+            assert.deepEqual(
+                transformArguments('key', {
+                    LATEST: true
+                }),
+                ['TS.GET', 'key', 'LATEST']
+            );
+        });
     });
 
     describe('client.ts.get', () => {

@@ -14,23 +14,23 @@ export function transformArguments(key: string): Array<string> {
 }
 
 type InfoDebugRawReply = [
-    ...infoArgs: InfoRawReply,
-    _: string,
-    keySelfName: string,
-    _: string,
-    chunks: Array<[
-        _: string,
-        startTimestamp: number,
-        _: string,
-        endTimestamp: number,
-        _: string,
-        samples: number,
-        _: string,
-        size: number,
-        _: string,
-        bytesPerSample: string
+    ...InfoRawReply,
+    'keySelfName',
+    string,
+    'chunks',
+    Array<[
+        'startTimestamp',
+        number,
+        'endTimestamp',
+        number,
+        'samples',
+        number,
+        'size',
+        number,
+        'bytesPerSample',
+        string
     ]>
-]
+];
 
 interface InfoDebugReply extends InfoReply {
     keySelfName: string;

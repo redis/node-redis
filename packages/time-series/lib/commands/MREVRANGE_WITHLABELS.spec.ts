@@ -25,8 +25,8 @@ describe('MREVRANGE_WITHLABELS', () => {
                 },
             }),
             ['TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-            'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'avg', '1', 'SELECTED_LABELS', 'label',
-            'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'sum']
+            'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'SELECTED_LABELS', 'label',
+            'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'SUM']
         );
     });
 
