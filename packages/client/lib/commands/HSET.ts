@@ -20,8 +20,10 @@ export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArg
     const args: RedisCommandArguments = ['HSET', key];
 
     if (typeof value === 'string' || typeof value === 'number' || Buffer.isBuffer(value)) {
-        pushValue(args, value);
-        pushValue(args, fieldValue!);
+        args.push(
+            convertValue(value),
+            convertValue(fieldValue!)
+        );
     } else if (value instanceof Map) {
         pushMap(args, value);
     } else if (Array.isArray(value)) {
@@ -35,8 +37,10 @@ export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArg
 
 function pushMap(args: RedisCommandArguments, map: HSETMap): void {
     for (const [key, value] of map.entries()) {
-        pushValue(args, key);
-        pushValue(args, value);
+        args.push(
+            convertValue(key),
+            convertValue(value)
+        );
     }
 }
 
@@ -47,22 +51,23 @@ function pushTuples(args: RedisCommandArguments, tuples: HSETTuples): void {
             continue;
         }
 
-        pushValue(args, tuple);
+        args.push(convertValue(tuple));
     }
 }
 
 function pushObject(args: RedisCommandArguments, object: HSETObject): void {
     for (const key of Object.keys(object)) {
-        args.push(key.toString(), object[key].toString());
+        args.push(
+            convertValue(key),
+            convertValue(object[key])
+        );
     }
 }
 
-function pushValue(args: RedisCommandArguments, value: Types): void {
-    args.push(
-        typeof value === 'number' ?
-            value.toString() :
-            value
-    );
+function convertValue(value: Types): RedisCommandArgument {
+    return typeof value === 'number' ?
+        value.toString() :
+        value;
 }
 
 export declare function transformReply(): number;

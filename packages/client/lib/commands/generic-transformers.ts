@@ -428,7 +428,8 @@ export function pushEvalArguments(args: Array<string>, options?: EvalOptions): A
 
 export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCommandArgument | Array<RedisCommandArgument>): RedisCommandArguments  {
     if (Array.isArray(value)) {
-        args.push(...value);
+        // https://github.com/redis/node-redis/pull/2160
+        args = args.concat(value);
     } else {
         args.push(value);
     }

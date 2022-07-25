@@ -55,7 +55,7 @@ async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfi
             'docker run -d --network host $(' +
                 `docker build ${DOCKER_FODLER_PATH} -q ` +
                 `--build-arg IMAGE=${image}:${version} ` +
-                `--build-arg REDIS_ARGUMENTS="--save --port ${port.toString()} ${serverArguments.join(' ')}"` +
+                `--build-arg REDIS_ARGUMENTS="--save '' --port ${port.toString()} ${serverArguments.join(' ')}"` +
             ')'
         );
 

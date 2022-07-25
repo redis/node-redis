@@ -468,6 +468,20 @@ describe('Client', () => {
                 ['PONG']
             );
         }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should remember selected db', async client => {
+            await client.multi()
+                .select(1)
+                .exec();
+            await killClient(client);
+            assert.equal(
+                (await client.clientInfo()).db,
+                1
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            minimumDockerVersion: [6, 2] // CLIENT INFO
+        });
     });
 
     testUtils.testWithClient('scripts', async client => {
@@ -829,5 +843,10 @@ describe('Client', () => {
     testUtils.testWithClient('should be able to connect after disconnect (see #1801)', async client => {
         await client.disconnect();
         await client.connect();
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should be able to use ref and unref', client => {
+        client.unref();
+        client.ref();
     }, GLOBAL.SERVERS.OPEN);
 });
