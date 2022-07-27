@@ -107,7 +107,7 @@ export default class TestUtils {
         S extends RedisScripts
     >(
         title: string,
-        fn: (client: RedisClientType<M, F, S>) => Promise<unknown>,
+        fn: (client: RedisClientType<M, F, S>) => unknown,
         options: ClientTestOptions<M, F, S>
     ): void {
         let dockerPromise: ReturnType<typeof spawnRedisServer>;
@@ -166,7 +166,7 @@ export default class TestUtils {
         S extends RedisScripts
     >(
         title: string,
-        fn: (cluster: RedisClusterType<M, F, S>) => Promise<void>,
+        fn: (cluster: RedisClusterType<M, F, S>) => unknown,
         options: ClusterTestOptions<M, F, S>
     ): void {
         let dockersPromise: ReturnType<typeof spawnRedisCluster>;

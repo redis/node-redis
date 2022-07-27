@@ -13,7 +13,7 @@ describe('MIGRATE', () => {
         it('multiple keys', () => {
             assert.deepEqual(
                 transformArguments('127.0.0.1', 6379, ['1', '2'], 0, 10),
-                ['MIGRATE', '127.0.0.1', '6379', '""', '0', '10', 'KEYS', '1', '2']
+                ['MIGRATE', '127.0.0.1', '6379', '', '0', '10', 'KEYS', '1', '2']
             );
         });
 

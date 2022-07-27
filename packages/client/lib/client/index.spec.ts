@@ -844,4 +844,9 @@ describe('Client', () => {
         await client.disconnect();
         await client.connect();
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should be able to use ref and unref', client => {
+        client.unref();
+        client.ref();
+    }, GLOBAL.SERVERS.OPEN);
 });
