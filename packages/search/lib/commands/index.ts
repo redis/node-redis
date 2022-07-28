@@ -206,6 +206,7 @@ type CreateSchemaTextField = CreateSchemaCommonField<SchemaFieldTypes.TEXT, {
     NOSTEM?: true;
     WEIGHT?: number;
     PHONETIC?: SchemaTextFieldPhonetics;
+    WITHSUFFIXTRIE?: boolean;
 }>;
 
 type CreateSchemaNumericField = CreateSchemaCommonField<SchemaFieldTypes.NUMERIC>;
@@ -215,6 +216,7 @@ type CreateSchemaGeoField = CreateSchemaCommonField<SchemaFieldTypes.GEO>;
 type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     SEPARATOR?: string;
     CASESENSITIVE?: true;
+    WITHSUFFIXTRIE?: boolean;
 }>;
 
 export enum VectorAlgorithms {
@@ -282,6 +284,10 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('PHONETIC', fieldOptions.PHONETIC);
                 }
 
+                if (fieldOptions.WITHSUFFIXTRIE) {
+                    args.push('WITHSUFFIXTRIE');
+                }
+
                 break;
 
             // case SchemaFieldTypes.NUMERIC:
@@ -295,6 +301,10 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
 
                 if (fieldOptions.CASESENSITIVE) {
                     args.push('CASESENSITIVE');
+                }
+
+                if (fieldOptions.WITHSUFFIXTRIE) {
+                    args.push('WITHSUFFIXTRIE');
                 }
 
                 break;
