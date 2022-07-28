@@ -3,11 +3,20 @@ import testUtils, { GLOBAL } from '../../test-utils';
 import { transformArguments } from './CREATE';
 
 describe('TDIGEST.CREATE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 100),
-            ['TDIGEST.CREATE', 'key', '100']
-        );
+    describe('transformArguments', () => {
+        it('without options', () => {
+            assert.deepEqual(
+                transformArguments('key'),
+                ['TDIGEST.CREATE', 'key']
+            );
+        });
+
+        it('without compression', () => {
+            assert.deepEqual(
+                transformArguments('key', 100),
+                ['TDIGEST.CREATE', 'key', '100']
+            );
+        });
     });
 
     testUtils.testWithClient('client.tDigest.create', async client => {

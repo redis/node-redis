@@ -4,6 +4,7 @@ import * as CREATE from './CREATE';
 import * as INFO from './INFO';
 import * as MAX from './MAX';
 import * as MERGE from './MERGE';
+import * as MERGESTORE from './MERGESTORE';
 import * as MIN from './MIN';
 import * as QUANTILE from './QUANTILE';
 import * as RESET from './RESET';
@@ -22,6 +23,8 @@ export default {
     max: MAX,
     MERGE,
     merge: MERGE,
+    MERGESTORE,
+    mergeStore: MERGESTORE,
     MIN,
     min: MIN,
     QUANTILE,
