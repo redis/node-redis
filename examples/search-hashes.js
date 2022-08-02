@@ -32,6 +32,7 @@ try {
 }
 
 // Add some sample data...
+// https://redis.io/commands/hset/
 await Promise.all([
   client.hSet('noderedis:animals:1', {name: 'Fluffy', species: 'cat', age: 3}),
   client.hSet('noderedis:animals:2', {name: 'Ginger', species: 'cat', age: 4}),
