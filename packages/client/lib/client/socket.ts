@@ -78,6 +78,8 @@ export default class RedisSocket extends EventEmitter {
         return this.#writableNeedDrain;
     }
 
+    #isSocketUnrefed = false;
+
     constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
         super();
 
@@ -135,6 +137,10 @@ export default class RedisSocket extends EventEmitter {
 
             if (this.#options.connectTimeout) {
                 socket.setTimeout(this.#options.connectTimeout, () => socket.destroy(new ConnectionTimeoutError()));
+            }
+
+            if (this.#isSocketUnrefed) {
+                socket.unref();
             }
 
             socket
@@ -232,5 +238,15 @@ export default class RedisSocket extends EventEmitter {
             this.#socket?.uncork();
             this.#isCorked = false;
         });
+    }
+
+    ref(): void {
+        this.#isSocketUnrefed = false;
+        this.#socket?.ref();
+    }
+
+    unref(): void {
+        this.#isSocketUnrefed = true;
+        this.#socket?.unref();
     }
 }

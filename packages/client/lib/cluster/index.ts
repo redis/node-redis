@@ -230,7 +230,7 @@ export default class RedisCluster<
                 return this.#execute(
                     firstKey,
                     false,
-                    client => client.multiExecutor(commands, chainId)
+                    client => client.multiExecutor(commands, undefined, chainId)
                 );
             },
             routing

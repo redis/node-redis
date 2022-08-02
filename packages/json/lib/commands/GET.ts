@@ -1,4 +1,5 @@
 import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -12,11 +13,11 @@ interface GetOptions {
     NOESCAPE?: true;
 }
 
-export function transformArguments(key: string, options?: GetOptions): Array<string> {
-    const args = ['JSON.GET', key];
+export function transformArguments(key: string, options?: GetOptions): RedisCommandArguments {
+    let args: RedisCommandArguments = ['JSON.GET', key];
 
     if (options?.path) {
-        pushVerdictArguments(args, options.path);
+        args = pushVerdictArguments(args, options.path);
     }
 
     if (options?.INDENT) {

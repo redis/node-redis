@@ -58,6 +58,18 @@ describe('CREATE', () => {
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'PHONETIC', SchemaTextFieldPhonetics.DM_EN]
                     );
                 });
+
+                it('with WITHSUFFIXTRIE', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.TEXT,
+                                WITHSUFFIXTRIE: true
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'WITHSUFFIXTRIE']
+                    );
+                });
             });
 
             it('NUMERIC', () => {
@@ -122,6 +134,18 @@ describe('CREATE', () => {
                             }
                         }),
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'CASESENSITIVE']
+                    );
+                });
+
+                it('with WITHSUFFIXTRIE', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.TAG,
+                                WITHSUFFIXTRIE: true
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'WITHSUFFIXTRIE']
                     );
                 });
             });
