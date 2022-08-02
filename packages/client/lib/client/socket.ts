@@ -5,11 +5,13 @@ import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
 
+type ReconnectStrategy = (retires: number) => number | Error;
+
 export interface RedisSocketCommonOptions {
     connectTimeout?: number;
     noDelay?: boolean;
     keepAlive?: number | false;
-    reconnectStrategy?(retries: number): number | Error;
+    reconnectStrategy?: ReconnectStrategy;
 }
 
 type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
@@ -42,10 +44,6 @@ export default class RedisSocket extends EventEmitter {
         options.noDelay ??= true;
 
         return options;
-    }
-
-    static #defaultReconnectStrategy(retries: number): number {
-        return Math.min(retries * 50, 500);
     }
 
     static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
@@ -87,6 +85,23 @@ export default class RedisSocket extends EventEmitter {
         this.#options = RedisSocket.#initiateOptions(options);
     }
 
+    reconnectStrategy(retries: number): number | Error {
+        if (this.#options.reconnectStrategy) {
+            try {
+                const retryIn = this.#options.reconnectStrategy(retries);
+                if (typeof retryIn !== 'number' && !(retryIn instanceof Error)) {
+                    throw new TypeError('Reconnect strategy should return `number | Error`');
+                }
+
+                return retryIn;
+            } catch (err) {
+                this.emit('error', err);
+            }
+        }
+
+        return Math.min(retries * 50, 500);
+    }
+
     async connect(): Promise<void> {
         if (this.#isOpen) {
             throw new Error('Socket already opened');
@@ -118,7 +133,7 @@ export default class RedisSocket extends EventEmitter {
         } catch (err) {
             this.emit('error', err);
 
-            const retryIn = (this.#options?.reconnectStrategy ?? RedisSocket.#defaultReconnectStrategy)(retries);
+            const retryIn = this.reconnectStrategy(retries);
             if (retryIn instanceof Error) {
                 this.#isOpen = false;
                 throw new ReconnectStrategyError(retryIn, err);
