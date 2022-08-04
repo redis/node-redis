@@ -1,16 +1,16 @@
-name-template: 'Version $NEXT_PATCH_VERSION'
-tag-template: 'v$NEXT_PATCH_VERSION'
+name-template: '$NEXT_MAJOR_VERSION'
+tag-template: 'v$NEXT_MAJOR_VERSION'
 autolabeler:
-  - label: 'chore'
+  - label: 'maintenance'
     files:
       - '*.md'
       - '.github/*'
   - label: 'bug'
     branch:
       - '/bug-.+'
-  - label: 'chore'
+  - label: 'maintenance'
     branch:
-      - '/chore-.+'
+      - '/maintenance-.+'
   - label: 'feature'
     branch:
       - '/feature-.+'
@@ -18,6 +18,10 @@ categories:
   - title: 'Breaking Changes'
     labels:
       - 'breakingchange'
+
+  - title: '🧪 Experimental Features'
+    labels:
+      - 'experimental'
   - title: '🚀 New Features'
     labels:
       - 'feature'
@@ -27,8 +31,9 @@ categories:
       - 'fix'
       - 'bugfix'
       - 'bug'
+      - 'BUG'
   - title: '🧰 Maintenance'
-    label: 'chore'
+    label: 'maintenance'
 change-template: '- $TITLE (#$NUMBER)'
 exclude-labels:
   - 'skip-changelog'
@@ -41,3 +46,4 @@ template: |
   We'd like to thank all the contributors who worked on this release!
 
   $CONTRIBUTORS
+
