@@ -49,13 +49,19 @@ This is a mapping of addresses and ports, with the values being the accessible a
 ```javascript
 createCluster({
   rootNodes: [{
-    url: '10.0.0.1:30001'
+    url: 'external-host-1.io:30001'
   }, {
-    url: '10.0.0.2:30002'
+    url: 'external-host-2.io:30002'
   }],
   nodeAddressMap: {
-    '10.0.0.1:30001': 'external-host-1.io:30001',
-    '10.0.0.2:30002': 'external-host-2.io:30002'
+    '10.0.0.1:30001': {
+      host: 'external-host-1.io',
+      port: 30001
+    },
+    '10.0.0.2:30002': {
+      host: 'external-host-2.io',
+      port: 30002
+    }
   }
 });
 ```
