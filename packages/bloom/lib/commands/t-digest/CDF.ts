@@ -16,7 +16,5 @@ export function transformArguments(
 }
 
 export function transformReply(reply: string): number {
-    if (reply === 'nan') return NaN;
-
-    return Number(reply);
+    return reply === 'nan' ? NaN : Number(reply);
 }

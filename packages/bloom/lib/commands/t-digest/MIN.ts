@@ -11,10 +11,8 @@ export function transformArguments(key: RedisCommandArgument): RedisCommandArgum
     ];
 }
 
-export function transformReply(reply: string): number {
-    if (reply === 'DBL_MIN') {
-        return -Infinity;
-    }
+type MinRawReply = `${'DBL_MAX' | number}`;
 
-    
+export function transformReply(reply: MinRawReply): number {
+    return reply === 'DBL_MAX' ? Infinity : Number(reply);
 }

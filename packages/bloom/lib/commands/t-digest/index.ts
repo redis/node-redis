@@ -34,3 +34,9 @@ export default {
     TRIMMED_MEAN,
     trimmedMean: TRIMMED_MEAN
 };
+
+export type DoubleMinReply = `${'DBL_MIN' | number}`;
+
+function transformDoubleMinRepy(reply: DoubleMinReply): number {
+    return reply === 'DBL_MIN' ? 
+}

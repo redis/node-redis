@@ -4,12 +4,7 @@ export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    it('simple', () => {
-        assert.deepEqual(
-            transformArguments('key', 100),
-            ['TDIGEST.CREATE', 'key', '100']
-        );
-    });?: number
+    compression?: number
 ): RedisCommandArguments {
     const args = [
         'TDIGEST.CREATE',

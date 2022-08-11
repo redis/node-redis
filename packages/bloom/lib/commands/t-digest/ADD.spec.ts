@@ -14,7 +14,7 @@ describe('TDIGEST.ADD', () => {
             );
         });
 
-        it('array', () => {
+        it('multiple items', () => {
             assert.deepEqual(
                 transformArguments('key', [{
                     value: 1,
@@ -29,12 +29,14 @@ describe('TDIGEST.ADD', () => {
     });
 
     testUtils.testWithClient('client.tDigest.add', async client => {
-        assert.equal(
-            await client.tDigest.add('key', {
+        const [ , reply ] = await Promise.all([
+            client.tDigest.create('key'),
+            client.tDigest.add('key', {
                 value: 1,
                 weight: 2
-            }),
-            'OK'
-        );
+            })
+        ]);
+
+        assert.equal(reply, 'OK');
     }, GLOBAL.SERVERS.OPEN);
 });

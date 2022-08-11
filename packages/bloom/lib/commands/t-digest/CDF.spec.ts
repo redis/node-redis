@@ -12,7 +12,7 @@ describe('TDIGEST.CDF', () => {
 
     testUtils.testWithClient('client.tDigest.cdf', async client => {
         assert.equal(
-            await client.tDigest.cdf('key', '1'),
+            await client.tDigest.cdf('key', 1),
             NaN
         );
     }, GLOBAL.SERVERS.OPEN);

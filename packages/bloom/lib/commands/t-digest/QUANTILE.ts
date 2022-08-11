@@ -1,5 +1,4 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { transformNumberReply } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -25,7 +24,8 @@ export function transformArguments(
     return args;
 }
 
-export function transfromReply(reply: Array<string>): Record<number, number> {
-    
-    return reply.map(transformNumberReply);
+type QuantileRawReply = Array<`${'nan' | number}`>;
+
+export function transfromReply(reply: QuantileRawReply): Array<number> {
+    return reply.map(num => num === 'nan' ? NaN : Number(num));
 }

@@ -12,14 +12,15 @@ describe('TDIGEST.QUANTILE', () => {
 
     testUtils.testWithClient('client.tDigest.quantile', async client => {
         const [, reply] = await Promise.all([
-            client.tDigest.create('key', 100),
-            client.tDigest.quantile('key', [0.5, 0.999])
+            client.tDigest.create('key'),
+            client.tDigest.quantile('key', [1, 2])
         ]);
 
         assert.deepEqual(
             reply,
             [
-                
+                Infinity,
+                Infinity
             ]
         );
     }, GLOBAL.SERVERS.OPEN);

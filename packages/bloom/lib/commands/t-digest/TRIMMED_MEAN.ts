@@ -17,8 +17,8 @@ export function transformArguments(
     ];
 }
 
-export function transformReply(reply: string): number {
-    if (reply === 'DBL_MAX') return Infinity;
+type TrimmedMinRawReply = `${'DBL_MAX' | number}`;
 
-    return Number(reply);
+export function transformReply(reply: TrimmedMinRawReply): number {
+    return reply === 'DBL_MAX' ? Infinity : Number(reply);
 }

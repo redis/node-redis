@@ -31,9 +31,11 @@ describe('TDIGEST.MERGESTORE', () => {
     });
 
     testUtils.testWithClient('client.tDigest.mergeStore', async client => {
-        assert.equal(
-            await client.tDigest.mergeStore('dest', 'src'),
-            'OK'
-        );
+        const [ , reply ] = await Promise.all([
+            client.tDigest.create('src'),
+            client.tDigest.mergeStore('dest', 'src')
+        ]);
+
+        assert.equal(reply, 'OK');
     }, GLOBAL.SERVERS.OPEN);
 });

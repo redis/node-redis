@@ -11,7 +11,7 @@ describe('TDIGEST.CREATE', () => {
             );
         });
 
-        it('without compression', () => {
+        it('with compression', () => {
             assert.deepEqual(
                 transformArguments('key', 100),
                 ['TDIGEST.CREATE', 'key', '100']
