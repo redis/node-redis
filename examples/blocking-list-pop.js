@@ -6,27 +6,25 @@
 
 import { createClient, commandOptions } from 'redis';
 
-async function blockingListPop() {
-	const client = createClient();
+const client = createClient();
 
-	await client.connect();
+await client.connect();
 
-	const keyName = 'keyName';
+const keyName = 'keyName';
 
-	const blpopPromise = client.blPop(
-		commandOptions({ isolated: true }),
-		keyName,
-		0
-	);
+const blpopPromise = client.blPop(
+  commandOptions({ isolated: true }),
+  keyName,
+  0
+);
 
-	await client.lPush(keyName, 'value');
+await client.lPush(keyName, 'value');
 
-	await blpopPromise;
+const listItem = await blpopPromise;
 
-	console.log('blpopPromise resolved');
-	console.log(keyName);
+console.log('blpopPromise resolved');
+// listItem will be:
+// {"key":"keyName","element":"value"}
+console.log(`listItem is '${JSON.stringify(listItem)}'`);
 
-	await client.quit();
-}
-
-blockingListPop();
+await client.quit();

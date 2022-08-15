@@ -3,28 +3,23 @@
 
 import { createClient } from 'redis';
 
-async function commandWithModifiers() {
-  const client = createClient();
+const client = createClient();
 
-  await client.connect();
-  await client.del('mykey');
+await client.connect();
+await client.del('mykey');
 
-  let result = await client.set('mykey', 'myvalue', {
-    EX: 60,
-    GET: true
-  });
+let result = await client.set('mykey', 'myvalue', {
+  EX: 60,
+  GET: true
+});
 
-  console.log(result); //nil
+console.log(result); //null
 
-  result = await client.set('mykey', 'newvalue', {
-    EX: 60,
-    GET: true
-  });
+result = await client.set('mykey', 'newvalue', {
+  EX: 60,
+  GET: true
+});
 
-  console.log(result); //myvalue
+console.log(result); //myvalue
 
-  await client.quit();
-}
-
-commandWithModifiers();
-
+await client.quit();

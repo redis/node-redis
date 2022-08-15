@@ -53,7 +53,7 @@ When adding a new example, please follow these guidelines:
 * Use semicolons
 * Use `async` and `await`
 * Use single quotes, `'hello'` not `"hello"`
-* Place your example code in a single `async` function where possible, named according to the file name e.g. `add-to-stream.js` would contain `const addtoStream = async () => { ... };`, and call this function at the end of the file e.g. `addToStream();`
+* Use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) when embedding expressions in strings
 * Unless your example requires a connection string, assume Redis is on the default localhost port 6379 with no password
 * Use meaningful example data, let's not use `foo`, `bar`, `baz` etc!
 * Leave an empty line at the end of your `.js` file
@@ -71,18 +71,17 @@ Here's a starter template for adding a new example, imagine this is stored in `d
 
 // Set up the data in redis-cli using these commands:
 //   <add your command(s) here, one per line>
+//
+// Alternatively, add code that sets up the data.
 
 import { createClient } from 'redis';
 
-async function doSomething() {
-    const client = createClient();
+const client = createClient();
 
-    await client.connect();
+await client.connect();
 
-    // Add your example code here...
+// Add your example code here...
 
-    await client.quit();
-}
+await client.quit();
 
-doSomething();
 ```
