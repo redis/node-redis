@@ -5,7 +5,7 @@ import { RedisCommandArguments } from '../commands';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
 import { promiseTimeout } from '../utils';
 
-type ReconnectStrategy = (retires: number) => number | Error;
+type ReconnectStrategy = (retries: number) => number | Error;
 
 export interface RedisSocketCommonOptions {
     connectTimeout?: number;
