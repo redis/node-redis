@@ -131,14 +131,14 @@ export default class RedisSocket extends EventEmitter {
             this.#isReady = true;
             this.emit('ready');
         } catch (err) {
-            this.emit('error', err);
-
             const retryIn = this.reconnectStrategy(retries);
             if (retryIn instanceof Error) {
                 this.#isOpen = false;
+                this.emit('error', err);
                 throw new ReconnectStrategyError(retryIn, err);
             }
 
+            this.emit('error', err);
             await promiseTimeout(retryIn);
             return this.#connect(retries + 1);
         }
