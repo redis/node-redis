@@ -10,7 +10,7 @@
 [![YouTube](https://img.shields.io/youtube/channel/views/UCD78lHSwYqMlyetR0_P4Vig?style=social)](https://www.youtube.com/redisinc)
 [![Twitter](https://img.shields.io/twitter/follow/redisinc?style=social)](https://twitter.com/redisinc)
 
-node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
+node-redis is a modern, high-performance [Redis](https://redis.io) client for Node.js.
 
 
 ## Packages
