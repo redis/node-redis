@@ -9,11 +9,66 @@
 <div class="container container-main">
 <div class="col-8 col-content">
 <div class="tsd-page-title">
-<h2> @redis/search</h2></div>
+<h2>@redis/search</h2></div>
 <div class="tsd-panel tsd-typography">
-<a href="#" id="" style="color: inherit; text-decoration: none;">
-  <h1></h1>
+<a href="#redissearch" id="redissearch" style="color: inherit; text-decoration: none;">
+  <h1>@redis/search</h1>
 </a>
+<p>This package provides support for the <a href="https://redisearch.io">RediSearch</a> module, which adds indexing and querying support for data stored in Redis Hashes or as JSON documents with the RedisJSON module.  It extends the <a href="https://github.com/redis/node-redis">Node Redis client</a> to include functions for each of the RediSearch commands.</p>
+<p>To use these extra commands, your Redis server must have the RediSearch module installed.  To index and query JSON documents, you&#39;ll also need to add the RedisJSON module.</p>
+
+<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
+  <h2>Usage</h2>
+</a>
+<p>For complete examples, see <a href="https://github.com/redis/node-redis/blob/master/examples/search-hashes.js"><code>search-hashes.js</code></a> and <a href="https://github.com/redis/node-redis/blob/master/examples/search-json.js"><code>search-json.js</code></a> in the Node Redis examples folder.</p>
+
+<a href="#indexing-and-querying-data-in-redis-hashes" id="indexing-and-querying-data-in-redis-hashes" style="color: inherit; text-decoration: none;">
+  <h3>Indexing and Querying Data in Redis Hashes</h3>
+</a>
+
+<a href="#creating-an-index" id="creating-an-index" style="color: inherit; text-decoration: none;">
+  <h4>Creating an Index</h4>
+</a>
+<p>Before we can perform any searches, we need to tell RediSearch how to index our data, and which Redis keys to find that data in.  The <a href="https://oss.redis.com/redisearch/Commands/#ftcreate">FT.CREATE</a> command creates a RediSearch index.  Here&#39;s how to use it to create an index we&#39;ll call <code>idx:animals</code> where we want to index hashes containing <code>name</code>, <code>species</code> and <code>age</code> fields, and whose key names in Redis begin with the prefix <code>noderedis:animals</code>:</p>
+<pre><code class="language-javascript"><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-2">ft</span><span class="hl-1">.</span><span class="hl-3">create</span><span class="hl-1">(</span><span class="hl-4">&#39;idx:animals&#39;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-2">name:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-2">type:</span><span class="hl-1"> </span><span class="hl-2">SchemaFieldTypes</span><span class="hl-1">.</span><span class="hl-5">TEXT</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">sortable:</span><span class="hl-1"> </span><span class="hl-6">true</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">    </span><span class="hl-2">species:</span><span class="hl-1"> </span><span class="hl-2">SchemaFieldTypes</span><span class="hl-1">.</span><span class="hl-5">TAG</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">age:</span><span class="hl-1"> </span><span class="hl-2">SchemaFieldTypes</span><span class="hl-1">.</span><span class="hl-5">NUMERIC</span><br/><span class="hl-1">  }, {</span><br/><span class="hl-1">    </span><span class="hl-2">ON:</span><span class="hl-1"> </span><span class="hl-4">&#39;HASH&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">PREFIX:</span><span class="hl-1"> </span><span class="hl-4">&#39;noderedis:animals&#39;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">);</span>
+</code></pre>
+<p>See the <a href="https://oss.redis.com/redisearch/Commands/#ftcreate"><code>FT.CREATE</code> documentation</a> for information about the different field types and additional options.</p>
+
+<a href="#querying-the-index" id="querying-the-index" style="color: inherit; text-decoration: none;">
+  <h4>Querying the Index</h4>
+</a>
+<p>Once we&#39;ve created an index, and added some data to Redis hashes whose keys begin with the prefix <code>noderedis:animals</code>, we can start writing some search queries.  RediSearch supports a rich query syntax for full-text search, faceted search, aggregation and more.  Check out the <a href="https://oss.redis.com/redisearch/Commands/#ftsearch"><code>FT.SEARCH</code> documentation</a> and the <a href="https://oss.redis.com/redisearch/Query_Syntax/">query syntax reference</a> for more information.</p>
+<p>Let&#39;s write a query to find all the animals where the <code>species</code> field has the value <code>dog</code>:</p>
+<pre><code class="language-javascript"><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-5">results</span><span class="hl-1"> = </span><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-2">ft</span><span class="hl-1">.</span><span class="hl-3">search</span><span class="hl-1">(</span><span class="hl-4">&#39;idx:animals&#39;</span><span class="hl-1">, </span><span class="hl-4">&#39;@species:{dog}&#39;</span><span class="hl-1">);</span>
+</code></pre>
+<p><code>results</code> looks like this:</p>
+<pre><code class="language-javascript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-7">total</span><span class="hl-1">: </span><span class="hl-8">2</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-7">documents</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-2">id:</span><span class="hl-1"> </span><span class="hl-4">&#39;noderedis:animals:4&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-2">value:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-2">name:</span><span class="hl-1"> </span><span class="hl-4">&#39;Fido&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-2">species:</span><span class="hl-1"> </span><span class="hl-4">&#39;dog&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-2">age:</span><span class="hl-1"> </span><span class="hl-4">&#39;7&#39;</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-2">id:</span><span class="hl-1"> </span><span class="hl-4">&#39;noderedis:animals:3&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-2">value:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-2">name:</span><span class="hl-1"> </span><span class="hl-4">&#39;Rover&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-2">species:</span><span class="hl-1"> </span><span class="hl-4">&#39;dog&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-2">age:</span><span class="hl-1"> </span><span class="hl-4">&#39;9&#39;</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code></pre>
+
+<a href="#indexing-and-querying-data-with-redisjson" id="indexing-and-querying-data-with-redisjson" style="color: inherit; text-decoration: none;">
+  <h3>Indexing and Querying Data with RedisJSON</h3>
+</a>
+<p>RediSearch can also index and query JSON documents stored in Redis using the RedisJSON module.  The approach is similar to that for indexing and searching data in hashes, but we can now use JSON Path like syntax and the data no longer has to be flat name/value pairs - it can contain nested objects and arrays.</p>
+
+<a href="#creating-an-index-1" id="creating-an-index-1" style="color: inherit; text-decoration: none;">
+  <h4>Creating an Index</h4>
+</a>
+<p>As before, we create an index with the <code>FT.CREATE</code> command, this time specifying we want to index JSON documents that look like this:</p>
+<pre><code class="language-javascript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-7">name</span><span class="hl-1">: </span><span class="hl-4">&#39;Alice&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-7">age</span><span class="hl-1">: </span><span class="hl-8">32</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-7">coins</span><span class="hl-1">: </span><span class="hl-8">100</span><br/><span class="hl-1">}</span>
+</code></pre>
+<p>Each document represents a user in some system, and users have name, age and coins properties.</p>
+<p>One way we might choose to index these documents is as follows:</p>
+<pre><code class="language-javascript"><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-2">ft</span><span class="hl-1">.</span><span class="hl-3">create</span><span class="hl-1">(</span><span class="hl-4">&#39;idx:users&#39;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">&#39;$.name&#39;</span><span class="hl-2">:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-2">type:</span><span class="hl-1"> </span><span class="hl-2">SchemaFieldTypes</span><span class="hl-1">.</span><span class="hl-5">TEXT</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">SORTABLE:</span><span class="hl-1"> </span><span class="hl-4">&#39;UNF&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&#39;$.age&#39;</span><span class="hl-2">:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-2">type:</span><span class="hl-1"> </span><span class="hl-2">SchemaFieldTypes</span><span class="hl-1">.</span><span class="hl-5">NUMERIC</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">AS:</span><span class="hl-1"> </span><span class="hl-4">&#39;age&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&#39;$.coins&#39;</span><span class="hl-2">:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-2">type:</span><span class="hl-1"> </span><span class="hl-2">SchemaFieldTypes</span><span class="hl-1">.</span><span class="hl-5">NUMERIC</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">AS:</span><span class="hl-1"> </span><span class="hl-4">&#39;coins&#39;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}, {</span><br/><span class="hl-1">  </span><span class="hl-2">ON:</span><span class="hl-1"> </span><span class="hl-4">&#39;JSON&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-2">PREFIX:</span><span class="hl-1"> </span><span class="hl-4">&#39;noderedis:users&#39;</span><br/><span class="hl-1">});</span>
+</code></pre>
+<p>Note that we&#39;re using JSON Path to specify where the fields to index are in our JSON documents, and the <code>AS</code> clause to define a name/alias for each field.  We&#39;ll use these when writing queries.</p>
+
+<a href="#querying-the-index-1" id="querying-the-index-1" style="color: inherit; text-decoration: none;">
+  <h4>Querying the Index</h4>
+</a>
+<p>Now we have an index and some data stored as JSON documents in Redis (see the <a href="https://github.com/redis/node-redis/tree/master/packages/json">JSON package documentation</a> for examples of how to store JSON), we can write some queries...</p>
+<p>We&#39;ll use the <a href="https://oss.redis.com/redisearch/Query_Syntax/">RediSearch query language</a> and <a href="https://oss.redis.com/redisearch/Commands/#ftsearch"><code>FT.SEARCH</code></a> command.  Here&#39;s a query to find users under the age of 30:</p>
+<pre><code class="language-javascript"><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-2">ft</span><span class="hl-1">.</span><span class="hl-3">search</span><span class="hl-1">(</span><span class="hl-4">&#39;idx:users&#39;</span><span class="hl-1">, </span><span class="hl-4">&#39;@age:[0 30]&#39;</span><span class="hl-1">);</span>
+</code></pre>
 </div></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">

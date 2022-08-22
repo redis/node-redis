@@ -248,35 +248,6 @@ dd {
     padding-left: 0;
 }
 
-ul.tsd-descriptions > li > :first-child,
-.tsd-panel > :first-child,
-.col-8 > :first-child,
-.col-4 > :first-child,
-ul.tsd-descriptions > li > :first-child > :first-child,
-.tsd-panel > :first-child > :first-child,
-.col-8 > :first-child > :first-child,
-.col-4 > :first-child > :first-child,
-ul.tsd-descriptions > li > :first-child > :first-child > :first-child,
-.tsd-panel > :first-child > :first-child > :first-child,
-.col-8 > :first-child > :first-child > :first-child,
-.col-4 > :first-child > :first-child > :first-child {
-    margin-top: 0;
-}
-ul.tsd-descriptions > li > :last-child,
-.tsd-panel > :last-child,
-.col-8 > :last-child,
-.col-4 > :last-child,
-ul.tsd-descriptions > li > :last-child > :last-child,
-.tsd-panel > :last-child > :last-child,
-.col-8 > :last-child > :last-child,
-.col-4 > :last-child > :last-child,
-ul.tsd-descriptions > li > :last-child > :last-child > :last-child,
-.tsd-panel > :last-child > :last-child > :last-child,
-.col-8 > :last-child > :last-child > :last-child,
-.col-4 > :last-child > :last-child > :last-child {
-    margin-bottom: 0;
-}
-
 @keyframes fade-in {
     from {
         opacity: 0;
@@ -971,7 +942,7 @@ a.tsd-index-link {
     margin: 2rem 0;
 }
 .tsd-panel-group.tsd-index-group details {
-    margin: 4rem 0;
+    margin: 2rem 0;
 }
 
 #tsd-search {
@@ -1073,9 +1044,6 @@ a.tsd-index-link {
     font-size: 14px;
     overflow-x: auto;
 }
-.tsd-panel > .tsd-signature {
-    border-width: 1px 0;
-}
 
 .tsd-signature-symbol {
     color: var(--color-text-aside);
@@ -1090,60 +1058,16 @@ a.tsd-index-link {
 .tsd-signatures {
     padding: 0;
     margin: 0 0 1em 0;
-    border: 1px solid var(--color-accent);
+    list-style-type: none;
 }
 .tsd-signatures .tsd-signature {
     margin: 0;
-    border-width: 1px 0 0 0;
+    border-color: var(--color-accent);
+    border-width: 1px 0;
     transition: background-color 0.1s;
 }
-.tsd-signatures .tsd-signature:first-child {
-    border-top-width: 0;
-}
-.tsd-signatures .tsd-signature.current {
-    background-color: var(--color-background-secondary);
-}
-.tsd-signatures.active > .tsd-signature {
-    cursor: pointer;
-}
-.tsd-panel > .tsd-signatures {
-    border-width: 1px 0;
-}
-.tsd-panel > a.anchor + .tsd-signatures {
-    border-top-width: 0;
-    margin-top: -20px;
-}
-
-ul.tsd-descriptions {
-    position: relative;
-    overflow: hidden;
-    padding: 0;
-    list-style: none;
-}
-ul.tsd-descriptions.active > .tsd-description {
-    display: none;
-}
-ul.tsd-descriptions.active > .tsd-description.current {
-    display: block;
-}
-ul.tsd-descriptions.active > .tsd-description.fade-in {
-    animation: fade-in-delayed 0.3s;
-}
-ul.tsd-descriptions.active > .tsd-description.fade-out {
-    animation: fade-out-delayed 0.3s;
-    position: absolute;
-    display: block;
-    top: 0;
-    left: 0;
-    right: 0;
-    opacity: 0;
-    visibility: hidden;
-}
-ul.tsd-descriptions h4,
-ul.tsd-descriptions .tsd-index-panel h3,
-.tsd-index-panel ul.tsd-descriptions h3 {
-    font-size: 16px;
-    margin: 1em 0 0.5em 0;
+.tsd-description .tsd-signatures .tsd-signature {
+    border-width: 1px;
 }
 
 ul.tsd-parameter-list,

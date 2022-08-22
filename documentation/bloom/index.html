@@ -9,11 +9,21 @@
 <div class="container container-main">
 <div class="col-8 col-content">
 <div class="tsd-page-title">
-<h2> @redis/bloom</h2></div>
+<h2>@redis/bloom</h2></div>
 <div class="tsd-panel tsd-typography">
-<a href="#" id="" style="color: inherit; text-decoration: none;">
-  <h1></h1>
+<a href="#redisbloom" id="redisbloom" style="color: inherit; text-decoration: none;">
+  <h1>@redis/bloom</h1>
 </a>
+<p>This package provides support for the <a href="https://redisbloom.io">RedisBloom</a> module, which adds additional probabilistic data structures to Redis.  It extends the <a href="https://github.com/redis/node-redis">Node Redis client</a> to include functions for each of the RediBloom commands.</p>
+<p>To use these extra commands, your Redis server must have the RedisBloom module installed.</p>
+<p>RedisBloom provides the following probabilistic data structures:</p>
+<ul>
+<li>Bloom Filter: for checking set membership with a high degree of certainty.</li>
+<li>Cuckoo Filter: for checking set membership with a high degree of certainty.</li>
+<li>Count-Min Sketch: Determine the frequency of events in a stream.</li>
+<li>Top-K: Maintain a list of k most frequently seen items.</li>
+</ul>
+<p>For complete examples, see <code>bloom-filter.js</code>, <code>cuckoo-filter.js</code>, <code>count-min-sketch.js</code> and <code>topk.js</code> in the Node Redis examples folder.</p>
 </div></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
