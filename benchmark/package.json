@@ -9,7 +9,7 @@
   "dependencies": {
     "@redis/client": "../packages/client",
     "hdr-histogram-js": "3.0.0",
-    "ioredis": "5.1.0",
+    "ioredis": "5.2.2",
     "redis-v3": "npm:redis@3.1.2",
     "yargs": "17.5.1"
   }
