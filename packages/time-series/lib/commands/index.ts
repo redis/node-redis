@@ -68,18 +68,25 @@ export default {
 };
 
 export enum TimeSeriesAggregationType {
-    AVERAGE = 'avg',
-    SUM = 'sum',
-    MINIMUM = 'min',
-    MAXIMUM = 'max',
-    RANGE = 'range',
-    COUNT = 'count',
-    FIRST = 'first',
-    LAST = 'last',
-    STD_P = 'std.p',
-    STD_S = 'std.s',
-    VAR_P = 'var.p',
-    VAR_S = 'var.s'
+    AVG = 'AVG',
+    // @deprecated
+    AVERAGE = 'AVG',
+    FIRST = 'FIRST',
+    LAST = 'LAST',
+    MIN = 'MIN',
+    // @deprecated
+    MINIMUM = 'MIN',
+    MAX = 'MAX',
+    // @deprecated
+    MAXIMUM = 'MAX',
+    SUM = 'SUM',
+    RANGE = 'RANGE',
+    COUNT = 'COUNT',
+    STD_P = 'STD.P',
+    STD_S = 'STD.S',
+    VAR_P = 'VAR.P',
+    VAR_S = 'VAR.S',
+    TWA = 'TWA'
 }
 
 export enum TimeSeriesDuplicatePolicies {
@@ -92,9 +99,20 @@ export enum TimeSeriesDuplicatePolicies {
 }
 
 export enum TimeSeriesReducers {
-    SUM = 'sum',
-    MINIMUM = 'min',
-    MAXIMUM = 'max',
+    AVG = 'AVG',
+    SUM = 'SUM',
+    MIN = 'MIN',
+    // @deprecated
+    MINIMUM = 'MIN',
+    MAX = 'MAX',
+    // @deprecated
+    MAXIMUM = 'MAX',
+    RANGE = 'range',
+    COUNT = 'COUNT',
+    STD_P = 'STD.P',
+    STD_S = 'STD.S',
+    VAR_P = 'VAR.P',
+    VAR_S = 'VAR.S',
 }
 
 export type Timestamp = number | Date | string;
@@ -141,6 +159,17 @@ export function pushChunkSizeArgument(args: RedisCommandArguments, chunkSize?: n
         args.push(
             'CHUNK_SIZE',
             chunkSize.toString()
+        );
+    }
+
+    return args;
+}
+
+export function pushDuplicatePolicy(args: RedisCommandArguments, duplicatePolicy?: TimeSeriesDuplicatePolicies): RedisCommandArguments {
+    if (duplicatePolicy) {
+        args.push(
+            'DUPLICATE_POLICY',
+            duplicatePolicy
         );
     }
 
@@ -226,7 +255,14 @@ export function transformSampleReply(reply: SampleRawReply): SampleReply {
     };
 }
 
+export enum TimeSeriesBucketTimestamp {
+    LOW = '-',
+    HIGH = '+',
+    MID = '~'
+}
+
 export interface RangeOptions {
+    LATEST?: boolean;
     FILTER_BY_TS?: Array<Timestamp>;
     FILTER_BY_VALUE?: {
         min: number;
@@ -237,6 +273,8 @@ export interface RangeOptions {
     AGGREGATION?: {
         type: TimeSeriesAggregationType;
         timeBucket: Timestamp;
+        BUCKETTIMESTAMP?: TimeSeriesBucketTimestamp;
+        EMPTY?: boolean;
     };
 }
 
@@ -251,9 +289,11 @@ export function pushRangeArguments(
         transformTimestampArgument(toTimestamp)
     );
 
+    pushLatestArgument(args, options?.LATEST);
+
     if (options?.FILTER_BY_TS) {
         args.push('FILTER_BY_TS');
-        for(const ts of options.FILTER_BY_TS) {
+        for (const ts of options.FILTER_BY_TS) {
             args.push(transformTimestampArgument(ts));
         }
     }
@@ -286,6 +326,17 @@ export function pushRangeArguments(
             options.AGGREGATION.type,
             transformTimestampArgument(options.AGGREGATION.timeBucket)
         );
+
+        if (options.AGGREGATION.BUCKETTIMESTAMP) {
+            args.push(
+                'BUCKETTIMESTAMP',
+                options.AGGREGATION.BUCKETTIMESTAMP
+            );
+        }
+
+        if (options.AGGREGATION.EMPTY) {
+            args.push('EMPTY');
+        }
     }
 
     return args;
@@ -402,6 +453,14 @@ export function transformMRangeWithLabelsReply(reply: MRangeRawReply): Array<MRa
             labels: transformLablesReply(labels),
             samples: samples.map(transformSampleReply)
         });
+    }
+
+    return args;
+}
+
+export function pushLatestArgument(args: RedisCommandArguments, latest?: boolean): RedisCommandArguments {
+    if (latest) {
+        args.push('LATEST');
     }
 
     return args;

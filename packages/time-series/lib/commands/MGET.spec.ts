@@ -3,11 +3,22 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MGET';
 
 describe('MGET', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('label=value'),
-            ['TS.MGET', 'FILTER', 'label=value']
-        );
+    describe('transformArguments', () => {
+        it('without options', () => {
+            assert.deepEqual(
+                transformArguments('label=value'),
+                ['TS.MGET', 'FILTER', 'label=value']
+            );
+        });
+
+        it('with LATEST', () => {
+            assert.deepEqual(
+                transformArguments('label=value', {
+                    LATEST: true
+                }),
+                ['TS.MGET', 'LATEST', 'FILTER', 'label=value']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ts.mGet', async client => {

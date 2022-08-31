@@ -4,7 +4,7 @@ export function transformArguments(sourceKey: string, destinationKey: string): A
     return [
         'TS.DELETERULE',
         sourceKey,
-        destinationKey,
+        destinationKey
     ];
 }
 

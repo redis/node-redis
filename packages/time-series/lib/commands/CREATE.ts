@@ -5,7 +5,8 @@ import {
     pushChunkSizeArgument,
     TimeSeriesDuplicatePolicies,
     Labels,
-    pushLabelsArgument
+    pushLabelsArgument,
+    pushDuplicatePolicy
 } from '.';
 
 export const FIRST_KEY_INDEX = 1;
@@ -27,12 +28,7 @@ export function transformArguments(key: string, options?: CreateOptions): Array<
 
     pushChunkSizeArgument(args, options?.CHUNK_SIZE);
 
-    if (options?.DUPLICATE_POLICY) {
-        args.push(
-            'DUPLICATE_POLICY',
-            options.DUPLICATE_POLICY
-        );
-    }
+    pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
 
     pushLabelsArgument(args, options?.LABELS);
 
