@@ -373,6 +373,31 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 
 The client will not emit [any other events](./docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
 
+### Network error handling
+
+When a network error occurs the client will automatically try to reconnect, following a default linear strategy (the more attempts, the more waiting before trying to reconnect).
+
+This strategy can be overriden by providing a `reconnectStrategy` option during client's creation.
+
+The example below shows the default `reconnectStrategy` and how to override it.
+
+Note that the delay returned by `reconnectStrategy()`is expressed in ms.
+```typescript
+import { createClient } from 'redis';
+
+const client = createClient({
+    url: 'redis://alice:foobared@awesome.redis.server:6380',
+    socket: {
+        reconnectStrategy: (retries) => Math.min(retries * 50, 500)
+    }
+});
+
+client.on('error', (err) => {
+    // Do **NOT** throw here as it would break auto reconnect  
+    console.log('Redis Client Error', err);
+});
+```
+
 ## Supported Redis versions
 
 Node Redis is supported with the following versions of Redis:
