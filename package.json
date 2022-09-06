@@ -26,7 +26,7 @@
     "@redis/bloom": "1.0.2",
     "@redis/client": "1.3.0",
     "@redis/graph": "1.0.1",
-    "@redis/json": "1.0.3",
+    "@redis/json": "1.0.4",
     "@redis/search": "1.1.0",
     "@redis/time-series": "1.0.3"
   },
