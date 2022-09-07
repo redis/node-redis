@@ -63,6 +63,30 @@ describe('ZRANGE', () => {
                 ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1']
             );
         });
+
+        it('with WITHSCORES', () => {
+            assert.deepEqual(
+                transformArguments('src', 0, 1, {
+                    WITHSCORES: true
+                }),
+                ['ZRANGE', 'src', '0', '1', 'WITHSCORES']
+            );
+        });
+
+        it('with BY & REV & LIMIT & WITHSCORES', () => {
+            assert.deepEqual(
+                transformArguments('src', 0, 1, {
+                    BY: 'SCORE',
+                    REV: true,
+                    LIMIT: {
+                        offset: 0,
+                        count: 1
+                    },
+                    WITHSCORES: true
+                }),
+                ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1', 'WITHSCORES']
+            );
+        });
     });
 
     testUtils.testWithClient('client.zRange', async client => {

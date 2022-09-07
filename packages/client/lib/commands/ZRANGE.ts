@@ -12,6 +12,7 @@ interface ZRangeOptions {
         offset: number;
         count: number;
     };
+    WITHSCORES?: true;
 }
 
 export function transformArguments(
@@ -43,6 +44,10 @@ export function transformArguments(
 
     if (options?.LIMIT) {
         args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+    }
+
+    if (options?.WITHSCORES) {
+        args.push('WITHSCORES');
     }
 
     return args;
