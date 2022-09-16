@@ -22,7 +22,7 @@ interface SetCommonOptions {
     GET?: true;
 }
 
-type SetOptions = SetTTL & SetGuards & SetCommonOptions;
+export type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 
 export function transformArguments(
     key: RedisCommandArgument,
