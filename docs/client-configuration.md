@@ -28,12 +28,29 @@
 
 ## Reconnect Strategy
 
-You can implement a custom reconnect strategy as a function:
+When a network error occurs the client will automatically try to reconnect, following a default linear strategy (the more attempts, the more waiting before trying to reconnect).
+
+This strategy can be overriden by providing a `socket.reconnectStrategy` option during client's creation.
+
+The `socket.reconnectStrategy` is a function:
 
 - Receives the number of retries attempted so far.
 - Returns `number | Error`:
     - `number`: wait time in milliseconds prior to attempting a reconnect.
     - `Error`: closes the client and flushes internal command queues.
+
+The example below shows the default `reconnectStrategy` and how to override it.
+
+```typescript
+import { createClient } from 'redis';
+
+const client = createClient({
+    url: 'redis://alice:foobared@awesome.redis.server:6380',
+    socket: {
+        reconnectStrategy: (retries) => Math.min(retries * 50, 500)
+    }
+});
+```
 
 ## TLS
 
