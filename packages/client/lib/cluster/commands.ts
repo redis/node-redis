@@ -632,3 +632,5 @@ export default {
     ZUNIONSTORE,
     zUnionStore: ZUNIONSTORE
 };
+
+export type SetOptions = SET.SetOptions
