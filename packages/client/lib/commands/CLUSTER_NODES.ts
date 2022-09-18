@@ -85,7 +85,7 @@ export function transformReply(reply: string): Array<RedisClusterMasterNode> {
 }
 
 function transformNodeAddress(address: string): RedisClusterNodeAddress {
-    const indexOfColon = address.indexOf(':'),
+    const indexOfColon = address.lastIndexOf(':'),
         indexOfAt = address.indexOf('@', indexOfColon),
         host = address.substring(0, indexOfColon);
 

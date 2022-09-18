@@ -73,6 +73,31 @@ describe('CLUSTER NODES', () => {
             );
         });
 
+        it('should support ipv6 addresses', () => {
+            assert.deepEqual(
+                transformReply(
+                    'id 2a02:6b8:c21:330d:0:1589:ebbe:b1a0:6379@16379 master - 0 0 0 connected 0-549\n'
+                ),
+                [{
+                    id: 'id',
+                    address: '2a02:6b8:c21:330d:0:1589:ebbe:b1a0:6379@16379',
+                    host: '2a02:6b8:c21:330d:0:1589:ebbe:b1a0',
+                    port: 6379,
+                    cport: 16379,
+                    flags: ['master'],
+                    pingSent: 0,
+                    pongRecv: 0,
+                    configEpoch: 0,
+                    linkState: RedisClusterNodeLinkStates.CONNECTED,
+                    slots: [{
+                        from: 0,
+                        to: 549
+                    }],
+                    replicas: []
+                }]
+            );
+        });
+
         it.skip('with importing slots', () => {
             assert.deepEqual(
                 transformReply(
