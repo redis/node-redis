@@ -6,16 +6,15 @@ const client = createClient();
 
 await client.connect();
 
-//declare constant variables for the name of the clients we will publish to as they will be required for logging
+// Declare constant variables for the name of the clients we will publish to as they will be required for logging.
 const channel1 = 'chan1nel';
 const channel2 = 'chan2nel';
 
 for (let i = 0; i < 10000; i++) {
-  //1st channel created to publish 10000 messages
+  // 1st channel created to publish 10000 messages.
   await client.publish(channel1, `channel1_message_${i}`);
-  console.log(`publising message on ${channel1}`);
-  //2nd channel created to publish 10000 messages
+  console.log(`publishing message on ${channel1}`);
+  // 2nd channel created to publish 10000 messages.
   await client.publish(channel2, `channel2_message_${i}`);
-  console.log(`publising message on ${channel2}`);
+  console.log(`publishing message on ${channel2}`);
 }
-await client.quit();
