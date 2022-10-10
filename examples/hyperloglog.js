@@ -24,6 +24,7 @@ try {
   //To get the count of Corner of Market Street (ID: 12) and 10th street (ID:27).
   const countForMarket10thStreet = await client.pfCount('count:sf:12:27');
   console.log(`Count for Market Street & 10th Street is ${countForMarket10thStreet}`);
+  //Count for Market Street & 10th Street is 4
 
   //Corner of Market Street (ID: 12) and 11 street (ID:26)
   await client.pfAdd('count:sf:12:26', 'GHN34X');
@@ -35,11 +36,13 @@ try {
   //To get the count of Corner of Market Street (ID: 12) and 11th street (ID:26)
   const countForMarket11thStreet = await client.pfCount('count:sf:12:26');
   console.log(`Count for Market Street & 11th Street is ${countForMarket11thStreet}`);
+  //Count for Market Street & 11th Street is 5
 
   //To merge the Hyperloglogs `count:sf:12:26` and `count:sf:12:27`
   await client.pfMerge('count:merge', ['count:sf:12:27', 'count:sf:12:26']);
   const countMerge = await client.pfCount('count:merge');
   console.log(`Count for the merge is ${countMerge}`);
+  //Count for the merge is 6
 } catch (e) {
   //something went wrong
   console.error(e);
