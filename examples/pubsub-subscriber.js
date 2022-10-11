@@ -30,7 +30,7 @@ await channel2Sub.subscribe('chan2nel', (message) => {
   console.log(`Channel2 subscriber collected message: ${message}`);
 },true);
 
-//This subscriber not receive any messages cause its channel does not exist
+// This subscriber will not receive any messages as its channel does not exist.
 await noChannelsSub.subscribe('chan*nel', (message) => {
   console.log(`This message will never be seen as we are not using pSubscribe here. ${message}`);
 },true);
