@@ -425,6 +425,19 @@ describe('Client', () => {
             );
         }, GLOBAL.SERVERS.OPEN);
 
+        testUtils.testWithClient('should reject the whole chain upon client disconnect', async client => {
+            await client.disconnect();
+
+            return assert.rejects(
+                client.multi()
+                    .ping()
+                    .set('key', 'value')
+                    .get('key')
+                    .exec(),
+                ClientClosedError
+            );
+        }, GLOBAL.SERVERS.OPEN);
+
         testUtils.testWithClient('with script', async client => {
             assert.deepEqual(
                 await client.multi()
