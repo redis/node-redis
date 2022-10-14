@@ -611,6 +611,10 @@ export default class RedisClient<
         selectedDB?: number,
         chainId?: symbol
     ): Promise<Array<RedisCommandRawReply>> {
+        if (!this.#socket.isOpen) {
+            return Promise.reject(new ClientClosedError());
+        }
+
         const promise = Promise.all(
             commands.map(({ args }) => {
                 return this.#queue.addCommand(args, { chainId });
