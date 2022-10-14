@@ -11,6 +11,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `count-min-sketch.js`       | Estimate the frequency of a given event using the [RedisBloom](https://redisbloom.io) Count-Min Sketch                                              |
 | `cuckoo-filter.js`          | Space efficient set membership checks with a [Cuckoo Filter](https://en.wikipedia.org/wiki/Cuckoo_filter) using [RedisBloom](https://redisbloom.io) |
 | `get-server-time.js`        | Get the time from the Redis server                                                                                                                  |
+| `hyperloglog.js`            | Showing use of Hyperloglog commands [PFADD, PFCOUNT and PFMERGE](https://redis.io/commands/?group=hyperloglog)                                |
 | `lua-multi-incr.js`         | Define a custom lua script that allows you to perform INCRBY on multiple keys                                                                       |
 | `managing-json.js`          | Store, retrieve and manipulate JSON data atomically with [RedisJSON](https://redisjson.io/)                                                         |
 | `search-hashes.js`          | Uses [RediSearch](https://redisearch.io) to index and search data in hashes                                                                         |
