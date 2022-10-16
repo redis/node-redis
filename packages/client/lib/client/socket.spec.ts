@@ -19,7 +19,7 @@ describe('Socket', () => {
 
     describe('reconnectStrategy', () => {
         it('custom strategy', async () => {
-            const numberOfRetries = 10
+            const numberOfRetries = 10;
 
             const reconnectStrategy = spy((retries: number) => {
                 assert.equal(retries + 1, reconnectStrategy.callCount);

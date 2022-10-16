@@ -109,7 +109,7 @@ export default class RedisSocket extends EventEmitter {
     }
 
     async #connect(hadError?: boolean): Promise<void> {
-        let retries = 0
+        let retries = 0;
         do {
             if (retries > 0 || hadError) {
                 this.emit('reconnecting');
@@ -141,8 +141,8 @@ export default class RedisSocket extends EventEmitter {
                 this.emit('error', err);
                 await promiseTimeout(retryIn);
             }
-            retries++
-        } while (!this.#isReady)
+            retries++;
+        } while (!this.#isReady);
     }
 
     #createSocket(): Promise<net.Socket | tls.TLSSocket> {
