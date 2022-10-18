@@ -29,3 +29,4 @@ await cluster.connect();
 
 await cluster.set('foo', 'bar');
 const value = await cluster.get('foo')
+console.log(value)
