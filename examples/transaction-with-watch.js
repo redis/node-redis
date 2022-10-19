@@ -21,7 +21,7 @@ async function transaction() {
         .multi()
         .set('paymentId:1259', 'Payment Successfully Completed!')
         .set('paymentId:1260', 'Refund Processed Successfully!');
-      await delay(5000); // do some changes in watched key during this time
+      await delay(5000); // Do some changes to the watched key during this time...
       await multi.exec();
       console.log('Transaction completed Successfully!');
       client.quit();
