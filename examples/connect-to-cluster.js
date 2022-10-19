@@ -1,10 +1,9 @@
-//This is an example script to connect to a running cluster.
-// After connecting to the cluster I am attempting to set and get a value.
+// This is an example script to connect to a running cluster.
+// After connecting to the cluster the code sets and get a value.
 
-//To setup this cluster you can follow the guide here : 
+// To setup this cluster you can follow the guide here: 
 // https://redis.io/docs/manual/scaling/
-// In this guide the ports which are being used are 7000 - 7005 
-//But since I am a macOS user I am using 7001 - 7006
+// In this guide the ports which are being used are 7000 - 7005
 
 
 import { createCluster } from 'redis';
@@ -27,6 +26,8 @@ cluster.on('error', (err) => console.log('Redis Client Error', err));
 
 await cluster.connect();
 
-await cluster.set('foo', 'bar');
-const value = await cluster.get('foo')
-console.log(value)
+await cluster.set('hello', 'cluster');
+const value = await cluster.get('hello');
+console.log(value);
+
+await cluster.quit();
