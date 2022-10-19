@@ -1,29 +1,18 @@
-// This example shows you sample transaction for how to achieve optimistic locking using WATCH with check-and-set (CAS) behavior.
-// If any watched key changes outside the session then entire transaction will be aborted.
-// To know more about isolated execution & redis transaction: https://github.com/redis/node-redis/blob/master/docs/isolated-execution.md
-// https://redis.io/docs/manual/transactions
-
-// We just have to repeat the operation by calling the function again(recursion) hoping this time we'll not get race condition.
-// restrictFunctionCalls is a counter function to limit recursive calls
-
 import { createClient, WatchError } from 'redis';
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const client = createClient();
 await client.connect();
 
-/**
- *
- * @param {function} fn
- * @param {number} maxCalls
- * @returns a function that is being called based on maxCalls
- */
 function restrictFunctionCalls(fn, maxCalls) {
   let count = 1;
   return function (...args) {
     return count++ < maxCalls ? fn(...args) : false;
   };
 }
-let fn = restrictFunctionCalls(transaction, 4);
+
+const fn = restrictFunctionCalls(transaction, 4);
+
 async function transaction() {
   try {
     await client.executeIsolated(async (isolatedClient) => {
@@ -32,7 +21,10 @@ async function transaction() {
         .multi()
         .set('paymentId:1259', 'Payment Successfully Completed!')
         .set('paymentId:1260', 'Refund Processed Successfully!');
+
+      await delay(5000); // do some changes in watched key during this time
       await multi.exec();
+
       console.log('Transaction completed Successfully!');
     });
   } catch (error) {
@@ -42,9 +34,9 @@ async function transaction() {
     } else {
       console.log(`Error: ${error}`);
     }
+  } finally {
+    client.quit();
   }
 }
 
 transaction();
-
-await client.quit();
