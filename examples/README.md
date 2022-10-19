@@ -7,8 +7,8 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `blocking-list-pop.js`      | Block until an element is pushed to a list                                                                                                          |
 | `bloom-filter.js`           | Space efficient set membership checks with a [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter) using [RedisBloom](https://redisbloom.io)   |
 | `command-with-modifiers.js` | Define a script that allows to run a command with several modifiers                                                                                 |
-| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                                                                                                |
 | `connect-to-cluster.js`    | Connect to Redis cluster                                                                                                              |
+| `connect-as-acl-user.js`    | Connect to Redis 6 using an ACL user                                                                                                                |
 | `count-min-sketch.js`       | Estimate the frequency of a given event using the [RedisBloom](https://redisbloom.io) Count-Min Sketch                                              |
 | `cuckoo-filter.js`          | Space efficient set membership checks with a [Cuckoo Filter](https://en.wikipedia.org/wiki/Cuckoo_filter) using [RedisBloom](https://redisbloom.io) |
 | `get-server-time.js`        | Get the time from the Redis server                                                                                                                  |
