@@ -9,9 +9,8 @@ describe('Socket', () => {
             options
         );
 
-        socket.on('error', (err) => {
+        socket.on('error', () => {
             // ignore errors
-            console.log(err);
         });
 
         return socket;
@@ -32,8 +31,8 @@ describe('Socket', () => {
 
             const socket = createSocket({
                 host: 'error',
-                reconnectStrategy,
-                connectTimeout:100,
+                connectTimeout: 1,
+                reconnectStrategy
             });
 
             await assert.rejects(socket.connect(), {
@@ -46,7 +45,7 @@ describe('Socket', () => {
         it('should handle errors', async () => {
             const socket = createSocket({
                 host: 'error',
-                connectTimeout:100,
+                connectTimeout: 1,
                 reconnectStrategy(retries: number) {
                     if (retries === 1) return new Error('done');
                     throw new Error();
