@@ -32,7 +32,7 @@ When a network error occurs the client will automatically try to reconnect, foll
 
 This strategy can be overriden by providing a `socket.reconnectStrategy` option during client's creation.
 
-The `socket.reconnectStrategy` is a function:
+The `socket.reconnectStrategy` is a function that:
 
 - Receives the number of retries attempted so far.
 - Returns `number | Error`:
