@@ -1,4 +1,5 @@
 
+import { ClientCommandOptions } from './client';
 import { CommandOptions, isCommandOptions } from './command-options';
 import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandReply, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts } from './commands';
 
@@ -103,7 +104,7 @@ function attachWithNamespaces<C extends RedisCommand>({
     return Commander;
 }
 
-export function transformCommandArguments<T>(
+export function transformCommandArguments<T = ClientCommandOptions>(
     command: RedisCommand,
     args: Array<unknown>
 ): {

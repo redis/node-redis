@@ -43,7 +43,7 @@ const value = await cluster.get('key');
 
 ## Node Address Map
 
-A node address map is required when a redis cluster is configured with addresses that are inaccessible by the machine running the redis client.
+A node address map is required when a Redis cluster is configured with addresses that are inaccessible by the machine running the Redis client.
 This is a mapping of addresses and ports, with the values being the accessible address/port combination. Example:
 
 ```javascript
