@@ -15,14 +15,14 @@ describe('pushQueryArguments', () => {
         pushQueryArguments(['GRAPH.QUERY'], 'graph', 'query', {
           params: {
             null: null,
-            string: '"',
+            string: '"\\',
             number: 0,
             boolean: false,
             array: [0],
             object: {a: 0}
           }
         }),
-        ['GRAPH.QUERY', 'graph', 'CYPHER null=null string="\\"" number=0 boolean=false array=[0] object={a:0} query']
+        ['GRAPH.QUERY', 'graph', 'CYPHER null=null string="\\"\\\\" number=0 boolean=false array=[0] object={a:0} query']
       );
     });
 

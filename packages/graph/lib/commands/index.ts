@@ -93,7 +93,7 @@ function queryParamToString(param: QueryParam): string {
 
     switch (typeof param) {
         case 'string':
-            return `"${param.replace(/"/g, '\\"')}"`;
+            return `"${param.replace(/["\\]/g, '\\$&')}"`;
 
         case 'number':
         case 'boolean':
