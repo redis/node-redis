@@ -7,24 +7,20 @@
 
 import { createClient } from 'redis';
 
-async function connectWithACLUser() {
-  const client = createClient({
-    url: 'redis://testuser:testpassword@127.0.0.1:6379'
-  });
+const client = createClient({
+  url: 'redis://testuser:testpassword@127.0.0.1:6379'
+});
 
-  await client.connect();
+await client.connect();
 
-  // Returns PONG
-  console.log(`Response from PING command: ${await client.ping()}`);
+// Returns PONG
+console.log(`Response from PING command: ${await client.ping()}`);
 
-  try {
-    // This will error as this user is not allowed to run this command...
-    console.log(`Response from GET command: ${await client.get('somekey')}`);
-  } catch (e) {
-    console.log(`GET command failed: ${e.message}`);
-  }
-
-  await client.quit();
+try {
+  // This will error as this user is not allowed to run this command...
+  console.log(`Response from GET command: ${await client.get('somekey')}`);
+} catch (e) {
+  console.log(`GET command failed: ${e.message}`);
 }
 
-connectWithACLUser();
+await client.quit();

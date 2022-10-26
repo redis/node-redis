@@ -20,7 +20,7 @@ describe('RANGE', () => {
                 }
             }),
             ['TS.RANGE', 'key', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE',
-            '1', '2', 'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'avg', '1']
+            '1', '2', 'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1']
         );
     });
 

@@ -6,16 +6,23 @@ export function transformArguments(
     sourceKey: string,
     destinationKey: string,
     aggregationType: TimeSeriesAggregationType,
-    timeBucket: number
+    bucketDuration: number,
+    alignTimestamp?: number
 ): Array<string> {
-    return [
+    const args = [
         'TS.CREATERULE',
         sourceKey,
         destinationKey,
         'AGGREGATION',
         aggregationType,
-        timeBucket.toString()
+        bucketDuration.toString()
     ];
+
+    if (alignTimestamp) {
+        args.push(alignTimestamp.toString());
+    }
+
+    return args;
 }
 
 export declare function transformReply(): 'OK';

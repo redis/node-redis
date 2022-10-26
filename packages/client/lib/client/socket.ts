@@ -44,10 +44,6 @@ export default class RedisSocket extends EventEmitter {
         return options;
     }
 
-    static #defaultReconnectStrategy(retries: number): number {
-        return Math.min(retries * 50, 500);
-    }
-
     static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
         return (options as RedisTlsSocketOptions).tls === true;
     }
@@ -87,6 +83,23 @@ export default class RedisSocket extends EventEmitter {
         this.#options = RedisSocket.#initiateOptions(options);
     }
 
+    reconnectStrategy(retries: number): number | Error {
+        if (this.#options.reconnectStrategy) {
+            try {
+                const retryIn = this.#options.reconnectStrategy(retries);
+                if (typeof retryIn !== 'number' && !(retryIn instanceof Error)) {
+                    throw new TypeError('Reconnect strategy should return `number | Error`');
+                }
+
+                return retryIn;
+            } catch (err) {
+                this.emit('error', err);
+            }
+        }
+
+        return Math.min(retries * 50, 500);
+    }
+
     async connect(): Promise<void> {
         if (this.#isOpen) {
             throw new Error('Socket already opened');
@@ -116,14 +129,14 @@ export default class RedisSocket extends EventEmitter {
             this.#isReady = true;
             this.emit('ready');
         } catch (err) {
-            this.emit('error', err);
-
-            const retryIn = (this.#options?.reconnectStrategy ?? RedisSocket.#defaultReconnectStrategy)(retries);
+            const retryIn = this.reconnectStrategy(retries);
             if (retryIn instanceof Error) {
                 this.#isOpen = false;
+                this.emit('error', err);
                 throw new ReconnectStrategyError(retryIn, err);
             }
 
+            this.emit('error', err);
             await promiseTimeout(retryIn);
             return this.#connect(retries + 1);
         }

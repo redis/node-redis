@@ -18,3 +18,5 @@ export { defineScript } from './lib/lua-script';
 export { GeoReplyWith } from './lib/commands/generic-transformers';
 
 export * from './lib/errors';
+
+export { SetOptions } from "./lib/commands/SET";

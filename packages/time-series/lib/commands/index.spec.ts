@@ -6,6 +6,7 @@ import {
     TimeSeriesEncoding,
     pushEncodingArgument,
     pushChunkSizeArgument,
+    pushDuplicatePolicy,
     pushLabelsArgument,
     transformIncrDecrArguments,
     transformSampleReply,
@@ -19,7 +20,10 @@ import {
     pushMRangeWithLabelsArguments,
     transformRangeReply,
     transformMRangeReply,
-    transformMRangeWithLabelsReply
+    transformMRangeWithLabelsReply,
+    TimeSeriesDuplicatePolicies,
+    pushLatestArgument,
+    TimeSeriesBucketTimestamp
 } from '.';
 
 describe('transformTimestampArgument', () => {
@@ -83,6 +87,17 @@ describe('pushChunkSizeArgument', () => {
         assert.deepEqual(
             pushChunkSizeArgument([], 1),
             ['CHUNK_SIZE', '1']
+        );
+    });
+});
+
+describe('pushDuplicatePolicy', () => {
+    testOptionalArgument(pushDuplicatePolicy);
+
+    it('BLOCK', () => {
+        assert.deepEqual(
+            pushDuplicatePolicy([], TimeSeriesDuplicatePolicies.BLOCK),
+            ['DUPLICATE_POLICY', 'BLOCK']
         );
     });
 });
@@ -202,16 +217,44 @@ describe('pushRangeArguments', () => {
         );
     });
 
-    it('with AGGREGATION', () => {
-        assert.deepEqual(
-            pushRangeArguments([], '-', '+', {
-                AGGREGATION: {
-                    type: TimeSeriesAggregationType.FIRST,
-                    timeBucket: 1
-                }
-            }),
-            ['-', '+', 'AGGREGATION', 'first', '1']
-        );
+    describe('with AGGREGATION', () => {
+        it('without options', () => {
+            assert.deepEqual(
+                pushRangeArguments([], '-', '+', {
+                    AGGREGATION: {
+                        type: TimeSeriesAggregationType.FIRST,
+                        timeBucket: 1
+                    }
+                }),
+                ['-', '+', 'AGGREGATION', 'FIRST', '1']
+            );
+        });
+
+        it('with BUCKETTIMESTAMP', () => {
+            assert.deepEqual(
+                pushRangeArguments([], '-', '+', {
+                    AGGREGATION: {
+                        type: TimeSeriesAggregationType.FIRST,
+                        timeBucket: 1,
+                        BUCKETTIMESTAMP: TimeSeriesBucketTimestamp.LOW
+                    }
+                }),
+                ['-', '+', 'AGGREGATION', 'FIRST', '1', 'BUCKETTIMESTAMP', '-']
+            );
+        });
+
+        it('with BUCKETTIMESTAMP', () => {
+            assert.deepEqual(
+                pushRangeArguments([], '-', '+', {
+                    AGGREGATION: {
+                        type: TimeSeriesAggregationType.FIRST,
+                        timeBucket: 1,
+                        EMPTY: true
+                    }
+                }),
+                ['-', '+', 'AGGREGATION', 'FIRST', '1', 'EMPTY']
+            );
+        });
     });
 
     it('with FILTER_BY_TS, FILTER_BY_VALUE, COUNT, ALIGN, AGGREGATION', () => {
@@ -226,11 +269,13 @@ describe('pushRangeArguments', () => {
                 ALIGN: 1,
                 AGGREGATION: {
                     type: TimeSeriesAggregationType.FIRST,
-                    timeBucket: 1
+                    timeBucket: 1,
+                    BUCKETTIMESTAMP: TimeSeriesBucketTimestamp.LOW,
+                    EMPTY: true
                 }
             }),
             ['-', '+', 'FILTER_BY_TS', 'ts', 'FILTER_BY_VALUE', '1', '2',
-            'COUNT', '1', 'ALIGN', '1', 'AGGREGATION', 'first', '1']
+            'COUNT', '1', 'ALIGN', '1', 'AGGREGATION', 'FIRST', '1', 'BUCKETTIMESTAMP', '-', 'EMPTY']
         );
     });
 });
@@ -249,7 +294,7 @@ describe('pushMRangeGroupByArguments', () => {
                 label: 'label',
                 reducer: TimeSeriesReducers.MAXIMUM
             }),
-            ['GROUPBY', 'label', 'REDUCE', 'max']
+            ['GROUPBY', 'label', 'REDUCE', 'MAX']
         );
     });
 });
@@ -286,7 +331,7 @@ describe('pushMRangeArguments', () => {
                     reducer: TimeSeriesReducers.MAXIMUM
                 }
             }),
-            ['-', '+', 'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'max']
+            ['-', '+', 'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'MAX']
         );
     });
 });
@@ -369,3 +414,26 @@ describe('transformMRangeWithLabelsReply', () => {
         }]
     );
 });
+
+describe('pushLatestArgument', () => {
+    it('undefined', () => {
+        assert.deepEqual(
+            pushLatestArgument([]),
+            []
+        );
+    });
+
+    it('false', () => {
+        assert.deepEqual(
+            pushLatestArgument([], false),
+            []
+        );
+    });
+
+    it('true', () => {
+        assert.deepEqual(
+            pushLatestArgument([], true),
+            ['LATEST']
+        );
+    });
+})

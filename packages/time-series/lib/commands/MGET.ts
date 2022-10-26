@@ -1,10 +1,15 @@
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { Filter, pushFilterArgument, RawLabels, SampleRawReply, SampleReply, transformSampleReply } from '.';
+import { Filter, pushFilterArgument, pushLatestArgument, RawLabels, SampleRawReply, SampleReply, transformSampleReply } from '.';
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(filter: Filter): RedisCommandArguments {
-    return pushFilterArgument(['TS.MGET'], filter);
+export interface MGetOptions {
+    LATEST?: boolean;
+}
+
+export function transformArguments(filter: Filter, options?: MGetOptions): RedisCommandArguments {
+    const args = pushLatestArgument(['TS.MGET'], options?.LATEST);
+    return pushFilterArgument(args, filter);
 }
 
 export type MGetRawReply = Array<[

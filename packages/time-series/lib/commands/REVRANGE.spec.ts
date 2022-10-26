@@ -59,7 +59,7 @@ describe('REVRANGE', () => {
                         timeBucket: 1
                     }
                 }),
-                ['TS.REVRANGE', 'key', '-', '+', 'AGGREGATION', 'avg', '1']
+                ['TS.REVRANGE', 'key', '-', '+', 'AGGREGATION', 'AVG', '1']
             );
         });
 
@@ -80,7 +80,7 @@ describe('REVRANGE', () => {
                 }),
                 [
                     'TS.REVRANGE', 'key', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE',
-                    '1', '2', 'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'avg', '1'
+                    '1', '2', 'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1'
                 ]
             );
         });

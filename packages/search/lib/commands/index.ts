@@ -1,5 +1,6 @@
 import * as _LIST from './_LIST';
 import * as ALTER from './ALTER';
+import * as AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 import * as AGGREGATE from './AGGREGATE';
 import * as ALIASADD from './ALIASADD';
 import * as ALIASDEL from './ALIASDEL';
@@ -7,6 +8,8 @@ import * as ALIASUPDATE from './ALIASUPDATE';
 import * as CONFIG_GET from './CONFIG_GET';
 import * as CONFIG_SET from './CONFIG_SET';
 import * as CREATE from './CREATE';
+import * as CURSOR_DEL from './CURSOR_DEL';
+import * as CURSOR_READ from './CURSOR_READ';
 import * as DICTADD from './DICTADD';
 import * as DICTDEL from './DICTDEL';
 import * as DICTDUMP from './DICTDUMP';
@@ -37,6 +40,8 @@ export default {
     _list: _LIST,
     ALTER,
     alter: ALTER,
+    AGGREGATE_WITHCURSOR,
+    aggregateWithCursor: AGGREGATE_WITHCURSOR,
     AGGREGATE,
     aggregate: AGGREGATE,
     ALIASADD,
@@ -51,6 +56,10 @@ export default {
     configSet: CONFIG_SET,
     CREATE,
     create: CREATE,
+    CURSOR_DEL,
+    cursorDel: CURSOR_DEL,
+    CURSOR_READ,
+    cursorRead: CURSOR_READ,
     DICTADD,
     dictAdd: DICTADD,
     DICTDEL,

@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { TimeSeriesAggregationType, TimeSeriesDuplicatePolicies } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './INFO';
+import { InfoReply, transformArguments } from './INFO';
 
 describe('INFO', () => {
     it('transformArguments', () => {
@@ -14,7 +14,7 @@ describe('INFO', () => {
     testUtils.testWithClient('client.ts.info', async client => {
         await Promise.all([
             client.ts.create('key', {
-                LABELS: { id: "2" },
+                LABELS: { id: '1' },
                 DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.LAST
             }),
             client.ts.create('key2'),
@@ -22,29 +22,32 @@ describe('INFO', () => {
             client.ts.add('key', 1, 10)
         ]);
 
-        assert.deepEqual(
-            await client.ts.info('key'),
-            {
-                totalSamples: 1,
-                memoryUsage: 4261,
-                firstTimestamp: 1,
-                lastTimestamp: 1,
-                retentionTime: 0,
-                chunkCount: 1,
-                chunkSize: 4096,
-                chunkType: 'compressed',
-                duplicatePolicy: 'last',
-                labels: [{
-                    name: 'id',
-                    value: '2'
-                }],
-                rules: [{
-                    aggregationType: 'COUNT',
-                    key: 'key2',
-                    timeBucket: 5
-                }],
-                sourceKey: null
-            }
-        );
+        assertInfo(await client.ts.info('key'));
     }, GLOBAL.SERVERS.OPEN);
 });
+
+export function assertInfo(info: InfoReply): void {
+    assert.equal(typeof info.totalSamples, 'number');
+    assert.equal(typeof info.memoryUsage, 'number');
+    assert.equal(typeof info.firstTimestamp, 'number');
+    assert.equal(typeof info.lastTimestamp, 'number');
+    assert.equal(typeof info.retentionTime, 'number');
+    assert.equal(typeof info.chunkCount, 'number');
+    assert.equal(typeof info.chunkSize, 'number');
+    assert.equal(typeof info.chunkType, 'string');
+    assert.equal(typeof info.duplicatePolicy, 'string');
+    assert.ok(Array.isArray(info.labels));
+    for (const label of info.labels) {
+        assert.equal(typeof label, 'object');
+        assert.equal(typeof label.name, 'string');
+        assert.equal(typeof label.value, 'string');
+    }
+    assert.ok(Array.isArray(info.rules));
+    for (const rule of info.rules) {
+        assert.equal(typeof rule, 'object');
+        assert.equal(typeof rule.aggregationType, 'string');
+        assert.equal(typeof rule.key, 'string');
+        assert.equal(typeof rule.timeBucket, 'number');
+    }
+    assert.ok(info.sourceKey === null || typeof info.sourceKey === 'string');
+}

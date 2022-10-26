@@ -7,12 +7,12 @@ import {
     Filter,
     pushFilterArgument
 } from '.';
-import { MGetRawReply, MGetReply } from './MGET';
+import { MGetOptions, MGetRawReply, MGetReply } from './MGET';
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const IS_READ_ONLY = true;
 
-interface MGetWithLabelsOptions {
+interface MGetWithLabelsOptions extends MGetOptions {
     SELECTED_LABELS?: SelectedLabels;
 }
 

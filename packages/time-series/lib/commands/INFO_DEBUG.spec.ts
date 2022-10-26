@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import { TimeSeriesAggregationType, TimeSeriesDuplicatePolicies } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
+import { assertInfo } from './INFO.spec';
 import { transformArguments } from './INFO_DEBUG';
 
 describe('INFO_DEBUG', () => {
@@ -14,7 +15,7 @@ describe('INFO_DEBUG', () => {
     testUtils.testWithClient('client.ts.get', async client => {
         await Promise.all([
             client.ts.create('key', {
-                LABELS: { id: "2" },
+                LABELS: { id: '1' },
                 DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.LAST
             }),
             client.ts.create('key2'),
@@ -22,37 +23,17 @@ describe('INFO_DEBUG', () => {
             client.ts.add('key', 1, 10)
         ]);
 
-        assert.deepEqual(
-            await client.ts.infoDebug('key'),
-            {
-                totalSamples: 1,
-                memoryUsage: 4261,
-                firstTimestamp: 1,
-                lastTimestamp: 1,
-                retentionTime: 0,
-                chunkCount: 1,
-                chunkSize: 4096,
-                chunkType: 'compressed',
-                duplicatePolicy: 'last',
-                labels: [{
-                    name: 'id',
-                    value: '2'
-                }],
-                sourceKey: null,
-                rules: [{
-                    aggregationType: 'COUNT',
-                    key: 'key2',
-                    timeBucket: 5
-                }],
-                keySelfName: 'key',
-                chunks: [{
-                    startTimestamp: 1,
-                    endTimestamp: 1,
-                    samples: 1,
-                    size: 4096,
-                    bytesPerSample: '4096'
-                }]
-            }
-        );
+        const infoDebug = await client.ts.infoDebug('key');
+        assertInfo(infoDebug);
+        assert.equal(typeof infoDebug.keySelfName, 'string');
+        assert.ok(Array.isArray(infoDebug.chunks));
+        for (const chunk of infoDebug.chunks) {
+            assert.equal(typeof chunk, 'object');
+            assert.equal(typeof chunk.startTimestamp, 'number');
+            assert.equal(typeof chunk.endTimestamp, 'number');
+            assert.equal(typeof chunk.samples, 'number');
+            assert.equal(typeof chunk.size, 'number');
+            assert.equal(typeof chunk.bytesPerSample, 'string');
+        }
     }, GLOBAL.SERVERS.OPEN);
 });
