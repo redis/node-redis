@@ -203,6 +203,8 @@ import * as ZREM from '../commands/ZREM';
 import * as ZREMRANGEBYLEX from '../commands/ZREMRANGEBYLEX';
 import * as ZREMRANGEBYRANK from '../commands/ZREMRANGEBYRANK';
 import * as ZREMRANGEBYSCORE from '../commands/ZREMRANGEBYSCORE';
+import * as ZREVRANGE from '../commands/ZREVRANGE';
+import * as ZREVRANGEWITHSCORES from '../commands/ZREVRANGE_WITHSCORES';
 import * as ZREVRANK from '../commands/ZREVRANK';
 import * as ZSCAN from '../commands/ZSCAN';
 import * as ZSCORE from '../commands/ZSCORE';
@@ -619,6 +621,10 @@ export default {
     zRemRangeByRank: ZREMRANGEBYRANK,
     ZREMRANGEBYSCORE,
     zRemRangeByScore: ZREMRANGEBYSCORE,
+    ZREVRANGE,
+    zRevRange: ZREVRANGE,
+    ZREVRANGEWITHSCORES,
+    zRevRangeWithScores: ZREVRANGEWITHSCORES,
     ZREVRANK,
     zRevRank: ZREVRANK,
     ZSCAN,
