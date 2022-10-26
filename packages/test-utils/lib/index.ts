@@ -1,6 +1,7 @@
 import { RedisModules, RedisFunctions, RedisScripts } from '@redis/client/lib/commands';
 import RedisClient, { RedisClientOptions, RedisClientType } from '@redis/client/lib/client';
 import RedisCluster, { RedisClusterOptions, RedisClusterType } from '@redis/client/lib/cluster';
+import { RedisSocketCommonOptions } from '@redis/client/lib/client/socket';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -21,7 +22,7 @@ interface ClientTestOptions<
     S extends RedisScripts
 > extends CommonTestOptions {
     serverArguments: Array<string>;
-    clientOptions?: Partial<RedisClientOptions<M, F, S>>;
+    clientOptions?: Partial<Omit<RedisClientOptions<M, F, S>, 'socket'> & { socket: RedisSocketCommonOptions }>;
     disableClientSetup?: boolean;
 }
 
