@@ -2,7 +2,6 @@ import { RedisClientType } from '@redis/client/dist/lib/client/index';
 import { RedisCommandArgument, RedisFunctions, RedisScripts } from '@redis/client/dist/lib/commands';
 import { QueryOptions } from './commands';
 import { QueryReply } from './commands/QUERY';
-import * as QUERY from './commands/QUERY';
 
 interface GraphMetadata {
     labels: Array<string>;
@@ -28,10 +27,8 @@ enum GraphValueTypes {
 
 type GraphEntityRawProperties = Array<[
     id: number,
-    ...rest: GraphRawValue
+    ...value: GraphRawValue
 ]>;
-
-type GraphEntityProperties = Record<string, GraphValue>;
 
 type GraphEdgeRawValue = [
     GraphValueTypes.EDGE,
@@ -97,6 +94,8 @@ type GraphRawValue = [
         longitude: string
     ]
 ];
+
+type GraphEntityProperties = Record<string, GraphValue>;
 
 interface GraphEdge {
     id: number;
@@ -208,12 +207,18 @@ export default class Graph {
         return arr.map(([value]) => value);
     }
 
-    #getMetadata<T extends keyof GraphMetadata>(key: T, id: number): GraphMetadata[T][number] | Promise<GraphMetadata[T][number]> {
+    #getMetadata<T extends keyof GraphMetadata>(
+        key: T,
+        id: number
+    ): GraphMetadata[T][number] | Promise<GraphMetadata[T][number]> {
         return this.#metadata?.[key][id] ?? this.#getMetadataAsync(key, id);
     }
 
     // DO NOT use directly, use #getMetadata instead
-    async #getMetadataAsync<T extends keyof GraphMetadata>(key: T, id: number): Promise<GraphMetadata[T][number]> {
+    async #getMetadataAsync<T extends keyof GraphMetadata>(
+        key: T,
+        id: number
+    ): Promise<GraphMetadata[T][number]> {
         const value = (await this.#updateMetadata())[key][id];
         if (value === undefined) throw new Error(`Cannot find value from ${key}[${id}]`);
         return value;
