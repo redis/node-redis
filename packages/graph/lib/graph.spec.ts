@@ -4,7 +4,7 @@ import Graph from './graph';
 
 describe('Graph', () => {
     testUtils.testWithClient('null', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN null AS key');
 
         assert.deepEqual(
@@ -14,7 +14,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('string', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN "string" AS key');
 
         assert.deepEqual(
@@ -24,7 +24,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('integer', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN 0 AS key');
 
         assert.deepEqual(
@@ -34,7 +34,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('boolean', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN false AS key');
 
         assert.deepEqual(
@@ -44,7 +44,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('double', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN 0.1 AS key');
 
         assert.deepEqual(
@@ -54,7 +54,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('array', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN [null] AS key');
 
         assert.deepEqual(
@@ -64,7 +64,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('edge', async client => {
-        const graph = new Graph(client, 'graph');
+        const graph = new Graph(client as any, 'graph');
 
         // check with and without metadata cache
         for (let i = 0; i < 2; i++) {
@@ -81,7 +81,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('node', async client => {
-        const graph = new Graph(client, 'graph');
+        const graph = new Graph(client as any, 'graph');
 
         // check with and without metadata cache
         for (let i = 0; i < 2; i++) {
@@ -95,7 +95,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('path', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             [, { data }] = await Promise.all([
                 await graph.query('CREATE ()-[:edge]->()'),
                 await graph.roQuery('MATCH path = ()-[:edge]->() RETURN path')
@@ -124,7 +124,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('map', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN { key: "value" } AS map');
 
         assert.deepEqual(data, [{
@@ -135,7 +135,7 @@ describe('Graph', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('point', async client => {
-        const graph = new Graph(client, 'graph'),
+        const graph = new Graph(client as any, 'graph'),
             { data } = await graph.roQuery('RETURN point({ latitude: 1, longitude: 2 }) AS point');
 
         assert.deepEqual(data, [{
