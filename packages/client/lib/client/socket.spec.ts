@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { SinonFakeTimers, useFakeTimers, spy } from 'sinon';
+import { spy } from 'sinon';
 import RedisSocket, { RedisSocketOptions } from './socket';
 
 describe('Socket', () => {
@@ -9,37 +9,34 @@ describe('Socket', () => {
             options
         );
 
-        socket.on('error', (err) => {
+        socket.on('error', () => {
             // ignore errors
-            console.log(err);
         });
 
         return socket;
     }
 
     describe('reconnectStrategy', () => {
-        let clock: SinonFakeTimers;
-        beforeEach(() => clock = useFakeTimers());
-        afterEach(() => clock.restore());
-
         it('custom strategy', async () => {
+            const numberOfRetries = 10;
+
             const reconnectStrategy = spy((retries: number) => {
                 assert.equal(retries + 1, reconnectStrategy.callCount);
 
-                if (retries === 50) return new Error('50');
+                if (retries === numberOfRetries) return new Error(`${numberOfRetries}`);
 
                 const time = retries * 2;
-                queueMicrotask(() => clock.tick(time));
                 return time;
             });
 
             const socket = createSocket({
                 host: 'error',
+                connectTimeout: 1,
                 reconnectStrategy
             });
 
             await assert.rejects(socket.connect(), {
-                message: '50'
+                message: `${numberOfRetries}`
             });
 
             assert.equal(socket.isOpen, false);
@@ -48,9 +45,9 @@ describe('Socket', () => {
         it('should handle errors', async () => {
             const socket = createSocket({
                 host: 'error',
+                connectTimeout: 1,
                 reconnectStrategy(retries: number) {
                     if (retries === 1) return new Error('done');
-                    queueMicrotask(() => clock.tick(500));
                     throw new Error();
                 }
             });
