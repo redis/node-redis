@@ -825,6 +825,15 @@ input[type="checkbox"]:checked ~ svg .tsd-checkbox-checkmark {
     padding-left: 5.5rem;
 }
 
+#tsd-sidebar-links a {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    line-height: 1.25rem;
+}
+#tsd-sidebar-links a:last-of-type {
+    margin-bottom: 0;
+}
+
 a.tsd-index-link {
     margin: 0.25rem 0;
     font-size: 1rem;
@@ -978,7 +987,8 @@ a.tsd-index-link {
     right: -40px;
 }
 #tsd-search .field input,
-#tsd-search .title {
+#tsd-search .title,
+#tsd-toolbar-links a {
     transition: opacity 0.2s;
 }
 #tsd-search .results {
@@ -1022,7 +1032,8 @@ a.tsd-index-link {
     top: 0;
     opacity: 1;
 }
-#tsd-search.has-focus .title {
+#tsd-search.has-focus .title,
+#tsd-search.has-focus #tsd-toolbar-links a {
     z-index: 0;
     opacity: 0;
 }
@@ -1034,6 +1045,22 @@ a.tsd-index-link {
 }
 #tsd-search.failure .results li.state.failure {
     display: block;
+}
+
+#tsd-toolbar-links {
+    position: absolute;
+    top: 0;
+    right: 2rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+#tsd-toolbar-links a {
+    margin-left: 1.5rem;
+}
+#tsd-toolbar-links a:hover {
+    text-decoration: underline;
 }
 
 .tsd-signature {
@@ -1124,6 +1151,7 @@ ul.tsd-type-parameter-list h5 {
     display: flex;
     justify-content: space-between;
     height: 2.5rem;
+    margin: 0 auto;
 }
 .tsd-page-toolbar .table-cell {
     position: relative;
@@ -1132,6 +1160,11 @@ ul.tsd-type-parameter-list h5 {
 }
 .tsd-page-toolbar .table-cell:first-child {
     width: 100%;
+}
+.tsd-page-toolbar .tsd-toolbar-icon {
+    box-sizing: border-box;
+    line-height: 0;
+    padding: 12px 0;
 }
 
 .tsd-page-toolbar--hide {
