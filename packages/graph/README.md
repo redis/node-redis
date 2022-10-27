@@ -9,20 +9,24 @@ client.on('error', (err) => console.log('Redis Client Error', err));
 
 await client.connect();
 
-const graph = new Graph('graph', client);
+const graph = new Graph(client, 'graph');
 
 await graph.query(
-  'graph',
-  'CREATE (:Rider { name: "Buzz Aldrin" })-[:rides]->(:Team { name: "Apollo" })'
+  'CREATE (:Rider { name: $riderName })-[:rides]->(:Team { name: $teamName })',
+  {
+    params: {
+      riderName: 'Buzz Aldrin',
+      teamName: 'Apollo'
+    }
+  }
 );
 
 const result = await graph.roQuery(
-  'MATCH (r:Rider)-[:rides]->(t:Team { name: "Apollo" }) RETURN r.name AS riderName, t.name AS teamName'
+  'MATCH (r:Rider)-[:rides]->(t:Team { name: $name }) RETURN r.name AS name',
+  {
+    name: 'Apollo'
+  }
 );
 
-console.log(result.data);
-// [{
-//   riderName: 'Buzz Aldrin',
-//   teamName: 'Apollo'
-// }]
+console.log(result.data); // [{ name: 'Buzz Aldrin' }]
 ```
