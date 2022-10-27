@@ -10,28 +10,12 @@ describe('TDIGEST.MAX', () => {
         );
     });
 
-    describe('transformReply', () => {
-        it('DBL_MIN', () => {
-            assert.equal(
-                transformReply('DBL_MIN'),
-                -Infinity
-            );
-        });
-
-        it('0', () => {
-            assert.equal(
-                transformReply('0'),
-                0
-            );
-        });
-    });
-
     testUtils.testWithClient('client.tDigest.max', async client => {
         const [ , reply ] = await Promise.all([
             client.tDigest.create('key'),
             client.tDigest.max('key')
         ]);
 
-        assert.equal(reply, -Infinity);
+        assert.deepEqual(reply, NaN);
     }, GLOBAL.SERVERS.OPEN);
 });

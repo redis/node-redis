@@ -2,33 +2,16 @@ import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/
 
 export const FIRST_KEY_INDEX = 1;
 
-interface TDigestItem {
-    value: number;
-    weight: number;
-}
-
 export function transformArguments(
     key: RedisCommandArgument,
-    items: TDigestItem | Array<TDigestItem>
+    values: Array<number>
 ): RedisCommandArguments {
     const args = ['TDIGEST.ADD', key];
-
-    if (Array.isArray(items)) {
-        for (const item of items) {
-            pushItem(args, item);
-        }
-    } else {
-        pushItem(args, items);
+    for (const item of values) {
+        args.push(item.toString());
     }
 
     return args;
-}
-
-function pushItem(args: RedisCommandArguments, item: TDigestItem) {
-    args.push(
-        item.value.toString(),
-        item.weight.toString()
-    );
 }
 
 export declare function transformReply(): 'OK';

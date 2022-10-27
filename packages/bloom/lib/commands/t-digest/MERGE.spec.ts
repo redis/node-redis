@@ -8,20 +8,38 @@ describe('TDIGEST.MERGE', () => {
             it('string', () => {
                 assert.deepEqual(
                     transformArguments('dest', 'src'),
-                    ['TDIGEST.MAX', 'dest', 'src']
+                    ['TDIGEST.MERGE', 'dest', 'src']
                 );
             });
 
             it('Array', () => {
                 assert.deepEqual(
                     transformArguments('dest', ['1', '2']),
-                    ['TDIGEST.MAX', 'dest', '1,' , '2']
+                    ['TDIGEST.MERGE', 'dest', '1,' , '2']
                 );
             });
         });
+
+        it('with COMPRESSION', () => {
+            assert.deepEqual(
+                transformArguments('dest', 'src', {
+                    COMPRESSION: 100
+                }),
+                ['TDIGEST.MERGE', 'dest', 'src', 'COMPRESSION', '100']
+            );
+        });
+
+        it('with OVERRIDE', () => {
+            assert.deepEqual(
+                transformArguments('dest', 'src', {
+                    OVERRIDE: true
+                }),
+                ['TDIGEST.MERGE', 'dest', 'src', 'OVERRIDE']
+            );
+        });
     });
 
-    testUtils.testWithClient('client.tDigest.max', async client => {
+    testUtils.testWithClient('client.tDigest.merge', async client => {
         const [ , reply ] = await Promise.all([
             client.tDigest.create('src'),
             client.tDigest.merge('dest', 'src')

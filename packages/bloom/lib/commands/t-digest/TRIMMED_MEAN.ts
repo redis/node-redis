@@ -17,8 +17,4 @@ export function transformArguments(
     ];
 }
 
-type TrimmedMinRawReply = `${'DBL_MAX' | number}`;
-
-export function transformReply(reply: TrimmedMinRawReply): number {
-    return reply === 'DBL_MAX' ? Infinity : Number(reply);
-}
+export { transformDoubleReply as transformReply } from '.';

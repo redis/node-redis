@@ -12,7 +12,7 @@ describe('TDIGEST.RESET', () => {
 
     testUtils.testWithClient('client.tDigest.reset', async client => {
         const [, reply] = await Promise.all([
-            client.tDigest.create('key', 100),
+            client.tDigest.create('key'),
             client.tDigest.reset('key')
         ]);
 

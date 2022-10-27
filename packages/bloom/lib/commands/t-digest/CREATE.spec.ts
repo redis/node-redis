@@ -11,17 +11,19 @@ describe('TDIGEST.CREATE', () => {
             );
         });
 
-        it('with compression', () => {
+        it('with COMPRESSION', () => {
             assert.deepEqual(
-                transformArguments('key', 100),
-                ['TDIGEST.CREATE', 'key', '100']
+                transformArguments('key', {
+                    COMPRESSION: 100
+                }),
+                ['TDIGEST.CREATE', 'key', 'COMPRESSION', '100']
             );
         });
     });
 
     testUtils.testWithClient('client.tDigest.create', async client => {
         assert.equal(
-            await client.tDigest.create('key', 100),
+            await client.tDigest.create('key'),
             'OK'
         );
     }, GLOBAL.SERVERS.OPEN);

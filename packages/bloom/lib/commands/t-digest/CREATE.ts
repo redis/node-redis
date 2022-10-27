@@ -1,21 +1,16 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CompressionOption, pushCompressionArgument } from '.';
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    compression?: number
+    options?: CompressionOption
 ): RedisCommandArguments {
-    const args = [
-        'TDIGEST.CREATE',
-        key
-    ];
-
-    if (compression) {
-        args.push(compression.toString());
-    }
-
-    return args;
+    return pushCompressionArgument(
+        ['TDIGEST.CREATE', key],
+        options
+    );
 }
 
 export declare function transformReply(): 'OK';

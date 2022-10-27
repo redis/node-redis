@@ -1,21 +1,21 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './CDF';
+import { transformArguments } from './BYREVRANK';
 
-describe('TDIGEST.CDF', () => {
+describe('TDIGEST.BYREVRANK', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', [1, 2]),
-            ['TDIGEST.CDF', 'key', '1', '2']
+            ['TDIGEST.BYREVRANK', 'key', '1', '2']
         );
     });
 
-    testUtils.testWithClient('client.tDigest.cdf', async client => {
+    testUtils.testWithClient('client.tDigest.byRevRank', async client => {
         const [ , reply ] = await Promise.all([
             client.tDigest.create('key'),
-            client.tDigest.cdf('key', [1])
+            client.tDigest.byRevRank('key', [1])
         ]);
 
-        assert.deepEqual(reply, [NaN]);
+        assert.deepEqual(reply, [-2]);
     }, GLOBAL.SERVERS.OPEN);
 });

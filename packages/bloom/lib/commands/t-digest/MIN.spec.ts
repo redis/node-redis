@@ -10,22 +10,6 @@ describe('TDIGEST.MIN', () => {
         );
     });
 
-    describe('transformReply', () => {
-        it('DBL_MAX', () => {
-            assert.equal(
-                transformReply('DBL_MAX'),
-                Infinity
-            );
-        });
-
-        it('0', () => {
-            assert.equal(
-                transformReply('0'),
-                0
-            );
-        });
-    });
-
     testUtils.testWithClient('client.tDigest.min', async client => {
         const [ , reply ] = await Promise.all([
             client.tDigest.create('key'),

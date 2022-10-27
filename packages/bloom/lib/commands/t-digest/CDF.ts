@@ -6,15 +6,14 @@ export const IS_READ_ONLY = true;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    value: number
+    values: Array<number>
 ): RedisCommandArguments {
-    return [
-        'TDIGEST.CDF',
-        key,
-        value.toString()
-    ];
+    const args = ['TDIGEST.CDF', key];
+    for (const item of values) {
+        args.push(item.toString());
+    }
+
+    return args;
 }
 
-export function transformReply(reply: string): number {
-    return reply === 'nan' ? NaN : Number(reply);
-}
+export { transformDoublesReply as transformReply } from '.';

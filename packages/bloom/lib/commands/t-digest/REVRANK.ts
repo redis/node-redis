@@ -6,18 +6,14 @@ export const IS_READ_ONLY = true;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    quantiles: Array<number>
+    values: Array<number>
 ): RedisCommandArguments {
-    const args = [
-        'TDIGEST.QUANTILE',
-        key
-    ];
-
-    for (const quantile of quantiles) {
-        args.push(quantile.toString());
+    const args = ['TDIGEST.REVRANK', key];
+    for (const item of values) {
+        args.push(item.toString());
     }
 
     return args;
 }
 
-export { transformDoublesReply as transformReply } from '.';
+export declare function transformReply(): Array<number>;

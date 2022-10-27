@@ -6,15 +6,11 @@ export const IS_READ_ONLY = true;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    quantiles: Array<number>
+    ranks: Array<number>
 ): RedisCommandArguments {
-    const args = [
-        'TDIGEST.QUANTILE',
-        key
-    ];
-
-    for (const quantile of quantiles) {
-        args.push(quantile.toString());
+    const args = ['TDIGEST.BYRANK', key];
+    for (const rank of ranks) {
+        args.push(rank.toString());
     }
 
     return args;
