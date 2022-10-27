@@ -16,6 +16,6 @@ describe('TDIGEST.MIN', () => {
             client.tDigest.min('key')
         ]);
 
-        assert.equal(reply, Infinity);
+        assert.equal(reply, NaN);
     }, GLOBAL.SERVERS.OPEN);
 });

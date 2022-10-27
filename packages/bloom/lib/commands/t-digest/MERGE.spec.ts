@@ -8,14 +8,14 @@ describe('TDIGEST.MERGE', () => {
             it('string', () => {
                 assert.deepEqual(
                     transformArguments('dest', 'src'),
-                    ['TDIGEST.MERGE', 'dest', 'src']
+                    ['TDIGEST.MERGE', 'dest', '1', 'src']
                 );
             });
 
             it('Array', () => {
                 assert.deepEqual(
                     transformArguments('dest', ['1', '2']),
-                    ['TDIGEST.MERGE', 'dest', '1,' , '2']
+                    ['TDIGEST.MERGE', 'dest', '2', '1', '2']
                 );
             });
         });
@@ -25,7 +25,7 @@ describe('TDIGEST.MERGE', () => {
                 transformArguments('dest', 'src', {
                     COMPRESSION: 100
                 }),
-                ['TDIGEST.MERGE', 'dest', 'src', 'COMPRESSION', '100']
+                ['TDIGEST.MERGE', 'dest', '1', 'src', 'COMPRESSION', '100']
             );
         });
 
@@ -34,7 +34,7 @@ describe('TDIGEST.MERGE', () => {
                 transformArguments('dest', 'src', {
                     OVERRIDE: true
                 }),
-                ['TDIGEST.MERGE', 'dest', 'src', 'OVERRIDE']
+                ['TDIGEST.MERGE', 'dest', '1', 'src', 'OVERRIDE']
             );
         });
     });

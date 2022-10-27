@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { CompressionOption, pushCompressionArgument } from '.';
 
 export const FIRST_KEY_INDEX = 1;
@@ -13,12 +13,12 @@ export function transformArguments(
     srcKeys: RedisCommandArgument | Array<RedisCommandArgument>,
     options?: MergeOptions
 ): RedisCommandArguments {
-    const args = pushVerdictArguments(
+    const args = pushVerdictArgument(
         ['TDIGEST.MERGE', destKey],
         srcKeys
     );
 
-    pushCompressionArgument(args);
+    pushCompressionArgument(args, options);
 
     if (options?.OVERRIDE) {
         args.push('OVERRIDE');

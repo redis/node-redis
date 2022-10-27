@@ -12,7 +12,7 @@ describe('pushCompressionArgument', () => {
     it('100', () => {
         assert.deepEqual(
             pushCompressionArgument([], { COMPRESSION: 100 }),
-            ['COMPRESSION', 100]
+            ['COMPRESSION', '100']
         );
     });
 });

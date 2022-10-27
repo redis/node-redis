@@ -16,6 +16,6 @@ describe('TDIGEST.BYRANK', () => {
             client.tDigest.byRank('key', [1])
         ]);
 
-        assert.deepEqual(reply, [-2]);
+        assert.deepEqual(reply, [NaN]);
     }, GLOBAL.SERVERS.OPEN);
 });

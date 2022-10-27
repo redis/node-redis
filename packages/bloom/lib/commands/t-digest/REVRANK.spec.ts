@@ -11,9 +11,11 @@ describe('TDIGEST.REVRANK', () => {
     });
 
     testUtils.testWithClient('client.tDigest.revRank', async client => {
-        assert.equal(
-            await client.tDigest.revRank('key', [1]),
-            [-2]
-        );
+        const [ , reply ] = await Promise.all([
+            client.tDigest.create('key'),
+            client.tDigest.revRank('key', [1])
+        ]);
+
+        assert.deepEqual(reply, [-2]);
     }, GLOBAL.SERVERS.OPEN);
 });
