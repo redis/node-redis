@@ -1,11 +1,13 @@
-import Bloom from './bloom';
-import CountMinSketch from './count-min-sketch';
-import Cuckoo from './cuckoo';
-import TopK from './top-k';
+import bf from './bloom';
+import cms from './count-min-sketch';
+import cf from './cuckoo';
+import tDigest from './t-digest';
+import topK from './top-k';
 
 export default {
-    bf: Bloom,
-    cms: CountMinSketch,
-    cf: Cuckoo,
-    topK: TopK
+    bf,
+    cms,
+    cf,
+    tDigest,
+    topK
 };
