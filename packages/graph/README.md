@@ -2,34 +2,31 @@
 
 Example usage:
 ```javascript
-import { createClient } from 'redis';
+import { createClient, Graph } from 'redis';
 
 const client = createClient();
 client.on('error', (err) => console.log('Redis Client Error', err));
 
 await client.connect();
 
-await client.graph.query(
-  'graph',
-  "CREATE (:Rider { name: 'Buzz Aldrin' })-[:rides]->(:Team { name: 'Apollo' })"
+const graph = new Graph(client, 'graph');
+
+await graph.query(
+  'CREATE (:Rider { name: $riderName })-[:rides]->(:Team { name: $teamName })',
+  {
+    params: {
+      riderName: 'Buzz Aldrin',
+      teamName: 'Apollo'
+    }
+  }
 );
 
-const result = await client.graph.query(
-  'graph',
-  `MATCH (r:Rider)-[:rides]->(t:Team) WHERE t.name = 'Apollo' RETURN r.name, t.name`
+const result = await graph.roQuery(
+  'MATCH (r:Rider)-[:rides]->(t:Team { name: $name }) RETURN r.name AS name',
+  {
+    name: 'Apollo'
+  }
 );
 
-console.log(result);
-```
-
-Output from console log:
-```json
-{
-  headers: [ 'r.name', 't.name' ],
-  data: [ [ 'Buzz Aldrin', 'Apollo' ] ],
-  metadata: [
-    'Cached execution: 0',
-    'Query internal execution time: 0.431700 milliseconds'
-  ]
-}
+console.log(result.data); // [{ name: 'Buzz Aldrin' }]
 ```
