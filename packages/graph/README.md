@@ -24,7 +24,9 @@ await graph.query(
 const result = await graph.roQuery(
   'MATCH (r:Rider)-[:rides]->(t:Team { name: $name }) RETURN r.name AS name',
   {
-    name: 'Apollo'
+    params: {
+      name: 'Apollo'
+    }
   }
 );
 
