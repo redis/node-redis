@@ -5,7 +5,6 @@ import { RedisSocketCommonOptions } from '@redis/client/lib/client/socket';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { Test } from 'mocha';
 
 interface TestUtilsConfig {
     dockerImageName: string;

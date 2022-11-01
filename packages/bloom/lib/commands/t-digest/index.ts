@@ -68,7 +68,6 @@ export function transformDoubleReply(reply: string): number {
         case '-inf':
             return -Infinity;
 
-        // TODO
         case 'nan':
             return NaN;
 
