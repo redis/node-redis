@@ -8,11 +8,11 @@ To use these extra commands, your Redis server must have the RedisTimeSeries mod
 
 For a complete example, see [`time-series.js`](https://github.com/redis/node-redis/blob/master/examples/time-series.js) in the Node Redis examples folder.
 
-### Creating TimeSeries data structure in Redis
+### Creating Time Series data structure in Redis
 
 The [`TS.CREATE`](https://oss.redis.com/redistimeseries/commands/#tscreate) command creates a new time series.
 
-Here, we'll create a new timeseries "`temperature`":
+Here, we'll create a new time series "`temperature`":
 
 ```javascript
 
@@ -36,9 +36,9 @@ import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationT
 
 ```
 
-### Adding new value to TimeSeries data structure in Redis
+### Adding new value to a Time Series data structure in Redis
 
-With RedisTimeSeries, we add single value to time series data structure using the [`TS.ADD`]() command and if we would like to add multiple values we can use the [`TS.MADD`]() command 
+With RedisTimeSeries, we can add a single value to time series data structure using the [`TS.ADD`](https://redis.io/commands/ts.add/) command and if we would like to add multiple values we can use the [`TS.MADD`](https://redis.io/commands/ts.madd/) command.
 
 ```javascript
 
@@ -72,9 +72,9 @@ let value = Math.floor(Math.random() * 1000) + 1; // Random data point value
 
 ```
 
-### Retrieving TimeSeries data from Redis
+### Retrieving Time Series data from Redis
 
-With RedisTimeSeries, we can retrieve the timeseries data using the [`TS.RANGE`]() command by passing the criteria
+With RedisTimeSeries, we can retrieve the time series data using the [`TS.RANGE`](https://redis.io/commands/ts.range/) command by passing the criteria as follows:
 
 ```javascript
 
@@ -104,11 +104,11 @@ With RedisTimeSeries, we can retrieve the timeseries data using the [`TS.RANGE`]
 
 ```
 
-### Altering the timeseries data Stored in Redis
+### Altering Time Series data Stored in Redis
 
-RedisTimeSeries includes commands that can update values in a time series data structure
+RedisTimeSeries includes commands that can update values in a time series data structure.
 
-Using the [`TS.ALTER`](https://oss.redis.com/redistimeseries/commands/#tsalter) command, we can update timeseries retention like this:
+Using the [`TS.ALTER`](https://redis.io/commands/ts.alter/) command, we can update time series retention like this:
 
 ```javascript
 
@@ -121,9 +121,9 @@ Using the [`TS.ALTER`](https://oss.redis.com/redistimeseries/commands/#tsalter) 
 
 ### Retrieving Information about the timeseries Stored in Redis
 
-RedisTimeSeries includes commands that can help to view the information on timeseries
+RedisTimeSeries also includes commands that can help to view the information on the state of a time series.
 
-Using the [`TS.INFO`](https://oss.redis.com/redistimeseries/commands/#tsinfo) command, we can view timeseries information like this:
+Using the [`TS.INFO`](https://redis.io/commands/ts.info/) command, we can view timeseries information like this:
 
 ```javascript
 
