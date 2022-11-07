@@ -863,17 +863,15 @@ describe('Client', () => {
         client.ref();
     }, GLOBAL.SERVERS.OPEN);
 
-    describe.only('', () => {
-        testUtils.testWithClient('pingInterval', async client => {
-            assert.deepEqual(
-                await once(client, 'ping-interval'),
-                ['PONG']
-            );
-        }, {
-            ...GLOBAL.SERVERS.OPEN,
-            clientOptions: {
-                pingInterval: 1
-            }
-        });
+    testUtils.testWithClient('pingInterval', async client => {
+        assert.deepEqual(
+            await once(client, 'ping-interval'),
+            ['PONG']
+        );
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+            pingInterval: 1
+        }
     });
 });

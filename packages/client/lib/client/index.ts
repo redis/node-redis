@@ -355,11 +355,11 @@ export default class RedisClient<
     #pingTimer?: NodeJS.Timer;
 
     #setPingTimer(): void {
-        if (!this.#options?.pingInterval || !this.#socket.isOpen) return;
+        if (!this.#options?.pingInterval || !this.#socket.isReady) return;
         clearTimeout(this.#pingTimer);
 
         this.#pingTimer = setTimeout(() => {
-            if (!this.#socket.isOpen) return;
+            if (!this.#socket.isReady) return;
 
             (this as unknown as RedisClientType<M, F, S>).ping()
                 .then(reply => this.emit('ping-interval', reply))
