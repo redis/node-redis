@@ -284,10 +284,10 @@ export default class RedisClient<
             })
             .on('connect', () => {
                 this.emit('connect');
-                this.#setPingTimer();
             })
             .on('ready', () => {
                 this.emit('ready');
+                this.#setPingTimer();
                 this.#tick();
             })
             .on('reconnecting', () => this.emit('reconnecting'))
