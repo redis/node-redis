@@ -862,4 +862,16 @@ describe('Client', () => {
         client.unref();
         client.ref();
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('pingInterval', async client => {
+        assert.deepEqual(
+            await once(client, 'ping-interval'),
+            ['PONG']
+        );
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+            pingInterval: 1
+        }
+    });
 });

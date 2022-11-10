@@ -31,6 +31,7 @@ export interface RedisClientOptions<
     readonly?: boolean;
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
+    pingInterval?: number;
 }
 
 type WithCommands = {
@@ -281,9 +282,12 @@ export default class RedisClient<
                     this.#queue.flushAll(err);
                 }
             })
-            .on('connect', () => this.emit('connect'))
+            .on('connect', () => {
+                this.emit('connect');
+            })
             .on('ready', () => {
                 this.emit('ready');
+                this.#setPingTimer();
                 this.#tick();
             })
             .on('reconnecting', () => this.emit('reconnecting'))
@@ -346,6 +350,22 @@ export default class RedisClient<
         this.#v4[name] = (this as any)[name].bind(this);
         (this as any)[name] =
             (...args: Array<unknown>): void => (this as any).sendCommand(name, ...args);
+    }
+
+    #pingTimer?: NodeJS.Timer;
+
+    #setPingTimer(): void {
+        if (!this.#options?.pingInterval || !this.#socket.isReady) return;
+        clearTimeout(this.#pingTimer);
+
+        this.#pingTimer = setTimeout(() => {
+            if (!this.#socket.isReady) return;
+
+            (this as unknown as RedisClientType<M, F, S>).ping()
+                .then(reply => this.emit('ping-interval', reply))
+                .catch(err => this.emit('error', err))
+                .finally(() => this.#setPingTimer());
+        }, this.#options.pingInterval);
     }
 
     duplicate(overrides?: Partial<RedisClientOptions<M, F, S>>): RedisClientType<M, F, S> {
