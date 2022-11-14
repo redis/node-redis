@@ -225,7 +225,12 @@ export default class RedisSocket extends EventEmitter {
             throw new ClientClosedError();
         }
 
-        this.#isOpen = this.#isReady = false;
+        this.#isOpen = false;
+        this.#disconnect();
+    }
+
+    #disconnect(): void {
+        this.#isReady = false;
 
         if (this.#socket) {
             this.#socket.destroy();
@@ -242,7 +247,7 @@ export default class RedisSocket extends EventEmitter {
 
         this.#isOpen = false;
         await fn();
-        this.disconnect();
+        this.#disconnect();
     }
 
     #isCorked = false;
