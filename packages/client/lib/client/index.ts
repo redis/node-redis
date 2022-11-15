@@ -619,12 +619,14 @@ export default class RedisClient<
         return this.#isolationPool.use(fn);
     }
 
-    multi(): RedisClientMultiCommandType<M, F, S> {
+    MULTI(): RedisClientMultiCommandType<M, F, S> {
         return new (this as any).Multi(
             this.multiExecutor.bind(this),
             this.#options?.legacyMode
         );
     }
+
+    multi = this.MULTI;
 
     async multiExecutor(
         commands: Array<RedisMultiQueuedCommand>,
