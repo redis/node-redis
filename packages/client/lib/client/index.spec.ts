@@ -3,7 +3,7 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
-import { AbortError, ClientClosedError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
@@ -873,5 +873,21 @@ describe('Client', () => {
         clientOptions: {
             pingInterval: 1
         }
+    });
+
+    testUtils.testWithClient('should reject commands in connect phase when `disableOfflineQueue`', async client => {
+        const connectPromise = client.connect();
+        await assert.rejects(
+            client.ping(),
+            ClientOfflineError
+        );
+        await connectPromise;
+        await client.disconnect();
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+            disableOfflineQueue: true
+        },
+        disableClientSetup: true
     });
 });
