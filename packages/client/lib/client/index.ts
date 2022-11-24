@@ -11,7 +11,7 @@ import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
 import { attachCommands, attachExtensions, fCallArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ClientClosedError, DisconnectsClientError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 
@@ -405,16 +405,16 @@ export default class RedisClient<
     ): Promise<T> {
         if (!this.#socket.isOpen) {
             return Promise.reject(new ClientClosedError());
-        }
-
-        if (options?.isolated) {
+        } else if (options?.isolated) {
             return this.executeIsolated(isolatedClient =>
                 isolatedClient.sendCommand(args, {
                     ...options,
                     isolated: false
                 })
             );
-        }
+        } else if (!this.#socket.isReady && this.#options?.disableOfflineQueue) {
+            return Promise.reject(new ClientOfflineError());
+        } 
 
         const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
