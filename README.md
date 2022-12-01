@@ -51,6 +51,7 @@ await client.connect();
 
 await client.set('key', 'value');
 const value = await client.get('key');
+await client.del('key');
 await client.disconnect();
 ```
 
