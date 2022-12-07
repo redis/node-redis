@@ -6,6 +6,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `blocking-list-pop.js`                   | Block until an element is pushed to a list.                                                                                                          |
 | `bloom-filter.js`                        | Space efficient set membership checks with a [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter) using [RedisBloom](https://redisbloom.io).   |
+| `check-connection-status.js`             | Check the client's connection status.                                                                                                                |
 | `command-with-modifiers.js`              | Define a script that allows to run a command with several modifiers.                                                                                 |
 | `connect-as-acl-user.js`                 | Connect to Redis 6 using an ACL user.                                                                                                                |
 | `connect-to-cluster.js`                  | Connect to a Redis cluster.                                                                                                                          |
