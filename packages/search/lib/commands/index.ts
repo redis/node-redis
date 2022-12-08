@@ -134,8 +134,8 @@ export enum RedisSearchLanguages {
 
 export type PropertyName = `${'@' | '$.'}${string}`;
 
-export type SortByProperty = PropertyName | {
-    BY: PropertyName;
+export type SortByProperty = string | {
+    BY: string;
     DIRECTION?: 'ASC' | 'DESC';
 };
 
