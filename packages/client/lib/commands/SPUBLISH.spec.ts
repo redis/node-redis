@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './SPUBLISH';
 
 describe('SPUBLISH', () => {
+    testUtils.isVersionGreaterThanHook([7]);
+    
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('channel', 'message'),
