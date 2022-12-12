@@ -675,7 +675,7 @@ describe('Client', () => {
         );
     }, GLOBAL.SERVERS.OPEN);
 
-    describe.only('PubSub', () => {
+    describe('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
             function assertStringListener(message: string, channel: string) {
                 assert.equal(typeof message, 'string');
