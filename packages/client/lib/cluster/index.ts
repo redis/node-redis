@@ -6,6 +6,7 @@ import { attachExtensions, transformCommandReply, attachCommands, transformComma
 import { EventEmitter } from 'events';
 import RedisClusterMultiCommand, { InstantiableRedisClusterMultiCommandType, RedisClusterMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
+import { PubSubListener } from '../client/pub-sub';
 
 export type RedisClusterClientOptions = Omit<
     RedisClientOptions,
@@ -238,6 +239,16 @@ export default class RedisCluster<
     }
 
     multi = this.MULTI;
+
+    SSUBSCRIBE<T extends boolean>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ): Promise<void> {
+        
+    }
+
+    sSubscribe = this.SSUBSCRIBE;
 
     getMasters(): Array<ClusterNode<M, F, S>> {
         return this.#slots.getMasters();

@@ -802,6 +802,68 @@ describe('Client', () => {
 
             assert.equal(client.isOpen, false);
         }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('shareded PubSub', async publisher => {
+            const subscriber = publisher.duplicate();
+
+            await subscriber.connect();
+
+            try {
+                const listener = spy();
+                await subscriber.sSubscribe('channel', listener);
+
+                await Promise.all([
+                    waitTillBeenCalled(listener),
+                    publisher.sPublish('channel', 'message')
+                ]);
+
+                assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+
+                await subscriber.sUnsubscribe();
+
+                // should be able to send commands
+                await assert.doesNotReject(subscriber.ping());
+            } finally {
+                await subscriber.disconnect();
+            }
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should be able to handle errors in SUBSCRIBE', async publisher => {
+            const subscriber = publisher.duplicate();
+
+            await subscriber.connect();
+
+            try {
+                const listener1 = spy();
+                await subscriber.subscribe('1', listener1);
+
+                await publisher.aclSetUser('default', 'resetchannels');
+
+
+                const listener2 = spy();
+                await assert.rejects(subscriber.subscribe('2', listener2));
+                
+                await Promise.all([
+                    waitTillBeenCalled(listener1),
+                    publisher.aclSetUser('default', 'allchannels'),
+                    publisher.publish('1', 'message'),
+                ]);
+                assert.ok(listener1.calledOnceWithExactly('message', '1'));
+                
+                await subscriber.subscribe('2', listener2);
+
+                await Promise.all([
+                    waitTillBeenCalled(listener2),
+                    publisher.publish('2', 'message'),
+                ]);
+                assert.ok(listener2.calledOnceWithExactly('message', '2'));
+            } finally {
+                await subscriber.disconnect();
+            }
+        }, {
+            // this test change ACL rules, running in isolated server
+            ...GLOBAL.SERVERS.OPEN
+        });
     });
 
     testUtils.testWithClient('ConnectionTimeoutError', async client => {
