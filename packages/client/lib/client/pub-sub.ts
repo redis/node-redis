@@ -10,17 +10,17 @@ export enum PubSubType {
 }
 
 const COMMANDS = {
-    [PubSubTypes.CHANNELS]: {
+    [PubSubType.CHANNELS]: {
         subscribe: Buffer.from('subscribe'),
         unsubscribe: Buffer.from('unsubscribe'),
         message: Buffer.from('message')
     },
-    [PubSubTypes.PATTERNS]: {
+    [PubSubType.PATTERNS]: {
         subscribe: Buffer.from('psubscribe'),
         unsubscribe: Buffer.from('punsubscribe'),
         message: Buffer.from('pmessage')
     },
-    [PubSubTypes.SHARDED]: {
+    [PubSubType.SHARDED]: {
         subscribe: Buffer.from('ssubscribe'),
         unsubscribe: Buffer.from('sunsubscribe'),
         message: Buffer.from('smessage')
@@ -72,7 +72,7 @@ export class PubSub {
     };
 
     subscribe<T extends boolean>(
-        type: PubSubTypes,
+        type: PubSubType,
         channels: string | Array<string>,
         listener: PubSubListener<T>,
         returnBuffers?: T
@@ -132,7 +132,7 @@ export class PubSub {
     }
     
     unsubscribe<T extends boolean>(
-        type: PubSubTypes,
+        type: PubSubType,
         channels?: string | Array<string>,
         listener?: PubSubListener<T>,
         returnBuffers?: T
@@ -246,7 +246,7 @@ export class PubSub {
             this.#subscribing++;
             commands.push({
                 args: [
-                    COMMANDS[type as PubSubTypes].subscribe,
+                    COMMANDS[type as PubSubType].subscribe,
                     ...listeners.keys()
                 ],
                 channelsCounter: listeners.size,
@@ -258,24 +258,24 @@ export class PubSub {
     }
 
     handleMessageReply(reply: Array<Buffer>): boolean {
-        if (COMMANDS[PubSubTypes.CHANNELS].message.equals(reply[0])) {
+        if (COMMANDS[PubSubType.CHANNELS].message.equals(reply[0])) {
             this.#emitPubSubMessage(
-                PubSubTypes.CHANNELS,
+                PubSubType.CHANNELS,
                 reply[2],
                 reply[1]
             );
             return true;
-        } else if (COMMANDS[PubSubTypes.PATTERNS].message.equals(reply[0])) {
+        } else if (COMMANDS[PubSubType.PATTERNS].message.equals(reply[0])) {
             this.#emitPubSubMessage(
-                PubSubTypes.PATTERNS,
+                PubSubType.PATTERNS,
                 reply[3],
                 reply[2],
                 reply[1]
             );
             return true;
-        } else if (COMMANDS[PubSubTypes.SHARDED].message.equals(reply[0])) {
+        } else if (COMMANDS[PubSubType.SHARDED].message.equals(reply[0])) {
             this.#emitPubSubMessage(
-                PubSubTypes.SHARDED,
+                PubSubType.SHARDED,
                 reply[2],
                 reply[1]
             );
@@ -286,7 +286,7 @@ export class PubSub {
     }
     
     #emitPubSubMessage(
-        type: PubSubTypes,
+        type: PubSubType,
         message: Buffer,
         channel: Buffer,
         pattern?: Buffer
@@ -315,12 +315,12 @@ export class PubSub {
 
     handleStatusReply(reply: Array<Buffer>): boolean {
         if (
-            COMMANDS[PubSubTypes.CHANNELS].subscribe.equals(reply[0]) ||
-            COMMANDS[PubSubTypes.CHANNELS].unsubscribe.equals(reply[0]) ||
-            COMMANDS[PubSubTypes.PATTERNS].subscribe.equals(reply[0]) ||
-            COMMANDS[PubSubTypes.PATTERNS].unsubscribe.equals(reply[0]) ||
-            COMMANDS[PubSubTypes.SHARDED].subscribe.equals(reply[0]) ||
-            COMMANDS[PubSubTypes.SHARDED].unsubscribe.equals(reply[0])
+            COMMANDS[PubSubType.CHANNELS].subscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.CHANNELS].unsubscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.PATTERNS].subscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.PATTERNS].unsubscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.SHARDED].subscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.SHARDED].unsubscribe.equals(reply[0])
         ) {
             this.#subscribed = reply[2] as unknown as number;
             this.#updateIsActive();

@@ -14,7 +14,7 @@ import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
-import { PubSubTypes, PubSubListener } from './pub-sub';
+import { PubSubType, PubSubListener } from './pub-sub';
 
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
@@ -505,7 +505,7 @@ export default class RedisClient<
         bufferMode?: T
     ): Promise<void> {
         const promise = this.#queue.subscribe(
-            PubSubTypes.CHANNELS,
+            PubSubType.CHANNELS,
             channels,
             listener,
             bufferMode
@@ -522,7 +522,7 @@ export default class RedisClient<
         bufferMode?: T
     ): Promise<void> {
         const promise = this.#queue.subscribe(
-            PubSubTypes.PATTERNS,
+            PubSubType.PATTERNS,
             patterns,
             listener,
             bufferMode
@@ -539,7 +539,7 @@ export default class RedisClient<
         bufferMode?: T
     ): Promise<void> {
         const promise = this.#queue.subscribe(
-            PubSubTypes.SHARDED,
+            PubSubType.SHARDED,
             channels,
             listener,
             bufferMode
@@ -556,7 +556,7 @@ export default class RedisClient<
         bufferMode?: T
     ): Promise<void> {
         const promise = this.#queue.unsubscribe(
-            PubSubTypes.CHANNELS,
+            PubSubType.CHANNELS,
             channels,
             listener,
             bufferMode
@@ -573,7 +573,7 @@ export default class RedisClient<
         bufferMode?: T
     ): Promise<void> {
         const promise = this.#queue.unsubscribe(
-            PubSubTypes.PATTERNS,
+            PubSubType.PATTERNS,
             patterns,
             listener,
             bufferMode
@@ -590,7 +590,7 @@ export default class RedisClient<
         bufferMode?: T
     ): Promise<void> {
         const promise = this.#queue.unsubscribe(
-            PubSubTypes.SHARDED,
+            PubSubType.SHARDED,
             patterns,
             listener,
             bufferMode

@@ -1,0 +1,7 @@
+SUBSCRIBE a b c
+subscrbing = 3;
+SUBSCRIBE a b;
+subscrbing = 3;
+UNSUBSCRIBE
+subscrbing = 3;
+unsubscrbing = 3;

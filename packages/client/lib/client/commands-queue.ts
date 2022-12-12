@@ -3,7 +3,7 @@ import { AbortError, ErrorReply } from '../errors';
 import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
 import RESP2Decoder from './RESP2/decoder';
 import encodeCommand from './RESP2/encoder';
-import { PubSub, PubSubCommand, PubSubListener, PubSubTypes } from './pub-sub';
+import { PubSub, PubSubCommand, PubSubListener, PubSubType } from './pub-sub';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -125,7 +125,7 @@ export default class RedisCommandsQueue {
     }
 
     subscribe<T extends boolean>(
-        type: PubSubTypes,
+        type: PubSubType,
         channels: string | Array<string>,
         listener: PubSubListener<T>,
         returnBuffers?: T
@@ -136,7 +136,7 @@ export default class RedisCommandsQueue {
     }
 
     unsubscribe<T extends boolean>(
-        type: PubSubTypes,
+        type: PubSubType,
         channels?: string | Array<string>,
         listener?: PubSubListener<T>,
         returnBuffers?: T
