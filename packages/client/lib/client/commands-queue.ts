@@ -10,7 +10,6 @@ export interface QueueCommandOptions {
     chainId?: symbol;
     signal?: AbortSignal;
     returnBuffers?: boolean;
-    ignorePubSubMode?: boolean;
 }
 
 export interface CommandWaitingToBeSent extends CommandWaitingForReply {
@@ -30,6 +29,8 @@ interface CommandWaitingForReply {
 }
 
 type PubSubCommand = ReturnType<typeof PubSub.prototype.subscribe | typeof PubSub.prototype.unsubscribe>;
+
+const PONG = Buffer.from('pong');
 
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
@@ -53,10 +54,8 @@ export default class RedisCommandsQueue {
         },
         onReply: reply => {
             if (this.#pubSub.isActive && Array.isArray(reply)) {
-                if (
-                    !this.#pubSub.handleMessageReply(reply as Array<Buffer>) &&
-                    this.#pubSub.isStatusReply(reply as Array<Buffer>)
-                ) {
+                if (this.#pubSub.handleMessageReply(reply as Array<Buffer>)) return;
+                if (this.#pubSub.isStatusReply(reply as Array<Buffer>)) {
                     const head = this.#waitingForReply.head!.value;
                     if (
                         (Number.isNaN(head.channelsCounter!) && reply[2] === 0) ||
@@ -64,13 +63,16 @@ export default class RedisCommandsQueue {
                     ) {
                         this.#waitingForReply.shift()!.resolve();
                     }
+                    return;
                 }
-                
-                return;
-            } else if (!this.#waitingForReply.length) {
-                throw new Error('Got an unexpected reply from Redis');
+                if (PONG.equals(reply[0] as Buffer)) {
+                    const { resolve, returnBuffers } = this.#waitingForReply.shift()!,
+                        buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
+                    resolve(returnBuffers ? buffer : buffer.toString());
+                    return;
+                }
             }
-
+            
             const { resolve, reject } = this.#waitingForReply.shift()!;
             if (reply instanceof ErrorReply) {
                 reject(reply);
@@ -85,9 +87,7 @@ export default class RedisCommandsQueue {
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {
-        if (this.#pubSub.isActive && !options?.ignorePubSubMode) {
-            return Promise.reject(new Error('Cannot send commands in PubSub mode'));
-        } else if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
+        if (this.#maxLength && this.#waitingToBeSent.length + this.#waitingForReply.length >= this.#maxLength) {
             return Promise.reject(new Error('The queue is full'));
         } else if (options?.signal?.aborted) {
             return Promise.reject(new AbortError());

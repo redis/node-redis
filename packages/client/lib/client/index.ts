@@ -603,9 +603,7 @@ export default class RedisClient<
 
     QUIT(): Promise<void> {
         return this.#socket.quit(() => {
-            const quitPromise = this.#queue.addCommand(['QUIT'], {
-                ignorePubSubMode: true
-            });
+            const quitPromise = this.#queue.addCommand(['QUIT']);
             this.#tick();
             return Promise.all([
                 quitPromise,

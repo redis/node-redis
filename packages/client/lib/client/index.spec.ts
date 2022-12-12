@@ -675,7 +675,7 @@ describe('Client', () => {
         );
     }, GLOBAL.SERVERS.OPEN);
 
-    describe('PubSub', () => {
+    describe.only('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
             function assertStringListener(message: string, channel: string) {
                 assert.equal(typeof message, 'string');
@@ -793,7 +793,34 @@ describe('Client', () => {
             }
         }, GLOBAL.SERVERS.OPEN);
 
-        testUtils.testWithClient('should be able to quit in PubSub mode', async client => {
+        testUtils.testWithClient('should be able to PING in PubSub mode', async client => {
+            await client.connect();
+
+            try {
+                await client.subscribe('channel', () => {
+                    // noop
+                });
+                
+                const [string, buffer, customString, customBuffer] = await Promise.all([
+                    client.ping(),
+                    client.ping(client.commandOptions({ returnBuffers: true })),
+                    client.ping('custom'),
+                    client.ping(client.commandOptions({ returnBuffers: true }), 'custom')
+                ]);
+    
+                assert.equal(string, 'pong');
+                assert.deepEqual(buffer, Buffer.from('pong'));
+                assert.equal(customString, 'custom');
+                assert.deepEqual(customBuffer, Buffer.from('custom'));
+            } finally {
+                await client.disconnect();
+            }
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+
+        testUtils.testWithClient('should be able to QUIT in PubSub mode', async client => {
             await client.subscribe('channel', () => {
                 // noop
             });
@@ -802,6 +829,24 @@ describe('Client', () => {
 
             assert.equal(client.isOpen, false);
         }, GLOBAL.SERVERS.OPEN);
+
+
+        testUtils.testWithClient('should reject GET in PubSub mode', async client => {
+            await client.connect();
+
+            try {
+                await client.subscribe('channel', () => {
+                    // noop
+                });
+
+                await assert.rejects(client.get('key'));
+            } finally {
+                await client.disconnect();
+            }
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
 
         testUtils.testWithClient('shareded PubSub', async publisher => {
             const subscriber = publisher.duplicate();
@@ -862,7 +907,7 @@ describe('Client', () => {
             }
         }, {
             // this test change ACL rules, running in isolated server
-            ...GLOBAL.SERVERS.OPEN
+            serverArguments: []
         });
     });
 
