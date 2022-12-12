@@ -1,9 +1,9 @@
 import * as LinkedList from 'yallist';
 import { AbortError, ErrorReply } from '../errors';
-import { RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply } from '../commands';
+import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
 import RESP2Decoder from './RESP2/decoder';
 import encodeCommand from './RESP2/encoder';
-import { PubSub, PubSubCommand, PubSubListener, PubSubType } from './pub-sub';
+import { PubSub, PubSubListener, PubSubType } from './pub-sub';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -29,6 +29,8 @@ interface CommandWaitingForReply {
     returnBuffers?: boolean;
 }
 
+type PubSubCommand = ReturnType<typeof PubSub.prototype.subscribe | typeof PubSub.prototype.unsubscribe>;
+
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
         while (queue.length) {
@@ -53,14 +55,13 @@ export default class RedisCommandsQueue {
             if (this.#pubSub.isActive && Array.isArray(reply)) {
                 if (
                     !this.#pubSub.handleMessageReply(reply as Array<Buffer>) &&
-                    this.#pubSub.handleStatusReply(reply as Array<Buffer>)
+                    this.#pubSub.isStatusReply(reply as Array<Buffer>)
                 ) {
                     const head = this.#waitingForReply.head!.value;
-                    if (Number.isNaN(head.channelsCounter!)) {
-                        head.channelsCounter = this.#pubSub.subscribed;
-                    }
-
-                    if (--head.channelsCounter! === 0) {
+                    if (
+                        (Number.isNaN(head.channelsCounter!) && reply[2] === 0) ||
+                        --head.channelsCounter! === 0
+                    ) {
                         this.#waitingForReply.shift()!.resolve();
                     }
                 }
@@ -164,12 +165,10 @@ export default class RedisCommandsQueue {
                 channelsCounter: command.channelsCounter,
                 returnBuffers: true,
                 resolve: () => {
-                    command.fulfilled();
-                    command.resolve?.();
+                    command.resolve();
                     resolve();
                 },
                 reject: err => {
-                    command.fulfilled();
                     command.reject?.();
                     reject(err);
                 }
@@ -205,7 +204,7 @@ export default class RedisCommandsQueue {
 
     flushWaitingForReply(err: Error): void {
         this.#decoder.reset();
-        this.#pubSub.isActive = false;
+        this.#pubSub.reset();
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
 
         if (!this.#chainInExecution) return;
