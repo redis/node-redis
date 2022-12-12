@@ -871,9 +871,12 @@ describe('Client', () => {
             } finally {
                 await subscriber.disconnect();
             }
-        }, GLOBAL.SERVERS.OPEN);
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            minimumDockerVersion: [7]
+        });
 
-        testUtils.testWithClient('should be able to handle errors in SUBSCRIBE', async publisher => {
+        testUtils.testWithClient('should handle errors in SUBSCRIBE', async publisher => {
             const subscriber = publisher.duplicate();
 
             await subscriber.connect();
@@ -907,7 +910,8 @@ describe('Client', () => {
             }
         }, {
             // this test change ACL rules, running in isolated server
-            serverArguments: []
+            serverArguments: [],
+            minimumDockerVersion: [6 ,2] // ACL PubSub rules were added in Redis 6.2
         });
     });
 
