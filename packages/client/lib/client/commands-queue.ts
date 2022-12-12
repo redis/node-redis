@@ -55,7 +55,12 @@ export default class RedisCommandsQueue {
                     !this.#pubSub.handleMessageReply(reply as Array<Buffer>) &&
                     this.#pubSub.handleStatusReply(reply as Array<Buffer>)
                 ) {
-                    if (--this.#waitingForReply.head!.value.channelsCounter! === 0) {
+                    const head = this.#waitingForReply.head!.value;
+                    if (Number.isNaN(head.channelsCounter!)) {
+                        head.channelsCounter = this.#pubSub.subscribed;
+                    }
+
+                    if (--head.channelsCounter! === 0) {
                         this.#waitingForReply.shift()!.resolve();
                     }
                 }
@@ -141,6 +146,15 @@ export default class RedisCommandsQueue {
         );
     }
 
+    resubscribe(): Promise<any> | undefined {
+        const commands = this.#pubSub.resubscribe();
+        if (!commands) return;
+
+        return Promise.all(
+            commands.map(command => this.#pushPubSubCommand(command))
+        );
+    }
+
     #pushPubSubCommand(command: PubSubCommand | undefined): Promise<void> {
         if (!command) return Promise.resolve();
 
@@ -161,13 +175,6 @@ export default class RedisCommandsQueue {
                 }
             });
         });
-    }
-
-    resubscribe(): Promise<any> | undefined {
-        return Promise.all(
-            this.#pubSub.resubscribe()
-                .map(command => this.#pushPubSubCommand(command))
-        );
     }
 
     getCommandToSend(): RedisCommandArguments | undefined {
