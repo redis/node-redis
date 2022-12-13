@@ -3,7 +3,7 @@ import { AbortError, ErrorReply } from '../errors';
 import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
 import RESP2Decoder from './RESP2/decoder';
 import encodeCommand from './RESP2/encoder';
-import { PubSub, PubSubListener, PubSubType } from './pub-sub';
+import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType } from './pub-sub';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -28,9 +28,9 @@ interface CommandWaitingForReply {
     returnBuffers?: boolean;
 }
 
-type PubSubCommand = ReturnType<typeof PubSub.prototype.subscribe | typeof PubSub.prototype.unsubscribe>;
-
 const PONG = Buffer.from('pong');
+
+type OnServerSUnsubscribe = (channel: string, listeners?: ChannelListeners) => void;
 
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
@@ -42,6 +42,7 @@ export default class RedisCommandsQueue {
     readonly #maxLength: number | null | undefined;
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
+    readonly #onServerSUnsubscribe: OnServerSUnsubscribe;
 
     readonly #pubSub = new PubSub();
 
@@ -55,7 +56,16 @@ export default class RedisCommandsQueue {
         onReply: reply => {
             if (this.#pubSub.isActive && Array.isArray(reply)) {
                 if (this.#pubSub.handleMessageReply(reply as Array<Buffer>)) return;
-                if (this.#pubSub.isStatusReply(reply as Array<Buffer>)) {
+                
+                const isShardedUnsubscribe = PubSub.isShardedUnsubscribe(reply as Array<Buffer>);
+                if (isShardedUnsubscribe && !this.#waitingForReply.length) {
+                    const channel = (reply[1] as Buffer).toString();
+                    this.#onServerSUnsubscribe(
+                        channel,
+                        this.#pubSub.removeShardedListeners(channel)
+                    );
+                    return;
+                } else if (isShardedUnsubscribe || PubSub.isStatusReply(reply as Array<Buffer>)) {
                     const head = this.#waitingForReply.head!.value;
                     if (
                         (Number.isNaN(head.channelsCounter!) && reply[2] === 0) ||
@@ -82,8 +92,12 @@ export default class RedisCommandsQueue {
         }
     });
 
-    constructor(maxLength: number | null | undefined) {
+    constructor(
+        maxLength: number | null | undefined,
+        onServerSUnsubscribe: OnServerSUnsubscribe
+    ) {
         this.#maxLength = maxLength;
+        this.#onServerSUnsubscribe = onServerSUnsubscribe;
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {

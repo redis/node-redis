@@ -28,7 +28,7 @@ export type PubSubListener<
     RETURN_BUFFERS extends boolean = false
 > = <T extends RETURN_BUFFERS extends true ? Buffer : string>(message: T, channel: T) => unknown;
 
-interface ChannelListeners {
+export interface ChannelListeners {
     unsubscribing: boolean;
     buffers: Set<PubSubListener<true>>;
     strings: Set<PubSubListener<false>>;
@@ -36,7 +36,23 @@ interface ChannelListeners {
 
 type Listeners = Record<PubSubType, Map<string, ChannelListeners>>;
 
+export type PubSubCommand = ReturnType<typeof PubSub.prototype.subscribe | typeof PubSub.prototype.unsubscribe>;
+
 export class PubSub {
+    static isStatusReply(reply: Array<Buffer>): boolean {
+        return (
+            COMMANDS[PubSubType.CHANNELS].subscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.CHANNELS].unsubscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.PATTERNS].subscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.PATTERNS].unsubscribe.equals(reply[0]) ||
+            COMMANDS[PubSubType.SHARDED].subscribe.equals(reply[0])
+        );
+    }
+
+    static isShardedUnsubscribe(reply: Array<Buffer>): boolean {
+        return COMMANDS[PubSubType.SHARDED].unsubscribe.equals(reply[0]);
+    }
+    
     static #channelsArray(channels: string | Array<string>) {
         return (Array.isArray(channels) ? channels : [channels]);
     }
@@ -227,7 +243,7 @@ export class PubSub {
         this.#subscribing = 0;
     }
 
-    resubscribe() {
+    resubscribe(): Array<PubSubCommand> {
         const commands = [];
         for (const [type, listeners] of Object.entries(this.#listeners)) {
             if (!listeners.size) continue;
@@ -276,6 +292,15 @@ export class PubSub {
 
         return false;
     }
+
+    removeShardedListeners(channel: string): ChannelListeners | undefined {
+        const listeners = this.#listeners[PubSubType.SHARDED].get(channel);
+        if (listeners) {
+            this.#listeners[PubSubType.SHARDED].delete(channel);
+            this.#updateIsActive();
+            return listeners;
+        }
+    }
     
     #emitPubSubMessage(
         type: PubSubType,
@@ -303,16 +328,5 @@ export class PubSub {
         for (const listener of listeners.strings) {
             listener(messageString, channelString);
         }
-    }
-
-    isStatusReply(reply: Array<Buffer>): boolean {
-        return (
-            COMMANDS[PubSubType.CHANNELS].subscribe.equals(reply[0]) ||
-            COMMANDS[PubSubType.CHANNELS].unsubscribe.equals(reply[0]) ||
-            COMMANDS[PubSubType.PATTERNS].subscribe.equals(reply[0]) ||
-            COMMANDS[PubSubType.PATTERNS].unsubscribe.equals(reply[0]) ||
-            COMMANDS[PubSubType.SHARDED].subscribe.equals(reply[0]) ||
-            COMMANDS[PubSubType.SHARDED].unsubscribe.equals(reply[0])
-        );
     }
 }

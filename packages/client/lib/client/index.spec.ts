@@ -8,6 +8,12 @@ import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
+import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
+
+// We need to use 'require', because it's not possible with Typescript to import
+// function that are exported as 'module.exports = function`, without esModuleInterop
+// set to true.
+const calculateSlot = require('cluster-key-slot');
 
 export const SQUARE_SCRIPT = defineScript({
     SCRIPT: 'return ARGV[1] * ARGV[1];',
@@ -848,32 +854,65 @@ describe('Client', () => {
             disableClientSetup: true
         });
 
-        testUtils.testWithClient('shareded PubSub', async publisher => {
-            const subscriber = publisher.duplicate();
+        describe('shareded PubSub', () => {
+            testUtils.isVersionGreaterThanHook([7]);
 
-            await subscriber.connect();
+            testUtils.testWithClient('should be able to recive messages', async publisher => {
+                const subscriber = publisher.duplicate();
+    
+                await subscriber.connect();
+    
+                try {
+                    const listener = spy();
+                    await subscriber.sSubscribe('channel', listener);
+    
+                    await Promise.all([
+                        waitTillBeenCalled(listener),
+                        publisher.sPublish('channel', 'message')
+                    ]);
+    
+                    assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+    
+                    await subscriber.sUnsubscribe();
+    
+                    // should be able to send commands
+                    await assert.doesNotReject(subscriber.ping());
+                } finally {
+                    await subscriber.disconnect();
+                }
+            }, {
+                ...GLOBAL.SERVERS.OPEN
+            });
 
-            try {
-                const listener = spy();
-                await subscriber.sSubscribe('channel', listener);
+            testUtils.testWithClient('should handle sunsubscribe from server', async publisher => {
+                await publisher.clusterAddSlotsRange({ start: 0, end: 16383 });
 
-                await Promise.all([
-                    waitTillBeenCalled(listener),
-                    publisher.sPublish('channel', 'message')
-                ]);
+                const subscriber = publisher.duplicate();
+    
+                await subscriber.connect();
+    
+                try {
+                    await subscriber.sSubscribe('channel', () => {});
 
-                assert.ok(listener.calledOnceWithExactly('message', 'channel'));
-
-                await subscriber.sUnsubscribe();
-
-                // should be able to send commands
-                await assert.doesNotReject(subscriber.ping());
-            } finally {
-                await subscriber.disconnect();
-            }
-        }, {
-            ...GLOBAL.SERVERS.OPEN,
-            minimumDockerVersion: [7]
+                    await Promise.all([
+                        publisher.clusterSetSlot(
+                            calculateSlot('channel'),
+                            ClusterSlotStates.NODE,
+                            await publisher.clusterMyId()
+                        ),
+                        once(subscriber, 'server-sunsubscribe')
+                    ]);
+                    
+                    assert.equal(
+                        await subscriber.ping(),
+                        'PONG'
+                    );
+                } finally {
+                    await subscriber.disconnect();
+                }
+            }, {
+                serverArguments: ['--cluster-enabled', 'yes']
+            });
         });
 
         testUtils.testWithClient('should handle errors in SUBSCRIBE', async publisher => {

@@ -216,7 +216,10 @@ export default class RedisClient<
     }
 
     #initiateQueue(): RedisCommandsQueue {
-        return new RedisCommandsQueue(this.#options?.commandsQueueMaxLength);
+        return new RedisCommandsQueue(
+            this.#options?.commandsQueueMaxLength,
+            (channel, listeners) => this.emit('server-sunsubscribe', channel, listeners)
+        );
     }
 
     #initiateSocket(): RedisSocket {
