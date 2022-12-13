@@ -162,11 +162,11 @@ export default class RedisCommandsQueue {
     }
 
     resubscribe(): Promise<any> | undefined {
-        const commands = this.#pubSub.resubscribe();
-        if (!commands) return;
+        if (!this.#pubSub.isActive) return;
 
         return Promise.all(
-            commands.map(command => this.#pushPubSubCommand(command))
+            this.#pubSub.resubscribe()
+                .map(command => this.#pushPubSubCommand(command))
         );
     }
 
