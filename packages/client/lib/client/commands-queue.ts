@@ -30,7 +30,7 @@ interface CommandWaitingForReply {
 
 const PONG = Buffer.from('pong');
 
-type OnServerSUnsubscribe = (channel: string, listeners?: ChannelListeners) => void;
+type OnShardedChannelMoved = (channel: string, listeners?: ChannelListeners) => void;
 
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
@@ -42,7 +42,7 @@ export default class RedisCommandsQueue {
     readonly #maxLength: number | null | undefined;
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
-    readonly #onServerSUnsubscribe: OnServerSUnsubscribe;
+    readonly #onShardedChannelMoved: OnShardedChannelMoved;
 
     readonly #pubSub = new PubSub();
 
@@ -60,7 +60,7 @@ export default class RedisCommandsQueue {
                 const isShardedUnsubscribe = PubSub.isShardedUnsubscribe(reply as Array<Buffer>);
                 if (isShardedUnsubscribe && !this.#waitingForReply.length) {
                     const channel = (reply[1] as Buffer).toString();
-                    this.#onServerSUnsubscribe(
+                    this.#onShardedChannelMoved(
                         channel,
                         this.#pubSub.removeShardedListeners(channel)
                     );
@@ -94,10 +94,10 @@ export default class RedisCommandsQueue {
 
     constructor(
         maxLength: number | null | undefined,
-        onServerSUnsubscribe: OnServerSUnsubscribe
+        onShardedChannelMoved: OnShardedChannelMoved
     ) {
         this.#maxLength = maxLength;
-        this.#onServerSUnsubscribe = onServerSUnsubscribe;
+        this.#onShardedChannelMoved = onShardedChannelMoved;
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {
