@@ -187,7 +187,7 @@ export enum SchemaFieldTypes {
 
 type CreateSchemaField<
     T extends SchemaFieldTypes,
-    E = Record<keyof any, any>
+    E = Record<PropertyKey, unknown>
 > = T | ({
     type: T;
     AS?: string;
@@ -195,7 +195,7 @@ type CreateSchemaField<
 
 type CreateSchemaCommonField<
     T extends SchemaFieldTypes,
-    E = Record<string, never>
+    E = Record<PropertyKey, unknown>
 > = CreateSchemaField<
     T,
     ({
