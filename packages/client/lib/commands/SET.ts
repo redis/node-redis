@@ -36,13 +36,13 @@ export function transformArguments(
     ];
 
     if (options?.EX !== undefined) {
-        args.push('EX', EX.toString());
+        args.push('EX', options.EX.toString());
     } else if (options?.PX !== undefined) {
-        args.push('PX', PX.toString());
+        args.push('PX', options.PX.toString());
     } else if (options?.EXAT !== undefined) {
-        args.push('EXAT', EXAT.toString());
+        args.push('EXAT', options.EXAT.toString());
     } else if (options?.PXAT !== undefined) {
-        args.push('PXAT', PXAT.toString());
+        args.push('PXAT', options.PXAT.toString());
     } else if (options?.KEEPTTL) {
         args.push('KEEPTTL');
     }
