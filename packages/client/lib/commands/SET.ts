@@ -35,25 +35,27 @@ export function transformArguments(
         typeof value === 'number' ? value.toString() : value
     ];
 
-    if (options?.EX) {
-        args.push('EX', options.EX.toString());
-    } else if (options?.PX) {
-        args.push('PX', options.PX.toString());
-    } else if (options?.EXAT) {
-        args.push('EXAT', options.EXAT.toString());
-    } else if (options?.PXAT) {
-        args.push('PXAT', options.PXAT.toString());
-    } else if (options?.KEEPTTL) {
+	const { EX, PX, EXAT, PXAT, KEEPTTL, NX, XX, GET } = options || {};
+
+    if (EX !== undefined) {
+        args.push('EX', EX.toString());
+    } else if (PX !== undefined) {
+        args.push('PX', PX.toString());
+    } else if (EXAT !== undefined) {
+        args.push('EXAT', EXAT.toString());
+    } else if (PXAT !== undefined) {
+        args.push('PXAT', PXAT.toString());
+    } else if (KEEPTTL) {
         args.push('KEEPTTL');
     }
 
-    if (options?.NX) {
+    if (NX) {
         args.push('NX');
-    } else if (options?.XX) {
+    } else if (XX) {
         args.push('XX');
     }
 
-    if (options?.GET) {
+    if (GET) {
         args.push('GET');
     }
 
