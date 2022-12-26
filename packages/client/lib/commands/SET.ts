@@ -35,13 +35,13 @@ export function transformArguments(
         typeof value === 'number' ? value.toString() : value
     ];
 
-    if (options?.EX) {
+    if (options?.EX !== undefined) {
         args.push('EX', options.EX.toString());
-    } else if (options?.PX) {
+    } else if (options?.PX !== undefined) {
         args.push('PX', options.PX.toString());
-    } else if (options?.EXAT) {
+    } else if (options?.EXAT !== undefined) {
         args.push('EXAT', options.EXAT.toString());
-    } else if (options?.PXAT) {
+    } else if (options?.PXAT !== undefined) {
         args.push('PXAT', options.PXAT.toString());
     } else if (options?.KEEPTTL) {
         args.push('KEEPTTL');

@@ -13,8 +13,8 @@ describe('SET', () => {
 
         it('number', () => {
             assert.deepEqual(
-                transformArguments('key', 1),
-                ['SET', 'key', '1']
+                transformArguments('key', 0),
+                ['SET', 'key', '0']
             );
         });
 
@@ -22,36 +22,36 @@ describe('SET', () => {
             it('with EX', () => {
                 assert.deepEqual(
                     transformArguments('key', 'value', {
-                        EX: 1
+                        EX: 0
                     }),
-                    ['SET', 'key', 'value', 'EX', '1']
+                    ['SET', 'key', 'value', 'EX', '0']
                 );
             });
 
             it('with PX', () => {
                 assert.deepEqual(
                     transformArguments('key', 'value', {
-                        PX: 1
+                        PX: 0
                     }),
-                    ['SET', 'key', 'value', 'PX', '1']
+                    ['SET', 'key', 'value', 'PX', '0']
                 );
             });
 
             it('with EXAT', () => {
                 assert.deepEqual(
                     transformArguments('key', 'value', {
-                        EXAT: 1
+                        EXAT: 0
                     }),
-                    ['SET', 'key', 'value', 'EXAT', '1']
+                    ['SET', 'key', 'value', 'EXAT', '0']
                 );
             });
 
             it('with PXAT', () => {
                 assert.deepEqual(
                     transformArguments('key', 'value', {
-                        PXAT: 1
+                        PXAT: 0
                     }),
-                    ['SET', 'key', 'value', 'PXAT', '1']
+                    ['SET', 'key', 'value', 'PXAT', '0']
                 );
             });
 
