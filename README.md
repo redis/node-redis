@@ -40,6 +40,12 @@ Looking for a high-level library to handle object mapping? See [redis-om-node](h
 
 ### Basic Example
 
+Consider installing redis via docker:
+
+```bash
+docker run -p 6379:6379 -it redis/redis-stack:latest
+```
+
 ```typescript
 import { createClient } from 'redis';
 
