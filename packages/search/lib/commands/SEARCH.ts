@@ -71,7 +71,6 @@ export function transformArguments(
 export type SearchRawReply = Array<any>;
 
 export function transformReply(reply: SearchRawReply): SearchReply {
-    console.log(reply);
     const documents = [];
     let i = 1;
     while (i < reply.length) {
