@@ -17,7 +17,7 @@ describe('LATENCY GRAPH', () => {
     testUtils.testWithClient('client.latencyGraph', async client => {
         await Promise.all([
             client.configSet('latency-monitor-threshold', '1'),
-            client.sendCommand(['DEBUG', 'SLEEP', '1'])
+            client.sendCommand(['DEBUG', 'SLEEP', '0.001'])
         ]);
 
         assert.equal(
