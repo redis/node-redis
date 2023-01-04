@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './LATENCY_GRAPH';
 
 describe('LATENCY GRAPH', () => {
@@ -14,10 +14,10 @@ describe('LATENCY GRAPH', () => {
         );
     });
 
-    testUtils.testWithClient('client.latencyGraph', async (client) => {
+    testUtils.testWithClient('client.latencyGraph', async client => {
         await Promise.all([
             client.configSet('latency-monitor-threshold', '1'),
-            client.sendCommand(['DEBUG', 'SLEEP', '.1'])
+            client.sendCommand(['DEBUG', 'SLEEP', '1'])
         ]);
 
         assert.equal(
@@ -25,6 +25,8 @@ describe('LATENCY GRAPH', () => {
             'string'
         );
     }, {
-        serverArguments: ['--enable-debug-command', 'yes']
+        serverArguments: testUtils.isVersionGreaterThan([7]) ?
+            ['--enable-debug-command', 'yes'] :
+            GLOBAL.SERVERS.OPEN.serverArguments
     });
 });
