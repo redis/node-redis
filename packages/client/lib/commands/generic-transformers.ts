@@ -692,7 +692,7 @@ export function transformRangeReply([start, end]: RawRangeReply): RangeReply {
 export type ClientInfoReply = {
     id: number;
     addr: string;
-    laddr: string;
+    laddr?: string; // 6.2
     fd: number;
     name: string;
     age: number;
@@ -705,16 +705,16 @@ export type ClientInfoReply = {
     multi: number;
     qbuf: number;
     qbufFree: number;
-    argvMem: number;
+    argvMem?: number; // 6.0
     multiMem?: number; // 7.0
     obl: number;
     oll: number;
     omem: number;
-    totMem: number;
+    totMem?: number; // 6.0
     events: string;
     cmd: string;
-    user: string;
-    redir: number;
+    user?: string; // 6.0
+    redir?: number; // 6.2
     resp?: number; // 7.0
 };
 
@@ -731,7 +731,6 @@ export function transformClientInfoReply(reply: string): ClientInfoReply {
     const clientInfoReply: ClientInfoReply = {
         id: Number(map.id),
         addr: map.addr,
-        laddr: map.laddr,
         fd: Number(map.fd),
         name: map.name,
         age: Number(map.age),
@@ -750,9 +749,16 @@ export function transformClientInfoReply(reply: string): ClientInfoReply {
         totMem: Number(map.totMem),
         events: map.events,
         cmd: map.cmd,
-        user: map.user,
-        redir: Number(map.redir)
+        user: map.user
     };
+
+    if (map.laddr !== undefined) {
+        clientInfoReply.laddr = map.laddr;
+    }
+
+    if (map.redir !== undefined) {
+        clientInfoReply.redir = Number(map.redir);
+    }
 
     if (map.ssub !== undefined) {
         clientInfoReply.ssub = Number(map.ssub);

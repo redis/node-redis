@@ -91,7 +91,6 @@ describe('CLIENT LIST', () => {
 
             assert.equal(typeof reply[0].id, 'number');
             assert.equal(typeof reply[0].addr, 'string');
-            assert.equal(typeof reply[0].laddr, 'string');
             assert.equal(typeof reply[0].fd, 'number');
             assert.equal(typeof reply[0].name, 'string');
             assert.equal(typeof reply[0].age, 'number');
@@ -103,15 +102,22 @@ describe('CLIENT LIST', () => {
             assert.equal(typeof reply[0].multi, 'number');
             assert.equal(typeof reply[0].qbuf, 'number');
             assert.equal(typeof reply[0].qbufFree, 'number');
-            assert.equal(typeof reply[0].argvMem, 'number');
             assert.equal(typeof reply[0].obl, 'number');
             assert.equal(typeof reply[0].oll, 'number');
             assert.equal(typeof reply[0].omem, 'number');
-            assert.equal(typeof reply[0].totMem, 'number');
             assert.equal(typeof reply[0].events, 'string');
             assert.equal(typeof reply[0].cmd, 'string');
-            assert.equal(typeof reply[0].user, 'string');
-            assert.equal(typeof reply[0].redir, 'number');
+
+            if (testUtils.isVersionGreaterThan([6, 0])) {
+                assert.equal(typeof reply[0].argvMem, 'number');
+                assert.equal(typeof reply[0].totMem, 'number');
+                assert.equal(typeof reply[0].user, 'string');
+            }
+
+            if (testUtils.isVersionGreaterThan([6, 2])) {
+                assert.equal(typeof reply[0].redir, 'number');
+                assert.equal(typeof reply[0].laddr, 'string');
+            }
 
             if (testUtils.isVersionGreaterThan([7, 0])) {
                 assert.equal(typeof reply[0].multiMem, 'number');

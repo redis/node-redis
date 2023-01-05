@@ -3,6 +3,8 @@ import { transformArguments, transformReply } from './CLIENT_INFO';
 import testUtils, { GLOBAL } from '../test-utils';
 
 describe('CLIENT INFO', () => {
+    testUtils.isVersionGreaterThanHook([6, 2]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments(),
