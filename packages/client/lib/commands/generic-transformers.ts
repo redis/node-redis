@@ -688,3 +688,83 @@ export function transformRangeReply([start, end]: RawRangeReply): RangeReply {
         end
     };
 }
+
+export type ClientInfoReply = {
+    id: number;
+    addr: string;
+    laddr: string;
+    fd: number;
+    name: string;
+    age: number;
+    idle: number;
+    flags: string;
+    db: number;
+    sub: number;
+    psub: number;
+    ssub?: number; // 7.0.3
+    multi: number;
+    qbuf: number;
+    qbufFree: number;
+    argvMem: number;
+    multiMem?: number; // 7.0
+    obl: number;
+    oll: number;
+    omem: number;
+    totMem: number;
+    events: string;
+    cmd: string;
+    user: string;
+    redir: number;
+    resp?: number; // 7.0
+};
+
+export function transformClientInfoReply(reply: string): ClientInfoReply {
+    const REGEX = /([^\s=]+)=([^\s]*)/g;
+    const items = [...reply.matchAll(REGEX)];
+
+    const map: { [key: string]: string } = {};
+    for (const item of items) {
+        const key = item[1].replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        map[key] = item[2];
+    }
+
+    const clientInfoReply: ClientInfoReply = {
+        id: Number(map.id),
+        addr: map.addr,
+        laddr: map.laddr,
+        fd: Number(map.fd),
+        name: map.name,
+        age: Number(map.age),
+        idle: Number(map.idle),
+        flags: map.flags,
+        db: Number(map.db),
+        sub: Number(map.sub),
+        psub: Number(map.psub),
+        multi: Number(map.multi),
+        qbuf: Number(map.qbuf),
+        qbufFree: Number(map.qbufFree),
+        argvMem: Number(map.argvMem),
+        obl: Number(map.obl),
+        oll: Number(map.oll),
+        omem: Number(map.omem),
+        totMem: Number(map.totMem),
+        events: map.events,
+        cmd: map.cmd,
+        user: map.user,
+        redir: Number(map.redir)
+    };
+
+    if (map.ssub) {
+        clientInfoReply.ssub = Number(map.ssub);
+    }
+
+    if (map.multiMem) {
+        clientInfoReply.multiMem = Number(map.multiMem);
+    }
+
+    if (map.resp) {
+        clientInfoReply.resp = Number(map.resp);
+    }
+
+    return clientInfoReply;
+}
