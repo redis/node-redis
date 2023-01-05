@@ -310,11 +310,8 @@ export default class RedisClient<
                 .then((reply: RedisCommandRawReply) => {
                     if (!callback) {
                         return;
-                    } else {
-                        const transformReply = (COMMANDS as any)[name]?.transformReply
-                        if (transformReply) {
-                            reply = transformReply(reply);
-                        }
+                    } else if (name === 'hGetAll') {
+                        reply = (COMMANDS as any)[name].transformReply(reply);
                     }
                     callback(null, reply);
                 })

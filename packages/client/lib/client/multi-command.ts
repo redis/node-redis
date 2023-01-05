@@ -96,8 +96,12 @@ export default class RedisClientMultiCommand {
     #legacyMode(): void {
         this.v4.addCommand = this.addCommand.bind(this);
         (this as any).addCommand = (...args: Array<any>): this => {
-            const [name]: Array<string> = args;
-            this.#multi.addCommand(transformLegacyCommandArguments(args), (COMMANDS as any)[name]?.transformReply);
+            const [name]: Array<string> = args;            
+            if (name === 'hGetAll') {
+                this.#multi.addCommand(transformLegacyCommandArguments(args), (COMMANDS as any)[name].transformReply);
+            } else {
+                this.#multi.addCommand(transformLegacyCommandArguments(args));
+            }
             return this;
         };
         this.v4.exec = this.exec.bind(this);
