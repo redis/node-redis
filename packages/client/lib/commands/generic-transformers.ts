@@ -754,15 +754,15 @@ export function transformClientInfoReply(reply: string): ClientInfoReply {
         redir: Number(map.redir)
     };
 
-    if (map.ssub) {
+    if (map.ssub !== undefined) {
         clientInfoReply.ssub = Number(map.ssub);
     }
 
-    if (map.multiMem) {
+    if (map.multiMem !== undefined) {
         clientInfoReply.multiMem = Number(map.multiMem);
     }
 
-    if (map.resp) {
+    if (map.resp !== undefined) {
         clientInfoReply.resp = Number(map.resp);
     }
 
