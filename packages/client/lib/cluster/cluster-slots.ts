@@ -3,7 +3,7 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RedisCommandArgument, RedisFunctions, RedisModules, RedisScripts } from '../commands';
 import { RootNodesUnavailableError } from '../errors';
 import { ClusterSlotsNode } from '../commands/CLUSTER_SLOTS';
-import { isPromise } from 'node:util/types';
+import { types } from 'node:util';
 import { ChannelListeners, PubSubType, PubSubTypeListeners } from '../client/pub-sub';
 import { EventEmitter } from 'node:stream';
 
@@ -180,7 +180,7 @@ export default class RedisClusterSlots<
             }
 
             if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-                if (isPromise(this.pubSubNode.client)) {
+                if (types.isPromise(this.pubSubNode.client)) {
                     promises.push(
                         this.pubSubNode.client.then(client => client.disconnect())
                     );
@@ -207,7 +207,7 @@ export default class RedisClusterSlots<
 
                 if (client) {
                     promises.push(
-                        isPromise(client) ?
+                        types.isPromise(client) ?
                             client.then(client => client.disconnect()) :
                             client.disconnect()
                     );
@@ -387,7 +387,7 @@ export default class RedisClusterSlots<
             if (!client) continue;
 
             promises.push(
-                isPromise(client) ?
+                types.isPromise(client) ?
                     client.then(fn) :
                     fn(client)
             );
@@ -395,7 +395,7 @@ export default class RedisClusterSlots<
 
         if (this.pubSubNode) {
             promises.push(
-                isPromise(this.pubSubNode.client) ?
+                types.isPromise(this.pubSubNode.client) ?
                     this.pubSubNode.client.then(fn) :
                     fn(this.pubSubNode.client)
             );
