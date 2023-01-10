@@ -58,7 +58,7 @@ The above code connects to localhost on port 6379. To connect to a different hos
 
 ```typescript
 createClient({
-  url: 'redis://alice:foobared@awesome.redis.server:6380'
+  url: 'rediss://alice:foobared@awesome.redis.server:6380'
 });
 ```
 
