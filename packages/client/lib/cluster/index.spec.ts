@@ -182,7 +182,8 @@ describe('Cluster', () => {
             assert.ok(listener.calledOnceWithExactly('message', 'channel'));
         }, {
             serverArguments: [],
-            numberOfNodes: 2
+            numberOfNodes: 2,
+            minimumDockerVersion: [7]
         });
     });
 });
