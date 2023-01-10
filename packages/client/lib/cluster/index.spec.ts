@@ -1,14 +1,14 @@
 import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 import { SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
-
-// We need to use 'require', because it's not possible with Typescript to import
-// function that are exported as 'module.exports = function`, without esModuleInterop
-// set to true.
-const calculateSlot = require('cluster-key-slot');
+import { once } from 'node:events';
+import { ClientKillFilters } from '../commands/CLIENT_KILL';
+import { spy } from 'sinon';
+import { ShardNode } from './cluster-slots';
+import { promiseTimeout } from '../utils';
 
 describe('Cluster', () => {
     testUtils.testWithCluster('sendCommand', async cluster => {
@@ -64,48 +64,45 @@ describe('Cluster', () => {
     });
 
     testUtils.testWithCluster('should handle live resharding', async cluster => {
-        const key = 'key',
+        const slot = 12539,
+            key = 'key',
             value = 'value';
         await cluster.set(key, value);
 
-        const slot = calculateSlot(key),
-            source = cluster.getSlotMaster(slot),
-            destination = cluster.getMasters().find(node => node.id !== source.id)!;
+        const [ importing, migrating ] = cluster.masters;
 
-        await Promise.all([
-            source.client.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, destination.id),
-            destination.client.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, destination.id)
-        ]);
+        const importingClient = await cluster.nodeClient(importing);
+        await importingClient.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, migrating.id);
 
-        // should be able to get the key from the source node using "ASKING"
+        const migratingClient = await cluster.nodeClient(migrating);
+        await migratingClient.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, importing.id);
+
+        // should be able to get the key from the migrating node
+        assert.equal(
+            await cluster.get(key),
+            value
+        );
+
+        await migratingClient.migrate(
+            importing.host,
+            importing.port,
+            key,
+            0,
+            10
+        );
+
+        // should be able to get the key from the importing node using `ASKING`
         assert.equal(
             await cluster.get(key),
             value
         );
 
         await Promise.all([
-            source.client.migrate(
-                '127.0.0.1',
-                (<any>destination.client.options).socket.port,
-                key,
-                0,
-                10
-            )
+            importingClient.clusterSetSlot(slot, ClusterSlotStates.NODE, importing.id),
+            migratingClient.clusterSetSlot(slot, ClusterSlotStates.NODE, importing.id),
         ]);
 
-        // should be able to get the key from the destination node using the "ASKING" command
-        assert.equal(
-            await cluster.get(key),
-            value
-        );
-
-        await Promise.all(
-            cluster.getMasters().map(({ client }) => {
-                return client.clusterSetSlot(slot, ClusterSlotStates.NODE, destination.id);
-            })
-        );
-
-        // should handle "MOVED" errors
+        // should handle `MOVED` errors
         assert.equal(
             await cluster.get(key),
             value
@@ -113,5 +110,79 @@ describe('Cluster', () => {
     }, {
         serverArguments: [],
         numberOfNodes: 2
+    });
+
+    describe('PubSub', () => {
+        function assertStringListener(message: string, channel: string) {
+            assert.equal(typeof message, 'string');
+            assert.equal(typeof channel, 'string');
+        }
+
+        testUtils.testWithCluster('should be able to send and receive messages', async cluster => {
+            const channelListener = spy(assertStringListener),
+                patternListener = spy(assertStringListener);
+
+            await Promise.all([
+                cluster.subscribe('channel', channelListener),
+                cluster.pSubscribe('channe*', patternListener)
+            ]);
+
+            await Promise.all([
+                cluster.publish('channel', 'message'),
+                waitTillBeenCalled(channelListener),
+                waitTillBeenCalled(patternListener)
+            ]);
+            
+            assert.ok(channelListener.calledOnceWithExactly('message', 'channel'));
+            assert.ok(patternListener.calledOnceWithExactly('message', 'channel'));
+        }, GLOBAL.CLUSTERS.OPEN);
+
+        testUtils.testWithCluster('should move listeners when PubSub node disconnects from the cluster', async cluster => {
+            const listener = spy(assertStringListener);
+            await cluster.subscribe('channel', listener);
+
+            assert.ok(cluster.pubSubNode);
+            const [ migrating, importing ] = cluster.masters[0].address === cluster.pubSubNode.address ?
+                    cluster.masters :
+                    [cluster.masters[1], cluster.masters[0]],
+                [ migratingClient, importingClient ] = await Promise.all([
+                    cluster.nodeClient(migrating),
+                    cluster.nodeClient(importing)
+                ]);
+
+            const range = cluster.slots[0].master === migrating ? {
+                key: 'bar', // 5061
+                start: 0,
+                end: 8191
+            } : {
+                key: 'foo', // 12182
+                start: 8192,
+                end: 16383
+            };
+
+            await Promise.all([
+                migratingClient.clusterDelSlotsRange(range),
+                importingClient.clusterDelSlotsRange(range),
+                importingClient.clusterAddSlotsRange(range)
+            ]);
+
+            // wait for migrating node to be notified about the new topology
+            while ((await migratingClient.clusterInfo()).state !== 'ok') {
+                await promiseTimeout(50);
+            }
+
+            // make sure to cause `MOVED` error
+            await cluster.get(range.key);
+
+            await Promise.all([
+                cluster.publish('channel', 'message'),
+                waitTillBeenCalled(listener)
+            ]);
+            
+            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+        }, {
+            serverArguments: [],
+            numberOfNodes: 2
+        });
     });
 });

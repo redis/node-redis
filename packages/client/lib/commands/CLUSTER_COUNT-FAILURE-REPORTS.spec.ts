@@ -11,7 +11,7 @@ describe('CLUSTER COUNT-FAILURE-REPORTS', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterCountFailureReports', async cluster => {
-        const { client } = cluster.getSlotMaster(0);
+        const client = await cluster.nodeClient(cluster.masters[0]);
         assert.equal(
             typeof await client.clusterCountFailureReports(
                 await client.clusterMyId()

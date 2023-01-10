@@ -29,9 +29,11 @@
 
 ## Reconnect Strategy
 
+TODO: `false | number | (retries: number, cause: unknown) => number | Error`
+
 You can implement a custom reconnect strategy as a function:
 
-- Receives the number of retries attempted so far.
+- Receives the number of retries attempted so far and the causing error.
 - Returns `number | Error`:
     - `number`: wait time in milliseconds prior to attempting a reconnect.
     - `Error`: closes the client and flushes internal command queues.

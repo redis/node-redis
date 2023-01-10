@@ -3,7 +3,7 @@ import { AbortError, ErrorReply } from '../errors';
 import { RedisCommandArguments, RedisCommandRawReply } from '../commands';
 import RESP2Decoder from './RESP2/decoder';
 import encodeCommand from './RESP2/encoder';
-import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType } from './pub-sub';
+import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 
 export interface QueueCommandOptions {
     asap?: boolean;
@@ -30,7 +30,7 @@ interface CommandWaitingForReply {
 
 const PONG = Buffer.from('pong');
 
-type OnShardedChannelMoved = (channel: string, listeners?: ChannelListeners) => void;
+export type OnShardedChannelMoved = (channel: string, listeners: ChannelListeners) => void;
 
 export default class RedisCommandsQueue {
     static #flushQueue<T extends CommandWaitingForReply>(queue: LinkedList<T>, err: Error): void {
@@ -45,6 +45,10 @@ export default class RedisCommandsQueue {
     readonly #onShardedChannelMoved: OnShardedChannelMoved;
 
     readonly #pubSub = new PubSub();
+
+    get isPubSubActive() {
+        return this.#pubSub.isActive;
+    }
 
     #chainInExecution: symbol | undefined;
 
@@ -144,7 +148,7 @@ export default class RedisCommandsQueue {
         channels: string | Array<string>,
         listener: PubSubListener<T>,
         returnBuffers?: T
-    ): Promise<void> {
+    ) {
         return this.#pushPubSubCommand(
             this.#pubSub.subscribe(type, channels, listener, returnBuffers)
         );
@@ -155,7 +159,7 @@ export default class RedisCommandsQueue {
         channels?: string | Array<string>,
         listener?: PubSubListener<T>,
         returnBuffers?: T
-    ): Promise<void> {
+    ) {
         return this.#pushPubSubCommand(
             this.#pubSub.unsubscribe(type, channels, listener, returnBuffers)
         );
@@ -170,10 +174,30 @@ export default class RedisCommandsQueue {
         );
     }
 
-    #pushPubSubCommand(command: PubSubCommand | undefined): Promise<void> {
-        if (!command) return Promise.resolve();
+    extendPubSubChannelListeners(
+        type: PubSubType,
+        channel: string,
+        listeners: ChannelListeners
+    ) {
+        return this.#pushPubSubCommand(
+            this.#pubSub.extendChannelListeners(type, channel, listeners)
+        );
+    }
 
-        return new Promise((resolve, reject) => {
+    extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
+        return this.#pushPubSubCommand(
+            this.#pubSub.extendTypeListeners(type, listeners)
+        );
+    }
+
+    getPubSubListeners(type: PubSubType) {
+        return this.#pubSub.getTypeListeners(type);
+    }
+
+    #pushPubSubCommand(command: PubSubCommand) {
+        if (command === undefined) return;
+
+        return new Promise<void>((resolve, reject) => {
             this.#waitingToBeSent.push({
                 args: command.args,
                 channelsCounter: command.channelsCounter,
@@ -231,6 +255,8 @@ export default class RedisCommandsQueue {
     }
 
     flushAll(err: Error): void {
+        this.#decoder.reset();
+        this.#pubSub.reset();
         RedisCommandsQueue.#flushQueue(this.#waitingForReply, err);
         RedisCommandsQueue.#flushQueue(this.#waitingToBeSent, err);
     }

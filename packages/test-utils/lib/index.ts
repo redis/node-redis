@@ -163,9 +163,13 @@ export default class TestUtils {
         M extends RedisModules,
         F extends RedisFunctions,
         S extends RedisScripts
-    >(cluster: RedisClusterType<M, F, S>): Promise<void> {
-        await Promise.all(
-            cluster.getMasters().map(({ client }) => client.flushAll())
+    >(cluster: RedisClusterType<M, F, S>): Promise<unknown> {
+        return Promise.all(
+            cluster.masters.map(async ({ client }) => {
+                if (client) {
+                    await (await client).flushAll();
+                }
+            })
         );
     }
 
@@ -202,7 +206,8 @@ export default class TestUtils {
                         socket: {
                             port
                         }
-                    }))
+                    })),
+                    minimizeConnections: true
                 });
 
 

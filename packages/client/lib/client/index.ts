@@ -14,7 +14,7 @@ import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
-import { PubSubType, PubSubListener } from './pub-sub';
+import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
@@ -172,6 +172,10 @@ export default class RedisClient<
         return this.#socket.isReady;
     }
 
+    get isPubSubActive() {
+        return this.#queue.isPubSubActive;
+    }
+
     get v4(): Record<string, any> {
         if (!this.#options?.legacyMode) {
             throw new Error('the client is not in "legacy mode"');
@@ -218,7 +222,7 @@ export default class RedisClient<
     #initiateQueue(): RedisCommandsQueue {
         return new RedisCommandsQueue(
             this.#options?.commandsQueueMaxLength,
-            (channel, listeners) => this.emit('server-sunsubscribe', channel, listeners)
+            (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
         );
     }
 
@@ -379,8 +383,8 @@ export default class RedisClient<
         });
     }
 
-    async connect(): Promise<void> {
-        await this.#socket.connect();
+    connect(): Promise<void> {
+        return this.#socket.connect();
     }
 
     async commandsExecutor<C extends RedisCommand>(
@@ -502,19 +506,26 @@ export default class RedisClient<
 
     select = this.SELECT;
 
+    #pubSubCommand(promise: Promise<void> | undefined) {
+        if (promise === undefined) return Promise.resolve();
+
+        this.#tick();
+        return promise;
+    }
+
     SUBSCRIBE<T extends boolean = false>(
         channels: string | Array<string>,
         listener: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        const promise = this.#queue.subscribe(
-            PubSubType.CHANNELS,
-            channels,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.CHANNELS,
+                channels,
+                listener,
+                bufferMode
+            )
         );
-        this.#tick();
-        return promise;
     }
 
     subscribe = this.SUBSCRIBE;
@@ -524,14 +535,14 @@ export default class RedisClient<
         listener: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        const promise = this.#queue.subscribe(
-            PubSubType.PATTERNS,
-            patterns,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.PATTERNS,
+                patterns,
+                listener,
+                bufferMode
+            )
         );
-        this.#tick();
-        return promise;
     }
 
     pSubscribe = this.PSUBSCRIBE;
@@ -541,14 +552,14 @@ export default class RedisClient<
         listener: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        const promise = this.#queue.subscribe(
-            PubSubType.SHARDED,
-            channels,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.SHARDED,
+                channels,
+                listener,
+                bufferMode
+            )
         );
-        this.#tick();
-        return promise;
     }
 
     sSubscribe = this.SSUBSCRIBE;
@@ -558,14 +569,14 @@ export default class RedisClient<
         listener?: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        const promise = this.#queue.unsubscribe(
-            PubSubType.CHANNELS,
-            channels,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.unsubscribe(
+                PubSubType.CHANNELS,
+                channels,
+                listener,
+                bufferMode
+            )
         );
-        this.#tick();
-        return promise;
     }
 
     unsubscribe = this.UNSUBSCRIBE;
@@ -575,34 +586,54 @@ export default class RedisClient<
         listener?: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        const promise = this.#queue.unsubscribe(
-            PubSubType.PATTERNS,
-            patterns,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.unsubscribe(
+                PubSubType.PATTERNS,
+                patterns,
+                listener,
+                bufferMode
+            )
         );
-        this.#tick();
-        return promise;
     }
 
     pUnsubscribe = this.PUNSUBSCRIBE;
 
     SUNSUBSCRIBE<T extends boolean = false>(
-        patterns?: string | Array<string>,
+        channels?: string | Array<string>,
         listener?: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        const promise = this.#queue.unsubscribe(
-            PubSubType.SHARDED,
-            patterns,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.unsubscribe(
+                PubSubType.SHARDED,
+                channels,
+                listener,
+                bufferMode
+            )
         );
-        this.#tick();
-        return promise;
     }
 
     sUnsubscribe = this.SUNSUBSCRIBE;
+
+    getPubSubListeners(type: PubSubType) {
+        return this.#queue.getPubSubListeners(type);
+    }
+
+    extendPubSubChannelListeners(
+        type: PubSubType,
+        channel: string,
+        listeners: ChannelListeners
+    ) {
+        return this.#pubSubCommand(
+            this.#queue.extendPubSubChannelListeners(type, channel, listeners)
+        );
+    }
+
+    extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
+        return this.#pubSubCommand(
+            this.#queue.extendPubSubListeners(type, listeners)
+        );
+    }
 
     QUIT(): Promise<void> {
         return this.#socket.quit(() => {

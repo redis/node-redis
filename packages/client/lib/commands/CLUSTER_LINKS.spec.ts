@@ -13,7 +13,8 @@ describe('CLUSTER LINKS', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterLinks', async cluster => {
-        const links = await cluster.getSlotMaster(0).client.clusterLinks();
+        const client = await cluster.nodeClient(cluster.masters[0]),
+            links = await client.clusterLinks();
         assert.ok(Array.isArray(links));
         for (const link of links) {
             assert.equal(typeof link.direction, 'string');

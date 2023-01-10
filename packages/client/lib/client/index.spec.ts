@@ -884,7 +884,7 @@ describe('Client', () => {
                 ...GLOBAL.SERVERS.OPEN
             });
 
-            testUtils.testWithClient('should handle sunsubscribe from server', async publisher => {
+            testUtils.testWithClient('should emit sharded-channel-moved event', async publisher => {
                 await publisher.clusterAddSlotsRange({ start: 0, end: 16383 });
 
                 const subscriber = publisher.duplicate();
@@ -900,7 +900,7 @@ describe('Client', () => {
                             ClusterSlotStates.NODE,
                             await publisher.clusterMyId()
                         ),
-                        once(subscriber, 'server-sunsubscribe')
+                        once(subscriber, 'sharded-channel-moved')
                     ]);
                     
                     assert.equal(

@@ -34,9 +34,15 @@ export interface ChannelListeners {
     strings: Set<PubSubListener<false>>;
 }
 
-type Listeners = Record<PubSubType, Map<string, ChannelListeners>>;
+export type PubSubTypeListeners = Map<string, ChannelListeners>;
 
-export type PubSubCommand = ReturnType<typeof PubSub.prototype.subscribe | typeof PubSub.prototype.unsubscribe>;
+type Listeners = Record<PubSubType, PubSubTypeListeners>;
+
+export type PubSubCommand = ReturnType<
+    typeof PubSub.prototype.subscribe |
+    typeof PubSub.prototype.unsubscribe | 
+    typeof PubSub.prototype.extendTypeListeners
+>;
 
 export class PubSub {
     static isStatusReply(reply: Array<Buffer>): boolean {
@@ -125,6 +131,74 @@ export class PubSub {
                     PubSub.#listenersSet(listeners, returnBuffers).add(listener);
                 }
             },
+            reject: () => {
+                this.#subscribing--;
+                this.#updateIsActive();
+            }
+        };
+    }
+
+    extendChannelListeners(
+        type: PubSubType,
+        channel: string,
+        listeners: ChannelListeners
+    ) {
+        if (!this.#extendChannelListeners(type, channel, listeners)) return;
+
+        this.#isActive = true;
+        this.#subscribing++;
+        return {
+            args: [
+                COMMANDS[type].subscribe,
+                channel
+            ],
+            channelsCounter: 1,
+            resolve: () => this.#subscribing--,
+            reject: () => {
+                this.#subscribing--;
+                this.#updateIsActive();
+            }
+        };
+    }
+
+    #extendChannelListeners(
+        type: PubSubType,
+        channel: string,
+        listeners: ChannelListeners
+    ) {
+        const existingListeners = this.#listeners[type].get(channel);
+        if (!existingListeners) {
+            this.#listeners[type].set(channel, listeners);
+            return true;
+        }
+
+        for (const listener of listeners.buffers) {
+            existingListeners.buffers.add(listener);
+        }
+
+        for (const listener of listeners.strings) {
+            existingListeners.strings.add(listener);
+        }
+
+        return false;
+    }
+
+    extendTypeListeners(type: PubSubType, listeners: PubSubTypeListeners) {
+        const args: Array<RedisCommandArgument> = [COMMANDS[type].subscribe];
+        for (const [channel, channelListeners] of listeners) {
+            if (this.#extendChannelListeners(type, channel, channelListeners)) {
+                args.push(channel);
+            }
+        }
+
+        if (args.length === 1) return;
+
+        this.#isActive = true;
+        this.#subscribing++;
+        return {
+            args,
+            channelsCounter: args.length - 1,
+            resolve: () => this.#subscribing--,
             reject: () => {
                 this.#subscribing--;
                 this.#updateIsActive();
@@ -293,13 +367,11 @@ export class PubSub {
         return false;
     }
 
-    removeShardedListeners(channel: string): ChannelListeners | undefined {
-        const listeners = this.#listeners[PubSubType.SHARDED].get(channel);
-        if (listeners) {
-            this.#listeners[PubSubType.SHARDED].delete(channel);
-            this.#updateIsActive();
-            return listeners;
-        }
+    removeShardedListeners(channel: string): ChannelListeners {
+        const listeners = this.#listeners[PubSubType.SHARDED].get(channel)!;
+        this.#listeners[PubSubType.SHARDED].delete(channel);
+        this.#updateIsActive();
+        return listeners;
     }
     
     #emitPubSubMessage(
@@ -328,5 +400,9 @@ export class PubSub {
         for (const listener of listeners.strings) {
             listener(messageString, channelString);
         }
+    }
+
+    getTypeListeners(type: PubSubType): PubSubTypeListeners {
+        return this.#listeners[type];
     }
 }

@@ -9,7 +9,7 @@ export interface RedisSocketCommonOptions {
     connectTimeout?: number;
     noDelay?: boolean;
     keepAlive?: number | false;
-    reconnectStrategy?(retries: number): number | Error;
+    reconnectStrategy?: false | number | ((retries: number, cause: unknown) => number | Error);
 }
 
 type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
@@ -83,12 +83,16 @@ export default class RedisSocket extends EventEmitter {
         this.#options = RedisSocket.#initiateOptions(options);
     }
 
-    reconnectStrategy(retries: number): number | Error {
-        if (this.#options.reconnectStrategy) {
+    reconnectStrategy(retries: number, cause: unknown): false | number | Error {
+        if (this.#options.reconnectStrategy === false) {
+            return false;
+        } else if (typeof this.#options.reconnectStrategy === 'number') {
+            return this.#options.reconnectStrategy;
+        } else if (this.#options.reconnectStrategy) {
             try {
-                const retryIn = this.#options.reconnectStrategy(retries);
+                const retryIn = this.#options.reconnectStrategy(retries, cause);
                 if (typeof retryIn !== 'number' && !(retryIn instanceof Error)) {
-                    throw new TypeError('Reconnect strategy should return `number | Error`');
+                    throw new TypeError(`Reconnect strategy should return \`number | Error\`, got ${retryIn} instead`);
                 }
 
                 return retryIn;
@@ -131,8 +135,12 @@ export default class RedisSocket extends EventEmitter {
                 this.#isReady = true;
                 this.emit('ready');
             } catch (err) {
-                const retryIn = this.reconnectStrategy(retries);
-                if (retryIn instanceof Error) {
+                const retryIn = this.reconnectStrategy(retries, err);
+                if (retryIn === false) {
+                    this.#isOpen = false;
+                    this.emit('error', err);
+                    throw err;
+                } else if (retryIn instanceof Error) {
                     this.#isOpen = false;
                     this.emit('error', err);
                     throw new ReconnectStrategyError(retryIn, err);
