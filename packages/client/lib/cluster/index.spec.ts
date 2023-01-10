@@ -4,10 +4,7 @@ import RedisCluster from '.';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 import { SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
-import { once } from 'node:events';
-import { ClientKillFilters } from '../commands/CLIENT_KILL';
 import { spy } from 'sinon';
-import { ShardNode } from './cluster-slots';
 import { promiseTimeout } from '../utils';
 
 describe('Cluster', () => {
@@ -69,13 +66,17 @@ describe('Cluster', () => {
             value = 'value';
         await cluster.set(key, value);
 
-        const [ importing, migrating ] = cluster.masters;
+        const importing = cluster.slots[0].master,
+            migrating = cluster.slots[slot].master,
+            [ importingClient, migratingClient ] = await Promise.all([
+                cluster.nodeClient(importing),
+                cluster.nodeClient(migrating)
+            ]);
 
-        const importingClient = await cluster.nodeClient(importing);
-        await importingClient.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, migrating.id);
-
-        const migratingClient = await cluster.nodeClient(migrating);
-        await migratingClient.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, importing.id);
+        await Promise.all([
+            importingClient.clusterSetSlot(slot, ClusterSlotStates.IMPORTING, migrating.id),
+            migratingClient.clusterSetSlot(slot, ClusterSlotStates.MIGRATING, importing.id)
+        ]);
 
         // should be able to get the key from the migrating node
         assert.equal(
