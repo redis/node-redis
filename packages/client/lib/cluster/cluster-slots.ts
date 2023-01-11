@@ -461,7 +461,7 @@ export default class RedisClusterSlots<
 
     *#slotNodesIterator(slot: ShardWithReplicas<M, F, S>) {
         let i = Math.floor(Math.random() * (1 + slot.replicas.length));
-        if (i > 0) {
+        if (i < slot.replicas.length) {
             do {
                 yield slot.replicas[i];
             } while (++i < this.replicas.length);
