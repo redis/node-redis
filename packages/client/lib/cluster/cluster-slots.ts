@@ -464,7 +464,7 @@ export default class RedisClusterSlots<
         if (i < slot.replicas.length) {
             do {
                 yield slot.replicas[i];
-            } while (++i < this.replicas.length);
+            } while (++i < slot.replicas.length);
         }
 
         while (true) {
@@ -478,7 +478,7 @@ export default class RedisClusterSlots<
 
     getSlotRandomNode(slotNumber: number) {
         const slot = this.slots[slotNumber];
-        if (!slot.replicas) {
+        if (!slot.replicas?.length) {
             return slot.master;
         }
 
