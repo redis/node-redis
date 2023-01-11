@@ -499,6 +499,20 @@ export default class RedisClusterSlots<
             this.#initiatePubSubClient();
     }
 
+    async executeUnsubscribeCommand<T>(
+        exec: (client: RedisClientType<M, F, S>) => Promise<T>
+    ): Promise<T> {
+        const client = await this.getPubSubClient(),
+            reply = await exec(client);
+
+        if (!client.isPubSubActive) {
+            this.pubSubNode = undefined;
+            await client.disconnect();
+        }
+
+        return reply;
+    }
+
     async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
         const index = Math.floor(Math.random() * (this.masters.length + this.replicas.length)),
             node = index < this.masters.length ?

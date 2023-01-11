@@ -307,37 +307,32 @@ export default class RedisCluster<
         listener?: PubSubListener<boolean>,
         bufferMode?: T
     ) {
-        const client = await this.#slots.getPubSubClient(),
-            reply = await client.UNSUBSCRIBE(channels, listener, bufferMode)
-
-        if (!client.isPubSubActive) {
-            // TODO: await?
-            await client.disconnect();
-        }
-
-        return reply;
+        return this.#slots.executeUnsubscribeCommand(client => 
+            client.UNSUBSCRIBE(channels, listener, bufferMode)
+        );
     }
 
     unsubscribe = this.UNSUBSCRIBE;
 
     async PSUBSCRIBE<T extends boolean = false>(
-        channels: string | Array<string>,
+        patterns: string | Array<string>,
         listener: PubSubListener<T>,
         bufferMode?: T
     ) {
         return (await this.#slots.getPubSubClient())
-            .PSUBSCRIBE(channels, listener, bufferMode);
+            .PSUBSCRIBE(patterns, listener, bufferMode);
     }
 
     pSubscribe = this.PSUBSCRIBE;
 
     async PUNSUBSCRIBE<T extends boolean = false>(
-        channels?: string | Array<string>,
+        patterns?: string | Array<string>,
         listener?: PubSubListener<T>,
         bufferMode?: T
     ) {
-        return (await this.#slots.getPubSubClient())
-            .PUNSUBSCRIBE(channels, listener, bufferMode);
+        return this.#slots.executeUnsubscribeCommand(client => 
+            client.PUNSUBSCRIBE(patterns, listener, bufferMode)
+        );
     }
 
     pUnsubscribe = this.PUNSUBSCRIBE;

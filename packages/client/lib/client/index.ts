@@ -530,39 +530,6 @@ export default class RedisClient<
 
     subscribe = this.SUBSCRIBE;
 
-    PSUBSCRIBE<T extends boolean = false>(
-        patterns: string | Array<string>,
-        listener: PubSubListener<T>,
-        bufferMode?: T
-    ): Promise<void> {
-        return this.#pubSubCommand(
-            this.#queue.subscribe(
-                PubSubType.PATTERNS,
-                patterns,
-                listener,
-                bufferMode
-            )
-        );
-    }
-
-    pSubscribe = this.PSUBSCRIBE;
-
-    SSUBSCRIBE<T extends boolean = false>(
-        channels: string | Array<string>,
-        listener: PubSubListener<T>,
-        bufferMode?: T
-    ): Promise<void> {
-        return this.#pubSubCommand(
-            this.#queue.subscribe(
-                PubSubType.SHARDED,
-                channels,
-                listener,
-                bufferMode
-            )
-        );
-    }
-
-    sSubscribe = this.SSUBSCRIBE;
 
     UNSUBSCRIBE<T extends boolean = false>(
         channels?: string | Array<string>,
@@ -581,6 +548,23 @@ export default class RedisClient<
 
     unsubscribe = this.UNSUBSCRIBE;
 
+    PSUBSCRIBE<T extends boolean = false>(
+        patterns: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ): Promise<void> {
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.PATTERNS,
+                patterns,
+                listener,
+                bufferMode
+            )
+        );
+    }
+
+    pSubscribe = this.PSUBSCRIBE;
+
     PUNSUBSCRIBE<T extends boolean = false>(
         patterns?: string | Array<string>,
         listener?: PubSubListener<T>,
@@ -597,6 +581,23 @@ export default class RedisClient<
     }
 
     pUnsubscribe = this.PUNSUBSCRIBE;
+
+    SSUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ): Promise<void> {
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.SHARDED,
+                channels,
+                listener,
+                bufferMode
+            )
+        );
+    }
+
+    sSubscribe = this.SSUBSCRIBE;
 
     SUNSUBSCRIBE<T extends boolean = false>(
         channels?: string | Array<string>,
