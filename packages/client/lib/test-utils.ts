@@ -31,6 +31,13 @@ export const GLOBAL = {
                     password: 'password'
                 }
             }
+        },
+        WITH_REPLICAS: {
+            serverArguments: [],
+            numberOfReplicas: 1,
+            clusterConfiguration: {
+                useReplicas: true
+            }
         }
     }
 };

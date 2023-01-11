@@ -34,6 +34,7 @@ interface ClusterTestOptions<
     serverArguments: Array<string>;
     clusterConfiguration?: Partial<RedisClusterOptions<M, F, S>>;
     numberOfNodes?: number;
+    numberOfReplicas?: number;
 }
 
 interface Version {
@@ -190,7 +191,8 @@ export default class TestUtils {
 
                 dockersPromise = spawnRedisCluster({
                     ...dockerImage,
-                    numberOfNodes: options?.numberOfNodes
+                    numberOfNodes: options?.numberOfNodes,
+                    numberOfReplicas: options?.numberOfReplicas 
                 }, options.serverArguments);
                 return dockersPromise;
             });

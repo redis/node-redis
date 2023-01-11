@@ -3,7 +3,7 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
@@ -836,7 +836,6 @@ describe('Client', () => {
             assert.equal(client.isOpen, false);
         }, GLOBAL.SERVERS.OPEN);
 
-
         testUtils.testWithClient('should reject GET in PubSub mode', async client => {
             await client.connect();
 
@@ -845,7 +844,7 @@ describe('Client', () => {
                     // noop
                 });
 
-                await assert.rejects(client.get('key'));
+                await assert.rejects(client.get('key'), ErrorReply);
             } finally {
                 await client.disconnect();
             }

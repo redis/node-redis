@@ -19,6 +19,11 @@ describe('Cluster', () => {
         await cluster.get('aa');
     }, GLOBAL.CLUSTERS.OPEN);
 
+    testUtils.testWithCluster('should spread the load across the cluster', async cluster => {
+
+    }, GLOBAL.CLUSTERS.OPEN);
+
+
     testUtils.testWithCluster('multi', async cluster => {
         const key = 'key';
         assert.deepEqual(
@@ -112,6 +117,26 @@ describe('Cluster', () => {
         serverArguments: [],
         numberOfNodes: 2
     });
+
+    testUtils.testWithCluster('getRandomNode should spread the the load evenly', async cluster => {
+        const totalNodes = cluster.masters.length + cluster.replicas.length,
+            ids = new Set<string>();
+        for (let i = 0; i < totalNodes; i++) {
+            ids.add(cluster.getRandomNode().id);
+        }
+        
+        assert.equal(ids.size, totalNodes);
+    }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
+    testUtils.testWithCluster('getSlotRandomNode should spread the the load evenly', async cluster => {
+        const totalNodes = 1 + cluster.slots[0].replicas!.length,
+            ids = new Set<string>();
+        for (let i = 0; i < totalNodes; i++) {
+            ids.add(cluster.getSlotRandomNode(0).id);
+        }
+        
+        assert.equal(ids.size, totalNodes);
+    }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
     describe('PubSub', () => {
         function assertStringListener(message: string, channel: string) {

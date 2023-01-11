@@ -64,7 +64,7 @@ async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfi
     }
 
     while (await isPortAvailable(port)) {
-        await promiseTimeout(500);
+        await promiseTimeout(50);
     }
 
     return {
@@ -103,16 +103,63 @@ after(() => {
 
 export interface RedisClusterDockersConfig extends RedisServerDockerConfig {
     numberOfNodes?: number;
+    numberOfReplicas?: number;
+}
+
+export interface RedisClusterNodeDocker extends RedisServerDocker {
+    nodeId: string;
+}
+
+async function spawnRedisClusterNodeDockers(
+    dockersConfig: RedisClusterDockersConfig,
+    serverArguments: Array<string>,
+    fromSlot: number,
+    toSlot: number
+): Promise<Array<RedisClusterNodeDocker>> {
+    const range: Array<number> = [];
+    for (let i = fromSlot; i < toSlot; i++) {
+        range.push(i);
+    }
+
+    const master = await spawnRedisClusterNodeDocker(
+        dockersConfig,
+        serverArguments,
+        client => client.clusterAddSlots(range)
+    );
+
+    if (!dockersConfig.numberOfReplicas) return [master];
+
+    const replicasPromises: Array<Promise<RedisClusterNodeDocker>> = [];
+    for (let i = 0; i < dockersConfig.numberOfReplicas; i++) {
+        replicasPromises.push(
+            spawnRedisClusterNodeDocker(dockersConfig, [
+                ...serverArguments,
+                '--cluster-enabled',
+                'yes',
+                '--cluster-node-timeout',
+                '5000'
+            ], async client => {
+                await client.clusterMeet('127.0.0.1', master.port);
+                while ((await client.clusterSlots()).length === 0) {
+                    await promiseTimeout(50);
+                }
+
+                await client.clusterReplicate(master.nodeId);
+            })
+        );
+    }
+
+    return [
+        master,
+        ...await Promise.all(replicasPromises)
+    ];
 }
 
 async function spawnRedisClusterNodeDocker(
     dockersConfig: RedisClusterDockersConfig,
     serverArguments: Array<string>,
-    fromSlot: number,
-    toSlot: number,
-    waitForState: boolean,
-    meetPort?: number
-): Promise<RedisServerDocker> {
+    initiate: (client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>) => Promise<unknown>
+): Promise<RedisClusterNodeDocker> {
     const docker = await spawnRedisServerDocker(dockersConfig, [
             ...serverArguments,
             '--cluster-enabled',
@@ -128,72 +175,81 @@ async function spawnRedisClusterNodeDocker(
 
     await client.connect();
 
+    let nodeId: string;
     try {
-        const range = [];
-        for (let i = fromSlot; i < toSlot; i++) {
-            range.push(i);
-        }
-
-        const promises: Array<Promise<unknown>> = [client.clusterAddSlots(range)];
-
-        if (meetPort) {
-            promises.push(client.clusterMeet('127.0.0.1', meetPort));
-        }
-
-        if (waitForState) {
-            promises.push(waitForClusterState(client));
-        }
-
-        await Promise.all(promises);
-
-        return docker;
+        [nodeId] = await Promise.all([
+            client.clusterMyId(),
+            initiate(client)
+        ]);
     } finally {
         await client.disconnect();
     }
+
+    return {
+        nodeId,
+        ...docker
+    };
 }
 
-async function waitForClusterState<
+async function totalNodes<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
->(client: RedisClientType<M, F, S>): Promise<void> {
-    while ((await client.clusterInfo()).state !== 'ok') {
-        await promiseTimeout(500);
+>(client: RedisClientType<M, F, S>): Promise<number> {
+    const slots = await client.clusterSlots();
+
+    let replicas = 0;
+    for (const { replicas: { length } } of slots) {
+        replicas += length;
     }
+
+    return slots.length + replicas;
 }
 
 const SLOTS = 16384;
 
-async function spawnRedisClusterDockers(dockersConfig: RedisClusterDockersConfig, serverArguments: Array<string>): Promise<Array<RedisServerDocker>> {
+async function spawnRedisClusterDockers(
+    dockersConfig: RedisClusterDockersConfig,
+    serverArguments: Array<string>
+): Promise<Array<RedisClusterNodeDocker>> {
     const numberOfNodes = dockersConfig.numberOfNodes ?? 3,
         slotsPerNode = Math.floor(SLOTS / numberOfNodes),
-        dockers: Array<RedisServerDocker> = [];
+        promises: Array<Promise<Array<RedisClusterNodeDocker>>> = [];
     for (let i = 0; i < numberOfNodes; i++) {
         const fromSlot = i * slotsPerNode,
-            [ toSlot, waitForState ] = i === numberOfNodes - 1 ? [SLOTS, true] : [fromSlot + slotsPerNode, false];
-        dockers.push(
-            await spawnRedisClusterNodeDocker(
+            toSlot = i === numberOfNodes - 1 ? SLOTS : fromSlot + slotsPerNode;
+        promises.push(
+            spawnRedisClusterNodeDockers(
                 dockersConfig,
                 serverArguments,
                 fromSlot,
-                toSlot,
-                waitForState,
-                i === 0 ? undefined : dockers[i - 1].port
+                toSlot
             )
         );
     }
 
-    const client = RedisClient.create({
-        socket: {
-            port: dockers[0].port
-        }
-    });
+    const dockers = (await Promise.all(promises)).flat(),
+        client = RedisClient.create({
+            socket: {
+                port: dockers[0].port
+            }
+        });
 
     await client.connect();
 
     try {
-        while ((await client.clusterInfo()).state !== 'ok') {
-            await promiseTimeout(500);
+        const promises: Array<Promise<unknown>> = [];
+        for (let i = 1; i < dockers.length; i++) {
+            promises.push(
+                client.clusterMeet('127.0.0.1', dockers[i].port)
+            );
+        }
+
+        await Promise.all(promises);
+
+        const expectedNodes = numberOfNodes * (1 + (dockersConfig.numberOfReplicas ?? 0))
+        while (await totalNodes(client) !== expectedNodes) {
+            await promiseTimeout(50);
         }
     } finally {
         await client.disconnect();

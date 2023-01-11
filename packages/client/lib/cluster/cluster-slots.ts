@@ -56,7 +56,7 @@ export interface Shard<
 > {
     master: ShardNode<M, F, S>;
     replicas?: Array<ShardNode<M, F, S>>;
-    clientIterator?: IterableIterator<ClientOrPromise<M, F, S>>;
+    nodesIterator?: IterableIterator<ShardNode<M, F, S>>;
     shardedPubSubClient?: ClientOrPromise<M, F, S>;
 }
 
@@ -150,7 +150,7 @@ export default class RedisClusterSlots<
         this.shards = [];
         this.masters = [];
         this.replicas = [];
-        this.#randomClientIterator = undefined;
+        this.#randomNodeIterator = undefined;
     }
 
     async #discover(rootNode?: RedisClusterClientOptions) {
@@ -340,7 +340,7 @@ export default class RedisClusterSlots<
     }
 
     #createNodeClient(node: ShardNode<M, F, S>) {
-        const promise = this.#createClient(node, node.readonly)
+        const promise = this.#createClient(node)
             .then(client => {
                 node.client = client;
                 return client;
@@ -411,75 +411,78 @@ export default class RedisClusterSlots<
     getClient(
         firstKey: RedisCommandArgument | undefined,
         isReadonly: boolean | undefined
-    ): RedisClientType<M, F, S> | Promise<RedisClientType<M, F, S>> {
+    ): ClientOrPromise<M, F, S> {
         if (!firstKey) {
-            return this.#getRandomClient();
+            return this.nodeClient(this.getRandomNode());
         }
 
-        const slotNumber = calculateSlot(firstKey),
-            slot = this.slots[slotNumber];
-
-        if (!slot) {
-            throw new Error(`Slot ${slotNumber} is not assinged`);
+        const slotNumber = calculateSlot(firstKey);
+        if (!isReadonly) {
+            return this.nodeClient(this.slots[slotNumber].master);
         }
 
-        if (!isReadonly || !slot.replicas?.length) {
-            return this.nodeClient(slot.master);
-        }
-
-        slot.clientIterator ??= this.#slotClientIterator(slot as ShardWithReplicas<M, F, S>);
-        return slot.clientIterator.next().value;
+        return this.nodeClient(this.getSlotRandomNode(slotNumber));
     }
 
-    *#iterateAllClients() {
+    *#iterateAllNodes() {
         let i = Math.floor(Math.random() * this.masters.length + this.replicas.length);
         if (i < this.masters.length) {
             do {
-                yield this.nodeClient(this.masters[i]);
+                yield this.masters[i];
             } while (++i < this.masters.length);
 
             for (const replica of this.replicas) {
-                yield this.nodeClient(replica);
+                yield replica;
             }
         } else {
             do {
-                yield this.nodeClient(this.replicas[i]);
+                yield this.replicas[i];
             } while (++i < this.replicas.length);
         }
 
         while (true) {
             for (const master of this.masters) {
-                yield this.nodeClient(master);
+                yield master;
             }
 
             for (const replica of this.replicas) {
-                yield this.nodeClient(replica);
+                yield replica;
             }
         }
     }
 
-    #randomClientIterator?: IterableIterator<ClientOrPromise<M, F, S>>;
+    #randomNodeIterator?: IterableIterator<ShardNode<M, F, S>>;
 
-    #getRandomClient(): ClientOrPromise<M, F, S> {
-        this.#randomClientIterator ??= this.#iterateAllClients();
-        return this.#randomClientIterator.next().value;
+    getRandomNode() {
+        this.#randomNodeIterator ??= this.#iterateAllNodes();
+        return this.#randomNodeIterator.next().value as ShardNode<M, F, S>;
     }
 
-    *#slotClientIterator(slot: ShardWithReplicas<M, F, S>): IterableIterator<ClientOrPromise<M, F, S>> {
+    *#slotNodesIterator(slot: ShardWithReplicas<M, F, S>) {
         let i = Math.floor(Math.random() * (1 + slot.replicas.length));
         if (i > 0) {
             do {
-                yield this.nodeClient(slot.replicas[i]);
+                yield slot.replicas[i];
             } while (++i < this.replicas.length);
         }
 
         while (true) {
-            yield this.nodeClient(slot.master);
+            yield slot.master;
             
             for (const replica of slot.replicas) {
-                yield this.nodeClient(replica);
+                yield replica;
             }
         }
+    }
+
+    getSlotRandomNode(slotNumber: number) {
+        const slot = this.slots[slotNumber];
+        if (!slot.replicas) {
+            return slot.master;
+        }
+
+        slot.nodesIterator ??= this.#slotNodesIterator(slot as ShardWithReplicas<M, F, S>);
+        return slot.nodesIterator.next().value as ShardNode<M, F, S>;
     }
 
     getMasterByAddress(address: string) {

@@ -365,6 +365,14 @@ export default class RedisCluster<
     nodeClient(node: ShardNode<M, F, S>) {
         return this.#slots.nodeClient(node); 
     }
+
+    getRandomNode() {
+        return this.#slots.getRandomNode();
+    }
+
+    getSlotRandomNode(slot: number) {
+        return this.#slots.getSlotRandomNode(slot);
+    }
 }
 
 attachCommands({
