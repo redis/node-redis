@@ -425,7 +425,7 @@ export default class RedisClusterSlots<
     }
 
     *#iterateAllNodes() {
-        let i = Math.floor(Math.random() * this.masters.length + this.replicas.length);
+        let i = Math.floor(Math.random() * (this.masters.length + this.replicas.length));
         if (i < this.masters.length) {
             do {
                 yield this.masters[i];
