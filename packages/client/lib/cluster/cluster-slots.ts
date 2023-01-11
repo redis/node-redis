@@ -435,6 +435,7 @@ export default class RedisClusterSlots<
                 yield replica;
             }
         } else {
+            i -= this.masters.length;
             do {
                 yield this.replicas[i];
             } while (++i < this.replicas.length);
