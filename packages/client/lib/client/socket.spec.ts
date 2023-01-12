@@ -1,5 +1,6 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import { spy } from 'sinon';
+import { once } from 'node:events';
 import RedisSocket, { RedisSocketOptions } from './socket';
 
 describe('Socket', () => {
@@ -17,16 +18,42 @@ describe('Socket', () => {
     }
 
     describe('reconnectStrategy', () => {
+        it('false', async () => {
+            const socket = createSocket({
+                host: 'error',
+                connectTimeout: 1,
+                reconnectStrategy: false
+            });
+
+            await assert.rejects(socket.connect());
+
+            assert.equal(socket.isOpen, false);
+        });
+
+        it('0', async () => {
+            const socket = createSocket({
+                host: 'error',
+                connectTimeout: 1,
+                reconnectStrategy: 0
+            });
+
+            socket.connect();
+            await once(socket, 'error');
+            assert.equal(socket.isOpen, true);
+            assert.equal(socket.isReady, false);
+            socket.disconnect();
+            assert.equal(socket.isOpen, false);
+        });
+
         it('custom strategy', async () => {
-            const numberOfRetries = 10;
+            const numberOfRetries = 3;
 
             const reconnectStrategy = spy((retries: number) => {
                 assert.equal(retries + 1, reconnectStrategy.callCount);
 
                 if (retries === numberOfRetries) return new Error(`${numberOfRetries}`);
 
-                const time = retries * 2;
-                return time;
+                return 0;
             });
 
             const socket = createSocket({
