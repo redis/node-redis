@@ -6,23 +6,15 @@ import { SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
 import { promiseTimeout } from '../utils';
+import RedisClient from '../client';
 
 describe('Cluster', () => {
     testUtils.testWithCluster('sendCommand', async cluster => {
-        await cluster.publish('channel', 'message');
-        await cluster.set('a', 'b');
-        await cluster.set('a{a}', 'bb');
-        await cluster.set('aa', 'bb');
-        await cluster.get('aa');
-        await cluster.get('aa');
-        await cluster.get('aa');
-        await cluster.get('aa');
+        assert.equal(
+            await cluster.sendCommand(undefined, true, ['PING']),
+            'PONG'
+        );
     }, GLOBAL.CLUSTERS.OPEN);
-
-    testUtils.testWithCluster('should spread the load across the cluster', async cluster => {
-
-    }, GLOBAL.CLUSTERS.OPEN);
-
 
     testUtils.testWithCluster('multi', async cluster => {
         const key = 'key';
@@ -115,7 +107,7 @@ describe('Cluster', () => {
         );
     }, {
         serverArguments: [],
-        numberOfNodes: 2
+        numberOfMasters: 2
     });
 
     testUtils.testWithCluster('getRandomNode should spread the the load evenly', async cluster => {
@@ -137,6 +129,30 @@ describe('Cluster', () => {
         
         assert.equal(ids.size, totalNodes);
     }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
+    describe('minimizeConnections', () => {
+        testUtils.testWithCluster('false', async cluster => {
+            for (const master of cluster.masters) {
+                assert.ok(master.client instanceof RedisClient);
+            }
+        }, {
+            ...GLOBAL.CLUSTERS.OPEN,
+            clusterConfiguration: {
+                minimizeConnections: false
+            }
+        });
+
+        testUtils.testWithCluster('true', async cluster => {
+            for (const master of cluster.masters) {
+                assert.equal(master.client, undefined);
+            }
+        }, {
+            ...GLOBAL.CLUSTERS.OPEN,
+            clusterConfiguration: {
+                minimizeConnections: true
+            }
+        });
+    });
 
     describe('PubSub', () => {
         function assertStringListener(message: string, channel: string) {
@@ -208,7 +224,7 @@ describe('Cluster', () => {
             assert.ok(listener.calledOnceWithExactly('message', 'channel'));
         }, {
             serverArguments: [],
-            numberOfNodes: 2,
+            numberOfMasters: 2,
             minimumDockerVersion: [7]
         });
     });

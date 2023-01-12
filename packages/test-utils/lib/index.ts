@@ -33,7 +33,7 @@ interface ClusterTestOptions<
 > extends CommonTestOptions {
     serverArguments: Array<string>;
     clusterConfiguration?: Partial<RedisClusterOptions<M, F, S>>;
-    numberOfNodes?: number;
+    numberOfMasters?: number;
     numberOfReplicas?: number;
 }
 
@@ -191,7 +191,7 @@ export default class TestUtils {
 
                 dockersPromise = spawnRedisCluster({
                     ...dockerImage,
-                    numberOfNodes: options?.numberOfNodes,
+                    numberOfMasters: options?.numberOfMasters,
                     numberOfReplicas: options?.numberOfReplicas 
                 }, options.serverArguments);
                 return dockersPromise;
@@ -203,15 +203,14 @@ export default class TestUtils {
 
             const dockers = await dockersPromise,
                 cluster = RedisCluster.create({
-                    ...options.clusterConfiguration,
                     rootNodes: dockers.map(({ port }) => ({
                         socket: {
                             port
                         }
                     })),
-                    minimizeConnections: true
+                    minimizeConnections: true,
+                    ...options.clusterConfiguration
                 });
-
 
             await cluster.connect();
 
