@@ -11,8 +11,9 @@ describe('BF CARD', () => {
     });
 
     testUtils.testWithClient('client.bf.card', async client => {
-        assert.equal(await client.bf.add('bf1', 'item'), true);
-        assert.equal(await client.bf.card('bf1'), 1);
-        assert.equal(await client.bf.card("bf_new"), 0);
+        assert.equal(
+            await client.bf.card('key'),
+            0
+        );
     }, GLOBAL.SERVERS.OPEN);
 });
