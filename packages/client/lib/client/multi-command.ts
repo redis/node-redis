@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, ExcludeMappedString, RedisFunction } from '../commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, ExcludeMappedString, RedisFunction, RedisCommands } from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
 import { attachCommands, attachExtensions, transformLegacyCommandArguments } from '../commander';
 
@@ -117,19 +117,23 @@ export default class RedisClientMultiCommand {
                 });
         };
 
-        for (const name of Object.keys(COMMANDS)) {
-            this.#defineLegacyCommand(name);
-        }
-
-        for (const name of Object.keys(COMMANDS)) {
+        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
+            this.#defineLegacyCommand(name, command);
             (this as any)[name.toLowerCase()] = (this as any)[name];
         }
     }
 
-    #defineLegacyCommand(name: string): void {
-        this.v4[name] = (this as any)[name].bind(this.v4);
-        (this as any)[name] =
-            (...args: Array<unknown>): void => (this as any).addCommand(name, ...args);
+    #defineLegacyCommand(this: any, name: string, command?: RedisCommand): void {
+        this.v4[name] = this[name].bind(this.v4);
+        this[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
+            (...args: Array<unknown>) => {
+                this.#multi.addCommand(
+                    [name, ...transformLegacyCommandArguments(args)],
+                    command.transformReply
+                );
+                return this;
+            } :
+            (...args: Array<unknown>) => this.addCommand(name, ...args);
     }
 
     commandsExecutor(command: RedisCommand, args: Array<unknown>): this {
