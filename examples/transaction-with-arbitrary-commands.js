@@ -11,9 +11,11 @@ const client = createClient();
 await client.connect();
 
 // Build some data fixtures.
-await client.hSet('hash1', { name: 'hash1', number: 1});
-await client.hSet('hash2', { name: 'hash2', number: 1});
-await client.hSet('hash3', { name: 'hash3', number: 3});
+await Promise.all([
+  client.hSet('hash1', { name: 'hash1', number: 1}),
+  client.hSet('hash2', { name: 'hash2', number: 1}),
+  client.hSet('hash3', { name: 'hash3', number: 3})
+]);
 
 // Outside of a transaction, use sendCommand to send arbitrary commands.
 await client.sendCommand(['hset', 'hash2', 'number', '3']);
@@ -33,6 +35,6 @@ const responses = await client
 console.log(responses);
 
 // Clean up fixtures.
-await client.del([ 'hash1', 'hash2', 'hash3']);
+await client.del(['hash1', 'hash2', 'hash3']);
 
 await client.quit();
