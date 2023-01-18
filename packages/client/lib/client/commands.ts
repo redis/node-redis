@@ -81,6 +81,8 @@ import * as HELLO from '../commands/HELLO';
 import * as INFO from '../commands/INFO';
 import * as KEYS from '../commands/KEYS';
 import * as LASTSAVE from '../commands/LASTSAVE';
+import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
+import * as LATENCY_GRAPH from '../commands/LATENCY_GRAPH';
 import * as LOLWUT from '../commands/LOLWUT';
 import * as MEMORY_DOCTOR from '../commands/MEMORY_DOCTOR';
 import * as MEMORY_MALLOC_STATS from '../commands/MEMORY_MALLOC-STATS';
@@ -113,7 +115,6 @@ import * as SWAPDB from '../commands/SWAPDB';
 import * as TIME from '../commands/TIME';
 import * as UNWATCH from '../commands/UNWATCH';
 import * as WAIT from '../commands/WAIT';
-import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
 
 export default {
     ...CLUSTER_COMMANDS,
@@ -283,6 +284,8 @@ export default {
     lastSave: LASTSAVE,
     LATENCY_DOCTOR,
     latencyDoctor: LATENCY_DOCTOR,
+    LATENCY_GRAPH,
+    latencyGraph: LATENCY_GRAPH,
     LOLWUT,
     lolwut: LOLWUT,
     MEMORY_DOCTOR,

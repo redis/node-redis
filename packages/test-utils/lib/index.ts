@@ -42,24 +42,32 @@ interface Version {
 }
 
 export default class TestUtils {
+    static #parseVersionNumber(version: string): Array<number> {
+        if (version === 'edge') return [Infinity];
+
+        const dashIndex = version.indexOf('-');
+        return (dashIndex === -1 ? version : version.substring(0, dashIndex))
+            .split('.')
+            .map(x => {
+                const value = Number(x);
+                if (Number.isNaN(value)) {
+                    throw new TypeError(`${version} is not a valid redis version`);
+                }
+
+                return value;
+            });
+    }
+
     static #getVersion(argumentName: string, defaultVersion: string): Version {
         return yargs(hideBin(process.argv))
             .option(argumentName, {
                 type: 'string',
                 default: defaultVersion
             })
-            .coerce(argumentName, (arg: string) => {
-                const indexOfDash = arg.indexOf('-');
+            .coerce(argumentName, (version: string) => {
                 return {
-                    string: arg,
-                    numbers: (indexOfDash === -1 ? arg : arg.substring(0, indexOfDash)).split('.').map(x => {
-                        const value = Number(x);
-                        if (Number.isNaN(value)) {
-                            throw new TypeError(`${arg} is not a valid redis version`);
-                        }
-
-                        return value;
-                    })
+                    string: version,
+                    numbers: TestUtils.#parseVersionNumber(version)
                 };
             })
             .demandOption(argumentName)

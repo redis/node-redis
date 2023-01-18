@@ -105,6 +105,7 @@ export default class RedisSocket extends EventEmitter {
             throw new Error('Socket already opened');
         }
 
+        this.#isOpen = true;
         return this.#connect();
     }
 
@@ -116,7 +117,6 @@ export default class RedisSocket extends EventEmitter {
             }
 
             try {
-                this.#isOpen = true;
                 this.#socket = await this.#createSocket();
                 this.#writableNeedDrain = false;
                 this.emit('connect');
@@ -142,7 +142,7 @@ export default class RedisSocket extends EventEmitter {
                 await promiseTimeout(retryIn);
             }
             retries++;
-        } while (!this.#isReady);
+        } while (this.#isOpen && !this.#isReady);
     }
 
     #createSocket(): Promise<net.Socket | tls.TLSSocket> {
@@ -203,6 +203,8 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = false;
         this.emit('error', err);
 
+        if (!this.#isOpen) return;
+
         this.#connect(true).catch(() => {
             // the error was already emitted, silently ignore it
         });
@@ -219,25 +221,34 @@ export default class RedisSocket extends EventEmitter {
     }
 
     disconnect(): void {
-        if (!this.#socket) {
-            throw new ClientClosedError();
-        } else {
-            this.#isOpen = this.#isReady = false;
-        }
-
-        this.#socket.destroy();
-        this.#socket = undefined;
-        this.emit('end');
-    }
-
-    async quit(fn: () => Promise<unknown>): Promise<void> {
         if (!this.#isOpen) {
             throw new ClientClosedError();
         }
 
         this.#isOpen = false;
-        await fn();
-        this.disconnect();
+        this.#disconnect();
+    }
+
+    #disconnect(): void {
+        this.#isReady = false;
+
+        if (this.#socket) {
+            this.#socket.destroy();
+            this.#socket = undefined;
+        }
+        
+        this.emit('end');
+    }
+
+    async quit<T>(fn: () => Promise<T>): Promise<T> {
+        if (!this.#isOpen) {
+            throw new ClientClosedError();
+        }
+
+        this.#isOpen = false;
+        const reply = await fn();
+        this.#disconnect();
+        return reply;
     }
 
     #isCorked = false;

@@ -22,6 +22,12 @@ export class ClientClosedError extends Error {
     }
 }
 
+export class ClientOfflineError extends Error {
+    constructor() {
+        super('The client is offline');
+    }
+}
+
 export class DisconnectsClientError extends Error {
     constructor() {
         super('Disconnects client');

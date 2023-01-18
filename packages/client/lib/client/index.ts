@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString } from '../commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -11,7 +11,7 @@ import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
 import { attachCommands, attachExtensions, fCallArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ClientClosedError, DisconnectsClientError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 
@@ -31,6 +31,7 @@ export interface RedisClientOptions<
     readonly?: boolean;
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
+    pingInterval?: number;
 }
 
 type WithCommands = {
@@ -281,9 +282,12 @@ export default class RedisClient<
                     this.#queue.flushAll(err);
                 }
             })
-            .on('connect', () => this.emit('connect'))
+            .on('connect', () => {
+                this.emit('connect');
+            })
             .on('ready', () => {
                 this.emit('ready');
+                this.#setPingTimer();
                 this.#tick();
             })
             .on('reconnecting', () => this.emit('reconnecting'))
@@ -296,34 +300,14 @@ export default class RedisClient<
 
         (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
         (this as any).sendCommand = (...args: Array<any>): void => {
-            let callback: ClientLegacyCallback;
-            if (typeof args[args.length - 1] === 'function') {
-                callback = args.pop() as ClientLegacyCallback;
+            const result = this.#legacySendCommand(...args);
+            if (result) {
+                result.promise.then(reply => result.callback(null, reply));
             }
-
-            this.#sendCommand(transformLegacyCommandArguments(args))
-                .then((reply: RedisCommandRawReply) => {
-                    if (!callback) return;
-
-                    // https://github.com/NodeRedis/node-redis#commands:~:text=minimal%20parsing
-
-                    callback(null, reply);
-                })
-                .catch((err: Error) => {
-                    if (!callback) {
-                        this.emit('error', err);
-                        return;
-                    }
-
-                    callback(err);
-                });
         };
 
-        for (const name of Object.keys(COMMANDS)) {
-            this.#defineLegacyCommand(name);
-        }
-
-        for (const name of Object.keys(COMMANDS)) {
+        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
+            this.#defineLegacyCommand(name, command);
             (this as any)[name.toLowerCase()] = (this as any)[name];
         }
 
@@ -342,10 +326,47 @@ export default class RedisClient<
         this.#defineLegacyCommand('quit');
     }
 
-    #defineLegacyCommand(name: string): void {
-        this.#v4[name] = (this as any)[name].bind(this);
-        (this as any)[name] =
-            (...args: Array<unknown>): void => (this as any).sendCommand(name, ...args);
+    #legacySendCommand(...args: Array<any>) {
+        const callback = typeof args[args.length - 1] === 'function' ?
+            args.pop() as ClientLegacyCallback :
+            undefined;
+
+        const promise = this.#sendCommand(transformLegacyCommandArguments(args));
+        if (callback) return {
+            promise,
+            callback
+        };
+        promise.catch(err => this.emit('error', err));
+    }
+
+    #defineLegacyCommand(this: any, name: string, command?: RedisCommand): void {
+        this.#v4[name] = this[name].bind(this);
+        this[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
+            (...args: Array<unknown>) => {
+                const result = this.#legacySendCommand(name, ...args);
+                if (result) {
+                    result.promise.then((reply: any) => {
+                        result.callback(null, command.transformReply!(reply));
+                    });
+                }
+            } :
+            (...args: Array<unknown>) => this.sendCommand(name, ...args);
+    }
+
+    #pingTimer?: NodeJS.Timer;
+
+    #setPingTimer(): void {
+        if (!this.#options?.pingInterval || !this.#socket.isReady) return;
+        clearTimeout(this.#pingTimer);
+
+        this.#pingTimer = setTimeout(() => {
+            if (!this.#socket.isReady) return;
+
+            (this as unknown as RedisClientType<M, F, S>).ping()
+                .then(reply => this.emit('ping-interval', reply))
+                .catch(err => this.emit('error', err))
+                .finally(() => this.#setPingTimer());
+        }, this.#options.pingInterval);
     }
 
     duplicate(overrides?: Partial<RedisClientOptions<M, F, S>>): RedisClientType<M, F, S> {
@@ -385,16 +406,16 @@ export default class RedisClient<
     ): Promise<T> {
         if (!this.#socket.isOpen) {
             return Promise.reject(new ClientClosedError());
-        }
-
-        if (options?.isolated) {
+        } else if (options?.isolated) {
             return this.executeIsolated(isolatedClient =>
                 isolatedClient.sendCommand(args, {
                     ...options,
                     isolated: false
                 })
             );
-        }
+        } else if (!this.#socket.isReady && this.#options?.disableOfflineQueue) {
+            return Promise.reject(new ClientOfflineError());
+        } 
 
         const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
@@ -565,16 +586,17 @@ export default class RedisClient<
 
     pUnsubscribe = this.PUNSUBSCRIBE;
 
-    QUIT(): Promise<void> {
-        return this.#socket.quit(() => {
-            const quitPromise = this.#queue.addCommand(['QUIT'], {
+    QUIT(): Promise<string> {
+        return this.#socket.quit(async () => {
+            const quitPromise = this.#queue.addCommand<string>(['QUIT'], {
                 ignorePubSubMode: true
             });
             this.#tick();
-            return Promise.all([
+            const [reply] = await Promise.all([
                 quitPromise,
                 this.#destroyIsolationPool()
             ]);
+            return reply;
         });
     }
 
@@ -599,12 +621,14 @@ export default class RedisClient<
         return this.#isolationPool.use(fn);
     }
 
-    multi(): RedisClientMultiCommandType<M, F, S> {
+    MULTI(): RedisClientMultiCommandType<M, F, S> {
         return new (this as any).Multi(
             this.multiExecutor.bind(this),
             this.#options?.legacyMode
         );
     }
+
+    multi = this.MULTI;
 
     async multiExecutor(
         commands: Array<RedisMultiQueuedCommand>,

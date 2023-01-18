@@ -65,8 +65,8 @@ console.log('Users under 30 years old:');
 console.log(
   // https://redis.io/commands/ft.search/
   JSON.stringify(
-    await client.ft.search('idx:users', '@age:[0 30]'), 
-    null, 
+    await client.ft.search('idx:users', '@age:[0 30]'),
+    null,
     2
   )
 );
@@ -89,11 +89,11 @@ console.log(
 // in the email address.  This applies for other punctuation too.
 // https://redis.io/docs/stack/search/reference/tags/#including-punctuation-in-tags
 console.log('Users with email "bob@somewhere.gov":');
-const emailAddress = 'bob@somewhere.gov'.replace(/[.@]/g, '\\$&');
+const emailAddress = 'bob@somewhere.gov'.replace(/[.@\\]/g, '\\$&');
 console.log(
   JSON.stringify(
-    await client.ft.search('idx:users', `@email:{${emailAddress}}`), 
-    null, 
+    await client.ft.search('idx:users', `@email:{${emailAddress}}`),
+    null,
     2
   )
 );
@@ -130,8 +130,8 @@ console.log(
           AS: 'totalCoins'
         }]
       }]
-    }), 
-    null, 
+    }),
+    null,
     2
   )
 );

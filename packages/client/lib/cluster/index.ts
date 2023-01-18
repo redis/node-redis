@@ -224,7 +224,7 @@ export default class RedisCluster<
         }
     }
 
-    multi(routing?: RedisCommandArgument): RedisClusterMultiCommandType<M, F, S> {
+    MULTI(routing?: RedisCommandArgument): RedisClusterMultiCommandType<M, F, S> {
         return new this.#Multi(
             (commands: Array<RedisMultiQueuedCommand>, firstKey?: RedisCommandArgument, chainId?: symbol) => {
                 return this.#execute(
@@ -236,6 +236,8 @@ export default class RedisCluster<
             routing
         );
     }
+
+    multi = this.MULTI;
 
     getMasters(): Array<ClusterNode<M, F, S>> {
         return this.#slots.getMasters();

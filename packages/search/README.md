@@ -18,15 +18,14 @@ Before we can perform any searches, we need to tell RediSearch how to index our 
 await client.ft.create('idx:animals', {
   name: {
     type: SchemaFieldTypes.TEXT,
-    sortable: true
+    SORTABLE: true
   },
-    species: SchemaFieldTypes.TAG,
-    age: SchemaFieldTypes.NUMERIC
-  }, {
-    ON: 'HASH',
-    PREFIX: 'noderedis:animals'
-  }
-);
+  species: SchemaFieldTypes.TAG,
+  age: SchemaFieldTypes.NUMERIC
+}, {
+  ON: 'HASH',
+  PREFIX: 'noderedis:animals'
+});
 ```
 
 See the [`FT.CREATE` documentation](https://oss.redis.com/redisearch/Commands/#ftcreate) for information about the different field types and additional options.

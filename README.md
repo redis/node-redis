@@ -1,9 +1,8 @@
 # Node-Redis
 
-[![Tests](https://img.shields.io/github/workflow/status/redis/node-redis/Tests/master.svg?label=tests)](https://github.com/redis/node-redis/actions/workflows/tests.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/redis/node-redis/tests.yml?branch=master)](https://github.com/redis/node-redis/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
 [![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://github.com/redis/node-redis/blob/master/LICENSE)
-[![LGTM alerts](https://img.shields.io/lgtm/alerts/g/redis/node-redis.svg?logo=LGTM)](https://lgtm.com/projects/g/redis/node-redis/alerts)
 
 [![Discord](https://img.shields.io/discord/697882427875393627.svg?style=social&logo=discord)](https://discord.gg/redis)
 [![Twitch](https://img.shields.io/twitch/status/redisinc?style=social)](https://www.twitch.tv/redisinc)
@@ -29,6 +28,14 @@ node-redis is a modern, high performance [Redis](https://redis.io) client for No
 
 ## Installation
 
+Start a redis via docker:
+
+``` bash
+docker run -p 6379:6379 -it redis/redis-stack-server:latest
+```
+
+To install node-redis, simply:
+
 ```bash
 npm install redis
 ```
@@ -52,6 +59,7 @@ await client.connect();
 
 await client.set('key', 'value');
 const value = await client.get('key');
+await client.disconnect();
 ```
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
@@ -63,6 +71,8 @@ createClient({
 ```
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](./docs/client-configuration.md).
+
+To check if the the client is connected and ready to send commands, use `client.isReady` which returns a boolean. `client.isOpen` is also available.  This returns `true` when the client's underlying socket is open, and `false` when it isn't (for example when the client is still connecting or reconnecting after a network error).
 
 ### Redis Commands
 

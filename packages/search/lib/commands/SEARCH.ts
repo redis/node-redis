@@ -1,5 +1,4 @@
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { pushSearchOptions, RedisSearchLanguages, Params, PropertyName, SortByProperty, SearchReply } from '.';
 
 export const FIRST_KEY_INDEX = 1;
@@ -73,13 +72,11 @@ export type SearchRawReply = Array<any>;
 
 export function transformReply(reply: SearchRawReply): SearchReply {
     const documents = [];
-    for (let i = 1; i < reply.length; i += 2) {
-        const tuples = reply[i + 1];
+    let i = 1;
+    while (i < reply.length) {
         documents.push({
-            id: reply[i],
-            value: tuples.length === 2 && tuples[0] === '$' ?
-                JSON.parse(tuples[1]) :
-                transformTuplesReply(tuples)
+            id: reply[i++],
+            value: documentValue(reply[i++])
         });
     }
 
@@ -87,4 +84,27 @@ export function transformReply(reply: SearchRawReply): SearchReply {
         total: reply[0],
         documents
     };
+}
+
+function documentValue(tuples: any) {
+    const message = Object.create(null);
+    if (tuples === undefined) return message;
+
+    let i = 0;
+    while (i < tuples.length) {
+        const key = tuples[i++],
+            value = tuples[i++];
+        if (key === '$') { // might be a JSON reply
+            try {
+                Object.assign(message, JSON.parse(value));
+                continue;
+            } catch {
+                // set as a regular property if not a valid JSON
+            }
+        }
+
+        message[key] = value;
+    }
+
+    return message;
 }

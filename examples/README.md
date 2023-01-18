@@ -6,6 +6,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `blocking-list-pop.js`                   | Block until an element is pushed to a list.                                                                                                          |
 | `bloom-filter.js`                        | Space efficient set membership checks with a [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter) using [RedisBloom](https://redisbloom.io).   |
+| `check-connection-status.js`             | Check the client's connection status.                                                                                                                |
 | `command-with-modifiers.js`              | Define a script that allows to run a command with several modifiers.                                                                                 |
 | `connect-as-acl-user.js`                 | Connect to Redis 6 using an ACL user.                                                                                                                |
 | `connect-to-cluster.js`                  | Connect to a Redis cluster.                                                                                                                          |
@@ -26,7 +27,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `time-series.js`                         | Create, populate and query timeseries data with [Redis Timeseries](https://redistimeseries.io).                                                      |
 | `topk.js`                                | Use the [RedisBloom](https://redisbloom.io) TopK to track the most frequently seen items.                                                            |
 | `stream-consumer-group.js`               | Reads entries from a [Redis Stream](https://redis.io/topics/streams-intro) as part of a consumer group using the blocking `XREADGROUP` command.      |
-| `tranaaction-with-arbitrary-commands.js` | Mix and match supported commands with arbitrary command strings in a Redis transaction.                                                              |
+| `transaction-with-arbitrary-commands.js` | Mix and match supported commands with arbitrary command strings in a Redis transaction.                                                              |
 | `transaction-with-watch.js`              | An Example of [Redis transaction](https://redis.io/docs/manual/transactions) with `WATCH` command on isolated connection with optimistic locking.    |
 
 ## Contributing
