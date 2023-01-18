@@ -841,13 +841,14 @@ describe('Client', () => {
             quitPromise = client.quit();
         assert.equal(client.isOpen, false);
 
-        const [ping] = await Promise.all([
+        const [ping, quit] = await Promise.all([
             pingPromise,
-            assert.doesNotReject(quitPromise),
+            quitPromise,
             assert.rejects(client.ping(), ClientClosedError)
         ]);
 
         assert.equal(ping, 'PONG');
+        assert.equal(quit, 'OK');
     }, {
         ...GLOBAL.SERVERS.OPEN,
         disableClientSetup: true

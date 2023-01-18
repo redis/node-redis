@@ -586,16 +586,17 @@ export default class RedisClient<
 
     pUnsubscribe = this.PUNSUBSCRIBE;
 
-    QUIT(): Promise<void> {
-        return this.#socket.quit(() => {
-            const quitPromise = this.#queue.addCommand(['QUIT'], {
+    QUIT(): Promise<string> {
+        return this.#socket.quit(async () => {
+            const quitPromise = this.#queue.addCommand<string>(['QUIT'], {
                 ignorePubSubMode: true
             });
             this.#tick();
-            return Promise.all([
+            const [reply] = await Promise.all([
                 quitPromise,
                 this.#destroyIsolationPool()
             ]);
+            return reply;
         });
     }
 

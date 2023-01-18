@@ -240,14 +240,15 @@ export default class RedisSocket extends EventEmitter {
         this.emit('end');
     }
 
-    async quit(fn: () => Promise<unknown>): Promise<void> {
+    async quit<T>(fn: () => Promise<T>): Promise<T> {
         if (!this.#isOpen) {
             throw new ClientClosedError();
         }
 
         this.#isOpen = false;
-        await fn();
+        const reply = await fn();
         this.#disconnect();
+        return reply;
     }
 
     #isCorked = false;
