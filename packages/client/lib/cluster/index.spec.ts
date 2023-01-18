@@ -205,7 +205,10 @@ describe('Cluster', () => {
 
             // 10328 is the slot of `channel`
             assert.equal(cluster.slots[10328].shardedPubSubClient, undefined);
-        }, GLOBAL.CLUSTERS.OPEN);
+        }, {
+            ...GLOBAL.CLUSTERS.OPEN,
+            minimumDockerVersion: [7]
+        });
 
         testUtils.testWithCluster('should move listeners when PubSub node disconnects from the cluster', async cluster => {
             const listener = spy();
