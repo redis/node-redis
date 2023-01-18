@@ -66,8 +66,6 @@ type ShardWithReplicas<
     S extends RedisScripts
 > = Shard<M, F, S> & Required<Pick<Shard<M, F, S>, 'replicas'>>;
 
-type OnError = (err: unknown) => void;
-
 export type PubSubNode<
     M extends RedisModules,
     F extends RedisFunctions,
@@ -84,7 +82,6 @@ export type OnShardedChannelMovedError = (
     channel: string,
     listeners?: ChannelListeners
 ) => void;
-
 
 export default class RedisClusterSlots<
     M extends RedisModules,
@@ -383,14 +380,28 @@ export default class RedisClusterSlots<
         this.#isOpen = false;
 
         const promises = [];
-        for (const { client } of this.nodeByAddress.values()) {
-            if (!client) continue;
+        for (const { shardedPubSubClient, master, replicas } of this.shards) {
+            if (shardedPubSubClient) {
+                promises.push(
+                    this.#execOnNodeClient(shardedPubSubClient, fn)
+                );    
+            }
+            
+            if (master.client) {
+                promises.push(
+                    this.#execOnNodeClient(master.client, fn)
+                );
+            }
 
-            promises.push(
-                types.isPromise(client) ?
-                    client.then(fn) :
-                    fn(client)
-            );
+            if (replicas) {
+                for (const { client } of replicas) {
+                    if (client) {
+                        promises.push(
+                            this.#execOnNodeClient(client, fn)
+                        );
+                    }
+                }
+            }
         }
 
         if (this.pubSubNode) {
@@ -406,6 +417,15 @@ export default class RedisClusterSlots<
         this.nodeByAddress.clear();
 
         await Promise.allSettled(promises);
+    }
+
+    #execOnNodeClient(
+        client: ClientOrPromise<M, F, S>,
+        fn: (client: RedisClientType<M, F, S>) => Promise<unknown>
+    ) {
+        return types.isPromise(client) ?
+            client.then(fn) :
+            fn(client);
     }
 
     getClient(
@@ -499,20 +519,6 @@ export default class RedisClusterSlots<
             this.#initiatePubSubClient();
     }
 
-    async executeUnsubscribeCommand<T>(
-        exec: (client: RedisClientType<M, F, S>) => Promise<T>
-    ): Promise<T> {
-        const client = await this.getPubSubClient(),
-            reply = await exec(client);
-
-        if (!client.isPubSubActive) {
-            this.pubSubNode = undefined;
-            await client.disconnect();
-        }
-
-        return reply;
-    }
-
     async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
         const index = Math.floor(Math.random() * (this.masters.length + this.replicas.length)),
             node = index < this.masters.length ?
@@ -542,41 +548,68 @@ export default class RedisClusterSlots<
         return this.pubSubNode.client as Promise<RedisClientType<M, F, S>>;
     }
 
-    // getShardedPubSubClient(channel: string) {
-    //     const slot = this.slots[calculateSlot(channel)];
-    //     return slot.shardedPubSubClient ?
-    //         slot.shardedPubSubClient :
-    //         this.#initiateShardedPubSubClient(slot);
-    // }
+    async executeUnsubscribeCommand(
+        unsubscribe: (client: RedisClientType<M, F, S>) => Promise<void>
+    ): Promise<void> {
+        const client = await this.getPubSubClient();
+        await unsubscribe(client);
 
-    // #initiateShardedPubSubClient(slot: Shard<M, F, S>) {
-    //     const promise = this.#createClient(slot.master, true)
-    //         .then(client => {
-    //             client.on('server-sunsubscribe', async (channel, listeners) => {
-    //                 try {
-    //                     await this.rediscover(client);
-    //                     const redirectTo = await this.getShardedPubSubClient(channel);
-    //                     redirectTo.extendPubSubChannelListeners(
-    //                         PubSubType.SHARDED,
-    //                         channel,
-    //                         listeners
-    //                     );
-    //                 } catch (err) {
-    //                     this.#onShardedChannelMovedError(err, channel, listeners);
-    //                 }
-                    
-    //             })
+        if (!client.isPubSubActive) {
+            await client.disconnect();
+            this.pubSubNode = undefined;
+        }
+    }
 
-    //             slot.shardedPubSubClient = client;
-    //             return client;
-    //         })
-    //         .catch(err => {
-    //             slot.shardedPubSubClient = undefined;
-    //             throw err;
-    //         });
+    getShardedPubSubClient(channel: string) {
+        const slot = this.slots[calculateSlot(channel)];
+        return slot.shardedPubSubClient ?
+            slot.shardedPubSubClient :
+            this.#initiateShardedPubSubClient(slot);
+    }
 
-    //     slot.shardedPubSubClient = promise;
+    #initiateShardedPubSubClient(slot: Shard<M, F, S>) {
+        const promise = this.#createClient(slot.master, true)
+            .then(client => {
+                client.on('server-sunsubscribe', async (channel, listeners) => {
+                    try {
+                        await this.rediscover(client);
+                        const redirectTo = await this.getShardedPubSubClient(channel);
+                        redirectTo.extendPubSubChannelListeners(
+                            PubSubType.SHARDED,
+                            channel,
+                            listeners
+                        );
+                    } catch (err) {
+                        this.#emit('sharded-shannel-moved-error', err, channel, listeners);
+                    }
+                });
 
-    //     return promise;
-    // }
+                slot.shardedPubSubClient = client;
+                return client;
+            })
+            .catch(err => {
+                slot.shardedPubSubClient = undefined;
+                throw err;
+            });
+
+        slot.shardedPubSubClient = promise;
+
+        return promise;
+    }
+
+    async executeShardedUnsubscribeCommand(
+        channel: string,
+        unsubscribe: (client: RedisClientType<M, F, S>) => Promise<void>
+    ): Promise<void> {
+        const slot = this.slots[calculateSlot(channel)];
+        if (!slot.shardedPubSubClient) return Promise.resolve();
+
+        const client = await slot.shardedPubSubClient;
+        await unsubscribe(client);
+
+        if (!client.isPubSubActive) {
+            await client.disconnect();
+            slot.shardedPubSubClient = undefined;
+        }
+    }
 }

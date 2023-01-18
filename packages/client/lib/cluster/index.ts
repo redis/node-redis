@@ -337,17 +337,47 @@ export default class RedisCluster<
 
     pUnsubscribe = this.PUNSUBSCRIBE;
 
-    // SSUBSCRIBE<T extends boolean>(
-    //     channels: string | Array<string>,
-    //     listener: PubSubListener<T>,
-    //     bufferMode?: T
-    // ) {
-        
-    // }
+    async SSUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ) { 
+        const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16,
+            firstChannel = Array.isArray(channels) ? channels[0] : channels;
+        let client = await this.#slots.getShardedPubSubClient(firstChannel);
+        for (let i = 0;; i++) {
+            try {
+                return await client.SSUBSCRIBE(channels, listener, bufferMode);
+            } catch (err) {
+                if (++i > maxCommandRedirections || !(err instanceof ErrorReply)) {
+                    throw err;
+                }
 
-    // SUNSUBSCRIBE() {
+                if (err.message.startsWith('MOVED')) {
+                    await this.#slots.rediscover(client);
+                    client = await this.#slots.getShardedPubSubClient(firstChannel);
+                    continue;
+                }
 
-    // }
+                throw err;
+            }
+        }
+    }
+
+    sSubscribe = this.SSUBSCRIBE;
+
+    SUNSUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ) {
+        return this.#slots.executeShardedUnsubscribeCommand(
+            Array.isArray(channels) ? channels[0] : channels,
+            client => client.SUNSUBSCRIBE(channels, listener, bufferMode)
+        );
+    }
+
+    sUnsubscribe = this.SUNSUBSCRIBE;
 
     quit(): Promise<void> {
         return this.#slots.quit();

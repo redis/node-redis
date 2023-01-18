@@ -272,7 +272,7 @@ export class PubSub {
 
         return this.#unsubscribeCommand(
             args,
-            channels.length,
+            args.length - 1,
             () => {
                 for (const channel of channelsArray) {
                     const sets = listeners.get(channel);

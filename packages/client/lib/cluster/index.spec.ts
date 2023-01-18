@@ -155,32 +155,60 @@ describe('Cluster', () => {
     });
 
     describe('PubSub', () => {
-        function assertStringListener(message: string, channel: string) {
-            assert.equal(typeof message, 'string');
-            assert.equal(typeof channel, 'string');
-        }
+        testUtils.testWithCluster('subscribe & unsubscribe', async cluster => {
+            const listener = spy();
 
-        testUtils.testWithCluster('should be able to send and receive messages', async cluster => {
-            const channelListener = spy(assertStringListener),
-                patternListener = spy(assertStringListener);
+            await cluster.subscribe('channel', listener);
 
             await Promise.all([
-                cluster.subscribe('channel', channelListener),
-                cluster.pSubscribe('channe*', patternListener)
-            ]);
-
-            await Promise.all([
-                cluster.publish('channel', 'message'),
-                waitTillBeenCalled(channelListener),
-                waitTillBeenCalled(patternListener)
+                waitTillBeenCalled(listener),
+                cluster.publish('channel', 'message')
             ]);
             
-            assert.ok(channelListener.calledOnceWithExactly('message', 'channel'));
-            assert.ok(patternListener.calledOnceWithExactly('message', 'channel'));
+            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+
+            await cluster.unsubscribe('channel', listener);
+
+            assert.equal(cluster.pubSubNode, undefined);
+        }, GLOBAL.CLUSTERS.OPEN);
+
+        testUtils.testWithCluster('psubscribe & punsubscribe', async cluster => {
+            const listener = spy();
+
+            await cluster.pSubscribe('channe*', listener);
+
+            await Promise.all([
+                waitTillBeenCalled(listener),
+                cluster.publish('channel', 'message')
+            ]);
+            
+            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+
+            await cluster.pUnsubscribe('channe*', listener);
+
+            assert.equal(cluster.pubSubNode, undefined);
+        }, GLOBAL.CLUSTERS.OPEN);
+
+        testUtils.testWithCluster('ssubscribe & sunsubscribe', async cluster => {
+            const listener = spy();
+
+            await cluster.sSubscribe('channel', listener);
+
+            await Promise.all([
+                waitTillBeenCalled(listener),
+                cluster.sPublish('channel', 'message')
+            ]);
+            
+            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+
+            await cluster.sUnsubscribe('channel', listener);
+
+            // 10328 is the slot of `channel`
+            assert.equal(cluster.slots[10328].shardedPubSubClient, undefined);
         }, GLOBAL.CLUSTERS.OPEN);
 
         testUtils.testWithCluster('should move listeners when PubSub node disconnects from the cluster', async cluster => {
-            const listener = spy(assertStringListener);
+            const listener = spy();
             await cluster.subscribe('channel', listener);
 
             assert.ok(cluster.pubSubNode);
