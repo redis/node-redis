@@ -1,4 +1,5 @@
 import * as ADD from './ADD';
+import * as CARD from './CARD';
 import * as EXISTS from './EXISTS';
 import * as INFO from './INFO';
 import * as INSERT from './INSERT';
@@ -11,6 +12,8 @@ import * as SCANDUMP from './SCANDUMP';
 export default {
     ADD,
     add: ADD,
+    CARD,
+    card: CARD,
     EXISTS,
     exists: EXISTS,
     INFO,
