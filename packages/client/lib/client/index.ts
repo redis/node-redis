@@ -745,15 +745,3 @@ attachCommands({
     executor: RedisClient.prototype.commandsExecutor
 });
 (RedisClient.prototype as any).Multi = RedisClientMultiCommand;
-
-const client = RedisClient.create();
-
-const a = client.scanIterator(
-    client.commandOptions({returnBuffers: true})
-)
-
-const b = client.scanIterator(
-    client.commandOptions({returnBuffers: false})
-)
-
-const c = client.scanIterator()
