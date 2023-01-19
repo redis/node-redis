@@ -415,7 +415,7 @@ export default class RedisClient<
             );
         } else if (!this.#socket.isReady && this.#options?.disableOfflineQueue) {
             return Promise.reject(new ClientOfflineError());
-        } 
+        }
 
         const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
@@ -656,10 +656,29 @@ export default class RedisClient<
         return results;
     }
 
-    async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
+    scanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions: T,
+        options?: ScanCommandOptions
+    ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string>;
+    scanIterator(
+        options?: ScanCommandOptions
+    ): AsyncIterable<string>;
+    async* scanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions?: T | ScanCommandOptions,
+        options?: ScanCommandOptions
+    ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string> {
+        if (!isCommandOptions(commandOptions)) {
+            options = commandOptions;
+            commandOptions = undefined;
+        }
+
+        const scan = commandOptions ?
+            (...args: Array<unknown>) => (this as any).scan(commandOptions, ...args) :
+            (...args: Array<unknown>) => (this as any).scan(...args);
+
         let cursor = 0;
         do {
-            const reply = await (this as any).scan(cursor, options);
+            const reply = await scan(cursor, options);
             cursor = reply.cursor;
             for (const key of reply.keys) {
                 yield key;
@@ -726,3 +745,15 @@ attachCommands({
     executor: RedisClient.prototype.commandsExecutor
 });
 (RedisClient.prototype as any).Multi = RedisClientMultiCommand;
+
+const client = RedisClient.create();
+
+const a = client.scanIterator(
+    client.commandOptions({returnBuffers: true})
+)
+
+const b = client.scanIterator(
+    client.commandOptions({returnBuffers: false})
+)
+
+const c = client.scanIterator()

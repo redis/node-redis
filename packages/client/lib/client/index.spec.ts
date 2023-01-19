@@ -215,7 +215,7 @@ describe('Client', () => {
 
         testUtils.testWithClient('client.hGetAll should return object', async client => {
             await client.v4.hSet('key', 'field', 'value');
-            
+
             assert.deepEqual(
                 await promisify(client.hGetAll).call(client, 'key'),
                 Object.create(null, {
@@ -317,7 +317,7 @@ describe('Client', () => {
             }
         });
 
-        testUtils.testWithClient('client.multi.hGetAll should return object', async client => { 
+        testUtils.testWithClient('client.multi.hGetAll should return object', async client => {
             assert.deepEqual(
                 await multiExecAsync(
                     client.multi()
@@ -607,24 +607,48 @@ describe('Client', () => {
         return client.executeIsolated(isolated => killClient(isolated, client));
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('scanIterator', async client => {
-        const promises = [],
-            keys = new Set();
-        for (let i = 0; i < 100; i++) {
-            const key = i.toString();
-            keys.add(key);
-            promises.push(client.set(key, ''));
-        }
+    describe('scanIterator', () => {
+        testUtils.testWithClient('strings', async client => {
+            const args: Array<string> = [],
+                keys = new Set<string>();
+            for (let i = 0; i < 100; i++) {
+                const key = i.toString();
+                args.push(key, '');
+                keys.add(key);
+            }
 
-        await Promise.all(promises);
+            await client.mSet(args);
 
-        const results = new Set();
-        for await (const key of client.scanIterator()) {
-            results.add(key);
-        }
+            const results = new Set<string>();
+            for await (const key of client.scanIterator()) {
+                results.add(key);
+            }
 
-        assert.deepEqual(keys, results);
-    }, GLOBAL.SERVERS.OPEN);
+            assert.deepEqual(keys, results);
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('buffers', async client => {
+            const args: Array<string | Buffer> = [],
+                keys = new Set<Buffer>();
+            for (let i = 0; i < 100; i++) {
+                const key = Buffer.from([i]);
+                args.push(key, '');
+                keys.add(key);
+            }
+
+            await client.mSet(args);
+
+            const results = new Set<Buffer>(),
+                iteartor = client.scanIterator(
+                    client.commandOptions({ returnBuffers: true })
+                );
+            for await (const key of iteartor) {
+                results.add(key);
+            }
+
+            assert.deepEqual(keys, results);
+        }, GLOBAL.SERVERS.OPEN);
+    });
 
     testUtils.testWithClient('hScanIterator', async client => {
         const hash: Record<string, string> = {};
