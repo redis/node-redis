@@ -30,7 +30,7 @@
 
 When a network error occurs the client will automatically try to reconnect, following a default linear strategy (the more attempts, the more waiting before trying to reconnect).
 
-This strategy can be overriden by providing a `socket.reconnectStrategy` option during client's creation.
+This strategy can be overridden by providing a `socket.reconnectStrategy` option during the client's creation.
 
 The `socket.reconnectStrategy` is a function that:
 
@@ -45,7 +45,6 @@ The example below shows the default `reconnectStrategy` and how to override it.
 import { createClient } from 'redis';
 
 const client = createClient({
-    url: 'redis://alice:foobared@awesome.redis.server:6380',
     socket: {
         reconnectStrategy: (retries) => Math.min(retries * 50, 500)
     }
