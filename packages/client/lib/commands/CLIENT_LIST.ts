@@ -1,43 +1,43 @@
 import { RedisCommandArguments, RedisCommandArgument } from '.';
-import { ClientInfoReply, transformClientInfoReply } from './generic-transformers';
+import { pushVerdictArguments } from './generic-transformers';
+import { transformReply as transformClientInfoReply, ClientInfoReply } from './CLIENT_INFO';
 
 interface ListFilterType {
-    type: 'normal' | 'master' | 'replica' | 'pubsub';
-    id?: never;
+    TYPE: 'NORMAL' | 'MASTER' | 'REPLICA' | 'PUBSUB';
+    ID?: never;
 }
+
 interface ListFilterId {
-    id: Array<RedisCommandArgument>;
-    type?: never;
+    ID: Array<RedisCommandArgument>;
+    TYPE?: never;
 }
 
 export type ListFilter = ListFilterType | ListFilterId;
 
+export const IS_READ_ONLY = true;
+
 export function transformArguments(filter?: ListFilter): RedisCommandArguments {
-    const args: RedisCommandArguments = ['CLIENT', 'LIST'];
+    let args: RedisCommandArguments = ['CLIENT', 'LIST'];
 
     if (filter) {
-        if (isFilterType(filter)) {
-            args.push('TYPE', filter.type);
-        }
-
-        if (isFilterId(filter)) {
-            args.push('ID', ...filter.id);
+        if (filter.TYPE !== undefined) {
+            args.push('TYPE', filter.TYPE);
+        } else  {
+            args.push('ID');
+            args = pushVerdictArguments(args, filter.ID);
         }
     }
 
     return args;
 }
 
-function isFilterType(filter?: ListFilter): filter is ListFilterType {
-    return (filter as ListFilterType)?.type !== undefined;
-}
-
-function isFilterId(filter?: ListFilter): filter is ListFilterId {
-    return (filter as ListFilterId)?.id !== undefined;
-}
-
-export function transformReply(reply: string): Array<ClientInfoReply> {
-    const REGEX = /([^\n]+)/g;
-    const items = [...reply.matchAll(REGEX)];
-    return items.map((item) => transformClientInfoReply(item[1]));
+export function transformReply(rawReply: string): Array<ClientInfoReply> {
+    const split = rawReply.split('\n'),
+        length = split.length - 1,
+        reply: Array<ClientInfoReply> = [];
+    for (let i = 0; i < length; i++) {
+        reply.push(transformClientInfoReply(split[i]));
+    }
+    
+    return reply;
 }
