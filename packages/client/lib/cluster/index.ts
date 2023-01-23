@@ -398,6 +398,20 @@ export default class RedisCluster<
     getSlotRandomNode(slot: number) {
         return this.#slots.getSlotRandomNode(slot);
     }
+
+    /**
+     * @deprecated use `.masters` instead
+     */
+    getMasters() {
+        return this.masters;
+    }
+
+    /**
+     * @deprecated use `.slots[<SLOT>]` instead
+     */
+    getSlotMaster(slot: number) {
+        return this.slots[slot].master;
+    }
 }
 
 attachCommands({

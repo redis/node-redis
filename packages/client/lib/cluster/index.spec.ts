@@ -140,6 +140,31 @@ describe('Cluster', () => {
         assert.equal(ids.size, totalNodes);
     }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
+    testUtils.testWithCluster('getMasters should be backwards competiable (without `minimizeConnections`)', async cluster => {
+        const masters = cluster.getMasters();
+        assert.ok(Array.isArray(masters));
+        for (const master of masters) {
+            assert.equal(typeof master.id, 'string');
+            assert.ok(master.client instanceof RedisClient);
+        }
+    }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: {
+            minimizeConnections: undefined // reset to default
+        }
+    });
+
+    testUtils.testWithCluster('getSlotMaster should be backwards competiable (without `minimizeConnections`)', async cluster => {
+        const master = cluster.getSlotMaster(0);
+        assert.equal(typeof master.id, 'string');
+        assert.ok(master.client instanceof RedisClient);
+    }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: {
+            minimizeConnections: undefined // reset to default
+        }
+    });
+
     describe('minimizeConnections', () => {
         testUtils.testWithCluster('false', async cluster => {
             for (const master of cluster.masters) {
