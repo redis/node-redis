@@ -35,13 +35,13 @@ export interface ClientInfoReply {
 
 const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
 
-export function transformReply(reply: string): ClientInfoReply {
+export function transformReply(rawReply: string): ClientInfoReply {
     const map: Record<string, string> = {};
-    for (const item of reply.matchAll(CLIENT_INFO_REGEX)) {
+    for (const item of rawReply.matchAll(CLIENT_INFO_REGEX)) {
         map[item[1]] = item[2];
     }
 
-    const clientInfoReply: ClientInfoReply = {
+    const reply: ClientInfoReply = {
         id: Number(map.id),
         addr: map.addr,
         fd: Number(map.fd),
@@ -54,36 +54,36 @@ export function transformReply(reply: string): ClientInfoReply {
         psub: Number(map.psub),
         multi: Number(map.multi),
         qbuf: Number(map.qbuf),
-        qbufFree: Number(map.qbuffree),
-        argvMem: Number(map.argvmem),
+        qbufFree: Number(map['qbuf-free']),
+        argvMem: Number(map['argv-mem']),
         obl: Number(map.obl),
         oll: Number(map.oll),
         omem: Number(map.omem),
-        totMem: Number(map.totmem),
+        totMem: Number(map['tot-mem']),
         events: map.events,
         cmd: map.cmd,
         user: map.user
     };
 
     if (map.laddr !== undefined) {
-        clientInfoReply.laddr = map.laddr;
+        reply.laddr = map.laddr;
     }
 
     if (map.redir !== undefined) {
-        clientInfoReply.redir = Number(map.redir);
+        reply.redir = Number(map.redir);
     }
 
     if (map.ssub !== undefined) {
-        clientInfoReply.ssub = Number(map.ssub);
+        reply.ssub = Number(map.ssub);
     }
 
-    if (map.multimem !== undefined) {
-        clientInfoReply.multiMem = Number(map.multimem);
+    if (map['multi-mem'] !== undefined) {
+        reply.multiMem = Number(map['multi-mem']);
     }
 
     if (map.resp !== undefined) {
-        clientInfoReply.resp = Number(map.resp);
+        reply.resp = Number(map.resp);
     }
 
-    return clientInfoReply;
+    return reply;
 }
