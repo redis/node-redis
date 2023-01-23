@@ -23,7 +23,7 @@ describe('Cluster', () => {
     }, GLOBAL.CLUSTERS.OPEN);
 
     testUtils.testWithCluster('connect should throw if already connected', async cluster => {
-        assert.rejects(cluster.connect());
+        await assert.rejects(cluster.connect());
     }, GLOBAL.CLUSTERS.OPEN);
 
     testUtils.testWithCluster('multi', async cluster => {
@@ -164,6 +164,10 @@ describe('Cluster', () => {
             minimizeConnections: undefined // reset to default
         }
     });
+
+    testUtils.testWithCluster('should throw CROSSSLOT error', async cluster => {
+        await assert.rejects(cluster.mGet(['a', 'b']));
+    }, GLOBAL.CLUSTERS.OPEN);
 
     describe('minimizeConnections', () => {
         testUtils.testWithCluster('false', async cluster => {
