@@ -856,7 +856,7 @@ describe('Client', () => {
         describe('shareded PubSub', () => {
             testUtils.isVersionGreaterThanHook([7]);
 
-            testUtils.testWithClient('should be able to recive messages', async publisher => {
+            testUtils.testWithClient('should be able to receive messages', async publisher => {
                 const subscriber = publisher.duplicate();
     
                 await subscriber.connect();

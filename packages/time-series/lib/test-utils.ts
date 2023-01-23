@@ -3,8 +3,7 @@ import TimeSeries from '.';
 
 export default new TestUtils({
     dockerImageName: 'redislabs/redistimeseries',
-    dockerImageVersionArgument: 'timeseries-version',
-    defaultDockerVersion: '1.8.0'
+    dockerImageVersionArgument: 'timeseries-version'
 });
 
 export const GLOBAL = {

@@ -9,7 +9,7 @@ import { hideBin } from 'yargs/helpers';
 interface TestUtilsConfig {
     dockerImageName: string;
     dockerImageVersionArgument: string;
-    defaultDockerVersion: string;
+    defaultDockerVersion?: string;
 }
 
 interface CommonTestOptions {
@@ -44,7 +44,7 @@ interface Version {
 
 export default class TestUtils {
     static #parseVersionNumber(version: string): Array<number> {
-        if (version === 'edge') return [Infinity];
+        if (version === 'latest' || version === 'edge') return [Infinity];
 
         const dashIndex = version.indexOf('-');
         return (dashIndex === -1 ? version : version.substring(0, dashIndex))
@@ -59,7 +59,7 @@ export default class TestUtils {
             });
     }
 
-    static #getVersion(argumentName: string, defaultVersion: string): Version {
+    static #getVersion(argumentName: string, defaultVersion = 'latest'): Version {
         return yargs(hideBin(process.argv))
             .option(argumentName, {
                 type: 'string',

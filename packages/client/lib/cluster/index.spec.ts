@@ -187,28 +187,7 @@ describe('Cluster', () => {
             await cluster.pUnsubscribe('channe*', listener);
 
             assert.equal(cluster.pubSubNode, undefined);
-        }, GLOBAL.CLUSTERS.OPEN);
-
-        testUtils.testWithCluster('ssubscribe & sunsubscribe', async cluster => {
-            const listener = spy();
-
-            await cluster.sSubscribe('channel', listener);
-
-            await Promise.all([
-                waitTillBeenCalled(listener),
-                cluster.sPublish('channel', 'message')
-            ]);
-            
-            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
-
-            await cluster.sUnsubscribe('channel', listener);
-
-            // 10328 is the slot of `channel`
-            assert.equal(cluster.slots[10328].shardedPubSubClient, undefined);
-        }, {
-            ...GLOBAL.CLUSTERS.OPEN,
-            minimumDockerVersion: [7]
-        });
+        }, GLOBAL.CLUSTERS.OPEN);        
 
         testUtils.testWithCluster('should move listeners when PubSub node disconnects from the cluster', async cluster => {
             const listener = spy();
@@ -256,6 +235,63 @@ describe('Cluster', () => {
         }, {
             serverArguments: [],
             numberOfMasters: 2,
+            minimumDockerVersion: [7]
+        });
+
+        testUtils.testWithCluster('ssubscribe & sunsubscribe', async cluster => {
+            const listener = spy();
+
+            await cluster.sSubscribe('channel', listener);
+
+            await Promise.all([
+                waitTillBeenCalled(listener),
+                cluster.sPublish('channel', 'message')
+            ]);
+            
+            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+
+            await cluster.sUnsubscribe('channel', listener);
+
+            // 10328 is the slot of `channel`
+            assert.equal(cluster.slots[10328].shardedPubSubClient, undefined);
+        }, {
+            ...GLOBAL.CLUSTERS.OPEN,
+            minimumDockerVersion: [7]
+        });
+
+        testUtils.testWithCluster('should handle sharded-channel-moved events', async cluster => {
+            const SLOT = 10328,
+                migrating = cluster.slots[SLOT].master,
+                importing = cluster.masters.find(master => master !== migrating)!,
+                [ migratingClient, importingClient ] = await Promise.all([
+                    cluster.nodeClient(migrating),
+                    cluster.nodeClient(importing)
+                ]);
+
+            await Promise.all([
+                migratingClient.clusterDelSlots(SLOT),
+                importingClient.clusterDelSlots(SLOT),
+                importingClient.clusterAddSlots(SLOT)
+            ]);
+
+            // wait for migrating node to be notified about the new topology
+            while ((await migratingClient.clusterInfo()).state !== 'ok') {
+                await promiseTimeout(50);
+            }
+
+            const listener = spy();
+
+            // will trigger `MOVED` error
+            await cluster.sSubscribe('channel', listener);
+
+            await Promise.all([
+                waitTillBeenCalled(listener),
+                cluster.sPublish('channel', 'message')
+            ]);
+            
+            assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+        }, {
+            serverArguments: [],
             minimumDockerVersion: [7]
         });
     });
