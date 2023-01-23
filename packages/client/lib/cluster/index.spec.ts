@@ -253,7 +253,7 @@ describe('Cluster', () => {
             await cluster.sUnsubscribe('channel', listener);
 
             // 10328 is the slot of `channel`
-            assert.equal(cluster.slots[10328].shardedPubSubClient, undefined);
+            assert.equal(cluster.slots[10328].master.pubSubClient, undefined);
         }, {
             ...GLOBAL.CLUSTERS.OPEN,
             minimumDockerVersion: [7]
