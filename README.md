@@ -28,6 +28,14 @@ node-redis is a modern, high performance [Redis](https://redis.io) client for No
 
 ## Installation
 
+Start a redis via docker:
+
+``` bash
+docker run -p 6379:6379 -it redis/redis-stack-server:latest
+```
+
+To install node-redis, simply:
+
 ```bash
 npm install redis
 ```

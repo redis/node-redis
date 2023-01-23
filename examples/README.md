@@ -20,6 +20,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `pubsub-subscriber.js`                   | Reads messages from channels using `PSUBSCRIBE` command.                                                                                             |
 | `search-hashes.js`                       | Uses [RediSearch](https://redisearch.io) to index and search data in hashes.                                                                         |
 | `search-json.js`                         | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data.                                      |
+| `search-knn.js`                          | Uses [RediSearch vector similarity]([https://redisearch.io/](https://redis.io/docs/stack/search/reference/vectors/)) to index and run KNN queries.   |
 | `set-scan.js`                            | An example script that shows how to use the SSCAN iterator functionality.                                                                            |
 | `sorted-set.js`                          | Add members with scores to a Sorted Set and retrieve them using the ZSCAN iteractor functionality.                                                   |
 | `stream-producer.js`                     | Adds entries to a [Redis Stream](https://redis.io/topics/streams-intro) using the `XADD` command.                                                    |
@@ -27,7 +28,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `time-series.js`                         | Create, populate and query timeseries data with [Redis Timeseries](https://redistimeseries.io).                                                      |
 | `topk.js`                                | Use the [RedisBloom](https://redisbloom.io) TopK to track the most frequently seen items.                                                            |
 | `stream-consumer-group.js`               | Reads entries from a [Redis Stream](https://redis.io/topics/streams-intro) as part of a consumer group using the blocking `XREADGROUP` command.      |
-| `tranaaction-with-arbitrary-commands.js` | Mix and match supported commands with arbitrary command strings in a Redis transaction.                                                              |
+| `transaction-with-arbitrary-commands.js` | Mix and match supported commands with arbitrary command strings in a Redis transaction.                                                              |
 | `transaction-with-watch.js`              | An Example of [Redis transaction](https://redis.io/docs/manual/transactions) with `WATCH` command on isolated connection with optimistic locking.    |
 
 ## Contributing

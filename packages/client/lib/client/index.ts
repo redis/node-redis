@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString } from '../commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -308,34 +308,14 @@ export default class RedisClient<
 
         (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
         (this as any).sendCommand = (...args: Array<any>): void => {
-            let callback: ClientLegacyCallback;
-            if (typeof args[args.length - 1] === 'function') {
-                callback = args.pop() as ClientLegacyCallback;
+            const result = this.#legacySendCommand(...args);
+            if (result) {
+                result.promise.then(reply => result.callback(null, reply));
             }
-
-            this.#sendCommand(transformLegacyCommandArguments(args))
-                .then((reply: RedisCommandRawReply) => {
-                    if (!callback) return;
-
-                    // https://github.com/NodeRedis/node-redis#commands:~:text=minimal%20parsing
-
-                    callback(null, reply);
-                })
-                .catch((err: Error) => {
-                    if (!callback) {
-                        this.emit('error', err);
-                        return;
-                    }
-
-                    callback(err);
-                });
         };
 
-        for (const name of Object.keys(COMMANDS)) {
-            this.#defineLegacyCommand(name);
-        }
-
-        for (const name of Object.keys(COMMANDS)) {
+        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
+            this.#defineLegacyCommand(name, command);
             (this as any)[name.toLowerCase()] = (this as any)[name];
         }
 
@@ -354,10 +334,31 @@ export default class RedisClient<
         this.#defineLegacyCommand('quit');
     }
 
-    #defineLegacyCommand(name: string): void {
-        this.#v4[name] = (this as any)[name].bind(this);
-        (this as any)[name] =
-            (...args: Array<unknown>): void => (this as any).sendCommand(name, ...args);
+    #legacySendCommand(...args: Array<any>) {
+        const callback = typeof args[args.length - 1] === 'function' ?
+            args.pop() as ClientLegacyCallback :
+            undefined;
+
+        const promise = this.#sendCommand(transformLegacyCommandArguments(args));
+        if (callback) return {
+            promise,
+            callback
+        };
+        promise.catch(err => this.emit('error', err));
+    }
+
+    #defineLegacyCommand(this: any, name: string, command?: RedisCommand): void {
+        this.#v4[name] = this[name].bind(this);
+        this[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
+            (...args: Array<unknown>) => {
+                const result = this.#legacySendCommand(name, ...args);
+                if (result) {
+                    result.promise.then((reply: any) => {
+                        result.callback(null, command.transformReply!(reply));
+                    });
+                }
+            } :
+            (...args: Array<unknown>) => this.sendCommand(name, ...args);
     }
 
     #pingTimer?: NodeJS.Timer;
@@ -636,14 +637,15 @@ export default class RedisClient<
         );
     }
 
-    QUIT(): Promise<void> {
-        return this.#socket.quit(() => {
-            const quitPromise = this.#queue.addCommand(['QUIT']);
+    QUIT(): Promise<string> {
+        return this.#socket.quit(async () => {
+            const quitPromise = this.#queue.addCommand<string>(['QUIT']);
             this.#tick();
-            return Promise.all([
+            const [reply] = await Promise.all([
                 quitPromise,
                 this.#destroyIsolationPool()
             ]);
+            return reply;
         });
     }
 
