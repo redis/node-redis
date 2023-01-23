@@ -30,6 +30,7 @@
 ## Reconnect Strategy
 
 TODO: `false | number | (retries: number, cause: unknown) => number | Error`
+https://github.com/redis/node-redis/pull/2250
 
 You can implement a custom reconnect strategy as a function:
 

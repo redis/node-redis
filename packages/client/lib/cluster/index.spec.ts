@@ -16,6 +16,16 @@ describe('Cluster', () => {
         );
     }, GLOBAL.CLUSTERS.OPEN);
 
+    testUtils.testWithCluster('isOpen', async cluster => {
+        assert.equal(cluster.isOpen, true);
+        await cluster.disconnect();
+        assert.equal(cluster.isOpen, false);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('connect should throw if already connected', async cluster => {
+        assert.rejects(cluster.connect());
+    }, GLOBAL.CLUSTERS.OPEN);
+
     testUtils.testWithCluster('multi', async cluster => {
         const key = 'key';
         assert.deepEqual(
