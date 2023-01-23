@@ -188,7 +188,7 @@ async function spawnRedisClusterDockers(
     dockersConfig: RedisClusterDockersConfig,
     serverArguments: Array<string>
 ): Promise<Array<RedisServerDocker>> {
-    const numberOfMasters = dockersConfig.numberOfMasters ?? 3,
+    const numberOfMasters = dockersConfig.numberOfMasters ?? 2,
         slotsPerNode = Math.floor(SLOTS / numberOfMasters),
         spawnPromises: Array<ReturnType<typeof spawnRedisClusterNodeDockers>> = [];
     for (let i = 0; i < numberOfMasters; i++) {
