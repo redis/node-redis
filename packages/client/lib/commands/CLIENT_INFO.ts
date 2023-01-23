@@ -77,7 +77,7 @@ export function transformReply(reply: string): ClientInfoReply {
         clientInfoReply.ssub = Number(map.ssub);
     }
 
-    if (map.multiMem !== undefined) {
+    if (map.multimem !== undefined) {
         clientInfoReply.multiMem = Number(map.multimem);
     }
 
