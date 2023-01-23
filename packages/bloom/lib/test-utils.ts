@@ -3,7 +3,8 @@ import RedisBloomModules from '.';
 
 export default new TestUtils({
     dockerImageName: 'redislabs/rebloom',
-    dockerImageVersionArgument: 'redisbloom-version'
+    dockerImageVersionArgument: 'redisbloom-version',
+    defaultDockerVersion: 'edge'
 });
 
 export const GLOBAL = {
