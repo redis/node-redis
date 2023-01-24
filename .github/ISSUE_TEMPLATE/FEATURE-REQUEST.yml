@@ -10,9 +10,10 @@ body:
     validations:
       required: true
   - type: textarea
-    id: basic_code_example
+    id: basic-code-example
     attributes:
       label: Basic Code Example
-      description: Provide examples of how you imagine the API for this feature might be implemented.
+      description: Provide examples of how you imagine the API for this feature might be implemented. This will be automatically formatted into code, so no need for backticks.
+      render: JavaScript
     validations:
-      required: true
+      required: false
