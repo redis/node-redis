@@ -1,61 +1,11 @@
-name: "📚 Documentation"
-description: Create an issue in the project's documentation or help us improve
-title: "📚 [DOCUMENTATION] - <title>"
-labels: [
- "Documentation",
- "Question"
-]
+name: Documentation
+description: Any questions or issues relating to the project documentation.
+labels: [Documentation]
 body:
- - type: input
-   id: node-js-version
-   attributes:
-    label: "Node.js Version"
-    description: Please enter your node.js version `node --version`
-    placeholder: v16.14.0
-   validations:
-    required: true
- - type: input
-   id: redis-server-version
-   attributes:
-    label: "Redis Server Version"
-    description: Please enter your redis server version `redis-server --version`
-    placeholder: 7.0.7
-   validations:
-    required: true
- - type: input
-   id: node-redis-version
-   attributes:
-    label: "Node Redis Version"
-    description: Please enter your node redis version `npm ls redis`
-    placeholder: redis@4.5.1
-   validations:
-    required: true
- - type: dropdown
-   id: platform
-   attributes:
-    label: "Platform"
-    description: What platform are you seeing the problem on ?
-    multiple: true
-    options:
-     - Ubuntu 20.04.3
-     - Windows 10
-     - Mac OS 11.6
-   validations:
-    required: true
- - type: textarea
-   id: description
-   attributes:
-    label: "Description"
-    description: Please describe your issue, sample, or improvement you want to make
-   validations:
-    required: true
- - type: textarea
-   id: screenshot
-   attributes:
-    label: "Screenshots"
-    description: If applicable, add screenshots to help explain your problem.
-    value: |
-     ![DESCRIPTION](LINK.png)
-    render: bash
-   validations:
-    required: false
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Ask your question or describe your issue here.
+    validations:
+      required: true

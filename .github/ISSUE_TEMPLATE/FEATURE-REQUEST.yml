@@ -1,55 +1,18 @@
-name: "💡 Feature Request"
+name: Feature Request
 description: Suggest an idea for this project
-title: "💡 [REQUEST] - <title>"
-labels: [
-  "feature"
-]
+labels: [Feature]
 body:
-  - type: input
-    id: start_date
-    attributes:
-      label: "Start Date"
-      description: Start of development
-      placeholder: "month/day/year"
-    validations:
-      required: false
   - type: textarea
-    id: reference_issues
+    id: motivation
     attributes:
-      label: "Reference Issues"
-      description: Common issues
-      placeholder: "#Issues IDs"
-    validations:
-      required: false
-  - type: textarea
-    id: summary
-    attributes:
-      label: "Summary"
-      description: Provide a brief explanation of the feature
-      placeholder: Describe in a few lines your feature request
+      label: Motivation
+      description: How would Node Redis users benefit from this feature?
     validations:
       required: true
   - type: textarea
-    id: basic_example
+    id: basic_code_example
     attributes:
-      label: "Basic Example"
-      description: Indicate here some basic examples of your feature.
-      placeholder: A few specific words about your feature request.
+      label: Basic Code Example
+      description: Provide examples of how you imagine the API for this feature might be implemented.
     validations:
       required: true
-  - type: textarea
-    id: drawbacks
-    attributes:
-      label: "Drawbacks"
-      description: What are the drawbacks/impacts of your feature request ?
-      placeholder: Identify the drawbacks and impacts while being neutral on your feature request
-    validations:
-      required: true
-  - type: textarea
-    id: unresolved_question
-    attributes:
-      label: "Unresolved questions"
-      description: What questions still remain unresolved ?
-      placeholder: Identify any unresolved issues.
-    validations:
-      required: false
