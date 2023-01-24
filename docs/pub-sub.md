@@ -14,6 +14,12 @@ await subscriber.connect();
 
 This is done automatically with `RedisCluster`.
 
+### `sharded-channel-moved` event
+
+`RedisClient` emits the `sharded-channel-moved` event when that the ["cluster slot"](https://redis.io/docs/reference/cluster-spec/#key-distribution-model) of a subscribed [Sharded PubSub](https://redis.io/docs/manual/pubsub/#sharded-pubsub) channel has been moved.
+
+The event listener signature is as follows: `(channel: string, listeners: { buffers: Set>, strings: Set> })`.
+
 ## Subscribing
 
 ```javascript
@@ -24,7 +30,7 @@ await client.pSubscribe('channe*', listener);
 await client.sSubscribe('channel', listener);
 ```
 
-## Publishsing messages
+## Publishing
 
 ```javascript
 await client.publish('channel', 'message');
@@ -65,7 +71,3 @@ await subscriber.publish(Buffer.from('channel'), Buffer.from('message'));
 ```
 
 > NOTE: mixing buffers and strings in `publish` is supported. Subscribing in "Buffer mode" and publishing string or vice versa works too.
-
-### `sharded-channel-moved` event
-
-`RedisClient` emits the `sharded-channel-moved` event when that the ["cluster slot"](https://redis.io/docs/reference/cluster-spec/#key-distribution-model) of a subscribed [Sharded PubSub](https://redis.io/docs/manual/pubsub/#sharded-pubsub) channel has been moved.
