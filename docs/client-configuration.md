@@ -29,14 +29,14 @@
 
 ## Reconnect Strategy
 
-When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`) the client uses `reconnectStrategy` to decide what to do:
-1. `false` -> do not reconnect, close the client and flush all commands in the queue.
+When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`), the client uses `reconnectStrategy` to decide what to do. The following values are supported:
+1. `false` -> do not reconnect, close the client and flush the command queue.
 2. `number` -> wait for `X` milliseconds before reconnecting.
-3. `(retries: number, cause: Error) => number | Error` -> `number` is the same as configuration a `number` directly, `Error` is the same as `false`, but with a custom error.
+3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
 
-By default the strategy is `Math.min(retries * 50, 500)`, but it can be overriten:
+By default the strategy is `Math.min(retries * 50, 500)`, but it can be overwritten like so:
 
-```typescript
+```javascript
 createClient({
   socket: {
     reconnectStrategy: retries => Math.min(retries * 50, 1000)
@@ -52,7 +52,7 @@ To enable TLS, set `socket.tls` to `true`. Below are some basic examples.
 
 ### Create a SSL client
 
-```typescript
+```javascript
 createClient({
   socket: {
     tls: true,
@@ -64,7 +64,7 @@ createClient({
 
 ### Create a SSL client using a self-signed certificate
 
-```typescript
+```javascript
 createClient({
   socket: {
     tls: true,

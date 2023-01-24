@@ -19,10 +19,10 @@ export interface RedisSocketCommonOptions {
      */
     keepAlive?: number | false;
     /**
-     * When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`) the client uses `reconnectStrategy` to decide what to do:
-     * 1. `false` -> do not reconnect, close the client and flush all commands in the queue.
+     * When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`), the client uses `reconnectStrategy` to decide what to do. The following values are supported:
+     * 1. `false` -> do not reconnect, close the client and flush the command queue.
      * 2. `number` -> wait for `X` milliseconds before reconnecting.
-     * 3. `(retries: number, cause: Error) => number | Error` -> `number` is the same as configuration a `number` directly, `Error` is the same as `false`, but with a custom error.
+     * 3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
      * Defaults to `retries => Math.min(retries * 50, 500)`
      */
     reconnectStrategy?: false | number | ((retries: number, cause: Error) => false | Error | number);
@@ -107,8 +107,8 @@ export default class RedisSocket extends EventEmitter {
         } else if (this.#options.reconnectStrategy) {
             try {
                 const retryIn = this.#options.reconnectStrategy(retries, cause);
-                if (typeof retryIn !== 'number' && !(retryIn instanceof Error)) {
-                    throw new TypeError(`Reconnect strategy should return \`number | Error\`, got ${retryIn} instead`)
+                if (retryIn !== false && !(retryIn instanceof Error) && typeof retryIn !== 'number') {
+                    throw new TypeError(`Reconnect strategy should return \`false | Error | number\`, got ${retryIn} instead`);
                 }
 
                 return retryIn;

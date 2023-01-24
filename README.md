@@ -166,7 +166,7 @@ To learn more about isolated execution, check out the [guide](./docs/isolated-ex
 
 ### Pub/Sub
 
-See the [PubSub guide](./docs/pub-sub.md)
+See the [Pub/Sub overview](./docs/pub-sub.md).
 
 ### Scan Iterator
 
