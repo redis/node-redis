@@ -143,7 +143,7 @@ describe('Cluster', () => {
     testUtils.testWithCluster('cluster topology', async cluster => {
         assert.equal(cluster.slots.length, 16384);
         const { numberOfMasters, numberOfReplicas } = GLOBAL.CLUSTERS.WITH_REPLICAS;
-        assert.equal(cluster.shards.length, numberOfMasters + numberOfReplicas);
+        assert.equal(cluster.shards.length, numberOfMasters);
         assert.equal(cluster.masters.length, numberOfMasters);
         assert.equal(cluster.replicas.length, numberOfReplicas);
         assert.equal(cluster.nodeByAddress.size, numberOfMasters + numberOfReplicas);
