@@ -16,14 +16,6 @@ import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 
-function a(a: RedisClientOptions) {
-
-}
-
-a({
-    url
-})
-
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
     F extends RedisFunctions = RedisFunctions,
