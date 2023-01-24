@@ -21,17 +21,48 @@ export interface RedisClientOptions<
     F extends RedisFunctions = RedisFunctions,
     S extends RedisScripts = RedisScripts
 > extends RedisExtensions<M, F, S> {
+    /**
+     * `redis[s]://[[username][:password]@][host][:port][/db-number]`
+     * See [`redis`](https://www.iana.org/assignments/uri-schemes/prov/redis) and [`rediss`](https://www.iana.org/assignments/uri-schemes/prov/rediss) IANA registration for more details
+     */
     url?: string;
+    /**
+     * Socket connection properties
+     */
     socket?: RedisSocketOptions;
+    /**
+     * ACL username ([see ACL guide](https://redis.io/topics/acl))
+     */
     username?: string;
+    /**
+     * ACL password or the old "--requirepass" password
+     */
     password?: string;
+    /**
+     * Client name ([see `CLIENT SETNAME`](https://redis.io/commands/client-setname))
+     */
     name?: string;
+    /**
+     * Redis database number (see [`SELECT`](https://redis.io/commands/select) command)
+     */
     database?: number;
+    /**
+     * Maximum length of the client's internal command queue
+     */
     commandsQueueMaxLength?: number;
+    /**
+     * If true, will reject commands when the client is reconnecting
+     */
     disableOfflineQueue?: boolean;
+    /**
+     * Connect in [`READONLY`](https://redis.io/commands/readonly) mode
+     */
     readonly?: boolean;
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
+    /**
+     * Send `PING` command at interval (in ms). Useful with ["Azure Cache for Redis"](https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-best-practices-connection#idle-timeout)
+     */
     pingInterval?: number;
 }
 

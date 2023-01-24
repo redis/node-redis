@@ -33,6 +33,7 @@ export const GLOBAL = {
         },
         WITH_REPLICAS: {
             serverArguments: [],
+            numberOfMasters: 2,
             numberOfReplicas: 1,
             clusterConfiguration: {
                 useReplicas: true

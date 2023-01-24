@@ -6,9 +6,25 @@ import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyErro
 import { promiseTimeout } from '../utils';
 
 export interface RedisSocketCommonOptions {
+    /**
+     * Connection Timeout (in milliseconds)
+     */
     connectTimeout?: number;
+    /**
+     * Toggle [`Nagle's algorithm`](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay)
+     */
     noDelay?: boolean;
+    /**
+     * Toggle [`keep-alive`](https://nodejs.org/api/net.html#net_socket_setkeepalive_enable_initialdelay)
+     */
     keepAlive?: number | false;
+    /**
+     * When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`) the client uses `reconnectStrategy` to decide what to do:
+     * 1. `false` -> do not reconnect, close the client and flush all commands in the queue.
+     * 2. `number` -> wait for `X` milliseconds before reconnecting.
+     * 3. `(retries: number, cause: Error) => number | Error` -> `number` is the same as configuration a `number` directly, `Error` is the same as `false`, but with a custom error.
+     * Defaults to `retries => Math.min(retries * 50, 500)`
+     */
     reconnectStrategy?: false | number | ((retries: number, cause: Error) => false | Error | number);
 }
 

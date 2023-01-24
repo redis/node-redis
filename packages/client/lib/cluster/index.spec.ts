@@ -140,6 +140,15 @@ describe('Cluster', () => {
         assert.equal(ids.size, totalNodes);
     }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
+    testUtils.testWithCluster('cluster topology', async cluster => {
+        assert.equal(cluster.slots.length, 16384);
+        const { numberOfMasters, numberOfReplicas } = GLOBAL.CLUSTERS.WITH_REPLICAS;
+        assert.equal(cluster.shards.length, numberOfMasters + numberOfReplicas);
+        assert.equal(cluster.masters.length, numberOfMasters);
+        assert.equal(cluster.replicas.length, numberOfReplicas);
+        assert.equal(cluster.nodeByAddress.size, numberOfMasters + numberOfReplicas);
+    }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
     testUtils.testWithCluster('getMasters should be backwards competiable (without `minimizeConnections`)', async cluster => {
         const masters = cluster.getMasters();
         assert.ok(Array.isArray(masters));
