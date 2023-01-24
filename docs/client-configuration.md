@@ -29,28 +29,17 @@
 
 ## Reconnect Strategy
 
-TODO: `false | number | (retries: number, cause: unknown) => number | Error`
+When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`) the client uses `reconnectStrategy` to decide what to do:
+1. `false` -> do not reconnect, close the client and flush all commands in the queue.
+2. `number` -> wait for `X` milliseconds before reconnecting.
+3. `(retries: number, cause: Error) => number | Error` -> `number` is the same as configuration a `number` directly, `Error` is the same as `false`, but with a custom error.
 
-You can implement a custom reconnect strategy as a function:
-When a network error occurs the client will automatically try to reconnect, following a default linear strategy (the more attempts, the more waiting before trying to reconnect).
-
-This strategy can be overridden by providing a `socket.reconnectStrategy` option during the client's creation.
-
-The `socket.reconnectStrategy` is a function that:
-
-- Receives the number of retries attempted so far and the causing error.
-- Returns `number | Error`:
-    - `number`: wait time in milliseconds prior to attempting a reconnect.
-    - `Error`: closes the client and flushes internal command queues.
-
-The example below shows the default `reconnectStrategy` and how to override it.
+By default the strategy is `Math.min(retries * 50, 500)`, but it can be overriten:
 
 ```typescript
-import { createClient } from 'redis';
-
-const client = createClient({
+createClient({
   socket: {
-    reconnectStrategy: retries => Math.min(retries * 50, 500)
+    reconnectStrategy: retries => Math.min(retries * 50, 1000)
   }
 });
 ```

@@ -9,7 +9,7 @@ export interface RedisSocketCommonOptions {
     connectTimeout?: number;
     noDelay?: boolean;
     keepAlive?: number | false;
-    reconnectStrategy?: false | number | ((retries: number, cause: unknown) => number | Error);
+    reconnectStrategy?: false | number | ((retries: number, cause: Error) => false | Error | number);
 }
 
 type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
@@ -83,7 +83,7 @@ export default class RedisSocket extends EventEmitter {
         this.#options = RedisSocket.#initiateOptions(options);
     }
 
-    reconnectStrategy(retries: number, cause: unknown): false | number | Error {
+    #reconnectStrategy(retries: number, cause: Error) {
         if (this.#options.reconnectStrategy === false) {
             return false;
         } else if (typeof this.#options.reconnectStrategy === 'number') {
@@ -92,16 +92,31 @@ export default class RedisSocket extends EventEmitter {
             try {
                 const retryIn = this.#options.reconnectStrategy(retries, cause);
                 if (typeof retryIn !== 'number' && !(retryIn instanceof Error)) {
-                    throw new TypeError(`Reconnect strategy should return \`number | Error\`, got ${retryIn} instead`);
+                    throw new TypeError(`Reconnect strategy should return \`number | Error\`, got ${retryIn} instead`)
                 }
 
                 return retryIn;
             } catch (err) {
-                this.emit('error', err);
+                this.emit('error', err);    
             }
         }
 
         return Math.min(retries * 50, 500);
+    }
+
+    #shouldReconnect(retries: number, cause: Error) {
+        const retryIn = this.#reconnectStrategy(retries, cause);
+        if (retryIn === false) {
+            this.#isOpen = false;
+            this.emit('error', cause);
+            return cause;
+        } else if (retryIn instanceof Error) {
+            this.#isOpen = false;
+            this.emit('error', cause);
+            return new ReconnectStrategyError(retryIn, cause);
+        }
+
+        return retryIn;
     }
 
     async connect(): Promise<void> {
@@ -113,13 +128,9 @@ export default class RedisSocket extends EventEmitter {
         return this.#connect();
     }
 
-    async #connect(hadError?: boolean): Promise<void> {
+    async #connect(): Promise<void> {
         let retries = 0;
         do {
-            if (retries > 0 || hadError) {
-                this.emit('reconnecting');
-            }
-
             try {
                 this.#socket = await this.#createSocket();
                 this.#writableNeedDrain = false;
@@ -135,21 +146,17 @@ export default class RedisSocket extends EventEmitter {
                 this.#isReady = true;
                 this.emit('ready');
             } catch (err) {
-                const retryIn = this.reconnectStrategy(retries, err);
-                if (retryIn === false) {
-                    this.#isOpen = false;
-                    this.emit('error', err);
-                    throw err;
-                } else if (retryIn instanceof Error) {
-                    this.#isOpen = false;
-                    this.emit('error', err);
-                    throw new ReconnectStrategyError(retryIn, err);
+                const retryIn = this.#shouldReconnect(retries, err as Error);
+                if (typeof retryIn !== 'number') {
+                    throw retryIn;
                 }
 
                 this.emit('error', err);
                 await promiseTimeout(retryIn);
             }
+
             retries++;
+            this.emit('reconnecting');
         } while (this.#isOpen && !this.#isReady);
     }
 
@@ -211,9 +218,10 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = false;
         this.emit('error', err);
 
-        if (!this.#isOpen) return;
-
-        this.#connect(true).catch(() => {
+        if (!this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
+        
+        this.emit('reconnecting');
+        this.#connect().catch(() => {
             // the error was already emitted, silently ignore it
         });
     }
