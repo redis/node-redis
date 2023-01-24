@@ -20,29 +20,32 @@ export interface RedisClusterOptions<
     S extends RedisScripts = Record<string, never>
 > extends RedisExtensions<M, F, S> {
     /**
-     * Some of the cluster nodes to discover the cluster topology
-     * There is no reason to add all the nodes in the cluster, 3 nodes is a good practice
+     * Should contain details for some of the cluster nodes that the client will use to discover 
+     * the "cluster topology". We recommend including details for at least 3 nodes here.
      */
     rootNodes: Array<RedisClusterClientOptions>;
     /**
-     * The defaults for every client in the cluster
+     * Default values used for every client in the cluster. Use this to specify global values, 
+     * for example: ACL credentials, timeouts, TLS configuration etc.
      */
     defaults?: Partial<RedisClusterClientOptions>;
     /**
-     * If true, the cluster will connect to nodes on use rather then on connect
+     * When `true`, `.connect()` will only discover the cluster topology, without actually connecting to all the nodes.
+     * Useful for short-term or PubSub-only connections.
      */
     minimizeConnections?: boolean;
     /**
-     * If true, the cluster will use replicas for read-only commands
+     * When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes. When `false`, only use master nodes.
      */
     useReplicas?: boolean;
     /**
-     * The maximum number of redirections (ASK/MOVED) to follow before throwing an error
+     * The maximum number of times a command will be redirected due to `MOVED` or `ASK` errors.
      */
     maxCommandRedirections?: number;
     /**
-     * Mapping bettwen the addresses in the cluster (see `CLUSTER SLOTS`) and the addresses the client should connect to
+     * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
      * Useful when the cluster is running on another network
+     * 
      */
     nodeAddressMap?: NodeAddressMap;
 }

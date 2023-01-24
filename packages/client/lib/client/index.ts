@@ -16,6 +16,14 @@ import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 
+function a(a: RedisClientOptions) {
+
+}
+
+a({
+    url
+})
+
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
     F extends RedisFunctions = RedisFunctions,
@@ -51,7 +59,8 @@ export interface RedisClientOptions<
      */
     commandsQueueMaxLength?: number;
     /**
-     * If true, will reject commands when the client is reconnecting
+     * When `true`, commands are rejected when the client is reconnecting.
+     * When `false`, commands are queued for execution after reconnection.
      */
     disableOfflineQueue?: boolean;
     /**
@@ -61,7 +70,8 @@ export interface RedisClientOptions<
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
     /**
-     * Send `PING` command at interval (in ms). Useful with ["Azure Cache for Redis"](https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-best-practices-connection#idle-timeout)
+     * Send `PING` command at interval (in ms).
+     * Useful with Redis deployments that do not use TCP Keep-Alive.
      */
     pingInterval?: number;
 }
