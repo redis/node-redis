@@ -43,16 +43,13 @@ const value = await cluster.get('key');
 ## Auth with password and username
 
 Specifying the password in the URL or a root node will only affect the connection to that specific node. In case you want to set the password for all the connections being created from a cluster instance, use the defaults option.
-```
-const cluster = createCluster({
-  rootNodes: [
-    {
-      url: 'redis://10.0.0.1:30001'
-    },
-    {
-      url: 'redis://10.0.0.2:30002'
-    }
-  ],
+```javascript
+createCluster({
+  rootNodes: [{
+    url: 'redis://10.0.0.1:30001'
+  }, {
+    url: 'redis://10.0.0.2:30002'
+  }],
   defaults: {
     username: 'username',
     password: 'password'
