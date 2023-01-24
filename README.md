@@ -166,47 +166,7 @@ To learn more about isolated execution, check out the [guide](./docs/isolated-ex
 
 ### Pub/Sub
 
-Subscribing to a channel requires a dedicated stand-alone connection. You can easily get one by `.duplicate()`ing an existing Redis connection.
-
-```typescript
-const subscriber = client.duplicate();
-
-await subscriber.connect();
-```
-
-Once you have one, simply subscribe and unsubscribe as needed:
-
-```typescript
-await subscriber.subscribe('channel', (message) => {
-  console.log(message); // 'message'
-});
-
-await subscriber.pSubscribe('channe*', (message, channel) => {
-  console.log(message, channel); // 'message', 'channel'
-});
-
-await subscriber.unsubscribe('channel');
-
-await subscriber.pUnsubscribe('channe*');
-```
-
-Publish a message on a channel:
-
-```typescript
-await publisher.publish('channel', 'message');
-```
-
-There is support for buffers as well:
-
-```typescript
-await subscriber.subscribe('channel', (message) => {
-  console.log(message); // <Buffer 6d 65 73 73 61 67 65>
-}, true);
-
-await subscriber.pSubscribe('channe*', (message, channel) => {
-  console.log(message, channel); // <Buffer 6d 65 73 73 61 67 65>, <Buffer 63 68 61 6e 6e 65 6c>
-}, true);
-```
+See the [PubSub guide](./docs/pub-sub.md)
 
 ### Scan Iterator
 
@@ -373,14 +333,14 @@ Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to 
 
 The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
 
-| Name                    | When                                                                                                                                                                                                    | Listener arguments                                                                                 |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| `connect`               | Initiating a connection to the server                                                                                                                                                                   | *No arguments*                                                                                     |
-| `ready`                 | Client is ready to use                                                                                                                                                                                  | *No arguments*                                                                                     |
-| `end`                   | Connection has been closed (via `.quit()` or `.disconnect()`)                                                                                                                                           | *No arguments*                                                                                     |
-| `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly"                                                                                                                      | `(error: Error)`                                                                                   |
-| `reconnecting`          | Client is trying to reconnect to the server                                                                                                                                                             | *No arguments*                                                                                     |
-| `sharded-channel-moved` | The ["cluster slot"](https://redis.io/docs/reference/cluster-spec/#key-distribution-model) of a subscribed [sharded PubSub](https://redis.io/docs/manual/pubsub/#sharded-pubsub) channel has been moved | `(channel: string, listeners: { buffers: Set<Listener<Buffer>>, strings: Set<Listener<string>> })` |
+| Name                    | When                                                                               | Listener arguments                                               |
+|-------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------|
+| `connect`               | Initiating a connection to the server                                              | *No arguments*                                                   |
+| `ready`                 | Client is ready to use                                                             | *No arguments*                                                   |
+| `end`                   | Connection has been closed (via `.quit()` or `.disconnect()`)                      | *No arguments*                                                   |
+| `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                                 |
+| `reconnecting`          | Client is trying to reconnect to the server                                        | *No arguments*                                                   |
+| `sharded-channel-moved` | See [here](./docs/pub-sub.md#sharded-channel-moved-event)                          | `(channel: string, listeners: { buffers: Set>, strings: Set> })` |
 
 > :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
 
