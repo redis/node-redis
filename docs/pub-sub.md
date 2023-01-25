@@ -23,8 +23,8 @@ The event listener signature is as follows:
 (
   channel: string,
   listeners: {
-    buffers: Set<Listeners>;
-    strings: Set<Listeners>;
+    buffers: Set<Listener>;
+    strings: Set<Listener>;
   }
 )`.
 ```
