@@ -362,8 +362,8 @@ export default class RedisClient<
         this.#pingTimer = setTimeout(() => {
             if (!this.#socket.isReady) return;
 
-            const v4Client = (this.#options?.legacyMode ? this.v4 : this);
-            (v4Client as unknown as RedisClientType<M, F, S>).ping()
+            // using #sendCommand to support legacy mode
+            this.#sendCommand(['PING'])
                 .then(reply => this.emit('ping-interval', reply))
                 .catch(err => this.emit('error', err))
                 .finally(() => this.#setPingTimer());
