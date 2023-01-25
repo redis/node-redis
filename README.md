@@ -333,14 +333,14 @@ Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to 
 
 The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
 
-| Name                    | When                                                                               | Listener arguments                                               |
-|-------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------|
-| `connect`               | Initiating a connection to the server                                              | *No arguments*                                                   |
-| `ready`                 | Client is ready to use                                                             | *No arguments*                                                   |
-| `end`                   | Connection has been closed (via `.quit()` or `.disconnect()`)                      | *No arguments*                                                   |
-| `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                                 |
-| `reconnecting`          | Client is trying to reconnect to the server                                        | *No arguments*                                                   |
-| `sharded-channel-moved` | See [here](./docs/pub-sub.md#sharded-channel-moved-event)                          | `(channel: string, listeners: { buffers: Set>, strings: Set> })` |
+| Name                    | When                                                                               | Listener arguments                                         |
+|-------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------|
+| `connect`               | Initiating a connection to the server                                              | *No arguments*                                             |
+| `ready`                 | Client is ready to use                                                             | *No arguments*                                             |
+| `end`                   | Connection has been closed (via `.quit()` or `.disconnect()`)                      | *No arguments*                                             |
+| `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                           |
+| `reconnecting`          | Client is trying to reconnect to the server                                        | *No arguments*                                             |
+| `sharded-channel-moved` | See [here](./docs/pub-sub.md#sharded-channel-moved-event)                          | See  [here](./docs/pub-sub.md#sharded-channel-moved-event) |
 
 > :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
 
