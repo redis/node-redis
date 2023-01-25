@@ -20,6 +20,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `pubsub-subscriber.js`                   | Reads messages from channels using `PSUBSCRIBE` command.                                                                                             |
 | `search-hashes.js`                       | Uses [RediSearch](https://redisearch.io) to index and search data in hashes.                                                                         |
 | `search-json.js`                         | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data.                                      |
+| `search-knn.js`                          | Uses [RediSearch vector similarity]([https://redisearch.io/](https://redis.io/docs/stack/search/reference/vectors/)) to index and run KNN queries.   |
 | `set-scan.js`                            | An example script that shows how to use the SSCAN iterator functionality.                                                                            |
 | `sorted-set.js`                          | Add members with scores to a Sorted Set and retrieve them using the ZSCAN iteractor functionality.                                                   |
 | `stream-producer.js`                     | Adds entries to a [Redis Stream](https://redis.io/topics/streams-intro) using the `XADD` command.                                                    |

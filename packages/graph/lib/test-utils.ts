@@ -3,8 +3,7 @@ import RedisGraph from '.';
 
 export default new TestUtils({
     dockerImageName: 'redislabs/redisgraph',
-    dockerImageVersionArgument: 'redisgraph-version',
-    defaultDockerVersion: '2.8.15'
+    dockerImageVersionArgument: 'redisgraph-version'
 });
 
 export const GLOBAL = {
