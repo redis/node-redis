@@ -2,6 +2,8 @@
     /* Light */
     --light-color-background: #f2f4f8;
     --light-color-background-secondary: #eff0f1;
+    --light-color-warning-text: #222;
+    --light-color-background-warning: #e6e600;
     --light-color-icon-background: var(--light-color-background);
     --light-color-accent: #c5c7c9;
     --light-color-text: #222;
@@ -21,6 +23,8 @@
     /* Dark */
     --dark-color-background: #2b2e33;
     --dark-color-background-secondary: #1e2024;
+    --dark-color-background-warning: #bebe00;
+    --dark-color-warning-text: #222;
     --dark-color-icon-background: var(--dark-color-background-secondary);
     --dark-color-accent: #9096a2;
     --dark-color-text: #f5f5f5;
@@ -42,6 +46,8 @@
     :root {
         --color-background: var(--light-color-background);
         --color-background-secondary: var(--light-color-background-secondary);
+        --color-background-warning: var(--light-color-background-warning);
+        --color-warning-text: var(--light-color-warning-text);
         --color-icon-background: var(--light-color-icon-background);
         --color-accent: var(--light-color-accent);
         --color-text: var(--light-color-text);
@@ -64,6 +70,8 @@
     :root {
         --color-background: var(--dark-color-background);
         --color-background-secondary: var(--dark-color-background-secondary);
+        --color-background-warning: var(--dark-color-background-warning);
+        --color-warning-text: var(--dark-color-warning-text);
         --color-icon-background: var(--dark-color-icon-background);
         --color-accent: var(--dark-color-accent);
         --color-text: var(--dark-color-text);
@@ -93,6 +101,8 @@ body {
 :root[data-theme="light"] {
     --color-background: var(--light-color-background);
     --color-background-secondary: var(--light-color-background-secondary);
+    --color-background-warning: var(--light-color-background-warning);
+    --color-warning-text: var(--light-color-warning-text);
     --color-icon-background: var(--light-color-icon-background);
     --color-accent: var(--light-color-accent);
     --color-text: var(--light-color-text);
@@ -113,6 +123,8 @@ body {
 :root[data-theme="dark"] {
     --color-background: var(--dark-color-background);
     --color-background-secondary: var(--dark-color-background-secondary);
+    --color-background-warning: var(--dark-color-background-warning);
+    --color-warning-text: var(--dark-color-warning-text);
     --color-icon-background: var(--dark-color-icon-background);
     --color-accent: var(--dark-color-accent);
     --color-text: var(--dark-color-text);
@@ -128,6 +140,11 @@ body {
     --color-ts-variable: var(--dark-color-ts-variable);
     --external-icon: var(--dark-external-icon);
     --color-scheme: var(--dark-color-scheme);
+}
+
+.always-visible,
+.always-visible .tsd-signatures {
+    display: inherit !important;
 }
 
 h1,
@@ -1235,6 +1252,12 @@ img {
 
 .deprecated {
     text-decoration: line-through;
+}
+
+.warning {
+    padding: 1rem;
+    color: var(--color-warning-text);
+    background: var(--color-background-warning);
 }
 
 * {
