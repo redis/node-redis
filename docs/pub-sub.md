@@ -26,7 +26,7 @@ The event listener signature is as follows:
     buffers: Set<Listener>;
     strings: Set<Listener>;
   }
-)`.
+)
 ```
 
 ## Subscribing
