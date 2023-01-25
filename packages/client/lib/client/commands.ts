@@ -21,6 +21,7 @@ import * as CLIENT_GETNAME from '../commands/CLIENT_GETNAME';
 import * as CLIENT_GETREDIR from '../commands/CLIENT_GETREDIR';
 import * as CLIENT_ID from '../commands/CLIENT_ID';
 import * as CLIENT_KILL from '../commands/CLIENT_KILL';
+import * as CLIENT_LIST from '../commands/CLIENT_LIST';
 import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
@@ -164,6 +165,8 @@ export default {
     clientKill: CLIENT_KILL,
     'CLIENT_NO-EVICT': CLIENT_NO_EVICT,
     clientNoEvict: CLIENT_NO_EVICT,
+    CLIENT_LIST,
+    clientList: CLIENT_LIST,
     CLIENT_PAUSE,
     clientPause: CLIENT_PAUSE,
     CLIENT_SETNAME,
