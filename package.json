@@ -23,11 +23,11 @@
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "dependencies": {
-    "@redis/bloom": "1.1.0",
-    "@redis/client": "1.4.2",
+    "@redis/bloom": "1.2.0",
+    "@redis/client": "1.5.0",
     "@redis/graph": "1.1.0",
     "@redis/json": "1.0.4",
-    "@redis/search": "1.1.0",
+    "@redis/search": "1.1.1",
     "@redis/time-series": "1.0.4"
   },
   "devDependencies": {
