@@ -32,7 +32,7 @@
 <ul class="tsd-hierarchy">
 <li><span class="target">RedisClusterOptions</span></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/index.ts#L15">packages/client/lib/cluster/index.ts:15</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L17">packages/client/lib/cluster/index.ts:17</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-index-accordion" open><summary class="tsd-accordion-summary tsd-index-summary">
@@ -43,6 +43,7 @@
 <div class="tsd-index-list"><a href="lib_cluster.RedisClusterOptions.html#defaults" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="#FF984D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12" id="icon-1024-path"></rect><path d="M9.354 16V7.24H12.174C12.99 7.24 13.638 7.476 14.118 7.948C14.606 8.412 14.85 9.036 14.85 9.82C14.85 10.604 14.606 11.232 14.118 11.704C13.638 12.168 12.99 12.4 12.174 12.4H10.434V16H9.354ZM10.434 11.428H12.174C12.646 11.428 13.022 11.284 13.302 10.996C13.59 10.7 13.734 10.308 13.734 9.82C13.734 9.324 13.59 8.932 13.302 8.644C13.022 8.356 12.646 8.212 12.174 8.212H10.434V11.428Z" fill="var(--color-text)" id="icon-1024-text"></path></svg><span>defaults?</span></a>
 <a href="lib_cluster.RedisClusterOptions.html#functions" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>functions?</span></a>
 <a href="lib_cluster.RedisClusterOptions.html#maxCommandRedirections" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>max<wbr/>Command<wbr/>Redirections?</span></a>
+<a href="lib_cluster.RedisClusterOptions.html#minimizeConnections" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>minimize<wbr/>Connections?</span></a>
 <a href="lib_cluster.RedisClusterOptions.html#modules" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>modules?</span></a>
 <a href="lib_cluster.RedisClusterOptions.html#nodeAddressMap" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>node<wbr/>Address<wbr/>Map?</span></a>
 <a href="lib_cluster.RedisClusterOptions.html#rootNodes" class="tsd-index-link tsd-kind-property tsd-parent-kind-interface"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>root<wbr/>Nodes</span></a>
@@ -53,47 +54,68 @@
 <h2>Properties</h2>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface"><a id="defaults" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>defaults</span><a href="#defaults" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" id="icon-anchor-a"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" id="icon-anchor-b"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" id="icon-anchor-c"></path></svg></a></h3>
-<div class="tsd-signature">defaults<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/lib_cluster.RedisClusterClientOptions.html" class="tsd-signature-type" data-tsd-kind="Type alias">RedisClusterClientOptions</a><span class="tsd-signature-symbol">&gt;</span></div><aside class="tsd-sources">
+<div class="tsd-signature">defaults<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/lib_cluster.RedisClusterClientOptions.html" class="tsd-signature-type" data-tsd-kind="Type alias">RedisClusterClientOptions</a><span class="tsd-signature-symbol">&gt;</span></div>
+<div class="tsd-comment tsd-typography"><p>Default values used for every client in the cluster. Use this to specify global values, 
+for example: ACL credentials, timeouts, TLS configuration etc.</p>
+</div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/index.ts#L21">packages/client/lib/cluster/index.ts:21</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L31">packages/client/lib/cluster/index.ts:31</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a id="functions" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>functions</span><a href="#functions" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">functions<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type" data-tsd-kind="Type parameter">F</span></div><aside class="tsd-sources">
 <p>Inherited from <a href="lib_commands.RedisExtensions.html">RedisExtensions</a>.<a href="lib_commands.RedisExtensions.html#functions">functions</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/commands/index.ts#L87">packages/client/lib/commands/index.ts:87</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/commands/index.ts#L87">packages/client/lib/commands/index.ts:87</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface"><a id="maxCommandRedirections" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>max<wbr/>Command<wbr/>Redirections</span><a href="#maxCommandRedirections" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
-<div class="tsd-signature">max<wbr/>Command<wbr/>Redirections<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div><aside class="tsd-sources">
+<div class="tsd-signature">max<wbr/>Command<wbr/>Redirections<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>The maximum number of times a command will be redirected due to <code>MOVED</code> or <code>ASK</code> errors.</p>
+</div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/index.ts#L23">packages/client/lib/cluster/index.ts:23</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L44">packages/client/lib/cluster/index.ts:44</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface"><a id="minimizeConnections" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>minimize<wbr/>Connections</span><a href="#minimizeConnections" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<div class="tsd-signature">minimize<wbr/>Connections<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
+<div class="tsd-comment tsd-typography"><p>When <code>true</code>, <code>.connect()</code> will only discover the cluster topology, without actually connecting to all the nodes.
+Useful for short-term or PubSub-only connections.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L36">packages/client/lib/cluster/index.ts:36</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a id="modules" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>modules</span><a href="#modules" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">modules<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type" data-tsd-kind="Type parameter">M</span></div><aside class="tsd-sources">
 <p>Inherited from <a href="lib_commands.RedisExtensions.html">RedisExtensions</a>.<a href="lib_commands.RedisExtensions.html#modules">modules</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/commands/index.ts#L86">packages/client/lib/commands/index.ts:86</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/commands/index.ts#L86">packages/client/lib/commands/index.ts:86</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface"><a id="nodeAddressMap" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>node<wbr/>Address<wbr/>Map</span><a href="#nodeAddressMap" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
-<div class="tsd-signature">node<wbr/>Address<wbr/>Map<span class="tsd-signature-symbol">?:</span> <a href="../types/lib_cluster_cluster_slots.NodeAddressMap.html" class="tsd-signature-type" data-tsd-kind="Type alias">NodeAddressMap</a></div><aside class="tsd-sources">
+<div class="tsd-signature">node<wbr/>Address<wbr/>Map<span class="tsd-signature-symbol">?:</span> <a href="../types/lib_cluster_cluster_slots.NodeAddressMap.html" class="tsd-signature-type" data-tsd-kind="Type alias">NodeAddressMap</a></div>
+<div class="tsd-comment tsd-typography"><p>Mapping between the addresses in the cluster (see <code>CLUSTER SHARDS</code>) and the addresses the client should connect to
+Useful when the cluster is running on another network</p>
+</div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/index.ts#L24">packages/client/lib/cluster/index.ts:24</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L50">packages/client/lib/cluster/index.ts:50</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface"><a id="rootNodes" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>root<wbr/>Nodes</span><a href="#rootNodes" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
-<div class="tsd-signature">root<wbr/>Nodes<span class="tsd-signature-symbol">:</span> <a href="../types/lib_cluster.RedisClusterClientOptions.html" class="tsd-signature-type" data-tsd-kind="Type alias">RedisClusterClientOptions</a><span class="tsd-signature-symbol">[]</span></div><aside class="tsd-sources">
+<div class="tsd-signature">root<wbr/>Nodes<span class="tsd-signature-symbol">:</span> <a href="../types/lib_cluster.RedisClusterClientOptions.html" class="tsd-signature-type" data-tsd-kind="Type alias">RedisClusterClientOptions</a><span class="tsd-signature-symbol">[]</span></div>
+<div class="tsd-comment tsd-typography"><p>Should contain details for some of the cluster nodes that the client will use to discover 
+the &quot;cluster topology&quot;. We recommend including details for at least 3 nodes here.</p>
+</div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/index.ts#L20">packages/client/lib/cluster/index.ts:20</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L26">packages/client/lib/cluster/index.ts:26</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a id="scripts" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>scripts</span><a href="#scripts" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">scripts<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type" data-tsd-kind="Type parameter">S</span></div><aside class="tsd-sources">
 <p>Inherited from <a href="lib_commands.RedisExtensions.html">RedisExtensions</a>.<a href="lib_commands.RedisExtensions.html#scripts">scripts</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/commands/index.ts#L88">packages/client/lib/commands/index.ts:88</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/commands/index.ts#L88">packages/client/lib/commands/index.ts:88</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface"><a id="useReplicas" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>use<wbr/>Replicas</span><a href="#useReplicas" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
-<div class="tsd-signature">use<wbr/>Replicas<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div><aside class="tsd-sources">
+<div class="tsd-signature">use<wbr/>Replicas<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
+<div class="tsd-comment tsd-typography"><p>When <code>true</code>, distribute load by executing readonly commands (such as <code>GET</code>, <code>GEOSEARCH</code>, etc.) across all cluster nodes. When <code>false</code>, only use master nodes.</p>
+</div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/index.ts#L22">packages/client/lib/cluster/index.ts:22</a></li></ul></aside></section></section></div>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/index.ts#L40">packages/client/lib/cluster/index.ts:40</a></li></ul></aside></section></section></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
 <details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
@@ -125,6 +147,7 @@
 <li class="tsd-kind-module"><a href="../modules/lib_client_commands.html">lib/client/commands</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_client_commands_queue.html">lib/client/commands-<wbr/>queue</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_client_multi_command.html">lib/client/multi-<wbr/>command</a></li>
+<li class="tsd-kind-module"><a href="../modules/lib_client_pub_sub.html">lib/client/pub-<wbr/>sub</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_client_socket.html">lib/client/socket</a></li>
 <li class="current tsd-kind-module"><a href="../modules/lib_cluster.html">lib/cluster</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_cluster_cluster_slots.html">lib/cluster/cluster-<wbr/>slots</a></li>
@@ -341,6 +364,7 @@
 <li class="tsd-kind-module"><a href="../modules/lib_commands_PUBSUB_CHANNELS.html">lib/commands/PUBSUB_<wbr/>CHANNELS</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_PUBSUB_NUMPAT.html">lib/commands/PUBSUB_<wbr/>NUMPAT</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_PUBSUB_NUMSUB.html">lib/commands/PUBSUB_<wbr/>NUMSUB</a></li>
+<li class="tsd-kind-module"><a href="../modules/lib_commands_PUBSUB_SHARDCHANNELS.html">lib/commands/PUBSUB_<wbr/>SHARDCHANNELS</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_RANDOMKEY.html">lib/commands/RANDOMKEY</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_READONLY.html">lib/commands/READONLY</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_READWRITE.html">lib/commands/READWRITE</a></li>
@@ -382,6 +406,7 @@
 <li class="tsd-kind-module"><a href="../modules/lib_commands_SORT_RO.html">lib/commands/SORT_<wbr/>RO</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_SORT_STORE.html">lib/commands/SORT_<wbr/>STORE</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_SPOP.html">lib/commands/SPOP</a></li>
+<li class="tsd-kind-module"><a href="../modules/lib_commands_SPUBLISH.html">lib/commands/SPUBLISH</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_SRANDMEMBER.html">lib/commands/SRANDMEMBER</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_SRANDMEMBER_COUNT.html">lib/commands/SRANDMEMBER_<wbr/>COUNT</a></li>
 <li class="tsd-kind-module"><a href="../modules/lib_commands_SREM.html">lib/commands/SREM</a></li>
@@ -472,6 +497,7 @@
 <li class="tsd-kind-property tsd-parent-kind-interface"><a href="lib_cluster.RedisClusterOptions.html#defaults" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>defaults?</a></li>
 <li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="lib_cluster.RedisClusterOptions.html#functions" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>functions?</a></li>
 <li class="tsd-kind-property tsd-parent-kind-interface"><a href="lib_cluster.RedisClusterOptions.html#maxCommandRedirections" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>max<wbr/>Command<wbr/>Redirections?</a></li>
+<li class="tsd-kind-property tsd-parent-kind-interface"><a href="lib_cluster.RedisClusterOptions.html#minimizeConnections" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>minimize<wbr/>Connections?</a></li>
 <li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="lib_cluster.RedisClusterOptions.html#modules" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>modules?</a></li>
 <li class="tsd-kind-property tsd-parent-kind-interface"><a href="lib_cluster.RedisClusterOptions.html#nodeAddressMap" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>node<wbr/>Address<wbr/>Map?</a></li>
 <li class="tsd-kind-property tsd-parent-kind-interface"><a href="lib_cluster.RedisClusterOptions.html#rootNodes" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>root<wbr/>Nodes</a></li>

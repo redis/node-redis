@@ -16,7 +16,7 @@
 <li><a href="lib_cluster_cluster_slots.html">lib/cluster/cluster-slots</a></li></ul>
 <h1>Module lib/cluster/cluster-slots</h1></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/redis/node-redis/blob/e75a5db/packages/client/lib/cluster/cluster-slots.ts#L1">packages/client/lib/cluster/cluster-slots.ts:1</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/redis/node-redis/blob/3b1bad2/packages/client/lib/cluster/cluster-slots.ts#L1">packages/client/lib/cluster/cluster-slots.ts:1</a></li></ul></aside>
 <section class="tsd-panel-group">
 <section class="tsd-panel tsd-typography"></section></section>
 <section class="tsd-panel-group tsd-index-group">
@@ -28,11 +28,16 @@
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Interfaces</h3>
-<div class="tsd-index-list"><a href="../interfaces/lib_cluster_cluster_slots.ClusterNode.html" class="tsd-index-link tsd-kind-interface tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-interface)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6" id="icon-256-path"></rect><path d="M9.51 16V15.016H11.298V8.224H9.51V7.24H14.19V8.224H12.402V15.016H14.19V16H9.51Z" fill="var(--color-text)" id="icon-256-text"></path></svg><span>Cluster<wbr/>Node</span></a>
+<div class="tsd-index-list"><a href="../interfaces/lib_cluster_cluster_slots.MasterNode.html" class="tsd-index-link tsd-kind-interface tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-interface)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6" id="icon-256-path"></rect><path d="M9.51 16V15.016H11.298V8.224H9.51V7.24H14.19V8.224H12.402V15.016H14.19V16H9.51Z" fill="var(--color-text)" id="icon-256-text"></path></svg><span>Master<wbr/>Node</span></a>
+<a href="../interfaces/lib_cluster_cluster_slots.Node.html" class="tsd-index-link tsd-kind-interface tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg><span>Node</span></a>
+<a href="../interfaces/lib_cluster_cluster_slots.Shard.html" class="tsd-index-link tsd-kind-interface tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg><span>Shard</span></a>
+<a href="../interfaces/lib_cluster_cluster_slots.ShardNode.html" class="tsd-index-link tsd-kind-interface tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg><span>Shard<wbr/>Node</span></a>
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Type Aliases</h3>
 <div class="tsd-index-list"><a href="../types/lib_cluster_cluster_slots.NodeAddressMap.html" class="tsd-index-link tsd-kind-type-alias tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="var(--color-ts)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6" id="icon-4194304-path"></rect><path d="M11.31 16V8.224H8.91V7.24H14.79V8.224H12.39V16H11.31Z" fill="var(--color-text)" id="icon-4194304-text"></path></svg><span>Node<wbr/>Address<wbr/>Map</span></a>
+<a href="../types/lib_cluster_cluster_slots.OnShardedChannelMovedError.html" class="tsd-index-link tsd-kind-type-alias tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-4194304-path"></use><use href="#icon-4194304-text"></use></svg><span>On<wbr/>Sharded<wbr/>Channel<wbr/>Moved<wbr/>Error</span></a>
+<a href="../types/lib_cluster_cluster_slots.PubSubNode.html" class="tsd-index-link tsd-kind-type-alias tsd-parent-kind-module"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-4194304-path"></use><use href="#icon-4194304-text"></use></svg><span>Pub<wbr/>Sub<wbr/>Node</span></a>
 </div></section></section></section></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
@@ -65,6 +70,7 @@
 <li class="tsd-kind-module"><a href="lib_client_commands.html">lib/client/commands</a></li>
 <li class="tsd-kind-module"><a href="lib_client_commands_queue.html">lib/client/commands-<wbr/>queue</a></li>
 <li class="tsd-kind-module"><a href="lib_client_multi_command.html">lib/client/multi-<wbr/>command</a></li>
+<li class="tsd-kind-module"><a href="lib_client_pub_sub.html">lib/client/pub-<wbr/>sub</a></li>
 <li class="tsd-kind-module"><a href="lib_client_socket.html">lib/client/socket</a></li>
 <li class="tsd-kind-module"><a href="lib_cluster.html">lib/cluster</a></li>
 <li class="current selected tsd-kind-module"><a href="lib_cluster_cluster_slots.html">lib/cluster/cluster-<wbr/>slots</a></li>
@@ -281,6 +287,7 @@
 <li class="tsd-kind-module"><a href="lib_commands_PUBSUB_CHANNELS.html">lib/commands/PUBSUB_<wbr/>CHANNELS</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_PUBSUB_NUMPAT.html">lib/commands/PUBSUB_<wbr/>NUMPAT</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_PUBSUB_NUMSUB.html">lib/commands/PUBSUB_<wbr/>NUMSUB</a></li>
+<li class="tsd-kind-module"><a href="lib_commands_PUBSUB_SHARDCHANNELS.html">lib/commands/PUBSUB_<wbr/>SHARDCHANNELS</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_RANDOMKEY.html">lib/commands/RANDOMKEY</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_READONLY.html">lib/commands/READONLY</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_READWRITE.html">lib/commands/READWRITE</a></li>
@@ -322,6 +329,7 @@
 <li class="tsd-kind-module"><a href="lib_commands_SORT_RO.html">lib/commands/SORT_<wbr/>RO</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_SORT_STORE.html">lib/commands/SORT_<wbr/>STORE</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_SPOP.html">lib/commands/SPOP</a></li>
+<li class="tsd-kind-module"><a href="lib_commands_SPUBLISH.html">lib/commands/SPUBLISH</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_SRANDMEMBER.html">lib/commands/SRANDMEMBER</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_SRANDMEMBER_COUNT.html">lib/commands/SRANDMEMBER_<wbr/>COUNT</a></li>
 <li class="tsd-kind-module"><a href="lib_commands_SREM.html">lib/commands/SREM</a></li>
@@ -408,8 +416,13 @@
 <nav class="tsd-navigation secondary menu-sticky">
 <ul>
 <li class="tsd-kind-class tsd-parent-kind-module"><a href="../classes/lib_cluster_cluster_slots.default.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-128-path"></use><use href="#icon-128-text"></use></svg>default</a></li>
-<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/lib_cluster_cluster_slots.ClusterNode.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg>Cluster<wbr/>Node</a></li>
-<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="../types/lib_cluster_cluster_slots.NodeAddressMap.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-4194304-path"></use><use href="#icon-4194304-text"></use></svg>Node<wbr/>Address<wbr/>Map</a></li></ul></nav></div></div>
+<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/lib_cluster_cluster_slots.MasterNode.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg>Master<wbr/>Node</a></li>
+<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/lib_cluster_cluster_slots.Node.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg>Node</a></li>
+<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/lib_cluster_cluster_slots.Shard.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg>Shard</a></li>
+<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/lib_cluster_cluster_slots.ShardNode.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-256-path"></use><use href="#icon-256-text"></use></svg>Shard<wbr/>Node</a></li>
+<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="../types/lib_cluster_cluster_slots.NodeAddressMap.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-4194304-path"></use><use href="#icon-4194304-text"></use></svg>Node<wbr/>Address<wbr/>Map</a></li>
+<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="../types/lib_cluster_cluster_slots.OnShardedChannelMovedError.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-4194304-path"></use><use href="#icon-4194304-text"></use></svg>On<wbr/>Sharded<wbr/>Channel<wbr/>Moved<wbr/>Error</a></li>
+<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="../types/lib_cluster_cluster_slots.PubSubNode.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-4194304-path"></use><use href="#icon-4194304-text"></use></svg>Pub<wbr/>Sub<wbr/>Node</a></li></ul></nav></div></div>
 <div class="container tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
 <div class="overlay"></div><script src="../assets/main.js"></script></body></html>
