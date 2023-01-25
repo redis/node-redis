@@ -2,13 +2,19 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
-import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
+import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 import { promisify } from 'util';
+
+// We need to use 'require', because it's not possible with Typescript to import
+// function that are exported as 'module.exports = function`, without esModuleInterop
+// set to true.
+const calculateSlot = require('cluster-key-slot');
 
 export const SQUARE_SCRIPT = defineScript({
     SCRIPT: 'return ARGV[1] * ARGV[1];',
@@ -817,7 +823,34 @@ describe('Client', () => {
             }
         }, GLOBAL.SERVERS.OPEN);
 
-        testUtils.testWithClient('should be able to quit in PubSub mode', async client => {
+        testUtils.testWithClient('should be able to PING in PubSub mode', async client => {
+            await client.connect();
+
+            try {
+                await client.subscribe('channel', () => {
+                    // noop
+                });
+                
+                const [string, buffer, customString, customBuffer] = await Promise.all([
+                    client.ping(),
+                    client.ping(client.commandOptions({ returnBuffers: true })),
+                    client.ping('custom'),
+                    client.ping(client.commandOptions({ returnBuffers: true }), 'custom')
+                ]);
+    
+                assert.equal(string, 'pong');
+                assert.deepEqual(buffer, Buffer.from('pong'));
+                assert.equal(customString, 'custom');
+                assert.deepEqual(customBuffer, Buffer.from('custom'));
+            } finally {
+                await client.disconnect();
+            }
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+
+        testUtils.testWithClient('should be able to QUIT in PubSub mode', async client => {
             await client.subscribe('channel', () => {
                 // noop
             });
@@ -826,6 +859,122 @@ describe('Client', () => {
 
             assert.equal(client.isOpen, false);
         }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should reject GET in PubSub mode', async client => {
+            await client.connect();
+
+            try {
+                await client.subscribe('channel', () => {
+                    // noop
+                });
+
+                await assert.rejects(client.get('key'), ErrorReply);
+            } finally {
+                await client.disconnect();
+            }
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+
+        describe('shareded PubSub', () => {
+            testUtils.isVersionGreaterThanHook([7]);
+
+            testUtils.testWithClient('should be able to receive messages', async publisher => {
+                const subscriber = publisher.duplicate();
+    
+                await subscriber.connect();
+    
+                try {
+                    const listener = spy();
+                    await subscriber.sSubscribe('channel', listener);
+    
+                    await Promise.all([
+                        waitTillBeenCalled(listener),
+                        publisher.sPublish('channel', 'message')
+                    ]);
+    
+                    assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+    
+                    await subscriber.sUnsubscribe();
+    
+                    // should be able to send commands
+                    await assert.doesNotReject(subscriber.ping());
+                } finally {
+                    await subscriber.disconnect();
+                }
+            }, {
+                ...GLOBAL.SERVERS.OPEN
+            });
+
+            testUtils.testWithClient('should emit sharded-channel-moved event', async publisher => {
+                await publisher.clusterAddSlotsRange({ start: 0, end: 16383 });
+
+                const subscriber = publisher.duplicate();
+    
+                await subscriber.connect();
+    
+                try {
+                    await subscriber.sSubscribe('channel', () => {});
+
+                    await Promise.all([
+                        publisher.clusterSetSlot(
+                            calculateSlot('channel'),
+                            ClusterSlotStates.NODE,
+                            await publisher.clusterMyId()
+                        ),
+                        once(subscriber, 'sharded-channel-moved')
+                    ]);
+                    
+                    assert.equal(
+                        await subscriber.ping(),
+                        'PONG'
+                    );
+                } finally {
+                    await subscriber.disconnect();
+                }
+            }, {
+                serverArguments: ['--cluster-enabled', 'yes']
+            });
+        });
+
+        testUtils.testWithClient('should handle errors in SUBSCRIBE', async publisher => {
+            const subscriber = publisher.duplicate();
+
+            await subscriber.connect();
+
+            try {
+                const listener1 = spy();
+                await subscriber.subscribe('1', listener1);
+
+                await publisher.aclSetUser('default', 'resetchannels');
+
+
+                const listener2 = spy();
+                await assert.rejects(subscriber.subscribe('2', listener2));
+                
+                await Promise.all([
+                    waitTillBeenCalled(listener1),
+                    publisher.aclSetUser('default', 'allchannels'),
+                    publisher.publish('1', 'message'),
+                ]);
+                assert.ok(listener1.calledOnceWithExactly('message', '1'));
+                
+                await subscriber.subscribe('2', listener2);
+
+                await Promise.all([
+                    waitTillBeenCalled(listener2),
+                    publisher.publish('2', 'message'),
+                ]);
+                assert.ok(listener2.calledOnceWithExactly('message', '2'));
+            } finally {
+                await subscriber.disconnect();
+            }
+        }, {
+            // this test change ACL rules, running in isolated server
+            serverArguments: [],
+            minimumDockerVersion: [6 ,2] // ACL PubSub rules were added in Redis 6.2
+        });
     });
 
     testUtils.testWithClient('ConnectionTimeoutError', async client => {

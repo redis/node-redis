@@ -98,6 +98,7 @@ import * as PING from '../commands/PING';
 import * as PUBSUB_CHANNELS from '../commands/PUBSUB_CHANNELS';
 import * as PUBSUB_NUMPAT from '../commands/PUBSUB_NUMPAT';
 import * as PUBSUB_NUMSUB from '../commands/PUBSUB_NUMSUB';
+import * as PUBSUB_SHARDCHANNELS from '../commands/PUBSUB_SHARDCHANNELS';
 import * as RANDOMKEY from '../commands/RANDOMKEY';
 import * as READONLY from '../commands/READONLY';
 import * as READWRITE from '../commands/READWRITE';
@@ -317,6 +318,8 @@ export default {
     pubSubNumPat: PUBSUB_NUMPAT,
     PUBSUB_NUMSUB,
     pubSubNumSub: PUBSUB_NUMSUB,
+    PUBSUB_SHARDCHANNELS,
+    pubSubShardChannels: PUBSUB_SHARDCHANNELS,
     RANDOMKEY,
     randomKey: RANDOMKEY,
     READONLY,

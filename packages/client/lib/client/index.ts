@@ -1,7 +1,7 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
-import RedisCommandsQueue, { PubSubListener, PubSubSubscribeCommands, PubSubUnsubscribeCommands, QueueCommandOptions } from './commands-queue';
+import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import { EventEmitter } from 'events';
@@ -14,23 +14,57 @@ import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
+import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
     F extends RedisFunctions = RedisFunctions,
     S extends RedisScripts = RedisScripts
 > extends RedisExtensions<M, F, S> {
+    /**
+     * `redis[s]://[[username][:password]@][host][:port][/db-number]`
+     * See [`redis`](https://www.iana.org/assignments/uri-schemes/prov/redis) and [`rediss`](https://www.iana.org/assignments/uri-schemes/prov/rediss) IANA registration for more details
+     */
     url?: string;
+    /**
+     * Socket connection properties
+     */
     socket?: RedisSocketOptions;
+    /**
+     * ACL username ([see ACL guide](https://redis.io/topics/acl))
+     */
     username?: string;
+    /**
+     * ACL password or the old "--requirepass" password
+     */
     password?: string;
+    /**
+     * Client name ([see `CLIENT SETNAME`](https://redis.io/commands/client-setname))
+     */
     name?: string;
+    /**
+     * Redis database number (see [`SELECT`](https://redis.io/commands/select) command)
+     */
     database?: number;
+    /**
+     * Maximum length of the client's internal command queue
+     */
     commandsQueueMaxLength?: number;
+    /**
+     * When `true`, commands are rejected when the client is reconnecting.
+     * When `false`, commands are queued for execution after reconnection.
+     */
     disableOfflineQueue?: boolean;
+    /**
+     * Connect in [`READONLY`](https://redis.io/commands/readonly) mode
+     */
     readonly?: boolean;
     legacyMode?: boolean;
     isolationPoolOptions?: PoolOptions;
+    /**
+     * Send `PING` command at interval (in ms).
+     * Useful with Redis deployments that do not use TCP Keep-Alive.
+     */
     pingInterval?: number;
 }
 
@@ -171,6 +205,10 @@ export default class RedisClient<
         return this.#socket.isReady;
     }
 
+    get isPubSubActive() {
+        return this.#queue.isPubSubActive;
+    }
+
     get v4(): Record<string, any> {
         if (!this.#options?.legacyMode) {
             throw new Error('the client is not in "legacy mode"');
@@ -215,7 +253,10 @@ export default class RedisClient<
     }
 
     #initiateQueue(): RedisCommandsQueue {
-        return new RedisCommandsQueue(this.#options?.commandsQueueMaxLength);
+        return new RedisCommandsQueue(
+            this.#options?.commandsQueueMaxLength,
+            (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
+        );
     }
 
     #initiateSocket(): RedisSocket {
@@ -377,8 +418,8 @@ export default class RedisClient<
         });
     }
 
-    async connect(): Promise<void> {
-        await this.#socket.connect();
+    connect(): Promise<void> {
+        return this.#socket.connect();
     }
 
     async commandsExecutor<C extends RedisCommand>(
@@ -500,18 +541,9 @@ export default class RedisClient<
 
     select = this.SELECT;
 
-    #subscribe<T extends boolean>(
-        command: PubSubSubscribeCommands,
-        channels: string | Array<string>,
-        listener: PubSubListener<T>,
-        bufferMode?: T
-    ): Promise<void> {
-        const promise = this.#queue.subscribe(
-            command,
-            channels,
-            listener,
-            bufferMode
-        );
+    #pubSubCommand(promise: Promise<void> | undefined) {
+        if (promise === undefined) return Promise.resolve();
+
         this.#tick();
         return promise;
     }
@@ -521,77 +553,127 @@ export default class RedisClient<
         listener: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        return this.#subscribe(
-            PubSubSubscribeCommands.SUBSCRIBE,
-            channels,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.CHANNELS,
+                channels,
+                listener,
+                bufferMode
+            )
         );
     }
 
     subscribe = this.SUBSCRIBE;
 
-    PSUBSCRIBE<T extends boolean = false>(
-        patterns: string | Array<string>,
-        listener: PubSubListener<T>,
-        bufferMode?: T
-    ): Promise<void> {
-        return this.#subscribe(
-            PubSubSubscribeCommands.PSUBSCRIBE,
-            patterns,
-            listener,
-            bufferMode
-        );
-    }
-
-    pSubscribe = this.PSUBSCRIBE;
-
-    #unsubscribe<T extends boolean>(
-        command: PubSubUnsubscribeCommands,
-        channels?: string | Array<string>,
-        listener?: PubSubListener<T>,
-        bufferMode?: T
-    ): Promise<void> {
-        const promise = this.#queue.unsubscribe(command, channels, listener, bufferMode);
-        this.#tick();
-        return promise;
-    }
 
     UNSUBSCRIBE<T extends boolean = false>(
         channels?: string | Array<string>,
         listener?: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        return this.#unsubscribe(
-            PubSubUnsubscribeCommands.UNSUBSCRIBE,
-            channels,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.unsubscribe(
+                PubSubType.CHANNELS,
+                channels,
+                listener,
+                bufferMode
+            )
         );
     }
 
     unsubscribe = this.UNSUBSCRIBE;
+
+    PSUBSCRIBE<T extends boolean = false>(
+        patterns: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ): Promise<void> {
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.PATTERNS,
+                patterns,
+                listener,
+                bufferMode
+            )
+        );
+    }
+
+    pSubscribe = this.PSUBSCRIBE;
 
     PUNSUBSCRIBE<T extends boolean = false>(
         patterns?: string | Array<string>,
         listener?: PubSubListener<T>,
         bufferMode?: T
     ): Promise<void> {
-        return this.#unsubscribe(
-            PubSubUnsubscribeCommands.PUNSUBSCRIBE,
-            patterns,
-            listener,
-            bufferMode
+        return this.#pubSubCommand(
+            this.#queue.unsubscribe(
+                PubSubType.PATTERNS,
+                patterns,
+                listener,
+                bufferMode
+            )
         );
     }
 
     pUnsubscribe = this.PUNSUBSCRIBE;
 
+    SSUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ): Promise<void> {
+        return this.#pubSubCommand(
+            this.#queue.subscribe(
+                PubSubType.SHARDED,
+                channels,
+                listener,
+                bufferMode
+            )
+        );
+    }
+
+    sSubscribe = this.SSUBSCRIBE;
+
+    SUNSUBSCRIBE<T extends boolean = false>(
+        channels?: string | Array<string>,
+        listener?: PubSubListener<T>,
+        bufferMode?: T
+    ): Promise<void> {
+        return this.#pubSubCommand(
+            this.#queue.unsubscribe(
+                PubSubType.SHARDED,
+                channels,
+                listener,
+                bufferMode
+            )
+        );
+    }
+
+    sUnsubscribe = this.SUNSUBSCRIBE;
+
+    getPubSubListeners(type: PubSubType) {
+        return this.#queue.getPubSubListeners(type);
+    }
+
+    extendPubSubChannelListeners(
+        type: PubSubType,
+        channel: string,
+        listeners: ChannelListeners
+    ) {
+        return this.#pubSubCommand(
+            this.#queue.extendPubSubChannelListeners(type, channel, listeners)
+        );
+    }
+
+    extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
+        return this.#pubSubCommand(
+            this.#queue.extendPubSubListeners(type, listeners)
+        );
+    }
+
     QUIT(): Promise<string> {
         return this.#socket.quit(async () => {
-            const quitPromise = this.#queue.addCommand<string>(['QUIT'], {
-                ignorePubSubMode: true
-            });
+            const quitPromise = this.#queue.addCommand<string>(['QUIT']);
             this.#tick();
             const [reply] = await Promise.all([
                 quitPromise,
