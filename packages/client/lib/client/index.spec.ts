@@ -341,6 +341,19 @@ describe('Client', () => {
                 legacyMode: true
             }
         });
+
+        testUtils.testWithClient('pingInterval', async client => {
+            assert.deepEqual(
+                await once(client, 'ping-interval'),
+                ['PONG']
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true,
+                pingInterval: 1
+            }
+        });
     });
 
     describe('events', () => {
