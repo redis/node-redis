@@ -3,9 +3,9 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RedisCommandArgument, RedisFunctions, RedisModules, RedisScripts } from '../commands';
 import { RootNodesUnavailableError } from '../errors';
 import { ClusterSlotsNode } from '../commands/CLUSTER_SLOTS';
-import { types } from 'node:util';
+import { types } from 'util';
 import { ChannelListeners, PubSubType, PubSubTypeListeners } from '../client/pub-sub';
-import { EventEmitter } from 'node:stream';
+import { EventEmitter } from 'stream';
 
 // We need to use 'require', because it's not possible with Typescript to import
 // function that are exported as 'module.exports = function`, without esModuleInterop

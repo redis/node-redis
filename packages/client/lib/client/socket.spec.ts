@@ -1,6 +1,6 @@
-import { strict as assert } from 'node:assert';
+import { strict as assert } from 'assert';
 import { spy } from 'sinon';
-import { once } from 'node:events';
+import { once } from 'events';
 import RedisSocket, { RedisSocketOptions } from './socket';
 
 describe('Socket', () => {
