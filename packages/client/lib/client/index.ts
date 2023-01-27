@@ -15,6 +15,7 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '.
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
+import { callbackify } from 'util';
 
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
@@ -343,7 +344,9 @@ export default class RedisClient<
         (this as any).sendCommand = (...args: Array<any>): void => {
             const result = this.#legacySendCommand(...args);
             if (result) {
-                result.promise.then(reply => result.callback(null, reply));
+                result.promise
+                    .then(reply => result.callback(null, reply))
+                    .catch(err => result.callback(err));
             }
         };
 
@@ -380,18 +383,18 @@ export default class RedisClient<
         promise.catch(err => this.emit('error', err));
     }
 
-    #defineLegacyCommand(this: any, name: string, command?: RedisCommand): void {
-        this.#v4[name] = this[name].bind(this);
-        this[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
+    #defineLegacyCommand(name: string, command?: RedisCommand): void {
+        this.#v4[name] = (this as any)[name].bind(this);
+        (this as any)[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
             (...args: Array<unknown>) => {
                 const result = this.#legacySendCommand(name, ...args);
                 if (result) {
-                    result.promise.then((reply: any) => {
-                        result.callback(null, command.transformReply!(reply));
-                    });
+                    result.promise
+                        .then(reply => result.callback(null, command.transformReply!(reply)))
+                        .catch(err => result.callback(err));
                 }
             } :
-            (...args: Array<unknown>) => this.sendCommand(name, ...args);
+            (...args: Array<unknown>) => (this as any).sendCommand(name, ...args);
     }
 
     #pingTimer?: NodeJS.Timer;
