@@ -169,7 +169,6 @@ export default class RedisSocket extends EventEmitter {
 
                 this.emit('error', err);
                 await promiseTimeout(retryIn);
-                
                 this.emit('reconnecting');
             }
         } while (this.#isOpen && !this.#isReady);
