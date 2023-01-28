@@ -1,5 +1,6 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, RedisFunction } from '../commands';
+import { isCommandOptions } from '../command-options';
 import { ClientCommandOptions, RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import { attachExtensions, transformCommandReply, attachCommands, transformCommandArguments } from '../commander';
@@ -74,6 +75,10 @@ export default class RedisCluster<
             return undefined;
         } else if (typeof command.FIRST_KEY_INDEX === 'number') {
             return redisArgs[command.FIRST_KEY_INDEX];
+        }
+
+        if (isCommandOptions(originalArgs[0])) {
+            originalArgs = originalArgs.slice(1);
         }
 
         return command.FIRST_KEY_INDEX(...originalArgs);
