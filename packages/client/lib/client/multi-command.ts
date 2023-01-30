@@ -119,7 +119,7 @@ export default class RedisClientMultiCommand {
 
         for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
             this.#defineLegacyCommand(name, command);
-            (this as any)[name.toLowerCase()] = (this as any)[name];
+            (this as any)[name.toLowerCase()] ??= (this as any)[name];
         }
     }
 
