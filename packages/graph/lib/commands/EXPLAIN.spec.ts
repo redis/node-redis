@@ -11,7 +11,10 @@ describe('EXPLAIN', () => {
     });
 
     testUtils.testWithClient('client.graph.explain', async client => {
-        const reply = await client.graph.explain('key', 'RETURN 0');
+        const [, reply] = await Promise.all([
+            client.graph.query('key', 'RETURN 0'), // make sure to create a graph first
+            client.graph.explain('key', 'RETURN 0')
+        ]);
         assert.ok(Array.isArray(reply));
         assert.ok(!reply.find(x => typeof x !== 'string'));
     }, GLOBAL.SERVERS.OPEN);
