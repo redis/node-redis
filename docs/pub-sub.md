@@ -8,7 +8,7 @@ Pub/Sub requires a dedicated stand-alone client. You can easily get one by `.dup
 
 ```typescript
 const subscriber = client.duplicate();
-subscribe.on('error', err => console.error(err));
+subscriber.on('error', err => console.error(err));
 await subscriber.connect();
 ```
 
