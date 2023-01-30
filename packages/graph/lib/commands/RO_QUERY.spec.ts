@@ -11,7 +11,10 @@ describe('RO_QUERY', () => {
     });
 
     testUtils.testWithClient('client.graph.roQuery', async client => {
-        const { data } = await client.graph.roQuery('key', 'RETURN 0');
+        const [, { data }] = await Promise.all([
+            client.graph.query('key', 'RETURN 0'), // make sure to create a graph first
+            client.graph.roQuery('key', 'RETURN 0')
+        ]);
         assert.deepEqual(data, [[0]]);
     }, GLOBAL.SERVERS.OPEN);
 });
