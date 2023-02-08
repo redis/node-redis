@@ -1,0 +1,11 @@
+name: Documentation
+description: Any questions or issues relating to the project documentation.
+labels: [Documentation]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Ask your question or describe your issue here.
+    validations:
+      required: true

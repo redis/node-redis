@@ -1,8 +1,24 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import RedisClient from '../client';
+import { transformArguments } from './PING';
 
 describe('PING', () => {
+    describe('transformArguments', () => {
+        it('default', () => {
+            assert.deepEqual(
+                transformArguments(),
+                ['PING']
+            );
+        });
+
+        it('with message', () => {
+            assert.deepEqual(
+                transformArguments('message'),
+                ['PING', 'message']
+            );
+        });
+    });
+
     describe('client.ping', () => {
         testUtils.testWithClient('string', async client => {
             assert.equal(
@@ -13,7 +29,7 @@ describe('PING', () => {
 
         testUtils.testWithClient('buffer', async client => {
             assert.deepEqual(
-                await client.ping(RedisClient.commandOptions({ returnBuffers: true })),
+                await client.ping(client.commandOptions({ returnBuffers: true })),
                 Buffer.from('PONG')
             );
         }, GLOBAL.SERVERS.OPEN);

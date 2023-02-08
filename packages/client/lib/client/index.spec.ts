@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
-import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts, ConvertArgumentType } from '../commands';
+import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts, ConvertArgumentType } from '../commands';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
@@ -168,9 +168,43 @@ describe('Client', () => {
             }
         });
 
+        testUtils.testWithClient('client.sendCommand should reply with error', async client => {
+            await assert.rejects(
+                promisify(client.sendCommand).call(client, '1', '2')
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
+        testUtils.testWithClient('client.hGetAll should reply with error', async client => {
+            await assert.rejects(
+                promisify(client.hGetAll).call(client)
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
         testUtils.testWithClient('client.v4.sendCommand should return a promise', async client => {
             assert.equal(
                 await client.v4.sendCommand(['PING']),
+                'PONG'
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
+        testUtils.testWithClient('client.v4.{command} should return a promise', async client => {
+            assert.equal(
+                await client.v4.ping(),
                 'PONG'
             );
         }, {

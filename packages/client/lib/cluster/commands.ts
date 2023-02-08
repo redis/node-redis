@@ -135,6 +135,7 @@ import * as SORT_RO from '../commands/SORT_RO';
 import * as SORT_STORE from '../commands/SORT_STORE';
 import * as SORT from '../commands/SORT';
 import * as SPOP from '../commands/SPOP';
+import * as SPUBLISH from '../commands/SPUBLISH';
 import * as SRANDMEMBER_COUNT from '../commands/SRANDMEMBER_COUNT';
 import * as SRANDMEMBER from '../commands/SRANDMEMBER';
 import * as SREM from '../commands/SREM';
@@ -483,6 +484,8 @@ export default {
     sort: SORT,
     SPOP,
     sPop: SPOP,
+    SPUBLISH,
+    sPublish: SPUBLISH,
     SRANDMEMBER_COUNT,
     sRandMemberCount: SRANDMEMBER_COUNT,
     SRANDMEMBER,

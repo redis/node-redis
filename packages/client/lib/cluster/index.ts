@@ -1,11 +1,13 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, RedisFunction } from '../commands';
 import { ClientCommandOptions, RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
-import RedisClusterSlots, { ClusterNode, NodeAddressMap } from './cluster-slots';
+import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import { attachExtensions, transformCommandReply, attachCommands, transformCommandArguments } from '../commander';
 import { EventEmitter } from 'events';
 import RedisClusterMultiCommand, { InstantiableRedisClusterMultiCommandType, RedisClusterMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
+import { PubSubListener } from '../client/pub-sub';
+import { ErrorReply } from '../errors';
 
 export type RedisClusterClientOptions = Omit<
     RedisClientOptions,
@@ -17,10 +19,34 @@ export interface RedisClusterOptions<
     F extends RedisFunctions = Record<string, never>,
     S extends RedisScripts = Record<string, never>
 > extends RedisExtensions<M, F, S> {
+    /**
+     * Should contain details for some of the cluster nodes that the client will use to discover 
+     * the "cluster topology". We recommend including details for at least 3 nodes here.
+     */
     rootNodes: Array<RedisClusterClientOptions>;
+    /**
+     * Default values used for every client in the cluster. Use this to specify global values, 
+     * for example: ACL credentials, timeouts, TLS configuration etc.
+     */
     defaults?: Partial<RedisClusterClientOptions>;
+    /**
+     * When `true`, `.connect()` will only discover the cluster topology, without actually connecting to all the nodes.
+     * Useful for short-term or PubSub-only connections.
+     */
+    minimizeConnections?: boolean;
+    /**
+     * When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes. When `false`, only use master nodes.
+     */
     useReplicas?: boolean;
+    /**
+     * The maximum number of times a command will be redirected due to `MOVED` or `ASK` errors.
+     */
     maxCommandRedirections?: number;
+    /**
+     * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
+     * Useful when the cluster is running on another network
+     * 
+     */
     nodeAddressMap?: NodeAddressMap;
 }
 
@@ -70,14 +96,44 @@ export default class RedisCluster<
     }
 
     readonly #options: RedisClusterOptions<M, F, S>;
+
     readonly #slots: RedisClusterSlots<M, F, S>;
+    
+    get slots() {
+        return this.#slots.slots;
+    }
+
+    get shards() {
+        return this.#slots.shards;
+    }
+
+    get masters() {
+        return this.#slots.masters;
+    }
+
+    get replicas() {
+        return this.#slots.replicas;
+    }
+
+    get nodeByAddress() {
+        return this.#slots.nodeByAddress;
+    }
+
+    get pubSubNode() {
+        return this.#slots.pubSubNode;
+    }
+
     readonly #Multi: InstantiableRedisClusterMultiCommandType<M, F, S>;
+
+    get isOpen() {
+        return this.#slots.isOpen;
+    }
 
     constructor(options: RedisClusterOptions<M, F, S>) {
         super();
 
         this.#options = options;
-        this.#slots = new RedisClusterSlots(options, err => this.emit('error', err));
+        this.#slots = new RedisClusterSlots(options, this.emit.bind(this));
         this.#Multi = RedisClusterMultiCommand.extend(options);
     }
 
@@ -88,7 +144,7 @@ export default class RedisCluster<
         });
     }
 
-    async connect(): Promise<void> {
+    connect() {
         return this.#slots.connect();
     }
 
@@ -188,34 +244,33 @@ export default class RedisCluster<
         executor: (client: RedisClientType<M, F, S>) => Promise<Reply>
     ): Promise<Reply> {
         const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
-        let client = this.#slots.getClient(firstKey, isReadonly);
+        let client = await this.#slots.getClient(firstKey, isReadonly);
         for (let i = 0;; i++) {
             try {
                 return await executor(client);
             } catch (err) {
-                if (++i > maxCommandRedirections || !(err instanceof Error)) {
+                if (++i > maxCommandRedirections || !(err instanceof ErrorReply)) {
                     throw err;
                 }
 
                 if (err.message.startsWith('ASK')) {
                     const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
-                    if (this.#slots.getNodeByAddress(address)?.client === client) {
-                        await client.asking();
-                        continue;
+                    let redirectTo = await this.#slots.getMasterByAddress(address);
+                    if (!redirectTo) {
+                        await this.#slots.rediscover(client);
+                        redirectTo = await this.#slots.getMasterByAddress(address);
                     }
 
-                    await this.#slots.rediscover(client);
-                    const redirectTo = this.#slots.getNodeByAddress(address);
                     if (!redirectTo) {
                         throw new Error(`Cannot find node ${address}`);
                     }
 
-                    await redirectTo.client.asking();
-                    client = redirectTo.client;
+                    await redirectTo.asking();
+                    client = redirectTo;
                     continue;
                 } else if (err.message.startsWith('MOVED')) {
                     await this.#slots.rediscover(client);
-                    client = this.#slots.getClient(firstKey, isReadonly);
+                    client = await this.#slots.getClient(firstKey, isReadonly);
                     continue;
                 }
 
@@ -239,13 +294,93 @@ export default class RedisCluster<
 
     multi = this.MULTI;
 
-    getMasters(): Array<ClusterNode<M, F, S>> {
-        return this.#slots.getMasters();
+    async SUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ) {
+        return (await this.#slots.getPubSubClient())
+            .SUBSCRIBE(channels, listener, bufferMode);
     }
 
-    getSlotMaster(slot: number): ClusterNode<M, F, S> {
-        return this.#slots.getSlotMaster(slot);
+    subscribe = this.SUBSCRIBE;
+
+    async UNSUBSCRIBE<T extends boolean = false>(
+        channels?: string | Array<string>,
+        listener?: PubSubListener<boolean>,
+        bufferMode?: T
+    ) {
+        return this.#slots.executeUnsubscribeCommand(client => 
+            client.UNSUBSCRIBE(channels, listener, bufferMode)
+        );
     }
+
+    unsubscribe = this.UNSUBSCRIBE;
+
+    async PSUBSCRIBE<T extends boolean = false>(
+        patterns: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ) {
+        return (await this.#slots.getPubSubClient())
+            .PSUBSCRIBE(patterns, listener, bufferMode);
+    }
+
+    pSubscribe = this.PSUBSCRIBE;
+
+    async PUNSUBSCRIBE<T extends boolean = false>(
+        patterns?: string | Array<string>,
+        listener?: PubSubListener<T>,
+        bufferMode?: T
+    ) {
+        return this.#slots.executeUnsubscribeCommand(client => 
+            client.PUNSUBSCRIBE(patterns, listener, bufferMode)
+        );
+    }
+
+    pUnsubscribe = this.PUNSUBSCRIBE;
+
+    async SSUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ) { 
+        const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16,
+            firstChannel = Array.isArray(channels) ? channels[0] : channels;
+        let client = await this.#slots.getShardedPubSubClient(firstChannel);
+        for (let i = 0;; i++) {
+            try {
+                return await client.SSUBSCRIBE(channels, listener, bufferMode);
+            } catch (err) {
+                if (++i > maxCommandRedirections || !(err instanceof ErrorReply)) {
+                    throw err;
+                }
+
+                if (err.message.startsWith('MOVED')) {
+                    await this.#slots.rediscover(client);
+                    client = await this.#slots.getShardedPubSubClient(firstChannel);
+                    continue;
+                }
+
+                throw err;
+            }
+        }
+    }
+
+    sSubscribe = this.SSUBSCRIBE;
+
+    SUNSUBSCRIBE<T extends boolean = false>(
+        channels: string | Array<string>,
+        listener: PubSubListener<T>,
+        bufferMode?: T
+    ) {
+        return this.#slots.executeShardedUnsubscribeCommand(
+            Array.isArray(channels) ? channels[0] : channels,
+            client => client.SUNSUBSCRIBE(channels, listener, bufferMode)
+        );
+    }
+
+    sUnsubscribe = this.SUNSUBSCRIBE;
 
     quit(): Promise<void> {
         return this.#slots.quit();
@@ -253,6 +388,32 @@ export default class RedisCluster<
 
     disconnect(): Promise<void> {
         return this.#slots.disconnect();
+    }
+
+    nodeClient(node: ShardNode<M, F, S>) {
+        return this.#slots.nodeClient(node); 
+    }
+
+    getRandomNode() {
+        return this.#slots.getRandomNode();
+    }
+
+    getSlotRandomNode(slot: number) {
+        return this.#slots.getSlotRandomNode(slot);
+    }
+
+    /**
+     * @deprecated use `.masters` instead
+     */
+    getMasters() {
+        return this.masters;
+    }
+
+    /**
+     * @deprecated use `.slots[<SLOT>]` instead
+     */
+    getSlotMaster(slot: number) {
+        return this.slots[slot].master;
     }
 }
 

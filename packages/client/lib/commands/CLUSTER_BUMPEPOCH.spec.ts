@@ -11,8 +11,9 @@ describe('CLUSTER BUMPEPOCH', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterBumpEpoch', async cluster => {
+        const client = await cluster.nodeClient(cluster.masters[0]);
         assert.equal(
-            typeof await cluster.getSlotMaster(0).client.clusterBumpEpoch(),
+            typeof await client.clusterBumpEpoch(),
             'string'
         );
     }, GLOBAL.SERVERS.OPEN);

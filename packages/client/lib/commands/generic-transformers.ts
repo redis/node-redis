@@ -137,7 +137,6 @@ export function transformSortedSetMemberNullReply(
 export function transformSortedSetMemberReply(
     reply: [RedisCommandArgument, RedisCommandArgument]
 ): ZMember {
-
     return {
         value: reply[0],
         score: transformNumberInfinityReply(reply[1])
