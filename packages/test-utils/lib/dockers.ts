@@ -52,7 +52,7 @@ const DOCKER_FODLER_PATH = path.join(__dirname, '../docker');
 async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
     const port = (await portIterator.next()).value,
         { stdout, stderr } = await execAsync(
-            'docker run -d --network host $(' +
+            `docker run -d -p ${port}:${port} host $(` +
                 `docker build ${DOCKER_FODLER_PATH} -q ` +
                 `--build-arg IMAGE=${image}:${version} ` +
                 `--build-arg REDIS_ARGUMENTS="--save '' --port ${port.toString()} ${serverArguments.join(' ')}"` +
