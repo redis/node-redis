@@ -12,7 +12,6 @@ import { promisify } from 'util';
 import { commandOptions } from '../../dist/lib/command-options';
 import { ZMember } from '../commands/generic-transformers';
 
-
 export const SQUARE_SCRIPT = defineScript({
     SCRIPT: 'return ARGV[1] * ARGV[1];',
     NUMBER_OF_KEYS: 0,
