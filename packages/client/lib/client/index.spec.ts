@@ -2,13 +2,15 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
-import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
+import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts, ConvertArgumentType } from '../commands';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
 import { promisify } from 'util';
+import { commandOptions } from '../../dist/lib/command-options';
+import { ZMember } from '../commands/generic-transformers';
 
 export const SQUARE_SCRIPT = defineScript({
     SCRIPT: 'return ARGV[1] * ARGV[1];',
@@ -249,7 +251,7 @@ describe('Client', () => {
 
         testUtils.testWithClient('client.hGetAll should return object', async client => {
             await client.v4.hSet('key', 'field', 'value');
-            
+
             assert.deepEqual(
                 await promisify(client.hGetAll).call(client, 'key'),
                 Object.create(null, {
@@ -351,7 +353,7 @@ describe('Client', () => {
             }
         });
 
-        testUtils.testWithClient('client.multi.hGetAll should return object', async client => { 
+        testUtils.testWithClient('client.multi.hGetAll should return object', async client => {
             assert.deepEqual(
                 await multiExecAsync(
                     client.multi()
@@ -641,84 +643,188 @@ describe('Client', () => {
         return client.executeIsolated(isolated => killClient(isolated, client));
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('scanIterator', async client => {
-        const promises = [],
-            keys = new Set();
-        for (let i = 0; i < 100; i++) {
-            const key = i.toString();
-            keys.add(key);
-            promises.push(client.set(key, ''));
-        }
+    describe('scanIterator', () => {
+        testUtils.testWithClient('strings', async client => {
+            const args: Array<string> = [],
+                keys = new Set<string>();
+            for (let i = 0; i < 100; i++) {
+                const key = i.toString();
+                args.push(key, '');
+                keys.add(key);
+            }
 
-        await Promise.all(promises);
+            await client.mSet(args);
 
-        const results = new Set();
-        for await (const key of client.scanIterator()) {
-            results.add(key);
-        }
+            const results = new Set<string>();
+            for await (const key of client.scanIterator()) {
+                results.add(key);
+            }
 
-        assert.deepEqual(keys, results);
-    }, GLOBAL.SERVERS.OPEN);
+            assert.deepEqual(keys, results);
+        }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('hScanIterator', async client => {
-        const hash: Record<string, string> = {};
-        for (let i = 0; i < 100; i++) {
-            hash[i.toString()] = i.toString();
-        }
+        testUtils.testWithClient('buffers', async client => {
+            const args: Array<string | Buffer> = [],
+                keys = new Set<Buffer>();
+            for (let i = 0; i < 100; i++) {
+                const key = Buffer.from([i]);
+                args.push(key, '');
+                keys.add(key);
+            }
 
-        await client.hSet('key', hash);
+            await client.mSet(args);
 
-        const results: Record<string, string> = {};
-        for await (const { field, value } of client.hScanIterator('key')) {
-            results[field] = value;
-        }
+            const results = new Set<Buffer>(),
+                iterator = client.scanIterator(
+                    client.commandOptions({ returnBuffers: true })
+                );
+            for await (const key of iterator) {
+                results.add(key);
+            }
 
-        assert.deepEqual(hash, results);
-    }, GLOBAL.SERVERS.OPEN);
+            assert.deepEqual(keys, results);
+        }, GLOBAL.SERVERS.OPEN);
+    });
 
-    testUtils.testWithClient('sScanIterator', async client => {
-        const members = new Set<string>();
-        for (let i = 0; i < 100; i++) {
-            members.add(i.toString());
-        }
+    describe('hScanIterator', () => {
+        testUtils.testWithClient('strings', async client => {
+            const hash: Record<string, string> = {};
+            for (let i = 0; i < 100; i++) {
+                hash[i.toString()] = i.toString();
+            }
 
-        await client.sAdd('key', Array.from(members));
+            await client.hSet('key', hash);
 
-        const results = new Set<string>();
-        for await (const key of client.sScanIterator('key')) {
-            results.add(key);
-        }
+            const results: Record<string, string> = {};
+            for await (const { field, value } of client.hScanIterator('key')) {
+                results[field] = value;
+            }
 
-        assert.deepEqual(members, results);
-    }, GLOBAL.SERVERS.OPEN);
+            assert.deepEqual(hash, results);
+        }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('zScanIterator', async client => {
-        const members = [];
-        for (let i = 0; i < 100; i++) {
-            members.push({
-                score: 1,
-                value: i.toString()
-            });
-        }
+        testUtils.testWithClient('buffers', async client => {
+            const hash = new Map<Buffer, Buffer>();
+            for (let i = 0; i < 100; i++) {
+                const buffer = Buffer.from([i]);
+                hash.set(buffer, buffer);
+            }
 
-        await client.zAdd('key', members);
+            await client.hSet('key', hash);
 
-        const map = new Map<string, number>();
-        for await (const member of client.zScanIterator('key')) {
-            map.set(member.value, member.score);
-        }
+            const results = new Map<Buffer, Buffer>(),
+                iterator = client.hScanIterator(
+                    client.commandOptions({ returnBuffers: true }),
+                    'key'
+                );
+            for await (const { field, value } of iterator) {
+                results.set(field, value);
+            }
 
-        type MemberTuple = [string, number];
+            assert.deepEqual(hash, results);
+        }, GLOBAL.SERVERS.OPEN);
+    });
 
-        function sort(a: MemberTuple, b: MemberTuple) {
-            return Number(b[0]) - Number(a[0]);
-        }
+    describe('sScanIterator', () => {
+        testUtils.testWithClient('strings', async client => {
+            const members = new Set<string>();
+            for (let i = 0; i < 100; i++) {
+                members.add(i.toString());
+            }
 
-        assert.deepEqual(
-            [...map.entries()].sort(sort),
-            members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
-        );
-    }, GLOBAL.SERVERS.OPEN);
+            await client.sAdd('key', Array.from(members));
+
+            const results = new Set<string>();
+            for await (const key of client.sScanIterator('key')) {
+                results.add(key);
+            }
+
+            assert.deepEqual(members, results);
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('buffers', async client => {
+            const members = new Set<Buffer>();
+            for (let i = 0; i < 100; i++) {
+                members.add(Buffer.from([i]));
+            }
+
+            await client.sAdd('key', Array.from(members));
+
+            const results = new Set<Buffer>(),
+                iterator = client.sScanIterator(
+                    client.commandOptions({ returnBuffers: true }),
+                    'key'
+                );
+            for await (const key of iterator) {
+                results.add(key);
+            }
+
+            assert.deepEqual(members, results);
+        }, GLOBAL.SERVERS.OPEN);
+    });
+
+    describe('zScanIterator', () => {
+        testUtils.testWithClient('strings', async client => {
+            const members: Array<ConvertArgumentType<ZMember, string>> = [];
+            for (let i = 0; i < 100; i++) {
+                members.push({
+                    score: i,
+                    value: i.toString()
+                });
+            }
+
+            await client.zAdd('key', members);
+
+            const map = new Map<string, number>();
+            for await (const member of client.zScanIterator('key')) {
+                map.set(member.value, member.score);
+            }
+
+            type MemberTuple = [string, number];
+
+            function sort(a: MemberTuple, b: MemberTuple) {
+                return Number(b[0]) - Number(a[0]);
+            }
+
+            assert.deepEqual(
+                [...map.entries()].sort(sort),
+                members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
+            );
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('buffers', async client => {
+            const members: Array<ConvertArgumentType<ZMember, Buffer>> = [];
+            for (let i = 0; i < 100; i++) {
+                members.push({
+                    score: i,
+                    value: Buffer.from([i])
+                });
+            }
+
+            await client.zAdd('key', members);
+
+            const map = new Map<Buffer, number>(),
+                iterator = client.zScanIterator(
+                    client.commandOptions({ returnBuffers: true }),
+                    'key'
+                );
+
+            for await (const member of iterator) {
+                map.set(member.value, member.score);
+            }
+
+            type MemberTuple = [Buffer, number];
+
+            function sort(a: MemberTuple, b: MemberTuple) {
+                return b[0][0] - a[0][0];
+            }
+
+            assert.deepEqual(
+                [...map.entries()].sort(sort),
+                members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
+            );
+        }, GLOBAL.SERVERS.OPEN);
+    });
 
     describe('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {

@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands, RedisCommandArgument } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -460,7 +460,7 @@ export default class RedisClient<
             );
         } else if (!this.#socket.isReady && this.#options?.disableOfflineQueue) {
             return Promise.reject(new ClientOfflineError());
-        } 
+        }
 
         const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
@@ -742,10 +742,43 @@ export default class RedisClient<
         return results;
     }
 
-    async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
+    // #scanIterator<T extends CommandOptions<ClientCommandOptions>>(
+    //     commandOptions: T,
+    //     options?: ScanCommandOptions
+    // ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string>;
+    // #scanIterator(
+    //     options?: ScanCommandOptions
+    // ): AsyncIterable<string>;
+    // async* #scanIterator<T extends CommandOptions<ClientCommandOptions>>(
+    //     commandOptions?: T | ScanCommandOptions,
+    //     options?: ScanCommandOptions
+    // ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string> {
+
+    // }
+
+    scanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions: T,
+        options?: ScanCommandOptions
+    ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string>;
+    scanIterator(
+        options?: ScanCommandOptions
+    ): AsyncIterable<string>;
+    async* scanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions?: T | ScanCommandOptions,
+        options?: ScanCommandOptions
+    ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string> {
+        if (!isCommandOptions(commandOptions)) {
+            options = commandOptions;
+            commandOptions = undefined;
+        }
+
+        const scan = commandOptions ?
+            (...args: Array<unknown>) => (this as any).scan(commandOptions, ...args) :
+            (this as any).scan.bind(this);
+
         let cursor = 0;
         do {
-            const reply = await (this as any).scan(cursor, options);
+            const reply = await scan(cursor, options);
             cursor = reply.cursor;
             for (const key of reply.keys) {
                 yield key;
@@ -753,10 +786,33 @@ export default class RedisClient<
         } while (cursor !== 0);
     }
 
-    async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<HScanTuple, string>> {
+    hScanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions: T,
+        key: RedisCommandArgument,
+        options?: ScanOptions
+    ): AsyncIterable<ConvertArgumentType<HScanTuple, T['returnBuffers'] extends true ? Buffer : string>>;
+    hScanIterator(
+        key: RedisCommandArgument,
+        options?: ScanOptions
+    ): AsyncIterable<ConvertArgumentType<HScanTuple, string>>;
+    async* hScanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions?: T | RedisCommandArgument,
+        key?: RedisCommandArgument | ScanOptions,
+        options?: ScanOptions
+    ): AsyncIterable<ConvertArgumentType<HScanTuple, T['returnBuffers'] extends true ? Buffer : string>> {
+        if (!isCommandOptions(commandOptions)) {
+            options = key as ScanOptions | undefined;
+            key = commandOptions;
+            commandOptions = undefined;
+        }
+
+        const hScan = commandOptions ?
+            (...args: Array<unknown>) => (this as any).hScan(commandOptions, ...args) :
+            (this as any).hScan.bind(this);
+
         let cursor = 0;
         do {
-            const reply = await (this as any).hScan(key, cursor, options);
+            const reply = await hScan(key, cursor, options);
             cursor = reply.cursor;
             for (const tuple of reply.tuples) {
                 yield tuple;
@@ -764,10 +820,34 @@ export default class RedisClient<
         } while (cursor !== 0);
     }
 
-    async* sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
+
+    sScanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions: T,
+        key: RedisCommandArgument,
+        options?: ScanOptions
+    ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string>;
+    sScanIterator(
+        key: RedisCommandArgument,
+        options?: ScanOptions
+    ): AsyncIterable<string>;
+    async* sScanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions?: T | RedisCommandArgument,
+        key?: RedisCommandArgument | ScanOptions,
+        options?: ScanOptions
+    ): AsyncIterable<T['returnBuffers'] extends true ? Buffer : string> {
+        if (!isCommandOptions(commandOptions)) {
+            options = key as ScanOptions | undefined;
+            key = commandOptions;
+            commandOptions = undefined;
+        }
+
+        const sScan = commandOptions ?
+            (...args: Array<unknown>) => (this as any).sScan(commandOptions, ...args) :
+            (this as any).sScan.bind(this);
+
         let cursor = 0;
         do {
-            const reply = await (this as any).sScan(key, cursor, options);
+            const reply = await sScan(key, cursor, options);
             cursor = reply.cursor;
             for (const member of reply.members) {
                 yield member;
@@ -775,10 +855,33 @@ export default class RedisClient<
         } while (cursor !== 0);
     }
 
-    async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<ZMember, string>> {
+    zScanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions: T,
+        key: RedisCommandArgument,
+        options?: ScanOptions
+    ): AsyncIterable<ConvertArgumentType<ZMember, T['returnBuffers'] extends true ? Buffer : string>>;
+    zScanIterator(
+        key: RedisCommandArgument,
+        options?: ScanOptions
+    ): AsyncIterable<ConvertArgumentType<ZMember, string>>;
+    async* zScanIterator<T extends CommandOptions<ClientCommandOptions>>(
+        commandOptions?: T | RedisCommandArgument,
+        key?: RedisCommandArgument | ScanOptions,
+        options?: ScanOptions
+    ): AsyncIterable<ConvertArgumentType<ZMember, T['returnBuffers'] extends true ? Buffer : string>> {
+        if (!isCommandOptions(commandOptions)) {
+            options = key as ScanOptions | undefined;
+            key = commandOptions;
+            commandOptions = undefined;
+        }
+
+        const zScan = commandOptions ?
+            (...args: Array<unknown>) => (this as any).zScan(commandOptions, ...args) :
+            (this as any).zScan.bind(this);
+
         let cursor = 0;
         do {
-            const reply = await (this as any).zScan(key, cursor, options);
+            const reply = await zScan(key, cursor, options);
             cursor = reply.cursor;
             for (const member of reply.members) {
                 yield member;
