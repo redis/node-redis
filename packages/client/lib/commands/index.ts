@@ -36,6 +36,7 @@ export type ConvertArgumentType<Type, ToType> =
         )
     );
 
+// using "Call Signatures" (https://www.typescriptlang.org/docs/handbook/2/functions.html#call-signatures) and not a union for better types in WebStorm
 export type Command<
     FN extends (...args: Array<any>) => any
 > = {
