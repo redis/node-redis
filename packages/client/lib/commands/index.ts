@@ -36,17 +36,26 @@ export type ConvertArgumentType<Type, ToType> =
         )
     );
 
-export type RedisCommandSignature<
-    Command extends RedisCommand,
-    Params extends Array<unknown> = Parameters<Command['transformArguments']>
-> = <Options extends CommandOptions<ClientCommandOptions>>(
-    ...args: Params | [options: Options, ...rest: Params]
-) => Promise<
-    ConvertArgumentType<
-        RedisCommandReply<Command>,
-        Options['returnBuffers'] extends true ? Buffer : string
-    >
->;
+export type Command<
+    FN extends (...args: Array<any>) => any
+> = {
+    (...args: Parameters<FN>): Promise<ConvertArgumentType<ReturnType<FN>, string>>;
+    <Options extends CommandOptions<ClientCommandOptions>>(
+        options: Options,
+        ...rest: Parameters<FN>
+    ): Promise<
+        ConvertArgumentType<
+            ReturnType<FN>,
+            Options['returnBuffers'] extends true ? Buffer : string
+        >
+    >;
+};
+
+export type RedisCommandsSignatures<T extends Record<string, RedisCommand>> = {
+    [P in keyof T as ExcludeMappedString<P>]: Command<
+        (...args: Parameters<T[P]['transformArguments']>) => RedisCommandReply<T[P]>
+    >;
+};
 
 export interface RedisCommands {
     [command: string]: RedisCommand;
