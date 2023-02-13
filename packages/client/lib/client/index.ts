@@ -711,7 +711,7 @@ export default class RedisClient<
     }
 
     executeIsolated<T>(fn: (client: RedisClientType<M, F, S>) => T | Promise<T>): Promise<T> {
-        if (!this.#isolationPool) throw new ClientClosedError();
+        if (!this.#isolationPool) return Promise.reject(new ClientClosedError());
         return this.#isolationPool.use(fn);
     }
 
@@ -801,10 +801,8 @@ export default class RedisClient<
     }
 
     async #destroyIsolationPool(): Promise<void> {
-        if (!this.#isolationPool) return;
-
-        await this.#isolationPool.drain();
-        await this.#isolationPool.clear();
+        await this.#isolationPool!.drain();
+        await this.#isolationPool!.clear();
         this.#isolationPool = undefined;
     }
 

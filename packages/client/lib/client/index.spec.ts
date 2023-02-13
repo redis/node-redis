@@ -607,6 +607,9 @@ describe('Client', () => {
 
         testUtils.testWithClient('should be able to use pool even before connect', async client => {
             await client.executeIsolated(() => Promise.resolve());
+            // make sure to destroy isolation pool
+            await client.connect();
+            await client.disconnect();
         }, {
             ...GLOBAL.SERVERS.OPEN,
             disableClientSetup: true
@@ -619,7 +622,9 @@ describe('Client', () => {
         }, GLOBAL.SERVERS.OPEN);
 
         testUtils.testWithClient('should throw ClientClosedError after disconnect', async client => {
-            assert.rejects(
+            await client.connect();
+            await client.disconnect();
+            await assert.rejects(
                 client.executeIsolated(() => Promise.resolve()),
                 ClientClosedError
             );
