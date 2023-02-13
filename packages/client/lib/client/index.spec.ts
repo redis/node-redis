@@ -720,6 +720,12 @@ describe('Client', () => {
         );
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('should be able to use isolationPool after reconnect (#2406)', async client => {
+        await client.disconnect();
+        await client.connect();
+        await client.executeIsolated(() => Promise.resolve());
+    }, GLOBAL.SERVERS.OPEN);
+    
     describe('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
             function assertStringListener(message: string, channel: string) {
