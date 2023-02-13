@@ -1,29 +1,41 @@
-name: Tests
+name: OS Coverage
 
 on:
   push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.rst'
+      - '**/*.md'
     branches:
       - master
-      - v4.0
+      - '[0-9].[0-9]'
   pull_request:
     branches:
       - master
-      - v4.0
+      - '[0-9].[0-9]'
+
+permissions:
+  contents: read
 
 jobs:
-  tests:
+  mac:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         node-version: ['14', '16', '18', '19']
         redis-version: ['5', '6.0', '6.2', '7.0']
+
     steps:
-      - uses: actions/checkout@v2.3.4
+      # https://github.com/orgs/community/discussions/25777#discussioncomment-3249229
+      - name: install docker
+        uses: docker-practice/actions-setup-docker@master
+        timeout-minutes: 12
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2.3.0
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
       - name: Update npm
@@ -35,13 +47,3 @@ jobs:
         run: npm run build:tests-tools
       - name: Run Tests
         run: npm run test -- -- --forbid-only --redis-version=${{ matrix.redis-version }}
-      - name: Upload to Codecov
-        run: |
-          curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
-          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
-          gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-          shasum -a 256 -c codecov.SHA256SUM
-          chmod +x codecov
-          ./codecov
