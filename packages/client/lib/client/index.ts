@@ -222,6 +222,9 @@ export default class RedisClient<
         this.#options = this.#initiateOptions(options);
         this.#queue = this.#initiateQueue();
         this.#socket = this.#initiateSocket();
+        // should be initiated in connect, not here
+        // TODO: consider breaking in v5
+        this.#isolationPool = this.#initiateIsolationPool();
         this.#legacyMode();
     }
 
@@ -326,6 +329,19 @@ export default class RedisClient<
             .on('end', () => this.emit('end'));
     }
 
+    #initiateIsolationPool() {
+        return createPool({
+            create: async () => {
+                const duplicate = this.duplicate({
+                    isolationPoolOptions: undefined
+                }).on('error', err => this.emit('error', err));
+                await duplicate.connect();
+                return duplicate;
+            },
+            destroy: client => client.disconnect()
+        }, this.#options?.isolationPoolOptions);
+    }
+
     #legacyMode(): void {
         if (!this.#options?.legacyMode) return;
 
@@ -411,16 +427,8 @@ export default class RedisClient<
     }
 
     connect(): Promise<void> {
-        this.#isolationPool = createPool({
-            create: async () => {
-                const duplicate = this.duplicate({
-                    isolationPoolOptions: undefined
-                }).on('error', err => this.emit('error', err));
-                await duplicate.connect();
-                return duplicate;
-            },
-            destroy: client => client.disconnect()
-        }, this.#options?.isolationPoolOptions);
+        // see comment in constructor
+        this.#isolationPool ??= this.#initiateIsolationPool();
         return this.#socket.connect();
     }
 

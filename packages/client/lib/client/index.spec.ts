@@ -598,11 +598,36 @@ describe('Client', () => {
         }
     });
 
-    testUtils.testWithClient('executeIsolated', async client => {
-        const id = await client.clientId(),
-            isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
-        assert.ok(id !== isolatedId);
-    }, GLOBAL.SERVERS.OPEN);
+    describe('isolationPool', () => {
+        testUtils.testWithClient('executeIsolated', async client => {
+            const id = await client.clientId(),
+                isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
+            assert.ok(id !== isolatedId);
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should be able to use pool even before connect', async client => {
+            await client.executeIsolated(() => Promise.resolve());
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+
+        testUtils.testWithClient('should work after reconnect (#2406)', async client => {
+            await client.disconnect();
+            await client.connect();
+            await client.executeIsolated(() => Promise.resolve());
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should throw ClientClosedError after disconnect', async client => {
+            assert.rejects(
+                client.executeIsolated(() => Promise.resolve()),
+                ClientClosedError
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+    });
 
     async function killClient<
         M extends RedisModules,
@@ -718,12 +743,6 @@ describe('Client', () => {
             [...map.entries()].sort(sort),
             members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
         );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithClient('should be able to use isolationPool after reconnect (#2406)', async client => {
-        await client.disconnect();
-        await client.connect();
-        await client.executeIsolated(() => Promise.resolve());
     }, GLOBAL.SERVERS.OPEN);
     
     describe('PubSub', () => {
