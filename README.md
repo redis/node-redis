@@ -28,7 +28,7 @@ node-redis is a modern, high performance [Redis](https://redis.io) client for No
 
 ## Installation
 
-Make sure that you have Redis Stack, either [running locally on your machine](https://redis.io/docs/stack/get-started/install/) or [in the cloud](https://redis.com/try-free/).
+Make sure that you have a Redis server, either [locally on your machine](https://redis.io/docs/stack/get-started/install/) or [in the cloud](https://redis.com/try-free/).
 
 To install node-redis, simply:
 
