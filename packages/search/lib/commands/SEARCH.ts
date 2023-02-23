@@ -62,21 +62,23 @@ export function transformArguments(
     query: string,
     options?: SearchOptions
 ): RedisCommandArguments {
-    return pushSearchOptions(
+    const args = pushSearchOptions(
         ['FT.SEARCH', index, query],
         options
     );
+
+    args.preserve = options?.RETURN.length === 0;
 }
 
 export type SearchRawReply = Array<any>;
 
-export function transformReply(reply: SearchRawReply): SearchReply {
+export function transformReply(reply: SearchRawReply, hasDocuments: boolean): SearchReply {
     const documents = [];
     let i = 1;
     while (i < reply.length) {
         documents.push({
             id: reply[i++],
-            value: documentValue(reply[i++])
+            value: hasDocuments ? documentValue(reply[i++]) : null
         });
     }
 
@@ -88,8 +90,7 @@ export function transformReply(reply: SearchRawReply): SearchReply {
 
 function documentValue(tuples: any) {
     const message = Object.create(null);
-    if (tuples === undefined) return message;
-
+    
     let i = 0;
     while (i < tuples.length) {
         const key = tuples[i++],

@@ -267,7 +267,8 @@ describe('SEARCH', () => {
                 client.ft.create('index', {
                     field: SchemaFieldTypes.NUMERIC
                 }),
-                client.hSet('1', 'field', '1')
+                client.hSet('1', 'field', '1'),
+                client.hSet('2', 'field', '2')
             ]);
 
             assert.deepEqual(
@@ -278,6 +279,9 @@ describe('SEARCH', () => {
                     total: 1,
                     documents: [{
                         id: '1',
+                        value: Object.create(null)
+                    }, {
+                        id: '2',
                         value: Object.create(null)
                     }]
                 }
