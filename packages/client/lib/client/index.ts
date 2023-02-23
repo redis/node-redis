@@ -75,13 +75,13 @@ type WithCommands = {
 
 export type WithModules<M extends RedisModules> = {
     [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P]as ExcludeMappedString<C>]: RedisCommandSignature<M[P][C]>;
+        [C in keyof M[P] as ExcludeMappedString<C>]: RedisCommandSignature<M[P][C]>;
     };
 };
 
 export type WithFunctions<F extends RedisFunctions> = {
     [P in keyof F as ExcludeMappedString<P>]: {
-        [FF in keyof F[P]as ExcludeMappedString<FF>]: RedisCommandSignature<F[P][FF]>;
+        [FF in keyof F[P] as ExcludeMappedString<FF>]: RedisCommandSignature<F[P][FF]>;
     };
 };
 
