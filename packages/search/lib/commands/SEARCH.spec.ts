@@ -276,7 +276,7 @@ describe('SEARCH', () => {
                     RETURN: []
                 }),
                 {
-                    total: 1,
+                    total: 2,
                     documents: [{
                         id: '1',
                         value: Object.create(null)
