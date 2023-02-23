@@ -25,7 +25,7 @@ type WithModules<
     S extends RedisScripts
 > = {
     [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P]as ExcludeMappedString<C>]: RedisClusterMultiCommandSignature<M[P][C], M, F, S>;
+        [C in keyof M[P] as ExcludeMappedString<C>]: RedisClusterMultiCommandSignature<M[P][C], M, F, S>;
     };
 };
 
@@ -35,7 +35,7 @@ type WithFunctions<
     S extends RedisScripts
 > = {
     [P in keyof F as ExcludeMappedString<P>]: {
-        [FF in keyof F[P]as ExcludeMappedString<FF>]: RedisClusterMultiCommandSignature<F[P][FF], M, F, S>;
+        [FF in keyof F[P] as ExcludeMappedString<FF>]: RedisClusterMultiCommandSignature<F[P][FF], M, F, S>;
     };
 };
 
