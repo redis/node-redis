@@ -72,13 +72,13 @@ export function transformArguments(
 
 export type SearchRawReply = Array<any>;
 
-export function transformReply(reply: SearchRawReply, hasDocuments: boolean): SearchReply {
+export function transformReply(reply: SearchRawReply, withoutDocuments: boolean): SearchReply {
     const documents = [];
     let i = 1;
     while (i < reply.length) {
         documents.push({
             id: reply[i++],
-            value: hasDocuments ? documentValue(reply[i++]) : null
+            value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
         });
     }
 
@@ -90,7 +90,7 @@ export function transformReply(reply: SearchRawReply, hasDocuments: boolean): Se
 
 function documentValue(tuples: any) {
     const message = Object.create(null);
-    
+
     let i = 0;
     while (i < tuples.length) {
         const key = tuples[i++],
