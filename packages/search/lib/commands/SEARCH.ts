@@ -67,7 +67,7 @@ export function transformArguments(
         options
     );
 
-    args.preserve = options?.RETURN.length === 0;
+    args.preserve = options?.RETURN?.length === 0;
 }
 
 export type SearchRawReply = Array<any>;

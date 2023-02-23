@@ -9,21 +9,23 @@ export function transformArguments(
     query: string,
     options?: ProfileOptions & SearchOptions
 ): RedisCommandArguments {
-    const args = ['FT.PROFILE', index, 'SEARCH'];
+    let args = ['FT.PROFILE', index, 'SEARCH'];
 
     if (options?.LIMITED) {
         args.push('LIMITED');
     }
 
     args.push('QUERY', query);
-    return pushSearchOptions(args, options);
+    args = pushSearchOptions(args, options);
+    args.preserve = options?.RETURN?.length === 0;
+    return args;
 }
 
 type ProfileSearchRawReply = ProfileRawReply<SearchRawReply>;
 
-export function transformReply(reply: ProfileSearchRawReply): ProfileReply {
+export function transformReply(reply: ProfileSearchRawReply, withoutDocuments: boolean): ProfileReply {
     return {
-        results: transformSearchReply(reply[0]),
+        results: transformSearchReply(reply[0], withoutDocuments),
         profile: transformProfile(reply[1])
     };
 }
