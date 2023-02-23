@@ -171,7 +171,6 @@ export default class RedisClientMultiCommand {
         }
 
         const commands = this.#multi.exec();
-        if (!commands) return [];
 
         return this.#multi.handleExecReplies(
             await this.#executor(

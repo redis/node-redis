@@ -46,14 +46,16 @@ describe('Multi Command', () => {
     });
 
     describe('exec', () => {
-        it('undefined', () => {
+        it('without commands', () => {
             assert.equal(
                 new RedisMultiCommand().exec(),
-                undefined
+                [
+                  { args: ['UNWATCH'] }
+                ]
             );
         });
 
-        it('Array', () => {
+        it('with commands', () => {
             const multi = new RedisMultiCommand();
             multi.addCommand(['PING']);
 

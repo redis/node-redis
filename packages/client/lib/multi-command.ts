@@ -69,9 +69,9 @@ export default class RedisMultiCommand {
         return transformedArguments;
     }
 
-    exec(): undefined | Array<RedisMultiQueuedCommand> {
+    exec(): Array<RedisMultiQueuedCommand> {
         if (!this.queue.length) {
-            return;
+            return [{ args: ['UNWATCH'] }];
         }
 
         return [
