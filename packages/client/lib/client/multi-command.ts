@@ -15,36 +15,36 @@ type WithCommands<
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-        [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], M, F, S>;
-    };
+    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], M, F, S>;
+};
 
 type WithModules<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-        [P in keyof M as ExcludeMappedString<P>]: {
-            [C in keyof M[P]as ExcludeMappedString<C>]: CommandSignature<M[P][C], M, F, S>;
-        };
+    [P in keyof M as ExcludeMappedString<P>]: {
+        [C in keyof M[P]as ExcludeMappedString<C>]: CommandSignature<M[P][C], M, F, S>;
     };
+};
 
 type WithFunctions<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-        [P in keyof F as ExcludeMappedString<P>]: {
-            [FF in keyof F[P]as ExcludeMappedString<FF>]: CommandSignature<F[P][FF], M, F, S>;
-        };
+    [P in keyof F as ExcludeMappedString<P>]: {
+        [FF in keyof F[P]as ExcludeMappedString<FF>]: CommandSignature<F[P][FF], M, F, S>;
     };
+};
 
 type WithScripts<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-        [P in keyof S as ExcludeMappedString<P>]: CommandSignature<S[P], M, F, S>;
-    };
+    [P in keyof S as ExcludeMappedString<P>]: CommandSignature<S[P], M, F, S>;
+};
 
 export type RedisClientMultiCommandType<
     M extends RedisModules,
@@ -117,7 +117,7 @@ export default class RedisClientMultiCommand {
                 });
         };
 
-        for (const [name, command] of Object.entries(COMMANDS as RedisCommands)) {
+        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
             this.#defineLegacyCommand(name, command);
             (this as any)[name.toLowerCase()] ??= (this as any)[name];
         }
