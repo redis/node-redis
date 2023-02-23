@@ -350,7 +350,7 @@ export default class RedisClient<
             }
         };
 
-        for (const [name, command] of Object.entries(COMMANDS as RedisCommands)) {
+        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
             this.#defineLegacyCommand(name, command);
             (this as any)[name.toLowerCase()] ??= (this as any)[name];
         }
