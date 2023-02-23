@@ -16,9 +16,7 @@ export function transformArguments(
     }
 
     args.push('QUERY', query);
-    args = pushSearchOptions(args, options);
-    args.preserve = options?.RETURN?.length === 0;
-    return args;
+    return pushSearchOptions(args, options);
 }
 
 type ProfileSearchRawReply = ProfileRawReply<SearchRawReply>;

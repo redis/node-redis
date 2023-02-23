@@ -62,12 +62,10 @@ export function transformArguments(
     query: string,
     options?: SearchOptions
 ): RedisCommandArguments {
-    const args = pushSearchOptions(
+    return pushSearchOptions(
         ['FT.SEARCH', index, query],
         options
     );
-
-    args.preserve = options?.RETURN?.length === 0;
 }
 
 export type SearchRawReply = Array<any>;
