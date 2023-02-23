@@ -9,7 +9,7 @@ export function transformArguments(
     query: string,
     options?: ProfileOptions & SearchOptions
 ): RedisCommandArguments {
-    let args = ['FT.PROFILE', index, 'SEARCH'];
+    let args: RedisCommandArguments = ['FT.PROFILE', index, 'SEARCH'];
 
     if (options?.LIMITED) {
         args.push('LIMITED');
