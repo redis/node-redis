@@ -182,6 +182,8 @@ export default class RedisClientMultiCommand {
     EXEC = this.exec;
 
     async execAsPipeline(): Promise<Array<RedisCommandRawReply>> {
+        if (this.#multi.queue.length === 0) return [];
+        
         return this.#multi.transformReplies(
             await this.#executor(
                 this.#multi.queue,

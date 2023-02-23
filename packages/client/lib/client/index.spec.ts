@@ -518,14 +518,23 @@ describe('Client', () => {
             );
         }, GLOBAL.SERVERS.OPEN);
 
-        testUtils.testWithClient('execAsPipeline', async client => {
-            assert.deepEqual(
-                await client.multi()
-                    .ping()
-                    .exec(true),
-                ['PONG']
-            );
-        }, GLOBAL.SERVERS.OPEN);
+        describe('execAsPipeline', () => {
+            testUtils.testWithClient('exec(true)', async client => {
+                assert.deepEqual(
+                    await client.multi()
+                        .ping()
+                        .exec(true),
+                    ['PONG']
+                );
+            }, GLOBAL.SERVERS.OPEN);
+
+            testUtils.testWithClient('empty execAsPipeline', async client => {
+                assert.deepEqual(
+                    await client.multi().execAsPipeline(),
+                    []
+                );
+            }, GLOBAL.SERVERS.OPEN);
+        });
 
         testUtils.testWithClient('should remember selected db', async client => {
             await client.multi()
