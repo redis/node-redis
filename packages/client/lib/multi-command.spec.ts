@@ -47,11 +47,9 @@ describe('Multi Command', () => {
 
     describe('exec', () => {
         it('without commands', () => {
-            assert.equal(
-                new RedisMultiCommand().exec(),
-                [
-                  { args: ['UNWATCH'] }
-                ]
+            assert.deepEqual(
+                new RedisMultiCommand().queue,
+                []
             );
         });
 
@@ -60,12 +58,11 @@ describe('Multi Command', () => {
             multi.addCommand(['PING']);
 
             assert.deepEqual(
-                multi.exec(),
-                [
-                    { args: ['MULTI'] },
-                    { args: ['PING'], transformReply: undefined },
-                    { args: ['EXEC'] }
-                ]
+                multi.queue,
+                [{
+                    args: ['PING'],
+                    transformReply: undefined
+                }]
             );
         });
     });

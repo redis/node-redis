@@ -75,13 +75,13 @@ type WithCommands = {
 
 export type WithModules<M extends RedisModules> = {
     [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P] as ExcludeMappedString<C>]: RedisCommandSignature<M[P][C]>;
+        [C in keyof M[P]as ExcludeMappedString<C>]: RedisCommandSignature<M[P][C]>;
     };
 };
 
 export type WithFunctions<F extends RedisFunctions> = {
     [P in keyof F as ExcludeMappedString<P>]: {
-        [FF in keyof F[P] as ExcludeMappedString<FF>]: RedisCommandSignature<F[P][FF]>;
+        [FF in keyof F[P]as ExcludeMappedString<FF>]: RedisCommandSignature<F[P][FF]>;
     };
 };
 
@@ -350,7 +350,7 @@ export default class RedisClient<
             }
         };
 
-        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
+        for (const [name, command] of Object.entries(COMMANDS as RedisCommands)) {
             this.#defineLegacyCommand(name, command);
             (this as any)[name.toLowerCase()] ??= (this as any)[name];
         }
@@ -460,7 +460,7 @@ export default class RedisClient<
             );
         } else if (!this.#socket.isReady && this.#options?.disableOfflineQueue) {
             return Promise.reject(new ClientOfflineError());
-        } 
+        }
 
         const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
@@ -725,11 +725,14 @@ export default class RedisClient<
             return Promise.reject(new ClientClosedError());
         }
 
-        const promise = Promise.all(
-            commands.map(({ args }) => {
-                return this.#queue.addCommand(args, { chainId });
-            })
-        );
+        const promise = chainId ?
+            // if `chainId` has a value, it's a `MULTI` (and not "pipeline") - need to add the `MULTI` and `EXEC` commands
+            Promise.all([
+                this.#queue.addCommand(['MULTI'], { chainId }),
+                this.#addMultiCommands(commands, chainId),
+                this.#queue.addCommand(['EXEC'], { chainId })
+            ]) :
+            this.#addMultiCommands(commands, chainId);
 
         this.#tick();
 
@@ -740,6 +743,12 @@ export default class RedisClient<
         }
 
         return results;
+    }
+
+    #addMultiCommands(commands: Array<RedisMultiQueuedCommand>, chainId?: symbol) {
+        return Promise.all(
+            commands.map(({ args }) => this.#queue.addCommand(args, { chainId }))
+        );
     }
 
     async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {

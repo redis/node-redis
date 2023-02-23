@@ -16,36 +16,36 @@ type WithCommands<
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-    [P in keyof typeof COMMANDS]: RedisClusterMultiCommandSignature<(typeof COMMANDS)[P], M, F, S>;
-};
+        [P in keyof typeof COMMANDS]: RedisClusterMultiCommandSignature<(typeof COMMANDS)[P], M, F, S>;
+    };
 
 type WithModules<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-    [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P] as ExcludeMappedString<C>]: RedisClusterMultiCommandSignature<M[P][C], M, F, S>;
+        [P in keyof M as ExcludeMappedString<P>]: {
+            [C in keyof M[P]as ExcludeMappedString<C>]: RedisClusterMultiCommandSignature<M[P][C], M, F, S>;
+        };
     };
-};
 
 type WithFunctions<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-    [P in keyof F as ExcludeMappedString<P>]: {
-        [FF in keyof F[P] as ExcludeMappedString<FF>]: RedisClusterMultiCommandSignature<F[P][FF], M, F, S>;
+        [P in keyof F as ExcludeMappedString<P>]: {
+            [FF in keyof F[P]as ExcludeMappedString<FF>]: RedisClusterMultiCommandSignature<F[P][FF], M, F, S>;
+        };
     };
-};
 
 type WithScripts<
     M extends RedisModules,
     F extends RedisFunctions,
     S extends RedisScripts
 > = {
-    [P in keyof S as ExcludeMappedString<P>]: RedisClusterMultiCommandSignature<S[P], M, F, S>;
-};
+        [P in keyof S as ExcludeMappedString<P>]: RedisClusterMultiCommandSignature<S[P], M, F, S>;
+    };
 
 export type RedisClusterMultiCommandType<
     M extends RedisModules,
@@ -120,10 +120,8 @@ export default class RedisClusterMultiCommand {
             return this.execAsPipeline();
         }
 
-        const commands = this.#multi.exec();
-
         return this.#multi.handleExecReplies(
-            await this.#executor(commands, this.#firstKey, RedisMultiCommand.generateChainId())
+            await this.#executor(this.#multi.queue, this.#firstKey, RedisMultiCommand.generateChainId())
         );
     }
 

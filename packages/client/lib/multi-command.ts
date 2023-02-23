@@ -69,18 +69,6 @@ export default class RedisMultiCommand {
         return transformedArguments;
     }
 
-    exec(): Array<RedisMultiQueuedCommand> {
-        if (!this.queue.length) {
-            return [{ args: ['UNWATCH'] }];
-        }
-
-        return [
-            { args: ['MULTI'] },
-            ...this.queue,
-            { args: ['EXEC'] }
-        ];
-    }
-
     handleExecReplies(rawReplies: Array<RedisCommandRawReply>): Array<RedisCommandRawReply> {
         const execReply = rawReplies[rawReplies.length - 1] as (null | Array<RedisCommandRawReply>);
         if (execReply === null) {
