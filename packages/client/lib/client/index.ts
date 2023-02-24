@@ -732,7 +732,7 @@ export default class RedisClient<
                 this.#addMultiCommands(commands, chainId),
                 this.#queue.addCommand(['EXEC'], { chainId })
             ]) :
-            this.#addMultiCommands(commands, chainId);
+            this.#addMultiCommands(commands);
 
         this.#tick();
 
