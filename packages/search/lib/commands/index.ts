@@ -506,6 +506,10 @@ export function pushSearchOptions(
         args.push('DIALECT', options.DIALECT.toString());
     }
 
+    if (options?.RETURN?.length === 0) {
+        args.preserve = true;
+    }
+
     return args;
 }
 

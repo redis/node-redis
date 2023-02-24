@@ -9,7 +9,7 @@ export function transformArguments(
     query: string,
     options?: ProfileOptions & SearchOptions
 ): RedisCommandArguments {
-    const args = ['FT.PROFILE', index, 'SEARCH'];
+    let args: RedisCommandArguments = ['FT.PROFILE', index, 'SEARCH'];
 
     if (options?.LIMITED) {
         args.push('LIMITED');
@@ -21,9 +21,9 @@ export function transformArguments(
 
 type ProfileSearchRawReply = ProfileRawReply<SearchRawReply>;
 
-export function transformReply(reply: ProfileSearchRawReply): ProfileReply {
+export function transformReply(reply: ProfileSearchRawReply, withoutDocuments: boolean): ProfileReply {
     return {
-        results: transformSearchReply(reply[0]),
+        results: transformSearchReply(reply[0], withoutDocuments),
         profile: transformProfile(reply[1])
     };
 }
