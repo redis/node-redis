@@ -46,24 +46,23 @@ describe('Multi Command', () => {
     });
 
     describe('exec', () => {
-        it('undefined', () => {
-            assert.equal(
-                new RedisMultiCommand().exec(),
-                undefined
+        it('without commands', () => {
+            assert.deepEqual(
+                new RedisMultiCommand().queue,
+                []
             );
         });
 
-        it('Array', () => {
+        it('with commands', () => {
             const multi = new RedisMultiCommand();
             multi.addCommand(['PING']);
 
             assert.deepEqual(
-                multi.exec(),
-                [
-                    { args: ['MULTI'] },
-                    { args: ['PING'], transformReply: undefined },
-                    { args: ['EXEC'] }
-                ]
+                multi.queue,
+                [{
+                    args: ['PING'],
+                    transformReply: undefined
+                }]
             );
         });
     });

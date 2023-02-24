@@ -460,7 +460,7 @@ export default class RedisClient<
             );
         } else if (!this.#socket.isReady && this.#options?.disableOfflineQueue) {
             return Promise.reject(new ClientOfflineError());
-        } 
+        }
 
         const promise = this.#queue.addCommand<T>(args, options);
         this.#tick();
@@ -725,11 +725,14 @@ export default class RedisClient<
             return Promise.reject(new ClientClosedError());
         }
 
-        const promise = Promise.all(
-            commands.map(({ args }) => {
-                return this.#queue.addCommand(args, { chainId });
-            })
-        );
+        const promise = chainId ?
+            // if `chainId` has a value, it's a `MULTI` (and not "pipeline") - need to add the `MULTI` and `EXEC` commands
+            Promise.all([
+                this.#queue.addCommand(['MULTI'], { chainId }),
+                this.#addMultiCommands(commands, chainId),
+                this.#queue.addCommand(['EXEC'], { chainId })
+            ]) :
+            this.#addMultiCommands(commands);
 
         this.#tick();
 
@@ -740,6 +743,12 @@ export default class RedisClient<
         }
 
         return results;
+    }
+
+    #addMultiCommands(commands: Array<RedisMultiQueuedCommand>, chainId?: symbol) {
+        return Promise.all(
+            commands.map(({ args }) => this.#queue.addCommand(args, { chainId }))
+        );
     }
 
     async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {

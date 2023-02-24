@@ -170,12 +170,9 @@ export default class RedisClientMultiCommand {
             return this.execAsPipeline();
         }
 
-        const commands = this.#multi.exec();
-        if (!commands) return [];
-
         return this.#multi.handleExecReplies(
             await this.#executor(
-                commands,
+                this.#multi.queue,
                 this.#selectedDB,
                 RedisMultiCommand.generateChainId()
             )
@@ -185,6 +182,8 @@ export default class RedisClientMultiCommand {
     EXEC = this.exec;
 
     async execAsPipeline(): Promise<Array<RedisCommandRawReply>> {
+        if (this.#multi.queue.length === 0) return [];
+        
         return this.#multi.transformReplies(
             await this.#executor(
                 this.#multi.queue,
