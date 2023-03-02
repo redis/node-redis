@@ -31,6 +31,8 @@ The event listener signature is as follows:
 
 ## Subscribing
 
+The code below subscribes a new listener to a channel. Subscribing to the same channel more than once will create multiple listeners which will each be called when a message is recieved.
+
 ```javascript
 const listener = (message, channel) => console.log(message, channel);
 await client.subscribe('channel', listener);
