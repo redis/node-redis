@@ -1,6 +1,8 @@
 import { pushOptionalVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisSearchLanguages, PropertyName, RediSearchSchema, pushSchema } from '.';
 
+export const FIRST_KEY_INDEX = 1;
+
 interface CreateOptions {
     ON?: 'HASH' | 'JSON';
     PREFIX?: string | Array<string>;
