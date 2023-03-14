@@ -1,8 +1,9 @@
-import { createClient, SchemaFieldTypes} from 'redis';
-
+// HIDE_START
+// Step 1
+import { createClient, SchemaFieldTypes } from 'redis';
 const client = createClient();
-
 await client.connect();
+// HIDE_END
 
 // Create an index.
 // https://redis.io/commands/ft.create/
