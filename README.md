@@ -44,6 +44,10 @@ npm install redis
 
 Looking for a high-level library to handle object mapping? See [redis-om-node](https://github.com/redis/redis-om-node)!
 
+## Supported Redis Versions
+
+The most recent version of this library supports redis version [5.0](https://github.com/redis/redis/blob/5.0/00-RELEASENOTES), [6.0](https://github.com/redis/redis/blob/6.0/00-RELEASENOTES), [6.2](https://github.com/redis/redis/blob/6.2/00-RELEASENOTES), and [7.0](https://github.com/redis/redis/blob/7.0/00-RELEASENOTES).
+
 ## Usage
 
 ### Basic Example
