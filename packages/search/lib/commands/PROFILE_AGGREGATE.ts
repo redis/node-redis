@@ -1,6 +1,8 @@
 import { pushAggregatehOptions, AggregateOptions, transformReply as transformAggregateReply, AggregateRawReply } from './AGGREGATE';
 import { ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from '.';
 
+export const FIRST_KEY_INDEX = 1;
+
 export const IS_READ_ONLY = true;
 
 export function transformArguments(

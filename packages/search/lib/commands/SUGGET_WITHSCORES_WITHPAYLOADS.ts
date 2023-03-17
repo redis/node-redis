@@ -2,7 +2,7 @@ import { SugGetOptions, transformArguments as transformSugGetArguments } from '.
 import { SuggestionWithPayload } from './SUGGET_WITHPAYLOADS';
 import { SuggestionWithScores } from './SUGGET_WITHSCORES';
 
-export { IS_READ_ONLY } from './SUGGET';
+export { FIRST_KEY_INDEX, IS_READ_ONLY } from './SUGGET';
 
 export function transformArguments(key: string, prefix: string, options?: SugGetOptions): Array<string> {
     return [

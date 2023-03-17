@@ -1,3 +1,5 @@
+export const FIRST_KEY_INDEX = 1;
+
 interface SugAddOptions {
     INCR?: true;
     PAYLOAD?: string;

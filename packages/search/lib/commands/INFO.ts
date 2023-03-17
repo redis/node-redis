@@ -1,6 +1,8 @@
 import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
 import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
+export const FIRST_KEY_INDEX = 1;
+
 export function transformArguments(index: string): Array<string> {
     return ['FT.INFO', index];
 }

@@ -1,3 +1,5 @@
+export const FIRST_KEY_INDEX = 1;
+
 export function transformArguments(option: string, value: string): Array<string> {
     return ['FT.CONFIG', 'SET', option, value];
 }

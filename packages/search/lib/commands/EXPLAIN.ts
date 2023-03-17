@@ -1,5 +1,7 @@
 import { Params, pushParamsArgs } from ".";
 
+export const FIRST_KEY_INDEX = 1;
+
 export const IS_READ_ONLY = true;
 
 interface ExplainOptions {

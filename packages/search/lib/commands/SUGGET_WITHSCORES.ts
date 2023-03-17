@@ -1,6 +1,6 @@
 import { SugGetOptions, transformArguments as transformSugGetArguments } from './SUGGET';
 
-export { IS_READ_ONLY } from './SUGGET';
+export { FIRST_KEY_INDEX, IS_READ_ONLY } from './SUGGET';
 
 export function transformArguments(key: string, prefix: string, options?: SugGetOptions): Array<string> {
     return [
