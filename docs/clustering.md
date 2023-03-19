@@ -113,6 +113,23 @@ Commands such as `GET`, `SET`, etc. are routed by the first key, for instance `M
 
 Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the cluster, and must be executed on a specific node via `.getSlotMaster()`.
 
+Here is an example of how to FLUSHALL until [#2431](https://github.com/redis/node-redis/issues/2431) will be implemented:
+```javascript
+await Promise.all(
+  cluster.masters.map(async master => {
+    await (await cluster.nodeClient(master)).flushAll();
+  });
+);
+```
+
+```javascript
+cluster.slots - to get the client of a specific slot
+cluster.shards - to work on a "per shard" (master + it's replicas) basis.
+cluster.masters - just the masters
+cluster.replicas - just the replicas
+```
+
+
 ### "Forwarded Commands"
 
 Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. This client sends these commands to a random node in order to spread the load across the cluster.
