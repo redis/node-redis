@@ -30,6 +30,8 @@ categories:
   - title: '🧰 Maintenance'
     label: 'chore'
 change-template: '- $TITLE (#$NUMBER)'
+include-paths:
+  - 'packages/json'
 exclude-labels:
   - 'skip-changelog'
 template: |
