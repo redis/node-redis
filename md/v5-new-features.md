@@ -15,6 +15,10 @@ client.withFlags({
 
 # `Multi.exec<'typed'>`
 
+We have introduced the ability to perform a 'typed' `MULTI`/`EXEC` transaction.  Rather than returning `Array<ReplyUnion>`, a transaction invoked with `.exec<'typed'>` will return types appropriate to the commands in the transaction where possible.  
+
+Example:
+
 ```javascript
 client.multi()
   .ping()

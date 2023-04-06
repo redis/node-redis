@@ -2,7 +2,7 @@
 
 ## Commands
 
-Some command arguments/replies changed to be more aligned with Redis:
+Some command arguments/replies have changed to align more closely to data types returned by Redis:
 
 - `ACL GETUSER`: `selectors`
 - `CLIENT KILL`: `enum ClientKillFilters` -> `const CLIENT_KILL_FILTERS` [^enum-to-constants]
@@ -32,21 +32,21 @@ Some command arguments/replies changed to be more aligned with Redis:
 
 ## Command Options
 
-in v4, command options are passed as a first optional argument:
+In v4, command options are passed as a first optional argument:
 
 ```javascript
 await client.get('key'); // `string | null`
 await client.get(client.commandOptions({ returnBuffers: true }), 'key'); // `Buffer | null`
 ```
 
-which has a couple of flaws:
-1. The arguments types is checked in runtime, which hit performance.
-2. Makes code suggestions less readable/usable, due to "function overloading".
-3. Overall makes the "user code" not very readable.
+This has a couple of flaws:
+1. The argument types are checked in runtime, which is a performance hit.
+2. Code suggestions are less readable/usable, due to "function overloading".
+3. Overall, "user code" is not as readable as it could be.
 
-### The new API
+### The new API for v5
 
-With the new API instead of passing the options directrly to the commands, we use a "proxy client" to store the options:
+With the new API, instead of passing the options directly to the commands we use a "proxy client" to store them:
 
 ```javascript
 await client.get('key'); // `string | null`
@@ -60,16 +60,17 @@ const proxyClient = client.withCommandOptions({
 await proxyClient.get('key'); // `Buffer | null`
 ```
 
-`withCommandOptions` can be used to override all the command options, without reusing any of the existing ones.
-On top of that, these functions can be used to override a specific option:
+`withCommandOptions` can be used to override all of the command options, without reusing any existing ones.
+
+To override just a specific option, use the following functions:
 - `withFlags` - override `flags` only.
 - `asap` - override `asap` to `true`.
 - `isolated` - override `isolated` to `true`.
 
 ## Quit VS Disconnect
 
-close 
-quit
-disconnect
+The `QUIT` command has been deprecated in Redis 7.2 and should now also be considered deprecated in Node-Redis.  Rather than sending a `QUIT` command to the server, the client can simply close the network connection.
 
-TODO
+Rather than using `client.quit()`, your code should use `client.close()` or `client.disconnect()`.
+
+TODO difference between `close` and `disconnect`...
