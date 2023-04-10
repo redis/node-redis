@@ -27,7 +27,7 @@ Some command arguments/replies have changed to align more closely to data types 
 [^enum-to-constants]:
   TODO
 
-[^boolean-to-number]
+[^boolean-to-number]:
   TODO
 
 ## Command Options
