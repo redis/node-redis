@@ -24,11 +24,9 @@ Some command arguments/replies have changed to align more closely to data types 
 - `HSCAN`: `tuples` has been renamed to `entries`
 - `PFADD`: `boolean` -> `number` [^boolean-to-number]
 
-[^enum-to-constants]:
-  TODO
+[^enum-to-constants]: TODO
 
-[^boolean-to-number]:
-  TODO
+[^boolean-to-number]: TODO
 
 ## Command Options
 
