@@ -307,7 +307,7 @@ export class PubSub {
         this.#isActive = (
             this.#listeners[PubSubType.CHANNELS].size !== 0 ||
             this.#listeners[PubSubType.PATTERNS].size !== 0 ||
-            this.#listeners[PubSubType.CHANNELS].size !== 0 ||
+            this.#listeners[PubSubType.SHARDED].size !== 0 ||
             this.#subscribing !== 0
         );
     }
