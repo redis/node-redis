@@ -1,7 +1,9 @@
-export const IS_READ_ONLY = true;
+import { NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(): Array<string> {
+export default {
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['DBSIZE'];
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

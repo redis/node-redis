@@ -1,71 +1,76 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformNumberInfinityArgument, ZMember } from './generic-transformers';
-
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, NumberReply, DoubleReply, Command } from '../RESP/types';
+import { ZMember, transformNumberInfinityArgument, transformNumberInfinityReply } from './generic-transformers';
 
 interface NX {
-    NX?: true;
+  NX?: boolean;
 }
 
 interface XX {
-    XX?: true;
+  XX?: boolean;
 }
 
 interface LT {
-    LT?: true;
+  LT?: boolean;
 }
 
 interface GT {
-    GT?: true;
+  GT?: boolean;
 }
 
 interface CH {
-    CH?: true;
+  CH?: boolean;
 }
 
 interface INCR {
-    INCR?: true;
+  INCR?: boolean;
 }
 
-type ZAddOptions = (NX | (XX & LT & GT)) & CH & INCR;
+export type ZAddOptions = (NX | (XX & LT & GT)) & CH & INCR;
 
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(
+    key: RedisArgument,
     members: ZMember | Array<ZMember>,
     options?: ZAddOptions
-): RedisCommandArguments {
+  ) {
     const args = ['ZADD', key];
 
     if ((<NX>options)?.NX) {
-        args.push('NX');
+      args.push('NX');
     } else {
-        if ((<XX>options)?.XX) {
-            args.push('XX');
-        }
+      if ((<XX>options)?.XX) {
+        args.push('XX');
+      }
 
-        if ((<GT>options)?.GT) {
-            args.push('GT');
-        } else if ((<LT>options)?.LT) {
-            args.push('LT');
-        }
+      if ((<GT>options)?.GT) {
+        args.push('GT');
+      }
+
+      if ((<LT>options)?.LT) {
+        args.push('LT');
+      }
     }
 
     if ((<CH>options)?.CH) {
-        args.push('CH');
+      args.push('CH');
     }
 
     if ((<INCR>options)?.INCR) {
-        args.push('INCR');
+      args.push('INCR');
     }
 
     for (const { score, value } of (Array.isArray(members) ? members : [members])) {
-        args.push(
-            transformNumberInfinityArgument(score),
-            value
-        );
+      args.push(
+        transformNumberInfinityArgument(score),
+        value
+      );
     }
 
     return args;
-}
-
-export { transformNumberInfinityReply as transformReply } from './generic-transformers';
+  },
+  transformReply: {
+    2: transformNumberInfinityReply,
+    3: undefined as unknown as () => NumberReply | DoubleReply
+  }
+} as const satisfies Command;

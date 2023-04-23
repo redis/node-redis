@@ -1,18 +1,18 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    milliseconds: number,
-    value: RedisCommandArgument
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(
+    key: RedisArgument,
+    ms: number,
+    value: RedisArgument
+  ) {
     return [
-        'PSETEX',
-        key,
-        milliseconds.toString(),
-        value
+      'PSETEX',
+      key,
+      ms.toString(),
+      value
     ];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

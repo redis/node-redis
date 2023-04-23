@@ -1,4 +1,4 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
@@ -17,7 +17,7 @@ export function transformArguments(key: string, options?: GetOptions): RedisComm
     let args: RedisCommandArguments = ['JSON.GET', key];
 
     if (options?.path) {
-        args = pushVerdictArguments(args, options.path);
+        args = pushVariadicArguments(args, options.path);
     }
 
     if (options?.INDENT) {

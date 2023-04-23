@@ -1,23 +1,24 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { SimpleStringReply, Command, RedisArgument } from '../RESP/types';
 
-type SingleParameter = [parameter: RedisCommandArgument, value: RedisCommandArgument];
+type SingleParameter = [parameter: RedisArgument, value: RedisArgument];
 
-type MultipleParameters = [config: Record<string, RedisCommandArgument>];
+type MultipleParameters = [config: Record<string, RedisArgument>];
 
-export function transformArguments(
+export default {
+  transformArguments(
     ...[parameterOrConfig, value]: SingleParameter | MultipleParameters
-): RedisCommandArguments {
-    const args: RedisCommandArguments = ['CONFIG', 'SET'];
-
-    if (typeof parameterOrConfig === 'string') {
-        args.push(parameterOrConfig, value!);
+  ) {
+    const args: Array<RedisArgument> = ['CONFIG', 'SET'];
+  
+    if (typeof parameterOrConfig === 'string' || Buffer.isBuffer(parameterOrConfig)) {
+      args.push(parameterOrConfig, value!);
     } else {
-        for (const [key, value] of Object.entries(parameterOrConfig)) {
-            args.push(key, value);
-        }
+      for (const [key, value] of Object.entries(parameterOrConfig)) {
+        args.push(key, value);
+      }
     }
-
+  
     return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

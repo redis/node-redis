@@ -1,5 +1,8 @@
-export function transformArguments(ip: string, port: number): Array<string> {
-    return ['CLUSTER', 'MEET', ip, port.toString()];
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  transformArguments(host: string, port: number) {
+    return ['CLUSTER', 'MEET', host, port.toString()];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

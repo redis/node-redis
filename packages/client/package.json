@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
+    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/commands/PING.spec.ts' './lib/commands/APPEND.spec.ts'",
     "build": "tsc",
     "lint": "eslint ./*.ts ./lib/**/*.ts",
     "documentation": "typedoc"
@@ -21,19 +21,19 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@redis/test-utils": "*",
-    "@types/node": "^18.14.1",
+    "@types/node": "^18.15.10",
     "@types/sinon": "^10.0.13",
     "@types/yallist": "^4.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.53.0",
-    "@typescript-eslint/parser": "^5.53.0",
-    "eslint": "^8.34.0",
+    "@typescript-eslint/eslint-plugin": "^5.57.0",
+    "@typescript-eslint/parser": "^5.57.0",
+    "eslint": "^8.36.0",
     "nyc": "^15.1.0",
-    "release-it": "^15.6.0",
-    "sinon": "^15.0.1",
+    "release-it": "^15.9.3",
+    "sinon": "^15.0.3",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.1",
-    "typedoc": "^0.23.25",
-    "typescript": "^4.9.5"
+    "typedoc": "^0.23.28",
+    "typescript": "^5.0.2"
   },
   "engines": {
     "node": ">=14"

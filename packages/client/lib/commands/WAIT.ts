@@ -1,7 +1,9 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, SimpleStringReply, Command, NumberReply } from '../RESP/types';
 
-export function transformArguments(numberOfReplicas: number, timeout: number): Array<string> {
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(numberOfReplicas: number, timeout: number) {
     return ['WAIT', numberOfReplicas.toString(), timeout.toString()];
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

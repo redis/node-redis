@@ -1,11 +1,13 @@
-import { RedisCommandArguments } from '.';
-import { pushVerdictNumberArguments } from './generic-transformers';
+import { SimpleStringReply, Command } from '../RESP/types';
+import { pushVariadicNumberArguments } from './generic-transformers';
 
-export function transformArguments(slots: number | Array<number>): RedisCommandArguments {
-    return pushVerdictNumberArguments(
-        ['CLUSTER', 'ADDSLOTS'],
-        slots
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(slots: number | Array<number>) {
+    return pushVariadicNumberArguments(
+      ['CLUSTER', 'ADDSLOTS'],
+      slots
     );
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

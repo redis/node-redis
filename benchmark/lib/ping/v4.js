@@ -1,4 +1,4 @@
-import { createClient } from '@redis/client';
+import { createClient } from 'redis-v4';
 
 export default async (host) => {
     const client = createClient({

@@ -1,16 +1,22 @@
-export enum FailoverModes {
-    FORCE = 'FORCE',
-    TAKEOVER = 'TAKEOVER'
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(mode?: FailoverModes): Array<string> {
+export const FAILOVER_MODES = {
+  FORCE: 'FORCE',
+  TAKEOVER: 'TAKEOVER'
+} as const;
+
+export type FailoverModes = typeof FAILOVER_MODES[keyof typeof FAILOVER_MODES];
+
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(mode?: FailoverModes) {
     const args = ['CLUSTER', 'FAILOVER'];
 
     if (mode) {
-        args.push(mode);
+      args.push(mode);
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

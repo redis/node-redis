@@ -1,12 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command, NumberReply } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    newKey: RedisCommandArgument
-): RedisCommandArguments {
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, newKey: RedisArgument) {
     return ['RENAMENX', key, newKey];
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

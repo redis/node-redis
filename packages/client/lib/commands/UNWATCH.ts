@@ -1,5 +1,9 @@
-export function transformArguments(): Array<string> {
-    return ['UNWATCH'];
-}
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
+    return ['WATCH', key];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

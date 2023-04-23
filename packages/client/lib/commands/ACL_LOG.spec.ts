@@ -1,53 +1,53 @@
 import { strict as assert } from 'assert';
-import testUtils from '../test-utils';
-import { transformArguments, transformReply } from './ACL_LOG';
+import testUtils, { GLOBAL } from '../test-utils';
+import ACL_LOG from './ACL_LOG';
 
 describe('ACL LOG', () => {
-    testUtils.isVersionGreaterThanHook([6]);
+  testUtils.isVersionGreaterThanHook([6]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments(),
-                ['ACL', 'LOG']
-            );
-        });
-
-        it('with count', () => {
-            assert.deepEqual(
-                transformArguments(10),
-                ['ACL', 'LOG', '10']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        ACL_LOG.transformArguments(),
+        ['ACL', 'LOG']
+      );
     });
 
-    it('transformReply', () => {
-        assert.deepEqual(
-            transformReply([[
-                'count',
-                1,
-                'reason',
-                'auth',
-                'context',
-                'toplevel',
-                'object',
-                'AUTH',
-                'username',
-                'someuser',
-                'age-seconds',
-                '4.096',
-                'client-info',
-                'id=6 addr=127.0.0.1:63026 fd=8 name= age=9 idle=0 flags=N db=0 sub=0 psub=0 multi=-1 qbuf=48 qbuf-free=32720 obl=0 oll=0 omem=0 events=r cmd=auth user=default'
-            ]]),
-            [{
-                count: 1,
-                reason: 'auth',
-                context: 'toplevel',
-                object: 'AUTH',
-                username: 'someuser',
-                ageSeconds: 4.096,
-                clientInfo: 'id=6 addr=127.0.0.1:63026 fd=8 name= age=9 idle=0 flags=N db=0 sub=0 psub=0 multi=-1 qbuf=48 qbuf-free=32720 obl=0 oll=0 omem=0 events=r cmd=auth user=default'
-            }]
-        );
+    it('with count', () => {
+      assert.deepEqual(
+        ACL_LOG.transformArguments(10),
+        ['ACL', 'LOG', '10']
+      );
     });
+  });
+
+  testUtils.testWithClient('client.aclLog', async client => {
+    // make sure to create at least one log
+    await Promise.all([
+      client.aclSetUser('test', 'on >test'),
+      client.auth({
+        username: 'test',
+        password: 'test'
+      }),
+      client.auth({
+        username: 'default',
+        password: ''
+      })
+    ]);
+
+    const logs = await client.aclLog();
+    assert.ok(Array.isArray(logs));
+    for (const log of logs) {
+
+      assert.equal(typeof log.count, 'number');
+      assert.equal(typeof log.timestamp, 'number');
+      assert.equal(typeof log.username, 'string');
+      assert.equal(typeof log.clientId, 'string');
+      assert.equal(typeof log.command, 'string');
+      assert.equal(typeof log.args, 'string');
+      assert.equal(typeof log.key, 'string');
+      assert.equal(typeof log.result, 'number');
+      assert.equal(typeof log.duration, 'number');
+    }
+  }, GLOBAL.SERVERS.OPEN);
 });

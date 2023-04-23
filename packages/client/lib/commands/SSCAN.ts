@@ -1,31 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 import { ScanOptions, pushScanArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     cursor: number,
     options?: ScanOptions
-): RedisCommandArguments {
-    return pushScanArguments([
-        'SSCAN',
-        key,
-    ], cursor, options);
-}
-
-type SScanRawReply = [string, Array<RedisCommandArgument>];
-
-interface SScanReply {
-    cursor: number;
-    members: Array<RedisCommandArgument>;
-}
-
-export function transformReply([cursor, members]: SScanRawReply): SScanReply {
+  ) {
+    return pushScanArguments(['SSCAN', key], cursor, options);
+  },
+  transformReply([cursor, members]: [BlobStringReply, Array<BlobStringReply>]) {
     return {
-        cursor: Number(cursor),
-        members
+      cursor: Number(cursor),
+      members
     };
-}
+  }
+} as const satisfies Command;

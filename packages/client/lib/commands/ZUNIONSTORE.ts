@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArgument } from './generic-transformers';
+import { pushVariadicArgument } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -13,7 +13,7 @@ export function transformArguments(
     keys: Array<RedisCommandArgument> | RedisCommandArgument,
     options?: ZUnionOptions
 ): RedisCommandArguments {
-    const args = pushVerdictArgument(['ZUNIONSTORE', destination], keys);
+    const args = pushVariadicArgument(['ZUNIONSTORE', destination], keys);
 
     if (options?.WEIGHTS) {
         args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));

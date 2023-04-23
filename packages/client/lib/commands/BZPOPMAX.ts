@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformNumberInfinityReply, ZMember } from './generic-transformers';
+import { pushVariadicArguments, transformNumberInfinityReply, ZMember } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -7,7 +7,7 @@ export function transformArguments(
     key: RedisCommandArgument | Array<RedisCommandArgument>,
     timeout: number
 ): RedisCommandArguments {
-    const args = pushVerdictArguments(['BZPOPMAX'], key);
+    const args = pushVariadicArguments(['BZPOPMAX'], key);
 
     args.push(timeout.toString());
 

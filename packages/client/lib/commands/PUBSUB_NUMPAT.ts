@@ -1,7 +1,10 @@
-export const IS_READ_ONLY = true;
+import { NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(): Array<string> {
+export default {
+  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: undefined,
+  transformArguments() {
     return ['PUBSUB', 'NUMPAT'];
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

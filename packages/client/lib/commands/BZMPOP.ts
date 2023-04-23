@@ -18,3 +18,17 @@ export function transformArguments(
 }
 
 export { transformReply } from './ZMPOP';
+
+
+import { Command } from '../RESP/types';
+import ZMPOP from './ZMPOP';
+
+export default {
+  IS_READ_ONLY: false,
+  FIRST_KEY_INDEX: 3,
+  transformArguments() {
+    return ['BZMPOP'];
+  },
+  transformReply: ZMPOP.transformReply
+} as const satisfies Command;
+

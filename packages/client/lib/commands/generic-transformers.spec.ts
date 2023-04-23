@@ -18,10 +18,10 @@ import {
     transformEXAT,
     transformPXAT,
     pushEvalArguments,
-    pushVerdictArguments,
-    pushVerdictNumberArguments,
-    pushVerdictArgument,
-    pushOptionalVerdictArgument,
+    pushVariadicArguments,
+    pushVariadicNumberArguments,
+    pushVariadicArgument,
+    pushOptionalVariadicArgument,
     transformCommandReply,
     CommandFlags,
     CommandCategories,
@@ -564,72 +564,72 @@ describe('Generic Transformers', () => {
         });
     });
 
-    describe('pushVerdictArguments', () => {
+    describe('pushVariadicArguments', () => {
         it('string', () => {
             assert.deepEqual(
-                pushVerdictArguments([], 'string'),
+                pushVariadicArguments([], 'string'),
                 ['string']
             );
         });
 
         it('array', () => {
             assert.deepEqual(
-                pushVerdictArguments([], ['1', '2']),
+                pushVariadicArguments([], ['1', '2']),
                 ['1', '2']
             );
         });
     });
 
-    describe('pushVerdictNumberArguments', () => {
+    describe('pushVariadicNumberArguments', () => {
         it('number', () => {
             assert.deepEqual(
-                pushVerdictNumberArguments([], 0),
+                pushVariadicNumberArguments([], 0),
                 ['0']
             );
         });
 
         it('array', () => {
             assert.deepEqual(
-                pushVerdictNumberArguments([], [0, 1]),
+                pushVariadicNumberArguments([], [0, 1]),
                 ['0', '1']
             );
         });
     });
 
-    describe('pushVerdictArgument', () => {
+    describe('pushVariadicArgument', () => {
         it('string', () => {
             assert.deepEqual(
-                pushVerdictArgument([], 'string'),
+                pushVariadicArgument([], 'string'),
                 ['1', 'string']
             );
         });
 
         it('array', () => {
             assert.deepEqual(
-                pushVerdictArgument([], ['1', '2']),
+                pushVariadicArgument([], ['1', '2']),
                 ['2', '1', '2']
             );
         });
     });
 
-    describe('pushOptionalVerdictArgument', () => {
+    describe('pushOptionalVariadicArgument', () => {
         it('undefined', () => {
             assert.deepEqual(
-                pushOptionalVerdictArgument([], 'name', undefined),
+                pushOptionalVariadicArgument([], 'name', undefined),
                 []
             );
         });
 
         it('string', () => {
             assert.deepEqual(
-                pushOptionalVerdictArgument([], 'name', 'string'),
+                pushOptionalVariadicArgument([], 'name', 'string'),
                 ['name', '1', 'string']
             );
         });
 
         it('array', () => {
             assert.deepEqual(
-                pushOptionalVerdictArgument([], 'name', ['1', '2']),
+                pushOptionalVariadicArgument([], 'name', ['1', '2']),
                 ['name', '2', '1', '2']
             );
         });

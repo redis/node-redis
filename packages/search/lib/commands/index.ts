@@ -32,7 +32,7 @@ import * as SYNDUMP from './SYNDUMP';
 import * as SYNUPDATE from './SYNUPDATE';
 import * as TAGVALS from './TAGVALS';
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushOptionalVerdictArgument, pushVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushOptionalVariadicArgument, pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { SearchOptions } from './SEARCH';
 
 export default {
@@ -411,9 +411,9 @@ export function pushSearchOptions(
     //     args.push('WITHPAYLOADS');
     // }
 
-    pushOptionalVerdictArgument(args, 'INKEYS', options?.INKEYS);
-    pushOptionalVerdictArgument(args, 'INFIELDS', options?.INFIELDS);
-    pushOptionalVerdictArgument(args, 'RETURN', options?.RETURN);
+    pushOptionalVariadicArgument(args, 'INKEYS', options?.INKEYS);
+    pushOptionalVariadicArgument(args, 'INFIELDS', options?.INFIELDS);
+    pushOptionalVariadicArgument(args, 'RETURN', options?.RETURN);
 
     if (options?.SUMMARIZE) {
         args.push('SUMMARIZE');
@@ -421,7 +421,7 @@ export function pushSearchOptions(
         if (typeof options.SUMMARIZE === 'object') {
             if (options.SUMMARIZE.FIELDS) {
                 args.push('FIELDS');
-                pushVerdictArgument(args, options.SUMMARIZE.FIELDS);
+                pushVariadicArgument(args, options.SUMMARIZE.FIELDS);
             }
 
             if (options.SUMMARIZE.FRAGS) {
@@ -444,7 +444,7 @@ export function pushSearchOptions(
         if (typeof options.HIGHLIGHT === 'object') {
             if (options.HIGHLIGHT.FIELDS) {
                 args.push('FIELDS');
-                pushVerdictArgument(args, options.HIGHLIGHT.FIELDS);
+                pushVariadicArgument(args, options.HIGHLIGHT.FIELDS);
             }
 
             if (options.HIGHLIGHT.TAGS) {

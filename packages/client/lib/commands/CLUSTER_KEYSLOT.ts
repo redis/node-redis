@@ -1,5 +1,8 @@
-export function transformArguments(key: string): Array<string> {
-    return ['CLUSTER', 'KEYSLOT', key];
-}
+import { Command, NumberReply, RedisArgument } from '../RESP/types';
 
-export declare function transformReply(): number;
+export default {
+  transformArguments(key: RedisArgument) {
+    return ['CLUSTER', 'KEYSLOT', key];
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

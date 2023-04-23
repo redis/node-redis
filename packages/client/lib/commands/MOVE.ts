@@ -1,7 +1,9 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(key: string, db: number): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(key: RedisArgument, db: number) {
     return ['MOVE', key, db.toString()];
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

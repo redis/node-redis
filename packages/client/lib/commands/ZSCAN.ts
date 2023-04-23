@@ -1,39 +1,34 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { ScanOptions, transformNumberInfinityReply, pushScanArguments, ZMember } from './generic-transformers';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { ScanOptions, ZMember, pushScanArguments, transformNumberInfinityReply } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
+export interface HScanEntry {
+  field: BlobStringReply;
+  value: BlobStringReply;
+}
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     cursor: number,
     options?: ScanOptions
-): RedisCommandArguments {
-    return pushScanArguments([
-        'ZSCAN',
-        key
-    ], cursor, options);
-}
-
-type ZScanRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
-
-interface ZScanReply {
-    cursor: number;
-    members: Array<ZMember>;
-}
-
-export function transformReply([cursor, rawMembers]: ZScanRawReply): ZScanReply {
-    const parsedMembers: Array<ZMember> = [];
-    for (let i = 0; i < rawMembers.length; i += 2) {
-        parsedMembers.push({
-            value: rawMembers[i],
-            score: transformNumberInfinityReply(rawMembers[i + 1])
-        });
+  ) {
+    return pushScanArguments(['ZSCAN', key], cursor, options);
+  },
+  transformReply([cursor, rawMembers]: [BlobStringReply, Array<BlobStringReply>]) {
+    const members = [];
+    let i = 0;
+    while (i < rawMembers.length) {
+      members.push({
+        value: rawMembers[i++],
+        score: transformNumberInfinityReply(rawMembers[i++])
+      } satisfies ZMember);
     }
 
     return {
-        cursor: Number(cursor),
-        members: parsedMembers
+      cursor: Number(cursor),
+      members
     };
-}
+  }
+} as const satisfies Command;

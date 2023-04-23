@@ -1,5 +1,10 @@
-export function transformArguments(parameter: string): Array<string> {
-    return ['CONFIG', 'GET', parameter];
-}
+import { RedisArgument, Command } from '../RESP/types';
+import { transformTuplesReply } from './generic-transformers';
 
-export { transformTuplesReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(parameter: RedisArgument) {
+    return ['CONFIG', 'GET', parameter];
+  },
+  transformReply: transformTuplesReply
+} as const satisfies Command;

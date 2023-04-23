@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { CompressionOption, pushCompressionArgument } from '.';
 
 export const FIRST_KEY_INDEX = 1;
@@ -13,7 +13,7 @@ export function transformArguments(
     srcKeys: RedisCommandArgument | Array<RedisCommandArgument>,
     options?: MergeOptions
 ): RedisCommandArguments {
-    const args = pushVerdictArgument(
+    const args = pushVariadicArgument(
         ['TDIGEST.MERGE', destKey],
         srcKeys
     );

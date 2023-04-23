@@ -1,34 +1,54 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { SortedSetSide, transformSortedSetMemberReply, transformZMPopArguments, ZMember, ZMPopOptions } from './generic-transformers';
+import { NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, Resp2Reply, Command } from '../RESP/types';
+import { pushVariadicArgument, RedisVariadicArgument, SortedSetSide } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
+export interface ZMPopOptions {
+  COUNT?: number;
+}
 
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+export type ZMPopRawReply = NullReply | TuplesReply<[
+  key: BlobStringReply,
+  elements: ArrayReply<TuplesReply<[
+    member: BlobStringReply,
+    score: DoubleReply
+  ]>>
+]>;
+
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: false,
+  transformArguments(
+    keys: RedisVariadicArgument,
     side: SortedSetSide,
     options?: ZMPopOptions
-): RedisCommandArguments {
-    return transformZMPopArguments(
-        ['ZMPOP'],
-        keys,
-        side,
-        options
-    );
-}
+  ) {
+    const args = pushVariadicArgument(['ZMPOP'], keys);
 
-type ZMPopRawReply = null | [
-    key: string,
-    elements: Array<[RedisCommandArgument, RedisCommandArgument]>
-];
+    args.push(side);
 
-type ZMPopReply = null | {
-    key: string,
-    elements: Array<ZMember>
-};
+    if (options?.COUNT) {
+      args.push('COUNT', options.COUNT.toString());
+    }
 
-export function transformReply(reply: ZMPopRawReply): ZMPopReply {
-    return reply === null ? null : {
+    return args;
+  },
+  transformReply: {
+    2: (reply: Resp2Reply<ZMPopRawReply>) => {
+      return reply === null ? null : {
         key: reply[0],
-        elements: reply[1].map(transformSortedSetMemberReply)
-    };
-}
+        elements: reply[1].map(([member, score]) => ({
+          member,
+          score: Number(score)
+        }))
+      };
+    },
+    3: (reply: ZMPopRawReply) => {
+      return reply === null ? null : {
+        key: reply[0],
+        elements: reply[1].map(([member, score]) => ({
+          member,
+          score
+        }))
+      };
+    },
+  }
+} as const satisfies Command;

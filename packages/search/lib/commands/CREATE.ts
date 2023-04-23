@@ -1,4 +1,4 @@
-import { pushOptionalVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisSearchLanguages, PropertyName, RediSearchSchema, pushSchema } from '.';
 
 interface CreateOptions {
@@ -27,7 +27,7 @@ export function transformArguments(index: string, schema: RediSearchSchema, opti
         args.push('ON', options.ON);
     }
 
-    pushOptionalVerdictArgument(args, 'PREFIX', options?.PREFIX);
+    pushOptionalVariadicArgument(args, 'PREFIX', options?.PREFIX);
 
     if (options?.FILTER) {
         args.push('FILTER', options.FILTER);
@@ -81,7 +81,7 @@ export function transformArguments(index: string, schema: RediSearchSchema, opti
         args.push('SKIPINITIALSCAN');
     }
 
-    pushOptionalVerdictArgument(args, 'STOPWORDS', options?.STOPWORDS);
+    pushOptionalVariadicArgument(args, 'STOPWORDS', options?.STOPWORDS);
     args.push('SCHEMA');
     pushSchema(args, schema);
 

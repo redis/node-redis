@@ -1,4 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ArrayReply, BlobStringReply, NullReply, RedisArgument } from '../RESP/types';
 
 export function transformBooleanReply(reply: number): boolean {
     return reply === 1;
@@ -33,7 +34,7 @@ export function pushScanArguments(
     return args;
 }
 
-export function transformNumberInfinityReply(reply: RedisCommandArgument): number {
+export function transformNumberInfinityReply(reply: BlobStringReply): number {
     switch (reply.toString()) {
         case '+inf':
             return Infinity;
@@ -46,13 +47,13 @@ export function transformNumberInfinityReply(reply: RedisCommandArgument): numbe
     }
 }
 
-export function transformNumberInfinityNullReply(reply: RedisCommandArgument | null): number | null {
+export function transformNumberInfinityNullReply(reply: BlobStringReply | NullReply): number | null {
     if (reply === null) return null;
 
     return transformNumberInfinityReply(reply);
 }
 
-export function transformNumberInfinityNullArrayReply(reply: Array<RedisCommandArgument | null>): Array<number | null> {
+export function transformNumberInfinityNullArrayReply(reply: Array<BlobStringReply | NullReply>): Array<number | null> {
     return reply.map(transformNumberInfinityNullReply);
 }
 
@@ -76,8 +77,8 @@ export function transformStringNumberInfinityArgument(num: RedisCommandArgument 
 }
 
 export function transformTuplesReply(
-    reply: Array<RedisCommandArgument>
-): Record<string, RedisCommandArgument> {
+    reply: ArrayReply<BlobStringReply>
+): Record<string, BlobStringReply> {
     const message = Object.create(null);
 
     for (let i = 0; i < reply.length; i += 2) {
@@ -123,11 +124,11 @@ export function transformStreamsMessagesReply(reply: Array<any> | null): Streams
 
 export interface ZMember {
     score: number;
-    value: RedisCommandArgument;
+    value: RedisArgument;
 }
 
 export function transformSortedSetMemberNullReply(
-    reply: [RedisCommandArgument, RedisCommandArgument] | []
+    reply: [BlobStringReply, BlobStringReply] | []
 ): ZMember | null {
     if (!reply.length) return null;
 
@@ -135,7 +136,7 @@ export function transformSortedSetMemberNullReply(
 }
 
 export function transformSortedSetMemberReply(
-    reply: [RedisCommandArgument, RedisCommandArgument]
+    reply: [BlobStringReply, BlobStringReply]
 ): ZMember {
     return {
         value: reply[0],
@@ -143,7 +144,7 @@ export function transformSortedSetMemberReply(
     };
 }
 
-export function transformSortedSetWithScoresReply(reply: Array<RedisCommandArgument>): Array<ZMember> {
+export function transformSortedSetWithScoresReply(reply: ArrayReply<BlobStringReply>): Array<ZMember> {
     const members = [];
 
     for (let i = 0; i < reply.length; i += 2) {
@@ -156,30 +157,9 @@ export function transformSortedSetWithScoresReply(reply: Array<RedisCommandArgum
     return members;
 }
 
-export type SortedSetSide = 'MIN' | 'MAX';
-
-export interface ZMPopOptions {
-    COUNT?: number;
-}
-
-export function transformZMPopArguments(
-    args: RedisCommandArguments,
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
-    side: SortedSetSide,
-    options?: ZMPopOptions
-): RedisCommandArguments {
-    pushVerdictArgument(args, keys);
-
-    args.push(side);
-
-    if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
-    }
-
-    return args;
-}
-
 export type ListSide = 'LEFT' | 'RIGHT';
+
+export type SortedSetSide = 'MIN' | 'MAX';
 
 export interface LMPopOptions {
     COUNT?: number;
@@ -191,7 +171,7 @@ export function transformLMPopArguments(
     side: ListSide,
     options?: LMPopOptions
 ): RedisCommandArguments {
-    pushVerdictArgument(args, keys);
+    pushVariadicArgument(args, keys);
 
     args.push(side);
 
@@ -425,7 +405,7 @@ export function pushEvalArguments(args: Array<string>, options?: EvalOptions): A
     return args;
 }
 
-export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCommandArgument | Array<RedisCommandArgument>): RedisCommandArguments  {
+export function pushVariadicArguments(args: RedisCommandArguments, value: RedisCommandArgument | Array<RedisCommandArgument>): RedisCommandArguments  {
     if (Array.isArray(value)) {
         // https://github.com/redis/node-redis/pull/2160
         args = args.concat(value);
@@ -436,7 +416,7 @@ export function pushVerdictArguments(args: RedisCommandArguments, value: RedisCo
     return args;
 }
 
-export function pushVerdictNumberArguments(
+export function pushVariadicNumberArguments(
     args: RedisCommandArguments,
     value: number | Array<number>
 ): RedisCommandArguments  {
@@ -451,9 +431,11 @@ export function pushVerdictNumberArguments(
     return args;
 }
 
-export function pushVerdictArgument(
-    args: RedisCommandArguments,
-    value: RedisCommandArgument | Array<RedisCommandArgument>
+export type RedisVariadicArgument = RedisArgument | Array<RedisArgument>;
+
+export function pushVariadicArgument(
+    args: Array<RedisArgument>,
+    value: RedisVariadicArgument
 ): RedisCommandArguments {
     if (Array.isArray(value)) {
         args.push(value.length.toString(), ...value);
@@ -464,7 +446,7 @@ export function pushVerdictArgument(
     return args;
 }
 
-export function pushOptionalVerdictArgument(
+export function pushOptionalVariadicArgument(
     args: RedisCommandArguments,
     name: RedisCommandArgument,
     value: undefined | RedisCommandArgument | Array<RedisCommandArgument>
@@ -473,7 +455,7 @@ export function pushOptionalVerdictArgument(
 
     args.push(name);
 
-    return pushVerdictArgument(args, value);
+    return pushVariadicArgument(args, value);
 }
 
 export enum CommandFlags {

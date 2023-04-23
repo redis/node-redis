@@ -1,5 +1,9 @@
-export function transformArguments(nodeId: string): Array<string> {
-    return  ['CLUSTER', 'FORGET', nodeId];
-}
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(nodeId: RedisArgument) {
+    return ['CLUSTER', 'FORGET', nodeId];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

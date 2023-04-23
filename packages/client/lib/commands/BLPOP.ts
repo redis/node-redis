@@ -1,31 +1,23 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
+import { pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument | Array<RedisArgument>,
     timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BLPOP'], keys);
-
+  ) {
+    const args = pushVariadicArguments(['BRPOP'], key);
     args.push(timeout.toString());
-
     return args;
-}
-
-type BLPopRawReply = null | [RedisCommandArgument, RedisCommandArgument];
-
-type BLPopReply = null | {
-    key: RedisCommandArgument;
-    element: RedisCommandArgument;
-};
-
-export function transformReply(reply: BLPopRawReply): BLPopReply {
+  },
+  transformReply(reply: NullReply | [BlobStringReply, BlobStringReply]) {
     if (reply === null) return null;
 
     return {
-        key: reply[0],
-        element: reply[1]
+      key: reply[0],
+      element: reply[1]
     };
-}
+  }
+} as const satisfies Command;
