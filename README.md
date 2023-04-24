@@ -92,8 +92,11 @@ Modifiers to commands are specified using a JavaScript object:
 
 ```typescript
 await client.set('key', 'value', {
-  EX: 10,
-  NX: true
+  expiration: {
+    type: 'EX',
+    value: 10
+  },
+  condition: 'NX'
 });
 ```
 
@@ -108,10 +111,9 @@ await client.hVals('key'); // ['value1', 'value2']
 
 ```typescript
 await client.hSet('key', 'field', Buffer.from('value')); // 'OK'
-await client.hGetAll(
-  commandOptions({ returnBuffers: true }),
-  'key'
-); // { field: <Buffer 76 61 6c 75 65> }
+await client.withFlags({
+  [TYPES.BLOB_STRING]: Buffer
+}).hGetAll('key'); // { field: <Buffer 76 61 6c 75 65> }
 ```
 
 ### Unsupported Redis Commands
@@ -151,8 +153,7 @@ This pattern works especially well for blocking commands—such as `BLPOP` and `
 ```typescript
 import { commandOptions } from 'redis';
 
-const blPopPromise = client.blPop(
-  commandOptions({ isolated: true }),
+const blPopPromise = client.isolated().blPop(
   'key',
   0
 );

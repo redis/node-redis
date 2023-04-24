@@ -1,26 +1,45 @@
 import { RedisArgument, SimpleStringReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-type MaximumOneOf<T, K extends keyof T = keyof T> =
-  K extends keyof T ? { [P in K]?: T[K] } & Partial<Record<Exclude<keyof T, K>, never>> : never;
+interface SetOptions {
+  expiration?: {
+    type: 'EX' | 'PX' | 'EXAT' | 'PXAT';
+    value: number;
+  } | {
+    type: 'KEEPTTL';
+  } | 'KEEPTTL';
+  /**
+   * @deprecated Use `expiration` { type: 'EX', value: number } instead
+   */
+  EX?: number;
+  /**
+   * @deprecated Use `expiration` { type: 'PX', value: number } instead
+   */
+  PX?: number;
+  /**
+   * @deprecated Use `expiration` { type: 'EXAT', value: number } instead
+   */
+  EXAT?: number;
+  /**
+   * @deprecated Use `expiration` { type: 'PXAT', value: number } instead
+   */
+  PXAT?: number;
+  /**
+   * @deprecated Use `expiration` 'KEEPTTL' instead
+   */
+  KEEPTTL?: boolean;
 
-type SetTTL = MaximumOneOf<{
-  EX: number;
-  PX: number;
-  EXAT: number;
-  PXAT: number;
-  KEEPTTL: true;
-}>;
-
-type SetGuards = MaximumOneOf<{
-  NX: true;
-  XX: true;
-}>;
-
-interface SetCommonOptions {
-  GET?: true;
+  condition?: 'NX' | 'XX';
+  /**
+   * @deprecated Use `condition` 'NX' instead
+   */
+  NX?: boolean;
+  /**
+   * @deprecated Use `condition` 'XX' instead
+   */
+  XX?: boolean;
+  
+  GET?: boolean;
 }
-
-export type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -31,7 +50,18 @@ export default {
       typeof value === 'number' ? value.toString() : value
     ];
 
-    if (options?.EX !== undefined) {
+    if (options?.expiration) {
+      if (typeof options.expiration === 'string') {
+        args.push(options.expiration);
+      } else if (options.expiration.type === 'KEEPTTL') {
+        args.push('KEEPTTL');
+      } else {
+        args.push(
+          options.expiration.type,
+          options.expiration.value.toString()
+        );
+      }
+    } else if (options?.EX !== undefined) {
       args.push('EX', options.EX.toString());
     } else if (options?.PX !== undefined) {
       args.push('PX', options.PX.toString());
@@ -43,7 +73,9 @@ export default {
       args.push('KEEPTTL');
     }
 
-    if (options?.NX) {
+    if (options?.condition) {
+      args.push(options.condition);
+    } else if (options?.NX) {
       args.push('NX');
     } else if (options?.XX) {
       args.push('XX');
