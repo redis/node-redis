@@ -1,6 +1,6 @@
 import COMMANDS from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
-import { ReplyWithFlags, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, Flags } from '../RESP/types';
+import { ReplyWithFlags, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, Flags, ReplyUnion } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 
 type CommandSignature<
@@ -82,6 +82,11 @@ export type RedisClientMultiCommandType<
   WithFunctions<REPLIES, M, F, S, RESP, FLAGS> &
   WithScripts<REPLIES, M, F, S, RESP, FLAGS>
 );
+
+type ReplyType<
+  REPLIES,
+  T = 'generic'
+> = T extends 'typed' ? REPLIES : Array<ReplyUnion>;
 
 export type RedisClientMultiExecutor = (
   queue: Array<RedisMultiQueuedCommand>,
@@ -216,8 +221,8 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
 
   select = this.SELECT;
 
-  async exec(execAsPipeline = false): Promise<REPLIES> {
-    if (execAsPipeline) return this.execAsPipeline();
+  async exec<T>(execAsPipeline = false) {
+    if (execAsPipeline) return this.execAsPipeline<T>();
 
     return this.handleExecReplies(
       await this.#executor(
@@ -225,19 +230,19 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
         this.#selectedDB,
         RedisMultiCommand.generateChainId()
       )
-    ) as REPLIES;
+    ) as ReplyType<REPLIES, T>;
   }
 
   EXEC = this.exec;
 
-  async execAsPipeline(): Promise<REPLIES> {
-    if (this.queue.length === 0) return [] as REPLIES;
+  async execAsPipeline<T>() {
+    if (this.queue.length === 0) return [] as ReplyType<REPLIES, T>;
 
     return this.transformReplies(
       await this.#executor(
         this.queue,
         this.#selectedDB
       )
-    ) as REPLIES;
+    ) as ReplyType<REPLIES, T>;
   }
 }

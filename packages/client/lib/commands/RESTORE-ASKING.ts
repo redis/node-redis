@@ -1,5 +1,10 @@
-export function transformArguments(): Array<string> {
-    return ['RESTORE-ASKING'];
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: undefined,
+  transformArguments() {
+    return ['RESTORE-ASKING'];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

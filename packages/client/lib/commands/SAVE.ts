@@ -1,7 +1,10 @@
-import { RedisCommandArgument } from '.';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(): Array<string> {
+export default {
+  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: undefined,
+  transformArguments() {
     return ['SAVE'];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

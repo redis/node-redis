@@ -1,5 +1,10 @@
-export function transformArguments(script: string): Array<string> {
-    return ['SCRIPT', 'LOAD', script];
-}
+import { BlobStringReply, Command, RedisArgument } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: undefined,
+  transformArguments(script: RedisArgument) {
+    return ['SCRIPT', 'LOAD', script];
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

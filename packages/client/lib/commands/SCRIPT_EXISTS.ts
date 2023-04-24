@@ -1,8 +1,11 @@
-import { RedisCommandArguments } from '.';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '../RESP/types';
 import { pushVariadicArguments } from './generic-transformers';
 
-export function transformArguments(sha1: string | Array<string>): RedisCommandArguments {
+export default {
+  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: undefined,
+  transformArguments(sha1: RedisArgument | Array<RedisArgument>) {
     return pushVariadicArguments(['SCRIPT', 'EXISTS'], sha1);
-}
-
-export { transformBooleanArrayReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
+} as const satisfies Command;

@@ -1,6 +1,6 @@
 import { RedisArgument, SimpleStringReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-interface SetOptions {
+export interface SetOptions {
   expiration?: {
     type: 'EX' | 'PX' | 'EXAT' | 'PXAT';
     value: number;

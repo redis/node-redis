@@ -68,6 +68,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `RENAMENX`: `boolean` -> `number` [^boolean-to-number]
 - `HSCAN`: `tuples` has been renamed to `entries`
 - `PFADD`: `boolean` -> `number` [^boolean-to-number]
+- `SCRIPT EXISTS`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 
 [^enum-to-constants]: TODO
 

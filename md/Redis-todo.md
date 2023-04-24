@@ -10,3 +10,4 @@
 
 `Number` -> `Boolean`:
 - `HSETNX` (deprecated)
+- `SCRIPT EXISTS`
