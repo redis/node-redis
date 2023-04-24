@@ -1,6 +1,14 @@
 # RESP3 Support
 
 ```javascript
+const client = createClient({
+  RESP: 3
+});
+
+client.on('error', err => console.error(err));
+
+await client.connect();
+
 client.hGetAll('key'); // Record<string, string>
 
 client.withFlags({

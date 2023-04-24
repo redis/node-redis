@@ -7,7 +7,7 @@
 - Double (`,`) => `number | string`
 - Simple String (`+`) => `string | Buffer`
 - Blob String (`$`) => `string | Buffer`
-- Verbatim String (`=`) => `string | Buffer | VerbatimString`
+- Verbatim String (`=`) => `string | Buffer | VerbatimString` (TODO: `VerbatimString` typedoc link)
 - Simple Error (`-`) => `ErrorReply`
 - Blob Error (`!`) => `ErrorReply`
 - Array (`*`) => `Array`
@@ -16,8 +16,6 @@
 - Push (`>`) => `Array` => PubSub push/`'push'` event
 
 > NOTE: the first type is the default type
-
-## Verbatim String
 
 ## Map keys and Set members
 
