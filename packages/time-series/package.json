@@ -35,6 +35,7 @@
   },
   "homepage": "https://github.com/redis/node-redis/tree/master/packages/time-series",
   "keywords": [
-    "redis"
+    "redis",
+    "RedisTimeSeries"
   ]
 }
