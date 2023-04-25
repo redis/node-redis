@@ -21,20 +21,15 @@ client.withFlags({
 }).hGetAll('key'); // Map<string, Buffer>
 ```
 
-# `Multi.exec<'typed'>`
+# `multi.exec<'typed'>` / `multi.execTyped`
 
-We have introduced the ability to perform a 'typed' `MULTI`/`EXEC` transaction.  Rather than returning `Array<ReplyUnion>`, a transaction invoked with `.exec<'typed'>` will return types appropriate to the commands in the transaction where possible.  
-
-Example:
+We have introduced the ability to perform a "typed" `MULTI`/`EXEC` transaction. Rather than returning `Array<ReplyUnion>`, a transaction invoked with `.exec<'typed'>` will return types appropriate to the commands in the transaction where possible:
 
 ```javascript
-client.multi()
-  .ping()
-  .exec(); // Array<ReplyUnion>
-
-client.multi()
-  .ping()
-  .exec<'typed'>(); // [string]
+const multi = client.multi().ping();
+await multi.exec(); // Array<ReplyUnion>
+await multi.exec<'typed'>(); // [string]
+await multi.execTyped(); // [string]
 ```
 
 # Request & Reply Policies

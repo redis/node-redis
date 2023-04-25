@@ -83,10 +83,14 @@ export type RedisClientMultiCommandType<
   WithScripts<REPLIES, M, F, S, RESP, FLAGS>
 );
 
-type ReplyType<
-  REPLIES,
-  T = 'generic'
-> = T extends 'typed' ? REPLIES : Array<ReplyUnion>;
+type MULTI_REPLY = {
+  GENERIC: 'generic';
+  TYPED: 'typed';
+};
+
+type MultiReply = MULTI_REPLY[keyof MULTI_REPLY];
+
+type ReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<ReplyUnion>;
 
 export type RedisClientMultiExecutor = (
   queue: Array<RedisMultiQueuedCommand>,
@@ -144,8 +148,7 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
     M extends RedisModules = Record<string, never>,
     F extends RedisFunctions = Record<string, never>,
     S extends RedisScripts = Record<string, never>,
-    RESP extends RespVersions = 2,
-    FLAGS extends Flags = {}
+    RESP extends RespVersions = 2
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisClientMultiCommand,
@@ -221,7 +224,7 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
 
   select = this.SELECT;
 
-  async exec<T>(execAsPipeline = false) {
+  async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false) {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
     return this.handleExecReplies(
@@ -230,19 +233,27 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
         this.#selectedDB,
         RedisMultiCommand.generateChainId()
       )
-    ) as ReplyType<REPLIES, T>;
+    ) as ReplyType<T, REPLIES>;
   }
 
   EXEC = this.exec;
 
-  async execAsPipeline<T>() {
-    if (this.queue.length === 0) return [] as ReplyType<REPLIES, T>;
+  execTyped(execAsPipeline = false) {
+    return this.exec<MULTI_REPLY['TYPED']>(execAsPipeline);
+  }
+
+  async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>() {
+    if (this.queue.length === 0) return [] as ReplyType<T, REPLIES>;
 
     return this.transformReplies(
       await this.#executor(
         this.queue,
         this.#selectedDB
       )
-    ) as ReplyType<REPLIES, T>;
+    ) as ReplyType<T, REPLIES>;
+  }
+
+  execAsPipelineTyped() {
+    return this.execAsPipeline<MULTI_REPLY['TYPED']>();
   }
 }
