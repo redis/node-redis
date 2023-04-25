@@ -108,8 +108,8 @@ export function transformCommandArguments<T = ClientCommandOptions>(
     command: RedisCommand,
     args: Array<unknown>
 ): {
-    jsArgs: RedisCommandArguments;
-    args: Array<unknown>;
+    jsArgs: Array<unknown>;
+    args: RedisCommandArguments;
     options: CommandOptions<T> | undefined;
 } {
     let options;
