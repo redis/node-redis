@@ -190,7 +190,7 @@ describe('Cluster', () => {
     }, {
         ...GLOBAL.CLUSTERS.OPEN,
         clusterConfiguration: {
-            maxCommandRedirections: 0,
+            maxCommandRedirections: 0
         }
     });
 

@@ -1,6 +1,5 @@
 import COMMANDS from './commands';
 import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, RedisFunction } from '../commands';
-import { isCommandOptions } from '../command-options';
 import { ClientCommandOptions, RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import { attachExtensions, transformCommandReply, attachCommands, transformCommandArguments } from '../commander';
@@ -75,10 +74,6 @@ export default class RedisCluster<
             return undefined;
         } else if (typeof command.FIRST_KEY_INDEX === 'number') {
             return redisArgs[command.FIRST_KEY_INDEX];
-        }
-
-        if (isCommandOptions(originalArgs[0])) {
-            originalArgs = originalArgs.slice(1);
         }
 
         return command.FIRST_KEY_INDEX(...originalArgs);
@@ -157,11 +152,11 @@ export default class RedisCluster<
         command: C,
         args: Array<unknown>
     ): Promise<RedisCommandReply<C>> {
-        const { args: redisArgs, options } = transformCommandArguments(command, args);
+        const { jsArgs, args: redisArgs, options } = transformCommandArguments(command, args);
         return transformCommandReply(
             command,
             await this.sendCommand(
-                RedisCluster.extractFirstKey(command, args, redisArgs),
+                RedisCluster.extractFirstKey(command, jsArgs, redisArgs),
                 command.IS_READ_ONLY,
                 redisArgs,
                 options
