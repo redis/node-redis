@@ -2,6 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
+import { commandOptions } from '../command-options';
 import { SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
@@ -177,6 +178,21 @@ describe('Cluster', () => {
     testUtils.testWithCluster('should throw CROSSSLOT error', async cluster => {
         await assert.rejects(cluster.mGet(['a', 'b']));
     }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('should send commands with commandOptions to correct cluster slot (without redirections)', async cluster => {
+        // 'a' and 'b' hash to different cluster slots (see previous unit test)
+        // -> maxCommandRedirections 0: rejects on MOVED/ASK reply
+        await cluster.set(commandOptions({ isolated: true }), 'a', '1'),
+        await cluster.set(commandOptions({ isolated: true }), 'b', '2'),
+
+        assert.equal(await cluster.get('a'), '1');
+        assert.equal(await cluster.get('b'), '2');
+    }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: {
+            maxCommandRedirections: 0
+        }
+    });
 
     describe('minimizeConnections', () => {
         testUtils.testWithCluster('false', async cluster => {

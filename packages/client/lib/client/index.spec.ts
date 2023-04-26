@@ -647,6 +647,9 @@ describe('Client', () => {
     });
 
     testUtils.testWithClient('should propagated errors from "isolated" clients', client => {
+        client.on('error', () => {
+            // ignore errors
+        });
         return client.executeIsolated(isolated => killClient(isolated, client));
     }, GLOBAL.SERVERS.OPEN);
 
