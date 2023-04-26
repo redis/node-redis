@@ -152,11 +152,11 @@ export default class RedisCluster<
         command: C,
         args: Array<unknown>
     ): Promise<RedisCommandReply<C>> {
-        const { args: redisArgs, options } = transformCommandArguments(command, args);
+        const { jsArgs, args: redisArgs, options } = transformCommandArguments(command, args);
         return transformCommandReply(
             command,
             await this.sendCommand(
-                RedisCluster.extractFirstKey(command, args, redisArgs),
+                RedisCluster.extractFirstKey(command, jsArgs, redisArgs),
                 command.IS_READ_ONLY,
                 redisArgs,
                 options
