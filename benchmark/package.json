@@ -9,9 +9,9 @@
   "dependencies": {
     "hdr-histogram-js": "3.0.0",
     "ioredis": "5",
+    "redis-local": "file:../packages/client",
     "redis-v3": "npm:redis@3",
     "redis-v4": "npm:redis@4",
-    "redis-local": "file:../packages/client",
     "yargs": "17.7.1"
   }
 }
