@@ -1,4 +1,5 @@
 {
+  "name": "redis-monorepo",
   "private": true,
   "workspaces": [
     "./packages/*"
