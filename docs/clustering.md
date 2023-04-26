@@ -105,6 +105,8 @@ createCluster({
 
 ## Command Routing
 
+TODO request response policy
+
 ### Commands that operate on Redis Keys
 
 Commands such as `GET`, `SET`, etc. are routed by the first key specified. For example `MGET 1 2 3` will be routed by the key `1`.
