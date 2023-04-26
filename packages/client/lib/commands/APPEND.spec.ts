@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import APPEND from './APPEND';
 
-describe.only('APPEND', () => {
+describe('APPEND', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       APPEND.transformArguments('key', 'value'),

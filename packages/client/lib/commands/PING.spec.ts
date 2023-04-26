@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PING from './PING';
 
-describe.only('PING', () => {
+describe('PING', () => {
   describe('transformArguments', () => {
     it('default', () => {
       assert.deepEqual(
