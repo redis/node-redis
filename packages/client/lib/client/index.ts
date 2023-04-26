@@ -15,7 +15,6 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '.
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { callbackify } from 'util';
 
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
@@ -190,7 +189,7 @@ export default class RedisClient<
     readonly #options?: RedisClientOptions<M, F, S>;
     readonly #socket: RedisSocket;
     readonly #queue: RedisCommandsQueue;
-    readonly #isolationPool: Pool<RedisClientType<M, F, S>>;
+    #isolationPool?: Pool<RedisClientType<M, F, S>>;
     readonly #v4: Record<string, any> = {};
     #selectedDB = 0;
 
@@ -223,16 +222,9 @@ export default class RedisClient<
         this.#options = this.#initiateOptions(options);
         this.#queue = this.#initiateQueue();
         this.#socket = this.#initiateSocket();
-        this.#isolationPool = createPool({
-            create: async () => {
-                const duplicate = this.duplicate({
-                    isolationPoolOptions: undefined
-                }).on('error', err => this.emit('error', err));
-                await duplicate.connect();
-                return duplicate;
-            },
-            destroy: client => client.disconnect()
-        }, options?.isolationPoolOptions);
+        // should be initiated in connect, not here
+        // TODO: consider breaking in v5
+        this.#isolationPool = this.#initiateIsolationPool();
         this.#legacyMode();
     }
 
@@ -337,6 +329,19 @@ export default class RedisClient<
             .on('end', () => this.emit('end'));
     }
 
+    #initiateIsolationPool() {
+        return createPool({
+            create: async () => {
+                const duplicate = this.duplicate({
+                    isolationPoolOptions: undefined
+                }).on('error', err => this.emit('error', err));
+                await duplicate.connect();
+                return duplicate;
+            },
+            destroy: client => client.disconnect()
+        }, this.#options?.isolationPoolOptions);
+    }
+
     #legacyMode(): void {
         if (!this.#options?.legacyMode) return;
 
@@ -422,6 +427,8 @@ export default class RedisClient<
     }
 
     connect(): Promise<void> {
+        // see comment in constructor
+        this.#isolationPool ??= this.#initiateIsolationPool();
         return this.#socket.connect();
     }
 
@@ -704,6 +711,7 @@ export default class RedisClient<
     }
 
     executeIsolated<T>(fn: (client: RedisClientType<M, F, S>) => T | Promise<T>): Promise<T> {
+        if (!this.#isolationPool) return Promise.reject(new ClientClosedError());
         return this.#isolationPool.use(fn);
     }
 
@@ -802,8 +810,9 @@ export default class RedisClient<
     }
 
     async #destroyIsolationPool(): Promise<void> {
-        await this.#isolationPool.drain();
-        await this.#isolationPool.clear();
+        await this.#isolationPool!.drain();
+        await this.#isolationPool!.clear();
+        this.#isolationPool = undefined;
     }
 
     ref(): void {
