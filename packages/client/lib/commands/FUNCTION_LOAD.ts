@@ -1,22 +1,22 @@
-import { RedisCommandArguments } from '.';
+// import { RedisCommandArguments } from '.';
 
-interface FunctionLoadOptions {
-    REPLACE?: boolean;
-}
+// interface FunctionLoadOptions {
+//     REPLACE?: boolean;
+// }
 
-export function transformArguments(
-    code: string,
-    options?: FunctionLoadOptions
-): RedisCommandArguments {
-    const args = ['FUNCTION', 'LOAD'];
+// export function transformArguments(
+//     code: string,
+//     options?: FunctionLoadOptions
+// ): RedisCommandArguments {
+//     const args = ['FUNCTION', 'LOAD'];
 
-    if (options?.REPLACE) {
-        args.push('REPLACE');
-    }
+//     if (options?.REPLACE) {
+//         args.push('REPLACE');
+//     }
 
-    args.push(code);
+//     args.push(code);
 
-    return args;
-}
+//     return args;
+// }
 
-export declare function transformReply(): string;
+// export declare function transformReply(): string;

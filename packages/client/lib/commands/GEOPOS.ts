@@ -1,27 +1,19 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVariadicArguments } from './generic-transformers';
+import { ArrayReply, BlobStringReply, NullReply, Command, RedisArgument } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    member: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    member: RedisVariadicArgument
+  ) {
     return pushVariadicArguments(['GEOPOS', key], member);
-}
-
-type GeoCoordinatesRawReply = Array<[RedisCommandArgument, RedisCommandArgument] | null>;
-
-interface GeoCoordinates {
-    longitude: RedisCommandArgument;
-    latitude: RedisCommandArgument;
-}
-
-export function transformReply(reply: GeoCoordinatesRawReply): Array<GeoCoordinates | null> {
-    return reply.map(coordinates => coordinates === null ? null : {
-        longitude: coordinates[0],
-        latitude: coordinates[1]
+  },
+  transformReply(reply: ArrayReply<[BlobStringReply, BlobStringReply] | NullReply>) {
+    return reply.map(item => item === null ? null : {
+      longitude: item[0],
+      latitude: item[1]
     });
-}
+  }
+} as const satisfies Command;

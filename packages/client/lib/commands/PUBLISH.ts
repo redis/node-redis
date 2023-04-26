@@ -1,8 +1,8 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments(channel: RedisArgument, message: RedisArgument) {
     return ['PUBLISH', channel, message];
   },

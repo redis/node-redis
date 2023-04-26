@@ -1,5 +1,5 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
-import { transformNumberInfinityArgument } from './generic-transformers';
+import { transformDoubleArgument } from './generic-transformers';
 
 export type ZInterKeyAndWeight = {
   key: RedisArgument;
@@ -29,7 +29,7 @@ export function pushZInterArguments(
         for (let i = 0; i < keys.length; i++) {
           const index = start + i;
           args[index] = keys[i].key;
-          args[index + 1 + keys.length] = transformNumberInfinityArgument(keys[i].weight);
+          args[index + 1 + keys.length] = transformDoubleArgument(keys[i].weight);
         }
       }
     }
@@ -42,7 +42,7 @@ export function pushZInterArguments(
       args.push(
         keys.key,
         'WEIGHTS',
-        transformNumberInfinityArgument(keys.weight)
+        transformDoubleArgument(keys.weight)
       );
     }
   }

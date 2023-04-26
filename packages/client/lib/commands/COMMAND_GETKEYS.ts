@@ -1,9 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+// import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-export const IS_READ_ONLY = true;
+// export const IS_READ_ONLY = true;
 
-export function transformArguments(args: Array<RedisCommandArgument>): RedisCommandArguments {
-    return ['COMMAND', 'GETKEYS', ...args];
-}
+// export function transformArguments(args: Array<RedisCommandArgument>): RedisCommandArguments {
+//     return ['COMMAND', 'GETKEYS', ...args];
+// }
 
-export declare function transformReply(): Array<RedisCommandArgument>;
+// export declare function transformReply(): Array<RedisCommandArgument>;

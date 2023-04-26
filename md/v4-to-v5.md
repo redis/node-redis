@@ -45,6 +45,20 @@ Rather than using `client.quit()`, your code should use `client.close()` or `cli
 
 TODO difference between `close` and `disconnect`...
 
+## Scan Iterators
+
+TODO
+
+Yields chunks instead of individual items:
+
+```javascript
+for await (const chunk of client.scanIterator()) {
+  // `chunk` type is `Array<string>`
+  // will allow multi keys operations
+  await client.del(chunk);
+}
+```
+
 ## Commands
 
 Some command arguments/replies have changed to align more closely to data types returned by Redis:
@@ -69,6 +83,8 @@ Some command arguments/replies have changed to align more closely to data types 
 - `HSCAN`: `tuples` has been renamed to `entries`
 - `PFADD`: `boolean` -> `number` [^boolean-to-number]
 - `SCRIPT EXISTS`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
+- `SISMEMBER`: `boolean` -> `number` [^boolean-to-number]
+- `SMISMEMBER`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 
 [^enum-to-constants]: TODO
 

@@ -1,5 +1,6 @@
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
-import { ScanOptions, ZMember, pushScanArguments, transformNumberInfinityReply } from './generic-transformers';
+import { ScanCommonOptions, pushScanArguments } from './SCAN';
+import { ZMember, transformDoubleReply } from './generic-transformers';
 
 export interface HScanEntry {
   field: BlobStringReply;
@@ -12,7 +13,7 @@ export default {
   transformArguments(
     key: RedisArgument,
     cursor: number,
-    options?: ScanOptions
+    options?: ScanCommonOptions
   ) {
     return pushScanArguments(['ZSCAN', key], cursor, options);
   },
@@ -22,7 +23,7 @@ export default {
     while (i < rawMembers.length) {
       members.push({
         value: rawMembers[i++],
-        score: transformNumberInfinityReply(rawMembers[i++])
+        score: transformDoubleReply(rawMembers[i++])
       } satisfies ZMember);
     }
 

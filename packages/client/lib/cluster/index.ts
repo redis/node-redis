@@ -326,7 +326,7 @@ export default class RedisCluster<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy.commandOptions = Object.create((this as ProxyCluster).commandOptions ?? null);
+    proxy.commandOptions = Object.create((this as unknown as ProxyCluster).commandOptions ?? null);
     proxy.commandOptions[key] = value;
     return proxy as RedisClusterType<
       M,

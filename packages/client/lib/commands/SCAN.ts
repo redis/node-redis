@@ -1,13 +1,35 @@
-import { RedisArgument, BlobStringReply, ArrayReply, Command } from '../RESP/types';
-import { ScanOptions, pushScanArguments } from './generic-transformers';
+import { CommandArguments, RedisArgument, BlobStringReply, ArrayReply, Command } from '../RESP/types';
 
-export interface ScanCommandOptions extends ScanOptions {
+export interface ScanCommonOptions {
+  MATCH?: string;
+  COUNT?: number;
+}
+
+export function pushScanArguments(
+  args: CommandArguments,
+  cursor: number,
+  options?: ScanOptions
+): CommandArguments {
+  args.push(cursor.toString());
+
+  if (options?.MATCH) {
+    args.push('MATCH', options.MATCH);
+  }
+
+  if (options?.COUNT) {
+    args.push('COUNT', options.COUNT.toString());
+  }
+
+  return args;
+}
+
+export interface ScanOptions extends ScanCommonOptions {
   TYPE?: RedisArgument;
 }
 
 export default {
   IS_READ_ONLY: true,
-  transformArguments(cursor: number, options?: ScanCommandOptions) {
+  transformArguments(cursor: number, options?: ScanOptions) {
     const args = pushScanArguments(['SCAN'], cursor, options);
 
     if (options?.TYPE) {

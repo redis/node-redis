@@ -1,5 +1,5 @@
-import { RedisArgument, Command } from '../RESP/types';
-import { transformLMPopArguments, LMPopOptions, ListSide } from './generic-transformers';
+import { Command } from '../RESP/types';
+import { transformLMPopArguments, LMPopOptions, ListSide, RedisVariadicArgument } from './generic-transformers';
 import LMPOP from './LMPOP';
 
 export default {
@@ -7,7 +7,7 @@ export default {
   IS_READ_ONLY: false,
   transformArguments(
     timeout: number,
-    keys: RedisArgument | Array<RedisArgument>,
+    keys: RedisVariadicArgument,
     side: ListSide,
     options?: LMPopOptions
   ) {

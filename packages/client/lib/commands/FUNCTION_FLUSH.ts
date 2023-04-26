@@ -2,8 +2,8 @@ import { SimpleStringReply, Command } from '../RESP/types';
 import { RedisFlushModes } from './FLUSHALL';
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments(mode?: RedisFlushModes) {
     const args = ['FUNCTION', 'FLUSH'];
     

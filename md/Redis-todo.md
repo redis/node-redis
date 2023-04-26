@@ -7,6 +7,7 @@
 `String` -> `Double`:
 - `INCRBYFLOAT`
 - `HINCRBYFLOAT`
+- `GEODIST`
 
 `Number` -> `Boolean`:
 - `HSETNX` (deprecated)

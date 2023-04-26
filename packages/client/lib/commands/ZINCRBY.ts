@@ -1,5 +1,5 @@
 import { RedisArgument, DoubleReply, Command } from '../RESP/types';
-import { transformNumberInfinityArgument, transformNumberInfinityReply } from './generic-transformers';
+import { transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -11,12 +11,12 @@ export default {
     return [
       'ZINCRBY',
       key,
-      transformNumberInfinityArgument(increment),
+      transformDoubleArgument(increment),
       member
     ];
   },
   transformReply: {
-    2: transformNumberInfinityReply,
+    2: transformDoubleReply,
     3: undefined as unknown as () => DoubleReply
   }
 } as const satisfies Command;

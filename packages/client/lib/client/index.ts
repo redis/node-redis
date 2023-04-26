@@ -12,13 +12,8 @@ import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-co
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ReplyWithFlags, BlobStringReply } from '../RESP/types';
-import { ScanCommandOptions } from '../commands/SCAN';
-import { HScanEntry } from '../commands/HSCAN';
-import { ScanOptions, ZMember } from '../commands/generic-transformers';
-
-
-
+import { ReplyWithFlags, CommandReply } from '../RESP/types';
+import SCAN, { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -538,7 +533,7 @@ export default class RedisClient<
     value: V
   ) {
     const proxy = Object.create(this.self);
-    proxy.commandOptions = Object.create((this as ProxyClient).commandOptions ?? null);
+    proxy.commandOptions = Object.create((this as unknown as ProxyClient).commandOptions ?? null);
     proxy.commandOptions[key] = value;
     return proxy as RedisClientType<
       M,
@@ -840,60 +835,52 @@ export default class RedisClient<
 
   async* scanIterator(
     this: RedisClientType<M, F, S, RESP, FLAGS>,
-    options?: ScanCommandOptions & ScanIteratorOptions
-  ): AsyncIterable<ReplyWithFlags<BlobStringReply, FLAGS>> {
+    options?: ScanOptions & ScanIteratorOptions
+  ): AsyncIterable<ReplyWithFlags<CommandReply<typeof SCAN, RESP>['keys'], FLAGS>> {
     let cursor = options?.cursor ?? 0;
     do {
       const reply = await this.scan(cursor, options);
       cursor = reply.cursor;
-      for (const key of reply.keys) {
-        yield key;
-      }
+      yield reply.keys;
     } while (cursor !== 0);
   }
 
   async* hScanIterator(
     this: RedisClientType<M, F, S, RESP, FLAGS>,
     key: RedisArgument,
-    options?: ScanOptions & ScanIteratorOptions
-  ): AsyncIterable<ReplyWithFlags<HScanEntry, FLAGS>> {
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
     let cursor = options?.cursor ?? 0;
     do {
       const reply = await this.hScan(key, cursor, options);
       cursor = reply.cursor;
-      for (const entry of reply.entries) {
-        yield entry;
-      }
+      yield reply.entries;
     } while (cursor !== 0);
   }
 
   async* sScanIterator(
     this: RedisClientType<M, F, S, RESP, FLAGS>,
     key: RedisArgument,
-    options?: ScanOptions & ScanIteratorOptions
-  ): AsyncIterable<ReplyWithFlags<BlobStringReply, FLAGS>> {
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
     let cursor = options?.cursor ?? 0;
     do {
       const reply = await this.sScan(key, cursor, options);
       cursor = reply.cursor;
-      for (const member of reply.members) {
-        yield member;
-      }
+      yield reply.members;
     } while (cursor !== 0);
   }
 
   async* zScanIterator(
     this: RedisClientType<M, F, S, RESP, FLAGS>,
     key: RedisArgument,
-    options?: ScanOptions & ScanIteratorOptions
-  ): AsyncIterable<ReplyWithFlags<ZMember, FLAGS>> {
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
     let cursor = options?.cursor ?? 0;
     do {
       const reply = await this.zScan(key, cursor, options);
       cursor = reply.cursor;
-      for (const member of reply.members) {
-        yield member;
-      }
+      yield reply.members;
     } while (cursor !== 0);
   }
 

@@ -1,10 +1,11 @@
-import { RedisCommandArguments } from '.';
-import { pushVariadicArguments } from './generic-transformers';
+import { SimpleStringReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: string | Array<string>): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisVariadicArgument) {
     return pushVariadicArguments(['WATCH'], key);
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

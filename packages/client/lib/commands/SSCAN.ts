@@ -1,5 +1,5 @@
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
-import { ScanOptions, pushScanArguments } from './generic-transformers';
+import { ScanCommonOptions, pushScanArguments } from './SCAN';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -7,7 +7,7 @@ export default {
   transformArguments(
     key: RedisArgument,
     cursor: number,
-    options?: ScanOptions
+    options?: ScanCommonOptions
   ) {
     return pushScanArguments(['SSCAN', key], cursor, options);
   },

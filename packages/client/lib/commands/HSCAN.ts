@@ -1,5 +1,5 @@
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
-import { ScanOptions, pushScanArguments } from './generic-transformers';
+import { ScanCommonOptions, pushScanArguments } from './SCAN';
 
 export interface HScanEntry {
   field: BlobStringReply;
@@ -12,7 +12,7 @@ export default {
   transformArguments(
     key: RedisArgument,
     cursor: number,
-    options?: ScanOptions
+    options?: ScanCommonOptions
   ) {
     return pushScanArguments(['HSCAN', key], cursor, options);
   },

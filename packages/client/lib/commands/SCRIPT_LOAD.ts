@@ -1,8 +1,8 @@
 import { BlobStringReply, Command, RedisArgument } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments(script: RedisArgument) {
     return ['SCRIPT', 'LOAD', script];
   },

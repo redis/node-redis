@@ -1,9 +1,9 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
-  transformArguments(key: RedisArgument, elements: RedisArgument | Array<RedisArgument>) {
+  transformArguments(key: RedisArgument, elements: RedisVariadicArgument) {
     return pushVariadicArguments(['LPUSHX', key], elements);
   },
   transformReply: undefined as unknown as () => NumberReply

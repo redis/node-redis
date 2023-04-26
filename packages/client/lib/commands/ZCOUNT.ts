@@ -1,5 +1,5 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { transformStringNumberInfinityArgument } from './generic-transformers';
+import { transformStringDoubleArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -12,8 +12,8 @@ export default {
     return [
       'ZCOUNT',
       key,
-      transformStringNumberInfinityArgument(min),
-      transformStringNumberInfinityArgument(max)
+      transformStringDoubleArgument(min),
+      transformStringDoubleArgument(max)
     ];
   },
   transformReply: undefined as unknown as () => NumberReply

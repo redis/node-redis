@@ -1,16 +1,16 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+// import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-export function transformArguments(
-    dump: RedisCommandArgument,
-    mode?: 'FLUSH' | 'APPEND' | 'REPLACE'
-): RedisCommandArguments {
-    const args = ['FUNCTION', 'RESTORE', dump];
+// export function transformArguments(
+//     dump: RedisCommandArgument,
+//     mode?: 'FLUSH' | 'APPEND' | 'REPLACE'
+// ): RedisCommandArguments {
+//     const args = ['FUNCTION', 'RESTORE', dump];
 
-    if (mode) {
-        args.push(mode);
-    }
+//     if (mode) {
+//         args.push(mode);
+//     }
 
-    return args;
-}
+//     return args;
+// }
 
-export declare function transformReply(): 'OK';
+// export declare function transformReply(): 'OK';

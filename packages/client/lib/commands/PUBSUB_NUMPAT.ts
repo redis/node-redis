@@ -1,8 +1,8 @@
 import { NumberReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments() {
     return ['PUBSUB', 'NUMPAT'];
   },

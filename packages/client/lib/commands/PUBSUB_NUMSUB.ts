@@ -1,10 +1,10 @@
-import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, Command } from '../RESP/types';
-import { pushVariadicArguments } from './generic-transformers';
+import { ArrayReply, BlobStringReply, NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
-  transformArguments(channels?: RedisArgument | Array<RedisArgument>) {
+  IS_READ_ONLY: true,
+  transformArguments(channels?: RedisVariadicArgument) {
     const args = ['PUBSUB', 'NUMSUB'];
 
     if (channels) return pushVariadicArguments(args, channels);

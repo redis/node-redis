@@ -1,16 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformZRandMemberArguments } from './ZRANDMEMBER';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import ZRANDMEMBER from './ZRANDMEMBER';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANDMEMBER';
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
-    return [
-        ...transformZRandMemberArguments(key),
-        count.toString()
-    ];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  FIRST_KEY_INDEX: ZRANDMEMBER.FIRST_KEY_INDEX,
+  IS_READ_ONLY: ZRANDMEMBER.IS_READ_ONLY,
+  transformArguments(key: RedisArgument, count: number) {
+    const args = ZRANDMEMBER.transformArguments(key);
+    args.push(count.toString());
+    return args;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

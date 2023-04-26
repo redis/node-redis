@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/commands/PING.spec.ts' './lib/commands/APPEND.spec.ts'",
+    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
     "build": "tsc",
     "lint": "eslint ./*.ts ./lib/**/*.ts",
     "documentation": "typedoc"

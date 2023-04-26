@@ -6,8 +6,8 @@ export type ModuleListReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments() {
     return ['MODULE', 'LIST'];
   },

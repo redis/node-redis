@@ -1,10 +1,10 @@
-import { RedisArgument, ArrayReply, NumberReply, Command } from '../RESP/types';
-import { pushVariadicArguments } from './generic-transformers';
+import { ArrayReply, NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
-  transformArguments(sha1: RedisArgument | Array<RedisArgument>) {
+  IS_READ_ONLY: true,
+  transformArguments(sha1: RedisVariadicArgument) {
     return pushVariadicArguments(['SCRIPT', 'EXISTS'], sha1);
   },
   transformReply: undefined as unknown as () => ArrayReply<NumberReply>

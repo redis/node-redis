@@ -1,5 +1,5 @@
 import { RedisArgument, NumberReply, DoubleReply, Command } from '../RESP/types';
-import { ZMember, transformNumberInfinityArgument, transformNumberInfinityReply } from './generic-transformers';
+import { ZMember, transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
 interface NX {
   NX?: boolean;
@@ -62,7 +62,7 @@ export default {
 
     for (const { score, value } of (Array.isArray(members) ? members : [members])) {
       args.push(
-        transformNumberInfinityArgument(score),
+        transformDoubleArgument(score),
         value
       );
     }
@@ -70,7 +70,7 @@ export default {
     return args;
   },
   transformReply: {
-    2: transformNumberInfinityReply,
+    2: transformDoubleReply,
     3: undefined as unknown as () => NumberReply | DoubleReply
   }
 } as const satisfies Command;

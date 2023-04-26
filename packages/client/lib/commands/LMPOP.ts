@@ -1,10 +1,10 @@
-import { RedisArgument, NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
-import { transformLMPopArguments, LMPopOptions, ListSide } from './generic-transformers';
+import { NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
+import { transformLMPopArguments, LMPopOptions, ListSide, RedisVariadicArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 2,
   transformArguments(
-    keys: RedisArgument | Array<RedisArgument>,
+    keys: RedisVariadicArgument,
     side: ListSide,
     options?: LMPopOptions
   ) {
