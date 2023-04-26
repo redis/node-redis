@@ -607,11 +607,41 @@ describe('Client', () => {
         }
     });
 
-    testUtils.testWithClient('executeIsolated', async client => {
-        const id = await client.clientId(),
-            isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
-        assert.ok(id !== isolatedId);
-    }, GLOBAL.SERVERS.OPEN);
+    describe('isolationPool', () => {
+        testUtils.testWithClient('executeIsolated', async client => {
+            const id = await client.clientId(),
+                isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
+            assert.ok(id !== isolatedId);
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should be able to use pool even before connect', async client => {
+            await client.executeIsolated(() => Promise.resolve());
+            // make sure to destroy isolation pool
+            await client.connect();
+            await client.disconnect();
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+
+        testUtils.testWithClient('should work after reconnect (#2406)', async client => {
+            await client.disconnect();
+            await client.connect();
+            await client.executeIsolated(() => Promise.resolve());
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should throw ClientClosedError after disconnect', async client => {
+            await client.connect();
+            await client.disconnect();
+            await assert.rejects(
+                client.executeIsolated(() => Promise.resolve()),
+                ClientClosedError
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+    });
 
     async function killClient<
         M extends RedisModules,
@@ -731,7 +761,7 @@ describe('Client', () => {
             members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
         );
     }, GLOBAL.SERVERS.OPEN);
-
+    
     describe('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
             function assertStringListener(message: string, channel: string) {
