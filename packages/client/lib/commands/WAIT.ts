@@ -1,6 +1,7 @@
 import { RedisArgument, SimpleStringReply, Command, NumberReply } from '../RESP/types';
 
 export default {
+  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments(numberOfReplicas: number, timeout: number) {
     return ['WAIT', numberOfReplicas.toString(), timeout.toString()];

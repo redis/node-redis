@@ -1,19 +1,19 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './UNWATCH';
+import UNWATCH from './UNWATCH';
 
 describe('UNWATCH', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['UNWATCH']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      UNWATCH.transformArguments(),
+      ['UNWATCH']
+    );
+  });
 
-    testUtils.testWithClient('client.unwatch', async client => {
-        assert.equal(
-            await client.unwatch(),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.unwatch', async client => {
+    assert.equal(
+      await client.unwatch(),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

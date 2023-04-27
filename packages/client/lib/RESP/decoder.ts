@@ -242,7 +242,7 @@ export class Decoder {
 
   private _maybeDecodeNumberValue(isNegative, chunk) {
     const cb = this._decodeUnsingedNumber.bind(this, 0);
-    return this._cursor === chunk.length ?
+    return ++this._cursor === chunk.length ?
       this._decodeNumberValue.bind(isNegative, cb) :
       this._decodeNumberValue(isNegative, cb, chunk);
   }

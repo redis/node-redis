@@ -2,7 +2,7 @@ import { SimpleStringReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
+  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments(key: RedisVariadicArgument) {
     return pushVariadicArguments(['WATCH'], key);

@@ -104,8 +104,20 @@ import SETEX from './SETEX';
 import SETNX from './SETNX';
 import SETRANGE from './SETRANGE';
 import SMEMBERS from './SMEMBERS';
+import SPUBLISH from './SPUBLISH';
+import SRANDMEMBER_COUNT from './SRANDMEMBER_COUNT';
+import SRANDMEMBER from './SRANDMEMBER';
+import SREM from './SREM';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
+import TOUCH from './TOUCH';
+import TTL from './TTL';
+import TYPE from './TYPE';
+import UNLINK from './UNLINK';
+import UNWATCH from './UNWATCH';
+import WAIT from './WAIT';
+import WATCH from './WATCH';
+import XLEN from './XLEN';
 import ZADD from './ZADD';
 import ZCARD from './ZCARD';
 import ZCOUNT from './ZCOUNT';
@@ -344,10 +356,34 @@ export default {
   setRange: SETRANGE,
   SMEMBERS,
   sMembers: SMEMBERS,
+  SPUBLISH,
+  sPublish: SPUBLISH,
+  SRANDMEMBER_COUNT,
+  sRandMemberCount: SRANDMEMBER_COUNT,
+  SRANDMEMBER,
+  sRandMember: SRANDMEMBER,
+  SREM,
+  sRem: SREM,
   SSCAN,
   sScan: SSCAN,
   STRLEN,
   strLen: STRLEN,
+  TOUCH,
+  touch: TOUCH,
+  TTL,
+  ttl: TTL,
+  TYPE,
+  type: TYPE,
+  UNLINK,
+  unlink: UNLINK,
+  UNWATCH,
+  unwatch: UNWATCH,
+  WAIT,
+  wait: WAIT,
+  WATCH,
+  watch: WATCH,
+  XLEN,
+  xLen: XLEN,
   ZADD,
   zAdd: ZADD,
   ZCARD,

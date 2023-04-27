@@ -56,4 +56,3 @@ export default {
   transformArguments: transformSortArguments.bind(undefined, 'SORT'),
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;
-
