@@ -103,7 +103,15 @@ import SET from './SET';
 import SETEX from './SETEX';
 import SETNX from './SETNX';
 import SETRANGE from './SETRANGE';
+import SINTER from './SINTER';
+import SINTERCARD from './SINTERCARD';
+import SINTERSTORE from './SINTERSTORE';
+import SISMEMBER from './SISMEMBER';
 import SMEMBERS from './SMEMBERS';
+import SMISMEMBER from './SMISMEMBER';
+import SORT_RO from './SORT_RO';
+import SORT_STORE from './SORT_STORE';
+import SORT from './SORT';
 import SPUBLISH from './SPUBLISH';
 import SRANDMEMBER_COUNT from './SRANDMEMBER_COUNT';
 import SRANDMEMBER from './SRANDMEMBER';
@@ -351,11 +359,25 @@ export default {
   SETEX,
   setEx: SETEX,
   SETNX,
-  setNx: SETNX,
-  SETRANGE,
-  setRange: SETRANGE,
+  setNx: SETNX,  
+  SINTER,
+  sInter: SINTER,
+  SINTERCARD,
+  sInterCard: SINTERCARD,
+  SINTERSTORE,
+  sInterStore: SINTERSTORE,
+  SISMEMBER,
+  sIsMember: SISMEMBER,
   SMEMBERS,
   sMembers: SMEMBERS,
+  SMISMEMBER,
+  smIsMember: SMISMEMBER,
+  SORT_RO,
+  sortRo: SORT_RO,
+  SORT_STORE,
+  sortStore: SORT_STORE,
+  SORT,
+  sort: SORT,
   SPUBLISH,
   sPublish: SPUBLISH,
   SRANDMEMBER_COUNT,

@@ -1,5 +1,5 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { SortOptions, transformSortArguments } from './SORT';
+import SORT, { SortOptions } from './SORT';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -9,7 +9,7 @@ export default {
     destination: RedisArgument,
     options?: SortOptions
   ) {
-    const args = transformSortArguments(source, options);
+    const args = SORT.transformArguments(source, options);
     args.push('STORE', destination);
     return args;
   },

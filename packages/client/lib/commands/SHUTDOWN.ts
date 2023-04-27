@@ -1,11 +1,11 @@
-export function transformArguments(mode?: 'NOSAVE' | 'SAVE'): Array<string> {
-    const args = ['SHUTDOWN'];
+// export function transformArguments(mode?: 'NOSAVE' | 'SAVE'): Array<string> {
+//     const args = ['SHUTDOWN'];
 
-    if (mode) {
-        args.push(mode);
-    }
+//     if (mode) {
+//         args.push(mode);
+//     }
 
-    return args;
-}
+//     return args;
+// }
 
-export declare function transformReply(): void;
+// export declare function transformReply(): void;

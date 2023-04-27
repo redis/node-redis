@@ -1,21 +1,22 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
 export interface SortOptions {
-  BY?: string;
+  BY?: RedisArgument;
   LIMIT?: {
     offset: number;
     count: number;
-  },
-  GET?: string | Array<string>;
+  };
+  GET?: RedisArgument | Array<RedisArgument>;
   DIRECTION?: 'ASC' | 'DESC';
-  ALPHA?: true;
+  ALPHA?: boolean;
 }
 
 export function transformSortArguments(
   command: RedisArgument,
+  key: RedisArgument,
   options?: SortOptions
 ) {
-  const args = [command];
+  const args: Array<RedisArgument> = [command, key];
 
   if (options?.BY) {
     args.push('BY', options.BY);
@@ -30,12 +31,12 @@ export function transformSortArguments(
   }
 
   if (options?.GET) {
-    if (typeof options.GET === 'string') {
-      args.push('GET', options.GET);
-    } else {
+    if (Array.isArray(options.GET)) {
       for (const pattern of options.GET) {
         args.push('GET', pattern);
       }
+    } else {
+      args.push('GET', options.GET);
     }
   }
 
