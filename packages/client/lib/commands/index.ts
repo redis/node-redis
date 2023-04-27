@@ -106,7 +106,28 @@ import SETRANGE from './SETRANGE';
 import SMEMBERS from './SMEMBERS';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
+import ZADD from './ZADD';
+import ZCARD from './ZCARD';
+import ZCOUNT from './ZCOUNT';
+import ZDIFF_WITHSCORES from './ZDIFF_WITHSCORES';
+import ZDIFF from './ZDIFF';
+import ZDIFFSTORE from './ZDIFFSTORE';
+import ZINCRBY from './ZINCRBY';
+import ZINTER_WITHSCORES from './ZINTER_WITHSCORES';
+import ZINTER from './ZINTER';
+import ZINTERCARD from './ZINTERCARD';
+import ZINTERSTORE from './ZINTERSTORE';
+import ZLEXCOUNT from './ZLEXCOUNT';
+import ZMSCORE from './ZMSCORE';
+import ZRANDMEMBER_COUNT_WITHSCORES from './ZRANDMEMBER_COUNT_WITHSCORES';
+import ZRANDMEMBER_COUNT from './ZRANDMEMBER_COUNT';
+import ZRANDMEMBER from './ZRANDMEMBER';
+import ZRANGE from './ZRANGE';
+import ZRANK from './ZRANK';
+import ZREM from './ZREM';
+import ZREVRANK from './ZREVRANK';
 import ZSCAN from './ZSCAN';
+import ZSCORE from './ZSCORE';
 import { Command } from '../RESP/types';
 
 export default {
@@ -326,7 +347,49 @@ export default {
   SSCAN,
   sScan: SSCAN,
   STRLEN,
-  strLen: STRLEN, 
+  strLen: STRLEN,
+  ZADD,
+  zAdd: ZADD,
+  ZCARD,
+  zCard: ZCARD,
+  ZCOUNT,
+  zCount: ZCOUNT,
+  ZDIFF_WITHSCORES,
+  zDiffWithScores: ZDIFF_WITHSCORES,
+  ZDIFF,
+  zDiff: ZDIFF,
+  ZDIFFSTORE,
+  zDiffStore: ZDIFFSTORE,
+  ZINCRBY,
+  zIncrBy: ZINCRBY,
+  ZINTER_WITHSCORES,
+  zInterWithScores: ZINTER_WITHSCORES,
+  ZINTER,
+  zInter: ZINTER,
+  ZINTERCARD,
+  zInterCard: ZINTERCARD,
+  ZINTERSTORE,
+  zInterStore: ZINTERSTORE,
+  ZLEXCOUNT,
+  zLexCount: ZLEXCOUNT,
+  ZMSCORE,
+  zmScore: ZMSCORE,
+  ZRANDMEMBER_COUNT_WITHSCORES,
+  zRandMemberCountWithScores: ZRANDMEMBER_COUNT_WITHSCORES,
+  ZRANDMEMBER_COUNT,
+  zRandMemberCount: ZRANDMEMBER_COUNT,
+  ZRANDMEMBER,
+  zRandMember: ZRANDMEMBER,
+  ZRANGE,
+  zRange: ZRANGE,
+  ZRANK,
+  zRank: ZRANK,
+  ZREM,
+  zRem: ZREM,
+  ZREVRANK,
+  zRevRank: ZREVRANK,
   ZSCAN,
-  zScan: ZSCAN
+  zScan: ZSCAN,
+  ZSCORE,
+  zScore: ZSCORE
 } as const satisfies Record<string, Command>;

@@ -1,5 +1,5 @@
 import { RedisArgument, ArrayReply, NullReply, BlobStringReply, DoubleReply, Command } from '../RESP/types';
-import { pushVariadicArgument, RedisVariadicArgument } from './generic-transformers';
+import { pushVariadicArguments, RedisVariadicArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -8,7 +8,7 @@ export default {
     key: RedisArgument,
     member: RedisVariadicArgument
   ) {
-    return pushVariadicArgument(['ZMSCORE', key], member);
+    return pushVariadicArguments(['ZMSCORE', key], member);
   },
   transformReply: {
     2: (reply: ArrayReply<NullReply | BlobStringReply>) => {

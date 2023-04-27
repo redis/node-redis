@@ -1,7 +1,7 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 import { transformStringDoubleArgument } from './generic-transformers';
 
-interface ZRangeOptions {
+export interface ZRangeOptions {
   BY?: 'SCORE' | 'LEX';
   REV?: boolean;
   LIMIT?: {
