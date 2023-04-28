@@ -124,6 +124,7 @@ export interface AggregateOptions {
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
     PARAMS?: Params;
     DIALECT?: number;
+    TIMEOUT?: number;
 }
 
 export const FIRST_KEY_INDEX = 1;
