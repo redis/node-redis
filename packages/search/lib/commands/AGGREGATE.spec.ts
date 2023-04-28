@@ -454,6 +454,13 @@ describe('AGGREGATE', () => {
                 ['FT.AGGREGATE', 'index', '*', 'DIALECT', '1']
             );
         });
+
+        it('with TIMEOUT', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', { TIMEOUT: 10 }),
+                ['FT.AGGREGATE', 'index', '*', '10']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ft.aggregate', async client => {
