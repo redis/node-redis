@@ -510,6 +510,10 @@ export function pushSearchOptions(
         args.preserve = true;
     }
 
+    if (options?.TIMEOUT) {
+        args.push('TIMEOUT', options.TIMEOUT.toString());
+    }
+
     return args;
 }
 
