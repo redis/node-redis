@@ -687,3 +687,7 @@ export function transformRangeReply([start, end]: RawRangeReply): RangeReply {
         end
     };
 }
+
+export interface RankOptions {
+    WITHSCORE?: true;
+}
