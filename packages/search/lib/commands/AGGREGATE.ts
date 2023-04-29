@@ -214,7 +214,7 @@ export function pushAggregatehOptions(
         args.push('DIALECT', options.DIALECT.toString());
     }
 
-    if (options?.TIMEOUT) {
+    if (options?.TIMEOUT !== undefined) {
         args.push('TIMEOUT', options.TIMEOUT.toString());
     }
 
