@@ -23,6 +23,6 @@ export function transformReply(rawReply: Array<any>): XInfoConsumersReply {
         name: consumer[1],
         pending: consumer[3],
         idle: consumer[5],
-        inactive: consumer[7],
+        inactive: consumer[7]
     }));
 }
