@@ -458,7 +458,7 @@ describe('AGGREGATE', () => {
         it('with TIMEOUT', () => {
             assert.deepEqual(
                 transformArguments('index', '*', { TIMEOUT: 10 }),
-                ['FT.AGGREGATE', 'index', '*', '10']
+                ['FT.AGGREGATE', 'index', '*', 'TIMEOUT', '10']
             );
         });
     });
