@@ -99,7 +99,10 @@ import RPOPLPUSH from './RPOPLPUSH';
 import RPUSH from './RPUSH';
 import RPUSHX from './RPUSHX';
 import SCAN from './SCAN';
+import SDIFF from './SDIFF';
+import SDIFFSTORE from './SDIFFSTORE';
 import SET from './SET';
+import SETBIT from './SETBIT';
 import SETEX from './SETEX';
 import SETNX from './SETNX';
 import SETRANGE from './SETRANGE';
@@ -354,12 +357,20 @@ export default {
   rPushX: RPUSHX,
   SCAN,
   scan: SCAN,
+  SDIFF,
+  sDiff: SDIFF,
+  SDIFFSTORE,
+  sDiffStore: SDIFFSTORE,
   SET,
   set: SET,
+  SETBIT,
+  setBit: SETBIT,
   SETEX,
   setEx: SETEX,
   SETNX,
-  setNx: SETNX,  
+  setNX: SETNX,  
+  SETRANGE,
+  setRange: SETRANGE,
   SINTER,
   sInter: SINTER,
   SINTERCARD,
