@@ -1,5 +1,4 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { RankOptions } from './generic-transformers';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -7,16 +6,9 @@ export const IS_READ_ONLY = true;
 
 export function transformArguments(
     key: RedisCommandArgument,
-    member: RedisCommandArgument,
-    options?: RankOptions
+    member: RedisCommandArgument
 ): RedisCommandArguments {
-    const args = ['ZRANK', key, member];
-
-    if (options?.WITHSCORE) {
-        args.push('WITHSCORE');
-    }
-
-    return args;
+    return ['ZRANK', key, member];
 }
 
-export declare function transformReply(): number | Array<number> | null;
+export declare function transformReply(): number | null;

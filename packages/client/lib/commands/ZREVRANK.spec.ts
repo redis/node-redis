@@ -8,11 +8,6 @@ describe('ZREVRANK', () => {
             transformArguments('key', 'member'),
             ['ZREVRANK', 'key', 'member']
         );
-
-        assert.deepEqual(
-            transformArguments('key', 'member', { WITHSCORE: true }),
-            ['ZREVRANK', 'key', 'member', 'WITHSCORE']
-        );
     });
 
     testUtils.testWithClient('client.zRevRank', async client => {
