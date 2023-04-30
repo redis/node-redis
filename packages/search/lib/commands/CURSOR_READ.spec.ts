@@ -4,7 +4,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CURSOR_READ';
 
 describe('CURSOR READ', () => {
-    it('transformArguments', () => {
+    describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 transformArguments('index', 0),
