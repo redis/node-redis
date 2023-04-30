@@ -78,7 +78,9 @@ import LINSERT from './LINSERT';
 import LLEN from './LLEN';
 import LMOVE from './LMOVE';
 import LMPOP from './LMPOP';
+import LPOP_COUNT from './LPOP_COUNT';
 import LPOP from './LPOP';
+import LPOS_COUNT from './LPOS_COUNT';
 import LPOS from './LPOS';
 import LPUSH from './LPUSH';
 import LPUSHX from './LPUSHX';
@@ -94,11 +96,16 @@ import PFCOUNT from './PFCOUNT';
 import PFMERGE from './PFMERGE';
 import PING from './PING';
 import PSETEX from './PSETEX';
+import RENAME from './RENAME';
+import RENAMENX from './RENAMENX';
+import RPOP_COUNT from './RPOP_COUNT';
 import RPOP from './RPOP';
 import RPOPLPUSH from './RPOPLPUSH';
 import RPUSH from './RPUSH';
 import RPUSHX from './RPUSHX';
+import SADD from './SADD';
 import SCAN from './SCAN';
+import SCARD from './SCARD';
 import SDIFF from './SDIFF';
 import SDIFFSTORE from './SDIFFSTORE';
 import SET from './SET';
@@ -312,8 +319,12 @@ export default {
   lMove: LMOVE,
   LMPOP,
   lmPop: LMPOP,
+  LPOP_COUNT,
+  lPopCount: LPOP_COUNT,
   LPOP,
   lPop: LPOP,
+  LPOS_COUNT,
+  lPosCount: LPOS_COUNT,
   LPOS,
   lPos: LPOS,
   LPUSH,
@@ -347,6 +358,12 @@ export default {
   ping: PING,
   PSETEX,
   pSetEx: PSETEX,
+  RENAME,
+  rename: RENAME,
+  RENAMENX,
+  renameNX: RENAMENX,
+  RPOP_COUNT,
+  rPopCount: RPOP_COUNT,
   RPOP,
   rPop: RPOP,
   RPOPLPUSH,
@@ -355,8 +372,12 @@ export default {
   rPush: RPUSH,
   RPUSHX,
   rPushX: RPUSHX,
+  SADD,
+  sAdd: SADD,
   SCAN,
   scan: SCAN,
+  SCARD,
+  sCard: SCARD,
   SDIFF,
   sDiff: SDIFF,
   SDIFFSTORE,

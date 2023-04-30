@@ -5,7 +5,7 @@ export default {
   transformArguments(
     key: RedisArgument,
     start: number,
-    stop: RedisArgument
+    stop: number
   ) {
     return [
       'LREM',
