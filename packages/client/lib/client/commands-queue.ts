@@ -1,6 +1,6 @@
 import * as LinkedList from 'yallist';
 import encodeCommand from '../RESP/encoder';
-import { Decoder, PUSH_FLAGS, TYPES } from '../RESP/decoder';
+import { Decoder, PUSH_FLAGS, RESP_TYPES } from '../RESP/decoder';
 import { CommandArguments, Flags, ReplyUnion, RespVersions } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
@@ -32,7 +32,7 @@ const PONG = Buffer.from('pong');
 
 const RESP2_PUSH_FLAGS = {
   ...PUSH_FLAGS,
-  [TYPES.SIMPLE_STRING]: Buffer
+  [RESP_TYPES.SIMPLE_STRING]: Buffer
 };
 
 export default class RedisCommandsQueue {
@@ -125,7 +125,7 @@ export default class RedisCommandsQueue {
           if (PONG.equals(reply[0] as Buffer)) {
             const { resolve, flags } = this._waitingForReply.shift()!,
               buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
-            resolve(flags?.[TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
+            resolve(flags?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
             return;
           }
         }

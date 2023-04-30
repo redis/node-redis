@@ -1,4 +1,5 @@
 export { RedisModules, RedisFunctions, RedisScripts, RespVersions } from './lib/RESP/types';
+export { RESP_TYPES } from './lib/RESP/decoder';
 export { VerbatimString } from './lib/RESP/verbatim-string';
 export { defineScript } from './lib/lua-script';
 // export * from './lib/errors';

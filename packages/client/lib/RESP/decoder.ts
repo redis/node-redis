@@ -4,7 +4,7 @@ import { SimpleError, BlobError, ErrorReply } from '../errors';
 import { Flags } from './types';
 
 // https://github.com/redis/redis-specifications/blob/master/protocol/RESP3.md
-export const TYPES = {
+export const RESP_TYPES = {
   NULL: 95, // _
   BOOLEAN: 35, // #
   NUMBER: 58, // :
@@ -35,7 +35,7 @@ const ASCII = {
 } as const;
 
 export const PUSH_FLAGS = {
-  [TYPES.BLOB_STRING]: Buffer
+  [RESP_TYPES.BLOB_STRING]: Buffer
 };
 
 // this was written with performance in mind, so it's not very readable... sorry :(
@@ -98,98 +98,98 @@ export class Decoder {
     
   private _decodeTypeValue(type, chunk) {
     switch (type) {
-      case TYPES.NULL:
+      case RESP_TYPES.NULL:
         this._config.onReply(this._decodeNull());
         return false;
 
-      case TYPES.BOOLEAN:
+      case RESP_TYPES.BOOLEAN:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeBoolean(chunk)
         );
 
-      case TYPES.NUMBER:
+      case RESP_TYPES.NUMBER:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeNumber(chunk)
         );
 
-      case TYPES.BIG_NUMBER:
+      case RESP_TYPES.BIG_NUMBER:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeBigNumber(
-            this._config.getFlags()[TYPES.BIG_NUMBER],
+            this._config.getFlags()[RESP_TYPES.BIG_NUMBER],
             chunk
           )
         );
       
-      case TYPES.DOUBLE:
+      case RESP_TYPES.DOUBLE:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeDouble(
-            this._config.getFlags()[TYPES.DOUBLE],
+            this._config.getFlags()[RESP_TYPES.DOUBLE],
             chunk
           )
         );
       
-      case TYPES.SIMPLE_STRING:
+      case RESP_TYPES.SIMPLE_STRING:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeSimpleString(
-            this._config.getFlags()[TYPES.SIMPLE_STRING],
+            this._config.getFlags()[RESP_TYPES.SIMPLE_STRING],
             chunk
           )
         );
       
-      case TYPES.BLOB_STRING:
+      case RESP_TYPES.BLOB_STRING:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeBlobString(
-            this._config.getFlags()[TYPES.BLOB_STRING],
+            this._config.getFlags()[RESP_TYPES.BLOB_STRING],
             chunk
           )
         );
 
-      case TYPES.VERBATIM_STRING:
+      case RESP_TYPES.VERBATIM_STRING:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeVerbatimString(
-            this._config.getFlags()[TYPES.VERBATIM_STRING],
+            this._config.getFlags()[RESP_TYPES.VERBATIM_STRING],
             chunk
           )
         );
 
-      case TYPES.SIMPLE_ERROR:
+      case RESP_TYPES.SIMPLE_ERROR:
         return this._handleDecodedValue(
           this._config.onErrorReply,
           this._decodeSimpleError(chunk)
         );
       
-      case TYPES.BLOB_ERROR:
+      case RESP_TYPES.BLOB_ERROR:
         return this._handleDecodedValue(
           this._config.onErrorReply,
           this._decodeBlobError(chunk)
         );
 
-      case TYPES.ARRAY:
+      case RESP_TYPES.ARRAY:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeArray(this._config.getFlags(), chunk)
         );
 
-      case TYPES.SET:
+      case RESP_TYPES.SET:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeSet(this._config.getFlags(), chunk)
         );
       
-      case TYPES.MAP:
+      case RESP_TYPES.MAP:
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeMap(this._config.getFlags(), chunk)
         );
 
-      case TYPES.PUSH:
+      case RESP_TYPES.PUSH:
         return this._handleDecodedValue(
           this._config.onPush,
           this._decodeArray(PUSH_FLAGS, chunk)
@@ -664,43 +664,43 @@ export class Decoder {
 
   private _decodeNestedTypeValue(type, flags, chunk) {
     switch (type) {
-      case TYPES.NULL:
+      case RESP_TYPES.NULL:
         return this._decodeNull();
 
-      case TYPES.BOOLEAN:
+      case RESP_TYPES.BOOLEAN:
         return this._decodeBoolean(chunk);
 
-      case TYPES.NUMBER:
+      case RESP_TYPES.NUMBER:
         return this._decodeNumber(chunk);
 
-      case TYPES.BIG_NUMBER:
-        return this._decodeBigNumber(flags[TYPES.BIG_NUMBER], chunk);
+      case RESP_TYPES.BIG_NUMBER:
+        return this._decodeBigNumber(flags[RESP_TYPES.BIG_NUMBER], chunk);
       
-      case TYPES.DOUBLE:
-        return this._decodeDouble(flags[TYPES.DOUBLE], chunk);
+      case RESP_TYPES.DOUBLE:
+        return this._decodeDouble(flags[RESP_TYPES.DOUBLE], chunk);
       
-      case TYPES.SIMPLE_STRING:
-        return this._decodeSimpleString(flags[TYPES.SIMPLE_STRING], chunk);
+      case RESP_TYPES.SIMPLE_STRING:
+        return this._decodeSimpleString(flags[RESP_TYPES.SIMPLE_STRING], chunk);
       
-      case TYPES.BLOB_STRING:
-        return this._decodeBlobString(flags[TYPES.BLOB_STRING], chunk);
+      case RESP_TYPES.BLOB_STRING:
+        return this._decodeBlobString(flags[RESP_TYPES.BLOB_STRING], chunk);
 
-      case TYPES.VERBATIM_STRING:
-        return this._decodeVerbatimString(flags[TYPES.VERBATIM_STRING], chunk);
+      case RESP_TYPES.VERBATIM_STRING:
+        return this._decodeVerbatimString(flags[RESP_TYPES.VERBATIM_STRING], chunk);
 
-      case TYPES.SIMPLE_ERROR:
+      case RESP_TYPES.SIMPLE_ERROR:
         return this._decodeSimpleError(chunk);
       
-      case TYPES.BLOB_ERROR:
+      case RESP_TYPES.BLOB_ERROR:
         return this._decodeBlobError(chunk);
 
-      case TYPES.ARRAY:
+      case RESP_TYPES.ARRAY:
         return this._decodeArray(flags, chunk);
 
-      case TYPES.SET:
+      case RESP_TYPES.SET:
         return this._decodeSet(flags, chunk);
       
-      case TYPES.MAP:
+      case RESP_TYPES.MAP:
         return this._decodeMap(flags, chunk);
     }
   }
@@ -805,7 +805,7 @@ export class Decoder {
   }
 
   private _decodeSetItems(length, flags, chunk) {
-    return flags[TYPES.SET] === Set ?
+    return flags[RESP_TYPES.SET] === Set ?
       this._decodeSetAsSet(
         new Set(),
         length,
@@ -888,7 +888,7 @@ export class Decoder {
   }
 
   private _decodeMapItems(length, flags, chunk) {
-    switch (flags[TYPES.MAP]) {
+    switch (flags[RESP_TYPES.MAP]) {
       case Map:
         return this._decodeMapAsMap(
           new Map(),
@@ -978,11 +978,11 @@ export class Decoder {
   private _decodeMapKeyValue(type, flags, chunk) {
     switch (type) {
       // decode simple string map key as string (and not as buffer)
-      case TYPES.SIMPLE_STRING:
+      case RESP_TYPES.SIMPLE_STRING:
         return this._decodeSimpleString(String, chunk);
       
       // decode blob string map key as string (and not as buffer)
-      case TYPES.BLOB_STRING:
+      case RESP_TYPES.BLOB_STRING:
         return this._decodeBlobString(String, chunk);
 
       default:

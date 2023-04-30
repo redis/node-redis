@@ -1,13 +1,13 @@
 import { RedisScriptConfig, SHA1 } from '../lua-script';
-import { TYPES } from './decoder';
+import { RESP_TYPES } from './decoder';
 import { VerbatimString } from './verbatim-string';
 
-export type RespTypes = typeof TYPES;
+export type RESP_TYPES = typeof RESP_TYPES;
 
-export type RespTypesUnion = RespTypes[keyof RespTypes];
+export type RespTypes = RESP_TYPES[keyof RESP_TYPES];
 
 type RespType<
-  RESP_TYPE extends RespTypesUnion,
+  RESP_TYPE extends RespTypes,
   DEFAULT,
   TYPES = never,
   FLAG_TYPES = DEFAULT | TYPES
@@ -19,19 +19,19 @@ type RespType<
 };
 
 export type NullReply = RespType<
-  RespTypes['NULL'],
+  RESP_TYPES['NULL'],
   null
 >;
 export type BooleanReply<
   T extends boolean = boolean
 > = RespType<
-  RespTypes['BOOLEAN'],
+  RESP_TYPES['BOOLEAN'],
   T
 >;
 export type NumberReply<
   T extends number = number
 > = RespType<
-  RespTypes['NUMBER'],
+  RESP_TYPES['NUMBER'],
   T,
   `${T}`,
   number | string
@@ -39,7 +39,7 @@ export type NumberReply<
 export type BigNumberReply<
   T extends bigint = bigint
 > = RespType<
-  RespTypes['BIG_NUMBER'],
+  RESP_TYPES['BIG_NUMBER'],
   T,
   number | `${T}`,
   bigint | number | string
@@ -47,7 +47,7 @@ export type BigNumberReply<
 export type DoubleReply<
   T extends number = number
 > = RespType<
-  RespTypes['DOUBLE'],
+  RESP_TYPES['DOUBLE'],
   T,
   `${T}`,
   number | string
@@ -55,7 +55,7 @@ export type DoubleReply<
 export type SimpleStringReply<
   T extends string = string
 > = RespType<
-  RespTypes['SIMPLE_STRING'],
+  RESP_TYPES['SIMPLE_STRING'],
   T,
   Buffer,
   string | Buffer
@@ -63,7 +63,7 @@ export type SimpleStringReply<
 export type BlobStringReply<
   T extends string = string
 > = RespType<
-  RespTypes['BLOB_STRING'],
+  RESP_TYPES['BLOB_STRING'],
   T,
   Buffer,
   string | Buffer
@@ -71,39 +71,39 @@ export type BlobStringReply<
 export type VerbatimStringReply<
   T extends string = string
 > = RespType<
-  RespTypes['VERBATIM_STRING'],
+  RESP_TYPES['VERBATIM_STRING'],
   T,
   Buffer | VerbatimString,
   string | Buffer | VerbatimString
 >;
 export type SimpleErrorReply = RespType<
-  RespTypes['SIMPLE_ERROR'],
+  RESP_TYPES['SIMPLE_ERROR'],
   Buffer
 >;
 export type BlobErrorReply = RespType<
-  RespTypes['BLOB_ERROR'],
+  RESP_TYPES['BLOB_ERROR'],
   Buffer
 >;
 export type ArrayReply<T> = RespType<
-  RespTypes['ARRAY'],
+  RESP_TYPES['ARRAY'],
   Array<T>,
   never,
   Array<any>
 >;
 export type TuplesReply<T extends [...Array<unknown>]> = RespType<
-  RespTypes['ARRAY'],
+  RESP_TYPES['ARRAY'],
   T,
   never,
   Array<any>
 >;
 export type SetReply<T> = RespType<
-  RespTypes['SET'],
+  RESP_TYPES['SET'],
   Array<T>,
   Set<T>,
   Array<any> | Set<any>
 >;
 export type MapReply<K, V> = RespType<
-  RespTypes['MAP'],
+  RESP_TYPES['MAP'],
   { [key: string]: V },
   Map<K, V> | Array<K | V>,
   Map<any, any> | Array<any>
@@ -114,7 +114,7 @@ type MapKeyValue = [key: BlobStringReply, value: unknown];
 type MapTuples = Array<MapKeyValue>;
 
 export type TuplesToMapReply<T extends MapTuples> = RespType<
-  RespTypes['MAP'], 
+  RESP_TYPES['MAP'], 
   {
     [P in T[number] as P[0] extends BlobStringReply<infer S> ? S : never]: P[1];
   },
@@ -134,16 +134,16 @@ type FlattenTuples<T> = (
 export type ReplyUnion = NullReply | BooleanReply | NumberReply | BigNumberReply | DoubleReply | SimpleStringReply | BlobStringReply | VerbatimStringReply | SimpleErrorReply | BlobErrorReply |
   // cannot reuse ArrayReply, SetReply and MapReply because of circular reference
   RespType<
-    RespTypes['ARRAY'],
+    RESP_TYPES['ARRAY'],
     Array<ReplyUnion>
   > |
   RespType<
-    RespTypes['SET'],
+    RESP_TYPES['SET'],
     Array<ReplyUnion>,
     Set<ReplyUnion>
   > |
   RespType<
-    RespTypes['MAP'],
+    RESP_TYPES['MAP'],
     { [key: string]: ReplyUnion },
     Map<ReplyUnion, ReplyUnion> | Array<ReplyUnion | ReplyUnion>
   >;
@@ -152,10 +152,10 @@ export type Reply = ReplyWithFlags<ReplyUnion, {}>;
 
 export type Flag<T> = ((...args: any) => T) | (new (...args: any) => T);
 
-type RespTypeUnion<T> = T extends RespType<RespTypesUnion, unknown, unknown, infer FLAG_TYPES> ? FLAG_TYPES : never;
+type RespTypeUnion<T> = T extends RespType<RespTypes, unknown, unknown, infer FLAG_TYPES> ? FLAG_TYPES : never;
 
 export type Flags = {
-  [P in RespTypesUnion]?: Flag<RespTypeUnion<Extract<ReplyUnion, RespType<P, any, any, any>>>>;
+  [P in RespTypes]?: Flag<RespTypeUnion<Extract<ReplyUnion, RespType<P, any, any, any>>>>;
 };
 
 type MapKey<
@@ -163,8 +163,8 @@ type MapKey<
   FLAGS extends Flags
 > = ReplyWithFlags<T, FLAGS & {
   // simple and blob strings as map keys decoded as strings
-  [TYPES.SIMPLE_STRING]: StringConstructor;
-  [TYPES.BLOB_STRING]: StringConstructor;
+  [RESP_TYPES.SIMPLE_STRING]: StringConstructor;
+  [RESP_TYPES.BLOB_STRING]: StringConstructor;
 }>;
 
 export type ReplyWithFlags<
@@ -299,13 +299,13 @@ type Resp2Array<T> = (
 export type Resp2Reply<RESP3REPLY> = (
   RESP3REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ?
     // TODO: RESP3 only scalar types
-    RESP_TYPE extends RespTypes['DOUBLE'] ? BlobStringReply :
-    RESP_TYPE extends RespTypes['ARRAY'] | RespTypes['SET'] ? RespType<
+    RESP_TYPE extends RESP_TYPES['DOUBLE'] ? BlobStringReply :
+    RESP_TYPE extends RESP_TYPES['ARRAY'] | RESP_TYPES['SET'] ? RespType<
       RESP_TYPE,
       Resp2Array<DEFAULT>
     > :
-    RESP_TYPE extends RespTypes['MAP'] ? RespType<
-      RespTypes['ARRAY'],
+    RESP_TYPE extends RESP_TYPES['MAP'] ? RespType<
+      RESP_TYPES['ARRAY'],
       Resp2Array<Extract<TYPES, Array<any>>>
     > :
     RespType<
