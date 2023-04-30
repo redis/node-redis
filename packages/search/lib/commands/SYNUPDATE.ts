@@ -1,4 +1,4 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 interface SynUpdateOptions {
@@ -17,7 +17,7 @@ export function transformArguments(
         args.push('SKIPINITIALSCAN');
     }
 
-    return pushVerdictArguments(args, terms);
+    return pushVariadicArguments(args, terms);
 }
 
 export declare function transformReply(): 'OK';

@@ -1,46 +1,39 @@
-import { RedisCommandArguments } from '.';
+import { NumberReply, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments(): RedisCommandArguments {
-    return ['CLUSTER', 'SLOTS'];
-}
+type RawNode = [
+  host: BlobStringReply,
+  port: NumberReply,
+  id: BlobStringReply
+];
 
-type ClusterSlotsRawNode = [ip: string, port: number, id: string];
-
-type ClusterSlotsRawReply = Array<[
-    from: number,
-    to: number,
-    master: ClusterSlotsRawNode,
-    ...replicas: Array<ClusterSlotsRawNode>
+type ClusterSlotsRawReply = ArrayReply<[
+  from: NumberReply,
+  to: NumberReply,
+  master: RawNode,
+  ...replicas: Array<RawNode>
 ]>;
 
-export interface ClusterSlotsNode {
-    ip: string;
-    port: number;
-    id: string;
-};
+export type ClusterSlotsNode = ReturnType<typeof transformNode>;
 
-export type ClusterSlotsReply = Array<{
-    from: number;
-    to: number;
-    master: ClusterSlotsNode;
-    replicas: Array<ClusterSlotsNode>;
-}>;
+export default {
+  IS_READ_ONLY: true,
+  transformArguments() {
+    return ['CLUSTER', 'SLOTS'];
+  },
+  transformReply(reply: ClusterSlotsRawReply) {
+    return reply.map(([from, to, master, ...replicas]) => ({
+      from,
+      to,
+      master: transformNode(master),
+      replicas: replicas.map(transformNode)
+    }));
+  }
+} as const satisfies Command;
 
-export function transformReply(reply: ClusterSlotsRawReply): ClusterSlotsReply {
-    return reply.map(([from, to, master, ...replicas]) => {
-        return {
-            from,
-            to,
-            master: transformNode(master),
-            replicas: replicas.map(transformNode)
-        };
-    });
-}
-
-function transformNode([ip, port, id]: ClusterSlotsRawNode): ClusterSlotsNode {
-    return {
-        ip,
-        port,
-        id
-    };
+function transformNode([host, port, id ]: RawNode) {
+  return {
+    host,
+    port,
+    id
+  };
 }

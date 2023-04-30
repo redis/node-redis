@@ -1,20 +1,19 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     start: number,
     stop: number
-): RedisCommandArguments {
+) {
     return [
-        'LRANGE',
-        key,
-        start.toString(),
-        stop.toString()
+      'LRANGE',
+      key,
+      start.toString(),
+      stop.toString()
     ];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

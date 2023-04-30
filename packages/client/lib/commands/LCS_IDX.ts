@@ -1,42 +1,48 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { RangeReply, RawRangeReply, transformRangeReply } from './generic-transformers';
-import { transformArguments as transformLcsArguments } from './LCS';
+// import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NumberReply, Resp2Reply, Command, TuplesReply } from '../RESP/types';
+// import LCS from './LCS';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './LCS';
+// export interface LcsIdxOptions {
+//   MINMATCHLEN?: number;
+// }
 
-export function transformArguments(
-    key1: RedisCommandArgument,
-    key2: RedisCommandArgument
-): RedisCommandArguments {
-    const args = transformLcsArguments(key1, key2);
-    args.push('IDX');
-    return args;
-}
+// export type LcsIdxRange = TuplesReply<[
+//   start: NumberReply,
+//   end: NumberReply
+// ]>;
 
-type RawReply = [
-    'matches',
-    Array<[
-        key1: RawRangeReply,
-        key2: RawRangeReply
-    ]>,
-    'len',
-    number
-];
+// export type LcsIdxMatches = ArrayReply<
+//   TuplesReply<[
+//     key1: LcsIdxRange,
+//     key2: LcsIdxRange
+//   ]>
+// >;
 
-interface Reply {
-    matches: Array<{
-        key1: RangeReply;
-        key2: RangeReply;
-    }>;
-    length: number;
-}
+// export type LcsIdxReply = TuplesToMapReply<[
+//   [BlobStringReply<'matches'>, LcsIdxMatches],
+//   [BlobStringReply<'len'>, NumberReply]
+// ]>;
 
-export function transformReply(reply: RawReply): Reply {
-    return {
-        matches: reply[1].map(([key1, key2]) => ({
-            key1: transformRangeReply(key1),
-            key2: transformRangeReply(key2)
-        })),
-        length: reply[3]
-    };
-}
+// export default {
+//   FIRST_KEY_INDEX: LCS.FIRST_KEY_INDEX,
+//   IS_READ_ONLY: LCS.IS_READ_ONLY,
+//   transformArguments(
+//     key1: RedisArgument,
+//     key2: RedisArgument,
+//     options?: LcsIdxOptions
+//   ) {
+//     const args = LCS.transformArguments(key1, key2);
+
+//     if (options?.MINMATCHLEN) {
+//       args.push('MINMATCHLEN', options.MINMATCHLEN.toString());
+//     }
+
+//     return args;
+//   },
+//   transformReply: {
+//     2: (reply: Resp2Reply<LcsIdxReply>) => ({
+//       matches: reply[1],
+//       len: reply[2]
+//     }),
+//     3: undefined as unknown as () => LcsIdxReply
+//   }
+// } as const satisfies Command;

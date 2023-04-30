@@ -1,5 +1,5 @@
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArgument, transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArgument, transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { Params, PropertyName, pushArgumentsWithLength, pushParamsArgs, pushSortByArguments, SortByProperty } from '.';
 
 export enum AggregateSteps {
@@ -170,7 +170,7 @@ export function pushAggregatehOptions(
                     if (!step.properties) {
                         args.push('0');
                     } else {
-                        pushVerdictArgument(args, step.properties);
+                        pushVariadicArgument(args, step.properties);
                     }
 
                     if (Array.isArray(step.REDUCE)) {

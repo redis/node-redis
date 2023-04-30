@@ -1,50 +1,38 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { Resp2Reply } from '../RESP/types';
+import { ArrayReply, BlobStringReply, Command, NumberReply, TuplesToMapReply } from '../RESP/types';
 
-export function transformArguments(count?: number): RedisCommandArguments {
+export type AclLogReply = ArrayReply<TuplesToMapReply<[
+  [BlobStringReply<'count'>, NumberReply],
+  [BlobStringReply<'reason'>, BlobStringReply],
+  [BlobStringReply<'context'>, BlobStringReply],
+  [BlobStringReply<'object'>, BlobStringReply],
+  [BlobStringReply<'username'>, BlobStringReply],
+  [BlobStringReply<'age-seconds'>, BlobStringReply],
+  [BlobStringReply<'client-info'>, BlobStringReply]
+]>>;
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(count?: number) {
     const args = ['ACL', 'LOG'];
 
-    if (count) {
-        args.push(count.toString());
+    if (count !== undefined) {
+      args.push(count.toString());
     }
 
     return args;
-}
-
-type AclLogRawReply = [
-    _: RedisCommandArgument,
-    count: number,
-    _: RedisCommandArgument,
-    reason: RedisCommandArgument,
-    _: RedisCommandArgument,
-    context: RedisCommandArgument,
-    _: RedisCommandArgument,
-    object: RedisCommandArgument,
-    _: RedisCommandArgument,
-    username: RedisCommandArgument,
-    _: RedisCommandArgument,
-    ageSeconds: RedisCommandArgument,
-    _: RedisCommandArgument,
-    clientInfo: RedisCommandArgument
-];
-
-interface AclLog {
-    count: number;
-    reason: RedisCommandArgument;
-    context: RedisCommandArgument;
-    object: RedisCommandArgument;
-    username: RedisCommandArgument;
-    ageSeconds: number;
-    clientInfo: RedisCommandArgument;
-}
-
-export function transformReply(reply: Array<AclLogRawReply>): Array<AclLog> {
-    return reply.map(log => ({
-        count: log[1],
-        reason: log[3],
-        context: log[5],
-        object: log[7],
-        username: log[9],
-        ageSeconds: Number(log[11]),
-        clientInfo: log[13]
-    }));
-}
+  },
+  transformReply: {
+    2: (reply: Resp2Reply<AclLogReply>) => ({
+      count: Number(reply[1]),
+      reason: reply[3],
+      context: reply[5],
+      object: reply[7],
+      username: reply[9],
+      'age-seconds': Number(reply[11]),
+      'client-info': reply[13]
+    }),
+    3: undefined as unknown as () => AclLogReply
+  }
+} as const satisfies Command;

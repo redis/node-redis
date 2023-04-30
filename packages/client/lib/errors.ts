@@ -63,3 +63,7 @@ export class ErrorReply extends Error {
         this.stack = undefined;
     }
 }
+
+export class SimpleError extends ErrorReply {}
+
+export class BlobError extends ErrorReply {}

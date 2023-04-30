@@ -1,11 +1,17 @@
-export function transformArguments(path: string, moduleArgs?: Array<string>): Array<string> {
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { pushVariadicArguments } from './generic-transformers';
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(path: RedisArgument, moduleArguments?: Array<RedisArgument>) {
     const args = ['MODULE', 'LOAD', path];
 
-    if (moduleArgs) {
-        args.push(...moduleArgs);
+    if (moduleArguments) {
+      return args.concat(moduleArguments);
     }
-
+    
     return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

@@ -1,22 +1,22 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformLMPopArguments, LMPopOptions, ListSide } from './generic-transformers';
+import { NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
+import { transformLMPopArguments, LMPopOptions, ListSide, RedisVariadicArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
-
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+export default {
+  FIRST_KEY_INDEX: 2,
+  transformArguments(
+    keys: RedisVariadicArgument,
     side: ListSide,
     options?: LMPopOptions
-): RedisCommandArguments {
+  ) {
     return transformLMPopArguments(
-        ['LMPOP'],
-        keys,
-        side,
-        options
+      ['LMPOP'],
+      keys,
+      side,
+      options
     );
-}
-
-export declare function transformReply(): null | [
-    key: string,
-    elements: Array<string>
-];
+  },
+  transformReply: undefined as unknown as () => NullReply | TuplesReply<[
+    key: BlobStringReply,
+    elements: Array<BlobStringReply>
+  ]>
+} as const satisfies Command;

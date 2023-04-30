@@ -20,7 +20,7 @@ import * as MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
 import * as MREVRANGE from './MREVRANGE';
 import * as MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
     ADD,
@@ -364,7 +364,7 @@ export type Filter = string | Array<string>;
 
 export function pushFilterArgument(args: RedisCommandArguments, filter: string | Array<string>): RedisCommandArguments {
     args.push('FILTER');
-    return pushVerdictArguments(args, filter);
+    return pushVariadicArguments(args, filter);
 }
 
 export interface MRangeOptions extends RangeOptions {
@@ -390,7 +390,7 @@ export function pushWithLabelsArgument(args: RedisCommandArguments, selectedLabe
         args.push('WITHLABELS');
     } else {
         args.push('SELECTED_LABELS');
-        args = pushVerdictArguments(args, selectedLabels);
+        args = pushVariadicArguments(args, selectedLabels);
     }
 
     return args;

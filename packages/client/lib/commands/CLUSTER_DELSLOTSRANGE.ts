@@ -1,13 +1,13 @@
-import { RedisCommandArguments } from '.';
+import { SimpleStringReply, Command } from '../RESP/types';
 import { pushSlotRangesArguments, SlotRange } from './generic-transformers';
 
-export function transformArguments(
-    ranges: SlotRange | Array<SlotRange>
-): RedisCommandArguments {
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(ranges: SlotRange | Array<SlotRange>) {
     return pushSlotRangesArguments(
-        ['CLUSTER', 'DELSLOTSRANGE'],
-        ranges
+      ['CLUSTER', 'DELSLOTSRANGE'],
+      ranges
     );
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

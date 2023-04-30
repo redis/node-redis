@@ -10,7 +10,7 @@ import * as INSERTNX from './INSERTNX';
 import * as LOADCHUNK from './LOADCHUNK';
 import * as RESERVE from './RESERVE';
 import * as SCANDUMP from './SCANDUMP';
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export default {
@@ -58,5 +58,5 @@ export function pushInsertOptions(
     }
 
     args.push('ITEMS');
-    return pushVerdictArguments(args, items);
+    return pushVariadicArguments(args, items);
 }

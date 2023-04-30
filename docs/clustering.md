@@ -32,7 +32,7 @@ const value = await cluster.get('key');
 
 | Property               | Default | Description                                                                                                                                                                                                                                                                                                         |
 |------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| rootNodes              |         | An array of root nodes that are part of the cluster, which will be used to get the cluster topology. Each element in the array is a client configuration object. There is no need to specify every node in the cluster, 3 should be enough to reliably connect and obtain the cluster configuration from the server |
+| rootNodes              |         | An array of root nodes that are part of the cluster, which will be used to get the cluster topology. Each element in the array is a client configuration object. There is no need to specify every node in the cluster: 3 should be enough to reliably connect and obtain the cluster configuration from the server |
 | defaults               |         | The default configuration values for every client in the cluster.  Use this for example when specifying an ACL user to connect with                                                                                                                                                                                 |
 | useReplicas            | `false` | When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes. When `false`, only use master nodes                                                                                                                                                        |
 | minimizeConnections    | `false` | When `true`, `.connect()` will only discover the cluster topology, without actually connecting to all the nodes. Useful for short-term or Pub/Sub-only connections.                                                                                                                                                 |
@@ -105,9 +105,11 @@ createCluster({
 
 ## Command Routing
 
+TODO request response policy
+
 ### Commands that operate on Redis Keys
 
-Commands such as `GET`, `SET`, etc. are routed by the first key, for instance `MGET 1 2 3` will be routed by the key `1`.
+Commands such as `GET`, `SET`, etc. are routed by the first key specified. For example `MGET 1 2 3` will be routed by the key `1`.
 
 ### [Server Commands](https://redis.io/commands#server)
 
@@ -115,4 +117,4 @@ Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the 
 
 ### "Forwarded Commands"
 
-Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. This client sends these commands to a random node in order to spread the load across the cluster.
+Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client sends these commands to a random node in order to spread the load across the cluster.

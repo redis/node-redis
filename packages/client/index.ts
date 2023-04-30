@@ -1,24 +1,19 @@
-import RedisClient from './lib/client';
-import RedisCluster from './lib/cluster';
+export { RedisModules, RedisFunctions, RedisScripts, RespVersions } from './lib/RESP/types';
+export { RESP_TYPES } from './lib/RESP/decoder';
+export { VerbatimString } from './lib/RESP/verbatim-string';
+export { defineScript } from './lib/lua-script';
+// export * from './lib/errors';
 
-export { RedisClientType, RedisClientOptions } from './lib/client';
-
-export { RedisModules, RedisFunctions, RedisScripts } from './lib/commands';
-
+import RedisClient, { RedisClientType, RedisClientOptions } from './lib/client';
+export { RedisClientType, RedisClientOptions };
 export const createClient = RedisClient.create;
 
-export const commandOptions = RedisClient.commandOptions;
-
-export { RedisClusterType, RedisClusterOptions } from './lib/cluster';
-
+import RedisCluster, { RedisClusterType, RedisClusterOptions } from './lib/cluster';
+export { RedisClusterType, RedisClusterOptions };
 export const createCluster = RedisCluster.create;
 
-export { defineScript } from './lib/lua-script';
+// export { GeoReplyWith } from './lib/commands/generic-transformers';
 
-export * from './lib/errors';
+// export { SetOptions } from './lib/commands/SET';
 
-export { GeoReplyWith } from './lib/commands/generic-transformers';
-
-export { SetOptions } from './lib/commands/SET';
-
-export { RedisFlushModes } from './lib/commands/FLUSHALL';
+// export { RedisFlushModes } from './lib/commands/FLUSHALL';

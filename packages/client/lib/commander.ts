@@ -1,165 +1,115 @@
+import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions } from './RESP/types';
 
-import { ClientCommandOptions } from './client';
-import { CommandOptions, isCommandOptions } from './command-options';
-import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandReply, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts } from './commands';
-
-type Instantiable<T = any> = new (...args: Array<any>) => T;
-
-type CommandsExecutor<C extends RedisCommand = RedisCommand> =
-    (command: C, args: Array<unknown>, name: string) => unknown;
-
-interface AttachCommandsConfig<C extends RedisCommand> {
-    BaseClass: Instantiable;
-    commands: Record<string, C>;
-    executor: CommandsExecutor<C>;
+interface AttachConfigOptions<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions
+> {
+  BaseClass: new (...args: any) => any;
+  commands: RedisCommands;
+  createCommand(command: Command, resp: RespVersions): (...args: any) => any;
+  createModuleCommand(command: Command, resp: RespVersions): (...args: any) => any;
+  createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions): (...args: any) => any;
+  createScriptCommand(script: RedisScript, resp: RespVersions): (...args: any) => any;
+  config?: CommanderConfig<M, F, S, RESP>;
 }
 
-export function attachCommands<C extends RedisCommand>({
-    BaseClass,
-    commands,
-    executor
-}: AttachCommandsConfig<C>): void {
-    for (const [name, command] of Object.entries(commands)) {
-        BaseClass.prototype[name] = function (...args: Array<unknown>): unknown {
-            return executor.call(this, command, args, name);
-        };
+export function attachConfig<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions
+>({
+  BaseClass,
+  commands,
+  createCommand,
+  createModuleCommand,
+  createFunctionCommand,
+  createScriptCommand,
+  config
+}: AttachConfigOptions<M, F, S, RESP>) {
+  const RESP = config?.RESP ?? 2,
+    Class: any = class extends BaseClass {};
+
+  for (const [name, command] of Object.entries(commands)) {
+    Class.prototype[name] = createCommand(command, RESP);
+  }
+
+  if (config?.modules) {
+    for (const [moduleName, module] of Object.entries(config.modules)) {
+      const fns = Object.create(null);
+      for (const [name, command] of Object.entries(module)) {
+        fns[name] = createModuleCommand(command, RESP);
+      }
+
+      attachNamespace(Class.prototype, moduleName, fns);
     }
-}
+  }
 
-interface AttachExtensionsConfig<T extends Instantiable = Instantiable> {
-    BaseClass: T;
-    modulesExecutor: CommandsExecutor;
-    modules?: RedisModules;
-    functionsExecutor: CommandsExecutor<RedisFunction>;
-    functions?: RedisFunctions;
-    scriptsExecutor: CommandsExecutor<RedisScript>;
-    scripts?: RedisScripts;
-}
+  if (config?.functions) {
+    for (const [library, commands] of Object.entries(config.functions)) {
+      const fns = Object.create(null);
+      for (const [name, command] of Object.entries(commands)) {
+        fns[name] = createFunctionCommand(name, command, RESP);
+      }
 
-export function attachExtensions(config: AttachExtensionsConfig): any {
-    let Commander;
-
-    if (config.modules) {
-        Commander = attachWithNamespaces({
-            BaseClass: config.BaseClass,
-            namespaces: config.modules,
-            executor: config.modulesExecutor
-        });
+      attachNamespace(Class.prototype, library, fns);
     }
+  }
 
-    if (config.functions) {
-        Commander = attachWithNamespaces({
-            BaseClass: Commander ?? config.BaseClass,
-            namespaces: config.functions,
-            executor: config.functionsExecutor
-        });
+  if (config?.scripts) {
+    for (const [name, script] of Object.entries(config.scripts)) {
+      Class.prototype[name] = createScriptCommand(script, RESP);
     }
+  }
 
-    if (config.scripts) {
-        Commander ??= class extends config.BaseClass {};
-        attachCommands({
-            BaseClass: Commander,
-            commands: config.scripts,
-            executor: config.scriptsExecutor
-        });
-    }
-
-    return Commander ?? config.BaseClass;
+  return Class;
 }
 
-interface AttachWithNamespacesConfig<C extends RedisCommand> {
-    BaseClass: Instantiable;
-    namespaces: Record<string, Record<string, C>>;
-    executor: CommandsExecutor<C>;
-}
-
-function attachWithNamespaces<C extends RedisCommand>({
-    BaseClass,
-    namespaces,
-    executor
-}: AttachWithNamespacesConfig<C>): any {
-    const Commander = class extends BaseClass {
-        constructor(...args: Array<any>) {
-            super(...args);
-
-            for (const namespace of Object.keys(namespaces)) {
-                this[namespace] = Object.create(this[namespace], {
-                    self: {
-                        value: this
-                    }
-                });
-            }
-        }
-    };
-
-    for (const [namespace, commands] of Object.entries(namespaces)) {
-        Commander.prototype[namespace] = {};
-        for (const [name, command] of Object.entries(commands)) {
-            Commander.prototype[namespace][name] = function (...args: Array<unknown>): unknown {
-                return executor.call(this.self, command, args, name);
-            };
-        }
+function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
+  Object.defineProperty(prototype, name, {
+    get() {
+      const value = Object.create(fns);
+      value.self = this;
+      Object.defineProperty(this, name, { value });
+      return value;
     }
-
-    return Commander;
+  });
 }
 
-export function transformCommandArguments<T = ClientCommandOptions>(
-    command: RedisCommand,
-    args: Array<unknown>
-): {
-    jsArgs: Array<unknown>;
-    args: RedisCommandArguments;
-    options: CommandOptions<T> | undefined;
-} {
-    let options;
-    if (isCommandOptions<T>(args[0])) {
-        options = args[0];
-        args = args.slice(1);
-    }
+export function getTransformReply(command: Command, resp: RespVersions) {
+  switch (typeof command.transformReply) {
+    case 'function':
+      return command.transformReply;
 
-    return {
-        jsArgs: args,
-        args: command.transformArguments(...args),
-        options
-    };
+    case 'object':
+      return command.transformReply[resp];
+  }
 }
 
-export function transformLegacyCommandArguments(args: Array<any>): Array<any> {
-    return args.flat().map(arg => {
-        return typeof arg === 'number' || arg instanceof Date ?
-            arg.toString() :
-            arg;
-    });
+export function functionArgumentsPrefix(name: string, fn: RedisFunction) {
+  const prefix: Array<string | Buffer> = [
+    fn.IS_READ_ONLY ? 'FCALL_RO' : 'FCALL',
+    name
+  ];
+
+  if (fn.NUMBER_OF_KEYS !== undefined) {
+    prefix.push(fn.NUMBER_OF_KEYS.toString());
+  }
+
+  return prefix;
 }
 
-export function transformCommandReply<C extends RedisCommand>(
-    command: C,
-    rawReply: unknown,
-    preserved: unknown
-): RedisCommandReply<C> {
-    if (!command.transformReply) {
-        return rawReply as RedisCommandReply<C>;
-    }
+export function scriptArgumentsPrefix(script: RedisScript) {
+  const prefix: Array<string | Buffer> = [
+    script.IS_READ_ONLY ? 'EVALSHA_RO' : 'EVALSHA',
+    script.SHA1
+  ];
 
-    return command.transformReply(rawReply, preserved);
-}
+  if (script.NUMBER_OF_KEYS !== undefined) {
+    prefix.push(script.NUMBER_OF_KEYS.toString());
+  }
 
-export function fCallArguments(
-    name: RedisCommandArgument,
-    fn: RedisFunction,
-    args: RedisCommandArguments
-): RedisCommandArguments {
-    const actualArgs: RedisCommandArguments = [
-        fn.IS_READ_ONLY ? 'FCALL_RO' : 'FCALL',
-        name
-    ];
-
-    if (fn.NUMBER_OF_KEYS !== undefined) {
-        actualArgs.push(fn.NUMBER_OF_KEYS.toString());
-    }
-
-    actualArgs.push(...args);
-
-    return actualArgs;
+  return prefix;
 }

@@ -1,9 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(message: RedisCommandArgument): RedisCommandArguments {
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(message: RedisArgument) {
     return ['ECHO', message];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

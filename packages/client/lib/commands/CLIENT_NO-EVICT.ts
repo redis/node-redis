@@ -1,11 +1,13 @@
-import { RedisCommandArguments } from '.';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(value: boolean): RedisCommandArguments {
+export default {
+  IS_READ_ONLY: true,
+  transformArguments(value: boolean) {
     return [
-        'CLIENT',
-        'NO-EVICT',
-        value ? 'ON' : 'OFF'
+      'CLIENT',
+      'NO-EVICT',
+      value ? 'ON' : 'OFF'
     ];
-}
-
-export declare function transformReply(): 'OK' | Buffer;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

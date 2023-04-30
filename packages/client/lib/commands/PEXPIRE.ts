@@ -1,19 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    milliseconds: number,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    ms: number,
     mode?: 'NX' | 'XX' | 'GT' | 'LT'
-): RedisCommandArguments {
-    const args = ['PEXPIRE', key, milliseconds.toString()];
+  ) {
+    const args = ['PEXPIRE', key, ms.toString()];
 
     if (mode) {
-        args.push(mode);
+      args.push(mode);
     }
 
     return args;
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

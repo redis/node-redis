@@ -1,11 +1,10 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 2;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
     return ['OBJECT', 'ENCODING', key];
-}
-
-export declare function transformReply(): string | null;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+} as const satisfies Command;

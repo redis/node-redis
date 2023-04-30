@@ -1,4 +1,4 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
@@ -39,7 +39,7 @@ export function transformArguments(
     }
 
     args.push('ITEMS');
-    return pushVerdictArguments(args, items);
+    return pushVariadicArguments(args, items);
 }
 
 export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';

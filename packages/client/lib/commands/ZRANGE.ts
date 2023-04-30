@@ -1,51 +1,54 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformStringNumberInfinityArgument } from './generic-transformers';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { transformStringDoubleArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-interface ZRangeOptions {
-    BY?: 'SCORE' | 'LEX';
-    REV?: true;
-    LIMIT?: {
-        offset: number;
-        count: number;
-    };
+export interface ZRangeOptions {
+  BY?: 'SCORE' | 'LEX';
+  REV?: boolean;
+  LIMIT?: {
+    offset: number;
+    count: number;
+  };
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    min: RedisCommandArgument | number,
-    max: RedisCommandArgument | number,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    min: RedisArgument | number,
+    max: RedisArgument | number,
     options?: ZRangeOptions
-): RedisCommandArguments {
+  ) {
     const args = [
-        'ZRANGE',
-        key,
-        transformStringNumberInfinityArgument(min),
-        transformStringNumberInfinityArgument(max)
+      'ZRANGE',
+      key,
+      transformStringDoubleArgument(min),
+      transformStringDoubleArgument(max)
     ];
 
     switch (options?.BY) {
-        case 'SCORE':
-            args.push('BYSCORE');
-            break;
+      case 'SCORE':
+        args.push('BYSCORE');
+        break;
 
-        case 'LEX':
-            args.push('BYLEX');
-            break;
+      case 'LEX':
+        args.push('BYLEX');
+        break;
     }
 
     if (options?.REV) {
-        args.push('REV');
+      args.push('REV');
     }
 
     if (options?.LIMIT) {
-        args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+      args.push(
+        'LIMIT',
+        options.LIMIT.offset.toString(),
+        options.LIMIT.count.toString()
+      );
     }
 
     return args;
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

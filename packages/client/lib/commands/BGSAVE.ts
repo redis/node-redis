@@ -1,17 +1,10 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-interface BgSaveOptions {
-    SCHEDULE?: true;
-}
-
-export function transformArguments(options?: BgSaveOptions): RedisCommandArguments {
-    const args = ['BGSAVE'];
-
-    if (options?.SCHEDULE) {
-        args.push('SCHEDULE');
-    }
-
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
+    return ['BGSAVE'];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

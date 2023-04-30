@@ -1,5 +1,8 @@
-export function transformArguments(): Array<string> {
-    return ['CONFIG', 'REWRITE'];
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  transformArguments() {
+    return ['CONFIG', 'REWRITE'];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

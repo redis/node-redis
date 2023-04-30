@@ -1,7 +1,10 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments(): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['FUNCTION', 'DUMP'];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

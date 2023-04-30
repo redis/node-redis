@@ -1,26 +1,26 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+// import { RedisCommandArgument, RedisCommandArguments } from '.';
 
-export const FIRST_KEY_INDEX = 2;
+// export const FIRST_KEY_INDEX = 2;
 
-export const IS_READ_ONLY = true;
+// export const IS_READ_ONLY = true;
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument
-): RedisCommandArguments {
-    return ['XINFO', 'CONSUMERS', key, group];
-}
+// export function transformArguments(
+//     key: RedisCommandArgument,
+//     group: RedisCommandArgument
+// ): RedisCommandArguments {
+//     return ['XINFO', 'CONSUMERS', key, group];
+// }
 
-type XInfoConsumersReply = Array<{
-    name: RedisCommandArgument;
-    pending: number;
-    idle: number;
-}>;
+// type XInfoConsumersReply = Array<{
+//     name: RedisCommandArgument;
+//     pending: number;
+//     idle: number;
+// }>;
 
-export function transformReply(rawReply: Array<any>): XInfoConsumersReply {
-    return rawReply.map(consumer => ({
-        name: consumer[1],
-        pending: consumer[3],
-        idle: consumer[5]
-    }));
-}
+// export function transformReply(rawReply: Array<any>): XInfoConsumersReply {
+//     return rawReply.map(consumer => ({
+//         name: consumer[1],
+//         pending: consumer[3],
+//         idle: consumer[5]
+//     }));
+// }
