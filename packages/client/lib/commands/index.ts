@@ -91,11 +91,17 @@ import LTRIM from './LTRIM';
 import MGET from './MGET';
 import MSET from './MSET';
 import MSETNX from './MSETNX';
+import PERSIST from './PERSIST';
+import PEXPIRE from './PEXPIRE';
+import PEXPIREAT from './PEXPIREAT';
+import PEXPIRETIME from './PEXPIRETIME';
 import PFADD from './PFADD';
 import PFCOUNT from './PFCOUNT';
 import PFMERGE from './PFMERGE';
 import PING from './PING';
 import PSETEX from './PSETEX';
+import PTTL from './PTTL';
+import RANDOMKEY from './RANDOMKEY';
 import RENAME from './RENAME';
 import RENAMENX from './RENAMENX';
 import RPOP_COUNT from './RPOP_COUNT';
@@ -344,7 +350,15 @@ export default {
   MSET,
   mSet: MSET,
   MSETNX,
-  mSetNx: MSETNX,
+  mSetNX: MSETNX,
+  PERSIST,
+  persist: PERSIST,
+  PEXPIRE,
+  pExpire: PEXPIRE,
+  PEXPIREAT,
+  pExpireAt: PEXPIREAT,
+  PEXPIRETIME,
+  pExpireTime: PEXPIRETIME,
   PFADD,
   pfAdd: PFADD,
   PFCOUNT,
@@ -358,6 +372,10 @@ export default {
   ping: PING,
   PSETEX,
   pSetEx: PSETEX,
+  PTTL,
+  pTTL: PTTL,
+  RANDOMKEY,
+  randomKey: RANDOMKEY,
   RENAME,
   rename: RENAME,
   RENAMENX,

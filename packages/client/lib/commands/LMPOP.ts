@@ -3,6 +3,7 @@ import { transformLMPopArguments, LMPopOptions, ListSide, RedisVariadicArgument 
 
 export default {
   FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: false,
   transformArguments(
     keys: RedisVariadicArgument,
     side: ListSide,

@@ -8,11 +8,11 @@ export default {
     stop: number
   ) {
     return [
-      'LREM',
+      'LTRIM',
       key,
       start.toString(),
       stop.toString()
     ];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

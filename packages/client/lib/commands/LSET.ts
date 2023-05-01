@@ -9,11 +9,11 @@ export default {
     element: RedisArgument
   ) {
     return [
-      'LREM',
+      'LSET',
       key,
       index.toString(),
       element
     ];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

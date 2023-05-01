@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
@@ -10,5 +10,5 @@ export default {
 
     return pushVariadicArguments(args, element);
   },
-  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+  transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

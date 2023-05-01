@@ -1,32 +1,35 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LMPOP';
+import LMPOP from './LMPOP';
 
 describe('LMPOP', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', 'LEFT'),
-                ['LMPOP', '1', 'key', 'LEFT']
-            );
-        });
-
-        it('with COUNT', () => {
-            assert.deepEqual(
-                transformArguments('key', 'LEFT', {
-                    COUNT: 2
-                }),
-                ['LMPOP', '1', 'key', 'LEFT', 'COUNT', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        LMPOP.transformArguments('key', 'LEFT'),
+        ['LMPOP', '1', 'key', 'LEFT']
+      );
     });
 
-    testUtils.testWithClient('client.lmPop', async client => {
-        assert.deepEqual(
-            await client.lmPop('key', 'RIGHT'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with COUNT', () => {
+      assert.deepEqual(
+        LMPOP.transformArguments('key', 'LEFT', {
+          COUNT: 2
+        }),
+        ['LMPOP', '1', 'key', 'LEFT', 'COUNT', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('client.lmPop', async client => {
+    assert.deepEqual(
+      await client.lmPop('key', 'RIGHT'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.SERVERS.OPEN
+  });
 });
