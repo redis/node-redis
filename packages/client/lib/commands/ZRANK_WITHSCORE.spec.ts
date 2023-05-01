@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './ZRANK_WITHSCORE';
 
-describe('ZRANK WITHSCORES', () => {
+describe('ZRANK WITHSCORE', () => {
     testUtils.isVersionGreaterThanHook([7, 2]);
 
     it('transformArguments', () => {
