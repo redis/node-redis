@@ -141,6 +141,7 @@ import UNLINK from './UNLINK';
 import UNWATCH from './UNWATCH';
 import WAIT from './WAIT';
 import WATCH from './WATCH';
+import XACK from './XACK';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
 import XLEN from './XLEN';
@@ -456,6 +457,8 @@ export default {
   wait: WAIT,
   WATCH,
   watch: WATCH,
+  XACK,
+  xAck: XACK,
   XADD_NOMKSTREAM,
   xAddNoMkStream: XADD_NOMKSTREAM,
   XADD,
