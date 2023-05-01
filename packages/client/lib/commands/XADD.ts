@@ -1,52 +1,48 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 
-// export const FIRST_KEY_INDEX = 1;
+export interface XAddOptions {
+  TRIM?: {
+    strategy?: 'MAXLEN' | 'MINID';
+    strategyModifier?: '=' | '~';
+    threshold: number;
+    limit?: number;
+  };
+}
 
-// interface XAddOptions {
-//     NOMKSTREAM?: true;
-//     TRIM?: {
-//         strategy?: 'MAXLEN' | 'MINID';
-//         strategyModifier?: '=' | '~';
-//         threshold: number;
-//         limit?: number;
-//     };
-// }
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    id: RedisArgument,
+    message: Record<string, RedisArgument>,
+    options?: XAddOptions
+  ) {
+    const args = ['XADD', key];
 
-// export function transformArguments(
-//     key: RedisCommandArgument,
-//     id: RedisCommandArgument,
-//     message: Record<string, RedisCommandArgument>,
-//     options?: XAddOptions
-// ): RedisCommandArguments {
-//     const args = ['XADD', key];
+    if (options?.TRIM) {
+      if (options.TRIM.strategy) {
+        args.push(options.TRIM.strategy);
+      }
 
-//     if (options?.NOMKSTREAM) {
-//         args.push('NOMKSTREAM');
-//     }
+      if (options.TRIM.strategyModifier) {
+        args.push(options.TRIM.strategyModifier);
+      }
 
-//     if (options?.TRIM) {
-//         if (options.TRIM.strategy) {
-//             args.push(options.TRIM.strategy);
-//         }
+      args.push(options.TRIM.threshold.toString());
 
-//         if (options.TRIM.strategyModifier) {
-//             args.push(options.TRIM.strategyModifier);
-//         }
+      if (options.TRIM.limit) {
+        args.push('LIMIT', options.TRIM.limit.toString());
+      }
+    }
 
-//         args.push(options.TRIM.threshold.toString());
+    args.push(id);
 
-//         if (options.TRIM.limit) {
-//             args.push('LIMIT', options.TRIM.limit.toString());
-//         }
-//     }
+    for (const [key, value] of Object.entries(message)) {
+      args.push(key, value);
+    }
 
-//     args.push(id);
-
-//     for (const [key, value] of Object.entries(message)) {
-//         args.push(key, value);
-//     }
-
-//     return args;
-// }
-
-// export declare function transformReply(): string;
+    return args;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

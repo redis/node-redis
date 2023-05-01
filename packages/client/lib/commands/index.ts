@@ -141,6 +141,8 @@ import UNLINK from './UNLINK';
 import UNWATCH from './UNWATCH';
 import WAIT from './WAIT';
 import WATCH from './WATCH';
+import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
+import XADD from './XADD';
 import XLEN from './XLEN';
 import ZADD from './ZADD';
 import ZCARD from './ZCARD';
@@ -407,7 +409,7 @@ export default {
   SETEX,
   setEx: SETEX,
   SETNX,
-  setNX: SETNX,  
+  setNX: SETNX,
   SETRANGE,
   setRange: SETRANGE,
   SINTER,
@@ -454,6 +456,10 @@ export default {
   wait: WAIT,
   WATCH,
   watch: WATCH,
+  XADD_NOMKSTREAM,
+  xAddNoMkStream: XADD_NOMKSTREAM,
+  XADD,
+  xAdd: XADD,
   XLEN,
   xLen: XLEN,
   ZADD,
