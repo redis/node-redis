@@ -55,7 +55,7 @@ import HGETALL from './HGETALL';
 import HINCRBY from './HINCRBY';
 import HINCRBYFLOAT from './HINCRBYFLOAT';
 import HKEYS from './HKEYS';
-import HLEN from './HLEN'
+import HLEN from './HLEN';
 import HMGET from './HMGET';
 import HRANDFIELD_COUNT_WITHVALUES from './HRANDFIELD_COUNT_WITHVALUES';
 import HRANDFIELD_COUNT from './HRANDFIELD_COUNT';
