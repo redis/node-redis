@@ -13,7 +13,6 @@
 
 
 # waiting List
-- `ZRANGEBYSCORE.ts`
 - `ZRANGEBYLEX.ts`
 - `ZREMRANGEBYLEX.ts`
 - `ZREMRANGEBYRANK.ts`

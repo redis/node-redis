@@ -1,35 +1,34 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
-// import { transformStringDoubleArgument } from './generic-transformers';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { transformStringDoubleArgument } from './generic-transformers';
 
-// export const FIRST_KEY_INDEX = 1;
+export interface ZRangeByLexOptions {
+  LIMIT?: {
+    offset: number;
+    count: number;
+  };
+}
 
-// export const IS_READ_ONLY = true;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    min: RedisArgument,
+    max: RedisArgument,
+    options?: ZRangeByLexOptions
+  ) {
+    const args = [
+      'ZRANGEBYLEX',
+      key,
+      transformStringDoubleArgument(min),
+      transformStringDoubleArgument(max)
+    ];
 
-// export interface ZRangeByLexOptions {
-//     LIMIT?: {
-//         offset: number;
-//         count: number;
-//     };
-// }
+    if (options?.LIMIT) {
+      args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+    }
 
-// export function transformArguments(
-//     key: RedisCommandArgument,
-//     min: RedisCommandArgument,
-//     max: RedisCommandArgument,
-//     options?: ZRangeByLexOptions
-// ): RedisCommandArguments {
-//     const args = [
-//         'ZRANGEBYLEX',
-//         key,
-//         transformStringDoubleArgument(min),
-//         transformStringDoubleArgument(max)
-//     ];
-
-//     if (options?.LIMIT) {
-//         args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
-//     }
-
-//     return args;
-// }
-
-// export declare function transformReply(): Array<RedisCommandArgument>;
+    return args;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;
