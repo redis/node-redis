@@ -39,7 +39,7 @@ describe('ZUNION', () => {
     });
   });
 
-  testUtils.testAll('client.zUnion', async client => {
+  testUtils.testAll('zUnion', async client => {
     assert.deepEqual(
       await client.zUnion('key'),
       []
