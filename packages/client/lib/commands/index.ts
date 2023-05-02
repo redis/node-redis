@@ -167,6 +167,7 @@ import ZRANDMEMBER from './ZRANDMEMBER';
 import ZRANGE from './ZRANGE';
 import ZRANGEBYLEX from './ZRANGEBYLEX';
 import ZRANGEBYSCORE from './ZRANGEBYSCORE';
+import ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
 import ZRANK from './ZRANK';
 import ZREM from './ZREM';
 import ZREMRANGEBYLEX from './ZREMRANGEBYLEX';
@@ -526,6 +527,8 @@ export default {
   zRemRangeByLex: ZREMRANGEBYLEX,
   ZREMRANGEBYRANK,
   zRemRangeByRank: ZREMRANGEBYRANK,
+  ZREMRANGEBYSCORE,
+  zRemRangeByScore: ZREMRANGEBYSCORE,
   ZREVRANK,
   zRevRank: ZREVRANK,
   ZSCAN,
