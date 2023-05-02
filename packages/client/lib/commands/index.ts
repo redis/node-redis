@@ -144,6 +144,7 @@ import WATCH from './WATCH';
 import XACK from './XACK';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
+import XDEL from './XDEL'
 import XLEN from './XLEN';
 import ZADD from './ZADD';
 import ZCARD from './ZCARD';
@@ -463,6 +464,9 @@ export default {
   xAddNoMkStream: XADD_NOMKSTREAM,
   XADD,
   xAdd: XADD,
+  XDEL,
+  xDel: XDEL,
+  
   XLEN,
   xLen: XLEN,
   ZADD,
