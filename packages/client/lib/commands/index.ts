@@ -42,6 +42,7 @@ import CLUSTER_MYID from './CLUSTER_MYID';
 import CLUSTER_REPLICATE from './CLUSTER_REPLICATE';
 import DECR from './DECR';
 import DECRBY from './DECRBY';
+import DEL from './DEL';
 import DUMP from './DUMP';
 import GET from './GET';
 import GETDEL from './GETDEL';
@@ -270,6 +271,8 @@ export default {
   decr: DECR,
   DECRBY,
   decrBy: DECRBY,
+  DEL,
+  del: DEL,
   DUMP,
   dump: DUMP,
   GET,
