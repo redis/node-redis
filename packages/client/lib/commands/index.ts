@@ -170,6 +170,7 @@ import ZREM from './ZREM';
 import ZREVRANK from './ZREVRANK';
 import ZSCAN from './ZSCAN';
 import ZSCORE from './ZSCORE';
+import ZUNION from './ZUNION';
 import { Command } from '../RESP/types';
 
 export default {
@@ -517,5 +518,7 @@ export default {
   ZSCAN,
   zScan: ZSCAN,
   ZSCORE,
-  zScore: ZSCORE
+  zScore: ZSCORE,
+  ZUNION,
+  zUnion: ZUNION
 } as const satisfies Record<string, Command>;

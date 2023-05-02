@@ -1,30 +1,29 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
-// import { pushVariadicArgument } from './generic-transformers';
+import { ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
 
-// export const FIRST_KEY_INDEX = 2;
+export interface ZUnionOptions {
+  WEIGHTS?: Array<number>;
+  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
+}
 
-// export const IS_READ_ONLY = true;
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: true,
+  transformArguments(
+    keys: RedisVariadicArgument,
+    options?: ZUnionOptions
+  ) {
+    const args = pushVariadicArgument(['ZUNION'], keys);
 
-// interface ZUnionOptions {
-//     WEIGHTS?: Array<number>;
-//     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
-// }
+    if (options?.WEIGHTS) {
+      args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));
+    }
 
-// export function transformArguments(
-//     keys: Array<RedisCommandArgument> | RedisCommandArgument,
-//     options?: ZUnionOptions
-// ): RedisCommandArguments {
-//     const args = pushVariadicArgument(['ZUNION'], keys);
+    if (options?.AGGREGATE) {
+      args.push('AGGREGATE', options.AGGREGATE);
+    }
 
-//     if (options?.WEIGHTS) {
-//         args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));
-//     }
-
-//     if (options?.AGGREGATE) {
-//         args.push('AGGREGATE', options.AGGREGATE);
-//     }
-
-//     return args;
-// }
-
-// export declare function transformReply(): Array<RedisCommandArgument>;
+    return args;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;
