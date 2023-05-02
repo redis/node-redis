@@ -92,6 +92,7 @@ import MGET from './MGET';
 import MSET from './MSET';
 import MSETNX from './MSETNX';
 import PERSIST from './PERSIST';
+import EXISTS from './EXISTS';
 import PEXPIRE from './PEXPIRE';
 import PEXPIREAT from './PEXPIREAT';
 import PEXPIRETIME from './PEXPIRETIME';
@@ -366,6 +367,8 @@ export default {
   mSetNX: MSETNX,
   PERSIST,
   persist: PERSIST,
+  EXISTS,
+  exists: EXISTS,
   PEXPIRE,
   pExpire: PEXPIRE,
   PEXPIREAT,

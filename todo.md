@@ -8,13 +8,15 @@
 - `ZREVRANGE`
 - `ZREVRANGEBYLEX`
 - `ZREVRANGEBYSCORE`
-- `ZREVRANGE WITHSCORE`
-- `ZRANK WITHSCORE`
 
 
-# waiting List
-- `ZREMRANGEBYRANK.ts`
-- `ZREMRANGEBYSCORE.ts`
+# waiting List categoreis
+- Generic
+- String
+- Hash
+- List
+- Set
+- Bitmap
 
 # fot leiba
 - `BZMPOP.ts`
@@ -23,7 +25,8 @@
 - `ZMPOP.ts`
 - `ZPOPMAX.ts`
 - `ZPOPMIN.ts`
-
+- `ZREVRANGE WITHSCORE`
+- `ZRANK WITHSCORE`
 
 # other
 
