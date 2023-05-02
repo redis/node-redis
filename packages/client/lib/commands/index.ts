@@ -165,6 +165,7 @@ import ZRANDMEMBER_COUNT_WITHSCORES from './ZRANDMEMBER_COUNT_WITHSCORES';
 import ZRANDMEMBER_COUNT from './ZRANDMEMBER_COUNT';
 import ZRANDMEMBER from './ZRANDMEMBER';
 import ZRANGE from './ZRANGE';
+import ZRANGEBYSCORE from './ZRANGEBYSCORE';
 import ZRANK from './ZRANK';
 import ZREM from './ZREM';
 import ZREVRANK from './ZREVRANK';
@@ -510,6 +511,8 @@ export default {
   zRandMember: ZRANDMEMBER,
   ZRANGE,
   zRange: ZRANGE,
+  ZRANGEBYSCORE,
+  zRangeByScore: ZRANGEBYSCORE,
   ZRANK,
   zRank: ZRANK,
   ZREM,

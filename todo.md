@@ -18,7 +18,6 @@
 - `ZREMRANGEBYLEX.ts`
 - `ZREMRANGEBYRANK.ts`
 - `ZREMRANGEBYSCORE.ts`
-- `ZUNIONSTORE.ts`
 
 # fot leiba
 - `BZMPOP.ts`
