@@ -145,6 +145,7 @@ import XACK from './XACK';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
 import XDEL from './XDEL';
+import XSETID from './XSETID';
 import XTRIM from './XTRIM';
 import XLEN from './XLEN';
 import ZADD from './ZADD';
@@ -467,6 +468,8 @@ export default {
   xAdd: XADD,
   XDEL,
   xDel: XDEL,
+  XSETID,
+  xSetId: XSETID,
   XTRIM,
   xTrim: XTRIM,
   XLEN,

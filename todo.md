@@ -1,5 +1,6 @@
-# return type
+# return type \ missing documentation
 - `XAUTOCLAIM`
+- `XSETID`
 
 
 # create commands

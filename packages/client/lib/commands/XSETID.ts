@@ -1,28 +1,29 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+export interface XSetIdOptions {
+  ENTRIESADDED?: number;
+  MAXDELETEDID?: RedisArgument;
+}
 
-// export const FIRST_KEY_INDEX = 1;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    lastId: RedisArgument,
+    options?: XSetIdOptions
+  ) {
+    const args = ['XSETID', key, lastId];
 
-// interface XSetIdOptions {
-//     ENTRIESADDED?: number;
-//     MAXDELETEDID?: RedisCommandArgument;
-// }
+    if (options?.ENTRIESADDED) {
+      args.push('ENTRIESADDED', options.ENTRIESADDED.toString());
+    }
 
-// export function transformArguments(
-//     key: RedisCommandArgument,
-//     lastId: RedisCommandArgument,
-//     options?: XSetIdOptions
-// ): RedisCommandArguments {
-//     const args = ['XSETID', key, lastId];
+    if (options?.MAXDELETEDID) {
+      args.push('MAXDELETEDID', options.MAXDELETEDID);
+    }
 
-//     if (options?.ENTRIESADDED) {
-//         args.push('ENTRIESADDED', options.ENTRIESADDED.toString());
-//     }
+    return args;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
 
-//     if (options?.MAXDELETEDID) {
-//         args.push('MAXDELETEDID', options.MAXDELETEDID);
-//     }
-
-//     return args;
-// }
-
-// export declare function transformReply(): 'OK';
