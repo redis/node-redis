@@ -170,6 +170,7 @@ import ZRANGEBYSCORE from './ZRANGEBYSCORE';
 import ZRANK from './ZRANK';
 import ZREM from './ZREM';
 import ZREMRANGEBYLEX from './ZREMRANGEBYLEX';
+import ZREMRANGEBYRANK from './ZREMRANGEBYRANK';
 import ZREVRANK from './ZREVRANK';
 import ZSCAN from './ZSCAN';
 import ZSCORE from './ZSCORE';
@@ -517,12 +518,14 @@ export default {
   zRangeByLex: ZRANGEBYLEX,
   ZRANGEBYSCORE,
   zRangeByScore: ZRANGEBYSCORE,
-  ZREMRANGEBYLEX,
-  zRemRangeByLex: ZREMRANGEBYLEX,
   ZRANK,
   zRank: ZRANK,
   ZREM,
   zRem: ZREM,
+  ZREMRANGEBYLEX,
+  zRemRangeByLex: ZREMRANGEBYLEX,
+  ZREMRANGEBYRANK,
+  zRemRangeByRank: ZREMRANGEBYRANK,
   ZREVRANK,
   zRevRank: ZREVRANK,
   ZSCAN,
