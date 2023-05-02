@@ -1,29 +1,30 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
-// import { pushVariadicArgument } from './generic-transformers';
+import { RedisArgument, NumberReply, Command, } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
 
-// export const FIRST_KEY_INDEX = 1;
+export interface ZUnionOptions {
+  WEIGHTS?: Array<number>;
+  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
+}
 
-// interface ZUnionOptions {
-//     WEIGHTS?: Array<number>;
-//     AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
-// }
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    destination: RedisArgument,
+    keys: RedisVariadicArgument,
+    options?: ZUnionOptions
+  ) {
+    const args = pushVariadicArgument(['ZUNIONSTORE', destination], keys);
 
-// export function transformArguments(
-//     destination: RedisCommandArgument,
-//     keys: Array<RedisCommandArgument> | RedisCommandArgument,
-//     options?: ZUnionOptions
-// ): RedisCommandArguments {
-//     const args = pushVariadicArgument(['ZUNIONSTORE', destination], keys);
+    if (options?.WEIGHTS) {
+      args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));
+    }
 
-//     if (options?.WEIGHTS) {
-//         args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));
-//     }
+    if (options?.AGGREGATE) {
+      args.push('AGGREGATE', options.AGGREGATE);
+    }
 
-//     if (options?.AGGREGATE) {
-//         args.push('AGGREGATE', options.AGGREGATE);
-//     }
-
-//     return args;
-// }
-
-// export declare function transformReply(): number;
+    return args;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

@@ -15,11 +15,9 @@
 # waiting List
 - `ZRANGEBYSCORE.ts`
 - `ZRANGEBYLEX.ts`
-- `ZUNION.ts`
 - `ZREMRANGEBYLEX.ts`
 - `ZREMRANGEBYRANK.ts`
 - `ZREMRANGEBYSCORE.ts`
-- `ZUNION.ts`
 - `ZUNIONSTORE.ts`
 
 # fot leiba
