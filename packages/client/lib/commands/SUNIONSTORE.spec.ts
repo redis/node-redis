@@ -1,28 +1,31 @@
-// import { strict as assert } from 'assert';
-// import testUtils, { GLOBAL } from '../test-utils';
-// import { transformArguments } from './SUNIONSTORE';
+import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
+import SUNIONSTORE from './SUNIONSTORE';
 
-// describe('SUNIONSTORE', () => {
-//     describe('transformArguments', () => {
-//         it('string', () => {
-//             assert.deepEqual(
-//                 transformArguments('destination', 'key'),
-//                 ['SUNIONSTORE', 'destination', 'key']
-//             );
-//         });
+describe('SUNIONSTORE', () => {
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        SUNIONSTORE.transformArguments('destination', 'key'),
+        ['SUNIONSTORE', 'destination', 'key']
+      );
+    });
 
-//         it('array', () => {
-//             assert.deepEqual(
-//                 transformArguments('destination', ['1', '2']),
-//                 ['SUNIONSTORE', 'destination', '1', '2']
-//             );
-//         });
-//     });
+    it('array', () => {
+      assert.deepEqual(
+        SUNIONSTORE.transformArguments('destination', ['1', '2']),
+        ['SUNIONSTORE', 'destination', '1', '2']
+      );
+    });
+  });
 
-//     testUtils.testWithClient('client.sUnionStore', async client => {
-//         assert.equal(
-//             await client.sUnionStore('destination', 'key'),
-//             0
-//         );
-//     }, GLOBAL.SERVERS.OPEN);
-// });
+  testUtils.testAll('sUnionStore', async client => {
+    assert.equal(
+      await client.sUnionStore('{tag}destination', '{tag}key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+});

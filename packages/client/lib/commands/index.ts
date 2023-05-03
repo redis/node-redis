@@ -152,6 +152,7 @@ import SREM from './SREM';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
 import SUNION from './SUNION';
+import SUNIONSTORE from './SUNIONSTORE';
 import TOUCH from './TOUCH';
 import TTL from './TTL';
 import TYPE from './TYPE';
@@ -507,6 +508,8 @@ export default {
   strLen: STRLEN,
   SUNION,
   sUnion: SUNION,
+  SUNIONSTORE,
+  sUnionStore: SUNIONSTORE,
   TOUCH,
   touch: TOUCH,
   TTL,
