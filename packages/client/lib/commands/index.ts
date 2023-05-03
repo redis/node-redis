@@ -99,6 +99,7 @@ import MSETNX from './MSETNX';
 import OBJECT_ENCODING from './OBJECT_ENCODING';
 import OBJECT_FREQ from './OBJECT_FREQ';
 import OBJECT_IDLETIME from './OBJECT_IDLETIME';
+import OBJECT_REFCOUNT from './OBJECT_REFCOUNT';
 import PERSIST from './PERSIST';
 import EXISTS from './EXISTS';
 import EXPIRE from './EXPIRE';
@@ -392,6 +393,8 @@ export default {
   objectFreq: OBJECT_FREQ,
   OBJECT_IDLETIME,
   objectIdleTime: OBJECT_IDLETIME,
+  OBJECT_REFCOUNT,
+  objectRefCount: OBJECT_REFCOUNT,
   PERSIST,
   persist: PERSIST,
   EXISTS,
