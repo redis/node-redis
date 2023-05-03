@@ -11,8 +11,7 @@
 
 
 # waiting List categoreis
-- Generic
-- String
+- String 
 - Hash
 - List
 - Set
@@ -29,6 +28,7 @@
 - `ZRANK WITHSCORE`
 - `MIGRATE`
 - `RESTORE`
+- `WAITAOF`
 
 # other
 
