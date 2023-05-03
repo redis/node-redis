@@ -98,6 +98,7 @@ import PERSIST from './PERSIST';
 import EXISTS from './EXISTS';
 import EXPIRE from './EXPIRE';
 import EXPIREAT from './EXPIREAT';
+import EXPIRETIME from './EXPIRETIME';
 import PEXPIRE from './PEXPIRE';
 import PEXPIREAT from './PEXPIREAT';
 import PEXPIRETIME from './PEXPIRETIME';
@@ -384,6 +385,8 @@ export default {
   expire: EXPIRE,
   EXPIREAT,
   expireAt: EXPIREAT,
+  EXPIRETIME,
+  expireTime: EXPIRETIME,
   PEXPIRE,
   pExpire: PEXPIRE,
   PEXPIREAT,
