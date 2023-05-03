@@ -385,10 +385,10 @@ export class Decoder {
   }
 
   // Precalculated multipliers for decimal points to improve performance
-  // "A Number only keeps about 17 decimal places of precision"
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number
+  // "... about 15 to 17 decimal places ..."
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number#:~:text=about%2015%20to%2017%20decimal%20places
   static _DOUBLE_DECIMAL_MULTIPLIERS = [
-    0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001,
+    1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6,
     1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12,
     1e-13, 1e-14, 1e-15, 1e-16, 1e-17
   ];

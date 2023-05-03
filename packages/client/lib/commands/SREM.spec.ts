@@ -19,7 +19,7 @@ describe('SREM', () => {
     });
   });
 
-  testUtils.testAll('client.sRem', async client => {
+  testUtils.testAll('sRem', async client => {
     assert.equal(
       await client.sRem('key', 'member'),
       0

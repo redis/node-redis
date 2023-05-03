@@ -19,7 +19,7 @@ describe('BITOP', () => {
     });
   });
 
-  testUtils.testAll('client.bitOp', async client => {
+  testUtils.testAll('bitOp', async client => {
     assert.equal(
       await client.bitOp('AND', '{tag}destKey', '{tag}key'),
       0

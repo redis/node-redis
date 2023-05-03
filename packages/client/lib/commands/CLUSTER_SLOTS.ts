@@ -16,6 +16,7 @@ type ClusterSlotsRawReply = ArrayReply<[
 export type ClusterSlotsNode = ReturnType<typeof transformNode>;
 
 export default {
+  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments() {
     return ['CLUSTER', 'SLOTS'];

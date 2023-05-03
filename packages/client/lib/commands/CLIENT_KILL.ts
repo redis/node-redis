@@ -42,6 +42,7 @@ export type ClientKillSkipMe = CLIENT_KILL_FILTERS['SKIP_ME'] | (ClientKillFilte
 export type ClientKillFilter = ClientKillAddress | ClientKillLocalAddress | ClientKillId | ClientKillType | ClientKillUser | ClientKillSkipMe;
 
 export default {
+  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments(filters: ClientKillFilter | Array<ClientKillFilter>) {
     const args = ['CLIENT', 'KILL'];

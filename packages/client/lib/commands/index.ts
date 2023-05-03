@@ -46,6 +46,7 @@ import DECRBY from './DECRBY';
 import DEL from './DEL';
 import DUMP from './DUMP';
 import GET from './GET';
+import GETBIT from './GETBIT';
 import GETDEL from './GETDEL';
 import GETEX from './GETEX';
 import GETRANGE from './GETRANGE';
@@ -141,6 +142,8 @@ import SMISMEMBER from './SMISMEMBER';
 import SORT_RO from './SORT_RO';
 import SORT_STORE from './SORT_STORE';
 import SORT from './SORT';
+import SPOP_COUNT from './SPOP_COUNT';
+import SPOP from './SPOP';
 import SPUBLISH from './SPUBLISH';
 import SRANDMEMBER_COUNT from './SRANDMEMBER_COUNT';
 import SRANDMEMBER from './SRANDMEMBER';
@@ -289,6 +292,8 @@ export default {
   dump: DUMP,
   GET,
   get: GET,
+  GETBIT,
+  getBit: GETBIT,
   GETDEL,
   getDel: GETDEL,
   GETEX,
@@ -328,7 +333,7 @@ export default {
   HSET,
   hSet: HSET,
   HSETNX,
-  hSetNx: HSETNX,
+  hSetNX: HSETNX,
   HSTRLEN,
   hStrLen: HSTRLEN,
   HVALS,
@@ -480,6 +485,10 @@ export default {
   sortStore: SORT_STORE,
   SORT,
   sort: SORT,
+  SPOP_COUNT,
+  sPopCount: SPOP_COUNT,
+  SPOP,
+  sPop: SPOP,
   SPUBLISH,
   sPublish: SPUBLISH,
   SRANDMEMBER_COUNT,

@@ -23,7 +23,7 @@ describe('LMPOP', () => {
     });
   });
 
-  testUtils.testAll('client.lmPop', async client => {
+  testUtils.testAll('lmPop', async client => {
     assert.deepEqual(
       await client.lmPop('key', 'RIGHT'),
       null
