@@ -1,18 +1,18 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import HKEYS from './HKEYS';
+import SPOP_COUNT from './SPOP_COUNT';
 
-describe('HKEYS', () => {
+describe('SPOP_COUNT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      HKEYS.transformArguments('key'),
-      ['HKEYS', 'key']
+      SPOP_COUNT.transformArguments('key', 1),
+      ['SPOP', 'key', '1']
     );
   });
 
-  testUtils.testAll('hKeys', async client => {
+  testUtils.testAll('sPopCount', async client => {
     assert.deepEqual(
-      await client.hKeys('key'),
+      await client.sPopCount('key', 1),
       []
     );
   }, {

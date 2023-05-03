@@ -11,6 +11,7 @@ describe('LSET', () => {
   });
 
   testUtils.testAll('lSet', async client => {
+    await client.lPush('key', 'element');
     assert.equal(
       await client.lSet('key', 0, 'element'),
       'OK'

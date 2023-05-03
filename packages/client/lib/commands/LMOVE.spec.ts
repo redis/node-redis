@@ -14,7 +14,7 @@ describe('LMOVE', () => {
 
   testUtils.testAll('lMove', async client => {
     assert.equal(
-      await client.lMove('source', 'destination', 'LEFT', 'RIGHT'),
+      await client.lMove('{tag}source', '{tag}destination', 'LEFT', 'RIGHT'),
       null
     );
   }, {

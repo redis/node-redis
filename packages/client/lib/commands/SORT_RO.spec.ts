@@ -89,7 +89,7 @@ describe('SORT_RO', () => {
     });
   });
 
-  testUtils.testAll('client.sortRo', async client => {
+  testUtils.testAll('sortRo', async client => {
     assert.deepEqual(
       await client.sortRo('key'),
       []

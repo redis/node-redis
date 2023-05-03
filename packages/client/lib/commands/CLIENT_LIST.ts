@@ -15,6 +15,7 @@ export interface ListFilterId {
 export type ListFilter = ListFilterType | ListFilterId;
 
 export default {
+  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments(filter?: ListFilter) {
     let args: Array<RedisArgument> = ['CLIENT', 'LIST'];

@@ -8,7 +8,7 @@ export default {
     key: RedisArgument,
     fields: RedisVariadicArgument
   ) {
-    return pushVariadicArguments(['HMGET'], fields);
+    return pushVariadicArguments(['HMGET', key], fields);
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply | NullReply>
 } as const satisfies Command;

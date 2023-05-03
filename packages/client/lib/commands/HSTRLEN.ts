@@ -4,7 +4,7 @@ export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
   transformArguments(key: RedisArgument, field: RedisArgument) {
-    return ['HSETLEN', key, field];
+    return ['HSTRLEN', key, field];
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;
