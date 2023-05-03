@@ -98,6 +98,7 @@ import MSET from './MSET';
 import MSETNX from './MSETNX';
 import OBJECT_ENCODING from './OBJECT_ENCODING';
 import OBJECT_FREQ from './OBJECT_FREQ';
+import OBJECT_IDLETIME from './OBJECT_IDLETIME';
 import PERSIST from './PERSIST';
 import EXISTS from './EXISTS';
 import EXPIRE from './EXPIRE';
@@ -389,6 +390,8 @@ export default {
   objectEncoding: OBJECT_ENCODING,
   OBJECT_FREQ,
   objectFreq: OBJECT_FREQ,
+  OBJECT_IDLETIME,
+  objectIdleTime: OBJECT_IDLETIME,
   PERSIST,
   persist: PERSIST,
   EXISTS,
