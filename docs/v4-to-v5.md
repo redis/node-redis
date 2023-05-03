@@ -85,6 +85,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `SCRIPT EXISTS`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 - `SISMEMBER`: `boolean` -> `number` [^boolean-to-number]
 - `SMISMEMBER`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
+- `SMOVE`: `boolean` -> `number` [^boolean-to-number]
 
 [^enum-to-constants]: TODO
 

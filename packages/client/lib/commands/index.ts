@@ -139,6 +139,7 @@ import SINTERSTORE from './SINTERSTORE';
 import SISMEMBER from './SISMEMBER';
 import SMEMBERS from './SMEMBERS';
 import SMISMEMBER from './SMISMEMBER';
+import SMOVE from './SMOVE';
 import SORT_RO from './SORT_RO';
 import SORT_STORE from './SORT_STORE';
 import SORT from './SORT';
@@ -479,6 +480,8 @@ export default {
   sMembers: SMEMBERS,
   SMISMEMBER,
   smIsMember: SMISMEMBER,
+  SMOVE,
+  sMove: SMOVE,
   SORT_RO,
   sortRo: SORT_RO,
   SORT_STORE,
