@@ -11,7 +11,7 @@
 
 
 # waiting List categoreis
-- Generic
+- Generic 
 - String
 - Hash
 - List
@@ -27,6 +27,7 @@
 - `ZPOPMIN.ts`
 - `ZREVRANGE WITHSCORE`
 - `ZRANK WITHSCORE`
+- `MIGRATE`
 
 # other
 

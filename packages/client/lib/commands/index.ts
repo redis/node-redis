@@ -93,6 +93,7 @@ import LREM from './LREM';
 import LSET from './LSET';
 import LTRIM from './LTRIM';
 import MGET from './MGET';
+import MOVE from './MOVE';
 import MSET from './MSET';
 import MSETNX from './MSETNX';
 import PERSIST from './PERSIST';
@@ -376,6 +377,8 @@ export default {
   lTrim: LTRIM,
   MGET,
   mGet: MGET,
+  MOVE,
+  move: MOVE,
   MSET,
   mSet: MSET,
   MSETNX,

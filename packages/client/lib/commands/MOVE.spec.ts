@@ -10,10 +10,13 @@ describe('MOVE', () => {
     );
   });
 
-  testUtils.testWithClient('client.move', async client => {
+  testUtils.testAll('move', async client => {
     assert.equal(
       await client.move('key', 1),
       1
     );
-  }, GLOBAL.SERVERS.OPEN);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });
