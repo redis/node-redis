@@ -72,6 +72,7 @@ import INCR from './INCR';
 import INCRBY from './INCRBY';
 import INCRBYFLOAT from './INCRBYFLOAT';
 import INFO from './INFO';
+import KEYS from './KEYS';
 // import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
 // import LCS_IDX from './LCS_IDX';
 import LCS_LEN from './LCS_LEN';
@@ -335,6 +336,8 @@ export default {
   incrByFloat: INCRBYFLOAT,
   INFO,
   info: INFO,
+  KEYS,
+  keys: KEYS,
   // LCS_IDX_WITHMATCHLEN,
   // LCS_IDX,
   LCS_LEN,
