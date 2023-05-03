@@ -10,10 +10,13 @@ describe('RANDOMKEY', () => {
     );
   });
 
-  testUtils.testWithClient('client.randomKey', async client => {
+  testUtils.testAll('randomKey', async client => {
     assert.equal(
       await client.randomKey(),
       null
     );
-  }, GLOBAL.SERVERS.OPEN);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });
