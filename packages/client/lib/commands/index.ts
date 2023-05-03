@@ -316,7 +316,7 @@ export default {
   HLEN,
   hLen: HLEN,
   HMGET,
-  hMGet: HMGET,
+  hmGet: HMGET,
   HRANDFIELD_COUNT_WITHVALUES,
   hRandFieldCountWithValues: HRANDFIELD_COUNT_WITHVALUES,
   HRANDFIELD_COUNT,
