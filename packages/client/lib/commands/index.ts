@@ -96,6 +96,7 @@ import MGET from './MGET';
 import MOVE from './MOVE';
 import MSET from './MSET';
 import MSETNX from './MSETNX';
+import OBJECT_ENCODING from './OBJECT_ENCODING';
 import PERSIST from './PERSIST';
 import EXISTS from './EXISTS';
 import EXPIRE from './EXPIRE';
@@ -383,6 +384,8 @@ export default {
   mSet: MSET,
   MSETNX,
   mSetNX: MSETNX,
+  OBJECT_ENCODING,
+  objectEncoding: OBJECT_ENCODING,
   PERSIST,
   persist: PERSIST,
   EXISTS,
