@@ -40,6 +40,7 @@ import CLUSTER_SLOTS from './CLUSTER_SLOTS';
 import CLUSTER_MEET from './CLUSTER_MEET';
 import CLUSTER_MYID from './CLUSTER_MYID';
 import CLUSTER_REPLICATE from './CLUSTER_REPLICATE';
+import COPY from './COPY';
 import DECR from './DECR';
 import DECRBY from './DECRBY';
 import DEL from './DEL';
@@ -267,6 +268,8 @@ export default {
   clusterMyId: CLUSTER_MYID,
   CLUSTER_REPLICATE,
   clusterReplicate: CLUSTER_REPLICATE,
+  COPY,
+  copy: COPY,
   DECR,
   decr: DECR,
   DECRBY,

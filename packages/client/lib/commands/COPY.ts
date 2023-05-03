@@ -7,6 +7,7 @@ export interface CopyCommandOptions {
 
 export default {
   FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
   transformArguments(source: RedisArgument, destination: RedisArgument, options?: CopyCommandOptions) {
     const args = ['COPY', source, destination];
 
