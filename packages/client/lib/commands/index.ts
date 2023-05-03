@@ -151,6 +151,7 @@ import SRANDMEMBER from './SRANDMEMBER';
 import SREM from './SREM';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
+import SUNION from './SUNION';
 import TOUCH from './TOUCH';
 import TTL from './TTL';
 import TYPE from './TYPE';
@@ -504,6 +505,8 @@ export default {
   sScan: SSCAN,
   STRLEN,
   strLen: STRLEN,
+  SUNION,
+  sUnion: SUNION,
   TOUCH,
   touch: TOUCH,
   TTL,
