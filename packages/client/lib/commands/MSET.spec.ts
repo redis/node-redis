@@ -28,7 +28,7 @@ describe('MSET', () => {
 
   testUtils.testAll('mSet', async client => {
     assert.equal(
-      await client.mSet(['key1', 'value1', 'key2', 'value2']),
+      await client.mSet(['{tag}key1', 'value1', '{tag}key2', 'value2']),
       'OK'
     );
   }, {
