@@ -40,7 +40,7 @@ describe('SSCAN', () => {
     });
   });
 
-  testUtils.testWithClient('client.sScan', async client => {
+  testUtils.testAll('sScan', async client => {
     assert.deepEqual(
       await client.sScan('key', 0),
       {
@@ -48,5 +48,8 @@ describe('SSCAN', () => {
         members: []
       }
     );
-  }, GLOBAL.SERVERS.OPEN);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });
