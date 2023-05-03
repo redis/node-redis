@@ -11,7 +11,7 @@
 
 
 # waiting List categoreis
-- Generic 
+- Generic
 - String
 - Hash
 - List
@@ -28,6 +28,7 @@
 - `ZREVRANGE WITHSCORE`
 - `ZRANK WITHSCORE`
 - `MIGRATE`
+- `RESTORE`
 
 # other
 
