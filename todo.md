@@ -11,7 +11,6 @@
 
 
 # waiting List categoreis
-- String 
 - Hash
 - List
 - Set
