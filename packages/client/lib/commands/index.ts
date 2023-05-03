@@ -97,6 +97,7 @@ import MSETNX from './MSETNX';
 import PERSIST from './PERSIST';
 import EXISTS from './EXISTS';
 import EXPIRE from './EXPIRE';
+import EXPIREAT from './EXPIREAT';
 import PEXPIRE from './PEXPIRE';
 import PEXPIREAT from './PEXPIREAT';
 import PEXPIRETIME from './PEXPIRETIME';
@@ -381,6 +382,8 @@ export default {
   exists: EXISTS,
   EXPIRE,
   expire: EXPIRE,
+  EXPIREAT,
+  expireAt: EXPIREAT,
   PEXPIRE,
   pExpire: PEXPIRE,
   PEXPIREAT,

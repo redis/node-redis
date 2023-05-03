@@ -9,7 +9,7 @@ export default {
     timestamp: number | Date,
     mode?: 'NX' | 'XX' | 'GT' | 'LT'
   ) {
-    const args = ['EXPIRE', key, transformEXAT(timestamp)];
+    const args = ['EXPIREAT', key, transformEXAT(timestamp)];
 
     if (mode) {
       args.push(mode);
