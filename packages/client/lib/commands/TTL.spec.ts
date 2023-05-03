@@ -11,7 +11,6 @@ describe('TTL', () => {
   });
 
   testUtils.testAll('ttl', async client => {
-    console.log(await client.get('key'), await client.ttl('key'));
     assert.equal(
       await client.ttl('key'),
       -2
