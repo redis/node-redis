@@ -1,4 +1,4 @@
-import { RedisArgument, SimpleStringReply, Command, NumberReply } from '../RESP/types';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
   IS_READ_ONLY: true,
