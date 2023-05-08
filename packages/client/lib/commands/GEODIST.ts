@@ -13,7 +13,7 @@ export default {
     const args = ['GEODIST', key, member1, member2];
 
     if (unit) {
-        args.push(unit);
+      args.push(unit);
     }
 
     return args;

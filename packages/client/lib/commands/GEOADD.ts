@@ -1,12 +1,12 @@
-import { CommandArguments, RedisArgument, NumberReply, Command } from '../RESP/types';
-import { GeoCoordinates } from './generic-transformers';
+import { RedisArgument, CommandArguments, NumberReply, Command } from '../RESP/types';
+import { GeoCoordinates } from './GEOSEARCH';
 
-interface GeoMember extends GeoCoordinates {
+export interface GeoMember extends GeoCoordinates {
   member: RedisArgument;
 }
 
-interface GeoAddOptions {
-  condition: 'NX' | 'XX';
+export interface GeoAddOptions {
+  condition?: 'NX' | 'XX';
   /**
    * @deprecated Use `{ condition: 'NX' }` instead.
    */
