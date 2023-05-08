@@ -11,8 +11,6 @@
 
 
 # waiting List categoreis
-- Hash
-- List
 - Set
 - Bitmap
 

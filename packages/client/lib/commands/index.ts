@@ -156,6 +156,7 @@ import SINTERSTORE from './SINTERSTORE';
 import SISMEMBER from './SISMEMBER';
 import SMEMBERS from './SMEMBERS';
 import SMISMEMBER from './SMISMEMBER';
+import SMOVE from './SMOVE';
 import SORT_RO from './SORT_RO';
 import SORT_STORE from './SORT_STORE';
 import SORT from './SORT';
@@ -167,6 +168,8 @@ import SRANDMEMBER from './SRANDMEMBER';
 import SREM from './SREM';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
+import SUNION from './SUNION';
+import SUNIONSTORE from './SUNIONSTORE';
 import TOUCH from './TOUCH';
 import TTL from './TTL';
 import TYPE from './TYPE';
@@ -530,6 +533,8 @@ export default {
   sMembers: SMEMBERS,
   SMISMEMBER,
   smIsMember: SMISMEMBER,
+  SMOVE,
+  sMove: SMOVE,
   SORT_RO,
   sortRo: SORT_RO,
   SORT_STORE,
@@ -552,6 +557,10 @@ export default {
   sScan: SSCAN,
   STRLEN,
   strLen: STRLEN,
+  SUNION,
+  sUnion: SUNION,
+  SUNIONSTORE,
+  sUnionStore: SUNIONSTORE,
   TOUCH,
   touch: TOUCH,
   TTL,

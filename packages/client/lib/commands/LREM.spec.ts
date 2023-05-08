@@ -1,4 +1,3 @@
-
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LREM from './LREM';

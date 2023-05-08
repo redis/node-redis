@@ -99,6 +99,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `SCRIPT EXISTS`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 - `SISMEMBER`: `boolean` -> `number` [^boolean-to-number]
 - `SMISMEMBER`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
+- `SMOVE`: `boolean` -> `number` [^boolean-to-number]
 - `TS.ADD`: `boolean` -> `number` [^boolean-to-number]
 - `GEOSEARCH_WITH`/`GEORADIUS_WITH`: `GeoReplyWith` -> `GEO_REPLY_WITH` [^enum-to-constants]
 - `GEORADIUSSTORE` -> `GEORADIUS_STORE`
