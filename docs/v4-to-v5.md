@@ -39,7 +39,7 @@ To override just a specific option, use the following functions:
 
 ## Quit VS Disconnect
 
-The `QUIT` command has been deprecated in Redis 7.2 and should now also be considered deprecated in Node-Redis.  Instead of sending a `QUIT` command to the server, the client can simply close the network connection.
+The `QUIT` command has been deprecated in Redis 7.2 and should now also be considered deprecated in Node-Redis. Instead of sending a `QUIT` command to the server, the client can simply close the network connection.
 
 Rather than using `client.quit()`, your code should use `client.close()` or `client.disconnect()`.
 
@@ -48,16 +48,30 @@ TODO difference between `close` and `disconnect`...
 ## Scan Iterators
 
 TODO
+Yields chunks instead of individual items. Allows multi key operations.
+See the [Scan Iterators guide](./scan-iterators.md).
 
-Yields chunks instead of individual items:
+## Legacy Mode
+
+TODO
 
 ```javascript
-for await (const chunk of client.scanIterator()) {
-  // `chunk` type is `Array<string>`
-  // will allow multi keys operations
-  await client.del(chunk);
-}
+const client = createClient(),
+  legacyClient = client.legacy();
+
+// use `client` for the new API
+await client.set('key', 'value');
+
+// use `legacyClient` for the "legacy" callback API
+legacyClient.set('key', 'value', (err, reply) => {
+  // ...
+});
 ```
+
+## Isolation Pool
+
+TODO
+The `isolationPool` has been moved to it's on class `ClientPool`. You can create pool from a client using `client.createPool()`.
 
 ## Commands
 
@@ -85,6 +99,10 @@ Some command arguments/replies have changed to align more closely to data types 
 - `SCRIPT EXISTS`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 - `SISMEMBER`: `boolean` -> `number` [^boolean-to-number]
 - `SMISMEMBER`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
+- `TS.ADD`: `boolean` -> `number` [^boolean-to-number]
+- `GEOSEARCH_WITH`/`GEORADIUS_WITH`: `GeoReplyWith` -> `GEO_REPLY_WITH` [^enum-to-constants]
+- `GEORADIUSSTORE` -> `GEORADIUS_STORE`
+- `GEORADIUSBYMEMBERSTORE` -> `GEORADIUSBYMEMBER_STORE`
 
 [^enum-to-constants]: TODO
 
