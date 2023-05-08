@@ -1,5 +1,5 @@
 import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
-import { GeoUnits } from './generic-transformers';
+import { GeoUnits } from './GEOSEARCH';
 
 export default {
   FIRST_KEY_INDEX: 1,
