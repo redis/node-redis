@@ -13,7 +13,7 @@ describe('HEXISTS', () => {
   testUtils.testAll('hExists', async client => {
     assert.equal(
       await client.hExists('key', 'field'),
-      false
+      0
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

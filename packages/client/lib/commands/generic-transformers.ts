@@ -432,3 +432,57 @@ export function transformRangeReply([start, end]: RawRangeReply): RangeReply {
     end
   };
 }
+
+export type ZKeyAndWeight = {
+  key: RedisArgument;
+  weight: number;
+};
+
+export type ZVariadicKeys<T> = T | [T, ...Array<T>];
+
+export type ZKeys = ZVariadicKeys<RedisArgument> | ZVariadicKeys<ZKeyAndWeight>;
+
+export function pushZKeysArguments(
+  args: CommandArguments,
+  keys: ZKeys
+) {
+  if (Array.isArray(keys)) {
+    args.push(keys.length.toString());
+
+    if (keys.length) {
+      if (isPlainKeys(keys)) {
+        args = args.concat(keys);
+      } else {
+        const start = args.length;
+        args[start + keys.length] = 'WEIGHTS';
+        for (let i = 0; i < keys.length; i++) {
+          const index = start + i;
+          args[index] = keys[i].key;
+          args[index + 1 + keys.length] = transformDoubleArgument(keys[i].weight);
+        }
+      }
+    }
+  } else {
+    args.push('1');
+
+    if (isPlainKey(keys)) {
+      args.push(keys);
+    } else {
+      args.push(
+        keys.key,
+        'WEIGHTS',
+        transformDoubleArgument(keys.weight)
+      );
+    }
+  }
+
+  return args;
+}
+
+function isPlainKey(key: RedisArgument | ZKeyAndWeight): key is RedisArgument {
+  return typeof key === 'string' || Buffer.isBuffer(key);
+}
+
+function isPlainKeys(keys: Array<RedisArgument> | Array<ZKeyAndWeight>): keys is Array<RedisArgument> {
+  return isPlainKey(keys[0]);
+}

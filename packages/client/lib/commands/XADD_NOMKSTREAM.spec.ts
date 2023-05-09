@@ -9,7 +9,7 @@ describe('XADD NOMKSTREAM', () => {
         XADD_NOMKSTREAM.transformArguments('key', '*', {
           field: 'value'
         }),
-        ['XADD', 'key', '*', 'field', 'value', 'NOMKSTREAM']
+        ['XADD', 'key', 'NOMKSTREAM', '*', 'field', 'value']
       );
     });
 
@@ -19,7 +19,7 @@ describe('XADD NOMKSTREAM', () => {
           '1': 'I',
           '2': 'II'
         }),
-        ['XADD', 'key', '*', '1', 'I', '2', 'II', 'NOMKSTREAM']
+        ['XADD', 'key', 'NOMKSTREAM', '*', '1', 'I', '2', 'II']
       );
     });
 
@@ -32,7 +32,7 @@ describe('XADD NOMKSTREAM', () => {
             threshold: 1000
           }
         }),
-        ['XADD', 'key', '1000', '*', 'field', 'value', 'NOMKSTREAM']
+        ['XADD', 'key', 'NOMKSTREAM', '1000', '*', 'field', 'value']
       );
     });
 
@@ -46,7 +46,7 @@ describe('XADD NOMKSTREAM', () => {
             threshold: 1000
           }
         }),
-        ['XADD', 'key', 'MAXLEN', '1000', '*', 'field', 'value', 'NOMKSTREAM']
+        ['XADD', 'key', 'NOMKSTREAM', 'MAXLEN', '1000', '*', 'field', 'value']
       );
     });
 
@@ -60,7 +60,7 @@ describe('XADD NOMKSTREAM', () => {
             threshold: 1000
           }
         }),
-        ['XADD', 'key', '=', '1000', '*', 'field', 'value', 'NOMKSTREAM']
+        ['XADD', 'key', 'NOMKSTREAM', '=', '1000', '*', 'field', 'value']
       );
     });
 
@@ -74,17 +74,17 @@ describe('XADD NOMKSTREAM', () => {
             limit: 1
           }
         }),
-        ['XADD', 'key', '1000', 'LIMIT', '1', '*', 'field', 'value', 'NOMKSTREAM']
+        ['XADD', 'key', 'NOMKSTREAM', '1000', 'LIMIT', '1', '*', 'field', 'value']
       );
     });
   });
 
   testUtils.testAll('xAddNoMkStream', async client => {
     assert.equal(
-      typeof await client.xAddNoMkStream('key', '*', {
+      await client.xAddNoMkStream('key', '*', {
         field: 'value'
       }),
-      'string'
+      null
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

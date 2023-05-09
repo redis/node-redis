@@ -1,5 +1,5 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
-import { transformDoubleArgument } from './generic-transformers';
+import { ZKeys, pushZKeysArguments } from './generic-transformers';
 
 export type ZInterKeyAndWeight = {
   key: RedisArgument;
@@ -14,52 +14,16 @@ export interface ZInterOptions {
 
 export function pushZInterArguments(
   args: Array<RedisArgument>,
-  keys: ZInterKeys<RedisArgument> | ZInterKeys<ZInterKeyAndWeight>,
+  keys: ZKeys,
   options?: ZInterOptions
 ) {
-  if (Array.isArray(keys)) {
-    args.push(keys.length.toString());
-
-    if (keys.length) {
-      if (isPlainKeys(keys)) {
-        args = args.concat(keys);
-      } else {
-        const start = args.length;
-        args[start + keys.length] = 'WEIGHTS';
-        for (let i = 0; i < keys.length; i++) {
-          const index = start + i;
-          args[index] = keys[i].key;
-          args[index + 1 + keys.length] = transformDoubleArgument(keys[i].weight);
-        }
-      }
-    }
-  } else {
-    args.push('1');
-
-    if (isPlainKey(keys)) {
-      args.push(keys);
-    } else {
-      args.push(
-        keys.key,
-        'WEIGHTS',
-        transformDoubleArgument(keys.weight)
-      );
-    }
-  }
+  pushZKeysArguments(args, keys);
 
   if (options?.AGGREGATE) {
     args.push('AGGREGATE', options.AGGREGATE);
   }
 
   return args;
-}
-
-function isPlainKey(key: RedisArgument | ZInterKeyAndWeight): key is RedisArgument {
-  return typeof key === 'string' || Buffer.isBuffer(key);
-}
-
-function isPlainKeys(keys: Array<RedisArgument> | Array<ZInterKeyAndWeight>): keys is Array<RedisArgument> {
-  return isPlainKey(keys[0]);
 }
 
 export default {

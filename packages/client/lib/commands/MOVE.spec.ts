@@ -13,7 +13,7 @@ describe('MOVE', () => {
   testUtils.testAll('move', async client => {
     assert.equal(
       await client.move('key', 1),
-      1
+      0
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

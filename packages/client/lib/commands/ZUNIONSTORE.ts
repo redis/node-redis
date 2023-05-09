@@ -1,8 +1,7 @@
 import { RedisArgument, NumberReply, Command, } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
+import { ZKeys, pushZKeysArguments } from './generic-transformers';
 
 export interface ZUnionOptions {
-  WEIGHTS?: Array<number>;
   AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
@@ -11,14 +10,10 @@ export default {
   IS_READ_ONLY: false,
   transformArguments(
     destination: RedisArgument,
-    keys: RedisVariadicArgument,
+    keys: ZKeys,
     options?: ZUnionOptions
   ) {
-    const args = pushVariadicArgument(['ZUNIONSTORE', destination], keys);
-
-    if (options?.WEIGHTS) {
-      args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));
-    }
+    const args = pushZKeysArguments(['ZUNIONSTORE', destination], keys);
 
     if (options?.AGGREGATE) {
       args.push('AGGREGATE', options.AGGREGATE);

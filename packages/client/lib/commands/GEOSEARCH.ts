@@ -43,10 +43,6 @@ export function pushGeoSearchArguments(
     args.push('BYBOX', by.width.toString(), by.height.toString(), by.unit);
   }
 
-  if (options?.SORT) {
-    args.push(options.SORT);
-  }
-
   pushGeoSearchOptions(args, options);
 
   return args;

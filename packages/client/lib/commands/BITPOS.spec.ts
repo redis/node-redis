@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BITPOS from './BITPOS';
 
-describe.only('BITPOS', () => {
+describe('BITPOS', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(

@@ -49,7 +49,7 @@ describe('ZUNIONSTORE', () => {
 
   testUtils.testAll('zUnionStore', async client => {
     assert.equal(
-      await client.zUnionStore('destination', 'key'),
+      await client.zUnionStore('{tag}destination', '{tag}key'),
       0
     );
   }, {

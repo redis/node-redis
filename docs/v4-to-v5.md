@@ -85,7 +85,10 @@ Some command arguments/replies have changed to align more closely to data types 
 - `HRANDFIELD_COUNT_WITHVALUES`: `Record<BlobString, BlobString>` -> `Array<{ field: BlobString; value: BlobString; }>` (it can return duplicates).
 - `SCAN`, `HSCAN`, `SSCAN`, and `ZSCAN`: cursor type is `string` instead of `number`?
 - `HSETNX`: `boolean` -> `number` [^boolean-to-number]
-- `ZINTER`: instead of `client.ZINTER('11, { WEIGHTS: [1] })` use `client.ZINTER({ key: '1', weight: 1 }])`
+- `ZINTER`: instead of `client.ZINTER('key', { WEIGHTS: [1] })` use `client.ZINTER({ key: 'key', weight: 1 }])`
+- `ZINTER_WITHSCORES`: instead of `client.ZINTER_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZINTER_WITHSCORES({ key: 'key', weight: 1 }])`
+- `ZUNION`: instead of `client.ZUNION('key', { WEIGHTS: [1] })` use `client.ZUNION({ key: 'key', weight: 1 }])`
+- `ZUNION_WITHSCORES`: instead of `client.ZUNION_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZUNION_WITHSCORES({ key: 'key', weight: 1 }])`
 - `SETNX`: `boolean` -> `number` [^boolean-to-number]
 - `COPY`: `destinationDb` -> `DB`, `replace` -> `REPLACE`, `boolean` -> `number` [^boolean-to-number]
 - `EXPIRE`: `boolean` -> `number` [^boolean-to-number]
@@ -104,6 +107,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `GEOSEARCH_WITH`/`GEORADIUS_WITH`: `GeoReplyWith` -> `GEO_REPLY_WITH` [^enum-to-constants]
 - `GEORADIUSSTORE` -> `GEORADIUS_STORE`
 - `GEORADIUSBYMEMBERSTORE` -> `GEORADIUSBYMEMBER_STORE`
+- `XACK`: `boolean` -> `number` [^boolean-to-number]
 
 [^enum-to-constants]: TODO
 

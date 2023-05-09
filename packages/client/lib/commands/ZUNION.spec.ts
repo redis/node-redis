@@ -13,19 +13,33 @@ describe('ZUNION', () => {
       );
     });
 
-    it('keys (array)', () => {
+    it('keys (Array<string>)', () => {
       assert.deepEqual(
         ZUNION.transformArguments(['1', '2']),
         ['ZUNION', '2', '1', '2']
       );
     });
 
-    it('with WEIGHTS', () => {
+    it('key & weight', () => {
       assert.deepEqual(
-        ZUNION.transformArguments('key', {
-          WEIGHTS: [1]
+        ZUNION.transformArguments({
+          key: 'key',
+          weight: 1
         }),
         ['ZUNION', '1', 'key', 'WEIGHTS', '1']
+      );
+    });
+
+    it('keys & weights', () => {
+      assert.deepEqual(
+        ZUNION.transformArguments([{
+          key: 'a',
+          weight: 1
+        }, {
+          key: 'b',
+          weight: 2
+        }]),
+        ['ZUNION', '2', 'a', 'b', 'WEIGHTS', '1', '2']
       );
     });
 

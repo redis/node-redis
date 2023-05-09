@@ -68,7 +68,12 @@ import GETDEL from './GETDEL';
 import GETEX from './GETEX';
 import GETRANGE from './GETRANGE';
 import GETSET from './GETSET';
+import EXISTS from './EXISTS';
+import EXPIRE from './EXPIRE';
+import EXPIREAT from './EXPIREAT';
+import EXPIRETIME from './EXPIRETIME';
 import FLUSHALL from './FLUSHALL';
+import FLUSHDB from './FLUSHDB';
 import HDEL from './HDEL';
 import HEXISTS from './HEXISTS';
 import HGET from './HGET';
@@ -119,10 +124,6 @@ import OBJECT_FREQ from './OBJECT_FREQ';
 import OBJECT_IDLETIME from './OBJECT_IDLETIME';
 import OBJECT_REFCOUNT from './OBJECT_REFCOUNT';
 import PERSIST from './PERSIST';
-import EXISTS from './EXISTS';
-import EXPIRE from './EXPIRE';
-import EXPIREAT from './EXPIREAT';
-import EXPIRETIME from './EXPIRETIME';
 import PEXPIRE from './PEXPIRE';
 import PEXPIREAT from './PEXPIREAT';
 import PEXPIRETIME from './PEXPIRETIME';
@@ -212,6 +213,7 @@ import ZREMRANGEBYRANK from './ZREMRANGEBYRANK';
 import ZREVRANK from './ZREVRANK';
 import ZSCAN from './ZSCAN';
 import ZSCORE from './ZSCORE';
+import ZUNION_WITHSCORES from './ZUNION_WITHSCORES';
 import ZUNION from './ZUNION';
 import ZUNIONSTORE from './ZUNIONSTORE';
 import { Command } from '../RESP/types';
@@ -311,6 +313,18 @@ export default {
   del: DEL,
   DUMP,
   dump: DUMP,
+  EXISTS,
+  exists: EXISTS,
+  EXPIRE,
+  expire: EXPIRE,
+  EXPIREAT,
+  expireAt: EXPIREAT,
+  EXPIRETIME,
+  expireTime: EXPIRETIME,
+  FLUSHALL,
+  flushAll: FLUSHALL,
+  FLUSHDB,
+  flushDb: FLUSHDB,
   GEOADD,
   geoAdd: GEOADD,
   GEODIST,
@@ -357,8 +371,6 @@ export default {
   getRange: GETRANGE,
   GETSET,
   getSet: GETSET,
-  FLUSHALL,
-  flushAll: FLUSHALL,
   HDEL,
   hDel: HDEL,
   HEXISTS,
@@ -457,14 +469,6 @@ export default {
   objectRefCount: OBJECT_REFCOUNT,
   PERSIST,
   persist: PERSIST,
-  EXISTS,
-  exists: EXISTS,
-  EXPIRE,
-  expire: EXPIRE,
-  EXPIREAT,
-  expireAt: EXPIREAT,
-  EXPIRETIME,
-  expireTime: EXPIRETIME,
   PEXPIRE,
   pExpire: PEXPIRE,
   PEXPIREAT,
@@ -646,6 +650,8 @@ export default {
   zScan: ZSCAN,
   ZSCORE,
   zScore: ZSCORE,
+  ZUNION_WITHSCORES,
+  zUnionWithScores: ZUNION_WITHSCORES,
   ZUNION,
   zUnion: ZUNION,
   ZUNIONSTORE,

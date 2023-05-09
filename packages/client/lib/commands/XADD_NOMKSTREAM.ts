@@ -1,13 +1,16 @@
-import { BlobStringReply, NullReply, Command } from '../RESP/types';
-import XADD from './XADD';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
+import { XAddOptions, pushXAddArguments } from './XADD';
 
 export default {
-  FIRST_KEY_INDEX: XADD.FIRST_KEY_INDEX,
-  IS_READ_ONLY: XADD.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof XADD.transformArguments>) {
-    const redisArgs = XADD.transformArguments(...args);
-    redisArgs.push('NOMKSTREAM');
-    return redisArgs;
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    id: RedisArgument,
+    message: Record<string, RedisArgument>,
+    options?: XAddOptions
+  ) {
+    return pushXAddArguments(['XADD', key, 'NOMKSTREAM'], id, message, options);
   },
   transformReply: undefined as unknown as () => BlobStringReply | NullReply
 } as const satisfies Command;
