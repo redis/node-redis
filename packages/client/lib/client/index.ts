@@ -11,9 +11,10 @@ import { Command, CommandArguments, CommandSignature, Flags, CommanderConfig, Re
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
-import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
 import { ReplyWithFlags, CommandReply } from '../RESP/types';
 import SCAN, { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
+import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
+import { RedisClientPool } from './pool';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -60,14 +61,6 @@ export interface RedisClientOptions<
    */
   readonly?: boolean;
   /**
-   * TODO
-   */
-  legacyMode?: boolean;
-  /**
-   * TODO
-   */
-  isolationPoolOptions?: PoolOptions;
-  /**
    * Send `PING` command at interval (in ms).
    * Useful with Redis deployments that do not use TCP Keep-Alive.
    */
@@ -78,36 +71,36 @@ type WithCommands<
   RESP extends RespVersions,
   FLAGS extends Flags
 > = {
-  [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, FLAGS>;
-};
+    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, FLAGS>;
+  };
 
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
   FLAGS extends Flags
 > = {
-  [P in keyof M]: {
-    [C in keyof M[P]]: CommandSignature<M[P][C], RESP, FLAGS>;
+    [P in keyof M]: {
+      [C in keyof M[P]]: CommandSignature<M[P][C], RESP, FLAGS>;
+    };
   };
-};
 
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
   FLAGS extends Flags
 > = {
-  [L in keyof F]: {
-    [C in keyof F[L]]: CommandSignature<F[L][C], RESP, FLAGS>;
+    [L in keyof F]: {
+      [C in keyof F[L]]: CommandSignature<F[L][C], RESP, FLAGS>;
+    };
   };
-};
 
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
   FLAGS extends Flags
 > = {
-  [P in keyof S]: CommandSignature<S[P], RESP, FLAGS>;
-};
+    [P in keyof S]: CommandSignature<S[P], RESP, FLAGS>;
+  };
 
 export type RedisClientType<
   M extends RedisModules = {},
@@ -116,18 +109,16 @@ export type RedisClientType<
   RESP extends RespVersions = 2,
   FLAGS extends Flags = {}
 > = (
-  RedisClient<M, F, S, RESP, FLAGS> &
-  WithCommands<RESP, FLAGS> &
-  WithModules<M, RESP, FLAGS> &
-  WithFunctions<F, RESP, FLAGS> &
-  WithScripts<S, RESP, FLAGS>
-);
+    RedisClient<M, F, S, RESP, FLAGS> &
+    WithCommands<RESP, FLAGS> &
+    WithModules<M, RESP, FLAGS> &
+    WithFunctions<F, RESP, FLAGS> &
+    WithScripts<S, RESP, FLAGS>
+  );
 
 export interface ClientCommandOptions extends QueueCommandOptions {
-  isolated?: boolean;
+  // isolated?: boolean;
 }
-
-// type ClientLegacyCallback = (err: Error | null, reply?: RedisCommandRawReply) => void;
 
 type ProxyClient = RedisClient<{}, {}, {}, RespVersions, Flags> & { commandOptions?: ClientCommandOptions };
 
@@ -148,7 +139,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyClient) {
       const args = command.transformArguments.apply(undefined, arguments as any),
-        reply = await this._sendCommand(args, this.commandOptions);
+        reply = await this.sendCommand(args, this.commandOptions);
       return transformReply ?
         transformReply(reply, args.preserve) :
         reply;
@@ -159,7 +150,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient) {
       const args = command.transformArguments.apply(undefined, arguments as any),
-        reply = await this.self._sendCommand(args, this.self.commandOptions);
+        reply = await this.self.sendCommand(args, this.self.commandOptions);
       return transformReply ?
         transformReply(reply, args.preserve) :
         reply;
@@ -171,7 +162,7 @@ export default class RedisClient<
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyClient) {
       const fnArgs = fn.transformArguments.apply(undefined, arguments as any),
-        reply = await this.self._sendCommand(
+        reply = await this.self.sendCommand(
           prefix.concat(fnArgs),
           this.self.commandOptions
         );
@@ -187,12 +178,12 @@ export default class RedisClient<
     return async function (this: ProxyClient) {
       const scriptArgs = script.transformArguments.apply(undefined, arguments as any),
         args = prefix.concat(scriptArgs),
-        reply = await this._sendCommand(args, this.commandOptions).catch((err: unknown) => {
+        reply = await this.sendCommand(args, this.commandOptions).catch((err: unknown) => {
           if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
           args[0] = 'EVAL';
           args[1] = script.SCRIPT;
-          return this._sendCommand(args, this.commandOptions);
+          return this.sendCommand(args, this.commandOptions);
         });
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
@@ -230,7 +221,7 @@ export default class RedisClient<
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
     RESP extends RespVersions = 2
-  >(options?: RedisClientOptions<M, F, S, RESP>) {
+  >(this: void, options?: RedisClientOptions<M, F, S, RESP>) {
     return RedisClient.factory(options)(options);
   }
 
@@ -278,8 +269,6 @@ export default class RedisClient<
   private readonly _options?: RedisClientOptions<M, F, S, RESP>;
   private readonly _socket: RedisSocket;
   private readonly _queue: RedisCommandsQueue;
-  private _isolationPool?: Pool<RedisClientType<M, F, S, RESP, FLAGS>>;
-  // readonly #v4: Record<string, any> = {};
   private _selectedDB = 0;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
@@ -298,20 +287,11 @@ export default class RedisClient<
     return this._queue.isPubSubActive;
   }
 
-  // get v4(): Record<string, any> {
-  //   if (!this.client.#options?.legacyMode) {
-  //     throw new Error('the client is not in "legacy mode"');
-  //   }
-
-  //   return this.client.#v4;
-  // }
-
   constructor(options?: RedisClientOptions<M, F, S, RESP>) {
     super();
     this._options = this._initiateOptions(options);
     this._queue = this._initiateQueue();
     this._socket = this._initiateSocket();
-    // this.#legacyMode();
   }
 
   private _initiateOptions(options?: RedisClientOptions<M, F, S, RESP>): RedisClientOptions<M, F, S, RESP> | undefined {
@@ -353,12 +333,12 @@ export default class RedisClient<
       }
 
       if (this._options?.readonly) {
-        // promises.push(
-        //     this.#queue.addCommand(
-        //         COMMANDS.READONLY.transformArguments(),
-        //         { asap: true }
-        //     )
-        // );
+        promises.push(
+          this._queue.addCommand(
+            COMMANDS.READONLY.transformArguments(),
+            { asap: true }
+          )
+        );
       }
 
       if (this._options?.RESP) {
@@ -383,24 +363,24 @@ export default class RedisClient<
         );
       } else {
         if (this._options?.name) {
-          // promises.push(
-          //     this.#queue.addCommand(
-          //         COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
-          //         { asap: true }
-          //     )
-          // );
+          promises.push(
+            this._queue.addCommand(
+              COMMANDS.CLIENT_SETNAME.transformArguments(this._options.name),
+              { asap: true }
+            )
+          );
         }
 
         if (this._options?.username || this._options?.password) {
-          // promises.push(
-          //     this.#queue.addCommand(
-          //         COMMANDS.AUTH.transformArguments({
-          //             username: this.#options.username,
-          //             password: this.#options.password ?? ''
-          //         }),
-          //         { asap: true }
-          //     )
-          // );
+          promises.push(
+            this._queue.addCommand(
+              COMMANDS.AUTH.transformArguments({
+                username: this._options.username,
+                password: this._options.password ?? ''
+              }),
+              { asap: true }
+            )
+          );
         }
       }
 
@@ -436,66 +416,6 @@ export default class RedisClient<
       .on('end', () => this.emit('end'));
   }
 
-  // #legacyMode(): void {
-  //   if (!this.#options?.legacyMode) return;
-
-  //   (this as any).#v4.sendCommand = this.#sendCommand.bind(this);
-  //   (this as any).sendCommand = (...args: Array<any>): void => {
-  //     const result = this.#legacySendCommand(...args);
-  //     if (result) {
-  //       result.promise
-  //         .then(reply => result.callback(null, reply))
-  //         .catch(err => result.callback(err));
-  //     }
-  //   };
-
-  //   for (const [name, command] of Object.entries(COMMANDS)) {
-  //     this.#defineLegacyCommand(name, command);
-  //     (this as any)[name.toLowerCase()] ??= (this as any)[name];
-  //   }
-
-  //   // hard coded commands
-  //   this.#defineLegacyCommand('SELECT');
-  //   this.#defineLegacyCommand('select');
-  //   this.#defineLegacyCommand('SUBSCRIBE');
-  //   this.#defineLegacyCommand('subscribe');
-  //   this.#defineLegacyCommand('PSUBSCRIBE');
-  //   this.#defineLegacyCommand('pSubscribe');
-  //   this.#defineLegacyCommand('UNSUBSCRIBE');
-  //   this.#defineLegacyCommand('unsubscribe');
-  //   this.#defineLegacyCommand('PUNSUBSCRIBE');
-  //   this.#defineLegacyCommand('pUnsubscribe');
-  //   this.#defineLegacyCommand('QUIT');
-  //   this.#defineLegacyCommand('quit');
-  // }
-
-  // #legacySendCommand(...args: Array<any>) {
-  //   const callback = typeof args[args.length - 1] === 'function' ?
-  //     args.pop() as ClientLegacyCallback :
-  //     undefined;
-
-  //   const promise = this.#sendCommand(transformLegacyCommandArguments(args));
-  //   if (callback) return {
-  //     promise,
-  //     callback
-  //   };
-  //   promise.catch(err => this.emit('error', err));
-  // }
-
-  // #defineLegacyCommand(name: string, command?: RedisCommand): void {
-  //   this.#v4[name] = (this as any)[name].bind(this);
-  //   (this as any)[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
-  //     (...args: Array<unknown>) => {
-  //       const result = this.#legacySendCommand(name, ...args);
-  //       if (result) {
-  //         result.promise
-  //           .then(reply => result.callback(null, command.transformReply!(reply)))
-  //           .catch(err => result.callback(err));
-  //       }
-  //     } :
-  //     (...args: Array<unknown>) => (this as any).sendCommand(name, ...args);
-  // }
-
   private _pingTimer?: NodeJS.Timer;
 
   private _setPingTimer(): void {
@@ -505,8 +425,7 @@ export default class RedisClient<
     this._pingTimer = setTimeout(() => {
       if (!this._socket.isReady) return;
 
-      // using _sendCommand to support legacy mode
-      this._sendCommand(['PING'])
+      this.sendCommand(['PING'])
         .then(reply => this.emit('ping-interval', reply))
         .catch(err => this.emit('error', err))
         .finally(() => this._setPingTimer());
@@ -559,10 +478,21 @@ export default class RedisClient<
   }
 
   /**
-   * Override the `isolated` command option to `true`
+   * Get the "legacy" (v3/callback) interface
    */
-  isolated() {
-    return this._commandOptionsProxy('isolated', true);
+  legacy(): RedisLegacyClientType {
+    return new RedisLegacyClient(
+      this as unknown as RedisClientType<M, F, S>
+    ) as RedisLegacyClientType;
+  }
+
+  /**
+   * Create `RedisClientPool` using this client as a prototype
+   */
+  pool() {
+    return RedisClientPool.fromClient(
+      this as unknown as RedisClientType<M, F, S, RESP>
+    );
   }
 
   duplicate(overrides?: Partial<RedisClientOptions<M, F, S, RESP>>) {
@@ -572,36 +502,16 @@ export default class RedisClient<
     }) as RedisClientType<M, F, S, RESP>;
   }
 
-  async connect(): Promise<void> {
-    await this._socket.connect();
-    this.self._isolationPool = createPool({
-      create: async () => {
-        const duplicate = this.duplicate({
-          isolationPoolOptions: undefined
-        }).on('error', err => this.emit('error', err));
-        await duplicate.connect();
-        return duplicate;
-      },
-      destroy: client => client.disconnect()
-    }, this._options?.isolationPoolOptions);
+  connect() {
+    return this._socket.connect();
   }
 
-  sendCommand = this._sendCommand.bind(this);
-
-  // using `_` to avoid conflicts with the legacy mode
-  _sendCommand<T = ReplyUnion>(
+  sendCommand<T = ReplyUnion>(
     args: CommandArguments,
     options?: ClientCommandOptions
   ): Promise<T> {
     if (!this._socket.isOpen) {
       return Promise.reject(new ClientClosedError());
-    } else if (options?.isolated) {
-      return this.executeIsolated(isolatedClient =>
-        isolatedClient.sendCommand(args, {
-          ...options,
-          isolated: false
-        })
-      );
     } else if (!this._socket.isReady && this._options?.disableOfflineQueue) {
       return Promise.reject(new ClientOfflineError());
     }
@@ -612,7 +522,7 @@ export default class RedisClient<
   }
 
   async SELECT(db: number): Promise<void> {
-    await this._sendCommand(['SELECT', db.toString()]);
+    await this.sendCommand(['SELECT', db.toString()]);
     this._selectedDB = db;
   }
 
@@ -630,7 +540,6 @@ export default class RedisClient<
     listener: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    console.log('SUBSCRIBE', channels, listener, bufferMode, this._options?.RESP);
     return this._pubSubCommand(
       this._queue.subscribe(
         PubSubType.CHANNELS,
@@ -658,7 +567,7 @@ export default class RedisClient<
     );
   }
 
-  unsubscribe = this.UNSUBSCRIBE;
+  unsubscribe = this.UNSUBSCRIBE
 
   PSUBSCRIBE<T extends boolean = false>(
     patterns: string | Array<string>,
@@ -752,17 +661,13 @@ export default class RedisClient<
     return this._socket.quit(async () => {
       const quitPromise = this._queue.addCommand<string>(['QUIT']);
       this._tick();
-      const [reply] = await Promise.all([
-        quitPromise,
-        this._destroyIsolationPool()
-      ]);
-      return reply;
+      return quitPromise;
     });
   }
 
   quit = this.QUIT;
 
-  _tick(force = false): void {
+  private _tick(force = false): void {
     if (this._socket.writableNeedDrain || (!force && !this._socket.isReady)) {
       return;
     }
@@ -775,12 +680,6 @@ export default class RedisClient<
 
       this._socket.writeCommand(args);
     }
-  }
-
-  executeIsolated<T>(fn: (client: RedisClientType<M, F, S, RESP, FLAGS>) => T | Promise<T>): Promise<T> {
-    return this._isolationPool ?
-      this._isolationPool.use(fn) :
-      Promise.reject(new ClientClosedError());
   }
 
   private _addMultiCommands(
@@ -827,7 +726,6 @@ export default class RedisClient<
 
         return results;
       }
-      // self.#options?.legacyMode
     );
   }
 
@@ -884,23 +782,16 @@ export default class RedisClient<
     } while (cursor !== 0);
   }
 
-  async disconnect(): Promise<void> {
+  disconnect() {
     this._queue.flushAll(new DisconnectsClientError());
     this._socket.disconnect();
-    await this._destroyIsolationPool();
   }
 
-  private async _destroyIsolationPool(): Promise<void> {
-    await this._isolationPool!.drain();
-    await this._isolationPool!.clear();
-    this.self._isolationPool = undefined;
-  }
-
-  ref(): void {
+  ref() {
     this._socket.ref();
   }
 
-  unref(): void {
+  unref() {
     this._socket.unref();
   }
 }

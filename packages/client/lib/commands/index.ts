@@ -133,6 +133,7 @@ import PING from './PING';
 import PSETEX from './PSETEX';
 import PTTL from './PTTL';
 import RANDOMKEY from './RANDOMKEY';
+import READONLY from './READONLY';
 import RENAME from './RENAME';
 import RENAMENX from './RENAMENX';
 import RPOP_COUNT from './RPOP_COUNT';
@@ -487,6 +488,8 @@ export default {
   pTTL: PTTL,
   RANDOMKEY,
   randomKey: RANDOMKEY,
+  READONLY,
+  readonly: READONLY,
   RENAME,
   rename: RENAME,
   RENAMENX,

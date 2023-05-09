@@ -1,4 +1,4 @@
-import { CommandArguments, RedisArgument, BlobStringReply, ArrayReply, Command } from '../RESP/types';
+import { RedisArgument, CommandArguments, BlobStringReply, ArrayReply, Command } from '../RESP/types';
 
 export interface ScanCommonOptions {
   MATCH?: string;
