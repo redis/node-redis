@@ -24,6 +24,7 @@ import * as CLIENT_KILL from '../commands/CLIENT_KILL';
 import * as CLIENT_LIST from '../commands/CLIENT_LIST';
 import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
+import * as CLIENT_REPLY from '../commands/CLIENT_REPLY';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_TRACKING from '../commands/CLIENT_TRACKING';
 import * as CLIENT_TRACKINGINFO from '../commands/CLIENT_TRACKINGINFO';
@@ -170,6 +171,8 @@ export default {
     clientList: CLIENT_LIST,
     CLIENT_PAUSE,
     clientPause: CLIENT_PAUSE,
+    CLIENT_REPLY,
+    clientReply: CLIENT_REPLY,
     CLIENT_SETNAME,
     clientSetName: CLIENT_SETNAME,
     CLIENT_TRACKING,
