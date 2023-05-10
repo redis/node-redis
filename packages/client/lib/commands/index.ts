@@ -186,6 +186,7 @@ import XDEL from './XDEL';
 import XSETID from './XSETID';
 import XTRIM from './XTRIM';
 import XLEN from './XLEN';
+import ZADD_INCR from './ZADD_INCR';
 import ZADD from './ZADD';
 import ZCARD from './ZCARD';
 import ZCOUNT from './ZCOUNT';
@@ -204,6 +205,7 @@ import ZRANDMEMBER_COUNT from './ZRANDMEMBER_COUNT';
 import ZRANDMEMBER from './ZRANDMEMBER';
 import ZRANGE from './ZRANGE';
 import ZRANGEBYLEX from './ZRANGEBYLEX';
+import ZRANGEBYSCORE_WITHSCORES from './ZRANGEBYSCORE_WITHSCORES';
 import ZRANGEBYSCORE from './ZRANGEBYSCORE';
 import ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
 import ZRANK from './ZRANK';
@@ -596,6 +598,8 @@ export default {
   xTrim: XTRIM,
   XLEN,
   xLen: XLEN,
+  ZADD_INCR,
+  zAddIncr: ZADD_INCR,
   ZADD,
   zAdd: ZADD,
   ZCARD,
@@ -632,6 +636,8 @@ export default {
   zRange: ZRANGE,
   ZRANGEBYLEX,
   zRangeByLex: ZRANGEBYLEX,
+  ZRANGEBYSCORE_WITHSCORES,
+  zRangeByScoreWithScores: ZRANGEBYSCORE_WITHSCORES,
   ZRANGEBYSCORE,
   zRangeByScore: ZRANGEBYSCORE,
   ZRANK,

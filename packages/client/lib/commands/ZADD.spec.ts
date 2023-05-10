@@ -115,19 +115,7 @@ describe('ZADD', () => {
       );
     });
 
-    it('with INCR', () => {
-      assert.deepEqual(
-        ZADD.transformArguments('key', {
-          value: '1',
-          score: 1
-        }, {
-          INCR: true
-        }),
-        ['ZADD', 'key', 'INCR', '1', '1']
-      );
-    });
-
-    it('with condition, comparison, CH, INCR', () => {
+    it('with condition, comparison, CH', () => {
       assert.deepEqual(
         ZADD.transformArguments('key', {
           value: '1',
@@ -135,10 +123,9 @@ describe('ZADD', () => {
         }, {
           condition: 'XX',
           comparison: 'LT',
-          CH: true,
-          INCR: true
+          CH: true
         }),
-        ['ZADD', 'key', 'XX', 'LT', 'CH', 'INCR', '1', '1']
+        ['ZADD', 'key', 'XX', 'LT', 'CH', '1', '1']
       );
     });
   });

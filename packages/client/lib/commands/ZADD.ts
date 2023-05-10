@@ -1,4 +1,4 @@
-import { RedisArgument, NumberReply, DoubleReply, Command } from '../RESP/types';
+import { RedisArgument, NumberReply, DoubleReply, Command, CommandArguments } from '../RESP/types';
 import { ZMember, transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
 export interface ZAddOptions {
@@ -21,7 +21,6 @@ export interface ZAddOptions {
    */
   GT?: boolean;
   CH?: boolean;
-  INCR?: boolean;
 }
 
 export default {
@@ -53,25 +52,28 @@ export default {
       args.push('CH');
     }
 
-    if (options?.INCR) {
-      args.push('INCR');
-    }
-
-    if (Array.isArray(members)) {
-      for (const member of members) {
-        pushMember(args, member);
-      }
-    } else {
-      pushMember(args, members);
-    }
+    pushMembers(args, members);
 
     return args;
   },
   transformReply: {
     2: transformDoubleReply,
-    3: undefined as unknown as () => NumberReply | DoubleReply
+    3: undefined as unknown as () => NumberReply
   }
 } as const satisfies Command;
+
+export function pushMembers(
+  args: CommandArguments, 
+  members: ZMember | Array<ZMember>
+) {
+  if (Array.isArray(members)) {
+    for (const member of members) {
+      pushMember(args, member);
+    }
+  } else {
+    pushMember(args, members);
+  }
+}
 
 function pushMember(args: Array<RedisArgument>, member: ZMember) {
   args.push(

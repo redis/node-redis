@@ -1,12 +1,13 @@
 
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { pushZInterArguments, ZInterKeyAndWeight, ZInterKeys, ZInterOptions } from './ZINTER';
+import { pushZInterArguments, ZInterOptions } from './ZINTER';
+import { ZKeys } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
   transformArguments(
     destination: RedisArgument,
-    keys: ZInterKeys<RedisArgument> | ZInterKeys<ZInterKeyAndWeight>,
+    keys: ZKeys,
     options?: ZInterOptions
   ) {
     return pushZInterArguments(['ZINTERSTORE', destination], keys, options);

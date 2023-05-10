@@ -9,14 +9,14 @@ describe('ZUNION WITHSCORES', () => {
     it('key (string)', () => {
       assert.deepEqual(
         ZUNION_WITHSCORES.transformArguments('key'),
-        ['ZUNION', '1', 'key']
+        ['ZUNION', '1', 'key', 'WITHSCORES']
       );
     });
 
     it('keys (Array<string>)', () => {
       assert.deepEqual(
         ZUNION_WITHSCORES.transformArguments(['1', '2']),
-        ['ZUNION', '2', '1', '2']
+        ['ZUNION', '2', '1', '2', 'WITHSCORES']
       );
     });
 
@@ -26,7 +26,7 @@ describe('ZUNION WITHSCORES', () => {
           key: 'key',
           weight: 1
         }),
-        ['ZUNION', '1', 'key', 'WEIGHTS', '1']
+        ['ZUNION', '1', 'key', 'WEIGHTS', '1', 'WITHSCORES']
       );
     });
 
@@ -39,7 +39,7 @@ describe('ZUNION WITHSCORES', () => {
           key: 'b',
           weight: 2
         }]),
-        ['ZUNION', '2', 'a', 'b', 'WEIGHTS', '1', '2']
+        ['ZUNION', '2', 'a', 'b', 'WEIGHTS', '1', '2', 'WITHSCORES']
       );
     });
 
