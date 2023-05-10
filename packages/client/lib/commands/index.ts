@@ -45,6 +45,11 @@ import DECR from './DECR';
 import DECRBY from './DECRBY';
 import DEL from './DEL';
 import DUMP from './DUMP';
+import ECHO from './ECHO';
+import EVAL_RO from './EVAL_RO';
+import EVAL from './EVAL';
+import EVALSHA_RO from './EVALSHA_RO';
+import EVALSHA from './EVALSHA';
 import GEOADD from './GEOADD';
 import GEODIST from './GEODIST';
 import GEOHASH from './GEOHASH';
@@ -75,6 +80,7 @@ import EXPIRETIME from './EXPIRETIME';
 import FLUSHALL from './FLUSHALL';
 import FLUSHDB from './FLUSHDB';
 import HDEL from './HDEL';
+import HELLO from './HELLO';
 import HEXISTS from './HEXISTS';
 import HGET from './HGET';
 import HGETALL from './HGETALL';
@@ -96,6 +102,7 @@ import INCRBY from './INCRBY';
 import INCRBYFLOAT from './INCRBYFLOAT';
 import INFO from './INFO';
 import KEYS from './KEYS';
+import LASTSAVE from './LASTSAVE';
 // import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
 // import LCS_IDX from './LCS_IDX';
 import LCS_LEN from './LCS_LEN';
@@ -320,6 +327,16 @@ export default {
   del: DEL,
   DUMP,
   dump: DUMP,
+  ECHO,
+  echo: ECHO,
+  EVAL_RO,
+  evalRo: EVAL_RO,
+  EVAL,
+  eval: EVAL,
+  EVALSHA_RO,
+  evalShaRo: EVALSHA_RO,
+  EVALSHA,
+  evalSha: EVALSHA,
   EXISTS,
   exists: EXISTS,
   EXPIRE,
@@ -380,6 +397,8 @@ export default {
   getSet: GETSET,
   HDEL,
   hDel: HDEL,
+  HELLO,
+  hello: HELLO,
   HEXISTS,
   hExists: HEXISTS,
   HGET,
@@ -422,6 +441,8 @@ export default {
   info: INFO,
   KEYS,
   keys: KEYS,
+  LASTSAVE,
+  lastSave: LASTSAVE,
   // LCS_IDX_WITHMATCHLEN,
   // LCS_IDX,
   LCS_LEN,

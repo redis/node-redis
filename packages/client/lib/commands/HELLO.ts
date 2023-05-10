@@ -1,6 +1,7 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command, NumberReply, Resp2Reply, RespVersions, TuplesToMapReply } from '../RESP/types';
 
 export interface HelloOptions {
+  protover?: RespVersions;
   AUTH?: {
     username: RedisArgument;
     password: RedisArgument;
@@ -19,22 +20,26 @@ export type HelloReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  transformArguments(protoover: RespVersions, options?: HelloOptions) {
-    const args: Array<RedisArgument> = ['HELLO', protoover.toString()];
+  transformArguments(protover?: RespVersions, options?: HelloOptions) {
+    const args: Array<RedisArgument> = ['HELLO'];
 
-    if (options?.AUTH) {
-      args.push(
-        'AUTH',
-        options.AUTH.username,
-        options.AUTH.password
-      );
-    }
+    if (protover) {
+      args.push(protover.toString());
 
-    if (options?.SETNAME) {
-      args.push(
-        'SETNAME',
-        options.SETNAME
-      );
+      if (options?.AUTH) {
+        args.push(
+          'AUTH',
+          options.AUTH.username,
+          options.AUTH.password
+        );
+      }
+  
+      if (options?.SETNAME) {
+        args.push(
+          'SETNAME',
+          options.SETNAME
+        );
+      }
     }
     
     return args;
