@@ -7,7 +7,7 @@ describe('ZUNIONSTORE', () => {
     it('key (string)', () => {
       assert.deepEqual(
         ZUNIONSTORE.transformArguments('destination', 'source'),
-        ['ZUNIONSTORE', 'destination', '1', 'key']
+        ['ZUNIONSTORE', 'destination', '1', 'source']
       );
     });
 
@@ -21,10 +21,10 @@ describe('ZUNIONSTORE', () => {
     it('key & weight', () => {
       assert.deepEqual(
         ZUNIONSTORE.transformArguments('destination', {
-          key: 'key',
+          key: 'source',
           weight: 1
         }),
-        ['ZUNIONSTORE', 'destination', '1', 'key', 'WEIGHTS', '1']
+        ['ZUNIONSTORE', 'destination', '1', 'source', 'WEIGHTS', '1']
       );
     });
 
@@ -43,10 +43,10 @@ describe('ZUNIONSTORE', () => {
 
     it('with AGGREGATE', () => {
       assert.deepEqual(
-        ZUNIONSTORE.transformArguments('destination', 'key', {
+        ZUNIONSTORE.transformArguments('destination', 'source', {
           AGGREGATE: 'SUM'
         }),
-        ['ZUNIONSTORE', 'destination', '1', 'key', 'AGGREGATE', 'SUM']
+        ['ZUNIONSTORE', 'destination', '1', 'source', 'AGGREGATE', 'SUM']
       );
     });
   });

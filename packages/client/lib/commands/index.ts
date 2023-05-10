@@ -145,6 +145,11 @@ import RPUSHX from './RPUSHX';
 import SADD from './SADD';
 import SCAN from './SCAN';
 import SCARD from './SCARD';
+import SCRIPT_DEBUG from './SCRIPT_DEBUG';
+import SCRIPT_EXISTS from './SCRIPT_EXISTS';
+import SCRIPT_FLUSH from './SCRIPT_FLUSH';
+import SCRIPT_KILL from './SCRIPT_KILL';
+import SCRIPT_LOAD from './SCRIPT_LOAD';
 import SDIFF from './SDIFF';
 import SDIFFSTORE from './SDIFFSTORE';
 import SET from './SET';
@@ -516,6 +521,16 @@ export default {
   scan: SCAN,
   SCARD,
   sCard: SCARD,
+  SCRIPT_DEBUG,
+  scriptDebug: SCRIPT_DEBUG,
+  SCRIPT_EXISTS,
+  scriptExists: SCRIPT_EXISTS,
+  SCRIPT_FLUSH,
+  scriptFlush: SCRIPT_FLUSH,
+  SCRIPT_KILL,
+  scriptKill: SCRIPT_KILL,
+  SCRIPT_LOAD,
+  scriptLoad: SCRIPT_LOAD,
   SDIFF,
   sDiff: SDIFF,
   SDIFFSTORE,

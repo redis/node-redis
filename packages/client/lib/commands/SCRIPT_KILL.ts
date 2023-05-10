@@ -6,5 +6,5 @@ export default {
   transformArguments() {
     return ['SCRIPT', 'KILL'];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

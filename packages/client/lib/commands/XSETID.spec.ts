@@ -31,9 +31,13 @@ describe('XSETID', () => {
   });
 
   testUtils.testAll('xSetId', async client => {
-    assert.deepEqual(
-      await client.xSetId('key', '0-0'),
-      []
+    const id = await client.xAdd('key', '*', {
+      field: 'value'
+    });
+
+    assert.equal(
+      await client.xSetId('key', id),
+      'OK'
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

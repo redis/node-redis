@@ -6,8 +6,8 @@ describe('ZINTERSTORE', () => {
   describe('transformArguments', () => {
     it('key (string)', () => {
       assert.deepEqual(
-        ZINTERSTORE.transformArguments('destination', 'key'),
-        ['ZINTERSTORE', 'destination', '1', 'key']
+        ZINTERSTORE.transformArguments('destination', 'source'),
+        ['ZINTERSTORE', 'destination', '1', 'source']
       );
     });
 
@@ -21,10 +21,10 @@ describe('ZINTERSTORE', () => {
     it('key & weight', () => {
       assert.deepEqual(
         ZINTERSTORE.transformArguments('destination', {
-          key: 'key',
+          key: 'source',
           weight: 1
         }),
-        ['ZINTERSTORE', 'destination', '1', 'key', 'WEIGHTS', '1']
+        ['ZINTERSTORE', 'destination', '1', 'source', 'WEIGHTS', '1']
       );
     });
 
@@ -43,10 +43,10 @@ describe('ZINTERSTORE', () => {
 
     it('with AGGREGATE', () => {
       assert.deepEqual(
-        ZINTERSTORE.transformArguments('destination', 'key', {
+        ZINTERSTORE.transformArguments('destination', 'source', {
           AGGREGATE: 'SUM'
         }),
-        ['ZINTERSTORE', 'destination', '1', 'key', 'AGGREGATE', 'SUM']
+        ['ZINTERSTORE', 'destination', '1', 'source', 'AGGREGATE', 'SUM']
       );
     });
   });

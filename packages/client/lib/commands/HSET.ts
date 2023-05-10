@@ -21,7 +21,7 @@ export default {
   transformArguments(...[key, value, fieldValue]: SingleFieldArguments | MultipleFieldsArguments) {
     const args: Array<RedisArgument> = ['HSET', key];
 
-    if (typeof value === 'string' || typeof value === 'number' || Buffer.isBuffer(value)) {
+    if (typeof value === 'string' || typeof value === 'number' || value instanceof Buffer) {
       args.push(
         convertValue(value),
         convertValue(fieldValue!)

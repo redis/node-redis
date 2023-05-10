@@ -17,7 +17,7 @@ export function pushZInterArguments(
   keys: ZKeys,
   options?: ZInterOptions
 ) {
-  pushZKeysArguments(args, keys);
+  args = pushZKeysArguments(args, keys);
 
   if (options?.AGGREGATE) {
     args.push('AGGREGATE', options.AGGREGATE);

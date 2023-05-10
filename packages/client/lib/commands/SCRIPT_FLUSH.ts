@@ -12,5 +12,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

@@ -6,5 +6,5 @@ export default {
   transformArguments(mode: 'YES' | 'SYNC' | 'NO') {
     return ['SCRIPT', 'DEBUG', mode];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

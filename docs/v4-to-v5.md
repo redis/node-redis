@@ -108,6 +108,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `GEORADIUSSTORE` -> `GEORADIUS_STORE`
 - `GEORADIUSBYMEMBERSTORE` -> `GEORADIUSBYMEMBER_STORE`
 - `XACK`: `boolean` -> `number` [^boolean-to-number]
+- `XADD`: the `INCR` option has been removed, use `XADD_INCR` instead
 
 [^enum-to-constants]: TODO
 

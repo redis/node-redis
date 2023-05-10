@@ -10,7 +10,7 @@ export default {
   ) {
     const args: Array<RedisArgument> = ['CONFIG', 'SET'];
   
-    if (typeof parameterOrConfig === 'string' || Buffer.isBuffer(parameterOrConfig)) {
+    if (typeof parameterOrConfig === 'string' || parameterOrConfig instanceof Buffer) {
       args.push(parameterOrConfig, value!);
     } else {
       for (const [key, value] of Object.entries(parameterOrConfig)) {
