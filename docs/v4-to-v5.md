@@ -109,7 +109,13 @@ Some command arguments/replies have changed to align more closely to data types 
 - `GEORADIUSBYMEMBERSTORE` -> `GEORADIUSBYMEMBER_STORE`
 - `XACK`: `boolean` -> `number` [^boolean-to-number]
 - `XADD`: the `INCR` option has been removed, use `XADD_INCR` instead
+- `LASTSAVE`: `Date` -> `number` (unix timestamp)
+- `HELLO`: `protover` moved from the options object to it's own argument, `auth` -> `AUTH`, `clientName` -> `SETNAME`
+- `MODULE LIST`: `version` -> `ver` [^map-keys]
+- `MEMORY STATS`: [^map-keys]
 
 [^enum-to-constants]: TODO
 
 [^boolean-to-number]: TODO
+
+[^map-keys]: [TODO](https://github.com/redis/node-redis/discussions/2506)

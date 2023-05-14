@@ -45,7 +45,7 @@ describe('COPY', () => {
   testUtils.testAll('copy', async client => {
     assert.equal(
       await client.copy('{tag}source', '{tag}destination'),
-      false
+      0
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

@@ -30,7 +30,7 @@ describe('EXPIREAT', () => {
   testUtils.testAll('expireAt', async client => {
     assert.equal(
       await client.expireAt('key', 1),
-      false
+      0
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,
