@@ -21,12 +21,12 @@ describe('LCS IDX', () => {
       client.lcsIdx('1', '2')
     ]);
 
-    console.log(reply);
-
     assert.deepEqual(
       reply,
       {
-        matches: [[[1, 2], [0, 1]]],
+        matches: [
+          [[1, 2], [0, 1]]
+        ],
         len: 2
       }
     );
