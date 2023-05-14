@@ -103,8 +103,8 @@ import INCRBYFLOAT from './INCRBYFLOAT';
 import INFO from './INFO';
 import KEYS from './KEYS';
 import LASTSAVE from './LASTSAVE';
-// import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
-// import LCS_IDX from './LCS_IDX';
+import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
+import LCS_IDX from './LCS_IDX';
 import LCS_LEN from './LCS_LEN';
 import LCS from './LCS';
 import LINDEX from './LINDEX';
@@ -112,6 +112,7 @@ import LINSERT from './LINSERT';
 import LLEN from './LLEN';
 import LMOVE from './LMOVE';
 import LMPOP from './LMPOP';
+import LOLWUT from './LOLWUT';
 import LPOP_COUNT from './LPOP_COUNT';
 import LPOP from './LPOP';
 import LPOS_COUNT from './LPOS_COUNT';
@@ -122,7 +123,15 @@ import LRANGE from './LRANGE';
 import LREM from './LREM';
 import LSET from './LSET';
 import LTRIM from './LTRIM';
+import MEMORY_DOCTOR from './MEMORY_DOCTOR';
+import MEMORY_MALLOC_STATS from './MEMORY_MALLOC-STATS';
+import MEMORY_PURGE from './MEMORY_PURGE';
+// import MEMORY_STATS from './MEMORY_STATS';
+import MEMORY_USAGE from './MEMORY_USAGE';
 import MGET from './MGET';
+import MODULE_LIST from './MODULE_LIST';
+import MODULE_LOAD from './MODULE_LOAD';
+import MODULE_UNLOAD from './MODULE_UNLOAD';
 import MOVE from './MOVE';
 import MSET from './MSET';
 import MSETNX from './MSETNX';
@@ -140,6 +149,11 @@ import PFMERGE from './PFMERGE';
 import PING from './PING';
 import PSETEX from './PSETEX';
 import PTTL from './PTTL';
+import PUBLISH from './PUBLISH';
+import PUBSUB_CHANNELS from './PUBSUB_CHANNELS';
+import PUBSUB_NUMPAT from './PUBSUB_NUMPAT';
+import PUBSUB_NUMSUB from './PUBSUB_NUMSUB';
+import PUBSUB_SHARDCHANNELS from './PUBSUB_SHARDCHANNELS';
 import RANDOMKEY from './RANDOMKEY';
 import READONLY from './READONLY';
 import RENAME from './RENAME';
@@ -443,8 +457,10 @@ export default {
   keys: KEYS,
   LASTSAVE,
   lastSave: LASTSAVE,
-  // LCS_IDX_WITHMATCHLEN,
-  // LCS_IDX,
+  LCS_IDX_WITHMATCHLEN,
+  lcsIdxWithMatchLen: LCS_IDX_WITHMATCHLEN,
+  LCS_IDX,
+  lcsIdx: LCS_IDX,
   LCS_LEN,
   lcsLen: LCS_LEN,
   LCS,
@@ -459,6 +475,7 @@ export default {
   lMove: LMOVE,
   LMPOP,
   lmPop: LMPOP,
+  LOLWUT,
   LPOP_COUNT,
   lPopCount: LPOP_COUNT,
   LPOP,
@@ -479,8 +496,24 @@ export default {
   lSet: LSET,
   LTRIM,
   lTrim: LTRIM,
+  MEMORY_DOCTOR,
+  memoryDoctor: MEMORY_DOCTOR,
+  'MEMORY_MALLOC-STATS': MEMORY_MALLOC_STATS,
+  memoryMallocStats: MEMORY_MALLOC_STATS,
+  MEMORY_PURGE,
+  memoryPurge: MEMORY_PURGE,
+  // MEMORY_STATS,
+  // memoryStats: MEMORY_STATS,
+  MEMORY_USAGE,
+  memoryUsage: MEMORY_USAGE,
   MGET,
   mGet: MGET,
+  MODULE_LIST,
+  moduleList: MODULE_LIST,
+  MODULE_LOAD,
+  moduleLoad: MODULE_LOAD,
+  MODULE_UNLOAD,
+  moduleUnload: MODULE_UNLOAD,
   MOVE,
   move: MOVE,
   MSET,
@@ -518,6 +551,16 @@ export default {
   pSetEx: PSETEX,
   PTTL,
   pTTL: PTTL,
+  PUBLISH,
+  publish: PUBLISH,
+  PUBSUB_CHANNELS,
+  pubSubChannels: PUBSUB_CHANNELS,
+  PUBSUB_NUMPAT,
+  pubSubNumPat: PUBSUB_NUMPAT,
+  PUBSUB_NUMSUB,
+  pubSubNumSub: PUBSUB_NUMSUB,
+  PUBSUB_SHARDCHANNELS,
+  pubSubShardChannels: PUBSUB_SHARDCHANNELS,
   RANDOMKEY,
   randomKey: RANDOMKEY,
   READONLY,

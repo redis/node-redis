@@ -2,7 +2,7 @@ import { ArrayReply, BlobStringReply, NumberReply, Command, Resp2Reply, TuplesTo
 
 export type ModuleListReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'name'>, BlobStringReply],
-  [BlobStringReply<'version'>, NumberReply],
+  [BlobStringReply<'ver'>, NumberReply],
 ]>>;
 
 export default {
@@ -15,7 +15,7 @@ export default {
     2: (reply: Resp2Reply<ModuleListReply>) => {
       return reply.map(module => ({
         name: module[1],
-        version: module[3]
+        ver: module[3]
       }));
     },
     3: undefined as unknown as () => ModuleListReply

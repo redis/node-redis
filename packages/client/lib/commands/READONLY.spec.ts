@@ -1,10 +1,10 @@
 import { strict as assert } from 'assert';
-import { transformArguments } from './READONLY';
+import READONLY from './READONLY';
 
 describe('READONLY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      transformArguments(),
+      READONLY.transformArguments(),
       ['READONLY']
     );
   });

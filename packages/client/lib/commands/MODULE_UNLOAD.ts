@@ -6,5 +6,5 @@ export default {
   transformArguments(name: RedisArgument) {
     return ['MODULE', 'UNLOAD', name];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

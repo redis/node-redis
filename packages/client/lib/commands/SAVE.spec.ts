@@ -1,11 +1,11 @@
 import { strict as assert } from 'assert';
-import { transformArguments } from './SAVE';
+import SAVE from './SAVE';
 
 describe('SAVE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['SAVE']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      SAVE.transformArguments(),
+      ['SAVE']
+    );
+  });
 });
