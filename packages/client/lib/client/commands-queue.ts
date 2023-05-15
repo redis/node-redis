@@ -316,4 +316,11 @@ export default class RedisCommandsQueue {
       );
     }
   }
+
+  isEmpty() {
+    return (
+      this._waitingToBeSent.length === 0 &&
+      this._waitingForReply.length === 0
+    );
+  }
 }

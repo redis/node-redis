@@ -41,9 +41,7 @@ To override just a specific option, use the following functions:
 
 The `QUIT` command has been deprecated in Redis 7.2 and should now also be considered deprecated in Node-Redis. Instead of sending a `QUIT` command to the server, the client can simply close the network connection.
 
-Rather than using `client.quit()`, your code should use `client.close()` or `client.disconnect()`.
-
-TODO difference between `close` and `disconnect`...
+`client.QUIT/quit()` is replaced by `client.close()`. and, to avoid confusion, `client.disconnect()` has been renamed to `client.destroy()`.
 
 ## Scan Iterators
 
@@ -62,7 +60,7 @@ const client = createClient(),
 // use `client` for the new API
 await client.set('key', 'value');
 
-// use `legacyClient` for the "legacy" callback API
+// use `legacyClient` for the "legacy" API
 legacyClient.set('key', 'value', (err, reply) => {
   // ...
 });

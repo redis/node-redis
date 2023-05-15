@@ -657,16 +657,6 @@ export default class RedisClient<
     );
   }
 
-  QUIT(): Promise<string> {
-    return this._socket.quit(async () => {
-      const quitPromise = this._queue.addCommand<string>(['QUIT']);
-      this._tick();
-      return quitPromise;
-    });
-  }
-
-  quit = this.QUIT;
-
   private _tick(force = false): void {
     if (this._socket.writableNeedDrain || (!force && !this._socket.isReady)) {
       return;
@@ -674,12 +664,12 @@ export default class RedisClient<
 
     this._socket.cork();
 
-    while (!this._socket.writableNeedDrain) {
+    do {
       const args = this._queue.getCommandToSend();
       if (args === undefined) break;
 
       this._socket.writeCommand(args);
-    }
+    } while (!this._socket.writableNeedDrain);
   }
 
   private _addMultiCommands(
@@ -782,9 +772,57 @@ export default class RedisClient<
     } while (cursor !== 0);
   }
 
+  /**
+   * @deprecated use .close instead
+   */
+  QUIT(): Promise<string> {
+    return this._socket.quit(async () => {
+      const quitPromise = this._queue.addCommand<string>(['QUIT']);
+      this._tick();
+      return quitPromise;
+    });
+  }
+
+  quit = this.QUIT;
+
+  /**
+   * @deprecated use .destroy instead
+   */
   disconnect() {
+    return Promise.resolve(this.destroy());
+  }
+
+  private _resolveClose?: () => unknown;
+
+  /**
+   * Close the client. Wait for pending replies.
+   */
+  close() {
+    return new Promise<void>(resolve => {
+      this._socket.close();
+
+      if (this._queue.isEmpty()) {
+        this._socket.destroySocket();
+        return resolve();
+      }
+
+      const maybeClose = () => {
+        if (!this._queue.isEmpty()) return;
+        
+        this._socket.off('data', maybeClose);
+        this._socket.destroySocket();
+        resolve();
+      };
+      this._socket.on('data', maybeClose);
+    });
+  }
+
+  /**
+   * Destroy the client. Rejects all commands immediately.
+   */
+  destroy() {
     this._queue.flushAll(new DisconnectsClientError());
-    this._socket.disconnect();
+    this._socket.destroy();
   }
 
   ref() {

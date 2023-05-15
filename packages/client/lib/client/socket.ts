@@ -19,7 +19,7 @@ export interface RedisSocketCommonOptions {
    */
   keepAlive?: number | false;
   /**
-   * When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`), the client uses `reconnectStrategy` to decide what to do. The following values are supported:
+   * When the socket closes unexpectedly (without calling `.close()`/`.destroy()`), the client uses `reconnectStrategy` to decide what to do. The following values are supported:
    * 1. `false` -> do not reconnect, close the client and flush the command queue.
    * 2. `number` -> wait for `X` milliseconds before reconnecting.
    * 3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
@@ -250,16 +250,35 @@ export default class RedisSocket extends EventEmitter {
     }
   }
 
-  disconnect(): void {
+  async quit<T>(fn: () => Promise<T>): Promise<T> {
     if (!this.#isOpen) {
       throw new ClientClosedError();
     }
 
     this.#isOpen = false;
-    this.#disconnect();
+    const reply = await fn();
+    this.destroySocket();
+    return reply;
   }
 
-  #disconnect(): void {
+  close() {
+    if (!this.#isOpen) {
+      throw new ClientClosedError();
+    }
+
+    this.#isOpen = false;
+  }
+
+  destroy() {
+    if (!this.#isOpen) {
+      throw new ClientClosedError();
+    }
+
+    this.#isOpen = false;
+    this.destroySocket();
+  }
+
+  destroySocket() {
     this.#isReady = false;
 
     if (this.#socket) {
@@ -268,17 +287,6 @@ export default class RedisSocket extends EventEmitter {
     }
 
     this.emit('end');
-  }
-
-  async quit<T>(fn: () => Promise<T>): Promise<T> {
-    if (!this.#isOpen) {
-      throw new ClientClosedError();
-    }
-
-    this.#isOpen = false;
-    const reply = await fn();
-    this.#disconnect();
-    return reply;
   }
 
   #isCorked = false;
