@@ -115,6 +115,107 @@ try {
 
   console.log('Timeseries info:');
   console.log(tsInfo);
+
+  // Add a new values with LABELS option USING TS.ADD:
+  // https://redis.io/commands/ts.add/
+  const labelTimeSeriesKey1 = "mytimeseries-labels-1";
+  const labelTimeSeriesKey2 = "mytimeseries-labels-2";
+  num = 0; // Reset counter
+  // You can track skipped timestamps due to duplicate policy (OPTIONAL)
+  const skippedTimestamps = [];
+  // Generate a random integer to use as a label value (can demonstrate error, if not a string)
+  const integerLabelValue1 = Math.floor(Math.random() * 1000) + 1;
+  // Sample loop to add 10 values to the timeseries, with labels.
+  console.log("Starting loop 1...");
+  while (num < 10) {
+    await client.ts
+      .add(labelTimeSeriesKey1, currentTimestamp, value + num, {
+        LABELS: {
+          foo: "bar",
+          bax: `${integerLabelValue1}`, // Must be a string. Remove quotes to see error.
+        },
+      })
+      .catch((e) => {
+        // Default duplicate policy is BLOCK, so we'll get an error if we try to add a duplicate timestamp.
+        if (e.message.includes("DUPLICATE_POLICY")) {
+          // console.log(`Duplicate timestamp at ${currentTimestamp}, value ${value}. Skipping...`);
+          skippedTimestamps.push({ currentTimestamp, value });
+        }
+      });
+    console.log(`Added timestamp ${currentTimestamp}, value ${value} to ${labelTimeSeriesKey1}.`);
+    currentTimestamp += 1000; // Move on one second.
+    num += 1;
+  }
+
+  console.log("Starting loop 2...");
+  num = 0; // Reset counter
+  const integerLabelValue2 = Math.floor(Math.random() * 1000) + 1;
+  while (num < 5) {
+    await client.ts
+      .add(labelTimeSeriesKey2, currentTimestamp, value + num, {
+        DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.LAST, // Default is BLOCK
+        LABELS: {
+          foo: "baz",
+          bax: `${integerLabelValue2}`, // Must be a string. Remove quotes to see error.
+        },
+      })
+      .catch((e) => {
+        // Default duplicate policy is BLOCK, so we'll get an error if the attribute successfully set.
+        // In this loop, we set DUPLICATE_POLICY to LAST, so we shouldn't get that error.
+        if (e.message.includes("DUPLICATE_POLICY")) {
+          // console.log(`Duplicate timestamp at ${currentTimestamp}, value ${value}. Skipping...`);
+          skippedTimestamps.push({ currentTimestamp, value });
+        }
+      });
+    console.log(`Added timestamp ${currentTimestamp}, value ${value} to ${labelTimeSeriesKey2}.`);
+    currentTimestamp += 1000; // Move on one second.
+    num += 1;
+  }
+
+  // Log or do something with skipped timestamps (optional).
+  if (skippedTimestamps.length > 0) {
+    console.log(`Skipped ${skippedTimestamps.length} timestamps due to duplicate policy.`);
+  }
+
+  // Get labels for timeseries:
+  const { labels: label1 } = await client.ts.info(labelTimeSeriesKey1);
+  const { labels: label2 } = await client.ts.info(labelTimeSeriesKey2);
+  console.log(label1);
+  // [ { name: 'foo', value: 'bar' }, { name: 'bax', value: '771' } ]
+  console.log(label2);
+  // [ { name: 'foo', value: 'baz' }, { name: 'bax', value: '198' } ]
+
+  // Query the timeseries with TS.MRANGE:
+  // https://redis.io/commands/ts.mrange/
+
+  // Merge the labels from both timeseries into a single array, for looping purposes.
+  const labels = label1.concat(label2);
+  if (labels && labels.length > 0) {
+    // Loop through the labels and query the timeseries for each label.
+    for (const label of labels) {
+      // The label filter can be any label=value pair, or an array of label=value string pairs.
+      // See the MRANGE documentation for more information combinations of label filters, besides =
+      const labelFilter = `${label.name}=${label.value}`;
+      const mrangeResponse = await client.ts.mRange("-", "+", labelFilter); // Adjust start/end times as needed.
+      console.log(`MRANGE RESPONSE for ${labelFilter}:`);
+      console.log(mrangeResponse);
+      // mrangeResponse contains an array of timeseries keys/samples that match the label query
+      // [
+      //   {
+      //     key: 'mytimeseries-labels-1',
+      //     samples: [
+      //       { timestamp: 1641508920000, value: 0 },
+      //       { timestamp: 1641508930000, value: 1 },
+      //     ],
+      //   },
+      //   ... etc
+      // ]
+
+      // In this example, foo=bar will match 10 samples, foo=baz will match 5 samples
+      // bax=<integer> will match 5 samples, unless the integerLabelValue is the same for both timeseries, in which case it will match 15 samples.
+    }
+  }
+
 } catch (e) {
   console.error(e);
 }
