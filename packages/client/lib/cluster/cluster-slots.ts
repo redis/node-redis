@@ -259,7 +259,7 @@ export default class RedisClusterSlots<
       // switch to `CLUSTER SHARDS` when Redis 7.0 will be the minimum supported version
       return await client.clusterSlots();
     } finally {
-      await client.disconnect();
+      client.destroy();
     }
   }
 
@@ -377,40 +377,66 @@ export default class RedisClusterSlots<
     return this._discoverWithRootNodes();
   }
 
+  /**
+   * @deprecated Use `close` instead.
+   */
   quit(): Promise<void> {
     return this._destroy(client => client.quit());
   }
 
+  /**
+   * @deprecated Use `destroy` instead.
+   */
   disconnect(): Promise<void> {
     return this._destroy(client => client.disconnect());
+  }
+
+  close() {
+    return this._destroy(client => client.close());
+  }
+
+  destroy() {
+    this._isOpen = false;
+
+    for (const client of this._clients()) {
+      this._execOnNodeClient(client, client => client.destroy());
+    }
+
+    if (this.pubSubNode) {
+      this._execOnNodeClient(this.pubSubNode.client, client => client.destroy());
+      this.pubSubNode = undefined;
+    }
+
+    this._resetSlots();
+    this.nodeByAddress.clear();
+  }
+
+  private *_clients() {
+    for (const { master, replicas } of this.shards) {
+      if (master.client) {
+        yield master.client;
+      }
+
+      if (master.pubSubClient) {
+        yield master.pubSubClient;
+      }
+
+      if (replicas) {
+        for (const { client } of replicas) {
+          if (client) {
+            yield client;
+          }
+        }
+      }
+    }
   }
 
   private async _destroy(fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>): Promise<void> {
     this._isOpen = false;
 
     const promises = [];
-    for (const { master, replicas } of this.shards) {
-      if (master.client) {
-        promises.push(
-          this._execOnNodeClient(master.client, fn)
-        );
-      }
-
-      if (master.pubSubClient) {
-        promises.push(
-          this._execOnNodeClient(master.pubSubClient, fn)
-        );
-      }
-
-      if (replicas) {
-        for (const { client } of replicas) {
-          if (client) {
-            promises.push(
-              this._execOnNodeClient(client, fn)
-            );
-          }
-        }
-      }
+    for (const client of this._clients()) {
+      promises.push(this._execOnNodeClient(client, fn));
     }
 
     if (this.pubSubNode) {
@@ -424,10 +450,10 @@ export default class RedisClusterSlots<
     await Promise.allSettled(promises);
   }
 
-  private _execOnNodeClient(
+  private _execOnNodeClient<T>(
     client: ClientOrPromise<M, F, S, RESP>,
-    fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>
-  ) {
+    fn: (client: RedisClientType<M, F, S, RESP>) => T
+  ): T | Promise<T> {
     return types.isPromise(client) ?
       client.then(fn) :
       fn(client);

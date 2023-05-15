@@ -503,12 +503,26 @@ export default class RedisCluster<
 
   sUnsubscribe = this.SUNSUBSCRIBE;
 
-  // quit(): Promise<void> {
-  //   return this.#slots.quit();
-  // }
+  /**
+   * @deprecated Use `close` instead.
+   */
+  quit() {
+    return this._slots.quit();
+  }
 
-  disconnect(): Promise<void> {
+  /**
+   * @deprecated Use `destroy` instead.
+   */
+  disconnect() {
     return this._slots.disconnect();
+  }
+
+  close() {
+    return this._slots.close();
+  }
+
+  destroy() {
+    return this._slots.destroy();
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP>) {
