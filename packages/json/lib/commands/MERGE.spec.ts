@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MERGE';
 
 describe('MERGE', () => {
+    testUtils.isVersionGreaterThanHook([2, 6]);
+
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key', '$', 1),
