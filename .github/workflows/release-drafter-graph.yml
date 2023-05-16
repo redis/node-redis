@@ -9,9 +9,10 @@ on:
 jobs:
 
   update_release_draft:
-      permissions:
-        contents: write
-        pull-requests: write
+
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       # Drafts your next Release notes as Pull Requests are merged into "master"
