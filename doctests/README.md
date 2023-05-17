@@ -28,5 +28,3 @@ Just include necessary assertions in the example file and run
 sh doctests/run_examples.sh
 ```
 to test all examples in the current folder.
-
-See `tests.js` for more details.
