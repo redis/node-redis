@@ -12,11 +12,12 @@ export function transformArguments(keyPathValues: Array<KeyPathValue>): Array<st
     if (keyPathValues.length === 0) {
         throw new Error('ERR wrong number of arguments for \'MSET\' command');
     }
-    const args: string[] = keyPathValues.flatMap(({ key, path, value }) => [
-        key,
-        path,
-        transformRedisJsonArgument(value)
-    ]);
+
+    const args: string[] = ['JSON.MSET'];
+
+    keyPathValues.forEach(({ key, path, value }) => {
+        args.push(key, path, transformRedisJsonArgument(value));
+    });
 
     return args;
 }
