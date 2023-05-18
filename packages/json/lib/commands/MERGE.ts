@@ -6,4 +6,4 @@ export function transformArguments(key: string, path: string, json: RedisJSON): 
     return ['JSON.MERGE', key, path, transformRedisJsonArgument(json)];
 }
 
-export declare function transformReply(): 'OK' | null;
+export declare function transformReply(): 'OK';
