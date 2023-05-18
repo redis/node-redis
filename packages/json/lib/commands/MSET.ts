@@ -1,19 +1,16 @@
-import { RedisJSON, transformRedisJsonArgument } from '.';
+import { RedisJSON, transformRedisJsonArgument} from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
 
 export interface KeyPathValue {
-    key: string;
+    key: RedisCommandArgument;
     path: string;
     value: RedisJSON;
 }
 
-export function transformArguments(keyPathValues: Array<KeyPathValue>): Array<string> {
-    if (keyPathValues.length === 0) {
-        throw new Error('ERR wrong number of arguments for \'MSET\' command');
-    }
-
-    const args: string[] = ['JSON.MSET'];
+export function transformArguments(keyPathValues: Array<KeyPathValue>): RedisCommandArguments {
+    const args: RedisCommandArguments = ['JSON.MSET'];
 
     keyPathValues.forEach(({ key, path, value }) => {
         args.push(key, path, transformRedisJsonArgument(value));
@@ -22,4 +19,4 @@ export function transformArguments(keyPathValues: Array<KeyPathValue>): Array<st
     return args;
 }
 
-export declare function transformReply(): 'OK' | null;
+export declare function transformReply(): 'OK';

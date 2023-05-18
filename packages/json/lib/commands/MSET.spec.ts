@@ -4,11 +4,11 @@ import { transformArguments } from './MSET';
 
 describe('MSET', () => {
     testUtils.isVersionGreaterThanHook([2, 6]);
-    
+
     describe('transformArguments', () => {
         it('transformArguments', () => {
             assert.deepEqual(
-                transformArguments([{ key: "key", path: "$", value: "json" }, { key: "key2", path: "$", value: "json2" }]),
+                transformArguments([{ key: 'key', path: '$', value: 'json' }, { key: 'key2', path: '$', value: 'json2' }]),
                 ['JSON.MSET', 'key', '$', '"json"', 'key2', '$', '"json2"']
             );
         });
