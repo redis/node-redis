@@ -5,16 +5,16 @@ export const FIRST_KEY_INDEX = 1;
 
 export interface KeyPathValue {
     key: RedisCommandArgument;
-    path: string;
+    path: RedisCommandArgument;
     value: RedisJSON;
 }
 
 export function transformArguments(keyPathValues: Array<KeyPathValue>): RedisCommandArguments {
     const args: RedisCommandArguments = ['JSON.MSET'];
 
-    keyPathValues.forEach(({ key, path, value }) => {
+    for (const { key, path, value } of keyPathValues) {
         args.push(key, path, transformRedisJsonArgument(value));
-    });
+      }
 
     return args;
 }
