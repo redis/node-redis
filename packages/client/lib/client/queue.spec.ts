@@ -1,7 +1,7 @@
 import Queue from './queue';
 import { equal, deepEqual } from 'assert/strict';
 
-describe.only('Queue', () => {
+describe('Queue', () => {
   const queue = new Queue();
 
   it('should start empty', () => {
