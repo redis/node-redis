@@ -14,7 +14,7 @@ export function transformArguments(keyPathValues: Array<KeyPathValue>): RedisCom
 
     for (const { key, path, value } of keyPathValues) {
         args.push(key, path, transformRedisJsonArgument(value));
-      }
+    }
 
     return args;
 }
