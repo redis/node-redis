@@ -5,84 +5,84 @@ export interface QueueNode<T> {
 }
 
 export default class Queue<T> {
-  #length = 0;
+  private _length = 0;
 
   get length() {
-    return this.#length;
+    return this._length;
   }
 
-  #head: QueueNode<T> | null = null;
+  private _head: QueueNode<T> | null = null;
 
   get head() {
-    return this.#head;
+    return this._head;
   }
 
-  #tail: QueueNode<T> | null = null;
+  _tail: QueueNode<T> | null = null;
 
   get tail() {
-    return this.#tail;
+    return this._tail;
   }
 
   push(value: T) {
-    ++this.#length;
+    ++this._length;
 
-    if (!this.#tail) {
-      return this.#tail = this.#head = {
-        previous: this.#head,
+    if (!this._tail) {
+      return this._tail = this._head = {
+        previous: this._head,
         next: null,
         value
       };
     } 
 
-    return this.#tail = this.#tail.next = {
-      previous: this.#tail,
+    return this._tail = this._tail.next = {
+      previous: this._tail,
       next: null,
       value
     };
   }
 
   unshift(value: T) {
-    ++this.#length;
+    ++this._length;
 
-    if (!this.#head) {
-      return this.#head = this.#tail = {
+    if (!this._head) {
+      return this._head = this._tail = {
         previous: null,
         next: null,
         value
       };
     }
 
-    return this.#head = this.#head.previous = {
+    return this._head = this._head.previous = {
       previous: null,
-      next: this.#head,
+      next: this._head,
       value
     };
   }
 
   shift() {
-    if (!this.#head) return null;
+    if (!this._head) return null;
 
-    --this.#length;
-    const node = this.#head;
+    --this._length;
+    const node = this._head;
     if (node.next) {
       node.next.previous = node.previous;
-      this.#head = node.next;
+      this._head = node.next;
       node.next = null;
     } else {
-      this.#head = this.#tail = null;
+      this._head = this._tail = null;
     }
     return node.value;
   }
 
   remove(node: QueueNode<T>) {
-    --this.#length;
+    --this._length;
 
-    if (this.#tail === node) {
-      this.#tail = node.previous;
+    if (this._tail === node) {
+      this._tail = node.previous;
     }
 
-    if (this.#head === node) {
-      this.#head = node.next;
+    if (this._head === node) {
+      this._head = node.next;
     } else {
       node.previous!.next = node.next;
       node.previous = null;
@@ -92,7 +92,7 @@ export default class Queue<T> {
   }
 
   *[Symbol.iterator]() {
-    let node = this.#head;
+    let node = this._head;
     while (node !== null) {
       yield node.value;
       node = node.next;
