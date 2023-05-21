@@ -233,6 +233,15 @@ describe('SEARCH', () => {
                 ['FT.SEARCH', 'index', 'query', 'DIALECT', '1']
             );
         });
+
+        it('with TIMEOUT', () => {
+            assert.deepEqual(
+                transformArguments('index', 'query', {
+                    TIMEOUT: 5
+                }),
+                ['FT.SEARCH', 'index', 'query', 'TIMEOUT', '5']
+            );
+        });
     });
 
     describe('client.ft.search', () => {
