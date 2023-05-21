@@ -1,4 +1,4 @@
-import * as LinkedList from 'yallist';
+import Queue, { QueueNode } from './queue';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_FLAGS, RESP_TYPES } from '../RESP/decoder';
 import { CommandArguments, Flags, ReplyUnion, RespVersions } from '../RESP/types';
@@ -37,8 +37,8 @@ const RESP2_PUSH_FLAGS = {
 
 export default class RedisCommandsQueue {
   private readonly _maxLength: number | null | undefined;
-  private readonly _waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
-  private readonly _waitingForReply = new LinkedList<CommandWaitingForReply>();
+  private readonly _waitingToBeSent = new Queue<CommandWaitingToBeSent>();
+  private readonly _waitingForReply = new Queue<CommandWaitingForReply>();
   private readonly _onShardedChannelMoved: OnShardedChannelMoved;
 
   private readonly _pubSub = new PubSub();
@@ -154,30 +154,30 @@ export default class RedisCommandsQueue {
     }
 
     return new Promise((resolve, reject) => {
-      const node = new LinkedList.Node<CommandWaitingToBeSent>({
+      let node: QueueNode<CommandWaitingToBeSent>;
+      const value: CommandWaitingToBeSent = {
         args,
         chainId: options?.chainId,
         flags: options?.flags,
         resolve,
-        reject
-      });
+        reject,
+        removeAbortListener: undefined
+      };
 
-      if (options?.signal) {
+      const signal = options?.signal;
+      if (signal) {
         const listener = () => {
-          this._waitingToBeSent.removeNode(node);
-          node.value.reject(new AbortError());
+          this._waitingToBeSent.remove(node);
+          value.reject(new AbortError());
         };
 
-        node.value.removeAbortListener = () => options.signal?.removeEventListener('abort', listener);
-
-        options.signal.addEventListener('abort', listener, { once: true });
+        value.removeAbortListener = () => signal.removeEventListener('abort', listener);
+        signal.addEventListener('abort', listener, { once: true });
       }
 
-      if (options?.asap) {
-        this._waitingToBeSent.unshiftNode(node);
-      } else {
-        this._waitingToBeSent.pushNode(node);
-      }
+      node = options?.asap ? 
+        this._waitingToBeSent.unshift(value) :
+        this._waitingToBeSent.push(value);
     });
   }
 
