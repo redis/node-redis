@@ -117,7 +117,7 @@ try {
   console.log(tsInfo);
 
 
-  /*
+ /*
       Example Scenario: Your lab is conducting a study on coin flips in a haunted laboratory.
       USES: TS.ADD (with labels), TS.INFO, TS.MRANGE, TS.QUERYINDEX, TS.INCRBY and TS.DECRBY
 
@@ -190,7 +190,7 @@ try {
             })
             .catch((error) => {
               // Default duplicate policy is BLOCK, so we'll get an error if we try to add a duplicate timestamp.
-              if (e.message.includes("DUPLICATE_POLICY")) {
+              if (error.message.includes("DUPLICATE_POLICY")) {
                 // console.log(`Duplicate timestamp at ${currentTimestamp}, value ${flipValue}. Skipping...`);
                 skippedTimestamps.push({ currentTimestamp, flipValue });
                 console.log(`Duplicate timestamp at ${currentTimestamp}, value ${flipValue}. Skipping...`);
@@ -234,7 +234,7 @@ try {
           );
     
           // Creating an intentional duplicate timestamp scenario on the last iteration, for demonstration purposes.
-          if (num !== flipQuantity - 1) {
+          if (num !== flipQuantity - 2) {
             // Create random delay between 2 and 10 seconds
             currentTimestamp += Math.floor(Math.random() * 8000) + 2000; // Move on one second.
           }
@@ -372,7 +372,8 @@ try {
       const edgeFlips = await client.ts.mRange("-", "+", [`lab=${labID}`]);
       const edgeFlipsByCoin = edgeFlips.reduce((acc, val) => {
         // console.log(val.samples.filter((s) => s.value === 2));
-        acc[val.key] = val.samples.filter((s) => s.value === 2).length;
+        if (!acc[val.key]) acc[val.key] = 0;
+        acc[val.key] += val.samples.filter((s) => s.value === 2).length;
         return acc;
       }, {});
       if (Object.values(edgeFlipsByCoin).some((v) => v > 0)) {
