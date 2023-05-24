@@ -124,6 +124,7 @@ export interface AggregateOptions {
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
     PARAMS?: Params;
     DIALECT?: number;
+    TIMEOUT?: number;
 }
 
 export const FIRST_KEY_INDEX = 1;
@@ -211,6 +212,10 @@ export function pushAggregatehOptions(
 
     if (options?.DIALECT) {
         args.push('DIALECT', options.DIALECT.toString());
+    }
+
+    if (options?.TIMEOUT !== undefined) {
+        args.push('TIMEOUT', options.TIMEOUT.toString());
     }
 
     return args;

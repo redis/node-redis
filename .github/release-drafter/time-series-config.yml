@@ -1,5 +1,5 @@
-name-template: 'Version $NEXT_PATCH_VERSION'
-tag-template: 'v$NEXT_PATCH_VERSION'
+name-template: 'time-series@$NEXT_PATCH_VERSION'
+tag-template: 'time-series@$NEXT_PATCH_VERSION'
 autolabeler:
   - label: 'chore'
     files:
@@ -28,8 +28,14 @@ categories:
       - 'bugfix'
       - 'bug'
   - title: '🧰 Maintenance'
-    label: 'chore'
+    label:
+      - 'chore'
+      - 'maintenance'
+      - 'documentation'
+      - 'docs'
 change-template: '- $TITLE (#$NUMBER)'
+include-paths:
+  - 'packages/time-series'
 exclude-labels:
   - 'skip-changelog'
 template: |
