@@ -191,7 +191,6 @@ try {
             .catch((error) => {
               // Default duplicate policy is BLOCK, so we'll get an error if we try to add a duplicate timestamp.
               if (error.message.includes("DUPLICATE_POLICY")) {
-                // console.log(`Duplicate timestamp at ${currentTimestamp}, value ${flipValue}. Skipping...`);
                 skippedTimestamps.push({ currentTimestamp, flipValue });
                 console.log(`Duplicate timestamp at ${currentTimestamp}, value ${flipValue}. Skipping...`);
               } else {
@@ -216,6 +215,7 @@ try {
             if (newValue >= 0 || newValue <= 2) {
               // If the value is in range, we'll update the value and timestamp.
               flipValue += incrDecrValue;
+              // Call TS.INCRBY or TS.DECRBY method
               await client.ts[incrDecr](key, 1, currentTimestamp);
               console.log(
                 `A strange force has intervened! The ${pennyFlipTest.currency} ${
@@ -236,7 +236,7 @@ try {
           // Creating an intentional duplicate timestamp scenario on the last iteration, for demonstration purposes.
           if (num !== flipQuantity - 2) {
             // Create random delay between 2 and 10 seconds
-            currentTimestamp += Math.floor(Math.random() * 8000) + 2000; // Move on one second.
+            currentTimestamp += Math.floor(Math.random() * 8000) + 2000;
           }
           num++;
         }
