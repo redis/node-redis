@@ -1,4 +1,4 @@
-import { RedisArgument } from "../RESP/types";
+import { RedisArgument } from '../RESP/types';
 
 export enum PubSubType {
   CHANNELS = 'CHANNELS',

@@ -1,4 +1,4 @@
-import { BlobStringReply, Command } from "../RESP/types";
+import { BlobStringReply, Command } from '../RESP/types';
 
 export default {
   transformArguments() {

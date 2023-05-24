@@ -1,4 +1,4 @@
-import { RedisArgument } from "./types";
+import { RedisArgument } from './types';
 
 const CRLF = '\r\n';
 

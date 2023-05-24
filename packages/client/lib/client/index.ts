@@ -137,22 +137,22 @@ export default class RedisClient<
 > extends EventEmitter {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    return async function (this: ProxyClient) {
-      const args = command.transformArguments.apply(undefined, arguments as any),
-        reply = await this.sendCommand(args, this.commandOptions);
+    return async function (this: ProxyClient, ...args: Array<unknown>) {
+      const redisArgs = command.transformArguments(...args),
+        reply = await this.sendCommand(redisArgs, this.commandOptions);
       return transformReply ?
-        transformReply(reply, args.preserve) :
+        transformReply(reply, redisArgs.preserve) :
         reply;
     };
   }
 
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    return async function (this: NamespaceProxyClient) {
-      const args = command.transformArguments.apply(undefined, arguments as any),
-        reply = await this.self.sendCommand(args, this.self.commandOptions);
+    return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
+      const redisArgs = command.transformArguments(...args),
+        reply = await this.self.sendCommand(redisArgs, this.self.commandOptions);
       return transformReply ?
-        transformReply(reply, args.preserve) :
+        transformReply(reply, redisArgs.preserve) :
         reply;
     };
   }
@@ -160,8 +160,8 @@ export default class RedisClient<
   private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
-    return async function (this: NamespaceProxyClient) {
-      const fnArgs = fn.transformArguments.apply(undefined, arguments as any),
+    return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
+      const fnArgs = fn.transformArguments(...args),
         reply = await this.self.sendCommand(
           prefix.concat(fnArgs),
           this.self.commandOptions
@@ -175,15 +175,15 @@ export default class RedisClient<
   private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
-    return async function (this: ProxyClient) {
-      const scriptArgs = script.transformArguments.apply(undefined, arguments as any),
-        args = prefix.concat(scriptArgs),
-        reply = await this.sendCommand(args, this.commandOptions).catch((err: unknown) => {
+    return async function (this: ProxyClient, ...args: Array<unknown>) {
+      const scriptArgs = script.transformArguments(...args),
+        redisArgs = prefix.concat(scriptArgs),
+        reply = await this.sendCommand(redisArgs, this.commandOptions).catch((err: unknown) => {
           if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
           args[0] = 'EVAL';
           args[1] = script.SCRIPT;
-          return this.sendCommand(args, this.commandOptions);
+          return this.sendCommand(redisArgs, this.commandOptions);
         });
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
@@ -468,6 +468,10 @@ export default class RedisClient<
    */
   withFlags<FLAGS extends Flags>(flags: FLAGS) {
     return this._commandOptionsProxy('flags', flags);
+  }
+
+  withAbortSignal(abortSignal: AbortSignal) {
+    return this._commandOptionsProxy('abortSignal', abortSignal);
   }
 
   /**
@@ -791,8 +795,6 @@ export default class RedisClient<
   disconnect() {
     return Promise.resolve(this.destroy());
   }
-
-  private _resolveClose?: () => unknown;
 
   /**
    * Close the client. Wait for pending replies.

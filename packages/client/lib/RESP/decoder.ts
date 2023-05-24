@@ -555,6 +555,7 @@ export class Decoder {
         this,
         length - slice.length,
         chunks,
+        skip,
         flag
       );
     }

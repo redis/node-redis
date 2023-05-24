@@ -1,4 +1,4 @@
-import Queue, { QueueNode } from './queue';
+import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_FLAGS, RESP_TYPES } from '../RESP/decoder';
 import { CommandArguments, Flags, ReplyUnion, RespVersions } from '../RESP/types';
@@ -7,16 +7,19 @@ import { AbortError, ErrorReply } from '../errors';
 import { EventEmitter } from 'stream';
 
 export interface QueueCommandOptions {
-  asap?: boolean;
   chainId?: symbol;
-  signal?: AbortSignal;
+  asap?: boolean;
+  abortSignal?: AbortSignal;
   flags?: Flags;
 }
 
 export interface CommandWaitingToBeSent extends CommandWaitingForReply {
   args: CommandArguments;
   chainId?: symbol;
-  removeAbortListener?(): void;
+  abort?: {
+    signal: AbortSignal;
+    listener: () => unknown;
+  };
 }
 
 interface CommandWaitingForReply {
@@ -37,8 +40,8 @@ const RESP2_PUSH_FLAGS = {
 
 export default class RedisCommandsQueue {
   private readonly _maxLength: number | null | undefined;
-  private readonly _waitingToBeSent = new Queue<CommandWaitingToBeSent>();
-  private readonly _waitingForReply = new Queue<CommandWaitingForReply>();
+  private readonly _waitingToBeSent = new DoublyLinkedList<CommandWaitingToBeSent>();
+  private readonly _waitingForReply = new SinglyLinkedList<CommandWaitingForReply>();
   private readonly _onShardedChannelMoved: OnShardedChannelMoved;
 
   private readonly _pubSub = new PubSub();
@@ -149,30 +152,31 @@ export default class RedisCommandsQueue {
   addCommand<T>(args: CommandArguments, options?: QueueCommandOptions): Promise<T> {
     if (this._maxLength && this._waitingToBeSent.length + this._waitingForReply.length >= this._maxLength) {
       return Promise.reject(new Error('The queue is full'));
-    } else if (options?.signal?.aborted) {
+    } else if (options?.abortSignal?.aborted) {
       return Promise.reject(new AbortError());
     }
 
     return new Promise((resolve, reject) => {
-      let node: QueueNode<CommandWaitingToBeSent>;
+      let node: DoublyLinkedNode<CommandWaitingToBeSent>;
       const value: CommandWaitingToBeSent = {
         args,
         chainId: options?.chainId,
         flags: options?.flags,
         resolve,
         reject,
-        removeAbortListener: undefined
+        abort: undefined
       };
 
-      const signal = options?.signal;
+      const signal = options?.abortSignal;
       if (signal) {
-        const listener = () => {
-          this._waitingToBeSent.remove(node);
-          value.reject(new AbortError());
+        value.abort = {
+          signal,
+          listener: () => {
+            this._waitingToBeSent.remove(node);
+            value.reject(new AbortError());
+          }
         };
-
-        value.removeAbortListener = () => signal.removeEventListener('abort', listener);
-        signal.addEventListener('abort', listener, { once: true });
+        signal.addEventListener('abort', value.abort.listener, { once: true });
       }
 
       node = options?.asap ? 
@@ -264,13 +268,15 @@ export default class RedisCommandsQueue {
       return;
     }
 
-    // TODO
-    // reuse `toSend`
-    (toSend.args as any) = undefined;
-    if (toSend.removeAbortListener) {
-      toSend.removeAbortListener();
-      (toSend.removeAbortListener as any) = undefined;
+    if (toSend.abort) {
+      RedisCommandsQueue._removeAbortListener(toSend);
+      toSend.abort = undefined;
     }
+
+    // TODO reuse `toSend` or create new object?
+    (toSend as any).args = undefined;
+    (toSend as any).chainId = undefined;
+
     this._waitingForReply.push(toSend);
     this._chainInExecution = toSend.chainId;
     return encoded;
@@ -282,9 +288,16 @@ export default class RedisCommandsQueue {
     }
   }
 
-  static #flushWaitingToBeSent(command: CommandWaitingToBeSent, err: Error) {
-    command.removeAbortListener?.();
-    command.reject(err);
+  private static _removeAbortListener(command: CommandWaitingToBeSent) {
+    command.abort!.signal.removeEventListener('abort', command.abort!.listener);
+  }
+
+  private static _flushWaitingToBeSent(toBeSent: CommandWaitingToBeSent, err: Error) {
+    if (toBeSent.abort) {
+      RedisCommandsQueue._removeAbortListener(toBeSent);
+    }
+    
+    toBeSent.reject(err);
   }
 
   flushWaitingForReply(err: Error): void {
@@ -296,7 +309,7 @@ export default class RedisCommandsQueue {
     if (!this._chainInExecution) return;
 
     while (this._waitingToBeSent.head?.value.chainId === this._chainInExecution) {
-      RedisCommandsQueue.#flushWaitingToBeSent(
+      RedisCommandsQueue._flushWaitingToBeSent(
         this._waitingToBeSent.shift()!,
         err
       );
@@ -310,7 +323,7 @@ export default class RedisCommandsQueue {
     this._pubSub.reset();
     this.#flushWaitingForReply(err);
     while (this._waitingToBeSent.head) {
-      RedisCommandsQueue.#flushWaitingToBeSent(
+      RedisCommandsQueue._flushWaitingToBeSent(
         this._waitingToBeSent.shift()!,
         err
       );
