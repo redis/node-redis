@@ -9,4 +9,4 @@ export declare function transformReply(): Array<[
     timestamp: number,
     latestLatency: number,
     allTimeLatency: number
-  ]>;
+]>;
