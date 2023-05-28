@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedList } from './linked-list';
 import { equal, deepEqual } from 'assert/strict';
 
-describe.only('DoublyLinkedList', () => {
+describe('DoublyLinkedList', () => {
   const list = new DoublyLinkedList();
 
   it('should start empty', () => {
@@ -78,7 +78,7 @@ describe.only('DoublyLinkedList', () => {
   });
 });
 
-describe.only('SinglyLinkedList', () => {
+describe('SinglyLinkedList', () => {
   const list = new SinglyLinkedList();
 
   it('should start empty', () => {

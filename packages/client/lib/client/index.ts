@@ -689,38 +689,71 @@ export default class RedisClient<
     );
   }
 
-  MULTI(): RedisClientMultiCommandType<[], M, F, S, RESP, FLAGS> {
-    return new (this as any).Multi(
-      async (
+  /**
+   * @internal
+   */
+  async executePipeline(commands: Array<RedisMultiQueuedCommand>) {
+    if (!this._socket.isOpen) {
+      return Promise.reject(new ClientClosedError());
+    }
+
+    const promise = Promise.all(
+      commands.map(({ args }) => this._queue.addCommand(args, {
+        flags: (this as ProxyClient).commandOptions?.flags
+      }))
+    );
+    this._tick();
+    return promise;
+  }
+
+  /**
+   * @internal
+   */
+  async executeMulti(
         commands: Array<RedisMultiQueuedCommand>,
-        selectedDB?: number,
-        chainId?: symbol
-      ) => {
+    selectedDB?: number
+  ) {
         if (!this._socket.isOpen) {
           return Promise.reject(new ClientClosedError());
         }
 
         const flags = (this as ProxyClient).commandOptions?.flags,
-          promise = chainId ?
-            // if `chainId` has a value, it's a `MULTI` (and not "pipeline") - need to add the `MULTI` and `EXEC` commands
-            Promise.all([
+      chainId = Symbol('MULTI Chain'),
+      promises = [
               this._queue.addCommand(['MULTI'], { chainId }),
-              this._addMultiCommands(commands, chainId),
-              this._queue.addCommand(['EXEC'], { chainId, flags })
-            ]) :
-            this._addMultiCommands(commands, undefined, flags);
+      ];
+
+    for (const { args } of commands) {
+      promises.push(
+        this._queue.addCommand(args, {
+          chainId,
+          flags
+        })
+      );
+    }
+
+    promises.push(
+      this._queue.addCommand(['EXEC'], { chainId })
+    );
 
         this._tick();
 
-        const results = await promise;
+    const results = await Promise.all(promises),
+      execResult = results[results.length - 1];
+
+    if (execResult === null) {
+      throw new WatchError();
+    }
 
         if (selectedDB !== undefined) {
           this._selectedDB = selectedDB;
         }
 
-        return results;
+    return execResult as Array<unknown>;
       }
-    );
+
+  MULTI(): RedisClientMultiCommandType<[], M, F, S, RESP, FLAGS> {
+    return new (this as any).Multi(this);
   }
 
   multi = this.MULTI;

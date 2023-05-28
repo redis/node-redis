@@ -1,5 +1,4 @@
-import { Command, CommandArguments, RedisScript, TransformReply } from './RESP/types';
-import { WatchError } from './errors';
+import { CommandArguments, RedisScript, TransformReply } from './RESP/types';
 
 export interface RedisMultiQueuedCommand {
   args: CommandArguments;
@@ -7,10 +6,6 @@ export interface RedisMultiQueuedCommand {
 }
 
 export default class RedisMultiCommand {
-  static generateChainId(): symbol {
-    return Symbol('RedisMultiCommand Chain Id');
-  }
-
   readonly queue: Array<RedisMultiQueuedCommand> = [];
 
   readonly scriptsInUse = new Set<string>();
@@ -42,15 +37,6 @@ export default class RedisMultiCommand {
     return this.addCommand(redisArgs, transformReply);
   }
   
-  handleExecReplies(rawReplies: Array<unknown>): Array<unknown> {
-    const execReply = rawReplies[rawReplies.length - 1] as (null | Array<unknown>);
-    if (execReply === null) {
-      throw new WatchError();
-    }
-
-    return this.transformReplies(execReply);
-  }
-
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {
     return rawReplies.map((reply, i) => {
       const { transformReply, args } = this.queue[i];

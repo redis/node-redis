@@ -2,6 +2,7 @@ import COMMANDS from '../commands';
 import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithFlags, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, Flags, ReplyUnion } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
+import { RedisClientType } from '.';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -90,7 +91,7 @@ type MULTI_REPLY = {
 
 type MultiReply = MULTI_REPLY[keyof MULTI_REPLY];
 
-type ReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<ReplyUnion>;
+type ReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<unknown>;
 
 export type RedisClientMultiExecutor = (
   queue: Array<RedisMultiQueuedCommand>,
@@ -161,61 +162,13 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
     });
   }
 
-  // readonly #multi = new RedisMultiCommand();
-  readonly #executor: RedisClientMultiExecutor;
-  // readonly v4: Record<string, any> = {};
+  readonly #client: RedisClientType;
   #selectedDB?: number;
 
-  constructor(executor: RedisClientMultiExecutor, legacyMode = false) {
+  constructor(client: RedisClientType) {
     super();
-    this.#executor = executor;
-    // if (legacyMode) {
-    //   this.#legacyMode();
-    // }
+    this.#client = client;
   }
-
-  // #legacyMode(): void {
-  //   this.v4.addCommand = this.addCommand.bind(this);
-  //   (this as any).addCommand = (...args: Array<any>): this => {
-  //     this.#multi.addCommand(transformLegacyCommandArguments(args));
-  //     return this;
-  //   };
-  //   this.v4.exec = this.exec.bind(this);
-  //   (this as any).exec = (callback?: (err: Error | null, replies?: Array<unknown>) => unknown): void => {
-  //     this.v4.exec()
-  //       .then((reply: Array<unknown>) => {
-  //         if (!callback) return;
-
-  //         callback(null, reply);
-  //       })
-  //       .catch((err: Error) => {
-  //         if (!callback) {
-  //           // this.emit('error', err);
-  //           return;
-  //         }
-
-  //         callback(err);
-  //       });
-  //   };
-
-  //   for (const [name, command] of Object.entries(COMMANDS as RedisCommands)) {
-  //     this.#defineLegacyCommand(name, command);
-  //     (this as any)[name.toLowerCase()] ??= (this as any)[name];
-  //   }
-  // }
-
-  // #defineLegacyCommand(this: any, name: string, command?: RedisCommand): void {
-  //   this.v4[name] = this[name].bind(this.v4);
-  //   this[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
-  //     (...args: Array<unknown>) => {
-  //       this.#multi.addCommand(
-  //         [name, ...transformLegacyCommandArguments(args)],
-  //         command.transformReply
-  //       );
-  //       return this;
-  //     } :
-  //     (...args: Array<unknown>) => this.addCommand(name, ...args);
-  // }
 
   SELECT(db: number, transformReply?: TransformReply): this {
     this.#selectedDB = db;
@@ -224,15 +177,11 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
 
   select = this.SELECT;
 
-  async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false) {
+  async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<ReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
-    return this.handleExecReplies(
-      await this.#executor(
-        this.queue,
-        this.#selectedDB,
-        RedisMultiCommand.generateChainId()
-      )
+    return this.transformReplies(
+      await this.#client.executeMulti(this.queue, this.#selectedDB)
     ) as ReplyType<T, REPLIES>;
   }
 
@@ -242,14 +191,11 @@ export default class RedisClientMultiCommand<REPLIES = []> extends RedisMultiCom
     return this.exec<MULTI_REPLY['TYPED']>(execAsPipeline);
   }
 
-  async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>() {
+  async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<ReplyType<T, REPLIES>> {
     if (this.queue.length === 0) return [] as ReplyType<T, REPLIES>;
 
     return this.transformReplies(
-      await this.#executor(
-        this.queue,
-        this.#selectedDB
-      )
+      await this.#client.executePipeline(this.queue)
     ) as ReplyType<T, REPLIES>;
   }
 
