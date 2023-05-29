@@ -13,7 +13,7 @@ try {
   await client.ft.create('idx:animals', {
     name: {
       type: SchemaFieldTypes.TEXT,
-      sortable: true
+      SORTABLE: true
     },
     species: SchemaFieldTypes.TAG,
     age: SchemaFieldTypes.NUMERIC
