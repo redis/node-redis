@@ -71,6 +71,13 @@ legacyClient.set('key', 'value', (err, reply) => {
 TODO
 The `isolationPool` has been moved to it's on class `ClientPool`. You can create pool from a client using `client.createPool()`.
 
+## Cluster MULTI
+
+Cluster MULTI supports readonly/replicas
+`cluster.multi.addCommand` now requires `isReadonly` as the second argument, to match `cluster.sendCommand`
+
+TODO
+
 ## Commands
 
 Some command arguments/replies have changed to align more closely to data types returned by Redis:

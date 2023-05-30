@@ -1,5 +1,15 @@
 import { CommandArguments, RedisScript, TransformReply } from './RESP/types';
 
+// TODO: enum?
+export type MULTI_REPLY = {
+  GENERIC: 'generic';
+  TYPED: 'typed';
+};
+
+export type MultiReply = MULTI_REPLY[keyof MULTI_REPLY];
+
+export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<unknown>;
+
 export interface RedisMultiQueuedCommand {
   args: CommandArguments;
   transformReply?: TransformReply;
@@ -15,7 +25,6 @@ export default class RedisMultiCommand {
       args,
       transformReply
     });
-    return this;
   }
 
   addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
@@ -34,7 +43,7 @@ export default class RedisMultiCommand {
     redisArgs.push(...args);
     redisArgs.preserve = args.preserve;
 
-    return this.addCommand(redisArgs, transformReply);
+    this.addCommand(redisArgs, transformReply);
   }
   
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {

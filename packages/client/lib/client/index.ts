@@ -3,7 +3,7 @@ import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket
 import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
 import { EventEmitter } from 'events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -692,7 +692,7 @@ export default class RedisClient<
   /**
    * @internal
    */
-  async executePipeline(commands: Array<RedisMultiQueuedCommand>) {
+  executePipeline(commands: Array<RedisMultiQueuedCommand>) {
     if (!this._socket.isOpen) {
       return Promise.reject(new ClientClosedError());
     }

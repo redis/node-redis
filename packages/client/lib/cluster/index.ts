@@ -1,11 +1,11 @@
-import { ClientCommandOptions, RedisClientOptions, RedisClientType } from '../client';
-import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandSignature, CommandWithPoliciesSignature, Flags, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TransformReply } from '../RESP/types';
+import { ClientCommandOptions, RedisClientOptions } from '../client';
+import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, Flags, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
 import { EventEmitter } from 'events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
-// import RedisClusterMultiCommand, { InstantiableRedisClusterMultiCommandType, RedisClusterMultiCommandType } from './multi-command';
-// import { RedisMultiQueuedCommand } from '../multi-command';
+import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
+import { RedisMultiQueuedCommand } from '../multi-command';
 import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 
@@ -85,7 +85,7 @@ export default class RedisCluster<
   FLAGS extends Flags,
   POLICIES extends CommandPolicies
 > extends EventEmitter {
-  private static _extractFirstKey<C extends Command>(
+  static extractFirstKey<C extends Command>(
     command: C,
     args: Parameters<C['transformArguments']>,
     redisArgs: Array<RedisArgument>
@@ -101,46 +101,46 @@ export default class RedisCluster<
 
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    return async function (this: ProxyCluster) {
-      const args = command.transformArguments.apply(undefined, arguments as any),
-        firstKey = RedisCluster._extractFirstKey(
+    return async function (this: ProxyCluster, ...args: Array<unknown>) {
+      const redisArgs = command.transformArguments(...args),
+        firstKey = RedisCluster.extractFirstKey(
           command,
-          arguments as any,
-          args
+          args,
+          redisArgs
         ),
         reply = await this.sendCommand(
           firstKey,
           command.IS_READ_ONLY,
-          args,
+          redisArgs,
           this.commandOptions,
           command.POLICIES
         );
 
       return transformReply ?
-        transformReply(reply, args.preserve) :
+        transformReply(reply, redisArgs.preserve) :
         reply;
     };
   }
 
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    return async function (this: NamespaceProxyCluster) {
-      const args = command.transformArguments.apply(undefined, arguments as any),
-        firstKey = RedisCluster._extractFirstKey(
+    return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
+      const redisArgs = command.transformArguments(...args),
+        firstKey = RedisCluster.extractFirstKey(
           command,
-          arguments as any,
-          args
+          args,
+          redisArgs
         ),
         reply = await this.self.sendCommand(
           firstKey,
           command.IS_READ_ONLY,
-          args,
+          redisArgs,
           this.self.commandOptions,
           command.POLICIES
         );
 
       return transformReply ?
-        transformReply(reply, args.preserve) :
+        transformReply(reply, redisArgs.preserve) :
         reply;
     };
   }
@@ -148,18 +148,18 @@ export default class RedisCluster<
   private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
-    return async function (this: NamespaceProxyCluster) {
-      const fnArgs = fn.transformArguments.apply(undefined, arguments as any),
-        args = prefix.concat(fnArgs),
-        firstKey = RedisCluster._extractFirstKey(
+    return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
+      const fnArgs = fn.transformArguments(...args),
+        redisArgs = prefix.concat(fnArgs),
+        firstKey = RedisCluster.extractFirstKey(
           fn,
-          arguments as any,
-          args
+          fnArgs,
+          redisArgs
         ),
         reply = await this.self.sendCommand(
           firstKey,
           fn.IS_READ_ONLY,
-          args,
+          redisArgs,
           this.self.commandOptions,
           fn.POLICIES
         );
@@ -173,18 +173,18 @@ export default class RedisCluster<
   private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
-    return async function (this: ProxyCluster) {
-      const scriptArgs = script.transformArguments.apply(undefined, arguments as any),
-        args = prefix.concat(scriptArgs),
-        firstKey = RedisCluster._extractFirstKey(
+    return async function (this: ProxyCluster, ...args: Array<unknown>) {
+      const scriptArgs = script.transformArguments(...args),
+        redisArgs = prefix.concat(scriptArgs),
+        firstKey = RedisCluster.extractFirstKey(
           script,
-          arguments as any,
-          args
+          scriptArgs,
+          redisArgs
         ),
         reply = await this.sendCommand(
           firstKey,
           script.IS_READ_ONLY,
-          args,
+          redisArgs,
           this.commandOptions,
           script.POLICIES
         );
@@ -211,7 +211,7 @@ export default class RedisCluster<
       config
     });
 
-    // Client.prototype.Multi = RedisClientMultiCommand.extend(config);
+    Cluster.prototype.Multi = RedisClusterMultiCommand.extend(config);
 
     return (options?: Omit<RedisClusterOptions, keyof Exclude<typeof config, undefined>>) => {
       // returning a proxy of the client to prevent the namespaces.self to leak between proxies
@@ -280,8 +280,6 @@ export default class RedisCluster<
     return this._slots.pubSubNode;
   }
 
-  // readonly #Multi: InstantiableRedisClusterMultiCommandType<M, F, S>;
-
   get isOpen() {
     return this._slots.isOpen;
   }
@@ -291,7 +289,6 @@ export default class RedisCluster<
 
     this._options = options;
     this._slots = new RedisClusterSlots(options, this.emit.bind(this));
-    // this.#Multi = RedisClusterMultiCommand.extend(options);
   }
 
   duplicate(overrides?: Partial<RedisClusterOptions<M, F, S>>): RedisClusterType<M, F, S> {
@@ -400,20 +397,38 @@ export default class RedisCluster<
     }
   }
 
-  // MULTI(routing?: RedisCommandArgument): RedisClusterMultiCommandType<M, F, S> {
-  //   return new this.#Multi(
-  //     (commands: Array<RedisMultiQueuedCommand>, firstKey?: RedisCommandArgument, chainId?: symbol) => {
-  //       return this.#execute(
-  //         firstKey,
-  //         false,
-  //         client => client.multiExecutor(commands, undefined, chainId)
-  //       );
-  //     },
-  //     routing
-  //   );
-  // }
+  /**
+   * @internal
+   */
+  async executePipeline(
+    firstKey: RedisArgument | undefined,
+    isReadonly: boolean | undefined,
+    commands: Array<RedisMultiQueuedCommand>
+  ) {
+    const client = await this._slots.getClient(firstKey, isReadonly);
+    return client.executePipeline(commands);
+  }
 
-  // multi = this.MULTI;
+  /**
+   * @internal
+   */
+  async executeMulti(
+    firstKey: RedisArgument | undefined,
+    isReadonly: boolean | undefined,
+    commands: Array<RedisMultiQueuedCommand>
+  ) {
+    const client = await this._slots.getClient(firstKey, isReadonly);
+    return client.executeMulti(commands);
+  }
+
+  MULTI(routing?: RedisArgument): RedisClusterMultiCommandType<[], M, F, S, RESP, FLAGS> {
+    return new (this as any).Multi(
+      this,
+      routing
+    );
+  }
+
+  multi = this.MULTI;
 
   async SUBSCRIBE<T extends boolean = false>(
     channels: string | Array<string>,
