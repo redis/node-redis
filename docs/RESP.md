@@ -1,4 +1,12 @@
-# RESP3 => JS Type Mappings:
+# RESP2 -> JS
+
+- Integer (`:`) => `number`
+- Simple String (`+`) => `string | Buffer`
+- Blob String (`$`) => `string | Buffer`
+- Simple Error (`-`) => `ErrorReply`
+- Array (`*`) => `Array`
+
+# RESP3 -> JS
 
 - Null (`_`) => `null`
 - Boolean (`#`) => `boolean`
@@ -19,7 +27,7 @@
 
 ## Map keys and Set members
 
-When decoding Map to `Map | object` or Set to `Set`, keys/members of type "Simple String" or "Blob String" will be decoded as `string`s (ignoring flags) to allow lookup by type. If you need them as `Buffer`s, make sure to decode `Map`s/`Set`s as `Array`s.
+When decoding Map to `Map | object` or Set to `Set`, keys/members (respectively) of type "Simple String" or "Blob String" will be decoded as `string`s (ignoring flags) to allow lookup by type. If you need them as `Buffer`s, make sure to decode `Map`s/`Set`s as `Array`s.
 
 ## Not Implemented
 
