@@ -683,6 +683,7 @@ export default class RedisClient<
 
     QUIT(): Promise<string> {
         return this.#socket.quit(async () => {
+            if (this.#pingTimer) clearTimeout(this.#pingTimer);
             const quitPromise = this.#queue.addCommand<string>(['QUIT']);
             this.#tick();
             const [reply] = await Promise.all([
