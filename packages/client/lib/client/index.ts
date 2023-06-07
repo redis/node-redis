@@ -805,6 +805,7 @@ export default class RedisClient<
     }
 
     async disconnect(): Promise<void> {
+        if (this.#pingTimer) clearTimeout(this.#pingTimer);
         this.#queue.flushAll(new DisconnectsClientError());
         this.#socket.disconnect();
         await this.#destroyIsolationPool();
