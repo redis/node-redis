@@ -825,6 +825,7 @@ export default class RedisClient<
    */
   QUIT(): Promise<string> {
     return this._socket.quit(async () => {
+      clearTimeout(this._pingTimer);
       const quitPromise = this._queue.addCommand<string>(['QUIT']);
       this._tick();
       return quitPromise;
@@ -845,6 +846,7 @@ export default class RedisClient<
    */
   close() {
     return new Promise<void>(resolve => {
+      clearTimeout(this._pingTimer);
       this._socket.close();
 
       if (this._queue.isEmpty()) {
@@ -855,11 +857,11 @@ export default class RedisClient<
       const maybeClose = () => {
         if (!this._queue.isEmpty()) return;
 
-        this._socket.off('data', maybeClose);
+        this._socket.removeEventListener('data', maybeClose);
         this._socket.destroySocket();
         resolve();
       };
-      this._socket.on('data', maybeClose);
+      this._socket.addEventListener('data', maybeClose);
     });
   }
 
@@ -867,6 +869,7 @@ export default class RedisClient<
    * Destroy the client. Rejects all commands immediately.
    */
   destroy() {
+    clearTimeout(this._pingTimer);
     this._queue.flushAll(new DisconnectsClientError());
     this._socket.destroy();
   }
