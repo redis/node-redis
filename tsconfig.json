@@ -1,0 +1,25 @@
+{
+  "references": [{
+    "path": "./packages/client"
+  }, {
+    "path": "./packages/test-utils"
+  }],
+  "todo": [{
+    "path": "./packages/bloom"
+  }, {
+    "path": "./packages/graph"
+  }, {
+    "path": "./packages/json"
+  }, {
+    "path": "./packages/search"
+  }, {
+    "path": "./packages/time-series"
+  }, {
+    "path": "./packages/redis"
+  }],
+  "typedocOptions": {
+    "entryPoints": ["./packages/client"],
+    "entryPointStrategy": "packages",
+    "out": "./documentation"
+  }
+}

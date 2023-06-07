@@ -27,7 +27,7 @@
 
 ## Map keys and Set members
 
-When decoding Map to `Map | object` or Set to `Set`, keys/members (respectively) of type "Simple String" or "Blob String" will be decoded as `string`s (ignoring flags) to allow lookup by type. If you need them as `Buffer`s, make sure to decode `Map`s/`Set`s as `Array`s.
+When decoding Map to `Map | object` or Set to `Set`, keys/members (respectively) of type "Simple String" or "Blob String" will be decoded as `string`s (ignoring type mapping) to allow lookup by type. If you need them as `Buffer`s, make sure to decode `Map`s/`Set`s as `Array`s.
 
 ## Not Implemented
 

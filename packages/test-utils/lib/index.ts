@@ -1,7 +1,3 @@
-// import { RedisModules, RedisFunctions, RedisScripts } from '@redis/client/lib/commands';
-// import RedisClient, { RedisClientOptions, RedisClientType } from '@redis/client/lib/client';
-// import RedisCluster, { RedisClusterOptions, RedisClusterType } from '@redis/client/lib/cluster';
-// import { RedisSocketCommonOptions } from '@redis/client/lib/client/socket';
 import {
   RedisModules,
   RedisFunctions,
@@ -13,7 +9,7 @@ import {
   createCluster,
   RedisClusterOptions,
   RedisClusterType
-} from '@redis/client/index';
+} from '@redis/client';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -136,10 +132,10 @@ export default class TestUtils {
   }
 
   testWithClient<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts,
-    RESP extends RespVersions
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2
   >(
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP>) => unknown,
@@ -181,7 +177,7 @@ export default class TestUtils {
       } finally {
         if (client.isOpen) {
           await client.flushAll();
-          await client.disconnect();
+          client.destroy();
         }
       }
     });
@@ -203,10 +199,10 @@ export default class TestUtils {
   }
 
   testWithCluster<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts,
-    RESP extends RespVersions
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2
   >(
     title: string,
     fn: (cluster: RedisClusterType<M, F, S, RESP>) => unknown,
@@ -254,10 +250,10 @@ export default class TestUtils {
   }
 
   testAll<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts,
-    RESP extends RespVersions
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2
   >(
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP> | RedisClusterType<M, F, S, RESP>) => unknown,

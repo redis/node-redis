@@ -1,5 +1,5 @@
 import { ClientCommandOptions, RedisClientOptions } from '../client';
-import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, Flags, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
+import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
 import { EventEmitter } from 'events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -53,10 +53,10 @@ export interface RedisClusterOptions<
 
 type WithCommands<
   RESP extends RespVersions,
-  FLAGS extends Flags,
+  TYPE_MAPPING extends TypeMapping,
   POLICIES extends CommandPolicies
 > = {
-  [P in keyof typeof COMMANDS]: CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, FLAGS, POLICIES>;
+  [P in keyof typeof COMMANDS]: CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING, POLICIES>;
 };
 
 export type RedisClusterType<
@@ -64,16 +64,16 @@ export type RedisClusterType<
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
-  FLAGS extends Flags = {},
+  TYPE_MAPPING extends TypeMapping = {},
   POLICIES extends CommandPolicies = {}
-> = RedisCluster<M, F, S, RESP, FLAGS, POLICIES> & WithCommands<RESP, FLAGS, POLICIES>;
+> = RedisCluster<M, F, S, RESP, TYPE_MAPPING, POLICIES> & WithCommands<RESP, TYPE_MAPPING, POLICIES>;
 // & WithModules<M> & WithFunctions<F> & WithScripts<S>
 
 export interface ClusterCommandOptions extends ClientCommandOptions {
   policies?: CommandPolicies;
 }
 
-type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, Flags, CommandPolicies> & { commandOptions?: ClusterCommandOptions };
+type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, CommandPolicies> & { commandOptions?: ClusterCommandOptions };
 
 type NamespaceProxyCluster = { self: ProxyCluster };
 
@@ -82,7 +82,7 @@ export default class RedisCluster<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags,
+  TYPE_MAPPING extends TypeMapping,
   POLICIES extends CommandPolicies
 > extends EventEmitter {
   static extractFirstKey<C extends Command>(
@@ -310,7 +310,7 @@ export default class RedisCluster<
       F,
       S,
       RESP,
-      T['flags'] extends Flags ? T['flags'] : {},
+      T['typeMapping'] extends TypeMapping ? T['typeMapping'] : {},
       T['policies'] extends CommandPolicies ? T['policies'] : {}
     >;
   }
@@ -330,16 +330,16 @@ export default class RedisCluster<
       F, 
       S,
       RESP,
-      K extends 'flags' ? V extends Flags ? V : {} : FLAGS,
+      K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING,
       K extends 'policies' ? V extends CommandPolicies ? V : {} : POLICIES
     >;
   }
 
   /**
-   * Override the `flags` command option
+   * Override the `typeMapping` command option
    */
-  withFlags<FLAGS extends Flags>(flags: FLAGS) {
-    return this._commandOptionsProxy('flags', flags);
+  withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
+    return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
   /**
@@ -421,7 +421,7 @@ export default class RedisCluster<
     return client.executeMulti(commands);
   }
 
-  MULTI(routing?: RedisArgument): RedisClusterMultiCommandType<[], M, F, S, RESP, FLAGS> {
+  MULTI(routing?: RedisArgument): RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
     return new (this as any).Multi(
       this,
       routing

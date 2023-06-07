@@ -8,35 +8,19 @@
     "dist/"
   ],
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'",
-    "build": "tsc",
-    "lint": "eslint ./*.ts ./lib/**/*.ts",
-    "documentation": "typedoc"
+    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'"
   },
   "dependencies": {
     "cluster-key-slot": "1.1.2",
-    "generic-pool": "3.9.0",
-    "yallist": "4.0.0"
+    "generic-pool": "3.9.0"
   },
   "devDependencies": {
-    "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@redis/test-utils": "*",
-    "@types/node": "^18.16.1",
-    "@types/sinon": "^10.0.14",
-    "@types/yallist": "^4.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.59.1",
-    "@typescript-eslint/parser": "^5.59.1",
-    "eslint": "^8.39.0",
-    "nyc": "^15.1.0",
-    "release-it": "^15.10.1",
-    "sinon": "^15.0.4",
-    "source-map-support": "^0.5.21",
-    "ts-node": "^10.9.1",
-    "typedoc": "^0.24.6",
-    "typescript": "^5.0.4"
+    "@types/sinon": "^10.0.15",
+    "sinon": "^15.1.0"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "repository": {
     "type": "git",

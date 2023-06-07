@@ -586,7 +586,7 @@ export default class RedisClusterSlots<
     await unsubscribe(client);
 
     if (!client.isPubSubActive) {
-      await client.disconnect();
+      client.destroy();
       this.pubSubNode = undefined;
     }
   }

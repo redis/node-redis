@@ -1,7 +1,7 @@
 import { createConnection } from 'net';
 import { once } from 'events';
-import RedisClient from '@redis/client/dist/lib/client';
-import { promiseTimeout } from '@redis/client/dist/lib/utils';
+import { createClient } from '@redis/client';
+import { setTimeout } from 'timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import * as path from 'path';
 import { promisify } from 'util';
@@ -46,8 +46,8 @@ export interface RedisServerDocker {
   dockerId: string;
 }
 
-// ".." cause it'll be in `./dist`
-const DOCKER_FODLER_PATH = path.join(__dirname, '../docker');
+// extrea ".." cause it'll be in `./dist`
+const DOCKER_FODLER_PATH = path.join(__dirname, '../../docker');
 
 async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
   const port = (await portIterator.next()).value,
@@ -64,7 +64,7 @@ async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfi
   }
 
   while (await isPortAvailable(port)) {
-    await promiseTimeout(50);
+    await setTimeout(50);
   }
 
   return {
@@ -139,7 +139,7 @@ async function spawnRedisClusterNodeDockers(
         await replica.client.clusterMeet('127.0.0.1', master.docker.port);
 
         while ((await replica.client.clusterSlots()).length === 0) {
-          await promiseTimeout(50);
+          await setTimeout(50);
         }
 
         await replica.client.clusterReplicate(
@@ -162,13 +162,13 @@ async function spawnRedisClusterNodeDocker(
   serverArguments: Array<string>
 ) {
   const docker = await spawnRedisServerDocker(dockersConfig, [
-    ...serverArguments,
-    '--cluster-enabled',
-    'yes',
-    '--cluster-node-timeout',
-    '5000'
-  ]),
-    client = RedisClient.create({
+      ...serverArguments,
+      '--cluster-enabled',
+      'yes',
+      '--cluster-node-timeout',
+      '5000'
+    ]),
+    client = createClient({
       socket: {
         port: docker.port
       }
@@ -220,10 +220,10 @@ async function spawnRedisClusterDockers(
         totalNodes(await client.clusterSlots()) !== nodes.length ||
         !(await client.sendCommand<string>(['CLUSTER', 'INFO'])).startsWith('cluster_state:ok') // TODO
       ) {
-        await promiseTimeout(50);
+        await setTimeout(50);
       }
 
-      return client.disconnect();
+      client.destroy();
     })
   );
 
