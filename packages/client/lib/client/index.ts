@@ -857,11 +857,11 @@ export default class RedisClient<
       const maybeClose = () => {
         if (!this._queue.isEmpty()) return;
 
-        this._socket.removeEventListener('data', maybeClose);
+        this._socket.off('data', maybeClose);
         this._socket.destroySocket();
         resolve();
       };
-      this._socket.addEventListener('data', maybeClose);
+      this._socket.on('data', maybeClose);
     });
   }
 
