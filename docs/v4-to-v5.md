@@ -22,7 +22,7 @@ With the new API, instead of passing the options directly to the commands we use
 await client.get('key'); // `string | null`
 
 const proxyClient = client.withCommandOptions({
-  flags: {
+  typeMapping: {
     [TYPES.BLOB_STRING]: Buffer
   }
 });
@@ -33,9 +33,12 @@ await proxyClient.get('key'); // `Buffer | null`
 `withCommandOptions` can be used to override all of the command options, without reusing any existing ones.
 
 To override just a specific option, use the following functions:
-- `withFlags` - override `flags` only.
+- `withTypeMapping` - override `typeMapping` only.
+- `withAbortSignal` - override `abortSignal` only.
 - `asap` - override `asap` to `true`.
 - `isolated` - override `isolated` to `true`.
+
+[TODO](./command-options.md)
 
 ## Quit VS Disconnect
 
@@ -45,9 +48,24 @@ The `QUIT` command has been deprecated in Redis 7.2 and should now also be consi
 
 ## Scan Iterators
 
-TODO
-Yields chunks instead of individual items. Allows multi key operations.
-See the [Scan Iterators guide](./scan-iterators.md).
+Iterator commands like `SCAN`, `HSCAN`, `SSCAN`, and `ZSCAN` return collections of elements (depending on the data type). However, v4 iterators loop over these collections and yield individual items:
+
+```javascript
+for await (const key of client.scanIterator()) {
+  console.log(key, await client.get(key));
+}
+```
+
+This mismatch can be awkward and makes "multi-key" commands like `MGET`, `UNLINK`, etc. pointless. So, in v5 the iterators now yield a collection instead of an element:
+
+```javascript
+for await (const keys of client.scanIterator()) {
+  // we can now meaningfully utilize "multi-key" commands
+  console.log(keys, await client.mGet(keys));
+}
+```
+
+for more information, see the [Scan Iterators guide](./scan-iterators.md).
 
 ## Legacy Mode
 
