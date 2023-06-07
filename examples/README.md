@@ -90,5 +90,5 @@ await client.connect();
 
 // Add your example code here...
 
-await client.quit();
+client.destroy();
 ```

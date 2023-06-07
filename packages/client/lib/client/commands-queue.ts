@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
-import { Decoder, PUSH_FLAGS, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, Flags, ReplyUnion, RespVersions } from '../RESP/types';
+import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
+import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { EventEmitter } from 'stream';
@@ -10,7 +10,7 @@ export interface QueueCommandOptions {
   chainId?: symbol;
   asap?: boolean;
   abortSignal?: AbortSignal;
-  flags?: Flags;
+  typeMapping?: TypeMapping;
 }
 
 export interface CommandWaitingToBeSent extends CommandWaitingForReply {
@@ -26,15 +26,15 @@ interface CommandWaitingForReply {
   resolve(reply?: unknown): void;
   reject(err: unknown): void;
   channelsCounter?: number;
-  flags?: Flags;
+  typeMapping?: TypeMapping;
 }
 
 export type OnShardedChannelMoved = (channel: string, listeners: ChannelListeners) => void;
 
 const PONG = Buffer.from('pong');
 
-const RESP2_PUSH_FLAGS = {
-  ...PUSH_FLAGS,
+const RESP2_PUSH_TYPE_MAPPING = {
+  ...PUSH_TYPE_MAPPING,
   [RESP_TYPES.SIMPLE_STRING]: Buffer
 };
 
@@ -102,8 +102,8 @@ export default class RedisCommandsQueue {
     }
   }
 
-  private _getFlags() {
-    return this._waitingForReply.head!.value.flags ?? {};
+  private _getTypeMapping() {
+    return this._waitingForReply.head!.value.typeMapping ?? {};
   }
 
   private _initiateResp3Decoder() {
@@ -115,7 +115,7 @@ export default class RedisCommandsQueue {
 
         }
       },
-      getFlags: () => this._getFlags()
+      getTypeMapping: () => this._getTypeMapping()
     });
   }
 
@@ -126,9 +126,9 @@ export default class RedisCommandsQueue {
           if (this._onPush(reply)) return;
           
           if (PONG.equals(reply[0] as Buffer)) {
-            const { resolve, flags } = this._waitingForReply.shift()!,
+            const { resolve, typeMapping } = this._waitingForReply.shift()!,
               buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
-            resolve(flags?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
+            resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
             return;
           }
         }
@@ -140,11 +140,11 @@ export default class RedisCommandsQueue {
       // PubSub is handled in onReply  
       // @ts-expect-error
       onPush: undefined,
-      getFlags: () => {
+      getTypeMapping: () => {
         // PubSub push is an Array in RESP2
         return this._pubSub.isActive ?
-          RESP2_PUSH_FLAGS :
-          this._getFlags();
+          RESP2_PUSH_TYPE_MAPPING :
+          this._getTypeMapping();
       }
     });
   }
@@ -161,7 +161,7 @@ export default class RedisCommandsQueue {
       const value: CommandWaitingToBeSent = {
         args,
         chainId: options?.chainId,
-        flags: options?.flags,
+        typeMapping: options?.typeMapping,
         resolve,
         reject,
         abort: undefined
@@ -243,7 +243,7 @@ export default class RedisCommandsQueue {
       this._waitingToBeSent.push({
         args: command.args,
         channelsCounter: command.channelsCounter,
-        flags: PUSH_FLAGS,
+        typeMapping: PUSH_TYPE_MAPPING,
         resolve: () => {
           command.resolve();
           resolve();
@@ -282,7 +282,7 @@ export default class RedisCommandsQueue {
     return encoded;
   }
 
-  #flushWaitingForReply(err: Error): void {
+  private _flushWaitingForReply(err: Error): void {
     while (this._waitingForReply.head) {
       this._waitingForReply.shift()!.reject(err);
     }
@@ -304,7 +304,7 @@ export default class RedisCommandsQueue {
     this.decoder.reset();
     this._pubSub.reset();
 
-    this.#flushWaitingForReply(err);
+    this._flushWaitingForReply(err);
 
     if (!this._chainInExecution) return;
 
@@ -321,7 +321,7 @@ export default class RedisCommandsQueue {
   flushAll(err: Error): void {
     this.decoder.reset();
     this._pubSub.reset();
-    this.#flushWaitingForReply(err);
+    this._flushWaitingForReply(err);
     while (this._waitingToBeSent.head) {
       RedisCommandsQueue._flushWaitingToBeSent(
         this._waitingToBeSent.shift()!,

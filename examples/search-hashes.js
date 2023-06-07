@@ -85,4 +85,4 @@ for (const doc of results.documents) {
   console.log(`${doc.id}: ${doc.value.name}, ${doc.value.age} years old.`);
 }
 
-await client.quit();
+client.destroy();

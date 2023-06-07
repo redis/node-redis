@@ -12,4 +12,4 @@ for await (const member of client.sScanIterator(setName)) {
   console.log(member);
 }
 
-await client.quit();
+client.destroy();

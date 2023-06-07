@@ -29,6 +29,7 @@ export default class RedisMultiCommand {
 
   addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
     const redisArgs: CommandArguments = [];
+    redisArgs.preserve = args.preserve;
     if (this.scriptsInUse.has(script.SHA1)) {
       redisArgs.push('EVALSHA', script.SHA1);
     } else {
@@ -41,7 +42,6 @@ export default class RedisMultiCommand {
     }
 
     redisArgs.push(...args);
-    redisArgs.preserve = args.preserve;
 
     this.addCommand(redisArgs, transformReply);
   }

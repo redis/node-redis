@@ -145,4 +145,4 @@ console.log(
 //   ]
 // }
 
-await client.quit();
+client.destroy();

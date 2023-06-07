@@ -7,14 +7,14 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchErr
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { Command, CommandArguments, CommandSignature, Flags, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
+import { Command, CommandArguments, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
-import { ReplyWithFlags, CommandReply } from '../RESP/types';
+import { ReplyWithTypeMapping, CommandReply } from '../RESP/types';
 import SCAN, { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
-import { RedisClientPool } from './pool';
+// import { RedisClientPool } from './pool';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -69,37 +69,37 @@ export interface RedisClientOptions<
 
 type WithCommands<
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, FLAGS>;
+    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
   };
 
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
     [P in keyof M]: {
-      [C in keyof M[P]]: CommandSignature<M[P][C], RESP, FLAGS>;
+      [C in keyof M[P]]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
     };
   };
 
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
     [L in keyof F]: {
-      [C in keyof F[L]]: CommandSignature<F[L][C], RESP, FLAGS>;
+      [C in keyof F[L]]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
     };
   };
 
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof S]: CommandSignature<S[P], RESP, FLAGS>;
+    [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
   };
 
 export type RedisClientType<
@@ -107,20 +107,20 @@ export type RedisClientType<
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
-  FLAGS extends Flags = {}
+  TYPE_MAPPING extends TypeMapping = {}
 > = (
-    RedisClient<M, F, S, RESP, FLAGS> &
-    WithCommands<RESP, FLAGS> &
-    WithModules<M, RESP, FLAGS> &
-    WithFunctions<F, RESP, FLAGS> &
-    WithScripts<S, RESP, FLAGS>
+    RedisClient<M, F, S, RESP, TYPE_MAPPING> &
+    WithCommands<RESP, TYPE_MAPPING> &
+    WithModules<M, RESP, TYPE_MAPPING> &
+    WithFunctions<F, RESP, TYPE_MAPPING> &
+    WithScripts<S, RESP, TYPE_MAPPING>
   );
 
 export interface ClientCommandOptions extends QueueCommandOptions {
   // isolated?: boolean;
 }
 
-type ProxyClient = RedisClient<{}, {}, {}, RespVersions, Flags> & { commandOptions?: ClientCommandOptions };
+type ProxyClient = RedisClient<{}, {}, {}, RespVersions, TypeMapping> & { commandOptions?: ClientCommandOptions };
 
 type NamespaceProxyClient = { self: ProxyClient };
 
@@ -133,7 +133,7 @@ export default class RedisClient<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > extends EventEmitter {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
@@ -396,7 +396,15 @@ export default class RedisClient<
     };
 
     return new RedisSocket(socketInitiator, this._options?.socket)
-      .on('data', chunk => this._queue.decoder.write(chunk))
+      .on('data', chunk => {
+        try {
+          this._queue.decoder.write(chunk);
+        } catch (err) {
+          this._queue.decoder.reset();
+          this.emit('error', err);
+
+        }
+      })
       .on('error', err => {
         this.emit('error', err);
         if (this._socket.isOpen && !this._options?.disableOfflineQueue) {
@@ -440,7 +448,7 @@ export default class RedisClient<
       F,
       S,
       RESP,
-      T['flags'] extends Flags ? T['flags'] : {}
+      T['typeMapping'] extends TypeMapping ? T['typeMapping'] : {}
     >;
   }
 
@@ -459,17 +467,20 @@ export default class RedisClient<
       F,
       S,
       RESP,
-      K extends 'flags' ? V extends Flags ? V : {} : FLAGS
+      K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING
     >;
   }
 
   /**
-   * Override the `flags` command option
+   * Override the `typeMapping` command option
    */
-  withFlags<FLAGS extends Flags>(flags: FLAGS) {
-    return this._commandOptionsProxy('flags', flags);
+  withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
+    return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
+  /**
+   * Override the `abortSignal` command option
+   */
   withAbortSignal(abortSignal: AbortSignal) {
     return this._commandOptionsProxy('abortSignal', abortSignal);
   }
@@ -482,7 +493,7 @@ export default class RedisClient<
   }
 
   /**
-   * Get the "legacy" (v3/callback) interface
+   * Create the "legacy" (v3/callback) interface
    */
   legacy(): RedisLegacyClientType {
     return new RedisLegacyClient(
@@ -493,11 +504,11 @@ export default class RedisClient<
   /**
    * Create `RedisClientPool` using this client as a prototype
    */
-  pool() {
-    return RedisClientPool.fromClient(
-      this as unknown as RedisClientType<M, F, S, RESP>
-    );
-  }
+  // pool() {
+  //   return RedisClientPool.fromClient(
+  //     this as unknown as RedisClientType<M, F, S, RESP>
+  //   );
+  // }
 
   duplicate(overrides?: Partial<RedisClientOptions<M, F, S, RESP>>) {
     return new (Object.getPrototypeOf(this).constructor)({
@@ -679,12 +690,12 @@ export default class RedisClient<
   private _addMultiCommands(
     commands: Array<RedisMultiQueuedCommand>,
     chainId?: symbol,
-    flags?: Flags
+    typeMapping?: TypeMapping
   ) {
     return Promise.all(
       commands.map(({ args }) => this._queue.addCommand(args, {
         chainId,
-        flags
+        typeMapping
       }))
     );
   }
@@ -699,7 +710,7 @@ export default class RedisClient<
 
     const promise = Promise.all(
       commands.map(({ args }) => this._queue.addCommand(args, {
-        flags: (this as ProxyClient).commandOptions?.flags
+        typeMapping: (this as ProxyClient).commandOptions?.typeMapping
       }))
     );
     this._tick();
@@ -710,24 +721,24 @@ export default class RedisClient<
    * @internal
    */
   async executeMulti(
-        commands: Array<RedisMultiQueuedCommand>,
+    commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
-        if (!this._socket.isOpen) {
-          return Promise.reject(new ClientClosedError());
-        }
+    if (!this._socket.isOpen) {
+      return Promise.reject(new ClientClosedError());
+    }
 
-        const flags = (this as ProxyClient).commandOptions?.flags,
+    const typeMapping = (this as ProxyClient).commandOptions?.typeMapping,
       chainId = Symbol('MULTI Chain'),
       promises = [
-              this._queue.addCommand(['MULTI'], { chainId }),
+        this._queue.addCommand(['MULTI'], { chainId }),
       ];
 
     for (const { args } of commands) {
       promises.push(
         this._queue.addCommand(args, {
           chainId,
-          flags
+          typeMapping
         })
       );
     }
@@ -736,7 +747,7 @@ export default class RedisClient<
       this._queue.addCommand(['EXEC'], { chainId })
     );
 
-        this._tick();
+    this._tick();
 
     const results = await Promise.all(promises),
       execResult = results[results.length - 1];
@@ -745,23 +756,23 @@ export default class RedisClient<
       throw new WatchError();
     }
 
-        if (selectedDB !== undefined) {
-          this._selectedDB = selectedDB;
-        }
+    if (selectedDB !== undefined) {
+      this._selectedDB = selectedDB;
+    }
 
     return execResult as Array<unknown>;
-      }
+  }
 
-  MULTI(): RedisClientMultiCommandType<[], M, F, S, RESP, FLAGS> {
+  MULTI(): RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
     return new (this as any).Multi(this);
   }
 
   multi = this.MULTI;
 
   async* scanIterator(
-    this: RedisClientType<M, F, S, RESP, FLAGS>,
+    this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions
-  ): AsyncIterable<ReplyWithFlags<CommandReply<typeof SCAN, RESP>['keys'], FLAGS>> {
+  ): AsyncIterable<ReplyWithTypeMapping<CommandReply<typeof SCAN, RESP>['keys'], TYPE_MAPPING>> {
     let cursor = options?.cursor ?? 0;
     do {
       const reply = await this.scan(cursor, options);
@@ -771,7 +782,7 @@ export default class RedisClient<
   }
 
   async* hScanIterator(
-    this: RedisClientType<M, F, S, RESP, FLAGS>,
+    this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
@@ -784,7 +795,7 @@ export default class RedisClient<
   }
 
   async* sScanIterator(
-    this: RedisClientType<M, F, S, RESP, FLAGS>,
+    this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
@@ -797,7 +808,7 @@ export default class RedisClient<
   }
 
   async* zScanIterator(
-    this: RedisClientType<M, F, S, RESP, FLAGS>,
+    this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
@@ -843,7 +854,7 @@ export default class RedisClient<
 
       const maybeClose = () => {
         if (!this._queue.isEmpty()) return;
-        
+
         this._socket.off('data', maybeClose);
         this._socket.destroySocket();
         resolve();

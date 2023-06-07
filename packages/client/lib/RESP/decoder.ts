@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { VerbatimString } from './verbatim-string';
 import { SimpleError, BlobError, ErrorReply } from '../errors';
-import { Flags } from './types';
+import { TypeMapping } from './types';
 
 // https://github.com/redis/redis-specifications/blob/master/protocol/RESP3.md
 export const RESP_TYPES = {
@@ -34,7 +34,7 @@ const ASCII = {
   'e': 101
 } as const;
 
-export const PUSH_FLAGS = {
+export const PUSH_TYPE_MAPPING = {
   [RESP_TYPES.BLOB_STRING]: Buffer
 };
 
@@ -45,7 +45,7 @@ interface DecoderOptions {
   onReply(reply: any): unknown;
   onErrorReply(err: ErrorReply): unknown;
   onPush(push: Array<any>): unknown;
-  getFlags(): Flags;
+  getTypeMapping(): TypeMapping;
 }
 
 export class Decoder {
@@ -118,7 +118,7 @@ export class Decoder {
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeBigNumber(
-            this._config.getFlags()[RESP_TYPES.BIG_NUMBER],
+            this._config.getTypeMapping()[RESP_TYPES.BIG_NUMBER],
             chunk
           )
         );
@@ -127,7 +127,7 @@ export class Decoder {
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeDouble(
-            this._config.getFlags()[RESP_TYPES.DOUBLE],
+            this._config.getTypeMapping()[RESP_TYPES.DOUBLE],
             chunk
           )
         );
@@ -136,7 +136,7 @@ export class Decoder {
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeSimpleString(
-            this._config.getFlags()[RESP_TYPES.SIMPLE_STRING],
+            this._config.getTypeMapping()[RESP_TYPES.SIMPLE_STRING],
             chunk
           )
         );
@@ -145,7 +145,7 @@ export class Decoder {
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeBlobString(
-            this._config.getFlags()[RESP_TYPES.BLOB_STRING],
+            this._config.getTypeMapping()[RESP_TYPES.BLOB_STRING],
             chunk
           )
         );
@@ -154,7 +154,7 @@ export class Decoder {
         return this._handleDecodedValue(
           this._config.onReply,
           this._decodeVerbatimString(
-            this._config.getFlags()[RESP_TYPES.VERBATIM_STRING],
+            this._config.getTypeMapping()[RESP_TYPES.VERBATIM_STRING],
             chunk
           )
         );
@@ -174,26 +174,29 @@ export class Decoder {
       case RESP_TYPES.ARRAY:
         return this._handleDecodedValue(
           this._config.onReply,
-          this._decodeArray(this._config.getFlags(), chunk)
+          this._decodeArray(this._config.getTypeMapping(), chunk)
         );
 
       case RESP_TYPES.SET:
         return this._handleDecodedValue(
           this._config.onReply,
-          this._decodeSet(this._config.getFlags(), chunk)
+          this._decodeSet(this._config.getTypeMapping(), chunk)
         );
       
       case RESP_TYPES.MAP:
         return this._handleDecodedValue(
           this._config.onReply,
-          this._decodeMap(this._config.getFlags(), chunk)
+          this._decodeMap(this._config.getTypeMapping(), chunk)
         );
 
       case RESP_TYPES.PUSH:
         return this._handleDecodedValue(
           this._config.onPush,
-          this._decodeArray(PUSH_FLAGS, chunk)
+          this._decodeArray(PUSH_TYPE_MAPPING, chunk)
         );
+
+      default:
+        throw new Error(`Unknown RESP type ${type} "${String.fromCharCode(type)}"`);
     }
   }
 
@@ -269,8 +272,8 @@ export class Decoder {
     return this._decodeUnsingedNumber.bind(this, number);
   }
 
-  private _decodeBigNumber(flag, chunk) {
-    if (flag === String) {
+  private _decodeBigNumber(type, chunk) {
+    if (type === String) {
       return this._decodeSimpleString(String, chunk);
     }
 
@@ -319,8 +322,8 @@ export class Decoder {
     return this._decodeUnsingedBigNumber.bind(this, bigNumber);
   }
 
-  private _decodeDouble(flag, chunk) {
-    if (flag === String) {
+  private _decodeDouble(type, chunk) {
+    if (type === String) {
       return this._decodeSimpleString(String, chunk);
     }
 
@@ -464,38 +467,38 @@ export class Decoder {
     return cursor;
   }
 
-  private _decodeSimpleString(flag, chunk) {
+  private _decodeSimpleString(type, chunk) {
     const start = this._cursor,
       crlfIndex = this._findCRLF(chunk, start);
     if (crlfIndex === -1) {
       return this._continueDecodeSimpleString.bind(
         this,
         [chunk.subarray(start)],
-        flag
+        type
       );
     }
 
     const slice = chunk.subarray(start, crlfIndex);
-    return flag === Buffer ?
+    return type === Buffer ?
       slice :
       slice.toString();
   }
 
-  private _continueDecodeSimpleString(chunks, flag, chunk) {
+  private _continueDecodeSimpleString(chunks, type, chunk) {
     const start = this._cursor,
       crlfIndex = this._findCRLF(chunk, start);
     if (crlfIndex === -1) {
       chunks.push(chunk.subarray(start));
-      return this._continueDecodeSimpleString.bind(this, chunks, flag);
+      return this._continueDecodeSimpleString.bind(this, chunks, type);
     }
 
     chunks.push(chunk.subarray(start, crlfIndex));
-    return flag === Buffer ?
+    return type === Buffer ?
       Buffer.concat(chunks) :
       chunks.join('');
   }
 
-  private _decodeBlobString(flag, chunk) {
+  private _decodeBlobString(type, chunk) {
     // RESP 2 bulk string null
     // https://github.com/redis/redis-specifications/blob/master/protocol/RESP2.md#resp-bulk-strings
     if (chunk[this._cursor] === ASCII['-']) {
@@ -505,26 +508,26 @@ export class Decoder {
 
     const length = this._decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeBlobStringLength.bind(this, length, flag);
+      return this._continueDecodeBlobStringLength.bind(this, length, type);
     } else if (this._cursor >= chunk.length) {
-      return this._decodeBlobStringWithLength.bind(this, length, flag);
+      return this._decodeBlobStringWithLength.bind(this, length, type);
     }
 
-    return this._decodeBlobStringWithLength(length, flag, chunk);
+    return this._decodeBlobStringWithLength(length, type, chunk);
   }
 
-  private _continueDecodeBlobStringLength(lengthCb, flag, chunk) {
+  private _continueDecodeBlobStringLength(lengthCb, type, chunk) {
     const length = lengthCb(chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeBlobStringLength.bind(this, length, flag);
+      return this._continueDecodeBlobStringLength.bind(this, length, type);
     } else if (this._cursor >= chunk.length) {
-      return this._decodeBlobStringWithLength.bind(this, length, flag);
+      return this._decodeBlobStringWithLength.bind(this, length, type);
     }
 
-    return this._decodeBlobStringWithLength(length, flag, chunk);
+    return this._decodeBlobStringWithLength(length, type, chunk);
   }
 
-  private _decodeStringWithLength(length, skip, flag, chunk) {
+  private _decodeStringWithLength(length, skip, type, chunk) {
     const end = this._cursor + length;
     if (end >= chunk.length) {
       const slice = chunk.subarray(this._cursor);
@@ -534,18 +537,18 @@ export class Decoder {
         length - slice.length,
         [slice],
         skip,
-        flag
+        type
       );
     }
 
     const slice = chunk.subarray(this._cursor, end);
     this._cursor = end + skip;
-    return flag === Buffer ?
+    return type === Buffer ?
       slice :
       slice.toString();
   }
 
-  private _continueDecodeStringWithLength(length, chunks, skip, flag, chunk) {
+  private _continueDecodeStringWithLength(length, chunks, skip, type, chunk) {
     const end = this._cursor + length;
     if (end >= chunk.length) {
       const slice = chunk.subarray(this._cursor);
@@ -556,46 +559,46 @@ export class Decoder {
         length - slice.length,
         chunks,
         skip,
-        flag
+        type
       );
     }
 
     chunks.push(chunk.subarray(this._cursor, end));
     this._cursor = end + skip;
-    return flag === Buffer ?
+    return type === Buffer ?
       Buffer.concat(chunks) :
       chunks.join('');
   }
 
-  private _decodeBlobStringWithLength(length, flag, chunk) {
-    return this._decodeStringWithLength(length, 2, flag, chunk);
+  private _decodeBlobStringWithLength(length, type, chunk) {
+    return this._decodeStringWithLength(length, 2, type, chunk);
   }
 
-  private _decodeVerbatimString(flag, chunk) {
+  private _decodeVerbatimString(type, chunk) {
     return this._continueDecodeVerbatimStringLength(
       this._decodeUnsingedNumber.bind(this, 0),
-      flag,
+      type,
       chunk
     );
   }
 
-  private _continueDecodeVerbatimStringLength(lengthCb, flag, chunk) {
+  private _continueDecodeVerbatimStringLength(lengthCb, type, chunk) {
     const length = lengthCb(chunk);
     return typeof length === 'function'?
-      this._continueDecodeVerbatimStringLength.bind(this, length, flag) :
-      this._decodeVerbatimStringWithLength(length, flag, chunk);
+      this._continueDecodeVerbatimStringLength.bind(this, length, type) :
+      this._decodeVerbatimStringWithLength(length, type, chunk);
   }
 
-  private _decodeVerbatimStringWithLength(length, flag, chunk) {
+  private _decodeVerbatimStringWithLength(length, type, chunk) {
     const stringLength = length - 4; // skip <format>:
-    if (flag === VerbatimString) {
+    if (type === VerbatimString) {
       return this._decodeVerbatimStringFormat(stringLength, chunk);
     }
 
     this._cursor += 4; // skip <format>:
     return this._cursor >= chunk.length ?
-      this._decodeBlobStringWithLength.bind(this, stringLength, flag) :
-      this._decodeBlobStringWithLength(stringLength, flag, chunk);
+      this._decodeBlobStringWithLength.bind(this, stringLength, type) :
+      this._decodeBlobStringWithLength(stringLength, type, chunk);
   }
 
   private _decodeVerbatimStringFormat(stringLength, chunk) {
@@ -656,14 +659,14 @@ export class Decoder {
       new BlobError(string);
   }
 
-  private _decodeNestedType(flags, chunk) {
+  private _decodeNestedType(typeMapping, chunk) {
     const type = chunk[this._cursor];
     return ++this._cursor === chunk.length ?
-      this._decodeNestedTypeValue.bind(this, type, flags) :
-      this._decodeNestedTypeValue(type, flags, chunk);
+      this._decodeNestedTypeValue.bind(this, type, typeMapping) :
+      this._decodeNestedTypeValue(type, typeMapping, chunk);
   }
 
-  private _decodeNestedTypeValue(type, flags, chunk) {
+  private _decodeNestedTypeValue(type, typeMapping, chunk) {
     switch (type) {
       case RESP_TYPES.NULL:
         return this._decodeNull();
@@ -675,19 +678,19 @@ export class Decoder {
         return this._decodeNumber(chunk);
 
       case RESP_TYPES.BIG_NUMBER:
-        return this._decodeBigNumber(flags[RESP_TYPES.BIG_NUMBER], chunk);
+        return this._decodeBigNumber(typeMapping[RESP_TYPES.BIG_NUMBER], chunk);
       
       case RESP_TYPES.DOUBLE:
-        return this._decodeDouble(flags[RESP_TYPES.DOUBLE], chunk);
+        return this._decodeDouble(typeMapping[RESP_TYPES.DOUBLE], chunk);
       
       case RESP_TYPES.SIMPLE_STRING:
-        return this._decodeSimpleString(flags[RESP_TYPES.SIMPLE_STRING], chunk);
+        return this._decodeSimpleString(typeMapping[RESP_TYPES.SIMPLE_STRING], chunk);
       
       case RESP_TYPES.BLOB_STRING:
-        return this._decodeBlobString(flags[RESP_TYPES.BLOB_STRING], chunk);
+        return this._decodeBlobString(typeMapping[RESP_TYPES.BLOB_STRING], chunk);
 
       case RESP_TYPES.VERBATIM_STRING:
-        return this._decodeVerbatimString(flags[RESP_TYPES.VERBATIM_STRING], chunk);
+        return this._decodeVerbatimString(typeMapping[RESP_TYPES.VERBATIM_STRING], chunk);
 
       case RESP_TYPES.SIMPLE_ERROR:
         return this._decodeSimpleError(chunk);
@@ -696,17 +699,20 @@ export class Decoder {
         return this._decodeBlobError(chunk);
 
       case RESP_TYPES.ARRAY:
-        return this._decodeArray(flags, chunk);
+        return this._decodeArray(typeMapping, chunk);
 
       case RESP_TYPES.SET:
-        return this._decodeSet(flags, chunk);
+        return this._decodeSet(typeMapping, chunk);
       
       case RESP_TYPES.MAP:
-        return this._decodeMap(flags, chunk);
+        return this._decodeMap(typeMapping, chunk);
+
+      default:
+        throw new Error(`Unknown RESP type ${type} "${String.fromCharCode(type)}"`);
     }
   }
 
-  private _decodeArray(flags, chunk) {
+  private _decodeArray(typeMapping, chunk) {
     // RESP 2 null
     // https://github.com/redis/redis-specifications/blob/master/protocol/RESP2.md#resp-arrays
     if (chunk[this._cursor] === ASCII['-']) {
@@ -716,49 +722,49 @@ export class Decoder {
 
     return this._decodeArrayWithLength(
       this._decodeUnsingedNumber(0, chunk),
-      flags,
+      typeMapping,
       chunk
     );
   }
 
-  private _decodeArrayWithLength(length, flags, chunk) {
+  private _decodeArrayWithLength(length, typeMapping, chunk) {
     return typeof length === 'function' ?
-      this._continueDecodeArrayLength.bind(this, length, flags) :
+      this._continueDecodeArrayLength.bind(this, length, typeMapping) :
       this._decodeArrayItems(
         new Array(length),
         0,
-        flags,
+        typeMapping,
         chunk
       );
   }
 
-  private _continueDecodeArrayLength(lengthCb, flags, chunk) {
+  private _continueDecodeArrayLength(lengthCb, typeMapping, chunk) {
     return this._decodeArrayWithLength(
       lengthCb(chunk),
-      flags,
+      typeMapping,
       chunk
     );
   }
 
-  private _decodeArrayItems(array, filled, flags, chunk) {
+  private _decodeArrayItems(array, filled, typeMapping, chunk) {
     for (let i = filled; i < array.length; i++) {
       if (this._cursor >= chunk.length) {
         return this._decodeArrayItems.bind(
           this,
           array,
           i,
-          flags
+          typeMapping
         );
       }
 
-      const item = this._decodeNestedType(flags, chunk);
+      const item = this._decodeNestedType(typeMapping, chunk);
       if (typeof item === 'function') {
         return this._continueDecodeArrayItems.bind(
           this,
           array,
           i,
           item,
-          flags
+          typeMapping
         );
       }
 
@@ -768,7 +774,7 @@ export class Decoder {
     return array;
   }
 
-  private _continueDecodeArrayItems(array, filled, itemCb, flags, chunk) {
+  private _continueDecodeArrayItems(array, filled, itemCb, typeMapping, chunk) {
     const item = itemCb(chunk);
     if (typeof item === 'function') {
       return this._continueDecodeArrayItems.bind(
@@ -776,52 +782,52 @@ export class Decoder {
         array,
         filled,
         item,
-        flags
+        typeMapping
       );
     }
 
     array[filled++] = item;
 
-    return this._decodeArrayItems(array, filled, flags, chunk);
+    return this._decodeArrayItems(array, filled, typeMapping, chunk);
   }
 
-  private _decodeSet(flags, chunk) {
+  private _decodeSet(typeMapping, chunk) {
     const length = this._decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeSetLength.bind(this, length, flags);
+      return this._continueDecodeSetLength.bind(this, length, typeMapping);
     }
 
     return this._decodeSetItems(
       length,
-      flags,
+      typeMapping,
       chunk
     );
   }
 
-  private _continueDecodeSetLength(lengthCb, flags, chunk) {
+  private _continueDecodeSetLength(lengthCb, typeMapping, chunk) {
     const length = lengthCb(chunk);
     return typeof length === 'function' ?
-      this._continueDecodeSetLength.bind(this, length, flags) :
-      this._decodeSetItems(length, flags, chunk);
+      this._continueDecodeSetLength.bind(this, length, typeMapping) :
+      this._decodeSetItems(length, typeMapping, chunk);
   }
 
-  private _decodeSetItems(length, flags, chunk) {
-    return flags[RESP_TYPES.SET] === Set ?
+  private _decodeSetItems(length, typeMapping, chunk) {
+    return typeMapping[RESP_TYPES.SET] === Set ?
       this._decodeSetAsSet(
         new Set(),
         length,
-        flags,
+        typeMapping,
         chunk
       ) :
       this._decodeArrayItems(
         new Array(length),
         0,
-        flags,
+        typeMapping,
         chunk
       );
   }
 
-  private _decodeSetAsSet(set, remaining, flags, chunk) {
+  private _decodeSetAsSet(set, remaining, typeMapping, chunk) {
     // using `remaining` instead of `length` & `set.size` to make it work even if the set contains duplicates
     while (remaining > 0) {
       if (this._cursor >= chunk.length) {
@@ -829,18 +835,18 @@ export class Decoder {
           this,
           set,
           remaining,
-          flags
+          typeMapping
         );
       }
 
-      const item = this._decodeNestedType(flags, chunk);
+      const item = this._decodeNestedType(typeMapping, chunk);
       if (typeof item === 'function') {
         return this._continueDecodeSetAsSet.bind(
           this,
           set,
           remaining,
           item,
-          flags
+          typeMapping
         );
       }
 
@@ -851,7 +857,7 @@ export class Decoder {
     return set;
   }
 
-  private _continueDecodeSetAsSet(set, remaining, itemCb, flags, chunk) {
+  private _continueDecodeSetAsSet(set, remaining, itemCb, typeMapping, chunk) {
     const item = itemCb(chunk);
     if (typeof item === 'function') {
       return this._continueDecodeSetAsSet.bind(
@@ -859,42 +865,42 @@ export class Decoder {
         set,
         remaining,
         item,
-        flags
+        typeMapping
       );
     }
 
     set.add(item);
 
-    return this._decodeSetAsSet(set, remaining - 1, flags, chunk);
+    return this._decodeSetAsSet(set, remaining - 1, typeMapping, chunk);
   }
 
-  private _decodeMap(flags, chunk) {
+  private _decodeMap(typeMapping, chunk) {
     const length = this._decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeMapLength.bind(this, length, flags);
+      return this._continueDecodeMapLength.bind(this, length, typeMapping);
     }
 
     return this._decodeMapItems(
       length,
-      flags,
+      typeMapping,
       chunk
     );
   }
 
-  private _continueDecodeMapLength(lengthCb, flags, chunk) {
+  private _continueDecodeMapLength(lengthCb, typeMapping, chunk) {
     const length = lengthCb(chunk);
     return typeof length === 'function' ?
-      this._continueDecodeMapLength.bind(this, length, flags) :
-      this._decodeMapItems(length, flags, chunk);
+      this._continueDecodeMapLength.bind(this, length, typeMapping) :
+      this._decodeMapItems(length, typeMapping, chunk);
   }
 
-  private _decodeMapItems(length, flags, chunk) {
-    switch (flags[RESP_TYPES.MAP]) {
+  private _decodeMapItems(length, typeMapping, chunk) {
+    switch (typeMapping[RESP_TYPES.MAP]) {
       case Map:
         return this._decodeMapAsMap(
           new Map(),
           length,
-          flags,
+          typeMapping,
           chunk
         );
 
@@ -902,7 +908,7 @@ export class Decoder {
         return this._decodeArrayItems(
           new Array(length * 2),
           0,
-          flags,
+          typeMapping,
           chunk
         );
 
@@ -910,13 +916,13 @@ export class Decoder {
         return this._decodeMapAsObject(
           Object.create(null),
           length,
-          flags,
+          typeMapping,
           chunk
         );
     }
   }
 
-  private _decodeMapAsMap(map, remaining, flags, chunk) {
+  private _decodeMapAsMap(map, remaining, typeMapping, chunk) {
     // using `remaining` instead of `length` & `map.size` to make it work even if the map contains duplicate keys
     while (remaining > 0) {
       if (this._cursor >= chunk.length) {
@@ -924,18 +930,18 @@ export class Decoder {
           this,
           map,
           remaining,
-          flags
+          typeMapping
         );
       }
 
-      const key = this._decodeMapKey(flags, chunk);
+      const key = this._decodeMapKey(typeMapping, chunk);
       if (typeof key === 'function') {
         return this._continueDecodeMapKey.bind(
           this,
           map,
           remaining,
           key,
-          flags
+          typeMapping
         );
       }
 
@@ -945,12 +951,12 @@ export class Decoder {
           map,
           remaining,
           key,
-          this._decodeNestedType.bind(this, flags),
-          flags
+          this._decodeNestedType.bind(this, typeMapping),
+          typeMapping
         );
       }
 
-      const value = this._decodeNestedType(flags, chunk);
+      const value = this._decodeNestedType(typeMapping, chunk);
       if (typeof value === 'function') {
         return this._continueDecodeMapValue.bind(
           this,
@@ -958,7 +964,7 @@ export class Decoder {
           remaining,
           key,
           value,
-          flags
+          typeMapping
         );
       }
 
@@ -969,14 +975,14 @@ export class Decoder {
     return map;
   }
 
-  private _decodeMapKey(flags, chunk) {
+  private _decodeMapKey(typeMapping, chunk) {
     const type = chunk[this._cursor];
     return ++this._cursor === chunk.length ?
-      this._decodeMapKeyValue.bind(this, type, flags) :
-      this._decodeMapKeyValue(type, flags, chunk);
+      this._decodeMapKeyValue.bind(this, type, typeMapping) :
+      this._decodeMapKeyValue(type, typeMapping, chunk);
   }
 
-  private _decodeMapKeyValue(type, flags, chunk) {
+  private _decodeMapKeyValue(type, typeMapping, chunk) {
     switch (type) {
       // decode simple string map key as string (and not as buffer)
       case RESP_TYPES.SIMPLE_STRING:
@@ -987,11 +993,11 @@ export class Decoder {
         return this._decodeBlobString(String, chunk);
 
       default:
-        return this._decodeNestedTypeValue(type, flags, chunk);
+        return this._decodeNestedTypeValue(type, typeMapping, chunk);
     }
   }
 
-  private _continueDecodeMapKey(map, remaining, keyCb, flags, chunk) {
+  private _continueDecodeMapKey(map, remaining, keyCb, typeMapping, chunk) {
     const key = keyCb(chunk);
     if (typeof key === 'function') {
       return this._continueDecodeMapKey.bind(
@@ -999,7 +1005,7 @@ export class Decoder {
         map,
         remaining,
         key,
-        flags
+        typeMapping
       );
     }
 
@@ -1009,12 +1015,12 @@ export class Decoder {
         map,
         remaining,
         key,
-        this._decodeNestedType.bind(this, flags),
-        flags
+        this._decodeNestedType.bind(this, typeMapping),
+        typeMapping
       );
     }      
 
-    const value = this._decodeNestedType(flags, chunk);
+    const value = this._decodeNestedType(typeMapping, chunk);
     if (typeof value === 'function') {
       return this._continueDecodeMapValue.bind(
         this,
@@ -1022,15 +1028,15 @@ export class Decoder {
         remaining,
         key,
         value,
-        flags
+        typeMapping
       );
     }
 
     map.set(key, value);
-    return this._decodeMapAsMap(map, remaining - 1, flags, chunk);
+    return this._decodeMapAsMap(map, remaining - 1, typeMapping, chunk);
   }
 
-  private _continueDecodeMapValue(map, remaining, key, valueCb, flags, chunk) {
+  private _continueDecodeMapValue(map, remaining, key, valueCb, typeMapping, chunk) {
     const value = valueCb(chunk);
     if (typeof value === 'function') {
       return this._continueDecodeMapValue.bind(
@@ -1039,34 +1045,34 @@ export class Decoder {
         remaining,
         key,
         value,
-        flags
+        typeMapping
       );
     }
 
     map.set(key, value);
 
-    return this._decodeMapAsMap(map, remaining - 1, flags, chunk);
+    return this._decodeMapAsMap(map, remaining - 1, typeMapping, chunk);
   }
 
-  private _decodeMapAsObject(object, remaining, flags, chunk) {
+  private _decodeMapAsObject(object, remaining, typeMapping, chunk) {
     while (remaining > 0) {
       if (this._cursor >= chunk.length) {
         return this._decodeMapAsObject.bind(
           this,
           object,
           remaining,
-          flags
+          typeMapping
         );
       }
 
-      const key = this._decodeMapKey(flags, chunk);
+      const key = this._decodeMapKey(typeMapping, chunk);
       if (typeof key === 'function') {
         return this._continueDecodeMapAsObjectKey.bind(
           this,
           object,
           remaining,
           key,
-          flags
+          typeMapping
         );
       }
 
@@ -1076,12 +1082,12 @@ export class Decoder {
           object,
           remaining,
           key,
-          this._decodeNestedType.bind(this, flags),
-          flags
+          this._decodeNestedType.bind(this, typeMapping),
+          typeMapping
         );
       }
 
-      const value = this._decodeNestedType(flags, chunk);
+      const value = this._decodeNestedType(typeMapping, chunk);
       if (typeof value === 'function') {
         return this._continueDecodeMapAsObjectValue.bind(
           this,
@@ -1089,7 +1095,7 @@ export class Decoder {
           remaining,
           key,
           value,
-          flags
+          typeMapping
         );
       }
 
@@ -1100,7 +1106,7 @@ export class Decoder {
     return object;
   }
 
-  private _continueDecodeMapAsObjectKey(object, remaining, keyCb, flags, chunk) {
+  private _continueDecodeMapAsObjectKey(object, remaining, keyCb, typeMapping, chunk) {
     const key = keyCb(chunk);
     if (typeof key === 'function') {
       return this._continueDecodeMapAsObjectKey.bind(
@@ -1108,7 +1114,7 @@ export class Decoder {
         object,
         remaining,
         key,
-        flags
+        typeMapping
       );
     }
 
@@ -1118,12 +1124,12 @@ export class Decoder {
         object,
         remaining,
         key,
-        this._decodeNestedType.bind(this, flags),
-        flags
+        this._decodeNestedType.bind(this, typeMapping),
+        typeMapping
       );
     }
 
-    const value = this._decodeNestedType(flags, chunk);
+    const value = this._decodeNestedType(typeMapping, chunk);
     if (typeof value === 'function') {
       return this._continueDecodeMapAsObjectValue.bind(
         this,
@@ -1131,16 +1137,16 @@ export class Decoder {
         remaining,
         key,
         value,
-        flags
+        typeMapping
       );
     }
 
     object[key] = value;
 
-    return this._decodeMapAsObject(object, remaining - 1, flags, chunk);
+    return this._decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
   }
 
-  private _continueDecodeMapAsObjectValue(object, remaining, key, valueCb, flags, chunk) {
+  private _continueDecodeMapAsObjectValue(object, remaining, key, valueCb, typeMapping, chunk) {
     const value = valueCb(chunk);
     if (typeof value === 'function') {
       return this._continueDecodeMapAsObjectValue.bind(
@@ -1149,12 +1155,12 @@ export class Decoder {
         remaining,
         key,
         value,
-        flags
+        typeMapping
       );
     }
 
     object[key] = value;
 
-    return this._decodeMapAsObject(object, remaining - 1, flags, chunk);
+    return this._decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
   }
 }

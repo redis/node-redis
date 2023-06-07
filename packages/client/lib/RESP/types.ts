@@ -148,45 +148,45 @@ export type ReplyUnion = NullReply | BooleanReply | NumberReply | BigNumberReply
     Map<ReplyUnion, ReplyUnion> | Array<ReplyUnion | ReplyUnion>
   >;
 
-export type Reply = ReplyWithFlags<ReplyUnion, {}>;
+export type Reply = ReplyWithTypeMapping<ReplyUnion, {}>;
 
 export type Flag<T> = ((...args: any) => T) | (new (...args: any) => T);
 
 type RespTypeUnion<T> = T extends RespType<RespTypes, unknown, unknown, infer FLAG_TYPES> ? FLAG_TYPES : never;
 
-export type Flags = {
+export type TypeMapping = {
   [P in RespTypes]?: Flag<RespTypeUnion<Extract<ReplyUnion, RespType<P, any, any, any>>>>;
 };
 
 type MapKey<
   T,
-  FLAGS extends Flags
-> = ReplyWithFlags<T, FLAGS & {
+  TYPE_MAPPING extends TypeMapping
+> = ReplyWithTypeMapping<T, TYPE_MAPPING & {
   // simple and blob strings as map keys decoded as strings
   [RESP_TYPES.SIMPLE_STRING]: StringConstructor;
   [RESP_TYPES.BLOB_STRING]: StringConstructor;
 }>;
 
-export type ReplyWithFlags<
+export type ReplyWithTypeMapping<
   REPLY,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = (
-  // if REPLY is a type, extract the coresponding type from FLAGS or use the default type
+  // if REPLY is a type, extract the coresponding type from TYPE_MAPPING or use the default type
   REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ? 
-    FLAGS[RESP_TYPE] extends Flag<infer T> ?
-      ReplyWithFlags<Extract<DEFAULT | TYPES, T>, FLAGS> :
-      ReplyWithFlags<DEFAULT, FLAGS>
+    TYPE_MAPPING[RESP_TYPE] extends Flag<infer T> ?
+      ReplyWithTypeMapping<Extract<DEFAULT | TYPES, T>, TYPE_MAPPING> :
+      ReplyWithTypeMapping<DEFAULT, TYPE_MAPPING>
   : (
     // if REPLY is a known generic type, convert its generic arguments
     // TODO: tuples?
-    REPLY extends Array<infer T> ? Array<ReplyWithFlags<T, FLAGS>> :
-    REPLY extends Set<infer T> ? Set<ReplyWithFlags<T, FLAGS>> :
-    REPLY extends Map<infer K, infer V> ? Map<MapKey<K, FLAGS>, ReplyWithFlags<V, FLAGS>> :
+    REPLY extends Array<infer T> ? Array<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
+    REPLY extends Set<infer T> ? Set<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
+    REPLY extends Map<infer K, infer V> ? Map<MapKey<K, TYPE_MAPPING>, ReplyWithTypeMapping<V, TYPE_MAPPING>> :
     // `Date` & `Buffer` are supersets of `Record`, so they need to be checked first
     REPLY extends Date ? REPLY :
     REPLY extends Buffer ? REPLY :
     REPLY extends Record<PropertyKey, any> ? {
-      [P in keyof REPLY]: ReplyWithFlags<REPLY[P], FLAGS>;
+      [P in keyof REPLY]: ReplyWithTypeMapping<REPLY[P], TYPE_MAPPING>;
     } :
     // otherwise, just return the REPLY as is
     REPLY
@@ -333,17 +333,17 @@ export type CommandReply<
 export type CommandSignature<
   COMMAND extends Command,
   RESP extends RespVersions,
-  FLAGS extends Flags
-> = (...args: Parameters<COMMAND['transformArguments']>) => Promise<ReplyWithFlags<CommandReply<COMMAND, RESP>, FLAGS>>;
+  TYPE_MAPPING extends TypeMapping
+> = (...args: Parameters<COMMAND['transformArguments']>) => Promise<ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>>;
 
 export type CommandWithPoliciesSignature<
   COMMAND extends Command,
   RESP extends RespVersions,
-  FLAGS extends Flags,
+  TYPE_MAPPING extends TypeMapping,
   POLICIES extends CommandPolicies
 > = (...args: Parameters<COMMAND['transformArguments']>) => Promise<
   ReplyWithPolicy<
-    ReplyWithFlags<CommandReply<COMMAND, RESP>, FLAGS>,
+    ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>,
     MergePolicies<COMMAND, POLICIES>
   >
 >;

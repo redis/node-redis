@@ -1,6 +1,6 @@
 import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../multi-command';
-import { ReplyWithFlags, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, Flags, ReplyUnion, RedisArgument } from '../RESP/types';
+import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, ReplyUnion, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import RedisCluster, { RedisClusterType } from '.';
 
@@ -11,14 +11,14 @@ type CommandSignature<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = (...args: Parameters<C['transformArguments']>) => RedisClusterMultiCommandType<
-  [...REPLIES, ReplyWithFlags<CommandReply<C, RESP>, FLAGS>],
+  [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
   M,
   F,
   S,
   RESP,
-  FLAGS
+  TYPE_MAPPING
 >;
 
 type WithCommands<
@@ -27,9 +27,9 @@ type WithCommands<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof typeof COMMANDS]: CommandSignature<REPLIES, (typeof COMMANDS)[P], M, F, S, RESP, FLAGS>;
+  [P in keyof typeof COMMANDS]: CommandSignature<REPLIES, (typeof COMMANDS)[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
 type WithModules<
@@ -38,10 +38,10 @@ type WithModules<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
   [P in keyof M]: {
-    [C in keyof M[P]]: CommandSignature<REPLIES, M[P][C], M, F, S, RESP, FLAGS>;
+    [C in keyof M[P]]: CommandSignature<REPLIES, M[P][C], M, F, S, RESP, TYPE_MAPPING>;
   };
 };
 
@@ -51,10 +51,10 @@ type WithFunctions<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
   [L in keyof F]: {
-    [C in keyof F[L]]: CommandSignature<REPLIES, F[L][C], M, F, S, RESP, FLAGS>;
+    [C in keyof F[L]]: CommandSignature<REPLIES, F[L][C], M, F, S, RESP, TYPE_MAPPING>;
   };
 };
 
@@ -64,9 +64,9 @@ type WithScripts<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, FLAGS>;
+  [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
 export type RedisClusterMultiCommandType<
@@ -75,13 +75,13 @@ export type RedisClusterMultiCommandType<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  FLAGS extends Flags
+  TYPE_MAPPING extends TypeMapping
 > = (
   RedisClusterMultiCommand<REPLIES> &
-  WithCommands<REPLIES, M, F, S, RESP, FLAGS> & 
-  WithModules<REPLIES, M, F, S, RESP, FLAGS> &
-  WithFunctions<REPLIES, M, F, S, RESP, FLAGS> &
-  WithScripts<REPLIES, M, F, S, RESP, FLAGS>
+  WithCommands<REPLIES, M, F, S, RESP, TYPE_MAPPING> & 
+  WithModules<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
+  WithFunctions<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
+  WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
 );
 
 export default class RedisClusterMultiCommand<REPLIES = []> {

@@ -46,7 +46,7 @@ interface CreateSocketReturn<T> {
 export type RedisSocketInitiator = () => Promise<void>;
 
 export default class RedisSocket extends EventEmitter {
-  static #initiateOptions(options?: RedisSocketOptions): RedisSocketOptions {
+  private static _initiateOptions(options?: RedisSocketOptions): RedisSocketOptions {
     options ??= {};
     if (!(options as net.IpcSocketConnectOpts).path) {
       (options as net.TcpSocketConnectOpts).port ??= 6379;
@@ -60,7 +60,7 @@ export default class RedisSocket extends EventEmitter {
     return options;
   }
 
-  static #isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
+  private static _isTlsSocket(options: RedisSocketOptions): options is RedisTlsSocketOptions {
     return (options as RedisTlsSocketOptions).tls === true;
   }
 
@@ -96,7 +96,7 @@ export default class RedisSocket extends EventEmitter {
     super();
 
     this._initiator = initiator;
-    this._options = RedisSocket.#initiateOptions(options);
+    this._options = RedisSocket._initiateOptions(options);
   }
 
   private _reconnectStrategy(retries: number, cause: Error) {
@@ -176,7 +176,7 @@ export default class RedisSocket extends EventEmitter {
 
   private _createSocket(): Promise<net.Socket | tls.TLSSocket> {
     return new Promise((resolve, reject) => {
-      const { connectEvent, socket } = RedisSocket.#isTlsSocket(this._options) ?
+      const { connectEvent, socket } = RedisSocket._isTlsSocket(this._options) ?
         this._createTlsSocket() :
         this._createNetSocket();
 
