@@ -39,6 +39,8 @@ await client.pSubscribe('channe*', listener);
 await client.sSubscribe('channel', listener);
 ```
 
+> NOTE: Subscribing to the same channel more than once will create multiple listeners which will each be called when a message is recieved.
+
 ## Publishing
 
 ```javascript

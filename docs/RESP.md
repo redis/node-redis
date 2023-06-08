@@ -1,4 +1,8 @@
-# RESP2 -> JS
+# RESP
+
+## Type Mapping
+
+## RESP2 -> JS
 
 - Integer (`:`) => `number`
 - Simple String (`+`) => `string | Buffer`
@@ -6,7 +10,7 @@
 - Simple Error (`-`) => `ErrorReply`
 - Array (`*`) => `Array`
 
-# RESP3 -> JS
+## RESP3 -> JS
 
 - Null (`_`) => `null`
 - Boolean (`#`) => `boolean`

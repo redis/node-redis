@@ -30,15 +30,7 @@ const proxyClient = client.withCommandOptions({
 await proxyClient.get('key'); // `Buffer | null`
 ```
 
-`withCommandOptions` can be used to override all of the command options, without reusing any existing ones.
-
-To override just a specific option, use the following functions:
-- `withTypeMapping` - override `typeMapping` only.
-- `withAbortSignal` - override `abortSignal` only.
-- `asap` - override `asap` to `true`.
-- `isolated` - override `isolated` to `true`.
-
-[TODO](./command-options.md)
+for more information, see the [Command Options guide](./command-options.md).
 
 ## Quit VS Disconnect
 
