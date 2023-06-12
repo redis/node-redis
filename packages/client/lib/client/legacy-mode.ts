@@ -91,7 +91,7 @@ export class RedisLegacyClient {
     this._Multi = LegacyMultiCommand.factory(RESP);
   }
 
-  sendCommand(...args: LegacyArguments) {
+  sendCommand(...args: LegacyCommandArguments) {
     const redisArgs: CommandArguments = [],
       callback = RedisLegacyClient._transformArguments(redisArgs, args),
       promise = this._client.sendCommand(redisArgs);
@@ -115,15 +115,16 @@ type MultiWithCommands = {
   [P in keyof typeof COMMANDS]: (...args: LegacyCommandArguments) => RedisLegacyMultiType;
 };
 
-export type RedisLegacyMultiType = Omit<LegacyMultiCommand, '_client'> & MultiWithCommands;
+export type RedisLegacyMultiType = LegacyMultiCommand & MultiWithCommands;
 
-class LegacyMultiCommand extends RedisMultiCommand {
+class LegacyMultiCommand {
   private static _createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = RedisLegacyClient.getTransformReply(command, resp);
     return function (this: LegacyMultiCommand, ...args: LegacyArguments) {
       const redisArgs = [name];
       RedisLegacyClient.pushArguments(redisArgs, args);
-      return this.addCommand(redisArgs, transformReply);
+      this._multi.addCommand(redisArgs, transformReply);
+      return this;
     };
   }
 
@@ -144,21 +145,22 @@ class LegacyMultiCommand extends RedisMultiCommand {
     };
   }
 
-  private _client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
+  private readonly _multi = new RedisMultiCommand();
+  private readonly _client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
   constructor(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>) {
-    super();
     this._client = client;
   }
 
   sendCommand(...args: LegacyArguments) {
     const redisArgs: CommandArguments = [];
     RedisLegacyClient.pushArguments(redisArgs, args);
-    return this.addCommand(redisArgs);
+    this._multi.addCommand(redisArgs);
+    return this;
   }
 
   exec(cb?: (err: ErrorReply | null, replies?: Array<unknown>) => unknown) {
-    const promise = this._client.executeMulti(this.queue);
+    const promise = this._client.executeMulti(this._multi.queue);
 
     if (!cb) {
       promise.catch(err => this._client.emit('error', err));
@@ -166,7 +168,7 @@ class LegacyMultiCommand extends RedisMultiCommand {
     }
 
     promise
-      .then(results => cb(null, this.transformReplies(results)))
+      .then(results => cb(null, this._multi.transformReplies(results)))
       .catch(err => cb?.(err));
   }
 }
