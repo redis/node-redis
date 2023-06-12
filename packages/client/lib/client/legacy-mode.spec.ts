@@ -10,7 +10,7 @@ function testWithLegacyClient(title: string, fn: (legacy: RedisLegacyClientType,
   testUtils.testWithClient(title, client => fn(client.legacy(), client), GLOBAL.SERVERS.OPEN);
 }
 
-describe.only('Legacy Mode', () => {
+describe('Legacy Mode', () => {
   describe('client.sendCommand', () => {
     testWithLegacyClient('resolve', async client => {
       assert.equal(
