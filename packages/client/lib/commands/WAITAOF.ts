@@ -1,4 +1,4 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisCommandArguments } from '.';
 
 export function transformArguments(
     numlocal: number,
