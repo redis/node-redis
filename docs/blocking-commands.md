@@ -1,3 +1,24 @@
+### Blocking Commands
+
+Any command can be run on a new connection by specifying the `isolated` option. The newly created connection is closed when the command's `Promise` is fulfilled.
+
+This pattern works especially well for blocking commands—such as `BLPOP` and `BLMOVE`:
+
+```typescript
+import { commandOptions } from 'redis';
+
+const blPopPromise = client.isolated().blPop(
+  'key',
+  0
+);
+
+await client.lPush('key', ['1', '2']);
+
+await blPopPromise; // '2'
+```
+
+To learn more about isolated execution, check out the [guide](../../docs/isolated-execution.md).
+
 # Isolated Execution
 
 Sometimes you want to run your commands on an exclusive connection. There are a few reasons to do this:

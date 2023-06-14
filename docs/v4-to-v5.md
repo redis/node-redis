@@ -61,16 +61,15 @@ for more information, see the [Scan Iterators guide](./scan-iterators.md).
 
 ## Legacy Mode
 
-TODO
+In the previous version, you could access "legacy" mode by creating a client and passing in `{ legacyMode: true }`. Now, you can create one off of an existing client by calling the `.legacy()` function. This allows easier access to both APIs and enables better TypeScript support.
 
 ```javascript
-const client = createClient(),
-  legacyClient = client.legacy();
-
-// use `client` for the new API
+// use `client` for the current API
+const client = createClient();
 await client.set('key', 'value');
 
 // use `legacyClient` for the "legacy" API
+const legacyClient = client.legacy();
 legacyClient.set('key', 'value', (err, reply) => {
   // ...
 });
@@ -79,14 +78,48 @@ legacyClient.set('key', 'value', (err, reply) => {
 ## Isolation Pool
 
 TODO
-The `isolationPool` has been moved to it's on class `ClientPool`. You can create pool from a client using `client.createPool()`.
 
-## Cluster MULTI
+```javascript
+await client.sendCommand(['GET', 'key']);
+const pool = client.createPool({
+  min: 0,
+  max: Infinity
+});
+await pool.blPop('key');
+await pool.sendCommand(['GET', 'key']);
+await pool.use(client => client.blPop());
 
-Cluster MULTI supports readonly/replicas
-`cluster.multi.addCommand` now requires `isReadonly` as the second argument, to match `cluster.sendCommand`
+await cluster.sendCommand('key', true, ['GET', 'key']);
+const clusterPool = cluster.createPool({
+  min: 0,
+  max: Infinity
+});
+await clusterPool.blPop('key');
+await clusterPool.sendCommand('key', true, ['GET', 'key']);
+await clusterPool.use(client => client.blPop());
+```
 
-TODO
+## Cluster `MULTI`
+
+In v4, `cluster.multi()` did not support executing commands on replicas, even if they were readonly.
+
+```javascript
+// this might execute on a replica, depending on configuration
+await cluster.sendCommand('key', true, ['GET', 'key']);
+
+// this always executes on a master
+await cluster.multi()
+  .addCommand('key', ['GET', 'key'])
+  .exec();
+```
+
+To support executing commands on replicas, `cluster.multi().addCommand` now requires `isReadonly` as the second argument, which matches the signature of `cluster.sendCommand`:
+
+```javascript
+await cluster.multi()
+  .addCommand('key', true, ['GET', 'key'])
+  .exec();
+```
 
 ## Commands
 

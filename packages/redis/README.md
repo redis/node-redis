@@ -42,8 +42,10 @@ await client.connect();
 
 await client.set('key', 'value');
 const value = await client.get('key');
-client.destroy();
+await client.close();
 ```
+
+> :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
 
@@ -83,21 +85,14 @@ await client.set('key', 'value', {
 });
 ```
 
-Replies will be transformed into useful data structures:
+Replies will be mapped to useful data structures:
 
 ```typescript
 await client.hGetAll('key'); // { field1: 'value1', field2: 'value2' }
 await client.hVals('key'); // ['value1', 'value2']
 ```
 
-`Buffer`s are supported as well:
-
-```typescript
-await client.hSet('key', 'field', Buffer.from('value')); // 'OK'
-await client.withTypeMapping({
-  [TYPES.BLOB_STRING]: Buffer
-}).hGetAll('key'); // { field: <Buffer 76 61 6c 75 65> }
-```
+> NOTE: you can change the default type mapping. See the [Type Mapping](../../docs/command-options.md#type-mapping) documentation for more information.
 
 ### Unsupported Redis Commands
 
@@ -109,36 +104,11 @@ await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
 await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
 ```
 
-### Links
-- [Multi](../../docs/multi.md).
-- [Pub/Sub](../../docs/pub-sub.md).
-- [Scan Iterators](../../docs/scan-iterators.md).
-- [Programmability](../../docs/programmability.md).
-
-### Blocking Commands
-
-Any command can be run on a new connection by specifying the `isolated` option. The newly created connection is closed when the command's `Promise` is fulfilled.
-
-This pattern works especially well for blocking commands—such as `BLPOP` and `BLMOVE`:
-
-```typescript
-import { commandOptions } from 'redis';
-
-const blPopPromise = client.isolated().blPop(
-  'key',
-  0
-);
-
-await client.lPush('key', ['1', '2']);
-
-await blPopPromise; // '2'
-```
-
-To learn more about isolated execution, check out the [guide](../../docs/isolated-execution.md).
-
 ### Disconnecting
 
 There are two functions that disconnect a client from the Redis server. In most scenarios you should use `.close()` to ensure that pending commands are sent to Redis before closing a connection.
+
+> :warning: The `.quit()` and `.disconnect()` methods have been deprecated in v5. For more details, refer to the [v4-to-v5 guide](../../docs/v4-to-v5.md#quit-vs-disconnect).
 
 #### `.close()`
 
@@ -179,26 +149,6 @@ await Promise.all([
   client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
 ]);
 ```
-
-### Aborting Commands
-
-If you want to abort a command, you can use the `AbortController` API:
-
-```typescript
-const controller = new AbortController();
-
-client.withAbortSignal(contoller.signal).get('key').catch(err => {
-  // AbortError
-});
-
-controller.abort();
-```
-
-> :watning: commands can only be aborted before they are sent to Redis. Once a command is sent (written on the socket), it cannot be aborted.
-
-### Clustering
-
-Check out the [Clustering Guide](../../docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
 ### Events
 
@@ -242,3 +192,13 @@ Thank you to all the people who already contributed to Node Redis!
 ## License
 
 This repository is licensed under the "MIT" license. See [LICENSE](../../LICENSE).
+
+### Links
+
+- [Multi](../../docs/multi.md).
+- [Pub/Sub](../../docs/pub-sub.md).
+- [Scan Iterators](../../docs/scan-iterators.md).
+- [Programmability](../../docs/programmability.md).
+- [Command Options](../../docs/command-options.md).
+- [Blocking Commands](../../docs/blocking-commands.md).
+- [Clustering](../../docs/clustering.md).

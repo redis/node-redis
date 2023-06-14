@@ -1,8 +1,10 @@
-# RESP
+# Mapping RESP types
 
-## Type Mapping
+RESP, which stands for **R**edis **SE**rialization **P**rotocol, is the protocol used by Redis to communicate with clients. This document shows how RESP types can be mapped to JavaScript types. You can learn more about RESP itself in the [offical documentation](https://redis.io/docs/reference/protocol-spec/).
 
-## RESP2 -> JS
+By default, each type is mapped to the first option in the lists below. To change this, configure a [`typeMapping`](.).
+
+## RESP2
 
 - Integer (`:`) => `number`
 - Simple String (`+`) => `string | Buffer`
@@ -10,7 +12,9 @@
 - Simple Error (`-`) => `ErrorReply`
 - Array (`*`) => `Array`
 
-## RESP3 -> JS
+> NOTE: the first type is the default type
+
+## RESP3
 
 - Null (`_`) => `null`
 - Boolean (`#`) => `boolean`
@@ -29,11 +33,11 @@
 
 > NOTE: the first type is the default type
 
-## Map keys and Set members
+### Map keys and Set members
 
-When decoding Map to `Map | object` or Set to `Set`, keys/members (respectively) of type "Simple String" or "Blob String" will be decoded as `string`s (ignoring type mapping) to allow lookup by type. If you need them as `Buffer`s, make sure to decode `Map`s/`Set`s as `Array`s.
+When decoding a Map to `Map | object` or a Set to `Set`, keys and members of type "Simple String" or "Blob String" will be decoded as `string`s which enables lookups by value, ignoring type mapping. If you want them as `Buffer`s, decode them as `Array`s instead.
 
-## Not Implemented
+### Not Implemented
 
 These parts of RESP3 are not yet implemented in Redis itself (at the time of writing), so are not yet implemented in the Node-Redis client either:
 

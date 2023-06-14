@@ -2,12 +2,11 @@
 
 > :warning: The command options API in v5 has breaking changes from the previous version. For more details, refer to the [v4-to-v5 guide](./v4-to-v5.md#command-options).
 
-TODO
+Command Options are used to create "proxy clients" that change the behavior of executed commands. See the sections below for details.
 
 ## Type Mapping
 
-Some RESP types can be mapped to more than one JavaScript type. For example, "Blob String" can be mapped to `string` or `Buffer`.
-You can override the default type mapping using the `withTypeMapping` function:
+Some [RESP types](./RESP.md) can be mapped to more than one JavaScript type. For example, "Blob String" can be mapped to `string` or `Buffer`. You can override the default type mapping using the `withTypeMapping` function:
 
 ```javascript
 await client.get('key'); // `string | null`
@@ -23,48 +22,47 @@ See [RESP](./RESP.md) for a full list of types.
 
 ## Abort Signal
 
-Commands can be aborted using the [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) API:
+The client [batches commands](./FAQ.md#how-are-commands-batched) before sending them to Redis. Commands that haven't been written to the socket yet can be aborted using the [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) API:
 
 ```javascript
-
-const controller = new AbortController();
-controller.abort();
+const controller = new AbortController(),
+  client = client.withAbortSignal(controller.signal);
 
 try {
-  await client.withAbortSignal(controller.signal).get('key');
+  const promise = client.get('key');
+  controller.abort();
+  await promise;
 } catch (err) {
   // AbortError
 }
 ```
 
-> NOTE: Commands that are already written to the socket cannot be aborted.
-
 ## ASAP
 
-Commands that are executed in the "asap" mode are added to the top of the queue. This is useful to ensure that commands are executed before other commands that are already in the queue.
+Commands that are executed in the "asap" mode are added to the beginning of the "to sent" queue.
 
 ```javascript
 const asapClient = client.asap();
-
-client.on('connect', () => {
-  asapClient.clientSetName('my-name')
-    .catch(err => console.error('CLIENT SETNAME error', err));
-});
+await asapClient.ping();
 ```
 
 ## `withCommandOptions`
 
-The `withCommandOptions` overrides all of the command options, without reusing any existing ones:
+You can set all of the above command options in a single call with the `withCommandOptions` function:
 
 ```javascript
-const bufferClient = client.withTypeMapping({
-  [TYPES.BLOB_STRING]: Buffer
+client.withCommandOptions({
+  typeMapping: ...,
+  abortSignal: ...,
+  asap: ...
 });
+```
 
-await bufferClient.get('key'); // `Buffer | null`
+If any of the above options are omitted, the default value will be used. For example, the following client would **not** be in ASAP mode:
 
-// reset all command options
-const defaultClient = client.withCommandOptions({});
-
-await defaultClient.get('key'); // `string | null`
+```javascript
+client.asap().withCommandOptions({
+  typeMapping: ...,
+  abortSignal: ...
+});
 ```
