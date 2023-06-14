@@ -88,7 +88,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
-      return this._multi.addCommand(
+      return this.addCommand(
         command.transformArguments(...args),
         transformReply
       );
@@ -98,7 +98,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { self: RedisClientMultiCommand }, ...args: Array<unknown>) {
-      return this.self._multi.addCommand(
+      return this.self.addCommand(
         command.transformArguments(...args),
         transformReply
       );
@@ -112,7 +112,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
       const fnArgs = fn.transformArguments(...args),
         redisArgs: CommandArguments = prefix.concat(fnArgs);
       redisArgs.preserve = fnArgs.preserve;
-      return this.self._multi.addCommand(
+      return this.self.addCommand(
         redisArgs,
         transformReply
       );
@@ -163,6 +163,11 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   }
 
   select = this.SELECT;
+
+  addCommand(args: CommandArguments, transformReply?: TransformReply) {
+    this._multi.addCommand(args, transformReply);
+    return this;
+  }
 
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();

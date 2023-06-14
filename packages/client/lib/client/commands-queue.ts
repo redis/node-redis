@@ -6,7 +6,7 @@ import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, Pu
 import { AbortError, ErrorReply } from '../errors';
 import { EventEmitter } from 'stream';
 
-export interface QueueCommandOptions {
+export interface CommandOptions {
   chainId?: symbol;
   asap?: boolean;
   abortSignal?: AbortSignal;
@@ -149,7 +149,7 @@ export default class RedisCommandsQueue {
     });
   }
 
-  addCommand<T>(args: CommandArguments, options?: QueueCommandOptions): Promise<T> {
+  addCommand<T>(args: CommandArguments, options?: CommandOptions): Promise<T> {
     if (this._maxLength && this._waitingToBeSent.length + this._waitingForReply.length >= this._maxLength) {
       return Promise.reject(new Error('The queue is full'));
     } else if (options?.abortSignal?.aborted) {
@@ -256,30 +256,32 @@ export default class RedisCommandsQueue {
     });
   }
 
-  getCommandToSend(): CommandArguments | undefined {
-    const toSend = this._waitingToBeSent.shift();
-    if (!toSend) return;
+  *waitingToBeSent() {
+    let toSend = this._waitingToBeSent.shift();
+    while (toSend) {
+      let encoded: CommandArguments;
+      try {
+        encoded = encodeCommand(toSend.args);
+      } catch (err) {
+        toSend.reject(err);
+        toSend = this._waitingToBeSent.shift();
+        continue;
+      }
 
-    let encoded: CommandArguments;
-    try {
-      encoded = encodeCommand(toSend.args);
-    } catch (err) {
-      toSend.reject(err);
-      return;
+      if (toSend.abort) {
+        RedisCommandsQueue._removeAbortListener(toSend);
+        toSend.abort = undefined;
+      }
+  
+      // TODO reuse `toSend` or create new object?
+      (toSend as any).args = undefined;
+      (toSend as any).chainId = undefined;
+  
+      this._waitingForReply.push(toSend);
+      this._chainInExecution = toSend.chainId;
+      yield encoded;
+      toSend = this._waitingToBeSent.shift();
     }
-
-    if (toSend.abort) {
-      RedisCommandsQueue._removeAbortListener(toSend);
-      toSend.abort = undefined;
-    }
-
-    // TODO reuse `toSend` or create new object?
-    (toSend as any).args = undefined;
-    (toSend as any).chainId = undefined;
-
-    this._waitingForReply.push(toSend);
-    this._chainInExecution = toSend.chainId;
-    return encoded;
   }
 
   private _flushWaitingForReply(err: Error): void {

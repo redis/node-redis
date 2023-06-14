@@ -49,7 +49,7 @@ interface DecoderOptions {
 }
 
 export class Decoder {
-  private _config;
+  private readonly _config;
 
   private _cursor = 0;
 

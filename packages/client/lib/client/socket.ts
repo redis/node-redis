@@ -82,14 +82,6 @@ export default class RedisSocket extends EventEmitter {
     return this._isReady;
   }
 
-  // `writable.writableNeedDrain` was added in v15.2.0 and therefore can't be used
-  // https://nodejs.org/api/stream.html#stream_writable_writableneeddrain
-  private _writableNeedDrain = false;
-
-  get writableNeedDrain(): boolean {
-    return this._writableNeedDrain;
-  }
-
   private _isSocketUnrefed = false;
 
   constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
@@ -149,7 +141,6 @@ export default class RedisSocket extends EventEmitter {
     do {
       try {
         this._socket = await this._createSocket();
-        this._writableNeedDrain = false;
         this.emit('connect');
 
         try {
@@ -203,10 +194,7 @@ export default class RedisSocket extends EventEmitter {
                 this._onSocketError(new SocketClosedUnexpectedlyError());
               }
             })
-            .on('drain', () => {
-              this._writableNeedDrain = false;
-              this.emit('drain');
-            })
+            .on('drain', () => this.emit('drain'))
             .on('data', data => this.emit('data', data));
 
           resolve(socket);
@@ -240,14 +228,20 @@ export default class RedisSocket extends EventEmitter {
     });
   }
 
-  writeCommand(args: Array<RedisArgument>): void {
+  write(iterator: IterableIterator<Array<RedisArgument>>): void {
     if (!this._socket) {
       throw new ClientClosedError();
     }
+    
+    this._socket.cork();
+    for (const args of iterator) {
+      for (const toWrite of args) {
+        this._socket.write(toWrite);
+      }
 
-    for (const toWrite of args) {
-      this._writableNeedDrain = !this._socket.write(toWrite);
+      if (this._socket.writableNeedDrain) break;
     }
+    this._socket.uncork();
   }
 
   async quit<T>(fn: () => Promise<T>): Promise<T> {
@@ -289,20 +283,12 @@ export default class RedisSocket extends EventEmitter {
     this.emit('end');
   }
 
-  private _isCorked = false;
-
   cork(): void {
-    if (!this._socket || this._isCorked) {
-      return;
-    }
+    this._socket?.cork();
+  }
 
-    this._socket.cork();
-    this._isCorked = true;
-
-    setImmediate(() => {
-      this._socket?.uncork();
-      this._isCorked = false;
-    });
+  uncork(): void {
+    this._socket?.uncork();
   }
 
   ref(): void {

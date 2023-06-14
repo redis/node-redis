@@ -1,6 +1,6 @@
 import COMMANDS from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
-import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
+import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
@@ -12,7 +12,7 @@ import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-co
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ReplyWithTypeMapping, CommandReply } from '../RESP/types';
-import SCAN, { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
+import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 // import { RedisClientPool } from './pool';
 
@@ -20,8 +20,9 @@ export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
-  RESP extends RespVersions = RespVersions
-> extends CommanderConfig<M, F, S, RESP> {
+  RESP extends RespVersions = RespVersions,
+  TYPE_MAPPING extends TypeMapping = TypeMapping
+> extends CommanderConfig<M, F, S, RESP>, TypeMappingOption<TYPE_MAPPING> {
   /**
    * `redis[s]://[[username][:password]@][host][:port][/db-number]`
    * See [`redis`](https://www.iana.org/assignments/uri-schemes/prov/redis) and [`rediss`](https://www.iana.org/assignments/uri-schemes/prov/rediss) IANA registration for more details
@@ -67,40 +68,60 @@ export interface RedisClientOptions<
   pingInterval?: number;
 }
 
+interface TypeMappingOption<TYPE_MAPPING extends TypeMapping> {
+  /**
+   * Maps bettwen RESP types to JavaScript types
+   */
+  typeMapping?: TYPE_MAPPING;
+}
+
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
-  };
+  [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
+};
 
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof M]: {
-      [C in keyof M[P]]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
-    };
+  [P in keyof M]: {
+    [C in keyof M[P]]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
   };
+};
 
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-    [L in keyof F]: {
-      [C in keyof F[L]]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
-    };
+  [L in keyof F]: {
+    [C in keyof F[L]]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
   };
+};
 
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
-  };
+  [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
+};
+
+export type RedisClientExtensions<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
+> = (
+  WithCommands<RESP, TYPE_MAPPING> &
+  WithModules<M, RESP, TYPE_MAPPING> &
+  WithFunctions<F, RESP, TYPE_MAPPING> &
+  WithScripts<S, RESP, TYPE_MAPPING>
+);
 
 export type RedisClientType<
   M extends RedisModules = {},
@@ -109,18 +130,11 @@ export type RedisClientType<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
-    RedisClient<M, F, S, RESP, TYPE_MAPPING> &
-    WithCommands<RESP, TYPE_MAPPING> &
-    WithModules<M, RESP, TYPE_MAPPING> &
-    WithFunctions<F, RESP, TYPE_MAPPING> &
-    WithScripts<S, RESP, TYPE_MAPPING>
-  );
+  RedisClient<M, F, S, RESP, TYPE_MAPPING> &
+  RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
+);
 
-export interface ClientCommandOptions extends QueueCommandOptions {
-  // isolated?: boolean;
-}
-
-type ProxyClient = RedisClient<{}, {}, {}, RespVersions, TypeMapping> & { commandOptions?: ClientCommandOptions };
+type ProxyClient = RedisClient<any, any, any, any, any> & { commandOptions?: CommandOptions };
 
 type NamespaceProxyClient = { self: ProxyClient };
 
@@ -181,8 +195,8 @@ export default class RedisClient<
         reply = await this.sendCommand(redisArgs, this.commandOptions).catch((err: unknown) => {
           if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
-          args[0] = 'EVAL';
-          args[1] = script.SCRIPT;
+          redisArgs[0] = 'EVAL';
+          redisArgs[1] = script.SCRIPT;
           return this.sendCommand(redisArgs, this.commandOptions);
         });
       return transformReply ?
@@ -195,8 +209,9 @@ export default class RedisClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2
-  >(config?: CommanderConfig<M, F, S, RESP>) {
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(config?: CommanderConfig<M, F, S, RESP> & TypeMappingOption<TYPE_MAPPING>) {
     const Client = attachConfig({
       BaseClass: RedisClient,
       commands: COMMANDS,
@@ -212,7 +227,7 @@ export default class RedisClient<
     return (options?: Omit<RedisClientOptions, keyof Exclude<typeof config, undefined>>) => {
       // returning a proxy of the client to prevent the namespaces.self to leak between proxies
       // namespaces will be bootstraped on first access per proxy
-      return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP>;
+      return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
     };
   }
 
@@ -220,8 +235,9 @@ export default class RedisClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2
-  >(this: void, options?: RedisClientOptions<M, F, S, RESP>) {
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(this: void, options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     return RedisClient.factory(options)(options);
   }
 
@@ -308,6 +324,12 @@ export default class RedisClient<
       this._selectedDB = options.database;
     }
 
+    if (options?.typeMapping) {
+      (this as unknown as ProxyClient).commandOptions = {
+        typeMapping: options.typeMapping
+      };
+    }
+
     return options;
   }
 
@@ -390,7 +412,7 @@ export default class RedisClient<
       }
 
       if (promises.length) {
-        this._tick(true);
+        this._write();
         await Promise.all(promises);
       }
     };
@@ -417,10 +439,10 @@ export default class RedisClient<
       .on('ready', () => {
         this.emit('ready');
         this._setPingTimer();
-        this._tick();
+        this._scheduleWrite();
       })
       .on('reconnecting', () => this.emit('reconnecting'))
-      .on('drain', () => this._tick())
+      .on('drain', () => this._scheduleWrite())
       .on('end', () => this.emit('end'));
   }
 
@@ -440,7 +462,7 @@ export default class RedisClient<
     }, this._options.pingInterval);
   }
 
-  withCommandOptions<T extends ClientCommandOptions>(options: T) {
+  withCommandOptions<T extends CommandOptions>(options: T) {
     const proxy = Object.create(this.self);
     proxy.commandOptions = options;
     return proxy as RedisClientType<
@@ -453,8 +475,8 @@ export default class RedisClient<
   }
 
   private _commandOptionsProxy<
-    K extends keyof ClientCommandOptions,
-    V extends ClientCommandOptions[K]
+    K extends keyof CommandOptions,
+    V extends CommandOptions[K]
   >(
     key: K,
     value: V
@@ -523,7 +545,7 @@ export default class RedisClient<
 
   sendCommand<T = ReplyUnion>(
     args: CommandArguments,
-    options?: ClientCommandOptions
+    options?: CommandOptions
   ): Promise<T> {
     if (!this._socket.isOpen) {
       return Promise.reject(new ClientClosedError());
@@ -532,7 +554,7 @@ export default class RedisClient<
     }
 
     const promise = this._queue.addCommand<T>(args, options);
-    this._tick();
+    this._scheduleWrite();
     return promise;
   }
 
@@ -546,7 +568,7 @@ export default class RedisClient<
   private _pubSubCommand(promise: Promise<void> | undefined) {
     if (promise === undefined) return Promise.resolve();
 
-    this._tick();
+    this._scheduleWrite();
     return promise;
   }
 
@@ -672,32 +694,19 @@ export default class RedisClient<
     );
   }
 
-  private _tick(force = false): void {
-    if (this._socket.writableNeedDrain || (!force && !this._socket.isReady)) {
-      return;
-    }
-
-    this._socket.cork();
-
-    do {
-      const args = this._queue.getCommandToSend();
-      if (args === undefined) break;
-
-      this._socket.writeCommand(args);
-    } while (!this._socket.writableNeedDrain);
+  private _write() {
+    this._socket.write(this._queue.waitingToBeSent());
   }
 
-  private _addMultiCommands(
-    commands: Array<RedisMultiQueuedCommand>,
-    chainId?: symbol,
-    typeMapping?: TypeMapping
-  ) {
-    return Promise.all(
-      commands.map(({ args }) => this._queue.addCommand(args, {
-        chainId,
-        typeMapping
-      }))
-    );
+  private _scheduledWrite?: NodeJS.Immediate;
+
+  private _scheduleWrite() {
+    if (!this.isReady || this._scheduledWrite) return;
+
+    this._scheduledWrite = setImmediate(() => {
+      this._write();
+      this._scheduledWrite = undefined;
+    });
   }
 
   /**
@@ -713,7 +722,7 @@ export default class RedisClient<
         typeMapping: (this as ProxyClient).commandOptions?.typeMapping
       }))
     );
-    this._tick();
+    this._scheduleWrite();
     return promise;
   }
 
@@ -747,7 +756,7 @@ export default class RedisClient<
       this._queue.addCommand(['EXEC'], { chainId })
     );
 
-    this._tick();
+    this._scheduleWrite();
 
     const results = await Promise.all(promises),
       execResult = results[results.length - 1];
@@ -772,7 +781,7 @@ export default class RedisClient<
   async* scanIterator(
     this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions
-  ): AsyncIterable<ReplyWithTypeMapping<CommandReply<typeof SCAN, RESP>['keys'], TYPE_MAPPING>> {
+  ) {
     let cursor = options?.cursor ?? 0;
     do {
       const reply = await this.scan(cursor, options);
@@ -827,7 +836,7 @@ export default class RedisClient<
     return this._socket.quit(async () => {
       clearTimeout(this._pingTimer);
       const quitPromise = this._queue.addCommand<string>(['QUIT']);
-      this._tick();
+      this._scheduleWrite();
       return quitPromise;
     });
   }
@@ -842,7 +851,7 @@ export default class RedisClient<
   }
 
   /**
-   * Close the client. Wait for pending replies.
+   * Close the client. Wait for pending commands.
    */
   close() {
     return new Promise<void>(resolve => {

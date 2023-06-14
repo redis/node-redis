@@ -1,4 +1,5 @@
-import { ClientCommandOptions, RedisClientOptions } from '../client';
+import { RedisClientOptions } from '../client';
+import { CommandOptions } from '../client/commands-queue';
 import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
 import { EventEmitter } from 'events';
@@ -69,7 +70,7 @@ export type RedisClusterType<
 > = RedisCluster<M, F, S, RESP, TYPE_MAPPING, POLICIES> & WithCommands<RESP, TYPE_MAPPING, POLICIES>;
 // & WithModules<M> & WithFunctions<F> & WithScripts<S>
 
-export interface ClusterCommandOptions extends ClientCommandOptions {
+export interface ClusterCommandOptions extends CommandOptions {
   policies?: CommandPolicies;
 }
 
