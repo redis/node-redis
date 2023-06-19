@@ -1,4 +1,5 @@
 import ACL_CAT from './ACL_CAT';
+import ACL_DELUSER from './ACL_DELUSER';
 import ACL_DRYRUN from './ACL_DRYRUN';
 import ACL_GENPASS from './ACL_GENPASS';
 import ACL_GETUSER from './ACL_GETUSER';
@@ -259,6 +260,7 @@ import ZUNIONSTORE from './ZUNIONSTORE';
 import { Command } from '../RESP/types';
 
 type ACL_CAT = typeof import('./ACL_CAT').default;
+type ACL_DELUSER = typeof import('./ACL_DELUSER').default;
 type ACL_DRYRUN = typeof import('./ACL_DRYRUN').default;
 type ACL_GENPASS = typeof import('./ACL_GENPASS').default;
 type ACL_GETUSER = typeof import('./ACL_GETUSER').default;
@@ -520,6 +522,8 @@ type ZUNIONSTORE = typeof import('./ZUNIONSTORE').default;
 type Commands = {
   ACL_CAT: ACL_CAT;
   aclCat: ACL_CAT;
+  ACL_DELUSER: ACL_DELUSER;
+  aclDelUser: ACL_DELUSER;
   ACL_DRYRUN: ACL_DRYRUN;
   aclDryRun: ACL_DRYRUN;
   ACL_GENPASS: ACL_GENPASS;
@@ -1041,6 +1045,8 @@ type Commands = {
 export default {
   ACL_CAT,
   aclCat: ACL_CAT,
+  ACL_DELUSER,
+  aclDelUser: ACL_DELUSER,
   ACL_DRYRUN,
   aclDryRun: ACL_DRYRUN,
   ACL_GENPASS,
