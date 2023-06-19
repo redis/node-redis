@@ -30,8 +30,8 @@ const bicycles = [
   bicycle1,
   {
     brand: 'Bicyk',
-    model: "Hillcraft",
-    price": 1200,
+    model: 'Hillcraft',
+    price: 1200,
     description: 'Kids want to ride with as little weight as possible. Especially on an incline! They may be at the age when a 27.5\" wheel bike is just too clumsy coming off a 24\" bike. The Hillcraft 26 is just the solution they need!',
     condition: 'used'
   },
