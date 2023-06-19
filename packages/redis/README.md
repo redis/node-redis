@@ -167,6 +167,16 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 
 > The client will not emit [any other events](../../docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
 
+### Links
+
+- [Multi](../../docs/multi.md).
+- [Pub/Sub](../../docs/pub-sub.md).
+- [Scan Iterators](../../docs/scan-iterators.md).
+- [Programmability](../../docs/programmability.md).
+- [Command Options](../../docs/command-options.md).
+- [Blocking Commands](../../docs/blocking-commands.md).
+- [Clustering](../../docs/clustering.md).
+
 ## Supported Redis versions
 
 Node Redis is supported with the following versions of Redis:
@@ -192,13 +202,3 @@ Thank you to all the people who already contributed to Node Redis!
 ## License
 
 This repository is licensed under the "MIT" license. See [LICENSE](../../LICENSE).
-
-### Links
-
-- [Multi](../../docs/multi.md).
-- [Pub/Sub](../../docs/pub-sub.md).
-- [Scan Iterators](../../docs/scan-iterators.md).
-- [Programmability](../../docs/programmability.md).
-- [Command Options](../../docs/command-options.md).
-- [Blocking Commands](../../docs/blocking-commands.md).
-- [Clustering](../../docs/clustering.md).

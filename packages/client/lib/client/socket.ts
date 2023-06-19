@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import * as net from 'net';
 import * as tls from 'tls';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
-import { promiseTimeout } from '../utils';
+import { setTimeout } from 'timers/promises';
 import { RedisArgument } from '../RESP/types';
 
 export interface RedisSocketCommonOptions {
@@ -159,7 +159,7 @@ export default class RedisSocket extends EventEmitter {
         }
 
         this.emit('error', err);
-        await promiseTimeout(retryIn);
+        await setTimeout(retryIn);
         this.emit('reconnecting');
       }
     } while (this._isOpen && !this._isReady);
@@ -281,14 +281,6 @@ export default class RedisSocket extends EventEmitter {
     }
 
     this.emit('end');
-  }
-
-  cork(): void {
-    this._socket?.cork();
-  }
-
-  uncork(): void {
-    this._socket?.uncork();
   }
 
   ref(): void {

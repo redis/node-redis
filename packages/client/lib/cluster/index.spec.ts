@@ -6,7 +6,7 @@
 // import { SQUARE_SCRIPT } from '../client/index.spec';
 // import { RootNodesUnavailableError } from '../errors';
 // import { spy } from 'sinon';
-// import { promiseTimeout } from '../utils';
+// import { setTimeout } from 'timers/promises';
 // import RedisClient from '../client';
 
 // describe('Cluster', () => {
@@ -284,7 +284,7 @@
 
 //             // wait for migrating node to be notified about the new topology
 //             while ((await migratingClient.clusterInfo()).state !== 'ok') {
-//                 await promiseTimeout(50);
+//                 await setTimeout(50);
 //             }
 
 //             // make sure to cause `MOVED` error
@@ -340,7 +340,7 @@
 
 //             // wait for migrating node to be notified about the new topology
 //             while ((await migratingClient.clusterInfo()).state !== 'ok') {
-//                 await promiseTimeout(50);
+//                 await setTimeout(50);
 //             }
 
 //             const listener = spy();
