@@ -24,7 +24,7 @@ describe('ACL LOG', () => {
   testUtils.testWithClient('client.aclLog', async client => {
     // make sure to create at least one log
     await Promise.all([
-      client.aclSetUser('test', 'on >test'),
+      client.aclSetUser('test', 'on +@all'),
       client.auth({
         username: 'test',
         password: 'test'
