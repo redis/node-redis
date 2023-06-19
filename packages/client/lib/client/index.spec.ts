@@ -3,12 +3,14 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 // import { RedisClientMultiCommandType } from './multi-command';
 // import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
-// import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 // import { spy } from 'sinon';
-// import { once } from 'events';
+import { once } from 'events';
 // import { ClientKillFilters } from '../commands/CLIENT_KILL';
 // import { promisify } from 'util';
+import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
+import { RESP_TYPES } from '../RESP/decoder';
 
 export const SQUARE_SCRIPT = defineScript({
   SCRIPT: 'return ARGV[1] * ARGV[1];',
@@ -113,470 +115,244 @@ describe('Client', () => {
     }
   });
 
-//   describe('legacyMode', () => {
-//     testUtils.testWithClient('client.sendCommand should call the callback', async client => {
-//       assert.equal(
-//         await promisify(client.sendCommand).call(client, 'PING'),
-//         'PONG'
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+  testUtils.testWithClient('connect, ready and end events', async client => {
+    await Promise.all([
+      once(client, 'connect'),
+      once(client, 'ready'),
+      client.connect()
+    ]);
 
-//     testUtils.testWithClient('client.sendCommand should work without callback', async client => {
-//       client.sendCommand(['PING']);
-//       await client.v4.ping(); // make sure the first command was replied
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    const promise = once(client, 'end');
+    console.log('listen to end', client.listeners('end'));
+    client.close();
+    await promise;
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    disableClientSetup: true
+  });
 
-//     testUtils.testWithClient('client.sendCommand should reply with error', async client => {
-//       await assert.rejects(
-//         promisify(client.sendCommand).call(client, '1', '2')
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+  describe('sendCommand', () => {
+    testUtils.testWithClient('PING', async client => {
+      assert.equal(await client.sendCommand(['PING']), 'PONG');
+    }, GLOBAL.SERVERS.OPEN);
 
-//     testUtils.testWithClient('client.hGetAll should reply with error', async client => {
-//       await assert.rejects(
-//         promisify(client.hGetAll).call(client)
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    describe('AbortController', () => {
+      before(function () {
+        if (!global.AbortController) {
+          this.skip();
+        }
+      });
 
-//     testUtils.testWithClient('client.v4.sendCommand should return a promise', async client => {
-//       assert.equal(
-//         await client.v4.sendCommand(['PING']),
-//         'PONG'
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+      testUtils.testWithClient('success', async client => {
+        await client.sendCommand(['PING'], {
+          abortSignal: new AbortController().signal
+        });
+      }, GLOBAL.SERVERS.OPEN);
 
-//     testUtils.testWithClient('client.v4.{command} should return a promise', async client => {
-//       assert.equal(
-//         await client.v4.ping(),
-//         'PONG'
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+      testUtils.testWithClient('AbortError', client => {
+        const controller = new AbortController();
+        controller.abort();
 
-//     testUtils.testWithClient('client.{command} should accept vardict arguments', async client => {
-//       assert.equal(
-//         await promisify(client.set).call(client, 'a', 'b'),
-//         'OK'
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+        return assert.rejects(
+          client.sendCommand(['PING'], {
+            abortSignal: controller.signal
+          }),
+          AbortError
+        );
+      }, GLOBAL.SERVERS.OPEN);
+    });
 
-//     testUtils.testWithClient('client.{command} should accept arguments array', async client => {
-//       assert.equal(
-//         await promisify(client.set).call(client, ['a', 'b']),
-//         'OK'
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    testUtils.testWithClient('undefined and null should not break the client', async client => {
+      await assert.rejects(
+        client.sendCommand([null as any, undefined as any]),
+        TypeError
+      );
 
-//     testUtils.testWithClient('client.{command} should accept mix of arrays and arguments', async client => {
-//       assert.equal(
-//         await promisify(client.set).call(client, ['a'], 'b', ['EX', 1]),
-//         'OK'
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+      assert.equal(
+        await client.ping(),
+        'PONG'
+      );
+    }, GLOBAL.SERVERS.OPEN);
+  });
 
-//     testUtils.testWithClient('client.hGetAll should return object', async client => {
-//       await client.v4.hSet('key', 'field', 'value');
+  describe('multi', () => {
+    testUtils.testWithClient('simple', async client => {
+      assert.deepEqual(
+        await client.multi()
+          .ping()
+          .set('key', 'value')
+          .get('key')
+          .exec(),
+        ['PONG', 'OK', 'value']
+      );
+    }, GLOBAL.SERVERS.OPEN);
 
-//       assert.deepEqual(
-//         await promisify(client.hGetAll).call(client, 'key'),
-//         Object.create(null, {
-//           field: {
-//             value: 'value',
-//             configurable: true,
-//             enumerable: true
-//           }
-//         })
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    testUtils.testWithClient('should reject the whole chain on error', client => {
+      return assert.rejects(
+        client.multi()
+          .ping()
+          .addCommand(['INVALID COMMAND'])
+          .ping()
+          .exec()
+      );
+    }, GLOBAL.SERVERS.OPEN);
 
-//     function multiExecAsync<
-//       M extends RedisModules,
-//       F extends RedisFunctions,
-//       S extends RedisScripts
-//     >(multi: RedisClientMultiCommandType<M, F, S>): Promise<Array<RedisCommandRawReply>> {
-//       return new Promise((resolve, reject) => {
-//         (multi as any).exec((err: Error | undefined, replies: Array<RedisCommandRawReply>) => {
-//           if (err) return reject(err);
+    testUtils.testWithClient('should reject the whole chain upon client disconnect', async client => {
+      await client.close();
 
-//           resolve(replies);
-//         });
-//       });
-//     }
+      return assert.rejects(
+        client.multi()
+          .ping()
+          .set('key', 'value')
+          .get('key')
+          .exec(),
+        ClientClosedError
+      );
+    }, GLOBAL.SERVERS.OPEN);
 
-//     testUtils.testWithClient('client.multi.ping.exec should call the callback', async client => {
-//       assert.deepEqual(
-//         await multiExecAsync(
-//           client.multi().ping()
-//         ),
-//         ['PONG']
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    testUtils.testWithClient('with script', async client => {
+      assert.deepEqual(
+        await client.multi()
+          .square(2)
+          .exec(),
+        [4]
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        scripts: {
+          square: SQUARE_SCRIPT
+        }
+      }
+    });
 
-//     testUtils.testWithClient('client.multi.ping.exec should call the callback', async client => {
-//       client.multi()
-//         .ping()
-//         .exec();
-//       await client.v4.ping(); // make sure the first command was replied
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    // testUtils.testWithClient('WatchError', async client => {
+    //   await client.watch('key');
 
-//     testUtils.testWithClient('client.multi.ping.v4.ping.v4.exec should return a promise', async client => {
-//       assert.deepEqual(
-//         await client.multi()
-//           .ping()
-//           .v4.ping()
-//           .v4.exec(),
-//         ['PONG', 'PONG']
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    //   await client.set(
+    //     RedisClient.commandOptions({
+    //       isolated: true
+    //     }),
+    //     'key',
+    //     '1'
+    //   );
 
-//     testUtils.testWithClient('client.{script} should return a promise', async client => {
-//       assert.equal(
-//         await client.square(2),
-//         4
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true,
-//         scripts: {
-//           square: SQUARE_SCRIPT
-//         }
-//       }
-//     });
+    //   await assert.rejects(
+    //     client.multi()
+    //       .decr('key')
+    //       .exec(),
+    //     WatchError
+    //   );
+    // }, GLOBAL.SERVERS.OPEN);
 
-//     testUtils.testWithClient('client.multi.{command}.exec should flatten array arguments', async client => {
-//       assert.deepEqual(
-//         await client.multi()
-//           .sAdd('a', ['b', 'c'])
-//           .v4.exec(),
-//         [2]
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
+    describe('execAsPipeline', () => {
+      testUtils.testWithClient('exec(true)', async client => {
+        assert.deepEqual(
+          await client.multi()
+            .ping()
+            .exec(true),
+          ['PONG']
+        );
+      }, GLOBAL.SERVERS.OPEN);
 
-//     testUtils.testWithClient('client.multi.hGetAll should return object', async client => {
-//       assert.deepEqual(
-//         await multiExecAsync(
-//           client.multi()
-//             .hSet('key', 'field', 'value')
-//             .hGetAll('key')
-//         ),
-//         [
-//           1,
-//           Object.create(null, {
-//             field: {
-//               value: 'value',
-//               configurable: true,
-//               enumerable: true
-//             }
-//           })
-//         ]
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         legacyMode: true
-//       }
-//     });
-//   });
+      testUtils.testWithClient('empty execAsPipeline', async client => {
+        assert.deepEqual(
+          await client.multi().execAsPipeline(),
+          []
+        );
+      }, GLOBAL.SERVERS.OPEN);
+    });
 
-//   describe('events', () => {
-//     testUtils.testWithClient('connect, ready, end', async client => {
-//       await Promise.all([
-//         once(client, 'connect'),
-//         once(client, 'ready'),
-//         client.connect()
-//       ]);
+    // testUtils.testWithClient('should remember selected db', async client => {
+    //   await client.multi()
+    //     .select(1)
+    //     .exec();
+    //   await killClient(client);
+    //   assert.equal(
+    //     (await client.clientInfo()).db,
+    //     1
+    //   );
+    // }, {
+    //   ...GLOBAL.SERVERS.OPEN,
+    //   minimumDockerVersion: [6, 2] // CLIENT INFO
+    // });
+  });
 
-//       await Promise.all([
-//         once(client, 'end'),
-//         client.disconnect()
-//       ]);
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       disableClientSetup: true
-//     });
-//   });
+  testUtils.testWithClient('scripts', async client => {
+    assert.equal(
+      await client.square(2),
+      4
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      scripts: {
+        square: SQUARE_SCRIPT
+      }
+    }
+  });
 
-//   describe('sendCommand', () => {
-//     testUtils.testWithClient('PING', async client => {
-//       assert.equal(await client.sendCommand(['PING']), 'PONG');
-//     }, GLOBAL.SERVERS.OPEN);
+  const module = {
+    echo: {
+      transformArguments(message: string): Array<string> {
+        return ['ECHO', message];
+      },
+      transformReply(reply: string): string {
+        return reply;
+      }
+    }
+  };
 
-//     testUtils.testWithClient('returnBuffers', async client => {
-//       assert.deepEqual(
-//         await client.sendCommand(['PING'], {
-//           returnBuffers: true
-//         }),
-//         Buffer.from('PONG')
-//       );
-//     }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('modules', async client => {
+    assert.equal(
+      await client.module.echo('message'),
+      'message'
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      modules: {
+        module
+      }
+    }
+  });
 
-//     describe('AbortController', () => {
-//       before(function () {
-//         if (!global.AbortController) {
-//           this.skip();
-//         }
-//       });
+  testUtils.testWithClient('functions', async client => {
+    await loadMathFunction(client);
 
-//       testUtils.testWithClient('success', async client => {
-//         await client.sendCommand(['PING'], {
-//           signal: new AbortController().signal
-//         });
-//       }, GLOBAL.SERVERS.OPEN);
+    assert.equal(
+      await client.math.square(2),
+      4
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [7, 0],
+    clientOptions: {
+      functions: {
+        math: MATH_FUNCTION.library
+      }
+    }
+  });
 
-//       testUtils.testWithClient('AbortError', client => {
-//         const controller = new AbortController();
-//         controller.abort();
+  testUtils.testWithClient('duplicate should reuse command options', async client => {
+    const duplicate = client.withTypeMapping({
+      [RESP_TYPES.SIMPLE_STRING]: Buffer
+    }).duplicate();
 
-//         return assert.rejects(
-//           client.sendCommand(['PING'], {
-//             signal: controller.signal
-//           }),
-//           AbortError
-//         );
-//       }, GLOBAL.SERVERS.OPEN);
-//     });
+    await duplicate.connect();
 
-//     testUtils.testWithClient('undefined and null should not break the client', async client => {
-//       await assert.rejects(
-//         client.sendCommand([null as any, undefined as any]),
-//         TypeError
-//       );
-
-//       assert.equal(
-//         await client.ping(),
-//         'PONG'
-//       );
-//     }, GLOBAL.SERVERS.OPEN);
-//   });
-
-//   describe('multi', () => {
-//     testUtils.testWithClient('simple', async client => {
-//       assert.deepEqual(
-//         await client.multi()
-//           .ping()
-//           .set('key', 'value')
-//           .get('key')
-//           .exec(),
-//         ['PONG', 'OK', 'value']
-//       );
-//     }, GLOBAL.SERVERS.OPEN);
-
-//     testUtils.testWithClient('should reject the whole chain on error', client => {
-//       return assert.rejects(
-//         client.multi()
-//           .ping()
-//           .addCommand(['INVALID COMMAND'])
-//           .ping()
-//           .exec()
-//       );
-//     }, GLOBAL.SERVERS.OPEN);
-
-//     testUtils.testWithClient('should reject the whole chain upon client disconnect', async client => {
-//       await client.disconnect();
-
-//       return assert.rejects(
-//         client.multi()
-//           .ping()
-//           .set('key', 'value')
-//           .get('key')
-//           .exec(),
-//         ClientClosedError
-//       );
-//     }, GLOBAL.SERVERS.OPEN);
-
-//     testUtils.testWithClient('with script', async client => {
-//       assert.deepEqual(
-//         await client.multi()
-//           .square(2)
-//           .exec(),
-//         [4]
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       clientOptions: {
-//         scripts: {
-//           square: SQUARE_SCRIPT
-//         }
-//       }
-//     });
-
-//     testUtils.testWithClient('WatchError', async client => {
-//       await client.watch('key');
-
-//       await client.set(
-//         RedisClient.commandOptions({
-//           isolated: true
-//         }),
-//         'key',
-//         '1'
-//       );
-
-//       await assert.rejects(
-//         client.multi()
-//           .decr('key')
-//           .exec(),
-//         WatchError
-//       );
-//     }, GLOBAL.SERVERS.OPEN);
-
-//     describe('execAsPipeline', () => {
-//       testUtils.testWithClient('exec(true)', async client => {
-//         assert.deepEqual(
-//           await client.multi()
-//             .ping()
-//             .exec(true),
-//           ['PONG']
-//         );
-//       }, GLOBAL.SERVERS.OPEN);
-
-//       testUtils.testWithClient('empty execAsPipeline', async client => {
-//         assert.deepEqual(
-//           await client.multi().execAsPipeline(),
-//           []
-//         );
-//       }, GLOBAL.SERVERS.OPEN);
-//     });
-
-//     testUtils.testWithClient('should remember selected db', async client => {
-//       await client.multi()
-//         .select(1)
-//         .exec();
-//       await killClient(client);
-//       assert.equal(
-//         (await client.clientInfo()).db,
-//         1
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       minimumDockerVersion: [6, 2] // CLIENT INFO
-//     });
-//   });
-
-//   testUtils.testWithClient('scripts', async client => {
-//     assert.equal(
-//       await client.square(2),
-//       4
-//     );
-//   }, {
-//     ...GLOBAL.SERVERS.OPEN,
-//     clientOptions: {
-//       scripts: {
-//         square: SQUARE_SCRIPT
-//       }
-//     }
-//   });
-
-//   const module = {
-//     echo: {
-//       transformArguments(message: string): Array<string> {
-//         return ['ECHO', message];
-//       },
-//       transformReply(reply: string): string {
-//         return reply;
-//       }
-//     }
-//   };
-
-//   testUtils.testWithClient('modules', async client => {
-//     assert.equal(
-//       await client.module.echo('message'),
-//       'message'
-//     );
-//   }, {
-//     ...GLOBAL.SERVERS.OPEN,
-//     clientOptions: {
-//       modules: {
-//         module
-//       }
-//     }
-//   });
-
-//   testUtils.testWithClient('functions', async client => {
-//     await loadMathFunction(client);
-
-//     assert.equal(
-//       await client.math.square(2),
-//       4
-//     );
-//   }, {
-//     ...GLOBAL.SERVERS.OPEN,
-//     minimumDockerVersion: [7, 0],
-//     clientOptions: {
-//       functions: {
-//         math: MATH_FUNCTION.library
-//       }
-//     }
-//   });
+    try {
+      assert.deepEqual(
+        await duplicate.ping(),
+        Buffer.from('PONG')
+      );
+    } finally {
+      duplicate.close();
+    }
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    disableClientSetup: true,
+  });
 
 //   describe('isolationPool', () => {
 //     testUtils.testWithClient('executeIsolated', async client => {

@@ -91,6 +91,11 @@ export class DoublyLinkedList<T> {
     node.next = undefined;
   }
 
+  reset() {
+    this._length = 0;
+    this._head = this._tail = undefined;
+  }
+
   *[Symbol.iterator]() {
     let node = this._head;
     while (node !== undefined) {
@@ -150,6 +155,11 @@ export class SinglyLinkedList<T> {
     }
 
     return node.value;
+  }
+
+  reset() {
+    this._length = 0;
+    this._head = this._tail = undefined;
   }
 
   *[Symbol.iterator]() {

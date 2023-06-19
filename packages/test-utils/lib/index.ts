@@ -9,7 +9,7 @@ import {
   createCluster,
   RedisClusterOptions,
   RedisClusterType
-} from '@redis/client';
+} from '@redis/client/index';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';

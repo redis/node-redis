@@ -1,6 +1,6 @@
 import { createConnection } from 'net';
 import { once } from 'events';
-import { createClient } from '@redis/client';
+import { createClient } from '@redis/client/index';
 import { setTimeout } from 'timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import * as path from 'path';

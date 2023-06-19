@@ -46,6 +46,7 @@ export interface ShardNode<
   S extends RedisScripts,
   RESP extends RespVersions
 > extends Node<M, F, S, RESP> {
+  id: string;
   host: string;
   port: number;
   readonly: boolean;
@@ -173,7 +174,6 @@ export default class RedisClusterSlots<
         promises: Array<Promise<unknown>> = [],
         eagerConnect = this._options.minimizeConnections !== true;
 
-      type a = typeof shards;
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP> = {
           master: this._initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
@@ -294,19 +294,19 @@ export default class RedisClusterSlots<
   }
 
   private _initiateSlotNode(
-    slotAddress: NodeAddress,
+    shard: NodeAddress & { id: string; },
     readonly: boolean,
     eagerConnent: boolean,
     addressesInUse: Set<string>,
     promises: Array<Promise<unknown>>
   ) {
-    const address = `${slotAddress.host}:${slotAddress.port}`;
+    const address = `${shard.host}:${shard.port}`;
     addressesInUse.add(address);
 
     let node = this.nodeByAddress.get(address);
     if (!node) {
       node = {
-        ...slotAddress,
+        ...shard,
         address,
         readonly,
         client: undefined

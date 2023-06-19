@@ -1,26 +1,32 @@
-// import { RedisCommandArguments } from '.';
-// import { transformArguments as transformFunctionListArguments } from './FUNCTION_LIST';
-// import { FunctionListItemReply, FunctionListRawItemReply, transformFunctionListItemReply } from './generic-transformers';
+import { TuplesToMapReply, BlobStringReply, ArrayReply, Command, Resp2Reply } from '../RESP/types';
+import FUNCTION_LIST, { FunctionListReplyItem } from './FUNCTION_LIST';
 
-// export function transformArguments(pattern?: string): RedisCommandArguments {
-//     const args = transformFunctionListArguments(pattern);
-//     args.push('WITHCODE');
-//     return args;
-// }
+export type FunctionListWithCodeReply = ArrayReply<TuplesToMapReply<[
+  ...FunctionListReplyItem,
+  [BlobStringReply<'library_code'>, BlobStringReply],
+]>>;
 
-// type FunctionListWithCodeRawItemReply = [
-//     ...FunctionListRawItemReply,
-//     'library_code',
-//     string
-// ];
-
-// interface FunctionListWithCodeItemReply extends FunctionListItemReply {
-//     libraryCode: string;
-// }
-
-// export function transformReply(reply: Array<FunctionListWithCodeRawItemReply>): Array<FunctionListWithCodeItemReply> {
-//     return reply.map(library => ({
-//         ...transformFunctionListItemReply(library as unknown as FunctionListRawItemReply),
-//         libraryCode: library[7]
-//     }));
-// }
+export default {
+  FIRST_KEY_INDEX: FUNCTION_LIST.FIRST_KEY_INDEX,
+  IS_READ_ONLY: FUNCTION_LIST.IS_READ_ONLY,
+  transformArguments(...args: Parameters<typeof FUNCTION_LIST.transformArguments>) {
+    const redisArgs = FUNCTION_LIST.transformArguments(...args);
+    redisArgs.push('WITHCODE');
+    return redisArgs;
+  },
+  transformReply: {
+    2: (reply: Resp2Reply<FunctionListWithCodeReply>) => {
+      return reply.map((library: any) => ({
+        library_name: library[1],
+        engine: library[3],
+        functions: library[5].map((fn: any) => ({
+          name: fn[1],
+          description: fn[3],
+          flags: fn[5]
+        })),
+        library_code: library[7]
+      })) as unknown as number;
+    },
+    3: undefined as unknown as () => FunctionListWithCodeReply
+  }
+} as const satisfies Command;

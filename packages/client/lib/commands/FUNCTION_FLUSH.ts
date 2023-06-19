@@ -3,7 +3,7 @@ import { RedisFlushModes } from './FLUSHALL';
 
 export default {
   FIRST_KEY_INDEX: undefined,
-  IS_READ_ONLY: true,
+  IS_READ_ONLY: false,
   transformArguments(mode?: RedisFlushModes) {
     const args = ['FUNCTION', 'FLUSH'];
     
@@ -13,5 +13,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

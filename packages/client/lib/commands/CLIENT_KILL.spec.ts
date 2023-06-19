@@ -1,12 +1,12 @@
 import { strict as assert } from 'assert';
-import { ClientKillFilters, transformArguments } from './CLIENT_KILL';
+import CLIENT_KILL, { CLIENT_KILL_FILTERS } from './CLIENT_KILL';
 
 describe('CLIENT KILL', () => {
   describe('transformArguments', () => {
     it('ADDRESS', () => {
       assert.deepEqual(
-        transformArguments({
-          filter: ClientKillFilters.ADDRESS,
+        CLIENT_KILL.transformArguments({
+          filter: CLIENT_KILL_FILTERS.ADDRESS,
           address: 'ip:6379'
         }),
         ['CLIENT', 'KILL', 'ADDR', 'ip:6379']
@@ -15,8 +15,8 @@ describe('CLIENT KILL', () => {
 
     it('LOCAL_ADDRESS', () => {
       assert.deepEqual(
-        transformArguments({
-          filter: ClientKillFilters.LOCAL_ADDRESS,
+        CLIENT_KILL.transformArguments({
+          filter: CLIENT_KILL_FILTERS.LOCAL_ADDRESS,
           localAddress: 'ip:6379'
         }),
         ['CLIENT', 'KILL', 'LADDR', 'ip:6379']
@@ -26,8 +26,8 @@ describe('CLIENT KILL', () => {
     describe('ID', () => {
       it('string', () => {
         assert.deepEqual(
-          transformArguments({
-            filter: ClientKillFilters.ID,
+          CLIENT_KILL.transformArguments({
+            filter: CLIENT_KILL_FILTERS.ID,
             id: '1'
           }),
           ['CLIENT', 'KILL', 'ID', '1']
@@ -36,8 +36,8 @@ describe('CLIENT KILL', () => {
 
       it('number', () => {
         assert.deepEqual(
-          transformArguments({
-            filter: ClientKillFilters.ID,
+          CLIENT_KILL.transformArguments({
+            filter: CLIENT_KILL_FILTERS.ID,
             id: 1
           }),
           ['CLIENT', 'KILL', 'ID', '1']
@@ -47,8 +47,8 @@ describe('CLIENT KILL', () => {
 
     it('TYPE', () => {
       assert.deepEqual(
-        transformArguments({
-          filter: ClientKillFilters.TYPE,
+        CLIENT_KILL.transformArguments({
+          filter: CLIENT_KILL_FILTERS.TYPE,
           type: 'master'
         }),
         ['CLIENT', 'KILL', 'TYPE', 'master']
@@ -57,8 +57,8 @@ describe('CLIENT KILL', () => {
 
     it('USER', () => {
       assert.deepEqual(
-        transformArguments({
-          filter: ClientKillFilters.USER,
+        CLIENT_KILL.transformArguments({
+          filter: CLIENT_KILL_FILTERS.USER,
           username: 'username'
         }),
         ['CLIENT', 'KILL', 'USER', 'username']
@@ -68,15 +68,15 @@ describe('CLIENT KILL', () => {
     describe('SKIP_ME', () => {
       it('undefined', () => {
         assert.deepEqual(
-          transformArguments(ClientKillFilters.SKIP_ME),
+          CLIENT_KILL.transformArguments(CLIENT_KILL_FILTERS.SKIP_ME),
           ['CLIENT', 'KILL', 'SKIPME']
         );
       });
 
       it('true', () => {
         assert.deepEqual(
-          transformArguments({
-            filter: ClientKillFilters.SKIP_ME,
+          CLIENT_KILL.transformArguments({
+            filter: CLIENT_KILL_FILTERS.SKIP_ME,
             skipMe: true
           }),
           ['CLIENT', 'KILL', 'SKIPME', 'yes']
@@ -85,8 +85,8 @@ describe('CLIENT KILL', () => {
 
       it('false', () => {
         assert.deepEqual(
-          transformArguments({
-            filter: ClientKillFilters.SKIP_ME,
+          CLIENT_KILL.transformArguments({
+            filter: CLIENT_KILL_FILTERS.SKIP_ME,
             skipMe: false
           }),
           ['CLIENT', 'KILL', 'SKIPME', 'no']
@@ -96,12 +96,12 @@ describe('CLIENT KILL', () => {
 
     it('TYPE & SKIP_ME', () => {
       assert.deepEqual(
-        transformArguments([
+        CLIENT_KILL.transformArguments([
           {
-            filter: ClientKillFilters.TYPE,
+            filter: CLIENT_KILL_FILTERS.TYPE,
             type: 'master'
           },
-          ClientKillFilters.SKIP_ME
+          CLIENT_KILL_FILTERS.SKIP_ME
         ]),
         ['CLIENT', 'KILL', 'TYPE', 'master', 'SKIPME']
       );

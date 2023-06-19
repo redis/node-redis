@@ -68,7 +68,7 @@ export interface RedisClientOptions<
   pingInterval?: number;
 }
 
-interface TypeMappingOption<TYPE_MAPPING extends TypeMapping> {
+export interface TypeMappingOption<TYPE_MAPPING extends TypeMapping> {
   /**
    * Maps bettwen RESP types to JavaScript types
    */
@@ -532,11 +532,24 @@ export default class RedisClient<
   //   );
   // }
 
-  duplicate(overrides?: Partial<RedisClientOptions<M, F, S, RESP>>) {
-    return new (Object.getPrototypeOf(this).constructor)({
+  duplicate<
+    _M extends RedisModules = M,
+    _F extends RedisFunctions = F,
+    _S extends RedisScripts = S,
+    _RESP extends RespVersions = RESP,
+    _TYPE_MAPPING extends TypeMapping = TYPE_MAPPING
+  >(overrides?: Partial<RedisClientOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
+    const client = new (Object.getPrototypeOf(this).constructor)({
       ...this._options,
       ...overrides
-    }) as RedisClientType<M, F, S, RESP>;
+    }) as RedisClientType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
+
+    const { commandOptions } = this as ProxyClient;
+    if (commandOptions) {
+      return client.withCommandOptions(commandOptions);
+    }
+
+    return client;
   }
 
   connect() {

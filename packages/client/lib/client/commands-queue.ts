@@ -285,9 +285,10 @@ export default class RedisCommandsQueue {
   }
 
   private _flushWaitingForReply(err: Error): void {
-    while (this._waitingForReply.head) {
-      this._waitingForReply.shift()!.reject(err);
+    for (const node of this._waitingForReply) {
+      node.reject(err);
     }
+    this._waitingForReply.reset();
   }
 
   private static _removeAbortListener(command: CommandWaitingToBeSent) {
@@ -324,12 +325,10 @@ export default class RedisCommandsQueue {
     this.decoder.reset();
     this._pubSub.reset();
     this._flushWaitingForReply(err);
-    while (this._waitingToBeSent.head) {
-      RedisCommandsQueue._flushWaitingToBeSent(
-        this._waitingToBeSent.shift()!,
-        err
-      );
+    for (const node of this._waitingToBeSent) {
+      RedisCommandsQueue._flushWaitingToBeSent(node, err);
     }
+    this._waitingToBeSent.reset();
   }
 
   isEmpty() {

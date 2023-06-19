@@ -1,13 +1,5 @@
 import { ArrayReply, BlobStringReply, CommandArguments, DoubleReply, NullReply, RedisArgument, Resp2Reply } from '../RESP/types';
 
-// export function transformBooleanReply(reply: number): boolean {
-//     return reply === 1;
-// }
-
-// export function transformBooleanArrayReply(reply: Array<number>): Array<boolean> {
-//     return reply.map(transformBooleanReply);
-// }
-
 export type BitValue = 0 | 1;
 
 export function transformDoubleReply(reply: BlobStringReply): number {

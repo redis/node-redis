@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_GETNAME from './CLIENT_GETNAME';
 
 describe('CLIENT GETNAME', () => {
@@ -8,4 +9,11 @@ describe('CLIENT GETNAME', () => {
       ['CLIENT', 'GETNAME']
     );
   });
+  
+  testUtils.testWithClient('client.clientGetName', async client => {
+    assert.equal(
+      await client.clientGetName(),
+      null
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });
