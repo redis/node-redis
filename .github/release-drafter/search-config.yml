@@ -1,5 +1,5 @@
-name-template: 'json@$NEXT_PATCH_VERSION'
-tag-template: 'json@$NEXT_PATCH_VERSION'
+name-template: 'search@$NEXT_PATCH_VERSION'
+tag-template: 'search@$NEXT_PATCH_VERSION'
 autolabeler:
   - label: 'chore'
     files:
@@ -36,7 +36,7 @@ categories:
 
 change-template: '- $TITLE (#$NUMBER)'
 include-paths:
-  - 'packages/json'
+  - 'packages/search'
 exclude-labels:
   - 'skip-changelog'
 template: |

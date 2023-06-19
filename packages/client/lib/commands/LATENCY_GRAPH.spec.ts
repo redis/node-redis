@@ -24,9 +24,5 @@ describe('LATENCY GRAPH', () => {
             typeof await client.latencyGraph('command'),
             'string'
         );
-    }, {
-        serverArguments: testUtils.isVersionGreaterThan([7]) ?
-            ['--enable-debug-command', 'yes'] :
-            GLOBAL.SERVERS.OPEN.serverArguments
-    });
+    }, GLOBAL.SERVERS.OPEN);
 });
