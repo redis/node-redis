@@ -18,7 +18,7 @@ const bicycle1 = {
   model: 'Jigger',
   price: 270,
   description:
-    'Small and powerful, the Jigger is the best ',
+    'Small and powerful, the Jigger is the best ' +
     'ride for the smallest of tikes! This is the tiniest kids\u2019 ' +
     'pedal bike on the market available without a coaster brake, the ' +
     'Jigger is the vehicle of choice for the rare tenacious little' +
