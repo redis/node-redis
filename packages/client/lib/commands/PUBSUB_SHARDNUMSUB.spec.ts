@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PUBSUB_NUMSUB';
+import { transformArguments } from './PUBSUB_SHARDNUMSUB';
 
 describe('PUBSUB SHARDNUMSUB', () => {
     describe('transformArguments', () => {
