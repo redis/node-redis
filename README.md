@@ -11,7 +11,6 @@
 
 node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
 
-
 ## Packages
 
 | Name                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                    |
