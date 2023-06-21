@@ -4,7 +4,7 @@ export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments() {
-    return ['ACL', 'USERS'];
+    return ['ACL', 'WHOAMI'];
   },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

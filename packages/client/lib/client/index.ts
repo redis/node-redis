@@ -11,10 +11,19 @@ import { Command, CommandArguments, CommandSignature, TypeMapping, CommanderConf
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
-import { ReplyWithTypeMapping, CommandReply } from '../RESP/types';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 // import { RedisClientPool } from './pool';
+
+interface ClientCommander<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends CommanderConfig<M, F, S, RESP>{
+  commandOptions?: CommandOptions<TYPE_MAPPING>;
+}
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -22,7 +31,7 @@ export interface RedisClientOptions<
   S extends RedisScripts = RedisScripts,
   RESP extends RespVersions = RespVersions,
   TYPE_MAPPING extends TypeMapping = TypeMapping
-> extends CommanderConfig<M, F, S, RESP>, TypeMappingOption<TYPE_MAPPING> {
+> extends ClientCommander<M, F, S, RESP, TYPE_MAPPING> {
   /**
    * `redis[s]://[[username][:password]@][host][:port][/db-number]`
    * See [`redis`](https://www.iana.org/assignments/uri-schemes/prov/redis) and [`rediss`](https://www.iana.org/assignments/uri-schemes/prov/rediss) IANA registration for more details
@@ -66,13 +75,6 @@ export interface RedisClientOptions<
    * Useful with Redis deployments that do not use TCP Keep-Alive.
    */
   pingInterval?: number;
-}
-
-export interface TypeMappingOption<TYPE_MAPPING extends TypeMapping> {
-  /**
-   * Maps bettwen RESP types to JavaScript types
-   */
-  typeMapping?: TYPE_MAPPING;
 }
 
 type WithCommands<
@@ -134,7 +136,7 @@ export type RedisClientType<
   RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
 );
 
-type ProxyClient = RedisClient<any, any, any, any, any> & { commandOptions?: CommandOptions };
+type ProxyClient = RedisClient<any, any, any, any, any>;
 
 type NamespaceProxyClient = { self: ProxyClient };
 
@@ -153,7 +155,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
-        reply = await this.sendCommand(redisArgs, this.commandOptions);
+        reply = await this.sendCommand(redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -164,7 +166,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
-        reply = await this.self.sendCommand(redisArgs, this.self.commandOptions);
+        reply = await this.self.sendCommand(redisArgs, this.self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -178,7 +180,7 @@ export default class RedisClient<
       const fnArgs = fn.transformArguments(...args),
         reply = await this.self.sendCommand(
           prefix.concat(fnArgs),
-          this.self.commandOptions
+          this.self._commandOptions
         );
       return transformReply ?
         transformReply(reply, fnArgs.preserve) :
@@ -192,12 +194,12 @@ export default class RedisClient<
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args),
         redisArgs = prefix.concat(scriptArgs),
-        reply = await this.sendCommand(redisArgs, this.commandOptions).catch((err: unknown) => {
+        reply = await this.sendCommand(redisArgs, this._commandOptions).catch((err: unknown) => {
           if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
           redisArgs[0] = 'EVAL';
           redisArgs[1] = script.SCRIPT;
-          return this.sendCommand(redisArgs, this.commandOptions);
+          return this.sendCommand(redisArgs, this._commandOptions);
         });
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
@@ -211,7 +213,7 @@ export default class RedisClient<
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {}
-  >(config?: CommanderConfig<M, F, S, RESP> & TypeMappingOption<TYPE_MAPPING>) {
+  >(config?: ClientCommander<M, F, S, RESP, TYPE_MAPPING>) {
     const Client = attachConfig({
       BaseClass: RedisClient,
       commands: COMMANDS,
@@ -282,10 +284,11 @@ export default class RedisClient<
 
   self = this;
 
-  private readonly _options?: RedisClientOptions<M, F, S, RESP>;
+  private readonly _options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   private readonly _socket: RedisSocket;
   private readonly _queue: RedisCommandsQueue;
   private _selectedDB = 0;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._options;
@@ -303,14 +306,14 @@ export default class RedisClient<
     return this._queue.isPubSubActive;
   }
 
-  constructor(options?: RedisClientOptions<M, F, S, RESP>) {
+  constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
     this._options = this._initiateOptions(options);
     this._queue = this._initiateQueue();
     this._socket = this._initiateSocket();
   }
 
-  private _initiateOptions(options?: RedisClientOptions<M, F, S, RESP>): RedisClientOptions<M, F, S, RESP> | undefined {
+  private _initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
     if (options?.url) {
       const parsed = RedisClient.parseURL(options.url);
       if (options.socket) {
@@ -324,10 +327,8 @@ export default class RedisClient<
       this._selectedDB = options.database;
     }
 
-    if (options?.typeMapping) {
-      (this as unknown as ProxyClient).commandOptions = {
-        typeMapping: options.typeMapping
-      };
+    if (options?.commandOptions) {
+      this._commandOptions = options.commandOptions;
     }
 
     return options;
@@ -462,15 +463,18 @@ export default class RedisClient<
     }, this._options.pingInterval);
   }
 
-  withCommandOptions<T extends CommandOptions>(options: T) {
+  withCommandOptions<
+    OPTIONS extends CommandOptions<TYPE_MAPPING>,
+    TYPE_MAPPING extends TypeMapping
+  >(options: OPTIONS) {
     const proxy = Object.create(this.self);
-    proxy.commandOptions = options;
+    proxy._commandOptions = options;
     return proxy as RedisClientType<
       M,
       F,
       S,
       RESP,
-      T['typeMapping'] extends TypeMapping ? T['typeMapping'] : {}
+      TYPE_MAPPING extends TypeMapping ? TYPE_MAPPING : {}
     >;
   }
 
@@ -482,8 +486,8 @@ export default class RedisClient<
     value: V
   ) {
     const proxy = Object.create(this.self);
-    proxy.commandOptions = Object.create((this as unknown as ProxyClient).commandOptions ?? null);
-    proxy.commandOptions[key] = value;
+    proxy._commandOptions = Object.create(this._commandOptions ?? null);
+    proxy._commandOptions[key] = value;
     return proxy as RedisClientType<
       M,
       F,
@@ -539,17 +543,11 @@ export default class RedisClient<
     _RESP extends RespVersions = RESP,
     _TYPE_MAPPING extends TypeMapping = TYPE_MAPPING
   >(overrides?: Partial<RedisClientOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
-    const client = new (Object.getPrototypeOf(this).constructor)({
+    return new (Object.getPrototypeOf(this).constructor)({
       ...this._options,
+      commandOptions: this._commandOptions,
       ...overrides
     }) as RedisClientType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
-
-    const { commandOptions } = this as ProxyClient;
-    if (commandOptions) {
-      return client.withCommandOptions(commandOptions);
-    }
-
-    return client;
   }
 
   connect() {
@@ -732,7 +730,7 @@ export default class RedisClient<
 
     const promise = Promise.all(
       commands.map(({ args }) => this._queue.addCommand(args, {
-        typeMapping: (this as ProxyClient).commandOptions?.typeMapping
+        typeMapping: this._commandOptions?.typeMapping
       }))
     );
     this._scheduleWrite();
@@ -750,7 +748,7 @@ export default class RedisClient<
       return Promise.reject(new ClientClosedError());
     }
 
-    const typeMapping = (this as ProxyClient).commandOptions?.typeMapping,
+    const typeMapping = this._commandOptions?.typeMapping,
       chainId = Symbol('MULTI Chain'),
       promises = [
         this._queue.addCommand(['MULTI'], { chainId }),

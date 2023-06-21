@@ -4,7 +4,8 @@ import { setTimeout } from 'timers/promises';
 
 const utils = new TestUtils({
   dockerImageName: 'redis',
-  dockerImageVersionArgument: 'redis-version'
+  dockerImageVersionArgument: 'redis-version',
+  defaultDockerVersion: '7.2-rc'
 });
 
 export default utils;

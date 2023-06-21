@@ -22,32 +22,29 @@ describe('ACL LOG', () => {
   });
 
   testUtils.testWithClient('client.aclLog', async client => {
-    // make sure to create at least one log
-    await Promise.all([
-      client.aclSetUser('test', 'on +@all'),
+    // make sure to create one log
+    await assert.rejects(
       client.auth({
-        username: 'test',
-        password: 'test'
-      }),
-      client.auth({
-        username: 'default',
-        password: ''
+        username: 'incorrect',
+        password: 'incorrect'
       })
-    ]);
+    );
 
     const logs = await client.aclLog();
     assert.ok(Array.isArray(logs));
     for (const log of logs) {
-
       assert.equal(typeof log.count, 'number');
-      assert.equal(typeof log.timestamp, 'number');
+      assert.equal(typeof log.reason, 'string');
+      assert.equal(typeof log.context, 'string');
+      assert.equal(typeof log.object, 'string');
       assert.equal(typeof log.username, 'string');
-      assert.equal(typeof log.clientId, 'string');
-      assert.equal(typeof log.command, 'string');
-      assert.equal(typeof log.args, 'string');
-      assert.equal(typeof log.key, 'string');
-      assert.equal(typeof log.result, 'number');
-      assert.equal(typeof log.duration, 'number');
+      assert.equal(typeof log['age-seconds'], 'number');
+      assert.equal(typeof log['client-info'], 'string');
+      if (testUtils.isVersionGreaterThan([7, 2])) {
+        assert.equal(typeof log['entry-id'], 'number');
+        assert.equal(typeof log['timestamp-created'], 'number');
+        assert.equal(typeof log['timestamp-last-updated'], 'number');
+      }
     }
   }, GLOBAL.SERVERS.OPEN);
 });

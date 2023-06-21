@@ -1,11 +1,20 @@
-export function transformArguments(mode?: 'HARD' | 'SOFT'): Array<string> {
+import { SimpleStringReply, Command } from '../RESP/types';
+
+export interface ClusterResetOptions {
+  mode?: 'HARD' | 'SOFT';
+}
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(options?: ClusterResetOptions) {
     const args = ['CLUSTER', 'RESET'];
 
-    if (mode) {
-        args.push(mode);
+    if (options?.mode) {
+      args.push(options.mode);
     }
 
     return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

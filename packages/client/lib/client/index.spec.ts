@@ -122,10 +122,10 @@ describe('Client', () => {
       client.connect()
     ]);
 
-    const promise = once(client, 'end');
-    console.log('listen to end', client.listeners('end'));
-    client.close();
-    await promise;
+    await Promise.all([
+      once(client, 'end'),
+      client.close()
+    ]);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     disableClientSetup: true
@@ -335,9 +335,7 @@ describe('Client', () => {
   });
 
   testUtils.testWithClient('duplicate should reuse command options', async client => {
-    const duplicate = client.withTypeMapping({
-      [RESP_TYPES.SIMPLE_STRING]: Buffer
-    }).duplicate();
+    const duplicate = client.duplicate();
 
     await duplicate.connect();
 
@@ -351,6 +349,13 @@ describe('Client', () => {
     }
   }, {
     ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      commandOptions: {
+        typeMapping: {
+          [RESP_TYPES.SIMPLE_STRING]: Buffer
+        }
+      }
+    },
     disableClientSetup: true,
   });
 

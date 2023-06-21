@@ -161,9 +161,15 @@ Some command arguments/replies have changed to align more closely to data types 
 - `HELLO`: `protover` moved from the options object to it's own argument, `auth` -> `AUTH`, `clientName` -> `SETNAME`
 - `MODULE LIST`: `version` -> `ver` [^map-keys]
 - `MEMORY STATS`: [^map-keys]
+- `CLIENT TRACKINGINFO`: `flags` in RESP2 - `Set<string>` -> `Array<string>` (to match RESP3 default type mapping)
+- `CLUSETER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
+- `FUNCTION RESTORE`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
+- `CLUSTER RESET`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 
 [^enum-to-constants]: TODO
 
 [^boolean-to-number]: TODO
 
 [^map-keys]: [TODO](https://github.com/redis/node-redis/discussions/2506)
+
+[^future-proofing]: TODO

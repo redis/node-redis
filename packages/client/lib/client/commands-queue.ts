@@ -6,11 +6,14 @@ import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, Pu
 import { AbortError, ErrorReply } from '../errors';
 import { EventEmitter } from 'stream';
 
-export interface CommandOptions {
+export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
   asap?: boolean;
   abortSignal?: AbortSignal;
-  typeMapping?: TypeMapping;
+  /**
+   * Maps bettween RESP and JavaScript types
+   */
+  typeMapping?: T;
 }
 
 export interface CommandWaitingToBeSent extends CommandWaitingForReply {

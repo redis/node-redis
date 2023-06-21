@@ -30,7 +30,9 @@ describe('FUNCTION RESTORE', () => {
         await client.withTypeMapping({
           [RESP_TYPES.BLOB_STRING]: Buffer
         }).functionDump(),
-        'FLUSH'
+        {
+          mode: 'REPLACE'
+        }
       ),
       'OK'
     );
