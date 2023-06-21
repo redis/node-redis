@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import CONFIG_SET from './CONFIG_SET';
 
 describe('CONFIG SET', () => {
@@ -21,4 +22,11 @@ describe('CONFIG SET', () => {
       );
     });
   });
+
+  testUtils.testWithClient('client.configSet', async client => {
+    assert.equal(
+      await client.configSet('maxmemory', '0'),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

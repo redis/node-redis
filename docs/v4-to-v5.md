@@ -165,6 +165,9 @@ Some command arguments/replies have changed to align more closely to data types 
 - `CLUSETER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
 - `FUNCTION RESTORE`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `CLUSTER RESET`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
+- `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants], the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
+- `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
+- `TIME`: `Date` -> `[unixTimestamp: string, microseconds: string]`
 
 [^enum-to-constants]: TODO
 

@@ -5,6 +5,8 @@ type SingleParameter = [parameter: RedisArgument, value: RedisArgument];
 type MultipleParameters = [config: Record<string, RedisArgument>];
 
 export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments(
     ...[parameterOrConfig, value]: SingleParameter | MultipleParameters
   ) {

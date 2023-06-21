@@ -1,9 +1,10 @@
-// import { RedisCommandArguments } from '.';
+import { NumberReply, Command } from '../RESP/types';
 
-// export const IS_READ_ONLY = true;
-
-// export function transformArguments(): RedisCommandArguments {
-//     return ['COMMAND', 'COUNT'];
-// }
-
-// export declare function transformReply(): number;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
+    return ['COMMAND', 'COUNT'];
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

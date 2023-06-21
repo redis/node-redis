@@ -5,16 +5,20 @@ export const FAILOVER_MODES = {
   TAKEOVER: 'TAKEOVER'
 } as const;
 
-export type FailoverModes = typeof FAILOVER_MODES[keyof typeof FAILOVER_MODES];
+export type FailoverMode = typeof FAILOVER_MODES[keyof typeof FAILOVER_MODES];
+
+export interface ClusterFailoverOptions {
+  mode?: FailoverMode;
+}
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(mode?: FailoverModes) {
+  transformArguments(options?: ClusterFailoverOptions) {
     const args = ['CLUSTER', 'FAILOVER'];
 
-    if (mode) {
-      args.push(mode);
+    if (options?.mode) {
+      args.push(options.mode);
     }
 
     return args;

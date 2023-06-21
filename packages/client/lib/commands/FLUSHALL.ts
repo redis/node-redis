@@ -5,12 +5,12 @@ export const REDIS_FLUSH_MODES = {
   SYNC: 'SYNC'
 } as const;
 
-export type RedisFlushModes = typeof REDIS_FLUSH_MODES[keyof typeof REDIS_FLUSH_MODES];
+export type RedisFlushMode = typeof REDIS_FLUSH_MODES[keyof typeof REDIS_FLUSH_MODES];
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
-  transformArguments(mode?: RedisFlushModes) {
+  transformArguments(mode?: RedisFlushMode) {
     const args = ['FLUSHALL'];
     
     if (mode) {

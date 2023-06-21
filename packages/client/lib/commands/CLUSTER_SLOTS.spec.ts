@@ -26,5 +26,5 @@ describe('CLUSTER SLOTS', () => {
         assert.equal(typeof replica.id, 'string');
       }
     }
-  }, GLOBAL.CLUSTERS.OPEN);
+  }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 });

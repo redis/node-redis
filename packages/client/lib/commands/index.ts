@@ -52,7 +52,7 @@ import CLUSTER_FORGET from './CLUSTER_FORGET';
 import CLUSTER_GETKEYSINSLOT from './CLUSTER_GETKEYSINSLOT';
 // import CLUSTER_INFO from './CLUSTER_INFO';
 import CLUSTER_KEYSLOT from './CLUSTER_KEYSLOT';
-// import CLUSTER_LINKS from './CLUSTER_LINKS';
+import CLUSTER_LINKS from './CLUSTER_LINKS';
 import CLUSTER_MEET from './CLUSTER_MEET';
 import CLUSTER_MYID from './CLUSTER_MYID';
 // import CLUSTER_NODES from './CLUSTER_NODES';
@@ -63,6 +63,10 @@ import CLUSTER_SAVECONFIG from './CLUSTER_SAVECONFIG';
 import CLUSTER_SET_CONFIG_EPOCH from './CLUSTER_SET-CONFIG-EPOCH';
 import CLUSTER_SETSLOT from './CLUSTER_SETSLOT';
 import CLUSTER_SLOTS from './CLUSTER_SLOTS';
+import CONFIG_GET from './CONFIG_GET';
+import CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
+import CONFIG_REWRITE from './CONFIG_REWRITE';
+import CONFIG_SET from './CONFIG_SET';
 import COPY from './COPY';
 import DBSIZE from './DBSIZE';
 import DECR from './DECR';
@@ -138,6 +142,9 @@ import INCRBYFLOAT from './INCRBYFLOAT';
 import INFO from './INFO';
 import KEYS from './KEYS';
 import LASTSAVE from './LASTSAVE';
+import LATENCY_DOCTOR from './LATENCY_DOCTOR';
+import LATENCY_GRAPH from './LATENCY_GRAPH';
+import LATENCY_LATEST from './LATENCY_LATEST';
 import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
 import LCS_IDX from './LCS_IDX';
 import LCS_LEN from './LCS_LEN';
@@ -161,7 +168,7 @@ import LTRIM from './LTRIM';
 import MEMORY_DOCTOR from './MEMORY_DOCTOR';
 import MEMORY_MALLOC_STATS from './MEMORY_MALLOC-STATS';
 import MEMORY_PURGE from './MEMORY_PURGE';
-// import MEMORY_STATS from './MEMORY_STATS';
+import MEMORY_STATS from './MEMORY_STATS';
 import MEMORY_USAGE from './MEMORY_USAGE';
 import MGET from './MGET';
 import MODULE_LIST from './MODULE_LIST';
@@ -193,6 +200,7 @@ import RANDOMKEY from './RANDOMKEY';
 import READONLY from './READONLY';
 import RENAME from './RENAME';
 import RENAMENX from './RENAMENX';
+import ROLE from './ROLE';
 import RPOP_COUNT from './RPOP_COUNT';
 import RPOP from './RPOP';
 import RPOPLPUSH from './RPOPLPUSH';
@@ -233,6 +241,8 @@ import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
 import SUNION from './SUNION';
 import SUNIONSTORE from './SUNIONSTORE';
+import SWAPDB from './SWAPDB';
+import TIME from './TIME';
 import TOUCH from './TOUCH';
 import TTL from './TTL';
 import TYPE from './TYPE';
@@ -335,7 +345,7 @@ type CLUSTER_FORGET = typeof import('./CLUSTER_FORGET').default;
 type CLUSTER_GETKEYSINSLOT = typeof import('./CLUSTER_GETKEYSINSLOT').default;
 // type CLUSTER_INFO = typeof import('./CLUSTER_INFO').default;
 type CLUSTER_KEYSLOT = typeof import('./CLUSTER_KEYSLOT').default;
-// type CLUSTER_LINKS = typeof import('./CLUSTER_LINKS').default;
+type CLUSTER_LINKS = typeof import('./CLUSTER_LINKS').default;
 type CLUSTER_MEET = typeof import('./CLUSTER_MEET').default;
 type CLUSTER_MYID = typeof import('./CLUSTER_MYID').default;
 // type CLUSTER_NODES = typeof import('./CLUSTER_NODES').default;
@@ -346,6 +356,10 @@ type CLUSTER_SAVECONFIG = typeof import('./CLUSTER_SAVECONFIG').default;
 type CLUSTER_SET_CONFIG_EPOCH = typeof import('./CLUSTER_SET-CONFIG-EPOCH').default;
 type CLUSTER_SETSLOT = typeof import('./CLUSTER_SETSLOT').default;
 type CLUSTER_SLOTS = typeof import('./CLUSTER_SLOTS').default;
+type CONFIG_GET = typeof import('./CONFIG_GET').default;
+type CONFIG_RESETASTAT = typeof import('./CONFIG_RESETSTAT').default;
+type CONFIG_REWRITE = typeof import('./CONFIG_REWRITE').default;
+type CONFIG_SET = typeof import('./CONFIG_SET').default;
 type COPY = typeof import('./COPY').default;
 type DBSIZE = typeof DBSIZE;
 type DECR = typeof import('./DECR').default;
@@ -421,6 +435,9 @@ type INCRBYFLOAT = typeof import('./INCRBYFLOAT').default;
 type INFO = typeof import('./INFO').default;
 type KEYS = typeof import('./KEYS').default;
 type LASTSAVE = typeof import('./LASTSAVE').default;
+type LATENCY_DOCTOR = typeof import('./LATENCY_DOCTOR').default;
+type LATENCY_GRAPH = typeof import('./LATENCY_GRAPH').default;
+type LATENCY_LATEST = typeof import('./LATENCY_LATEST').default;
 type LCS_IDX_WITHMATCHLEN = typeof import('./LCS_IDX_WITHMATCHLEN').default;
 type LCS_IDX = typeof import('./LCS_IDX').default;
 type LCS_LEN = typeof import('./LCS_LEN').default;
@@ -444,7 +461,7 @@ type LTRIM = typeof import('./LTRIM').default;
 type MEMORY_DOCTOR = typeof import('./MEMORY_DOCTOR').default;
 type MEMORY_MALLOC_STATS = typeof import('./MEMORY_MALLOC-STATS').default;
 type MEMORY_PURGE = typeof import('./MEMORY_PURGE').default;
-// type MEMORY_STATS = typeof import('./MEMORY_STATS').default;
+type MEMORY_STATS = typeof import('./MEMORY_STATS').default;
 type MEMORY_USAGE = typeof import('./MEMORY_USAGE').default;
 type MGET = typeof import('./MGET').default;
 type MODULE_LIST = typeof import('./MODULE_LIST').default;
@@ -477,6 +494,7 @@ type READONLY = typeof import('./READONLY').default;
 type RENAME = typeof import('./RENAME').default;
 type RENAMENX = typeof import('./RENAMENX').default;
 type RPOP_COUNT = typeof import('./RPOP_COUNT').default;
+type ROLE = typeof import('./ROLE').default;
 type RPOP = typeof import('./RPOP').default;
 type RPOPLPUSH = typeof import('./RPOPLPUSH').default;
 type RPUSH = typeof import('./RPUSH').default;
@@ -516,6 +534,8 @@ type SSCAN = typeof import('./SSCAN').default;
 type STRLEN = typeof import('./STRLEN').default;
 type SUNION = typeof import('./SUNION').default;
 type SUNIONSTORE = typeof import('./SUNIONSTORE').default;
+type SWAPDB = typeof import('./SWAPDB').default;
+type TIME = typeof import('./TIME').default;
 type TOUCH = typeof import('./TOUCH').default;
 type TTL = typeof import('./TTL').default;
 type TYPE = typeof import('./TYPE').default;
@@ -672,8 +692,8 @@ type Commands = {
   // clusterInfo: CLUSTER_INFO;
   CLUSTER_KEYSLOT: CLUSTER_KEYSLOT;
   clusterKeySlot: CLUSTER_KEYSLOT;
-  // CLUSTER_LINKS: CLUSTER_LINKS;
-  // clusterLinks: CLUSTER_LINKS;
+  CLUSTER_LINKS: CLUSTER_LINKS;
+  clusterLinks: CLUSTER_LINKS;
   CLUSTER_MEET: CLUSTER_MEET;
   clusterMeet: CLUSTER_MEET;
   CLUSTER_MYID: CLUSTER_MYID;
@@ -694,6 +714,14 @@ type Commands = {
   clusterSetSlot: CLUSTER_SETSLOT;
   CLUSTER_SLOTS: CLUSTER_SLOTS;
   clusterSlots: CLUSTER_SLOTS;
+  CONFIG_GET: CONFIG_GET;
+  configGet: CONFIG_GET;
+  CONFIG_RESETASTAT: CONFIG_RESETASTAT;
+  configResetStat: CONFIG_RESETASTAT;
+  CONFIG_REWRITE: CONFIG_REWRITE;
+  configRewrite: CONFIG_REWRITE;
+  CONFIG_SET: CONFIG_SET;
+  configSet: CONFIG_SET;
   COPY: COPY;
   copy: COPY;
   DBSIZE: DBSIZE;
@@ -844,6 +872,12 @@ type Commands = {
   keys: KEYS;
   LASTSAVE: LASTSAVE;
   lastSave: LASTSAVE;
+  LATENCY_DOCTOR: LATENCY_DOCTOR;
+  latencyDoctor: LATENCY_DOCTOR;
+  LATENCY_GRAPH: LATENCY_GRAPH;
+  latencyGraph: LATENCY_GRAPH;
+  LATENCY_LATEST: LATENCY_LATEST;
+  latencyLatest: LATENCY_LATEST;
   LCS_IDX_WITHMATCHLEN: LCS_IDX_WITHMATCHLEN;
   lcsIdxWithMatchLen: LCS_IDX_WITHMATCHLEN;
   LCS_IDX: LCS_IDX;
@@ -889,8 +923,8 @@ type Commands = {
   memoryMallocStats: MEMORY_MALLOC_STATS;
   MEMORY_PURGE: MEMORY_PURGE;
   memoryPurge: MEMORY_PURGE;
-  // MEMORY_STATS: MEMORY_STATS;
-  // memoryStats: MEMORY_STATS;
+  MEMORY_STATS: MEMORY_STATS;
+  memoryStats: MEMORY_STATS;
   MEMORY_USAGE: MEMORY_USAGE;
   memoryUsage: MEMORY_USAGE;
   MGET: MGET;
@@ -958,6 +992,8 @@ type Commands = {
   renameNX: RENAMENX;
   RPOP_COUNT: RPOP_COUNT;
   rPopCount: RPOP_COUNT;
+  ROLE: ROLE;
+  role: ROLE;
   RPOP: RPOP;
   rPop: RPOP;
   RPOPLPUSH: RPOPLPUSH;
@@ -1036,6 +1072,10 @@ type Commands = {
   sUnion: SUNION;
   SUNIONSTORE: SUNIONSTORE;
   sUnionStore: SUNIONSTORE;
+  SWAPDB: SWAPDB;
+  swapDb: SWAPDB;
+  TIME: TIME;
+  time: TIME;
   TOUCH: TOUCH;
   touch: TOUCH;
   TTL: TTL;
@@ -1239,8 +1279,8 @@ export default {
   // clusterInfo: CLUSTER_INFO,
   CLUSTER_KEYSLOT,
   clusterKeySlot: CLUSTER_KEYSLOT,
-  // CLUSTER_LINKS,
-  // clusterLinks: CLUSTER_LINKS,
+  CLUSTER_LINKS,
+  clusterLinks: CLUSTER_LINKS,
   CLUSTER_MEET,
   clusterMeet: CLUSTER_MEET,
   CLUSTER_MYID,
@@ -1261,6 +1301,14 @@ export default {
   clusterSetSlot: CLUSTER_SETSLOT,
   CLUSTER_SLOTS,
   clusterSlots: CLUSTER_SLOTS,
+  CONFIG_GET,
+  configGet: CONFIG_GET,
+  CONFIG_RESETASTAT,
+  configResetStat: CONFIG_RESETASTAT,
+  CONFIG_REWRITE,
+  configRewrite: CONFIG_REWRITE,
+  CONFIG_SET,
+  configSet: CONFIG_SET,
   COPY,
   copy: COPY,
   DBSIZE,
@@ -1313,8 +1361,8 @@ export default {
   functionList: FUNCTION_LIST,
   FUNCTION_LOAD,
   functionLoad: FUNCTION_LOAD,
-  // FUNCTION_RESTORE,
-  // functionRestore: FUNCTION_RESTORE,
+  FUNCTION_RESTORE,
+  functionRestore: FUNCTION_RESTORE,
   // FUNCTION_STATS,
   // functionStats: FUNCTION_STATS,
   GEOADD,
@@ -1411,6 +1459,12 @@ export default {
   keys: KEYS,
   LASTSAVE,
   lastSave: LASTSAVE,
+  LATENCY_DOCTOR,
+  latencyDoctor: LATENCY_DOCTOR,
+  LATENCY_GRAPH,
+  latencyGraph: LATENCY_GRAPH,
+  LATENCY_LATEST,
+  latencyLatest: LATENCY_LATEST,
   LCS_IDX_WITHMATCHLEN,
   lcsIdxWithMatchLen: LCS_IDX_WITHMATCHLEN,
   LCS_IDX,
@@ -1456,8 +1510,8 @@ export default {
   memoryMallocStats: MEMORY_MALLOC_STATS,
   MEMORY_PURGE,
   memoryPurge: MEMORY_PURGE,
-  // MEMORY_STATS,
-  // memoryStats: MEMORY_STATS,
+  MEMORY_STATS,
+  memoryStats: MEMORY_STATS,
   MEMORY_USAGE,
   memoryUsage: MEMORY_USAGE,
   MGET,
@@ -1525,6 +1579,8 @@ export default {
   renameNX: RENAMENX,
   RPOP_COUNT,
   rPopCount: RPOP_COUNT,
+  ROLE,
+  role: ROLE,
   RPOP,
   rPop: RPOP,
   RPOPLPUSH,
@@ -1603,6 +1659,10 @@ export default {
   sUnion: SUNION,
   SUNIONSTORE,
   sUnionStore: SUNIONSTORE,
+  SWAPDB,
+  swapDb: SWAPDB,
+  TIME,
+  time: TIME,
   TOUCH,
   touch: TOUCH,
   TTL,

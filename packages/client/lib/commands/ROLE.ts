@@ -3,7 +3,7 @@ import { ArrayReply, BlobStringReply, Command, NumberReply } from '../RESP/types
 type MasterRole = [
   role: BlobStringReply<'master'>,
   replicationOffest: NumberReply,
-  replicas: ArrayReply<[host: BlobStringReply, port: NumberReply, replicationOffest: NumberReply]>,
+  replicas: ArrayReply<[host: BlobStringReply, port: BlobStringReply, replicationOffest: BlobStringReply]>
 ];
 
 type SlaveRole = [
@@ -36,8 +36,8 @@ export default {
           replicationOffest,
           replicas: replicas.map(([host, port, replicationOffest]) => ({
             host,
-            port,
-            replicationOffest,
+            port: Number(port),
+            replicationOffest: Number(replicationOffest)
           })),
         };
       }
@@ -48,7 +48,7 @@ export default {
           role,
           master: {
             host: masterHost,
-            port: masterPort,
+            port: masterPort
           },
           state,
           dataReceived,
@@ -59,7 +59,7 @@ export default {
         const [role, masterNames] = reply as SentinelRole;
         return {
           role,
-          masterNames,
+          masterNames
         };
       }
     }
