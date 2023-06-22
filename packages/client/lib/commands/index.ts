@@ -286,6 +286,7 @@ import ZRANGEBYSCORE_WITHSCORES from './ZRANGEBYSCORE_WITHSCORES';
 import ZRANGEBYSCORE from './ZRANGEBYSCORE';
 import ZRANGESTORE from './ZRANGESTORE';
 import ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
+import ZRANK_WITHSCORE from './ZRANK_WITHSCORE';
 import ZRANK from './ZRANK';
 import ZREM from './ZREM';
 import ZREMRANGEBYLEX from './ZREMRANGEBYLEX';
@@ -586,6 +587,7 @@ type ZRANGEBYSCORE_WITHSCORES = typeof import('./ZRANGEBYSCORE_WITHSCORES').defa
 type ZRANGEBYSCORE = typeof import('./ZRANGEBYSCORE').default;
 type ZRANGESTORE = typeof import('./ZRANGESTORE').default;
 type ZREMRANGEBYSCORE = typeof import('./ZREMRANGEBYSCORE').default;
+type ZRANK_WITHSCORE = typeof import('./ZRANK_WITHSCORE').default;
 type ZRANK = typeof import('./ZRANK').default;
 type ZREM = typeof import('./ZREM').default;
 type ZREMRANGEBYLEX = typeof import('./ZREMRANGEBYLEX').default;
@@ -1174,6 +1176,8 @@ type Commands = {
   zRangeByScore: ZRANGEBYSCORE;
   ZRANGESTORE: ZRANGESTORE;
   zRangeStore: ZRANGESTORE;
+  ZRANK_WITHSCORE: ZRANK_WITHSCORE;
+  zRankWithScore: ZRANK_WITHSCORE;
   ZRANK: ZRANK;
   zRank: ZRANK;
   ZREM: ZREM;
@@ -1775,6 +1779,8 @@ export default {
   zRangeByScore: ZRANGEBYSCORE,
   ZRANGESTORE,
   zRangeStore: ZRANGESTORE,
+  ZRANK_WITHSCORE,
+  zRankWithScore: ZRANK_WITHSCORE,
   ZRANK,
   zRank: ZRANK,
   ZREM,
