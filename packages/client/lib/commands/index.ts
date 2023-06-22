@@ -270,14 +270,21 @@ import ZINTER from './ZINTER';
 import ZINTERCARD from './ZINTERCARD';
 import ZINTERSTORE from './ZINTERSTORE';
 import ZLEXCOUNT from './ZLEXCOUNT';
+import ZMPOP from './ZMPOP';
 import ZMSCORE from './ZMSCORE';
+import ZPOPMAX_COUNT from './ZPOPMAX_COUNT';
+import ZPOPMAX from './ZPOPMAX';
+import ZPOPMIN_COUNT from './ZPOPMIN_COUNT';
+import ZPOPMIN from './ZPOPMIN';
 import ZRANDMEMBER_COUNT_WITHSCORES from './ZRANDMEMBER_COUNT_WITHSCORES';
 import ZRANDMEMBER_COUNT from './ZRANDMEMBER_COUNT';
 import ZRANDMEMBER from './ZRANDMEMBER';
+import ZRANGE_WITHSCORES from './ZRANGE_WITHSCORES';
 import ZRANGE from './ZRANGE';
 import ZRANGEBYLEX from './ZRANGEBYLEX';
 import ZRANGEBYSCORE_WITHSCORES from './ZRANGEBYSCORE_WITHSCORES';
 import ZRANGEBYSCORE from './ZRANGEBYSCORE';
+import ZRANGESTORE from './ZRANGESTORE';
 import ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
 import ZRANK from './ZRANK';
 import ZREM from './ZREM';
@@ -563,14 +570,21 @@ type ZINTER = typeof import('./ZINTER').default;
 type ZINTERCARD = typeof import('./ZINTERCARD').default;
 type ZINTERSTORE = typeof import('./ZINTERSTORE').default;
 type ZLEXCOUNT = typeof import('./ZLEXCOUNT').default;
+type ZMPOP = typeof import('./ZMPOP').default;
 type ZMSCORE = typeof import('./ZMSCORE').default;
+type ZPOPMAX_COUNT = typeof import('./ZPOPMAX_COUNT').default;
+type ZPOPMAX = typeof import('./ZPOPMAX').default;
+type ZPOPMIN_COUNT = typeof import('./ZPOPMIN_COUNT').default;
+type ZPOPMIN = typeof import('./ZPOPMIN').default;
 type ZRANDMEMBER_COUNT_WITHSCORES = typeof import('./ZRANDMEMBER_COUNT_WITHSCORES').default;
 type ZRANDMEMBER_COUNT = typeof import('./ZRANDMEMBER_COUNT').default;
 type ZRANDMEMBER = typeof import('./ZRANDMEMBER').default;
+type ZRANGE_WITHSCORES = typeof import('./ZRANGE_WITHSCORES').default;
 type ZRANGE = typeof import('./ZRANGE').default;
 type ZRANGEBYLEX = typeof import('./ZRANGEBYLEX').default;
 type ZRANGEBYSCORE_WITHSCORES = typeof import('./ZRANGEBYSCORE_WITHSCORES').default;
 type ZRANGEBYSCORE = typeof import('./ZRANGEBYSCORE').default;
+type ZRANGESTORE = typeof import('./ZRANGESTORE').default;
 type ZREMRANGEBYSCORE = typeof import('./ZREMRANGEBYSCORE').default;
 type ZRANK = typeof import('./ZRANK').default;
 type ZREM = typeof import('./ZREM').default;
@@ -1130,14 +1144,26 @@ type Commands = {
   zInterStore: ZINTERSTORE;
   ZLEXCOUNT: ZLEXCOUNT;
   zLexCount: ZLEXCOUNT;
+  ZMPOP: ZMPOP;
+  zmPop: ZMPOP;
   ZMSCORE: ZMSCORE;
   zmScore: ZMSCORE;
+  ZPOPMAX_COUNT: ZPOPMAX_COUNT;
+  zPopMaxCount: ZPOPMAX_COUNT;
+  ZPOPMAX: ZPOPMAX;
+  zPopMax: ZPOPMAX;
+  ZPOPMIN_COUNT: ZPOPMIN_COUNT;
+  zPopMinCount: ZPOPMIN_COUNT;
+  ZPOPMIN: ZPOPMIN;
+  zPopMin: ZPOPMIN;
   ZRANDMEMBER_COUNT_WITHSCORES: ZRANDMEMBER_COUNT_WITHSCORES;
   zRandMemberCountWithScores: ZRANDMEMBER_COUNT_WITHSCORES;
   ZRANDMEMBER_COUNT: ZRANDMEMBER_COUNT;
   zRandMemberCount: ZRANDMEMBER_COUNT;
   ZRANDMEMBER: ZRANDMEMBER;
   zRandMember: ZRANDMEMBER;
+  ZRANGE_WITHSCORES: ZRANGE_WITHSCORES;
+  zRangeWithScores: ZRANGE_WITHSCORES;
   ZRANGE: ZRANGE;
   zRange: ZRANGE;
   ZRANGEBYLEX: ZRANGEBYLEX;
@@ -1146,6 +1172,8 @@ type Commands = {
   zRangeByScoreWithScores: ZRANGEBYSCORE_WITHSCORES;
   ZRANGEBYSCORE: ZRANGEBYSCORE;
   zRangeByScore: ZRANGEBYSCORE;
+  ZRANGESTORE: ZRANGESTORE;
+  zRangeStore: ZRANGESTORE;
   ZRANK: ZRANK;
   zRank: ZRANK;
   ZREM: ZREM;
@@ -1717,14 +1745,26 @@ export default {
   zInterStore: ZINTERSTORE,
   ZLEXCOUNT,
   zLexCount: ZLEXCOUNT,
+  ZMPOP,
+  zmPop: ZMPOP,
   ZMSCORE,
   zmScore: ZMSCORE,
+  ZPOPMAX_COUNT,
+  zPopMaxCount: ZPOPMAX_COUNT,
+  ZPOPMAX,
+  zPopMax: ZPOPMAX,
+  ZPOPMIN_COUNT,
+  zPopMinCount: ZPOPMIN_COUNT,
+  ZPOPMIN,
+  zPopMin: ZPOPMIN,
   ZRANDMEMBER_COUNT_WITHSCORES,
   zRandMemberCountWithScores: ZRANDMEMBER_COUNT_WITHSCORES,
   ZRANDMEMBER_COUNT,
   zRandMemberCount: ZRANDMEMBER_COUNT,
   ZRANDMEMBER,
   zRandMember: ZRANDMEMBER,
+  ZRANGE_WITHSCORES,
+  zRangeWithScores: ZRANGE_WITHSCORES,
   ZRANGE,
   zRange: ZRANGE,
   ZRANGEBYLEX,
@@ -1733,6 +1773,8 @@ export default {
   zRangeByScoreWithScores: ZRANGEBYSCORE_WITHSCORES,
   ZRANGEBYSCORE,
   zRangeByScore: ZRANGEBYSCORE,
+  ZRANGESTORE,
+  zRangeStore: ZRANGESTORE,
   ZRANK,
   zRank: ZRANK,
   ZREM,

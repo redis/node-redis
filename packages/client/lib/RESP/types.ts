@@ -308,11 +308,7 @@ export type Resp2Reply<RESP3REPLY> = (
       RESP_TYPES['ARRAY'],
       Resp2Array<Extract<TYPES, Array<any>>>
     > :
-    RespType<
-      RESP_TYPE,
-      DEFAULT,
-      TYPES
-    > :
+    RESP3REPLY :
   RESP3REPLY
 );
 

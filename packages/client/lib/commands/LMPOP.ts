@@ -1,5 +1,26 @@
-import { NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
-import { transformLMPopArguments, LMPopOptions, ListSide, RedisVariadicArgument } from './generic-transformers';
+import { CommandArguments, NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
+import { ListSide, RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
+
+export interface LMPopOptions {
+  COUNT?: number;
+}
+
+export function transformLMPopArguments(
+  args: CommandArguments,
+  keys: RedisVariadicArgument,
+  side: ListSide,
+  options?: LMPopOptions
+): CommandArguments {
+  pushVariadicArgument(args, keys);
+
+  args.push(side);
+
+  if (options?.COUNT) {
+    args.push('COUNT', options.COUNT.toString());
+  }
+
+  return args;
+}
 
 export default {
   FIRST_KEY_INDEX: 2,

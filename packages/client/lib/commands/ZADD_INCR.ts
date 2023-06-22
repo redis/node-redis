@@ -1,6 +1,6 @@
-import { RedisArgument, DoubleReply, NullReply, Command } from '../RESP/types';
+import { RedisArgument, Command } from '../RESP/types';
 import { pushMembers } from './ZADD';
-import { ZMember, transformDoubleArgument, transformNullableDoubleReply } from './generic-transformers';
+import { SortedSetMember, transformNullableDoubleReply } from './generic-transformers';
 
 export interface ZAddOptions {
   condition?: 'NX' | 'XX';
@@ -12,7 +12,7 @@ export default {
   FIRST_KEY_INDEX: 1,
   transformArguments(
     key: RedisArgument,
-    members: ZMember | Array<ZMember>,
+    members: SortedSetMember | Array<SortedSetMember>,
     options?: ZAddOptions
   ) {
     const args = ['ZADD', key];
@@ -35,8 +35,5 @@ export default {
 
     return args;
   },
-  transformReply: {
-    2: transformNullableDoubleReply,
-    3: undefined as unknown as () => DoubleReply | NullReply
-  }
+  transformReply: transformNullableDoubleReply
 } as const satisfies Command;

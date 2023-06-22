@@ -1,12 +1,11 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, Command } from '../RESP/types';
+import ZPOPMIN from './ZPOPMIN';
 
-// export const FIRST_KEY_INDEX = 1;
-
-// export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
-//     return [
-//         'ZPOPMAX',
-//         key
-//     ];
-// }
-
-// export { transformSortedSetMemberNullReply as transformReply } from './generic-transformers';
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument) {
+    return ['ZPOPMAX', key];
+  },
+  transformReply: ZPOPMIN.transformReply
+} as const satisfies Command;

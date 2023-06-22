@@ -15,8 +15,5 @@ export default {
       member
     ];
   },
-  transformReply: {
-    2: transformDoubleReply,
-    3: undefined as unknown as () => DoubleReply
-  }
+  transformReply: transformDoubleReply
 } as const satisfies Command;

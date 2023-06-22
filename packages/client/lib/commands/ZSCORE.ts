@@ -1,5 +1,5 @@
 
-import { DoubleReply, NullReply, Command, RedisArgument } from '../RESP/types';
+import { RedisArgument, Command } from '../RESP/types';
 import { transformNullableDoubleReply } from './generic-transformers';
 
 export default {
@@ -8,8 +8,5 @@ export default {
   transformArguments(key: RedisArgument, member: RedisArgument) {
     return ['ZSCORE', key, member];
   },
-  transformReply: {
-    2: transformNullableDoubleReply,
-    3: undefined as unknown as () => DoubleReply | NullReply
-  }
+  transformReply: transformNullableDoubleReply
 } as const satisfies Command;

@@ -1,5 +1,5 @@
-import { RedisArgument, NumberReply, DoubleReply, Command, CommandArguments } from '../RESP/types';
-import { ZMember, transformDoubleArgument, transformDoubleReply } from './generic-transformers';
+import { RedisArgument, Command } from '../RESP/types';
+import { SortedSetMember, transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
 export interface ZAddOptions {
   condition?: 'NX' | 'XX';
@@ -27,7 +27,7 @@ export default {
   FIRST_KEY_INDEX: 1,
   transformArguments(
     key: RedisArgument,
-    members: ZMember | Array<ZMember>,
+    members: SortedSetMember | Array<SortedSetMember>,
     options?: ZAddOptions
   ) {
     const args = ['ZADD', key];
@@ -56,16 +56,12 @@ export default {
 
     return args;
   },
-  transformReply: {
-    2: transformDoubleReply,
-    3: undefined as unknown as () => NumberReply
-  }
+  transformReply: transformDoubleReply
 } as const satisfies Command;
 
 export function pushMembers(
-  args: CommandArguments, 
-  members: ZMember | Array<ZMember>
-) {
+  args: Array<RedisArgument>,
+  members: SortedSetMember | Array<SortedSetMember>) {
   if (Array.isArray(members)) {
     for (const member of members) {
       pushMember(args, member);
@@ -75,7 +71,10 @@ export function pushMembers(
   }
 }
 
-function pushMember(args: Array<RedisArgument>, member: ZMember) {
+function pushMember(
+  args: Array<RedisArgument>,
+  member: SortedSetMember
+) {
   args.push(
     transformDoubleArgument(member.score),
     member.value

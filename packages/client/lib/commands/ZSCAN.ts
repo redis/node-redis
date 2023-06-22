@@ -1,6 +1,6 @@
-import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 import { ScanCommonOptions, pushScanArguments } from './SCAN';
-import { ZMember, transformDoubleReply } from './generic-transformers';
+import { SortedSetMember, transformDoubleReply, transformSortedSetReply } from './generic-transformers';
 
 export interface HScanEntry {
   field: BlobStringReply;
@@ -17,19 +17,10 @@ export default {
   ) {
     return pushScanArguments(['ZSCAN', key], cursor, options);
   },
-  transformReply([cursor, rawMembers]: [BlobStringReply, Array<BlobStringReply>]) {
-    const members = [];
-    let i = 0;
-    while (i < rawMembers.length) {
-      members.push({
-        value: rawMembers[i++],
-        score: transformDoubleReply(rawMembers[i++])
-      } satisfies ZMember);
-    }
-
+  transformReply([cursor, rawMembers]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
     return {
       cursor: Number(cursor),
-      members
+      members: transformSortedSetReply[2](rawMembers)
     };
   }
 } as const satisfies Command;

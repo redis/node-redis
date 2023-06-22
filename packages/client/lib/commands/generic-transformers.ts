@@ -1,29 +1,6 @@
-import { ArrayReply, BlobStringReply, CommandArguments, DoubleReply, NullReply, RedisArgument, Resp2Reply } from '../RESP/types';
+import { ArrayReply, BlobStringReply, CommandArguments, DoubleReply, NullReply, RedisArgument, Resp2Reply, TuplesReply } from '../RESP/types';
 
 export type BitValue = 0 | 1;
-
-export function transformDoubleReply(reply: BlobStringReply): number {
-  switch (reply.toString()) {
-    case '+inf':
-      return Infinity;
-
-    case '-inf':
-      return -Infinity;
-
-    default:
-      return Number(reply);
-  }
-}
-
-export function transformNullableDoubleReply(reply: BlobStringReply | NullReply): number | null {
-  if (reply === null) return null;
-
-  return transformDoubleReply(reply);
-}
-
-export function transformArrayNullableDoubleReply(reply: Array<BlobStringReply | NullReply>): Array<number | null> {
-  return reply.map(transformNullableDoubleReply);
-}
 
 export function transformDoubleArgument(num: number): string {
   switch (num) {
@@ -43,6 +20,31 @@ export function transformStringDoubleArgument(num: RedisArgument | number): Redi
 
   return transformDoubleArgument(num);
 }
+
+export const transformDoubleReply = {
+  2: (reply: BlobStringReply) => {
+    switch (reply.toString()) {
+      case '+inf':
+        return Infinity;
+  
+      case '-inf':
+        return -Infinity;
+  
+      default:
+        return Number(reply);
+    }
+  },
+  3: undefined as unknown as () => DoubleReply
+};
+
+export const transformNullableDoubleReply = {
+  2: (reply: BlobStringReply | NullReply) => {
+    if (reply === null) return null;
+  
+    return transformDoubleReply[2](reply);
+  },
+  3: undefined as unknown as () => DoubleReply | NullReply
+};
 
 export function transformTuplesReply(
   reply: ArrayReply<BlobStringReply>
@@ -90,27 +92,12 @@ export function transformStreamsMessagesReply(reply: Array<any> | null): Streams
   }));
 }
 
-export interface ZMember {
-  score: number;
+export interface SortedSetMember {
   value: RedisArgument;
+  score: number;
 }
 
-export function transformSortedSetMemberNullReply(
-  reply: [BlobStringReply, BlobStringReply] | []
-): ZMember | null {
-  if (!reply.length) return null;
-
-  return transformSortedSetMemberReply(reply);
-}
-
-export function transformSortedSetMemberReply(
-  reply: [BlobStringReply, BlobStringReply]
-): ZMember {
-  return {
-    value: reply[0],
-    score: transformDoubleReply(reply[1])
-  };
-}
+export type SortedSetSide = 'MIN' | 'MAX';
 
 export const transformSortedSetReply = {
   2: (reply: ArrayReply<BlobStringReply>) => {
@@ -118,13 +105,13 @@ export const transformSortedSetReply = {
     for (let i = 0; i < reply.length; i += 2) {
       members.push({
         value: reply[i],
-        score: transformDoubleReply(reply[i + 1])
+        score: transformDoubleReply[2](reply[i + 1])
       });
     }
 
     return members;
   },
-  3: (reply: ArrayReply<[BlobStringReply, DoubleReply]>) => {
+  3: (reply: ArrayReply<TuplesReply<[BlobStringReply, DoubleReply]>>) => {
     return reply.map(([value, score]) => ({
       value,
       score
@@ -132,43 +119,7 @@ export const transformSortedSetReply = {
   }
 }
 
-export function transformSortedSetWithScoresReply(reply: ArrayReply<BlobStringReply>): Array<ZMember> {
-  const members = [];
-
-  for (let i = 0; i < reply.length; i += 2) {
-    members.push({
-      value: reply[i],
-      score: transformDoubleReply(reply[i + 1])
-    });
-  }
-
-  return members;
-}
-
 export type ListSide = 'LEFT' | 'RIGHT';
-
-export type SortedSetSide = 'MIN' | 'MAX';
-
-export interface LMPopOptions {
-  COUNT?: number;
-}
-
-export function transformLMPopArguments(
-  args: CommandArguments,
-  keys: RedisVariadicArgument,
-  side: ListSide,
-  options?: LMPopOptions
-): CommandArguments {
-  pushVariadicArgument(args, keys);
-
-  args.push(side);
-
-  if (options?.COUNT) {
-    args.push('COUNT', options.COUNT.toString());
-  }
-
-  return args;
-}
 
 export function transformEXAT(EXAT: number | Date): string {
   return (typeof EXAT === 'number' ? EXAT : Math.floor(EXAT.getTime() / 1000)).toString();

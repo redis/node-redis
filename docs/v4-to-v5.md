@@ -168,6 +168,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants], the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
 - `TIME`: `Date` -> `[unixTimestamp: string, microseconds: string]`
+- `ZMPOP`: `{ elements: Array<{ member: string; score: number; }>; }` -> `{ members: Array<{ value: string; score: number; }>; }` to match other sorted set commands (e.g. `ZRANGE`, `ZSCAN`)
 
 [^enum-to-constants]: TODO
 

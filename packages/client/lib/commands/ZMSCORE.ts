@@ -1,5 +1,5 @@
 import { RedisArgument, ArrayReply, NullReply, BlobStringReply, DoubleReply, Command } from '../RESP/types';
-import { pushVariadicArguments, RedisVariadicArgument } from './generic-transformers';
+import { pushVariadicArguments, RedisVariadicArgument, transformNullableDoubleReply } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -12,7 +12,7 @@ export default {
   },
   transformReply: {
     2: (reply: ArrayReply<NullReply | BlobStringReply>) => {
-        return reply.map(score => score === null ? null : Number(score));
+      return reply.map(transformNullableDoubleReply[2]);
     },
     3: undefined as unknown as () => ArrayReply<NullReply | DoubleReply>
   }

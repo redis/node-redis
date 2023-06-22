@@ -1,6 +1,6 @@
 import { Command } from '../RESP/types';
-import { transformLMPopArguments, LMPopOptions, ListSide, RedisVariadicArgument } from './generic-transformers';
-import LMPOP from './LMPOP';
+import { ListSide, RedisVariadicArgument } from './generic-transformers';
+import LMPOP, { LMPopOptions, transformLMPopArguments } from './LMPOP';
 
 export default {
   FIRST_KEY_INDEX: 3,
