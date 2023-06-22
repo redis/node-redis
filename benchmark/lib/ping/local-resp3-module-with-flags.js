@@ -18,7 +18,7 @@ export default async (host) => {
 
   return {
     benchmark() {
-      return client.withFlags({}).module.ping();
+      return client.withTypeMapping({}).module.ping();
     },
     teardown() {
       return client.disconnect();
