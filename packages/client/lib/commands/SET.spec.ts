@@ -21,7 +21,27 @@ describe('SET', () => {
     });
 
     describe('expiration', () => {
-      it('with expiration', () => {
+      it('\'KEEPTTL\'', () => {
+        assert.deepEqual(
+          SET.transformArguments('key', 'value', {
+            expiration: 'KEEPTTL'
+          }),
+          ['SET', 'key', 'value', 'KEEPTTL']
+        );
+      });
+
+      it('{ type: \'KEEPTTL\' }', () => {
+        assert.deepEqual(
+          SET.transformArguments('key', 'value', {
+            expiration: {
+              type: 'KEEPTTL'
+            }
+          }),
+          ['SET', 'key', 'value', 'KEEPTTL']
+        );
+      });
+
+      it('{ type: \'EX\' }', () => {
         assert.deepEqual(
           SET.transformArguments('key', 'value', {
             expiration: {
