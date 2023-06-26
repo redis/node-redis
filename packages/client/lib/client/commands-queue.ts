@@ -43,6 +43,7 @@ export default class RedisCommandsQueue {
     readonly #waitingToBeSent = new LinkedList<CommandWaitingToBeSent>();
     readonly #waitingForReply = new LinkedList<CommandWaitingForReply>();
     readonly #onShardedChannelMoved: OnShardedChannelMoved;
+    readonly #earlyServerError: Function;
 
     readonly #pubSub = new PubSub();
 
@@ -98,10 +99,12 @@ export default class RedisCommandsQueue {
 
     constructor(
         maxLength: number | null | undefined,
-        onShardedChannelMoved: OnShardedChannelMoved
+        onShardedChannelMoved: OnShardedChannelMoved,
+        earlyServerError: Function
     ) {
         this.#maxLength = maxLength;
         this.#onShardedChannelMoved = onShardedChannelMoved;
+        this.#earlyServerError = earlyServerError;
     }
 
     addCommand<T = RedisCommandRawReply>(args: RedisCommandArguments, options?: QueueCommandOptions): Promise<T> {
@@ -237,6 +240,16 @@ export default class RedisCommandsQueue {
     }
 
     onReplyChunk(chunk: Buffer): void {
+        if (this.#waitingForReply.length === 0) {
+            this.#waitingForReply.push({
+                resolve: (obj) => {
+                    this.#earlyServerError(new Error(`unexpected response from server ${obj}`));
+                },
+                reject: e => this.#earlyServerError(e),
+                channelsCounter: 0,
+                returnBuffers: false
+            });
+        }
         this.#decoder.write(chunk);
     }
 
