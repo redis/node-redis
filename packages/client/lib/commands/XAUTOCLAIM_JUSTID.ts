@@ -1,25 +1,25 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
-// import { transformArguments as transformXAutoClaimArguments } from './XAUTOCLAIM';
+import { TuplesReply, BlobStringReply, ArrayReply, Command } from '../RESP/types';
+import XAUTOCLAIM from './XAUTOCLAIM';
 
-// export { FIRST_KEY_INDEX } from './XAUTOCLAIM';
+type XAutoClaimJustIdRawReply = TuplesReply<[
+  nextId: BlobStringReply,
+  messages: ArrayReply<BlobStringReply>,
+  deletedMessages: ArrayReply<BlobStringReply>
+]>;
 
-// export function transformArguments(...args: Parameters<typeof transformXAutoClaimArguments>): RedisCommandArguments {
-//     return [
-//         ...transformXAutoClaimArguments(...args),
-//         'JUSTID'
-//     ];
-// }
-
-// type XAutoClaimJustIdRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
-
-// interface XAutoClaimJustIdReply {
-//     nextId: RedisCommandArgument;
-//     messages: Array<RedisCommandArgument>;
-// }
-
-// export function transformReply(reply: XAutoClaimJustIdRawReply): XAutoClaimJustIdReply {
-//     return {
-//         nextId: reply[0],
-//         messages: reply[1]
-//     };
-// }
+export default {
+  FIRST_KEY_INDEX: XAUTOCLAIM.FIRST_KEY_INDEX,
+  IS_READ_ONLY: XAUTOCLAIM.IS_READ_ONLY,
+  transformArguments(...args: Parameters<typeof XAUTOCLAIM.transformArguments>) {
+    const redisArgs = XAUTOCLAIM.transformArguments(...args);
+    redisArgs.push('JUSTID');
+    return redisArgs;
+  },
+  transformReply(reply: XAutoClaimJustIdRawReply) {
+    return {
+      nextId: reply[0],
+      messages: reply[1],
+      deletedMessages: reply[2]
+    };
+  }
+} as const satisfies Command;

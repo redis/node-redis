@@ -1,43 +1,34 @@
-// import { strict as assert } from 'assert';
-// import testUtils, { GLOBAL } from '../test-utils';
-// import { transformArguments, transformReply } from './XINFO_CONSUMERS';
+import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
+import XINFO_CONSUMERS from './XINFO_CONSUMERS';
 
-// describe('XINFO CONSUMERS', () => {
-//     it('transformArguments', () => {
-//         assert.deepEqual(
-//             transformArguments('key', 'group'),
-//             ['XINFO', 'CONSUMERS', 'key', 'group']
-//         );
-//     });
+describe('XINFO CONSUMERS', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      XINFO_CONSUMERS.transformArguments('key', 'group'),
+      ['XINFO', 'CONSUMERS', 'key', 'group']
+    );
+  });
 
-//     it('transformReply', () => {
-//         assert.deepEqual(
-//             transformReply([
-//                 ['name', 'Alice', 'pending', 1, 'idle', 9104628, 'inactive', 9281221],
-//                 ['name', 'Bob', 'pending', 1, 'idle', 83841983, 'inactive', 7213871]
-//             ]),
-//             [{
-//                 name: 'Alice',
-//                 pending: 1,
-//                 idle: 9104628,
-//                 inactive: 9281221,
-//             }, {
-//                 name: 'Bob',
-//                 pending: 1,
-//                 idle: 83841983,
-//                 inactive: 7213871,
-//             }]
-//         );
-//     });
+  testUtils.testAll('xInfoConsumers', async client => {
+    const [, , reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xGroupCreateConsumer('key', 'group', 'consumer'),
+      client.xInfoConsumers('key', 'group')
+    ]);
 
-//     testUtils.testWithClient('client.xInfoConsumers', async client => {
-//         await client.xGroupCreate('key', 'group', '$', {
-//             MKSTREAM: true
-//         });
-
-//         assert.deepEqual(
-//             await client.xInfoConsumers('key', 'group'),
-//             []
-//         );
-//     }, GLOBAL.SERVERS.OPEN);
-// });
+    for (const consumer of reply) {
+      assert.equal(typeof consumer.name, 'string');
+      assert.equal(typeof consumer.pending, 'number');
+      assert.equal(typeof consumer.idle, 'number');
+      if (testUtils.isVersionGreaterThan([7, 2])) {
+        assert.equal(typeof consumer.inactive, 'number');
+      }
+    }
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+});

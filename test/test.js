@@ -1,26 +1,21 @@
-import { createClient } from '@redis/client';
-import { setTimeout } from 'node:timers/promises';
+import { RESP_TYPES, createClient } from '@redis/client';
 
-const client = createClient();
+const client = createClient({
+  RESP: 3,
+  commandOptions: {
+    typeMapping: {
+      [RESP_TYPES.MAP]: Map
+    }
+  }
+});
 client.on('error', err => console.error(err));
 
 await client.connect();
 
-await client.set('key', 'a'.repeat(1_000));
+console.log(
+  await client.flushAll(),
+  await client.hSet('key', 'field', 'value'),
+  await client.hGetAll('key')
+)
 
-throw 'a';
-
-while (true) {
-  const promises = [];
-  for (let i = 0; i < 20_000; i++) {
-    promises.push(client.sendCommand(['HMSET', `aa${i.toString()}`, 'txt1', Math.random().toString()]));
-  }
-
-  await Promise.all(promises);
-  console.log(
-    await client.dbSize(),
-    (await client.info('MEMORY')).split('\n')[1]
-  );
-
-  await setTimeout(1000);
-}
+client.destroy();

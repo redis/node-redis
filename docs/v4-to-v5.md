@@ -169,6 +169,11 @@ Some command arguments/replies have changed to align more closely to data types 
 - `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
 - `TIME`: `Date` -> `[unixTimestamp: string, microseconds: string]`
 - `ZMPOP`: `{ elements: Array<{ member: string; score: number; }>; }` -> `{ members: Array<{ value: string; score: number; }>; }` to match other sorted set commands (e.g. `ZRANGE`, `ZSCAN`)
+- `XGROUP_CREATECONSUMER`: [^boolean-to-number]
+- `XGROUP_DESTROY`: [^boolean-to-number]
+- `XINFO GROUPS`: `lastDeliveredId` -> `last-delivered-id` [^map-keys]
+- `XINFO STREAM`: `radixTreeKeys` -> `radix-tree-keys`, `radixTreeNodes` -> `radix-tree-nodes`, `lastGeneratedId` -> `last-generated-id`, `maxDeletedEntryId` -> `max-deleted-entry-id`, `entriesAdded` -> `entries-added`, `recordedFirstEntryId` -> `recorded-first-entry-id`, `firstEntry` -> `first-entry`, `lastEntry` -> `last-entry`
+- `XAUTOCLAIM`, `XCLAIM`, `XRANGE`, `XREVRANGE`: `Array<{ name: string; messages: Array<{ id: string; message: Record<string, string> }>; }>` -> `Record<string, Array<{ id: string; message: Record<string, string> }>>`
 
 [^enum-to-constants]: TODO
 

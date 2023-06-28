@@ -2,6 +2,7 @@ import { NumberReply, Command, RedisArgument } from '../RESP/types';
 
 export interface XTrimOptions {
   strategyModifier?: '=' | '~';
+  /** added in 6.2 */
   LIMIT?: number;
 }
 
@@ -12,7 +13,8 @@ export default {
     key: RedisArgument,
     strategy: 'MAXLEN' | 'MINID',
     threshold: number,
-    options?: XTrimOptions) {
+    options?: XTrimOptions
+  ) {
     const args = ['XTRIM', key, strategy];
 
     if (options?.strategyModifier) {

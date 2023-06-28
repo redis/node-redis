@@ -1,5 +1,5 @@
-import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { pushVariadicArgument } from './generic-transformers';
+import { NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
 
 export interface SInterCardOptions {
   LIMIT?: number;
@@ -9,7 +9,7 @@ export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: true,
   transformArguments(
-    keys: Array<RedisArgument> | RedisArgument,
+    keys: RedisVariadicArgument,
     options?: SInterCardOptions | number // `number` for backwards compatibility
   ) {
     const args = pushVariadicArgument(['SINTERCARD'], keys);

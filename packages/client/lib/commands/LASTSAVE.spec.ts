@@ -11,6 +11,9 @@ describe('LASTSAVE', () => {
   });
 
   testUtils.testWithClient('client.lastSave', async client => {
-    assert.ok(typeof await client.lastSave() === 'number');
+    assert.equal(
+      typeof await client.lastSave(),
+      'number'
+    );
   }, GLOBAL.SERVERS.OPEN);
 });

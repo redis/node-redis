@@ -58,39 +58,37 @@ export function transformTuplesReply(
   return message;
 }
 
-export interface StreamMessageReply {
-  id: RedisArgument;
-  message: Record<string, RedisArgument>;
+export type StreamMessageRawReply = TuplesReply<[
+  id: BlobStringReply,
+  message: ArrayReply<BlobStringReply>
+]>;
+
+export function transformStreamMessageReply([id, message]: StreamMessageRawReply) {
+  return {
+    id,
+    message: transformTuplesReply(message)
+  };
 }
 
-export type StreamMessagesReply = Array<StreamMessageReply>;
+export type StreamMessagesRawReply = ArrayReply<StreamMessageRawReply>;
 
-export function transformStreamMessagesReply(reply: Array<any>): StreamMessagesReply {
-  const messages = [];
-
-  for (const [id, message] of reply) {
-    messages.push({
-      id,
-      message: transformTuplesReply(message)
-    });
-  }
-
-  return messages;
+export function transformStreamMessagesReply(reply: StreamMessagesRawReply) {
+  return reply.map(transformStreamMessageReply);
 }
 
-export type StreamsMessagesReply = Array<{
-  name: RedisArgument;
-  messages: StreamMessagesReply;
-}> | null;
+// export type StreamsMessagesReply = Array<{
+//   name: RedisArgument;
+//   messages: StreamMessagesReply;
+// }> | null;
 
-export function transformStreamsMessagesReply(reply: Array<any> | null): StreamsMessagesReply | null {
-  if (reply === null) return null;
+// export function transformStreamsMessagesReply(reply: Array<any> | null): StreamsMessagesReply | null {
+//   if (reply === null) return null;
 
-  return reply.map(([name, rawMessages]) => ({
-    name,
-    messages: transformStreamMessagesReply(rawMessages)
-  }));
-}
+//   return reply.map(([name, rawMessages]) => ({
+//     name,
+//     messages: transformStreamMessagesReply(rawMessages)
+//   }));
+// }
 
 export interface SortedSetMember {
   value: RedisArgument;

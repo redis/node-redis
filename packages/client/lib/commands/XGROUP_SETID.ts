@@ -1,13 +1,26 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-// export const FIRST_KEY_INDEX = 2;
+export interface XGroupSetIdOptions {
+  /** added in 7.0 */
+  ENTRIESREAD?: number;
+}
 
-// export function transformArguments(
-//     key: RedisCommandArgument,
-//     group: RedisCommandArgument,
-//     id: RedisCommandArgument
-// ): RedisCommandArguments {
-//     return ['XGROUP', 'SETID', key, group, id];
-// }
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    group: RedisArgument,
+    id: RedisArgument,
+    options?: XGroupSetIdOptions
+  ) {
+    const args = ['XGROUP', 'SETID', key, group, id];
 
-// export declare function transformReply(): RedisCommandArgument;
+    if (options?.ENTRIESREAD) {
+      args.push('ENTRIESREAD', options.ENTRIESREAD.toString());
+    }
+
+    return args;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

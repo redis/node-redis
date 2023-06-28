@@ -6,22 +6,22 @@ describe('XACK', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        XACK.transformArguments('key', 'group', '1-0'),
-        ['XACK', 'key', 'group', '1-0']
+        XACK.transformArguments('key', 'group', '0-0'),
+        ['XACK', 'key', 'group', '0-0']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        XACK.transformArguments('key', 'group', ['1-0', '2-0']),
-        ['XACK', 'key', 'group', '1-0', '2-0']
+        XACK.transformArguments('key', 'group', ['0-0', '1-0']),
+        ['XACK', 'key', 'group', '0-0', '1-0']
       );
     });
   });
 
   testUtils.testAll('xAck', async client => {
     assert.equal(
-      await client.xAck('key', 'group', '1-0'),
+      await client.xAck('key', 'group', '0-0'),
       0
     );
   }, {

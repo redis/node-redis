@@ -6,7 +6,7 @@ export type RESP_TYPES = typeof RESP_TYPES;
 
 export type RespTypes = RESP_TYPES[keyof RESP_TYPES];
 
-type RespType<
+export type RespType<
   RESP_TYPE extends RespTypes,
   DEFAULT,
   TYPES = never,
@@ -114,7 +114,7 @@ type MapKeyValue = [key: BlobStringReply, value: unknown];
 type MapTuples = Array<MapKeyValue>;
 
 export type TuplesToMapReply<T extends MapTuples> = RespType<
-  RESP_TYPES['MAP'], 
+  RESP_TYPES['MAP'],
   {
     [P in T[number] as P[0] extends BlobStringReply<infer S> ? S : never]: P[1];
   },

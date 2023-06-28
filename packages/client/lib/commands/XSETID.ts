@@ -1,6 +1,8 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 export interface XSetIdOptions {
+  /** added in 7.0 */
   ENTRIESADDED?: number;
+  /** added in 7.0 */
   MAXDELETEDID?: RedisArgument;
 }
 

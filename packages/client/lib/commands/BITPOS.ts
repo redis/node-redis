@@ -13,11 +13,11 @@ export default {
   ) {
     const args = ['BITPOS', key, bit.toString()];
 
-    if (typeof start === 'number') {
+    if (start !== undefined) {
       args.push(start.toString());
     }
 
-    if (typeof end === 'number') {
+    if (end !== undefined) {
       args.push(end.toString());
     }
 

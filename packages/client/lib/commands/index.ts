@@ -253,10 +253,28 @@ import WATCH from './WATCH';
 import XACK from './XACK';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
+import XAUTOCLAIM_JUSTID from './XAUTOCLAIM_JUSTID';
+import XAUTOCLAIM from './XAUTOCLAIM';
+import XCLAIM_JUSTID from './XCLAIM_JUSTID';
+import XCLAIM from './XCLAIM';
 import XDEL from './XDEL';
+import XGROUP_CREATE from './XGROUP_CREATE';
+import XGROUP_CREATECONSUMER from './XGROUP_CREATECONSUMER';
+import XGROUP_DELCONSUMER from './XGROUP_DELCONSUMER';
+import XGROUP_DESTROY from './XGROUP_DESTROY';
+import XGROUP_SETID from './XGROUP_SETID';
+import XINFO_CONSUMERS from './XINFO_CONSUMERS';
+import XINFO_GROUPS from './XINFO_GROUPS';
+import XINFO_STREAM from './XINFO_STREAM';
+import XLEN from './XLEN';
+import XPENDING_RANGE from './XPENDING_RANGE';
+import XPENDING from './XPENDING';
+import XRANGE from './XRANGE';
+import XREAD from './XREAD';
+import XREADGROUP from './XREADGROUP';
+import XREVRANGE from './XREVRANGE';
 import XSETID from './XSETID';
 import XTRIM from './XTRIM';
-import XLEN from './XLEN';
 import ZADD_INCR from './ZADD_INCR';
 import ZADD from './ZADD';
 import ZCARD from './ZCARD';
@@ -554,10 +572,28 @@ type WATCH = typeof import('./WATCH').default;
 type XACK = typeof import('./XACK').default;
 type XADD_NOMKSTREAM = typeof import('./XADD_NOMKSTREAM').default;
 type XADD = typeof import('./XADD').default;
+type XAUTOCLAIM_JUSTID = typeof import('./XAUTOCLAIM_JUSTID').default;
+type XAUTOCLAIM = typeof import('./XAUTOCLAIM').default;
+type XCLAIM_JUSTID = typeof import('./XCLAIM_JUSTID').default;
+type XCLAIM = typeof import('./XCLAIM').default;
 type XDEL = typeof import('./XDEL').default;
+type XGROUP_CREATE = typeof import('./XGROUP_CREATE').default;
+type XGROUP_CREATECONSUMER = typeof import('./XGROUP_CREATECONSUMER').default;
+type XGROUP_DELCONSUMER = typeof import('./XGROUP_DELCONSUMER').default;
+type XGROUP_DESTROY = typeof import('./XGROUP_DESTROY').default;
+type XGROUP_SETID = typeof import('./XGROUP_SETID').default;
+type XINFO_CONSUMERS = typeof import('./XINFO_CONSUMERS').default;
+type XINFO_GROUPS = typeof import('./XINFO_GROUPS').default;
+type XINFO_STREAM = typeof import('./XINFO_STREAM').default;
+type XLEN = typeof import('./XLEN').default;
+type XPENDING_RANGE = typeof import('./XPENDING_RANGE').default;
+type XPENDING = typeof import('./XPENDING').default;
+type XRANGE = typeof import('./XRANGE').default;
+type XREAD = typeof import('./XREAD').default;
+type XREADGROUP = typeof import('./XREADGROUP').default;
+type XREVRANGE = typeof import('./XREVRANGE').default;
 type XSETID = typeof import('./XSETID').default;
 type XTRIM = typeof import('./XTRIM').default;
-type XLEN = typeof import('./XLEN').default;
 type ZADD_INCR = typeof import('./ZADD_INCR').default;
 type ZADD = typeof import('./ZADD').default;
 type ZCARD = typeof import('./ZCARD').default;
@@ -1112,14 +1148,50 @@ type Commands = {
   xAddNoMkStream: XADD_NOMKSTREAM;
   XADD: XADD;
   xAdd: XADD;
+  XAUTOCLAIM_JUSTID: XAUTOCLAIM_JUSTID;
+  xAutoClaimJustId: XAUTOCLAIM_JUSTID;
+  XAUTOCLAIM: XAUTOCLAIM;
+  xAutoClaim: XAUTOCLAIM;
+  XCLAIM_JUSTID: XCLAIM_JUSTID;
+  xClaimJustId: XCLAIM_JUSTID;
+  XCLAIM: XCLAIM;
+  xClaim: XCLAIM;
   XDEL: XDEL;
   xDel: XDEL;
+  XGROUP_CREATE: XGROUP_CREATE;
+  xGroupCreate: XGROUP_CREATE;
+  XGROUP_CREATECONSUMER: XGROUP_CREATECONSUMER;
+  xGroupCreateConsumer: XGROUP_CREATECONSUMER;
+  XGROUP_DELCONSUMER: XGROUP_DELCONSUMER;
+  xGroupDelConsumer: XGROUP_DELCONSUMER;
+  XGROUP_DESTROY: XGROUP_DESTROY;
+  xGroupDestroy: XGROUP_DESTROY;
+  XGROUP_SETID: XGROUP_SETID;
+  xGroupSetId: XGROUP_SETID;
+  XINFO_CONSUMERS: XINFO_CONSUMERS;
+  xInfoConsumers: XINFO_CONSUMERS;
+  XINFO_GROUPS: XINFO_GROUPS;
+  xInfoGroups: XINFO_GROUPS;
+  XINFO_STREAM: XINFO_STREAM;
+  xInfoStream: XINFO_STREAM;
+  XLEN: XLEN;
+  xLen: XLEN;
+  XPENDING_RANGE: XPENDING_RANGE;
+  xPendingRange: XPENDING_RANGE;
+  XPENDING: XPENDING;
+  xPending: XPENDING;
+  XRANGE: XRANGE;
+  xRange: XRANGE;
+  XREAD: XREAD;
+  xRead: XREAD;
+  XREADGROUP: XREADGROUP;
+  xReadGroup: XREADGROUP;
+  XREVRANGE: XREVRANGE;
+  xRevRange: XREVRANGE;
   XSETID: XSETID;
   xSetId: XSETID;
   XTRIM: XTRIM;
   xTrim: XTRIM;
-  XLEN: XLEN;
-  xLen: XLEN;
   ZADD_INCR: ZADD_INCR;
   zAddIncr: ZADD_INCR;
   ZADD: ZADD;
@@ -1715,14 +1787,50 @@ export default {
   xAddNoMkStream: XADD_NOMKSTREAM,
   XADD,
   xAdd: XADD,
+  XAUTOCLAIM_JUSTID,
+  xAutoClaimJustId: XAUTOCLAIM_JUSTID,
+  XAUTOCLAIM,
+  xAutoClaim: XAUTOCLAIM,
+  XCLAIM_JUSTID,
+  xClaimJustId: XCLAIM_JUSTID,
+  XCLAIM,
+  xClaim: XCLAIM,
   XDEL,
   xDel: XDEL,
+  XGROUP_CREATE,
+  xGroupCreate: XGROUP_CREATE,
+  XGROUP_CREATECONSUMER,
+  xGroupCreateConsumer: XGROUP_CREATECONSUMER,
+  XGROUP_DELCONSUMER,
+  xGroupDelConsumer: XGROUP_DELCONSUMER,
+  XGROUP_DESTROY,
+  xGroupDestroy: XGROUP_DESTROY,
+  XGROUP_SETID,
+  xGroupSetId: XGROUP_SETID,
+  XINFO_CONSUMERS,
+  xInfoConsumers: XINFO_CONSUMERS,
+  XINFO_GROUPS,
+  xInfoGroups: XINFO_GROUPS,
+  XINFO_STREAM,
+  xInfoStream: XINFO_STREAM,
+  XLEN,
+  xLen: XLEN,
+  XPENDING_RANGE,
+  xPendingRange: XPENDING_RANGE,
+  XPENDING,
+  xPending: XPENDING,
+  XRANGE,
+  xRange: XRANGE,
+  XREAD,
+  xRead: XREAD,
+  XREADGROUP,
+  xReadGroup: XREADGROUP,
+  XREVRANGE,
+  xRevRange: XREVRANGE,
   XSETID,
   xSetId: XSETID,
   XTRIM,
   xTrim: XTRIM,
-  XLEN,
-  xLen: XLEN,
   ZADD_INCR,
   zAddIncr: ZADD_INCR,
   ZADD,

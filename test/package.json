@@ -10,10 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@redis/client": "^1.5.7",
-    "ioredis": "^5.3.2",
-    "local": "file:../packages/client",
-    "redis": "^4.6.6",
-    "redis-om": "^0.3.6"
+    "@redis/client": "next"
   }
 }

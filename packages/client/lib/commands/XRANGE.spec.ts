@@ -1,30 +1,39 @@
-// import { strict as assert } from 'assert';
-// import testUtils, { GLOBAL } from '../test-utils';
-// import { transformArguments } from './XRANGE';
+import { strict as assert } from 'assert';
+import testUtils, { GLOBAL } from '../test-utils';
+import XRANGE from './XRANGE';
 
-// describe('XRANGE', () => {
-//     describe('transformArguments', () => {
-//         it('simple', () => {
-//             assert.deepEqual(
-//                 transformArguments('key', '-', '+'),
-//                 ['XRANGE', 'key', '-', '+']
-//             );
-//         });
+describe('XRANGE', () => {
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        XRANGE.transformArguments('key', '-', '+'),
+        ['XRANGE', 'key', '-', '+']
+      );
+    });
 
-//         it('with COUNT', () => {
-//             assert.deepEqual(
-//                 transformArguments('key', '-', '+', {
-//                     COUNT: 1
-//                 }),
-//                 ['XRANGE', 'key', '-', '+', 'COUNT', '1']
-//             );
-//         });
-//     });
+    it('with COUNT', () => {
+      assert.deepEqual(
+        XRANGE.transformArguments('key', '-', '+', {
+          COUNT: 1
+        }),
+        ['XRANGE', 'key', '-', '+', 'COUNT', '1']
+      );
+    });
+  });
 
-//     testUtils.testWithClient('client.xRange', async client => {
-//         assert.deepEqual(
-//             await client.xRange('key', '+', '-'),
-//             []
-//         );
-//     }, GLOBAL.SERVERS.OPEN);
-// });
+  testUtils.testAll('xRange', async client => {
+    const message = { field: 'value' },
+      [id, reply] = await Promise.all([
+        client.xAdd('key', '*', message),
+        client.xRange('key', '-', '+')
+      ]);
+    
+    assert.deepEqual(reply, [{
+      id,
+      message
+    }]);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+});

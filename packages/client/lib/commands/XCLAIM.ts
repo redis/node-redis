@@ -1,48 +1,54 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
-// import { pushVariadicArguments } from './generic-transformers';
+import { RedisArgument, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments, transformStreamMessagesReply } from './generic-transformers';
 
-// export const FIRST_KEY_INDEX = 1;
+export interface XClaimOptions {
+  IDLE?: number;
+  TIME?: number | Date;
+  RETRYCOUNT?: number;
+  FORCE?: boolean;
+  LASTID?: RedisArgument;
+}
 
-// export interface XClaimOptions {
-//     IDLE?: number;
-//     TIME?: number | Date;
-//     RETRYCOUNT?: number;
-//     FORCE?: true;
-// }
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    group: RedisArgument,
+    consumer: RedisArgument,
+    minIdleTime: number,
+    id: RedisVariadicArgument,
+    options?: XClaimOptions
+  ) {
+    const args = pushVariadicArguments(
+      ['XCLAIM', key, group, consumer, minIdleTime.toString()],
+      id
+    );
 
-// export function transformArguments(
-//     key: RedisCommandArgument,
-//     group: RedisCommandArgument,
-//     consumer: RedisCommandArgument,
-//     minIdleTime: number,
-//     id: RedisCommandArgument | Array<RedisCommandArgument>,
-//     options?: XClaimOptions
-// ): RedisCommandArguments {
-//     const args =  pushVariadicArguments(
-//         ['XCLAIM', key, group, consumer, minIdleTime.toString()],
-//         id
-//     );
+    if (options?.IDLE !== undefined) {
+      args.push('IDLE', options.IDLE.toString());
+    }
 
-//     if (options?.IDLE) {
-//         args.push('IDLE', options.IDLE.toString());
-//     }
+    if (options?.TIME !== undefined) {
+      args.push(
+        'TIME',
+        (options.TIME instanceof Date ? options.TIME.getTime() : options.TIME).toString()
+      );
+    }
 
-//     if (options?.TIME) {
-//         args.push(
-//             'TIME',
-//             (typeof options.TIME === 'number' ? options.TIME : options.TIME.getTime()).toString()
-//         );
-//     }
+    if (options?.RETRYCOUNT !== undefined) {
+      args.push('RETRYCOUNT', options.RETRYCOUNT.toString());
+    }
 
-//     if (options?.RETRYCOUNT) {
-//         args.push('RETRYCOUNT', options.RETRYCOUNT.toString());
-//     }
+    if (options?.FORCE) {
+      args.push('FORCE');
+    }
 
-//     if (options?.FORCE) {
-//         args.push('FORCE');
-//     }
+    if (options?.LASTID !== undefined) {
+      args.push('LASTID', options.LASTID);
+    }
 
-//     return args;
-// }
-
-// export { transformStreamMessagesReply as transformReply } from './generic-transformers';
+    return args;
+  },
+  transformReply: transformStreamMessagesReply
+} as const satisfies Command;

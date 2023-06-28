@@ -12,13 +12,13 @@ export default {
   ) {
     const args = ['LPOS', key, element];
 
-    if (typeof options?.RANK === 'number') {
+    if (options?.RANK !== undefined) {
       args.push('RANK', options.RANK.toString());
     }
 
     args.push('COUNT', count.toString());
 
-    if (typeof options?.MAXLEN === 'number') {
+    if (options?.MAXLEN !== undefined) {
       args.push('MAXLEN', options.MAXLEN.toString());
     }
 

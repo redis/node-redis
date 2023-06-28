@@ -1,57 +1,46 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { Command, RedisArgument } from '../RESP/types';
+import XREAD, { XReadStreams, pushXReadStreams } from './XREAD';
 
-// export interface XReadGroupStream {
-//     key: RedisCommandArgument;
-//     id: RedisCommandArgument;
-// }
+export interface XReadGroupOptions {
+  COUNT?: number;
+  BLOCK?: number;
+  NOACK?: boolean;
+}
 
-// export interface XReadGroupOptions {
-//     COUNT?: number;
-//     BLOCK?: number;
-//     NOACK?: true;
-// }
+export default {
+  FIRST_KEY_INDEX(
+    _group: RedisArgument,
+    _consumer: RedisArgument,
+    streams: XReadStreams
+  ) {
+    return XREAD.FIRST_KEY_INDEX(streams);
+  },
+  IS_READ_ONLY: true,
+  transformArguments(
+    group: RedisArgument,
+    consumer: RedisArgument,
+    streams: XReadStreams,
+    options?: XReadGroupOptions
+  ) {
+    const args = ['XREADGROUP', group, consumer];
 
-// export const FIRST_KEY_INDEX = (
-//     _group: RedisCommandArgument,
-//     _consumer: RedisCommandArgument,
-//     streams: Array<XReadGroupStream> | XReadGroupStream
-// ): RedisCommandArgument => {
-//     return Array.isArray(streams) ? streams[0].key : streams.key;
-// };
+    if (options?.COUNT !== undefined) {
+      args.push('COUNT', options.COUNT.toString());
+    }
 
-// export const IS_READ_ONLY = true;
+    if (options?.BLOCK !== undefined) {
+      args.push('BLOCK', options.BLOCK.toString());
+    }
 
-// export function transformArguments(
-//     group: RedisCommandArgument,
-//     consumer: RedisCommandArgument,
-//     streams: Array<XReadGroupStream> | XReadGroupStream,
-//     options?: XReadGroupOptions
-// ): RedisCommandArguments {
-//     const args = ['XREADGROUP', 'GROUP', group, consumer];
+    if (options?.NOACK) {
+      args.push('NOACK');
+    }
 
-//     if (options?.COUNT) {
-//         args.push('COUNT', options.COUNT.toString());
-//     }
+    pushXReadStreams(args, streams);
 
-//     if (typeof options?.BLOCK === 'number') {
-//         args.push('BLOCK', options.BLOCK.toString());
-//     }
-
-//     if (options?.NOACK) {
-//         args.push('NOACK');
-//     }
-
-//     args.push('STREAMS');
-
-//     const streamsArray = Array.isArray(streams) ? streams : [streams],
-//         argsLength = args.length;
-//     for (let i = 0; i < streamsArray.length; i++) {
-//         const stream = streamsArray[i];
-//         args[argsLength + i] = stream.key;
-//         args[argsLength + streamsArray.length + i] = stream.id;
-//     }
-
-//     return args;
-// }
-
-// export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
+    return args;
+  },
+  // export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
+  // TODO
+  transformReply: undefined as unknown as () => unknown
+} as const satisfies Command;

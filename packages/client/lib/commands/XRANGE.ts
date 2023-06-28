@@ -1,26 +1,29 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, Command } from '../RESP/types';
+import { transformStreamMessagesReply } from './generic-transformers';
 
-// export const FIRST_KEY_INDEX = 1;
+export interface XRangeOptions {
+  COUNT?: number;
+}
 
-// export const IS_READ_ONLY = true;
+export function transformXRangeArguments(
+  command: RedisArgument,
+  key: RedisArgument,
+  start: RedisArgument,
+  end: RedisArgument,
+  options?: XRangeOptions
+) {
+  const args = [command, key, start, end];
 
-// interface XRangeOptions {
-//     COUNT?: number;
-// }
+  if (options?.COUNT) {
+    args.push('COUNT', options.COUNT.toString());
+  }
 
-// export function transformArguments(
-//     key: RedisCommandArgument,
-//     start: RedisCommandArgument,
-//     end: RedisCommandArgument,
-//     options?: XRangeOptions
-// ): RedisCommandArguments {
-//     const args = ['XRANGE', key, start, end];
+  return args;
+}
 
-//     if (options?.COUNT) {
-//         args.push('COUNT', options.COUNT.toString());
-//     }
-
-//     return args;
-// }
-
-// export { transformStreamMessagesReply as transformReply } from './generic-transformers';
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments: transformXRangeArguments.bind(undefined, 'XRANGE'),
+  transformReply: transformStreamMessagesReply
+} as const satisfies Command;
