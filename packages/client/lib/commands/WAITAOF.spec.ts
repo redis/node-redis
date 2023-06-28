@@ -16,7 +16,7 @@ describe('WAITAOF', () => {
 
     testUtils.testWithClient('client.wait', async client => {
         assert.equal(
-            await client.waitaof(1, 0, 0),
+            await client.waitAOF(1, 0, 0),
             [1, 0]
         );
     }, GLOBAL.SERVERS.OPEN);

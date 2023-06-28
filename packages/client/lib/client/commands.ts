@@ -361,5 +361,5 @@ export default {
     WAIT,
     wait: WAIT,
     WAITAOF,
-    waitaof: WAITAOF
+    waitAOF: WAITAOF
 };
