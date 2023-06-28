@@ -236,7 +236,12 @@ export default class RedisCommandsQueue {
         return encoded;
     }
 
+    private currentCommandWantsStream() {
+        return false;   /* TODO */
+    }
+
     onReplyChunk(chunk: Buffer): void {
+        this.#decoder.wantStream( currentCommandWantsStream() );
         this.#decoder.write(chunk);
     }
 
