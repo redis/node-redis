@@ -60,7 +60,7 @@ export default class RESP2Decoder {
     }
 
     wantStream(want: boolean) {
-        this.wantStream = want;
+        this.#wantStream = want;
     }
 
     private writeStream(chunk: Buffer): void {
@@ -88,7 +88,7 @@ export default class RESP2Decoder {
     }
 
     write(chunk: Buffer): void {
-        if (this.wantStream)
+        if (this.#wantStream)
             this.writeStream(chunk);
 
         while (this.cursor < chunk.length) {
