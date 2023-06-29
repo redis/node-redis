@@ -11,31 +11,24 @@ export function transformLMPopArguments(
   side: ListSide,
   options?: LMPopOptions
 ): CommandArguments {
-  pushVariadicArgument(args, keys);
+  args = pushVariadicArgument(args, keys);
 
   args.push(side);
 
-  if (options?.COUNT) {
+  if (options?.COUNT !== undefined) {
     args.push('COUNT', options.COUNT.toString());
   }
 
   return args;
 }
 
+export type LMPopArguments = typeof transformLMPopArguments extends (_: any, ...args: infer T) => any ? T : never;
+
 export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(
-    keys: RedisVariadicArgument,
-    side: ListSide,
-    options?: LMPopOptions
-  ) {
-    return transformLMPopArguments(
-      ['LMPOP'],
-      keys,
-      side,
-      options
-    );
+  transformArguments(...args: LMPopArguments) {
+    return transformLMPopArguments(['LMPOP'], ...args);
   },
   transformReply: undefined as unknown as () => NullReply | TuplesReply<[
     key: BlobStringReply,

@@ -14,11 +14,14 @@ describe('ZPOPMIN COUNT', () => {
     const members = [{
       value: '1',
       score: 1
+    }, {
+      value: '2',
+      score: 2
     }];
 
     const [ , reply] = await Promise.all([
       client.zAdd('key', members),
-      client.zPopMinCount('key', 1)
+      client.zPopMinCount('key', members.length)
     ]);
 
     assert.deepEqual(reply, members);

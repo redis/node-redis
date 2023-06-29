@@ -81,7 +81,7 @@ describe('ZADD INCR', () => {
   testUtils.testAll('zAddIncr', async client => {
     assert.equal(
       await client.zAddIncr('key', {
-        value: '1',
+        value: 'a',
         score: 1
       }),
       1

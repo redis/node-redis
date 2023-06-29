@@ -133,7 +133,7 @@ describe('ZADD', () => {
   testUtils.testAll('zAdd', async client => {
     assert.equal(
       await client.zAdd('key', {
-        value: '1',
+        value: 'a',
         score: 1
       }),
       1

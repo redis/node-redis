@@ -22,11 +22,17 @@ describe('XRANGE', () => {
   });
 
   testUtils.testAll('xRange', async client => {
-    const message = { field: 'value' },
-      [id, reply] = await Promise.all([
-        client.xAdd('key', '*', message),
-        client.xRange('key', '-', '+')
-      ]);
+    const message = Object.create(null, {
+      field: {
+        value: 'value',
+        enumerable: true
+      }
+    });
+
+    const [id, reply] = await Promise.all([
+      client.xAdd('key', '*', message),
+      client.xRange('key', '-', '+')
+    ]);
     
     assert.deepEqual(reply, [{
       id,

@@ -8,7 +8,7 @@ export default {
     key: RedisVariadicArgument,
     timeout: number
   ) {
-    const args = pushVariadicArguments(['BRPOP'], key);
+    const args = pushVariadicArguments(['BLPOP'], key);
     args.push(timeout.toString());
     return args;
   },

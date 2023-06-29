@@ -59,7 +59,7 @@ describe('XPENDING RANGE', () => {
     assert.equal(reply[0].id, id);
     assert.equal(reply[0].consumer, 'consumer');
     assert.equal(typeof reply[0].millisecondsSinceLastDelivery, 'number');
-    assert.equal(reply[0].deliveriesCounter, '1');
+    assert.equal(reply[0].deliveriesCounter, 1);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

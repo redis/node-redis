@@ -22,7 +22,7 @@ export default {
     streams: XReadStreams,
     options?: XReadGroupOptions
   ) {
-    const args = ['XREADGROUP', group, consumer];
+    const args = ['XREADGROUP', 'GROUP', group, consumer];
 
     if (options?.COUNT !== undefined) {
       args.push('COUNT', options.COUNT.toString());

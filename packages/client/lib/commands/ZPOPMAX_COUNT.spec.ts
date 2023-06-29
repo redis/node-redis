@@ -14,14 +14,17 @@ describe('ZPOPMAX COUNT', () => {
     const members = [{
       value: '1',
       score: 1
+    }, {
+      value: '2',
+      score: 2
     }];
 
     const [ , reply] = await Promise.all([
       client.zAdd('key', members),
-      client.zPopMaxCount('key', 1)
+      client.zPopMaxCount('key', members.length)
     ]);
 
-    assert.deepEqual(reply, members);
+    assert.deepEqual(reply, members.reverse());
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.SERVERS.OPEN

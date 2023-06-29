@@ -20,12 +20,15 @@ describe('XINFO STREAM', () => {
 
     assert.deepEqual(reply, {
       length: 0,
-      radixTreeKeys: 0,
-      radixTreeNodes: 1,
+      'radix-tree-keys': 0,
+      'radix-tree-nodes': 1,
+      'last-generated-id': '0-0',
+      'max-deleted-entry-id': '0-0',
+      'entries-added': 0,
+      'recorded-first-entry-id': '0-0',
       groups: 1,
-      lastGeneratedId: '0-0',
-      firstEntry: null,
-      lastEntry: null
+      'first-entry': null,
+      'last-entry': null
     });
   }, {
     client: GLOBAL.SERVERS.OPEN,

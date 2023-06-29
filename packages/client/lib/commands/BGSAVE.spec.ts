@@ -23,7 +23,9 @@ describe('BGSAVE', () => {
 
   testUtils.testWithClient('client.bgSave', async client => {
     assert.equal(
-      typeof await client.bgSave(),
+      typeof await client.bgSave({
+        SCHEDULE: true // using `SCHEDULE` to make sure it won't throw an error
+      }),
       'string'
     );
   }, GLOBAL.SERVERS.OPEN);

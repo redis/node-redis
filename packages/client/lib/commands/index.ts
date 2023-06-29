@@ -26,6 +26,9 @@ import BLMPOP from './BLMPOP';
 import BLPOP from './BLPOP';
 import BRPOP from './BRPOP';
 import BRPOPLPUSH from './BRPOPLPUSH';
+import BZMPOP from './BZMPOP';
+import BZPOPMAX from './BZPOPMAX';
+import BZPOPMIN from './BZPOPMIN';
 import CLIENT_CACHING from './CLIENT_CACHING';
 import CLIENT_GETNAME from './CLIENT_GETNAME';
 import CLIENT_GETREDIR from './CLIENT_GETREDIR';
@@ -345,6 +348,9 @@ type BLMPOP = typeof import('./BLMPOP').default;
 type BLPOP = typeof import('./BLPOP').default;
 type BRPOP = typeof import('./BRPOP').default;
 type BRPOPLPUSH = typeof import('./BRPOPLPUSH').default;
+type BZMPOP = typeof import('./BZMPOP').default;
+type BZPOPMAX = typeof import('./BZPOPMAX').default;
+type BZPOPMIN = typeof import('./BZPOPMIN').default;
 type CLIENT_CACHING = typeof import('./CLIENT_CACHING').default;
 type CLIENT_GETNAME = typeof import('./CLIENT_GETNAME').default;
 type CLIENT_GETREDIR = typeof import('./CLIENT_GETREDIR').default;
@@ -692,6 +698,12 @@ type Commands = {
   brPop: BRPOP;
   BRPOPLPUSH: BRPOPLPUSH;
   brPopLPush: BRPOPLPUSH;
+  BZMPOP: BZMPOP;
+  bzmPop: BZMPOP;
+  BZPOPMAX: BZPOPMAX;
+  bzPopMax: BZPOPMAX;
+  BZPOPMIN: BZPOPMIN;
+  bzPopMin: BZPOPMIN;
   CLIENT_CACHING: CLIENT_CACHING;
   clientCaching: CLIENT_CACHING;
   CLIENT_GETNAME: CLIENT_GETNAME;
@@ -1331,6 +1343,12 @@ export default {
   brPop: BRPOP,
   BRPOPLPUSH,
   brPopLPush: BRPOPLPUSH,
+  BZMPOP,
+  bzmPop: BZMPOP,
+  BZPOPMAX,
+  bzPopMax: BZPOPMAX,
+  BZPOPMIN,
+  bzPopMin: BZPOPMIN,
   CLIENT_CACHING,
   clientCaching: CLIENT_CACHING,
   CLIENT_GETNAME,

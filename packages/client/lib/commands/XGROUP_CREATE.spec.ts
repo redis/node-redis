@@ -1,19 +1,19 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XGROUP_CREATE';
+import XGROUP_CREATE from './XGROUP_CREATE';
 
 describe('XGROUP CREATE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        transformArguments('key', 'group', '$'),
+        XGROUP_CREATE.transformArguments('key', 'group', '$'),
         ['XGROUP', 'CREATE', 'key', 'group', '$']
       );
     });
 
     it('with MKSTREAM', () => {
       assert.deepEqual(
-        transformArguments('key', 'group', '$', {
+        XGROUP_CREATE.transformArguments('key', 'group', '$', {
           MKSTREAM: true
         }),
         ['XGROUP', 'CREATE', 'key', 'group', '$', 'MKSTREAM']
@@ -22,7 +22,7 @@ describe('XGROUP CREATE', () => {
 
     it('with ENTRIESREAD', () => {
       assert.deepEqual(
-        transformArguments('key', 'group', '$', {
+        XGROUP_CREATE.transformArguments('key', 'group', '$', {
           ENTRIESREAD: 1
         }),
         ['XGROUP', 'CREATE', 'key', 'group', '$', 'ENTRIESREAD', '1']
@@ -39,6 +39,6 @@ describe('XGROUP CREATE', () => {
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.SERVERS.OPEN
+    cluster: GLOBAL.CLUSTERS.OPEN
   });
 });

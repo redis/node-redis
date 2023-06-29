@@ -1,29 +1,39 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
-// import { pushVariadicArguments, transformDoubleReply, ZMember } from './generic-transformers';
+import { RedisArgument, Command, NullReply, TuplesReply, BlobStringReply, DoubleReply } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-// export const FIRST_KEY_INDEX = 1;
+export function transformBZPopArguments(
+  command: RedisArgument,
+  key: RedisVariadicArgument,
+  timeout: number
+) {
+  const args = pushVariadicArguments([command], key);
+  args.push(timeout.toString());
+  return args;
+}
 
-// export function transformArguments(
-//     key: RedisCommandArgument | Array<RedisCommandArgument>,
-//     timeout: number
-// ): RedisCommandArguments {
-//     const args = pushVariadicArguments(['BZPOPMAX'], key);
+export type BZPopArguments = typeof transformBZPopArguments extends (_: any, ...args: infer T) => any ? T : never;
 
-//     args.push(timeout.toString());
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(...args: BZPopArguments) {
+    return transformBZPopArguments('BZPOPMAX', ...args);
+  },
+  transformReply: {
+    2: (reply: NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>) => {
+      return reply === null ? null : {
+        key: reply[0],
+        value: reply[1],
+        score: Number(reply[2])
+      };
+    },
+    3: (reply: NullReply | TuplesReply<[BlobStringReply, BlobStringReply, DoubleReply]>) => {
+      return reply === null ? null : {
+        key: reply[0],
+        value: reply[1],
+        score: reply[2]
+      };
+    }
+  }
+} as const satisfies Command;
 
-//     return args;
-// }
-
-// type ZMemberRawReply = [key: RedisCommandArgument, value: RedisCommandArgument, score: RedisCommandArgument] | null;
-
-// type BZPopMaxReply = (ZMember & { key: RedisCommandArgument }) | null;
-
-// export function transformReply(reply: ZMemberRawReply): BZPopMaxReply | null {
-//     if (!reply) return null;
-
-//     return {
-//         key: reply[0],
-//         value: reply[1],
-//         score: transformDoubleReply(reply[2])
-//     };
-// }

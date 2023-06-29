@@ -23,11 +23,26 @@ describe('LMPOP', () => {
     });
   });
 
-  testUtils.testAll('lmPop', async client => {
-    assert.deepEqual(
+  testUtils.testAll('lmPop - null', async client => {
+    assert.equal(
       await client.lmPop('key', 'RIGHT'),
       null
     );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.SERVERS.OPEN
+  });
+
+  testUtils.testAll('lmPop - with member', async client => {
+    const [, reply] = await Promise.all([
+      client.lPush('key', 'element'),
+      client.lmPop('key', 'RIGHT')
+    ]);
+
+    assert.deepEqual(reply, [
+      'key',
+      ['element']
+    ]);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.SERVERS.OPEN

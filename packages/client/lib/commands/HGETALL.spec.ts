@@ -23,8 +23,7 @@ describe('HGETALL', () => {
       Object.create(null, {
         field: {
           value: 'value',
-          enumerable: true,
-          writable: true
+          enumerable: true
         }
       })
     );

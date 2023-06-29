@@ -1,4 +1,4 @@
-import { NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, Resp2Reply, Command } from '../RESP/types';
+import { NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, Resp2Reply, Command, RedisArgument } from '../RESP/types';
 import { pushVariadicArgument, RedisVariadicArgument, SortedSetSide, transformSortedSetReply } from './generic-transformers';
 
 export interface ZMPopOptions {
@@ -13,23 +13,30 @@ export type ZMPopRawReply = NullReply | TuplesReply<[
   ]>>
 ]>;
 
+export function transformZMPopArguments(
+  args: Array<RedisArgument>,
+  keys: RedisVariadicArgument,
+  side: SortedSetSide,
+  options?: ZMPopOptions
+) {
+  args = pushVariadicArgument(args, keys);
+
+  args.push(side);
+
+  if (options?.COUNT) {
+    args.push('COUNT', options.COUNT.toString());
+  }
+
+  return args;
+}
+
+export type ZMPopArguments = typeof transformZMPopArguments extends (_: any, ...args: infer T) => any ? T : never;
+
 export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(
-    keys: RedisVariadicArgument,
-    side: SortedSetSide,
-    options?: ZMPopOptions
-  ) {
-    const args = pushVariadicArgument(['ZMPOP'], keys);
-
-    args.push(side);
-
-    if (options?.COUNT) {
-      args.push('COUNT', options.COUNT.toString());
-    }
-
-    return args;
+  transformArguments(...args: ZMPopArguments) {
+    return transformZMPopArguments(['ZMPOP'], ...args);
   },
   transformReply: {
     2: (reply: Resp2Reply<ZMPopRawReply>) => {

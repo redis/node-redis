@@ -1,21 +1,16 @@
 import { Command } from '../RESP/types';
-import { ListSide, RedisVariadicArgument } from './generic-transformers';
-import LMPOP, { LMPopOptions, transformLMPopArguments } from './LMPOP';
+import LMPOP, { LMPopArguments, transformLMPopArguments } from './LMPOP';
 
 export default {
   FIRST_KEY_INDEX: 3,
   IS_READ_ONLY: false,
   transformArguments(
     timeout: number,
-    keys: RedisVariadicArgument,
-    side: ListSide,
-    options?: LMPopOptions
+    ...args: LMPopArguments
   ) {
     return transformLMPopArguments(
       ['BLMPOP', timeout.toString()],
-      keys,
-      side,
-      options
+      ...args
     );
   },
   transformReply: LMPOP.transformReply
