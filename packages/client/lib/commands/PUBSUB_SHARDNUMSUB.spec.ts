@@ -31,5 +31,15 @@ describe('PUBSUB SHARDNUMSUB', () => {
             await client.pubSubShardNumSub(),
             Object.create(null)
         );
+
+        assert.deepEqual(
+            await client.pubSubShardNumSub('channel'),
+            { 'channel': 0 }
+        );
+
+        assert.deepEqual(
+            await client.pubSubShardNumSub(['foo', 'bar']),
+            { 'foo': 0, 'bar': 0 }
+        );
     }, GLOBAL.SERVERS.OPEN);
 });
