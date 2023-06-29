@@ -440,10 +440,10 @@ export default class RedisClient<
       .on('ready', () => {
         this.emit('ready');
         this._setPingTimer();
-        this._scheduleWrite();
+        this._maybeScheduleWrite();
       })
       .on('reconnecting', () => this.emit('reconnecting'))
-      .on('drain', () => this._scheduleWrite())
+      .on('drain', () => this._maybeScheduleWrite())
       .on('end', () => this.emit('end'));
   }
 
@@ -706,7 +706,7 @@ export default class RedisClient<
   }
 
   private _write() {
-    this._socket.write(this._queue.waitingToBeSent());
+    this._socket.write(this._queue.commandsToWrite());
   }
 
   private _scheduledWrite?: NodeJS.Immediate;
@@ -718,6 +718,12 @@ export default class RedisClient<
       this._write();
       this._scheduledWrite = undefined;
     });
+  }
+
+  private _maybeScheduleWrite() {
+    if (!this._queue.isWaitingToWrite()) return;
+
+    this._scheduleWrite();
   }
 
   /**

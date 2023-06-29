@@ -229,9 +229,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   write(iterator: IterableIterator<Array<RedisArgument>>): void {
-    if (!this._socket) {
-      throw new ClientClosedError();
-    }
+    if (!this._socket) return;
     
     this._socket.cork();
     for (const args of iterator) {
