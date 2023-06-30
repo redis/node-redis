@@ -88,7 +88,14 @@ export default class RedisCommandsQueue {
                 }
             }
             
-            const { resolve, reject } = this.#waitingForReply.shift()!;
+            let resolve, reject;
+            if (this.#waitingForReply.length > 0) {
+                ({ resolve, reject } = this.#waitingForReply.shift()!);
+            } else {
+                resolve = (obj: any) => this.#earlyServerError(new Error(`unexpected response from server ${obj}`));
+                reject = (e: Error) => this.#earlyServerError(e);
+            }
+
             if (reply instanceof ErrorReply) {
                 reject(reply);
             } else {
@@ -240,16 +247,6 @@ export default class RedisCommandsQueue {
     }
 
     onReplyChunk(chunk: Buffer): void {
-        if (this.#waitingForReply.length === 0) {
-            this.#waitingForReply.push({
-                resolve: (obj) => {
-                    this.#earlyServerError(new Error(`unexpected response from server ${obj}`));
-                },
-                reject: e => this.#earlyServerError(e),
-                channelsCounter: 0,
-                returnBuffers: false
-            });
-        }
         this.#decoder.write(chunk);
     }
 
