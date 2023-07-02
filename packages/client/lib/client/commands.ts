@@ -84,6 +84,7 @@ import * as KEYS from '../commands/KEYS';
 import * as LASTSAVE from '../commands/LASTSAVE';
 import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
 import * as LATENCY_GRAPH from '../commands/LATENCY_GRAPH';
+import * as LATENCY_HISTORY from '../commands/LATENCY_HISTORY';
 import * as LATENCY_LATEST from '../commands/LATENCY_LATEST';
 import * as LOLWUT from '../commands/LOLWUT';
 import * as MEMORY_DOCTOR from '../commands/MEMORY_DOCTOR';
@@ -291,6 +292,8 @@ export default {
     latencyDoctor: LATENCY_DOCTOR,
     LATENCY_GRAPH,
     latencyGraph: LATENCY_GRAPH,
+    LATENCY_HISTORY,
+    latencyHistory: LATENCY_HISTORY,
     LATENCY_LATEST,
     latencyLatest: LATENCY_LATEST,
     LOLWUT,
