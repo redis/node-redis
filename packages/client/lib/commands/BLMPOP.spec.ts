@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, MIN_BLOCKING_TIME } from '../test-utils';
 import BLMPOP from './BLMPOP';
 
 describe('BLMPOP', () => {
@@ -25,7 +25,7 @@ describe('BLMPOP', () => {
 
   testUtils.testAll('blmPop - null', async client => {
     assert.equal(
-      await client.blmPop(Number.MIN_VALUE, 'key', 'RIGHT'),
+      await client.blmPop(MIN_BLOCKING_TIME, 'key', 'RIGHT'),
       null
     );
   }, {
@@ -36,7 +36,7 @@ describe('BLMPOP', () => {
   testUtils.testAll('blmPop - with member', async client => {
     const [, reply] = await Promise.all([
       client.lPush('key', 'element'),
-      client.blmPop(Number.MIN_VALUE, 'key', 'RIGHT')
+      client.blmPop(MIN_BLOCKING_TIME, 'key', 'RIGHT')
     ]);
     assert.deepEqual(reply, [
       'key',

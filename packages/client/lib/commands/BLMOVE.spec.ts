@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, MIN_BLOCKING_TIME } from '../test-utils';
 import BLMOVE from './BLMOVE';
 
 describe('BLMOVE', () => {
@@ -14,7 +14,7 @@ describe('BLMOVE', () => {
 
   testUtils.testAll('blMove - null', async client => {
     assert.equal(
-      await client.blMove('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', Number.MIN_VALUE),
+      await client.blMove('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', MIN_BLOCKING_TIME),
       null
     );
   }, {
@@ -25,7 +25,7 @@ describe('BLMOVE', () => {
   testUtils.testAll('blMove - with member', async client => {
     const [, reply] = await Promise.all([
       client.lPush('{tag}source', 'element'),
-      client.blMove('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', Number.MIN_VALUE)
+      client.blMove('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', MIN_BLOCKING_TIME)
     ]);
     assert.equal(reply, 'element');
   }, {

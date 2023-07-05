@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BLPOP from './BLPOP';
 
 describe('BLPOP', () => {
@@ -21,7 +21,7 @@ describe('BLPOP', () => {
 
   testUtils.testAll('blPop - null', async client => {
     assert.equal(
-      await client.blPop('key', Number.MIN_VALUE),
+      await client.blPop('key', BLOCKING_MIN_VALUE),
       null
     );
   }, {
