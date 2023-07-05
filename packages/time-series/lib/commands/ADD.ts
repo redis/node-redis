@@ -1,31 +1,38 @@
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 import {
-    transformTimestampArgument,
-    pushRetentionArgument,
-    TimeSeriesEncoding,
-    pushEncodingArgument,
-    pushChunkSizeArgument,
-    TimeSeriesDuplicatePolicies,
-    Labels,
-    pushLabelsArgument,
-    Timestamp,
+  transformTimestampArgument,
+  pushRetentionArgument,
+  TimeSeriesEncoding,
+  pushEncodingArgument,
+  pushChunkSizeArgument,
+  TimeSeriesDuplicatePolicies,
+  Labels,
+  pushLabelsArgument,
+  Timestamp
 } from '.';
 
-interface AddOptions {
-    RETENTION?: number;
-    ENCODING?: TimeSeriesEncoding;
-    CHUNK_SIZE?: number;
-    ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
-    LABELS?: Labels;
+export interface TsAddOptions {
+  RETENTION?: number;
+  ENCODING?: TimeSeriesEncoding;
+  CHUNK_SIZE?: number;
+  ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
+  LABELS?: Labels;
 }
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: string, timestamp: Timestamp, value: number, options?: AddOptions): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    timestamp: Timestamp,
+    value: number,
+    options?: TsAddOptions
+  ) {
     const args = [
-        'TS.ADD',
-        key,
-        transformTimestampArgument(timestamp),
-        value.toString()
+      'TS.ADD',
+      key,
+      transformTimestampArgument(timestamp),
+      value.toString()
     ];
 
     pushRetentionArgument(args, options?.RETENTION);
@@ -35,12 +42,12 @@ export function transformArguments(key: string, timestamp: Timestamp, value: num
     pushChunkSizeArgument(args, options?.CHUNK_SIZE);
 
     if (options?.ON_DUPLICATE) {
-        args.push('ON_DUPLICATE', options.ON_DUPLICATE);
+      args.push('ON_DUPLICATE', options.ON_DUPLICATE);
     }
 
     pushLabelsArgument(args, options?.LABELS);
 
     return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;
