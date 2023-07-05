@@ -11,9 +11,6 @@
     "./lib/test-utils.ts",
     "./lib/**/*.spec.ts"
   ],
-  "ts-node": {
-    "transpileOnly": true
-  },
   "typedocOptions": {
     "entryPoints": [
       "./index.ts",

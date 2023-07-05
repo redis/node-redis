@@ -1,81 +1,60 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import * as ADD from './ADD';
-import * as BYRANK from './BYRANK';
-import * as BYREVRANK from './BYREVRANK';
-import * as CDF from './CDF';
-import * as CREATE from './CREATE';
-import * as INFO from './INFO';
-import * as MAX from './MAX';
-import * as MERGE from './MERGE';
-import * as MIN from './MIN';
-import * as QUANTILE from './QUANTILE';
-import * as RANK from './RANK';
-import * as RESET from './RESET';
-import * as REVRANK from './REVRANK';
-import * as TRIMMED_MEAN from './TRIMMED_MEAN';
+import ADD from './ADD';
+import BYRANK from './BYRANK';
+import BYREVRANK from './BYREVRANK';
+import CDF from './CDF';
+import CREATE from './CREATE';
+// import INFO from './INFO';
+import MAX from './MAX';
+import MERGE from './MERGE';
+import MIN from './MIN';
+import QUANTILE from './QUANTILE';
+import RANK from './RANK';
+import RESET from './RESET';
+import REVRANK from './REVRANK';
+import TRIMMED_MEAN from './TRIMMED_MEAN';
+
+type ADD = typeof import('./ADD').default;
+type BYRANK = typeof import('./BYRANK').default;
+type BYREVRANK = typeof import('./BYREVRANK').default;
+type CDF = typeof import('./CDF').default;
+type CREATE = typeof import('./CREATE').default;
+// type INFO = typeof import('./INFO').default;
+type MAX = typeof import('./MAX').default;
+type MERGE = typeof import('./MERGE').default;
+type MIN = typeof import('./MIN').default;
+type QUANTILE = typeof import('./QUANTILE').default;
+type RANK = typeof import('./RANK').default;
+type RESET = typeof import('./RESET').default;
+type REVRANK = typeof import('./REVRANK').default;
+type TRIMMED_MEAN = typeof import('./TRIMMED_MEAN').default;
 
 export default {
-    ADD,
-    add: ADD,
-    BYRANK,
-    byRank: BYRANK,
-    BYREVRANK,
-    byRevRank: BYREVRANK,
-    CDF,
-    cdf: CDF,
-    CREATE,
-    create: CREATE,
-    INFO,
-    info: INFO,
-    MAX,
-    max: MAX,
-    MERGE,
-    merge: MERGE,
-    MIN,
-    min: MIN,
-    QUANTILE,
-    quantile: QUANTILE,
-    RANK,
-    rank: RANK,
-    RESET,
-    reset: RESET,
-    REVRANK,
-    revRank: REVRANK,
-    TRIMMED_MEAN,
-    trimmedMean: TRIMMED_MEAN
+  ADD: ADD as ADD,
+  add: ADD as ADD,
+  BYRANK: BYRANK as BYRANK,
+  byRank: BYRANK as BYRANK,
+  BYREVRANK: BYREVRANK as BYREVRANK,
+  byRevRank: BYREVRANK as BYREVRANK,
+  CDF: CDF as CDF,
+  cdf: CDF as CDF,
+  CREATE: CREATE as CREATE,
+  create: CREATE as CREATE,
+  // INFO: INFO as INFO,
+  // info: INFO as INFO,
+  MAX: MAX as MAX,
+  max: MAX as MAX,
+  MERGE: MERGE as MERGE,
+  merge: MERGE as MERGE,
+  MIN: MIN as MIN,
+  min: MIN as MIN,
+  QUANTILE: QUANTILE as QUANTILE,
+  quantile: QUANTILE as QUANTILE,
+  RANK: RANK as RANK,
+  rank: RANK as RANK,
+  RESET: RESET as RESET,
+  reset: RESET as RESET,
+  REVRANK: REVRANK as REVRANK,
+  revRank: REVRANK as REVRANK,
+  TRIMMED_MEAN: TRIMMED_MEAN as TRIMMED_MEAN,
+  trimmedMean: TRIMMED_MEAN as TRIMMED_MEAN
 };
-
-export interface CompressionOption {
-    COMPRESSION?: number;
-}
-
-export function pushCompressionArgument(
-    args: RedisCommandArguments,
-    options?: CompressionOption
-): RedisCommandArguments {
-    if (options?.COMPRESSION) {
-        args.push('COMPRESSION', options.COMPRESSION.toString());
-    }
-
-    return args;
-}
-
-export function transformDoubleReply(reply: string): number {
-    switch (reply) {
-        case 'inf':
-            return Infinity;
-
-        case '-inf':
-            return -Infinity;
-
-        case 'nan':
-            return NaN;
-
-        default:
-            return parseFloat(reply);
-    }
-}
-
-export function transformDoublesReply(reply: Array<string>): Array<number> {
-    return reply.map(transformDoubleReply);
-}

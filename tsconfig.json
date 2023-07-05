@@ -3,10 +3,10 @@
     "path": "./packages/client"
   }, {
     "path": "./packages/test-utils"
+  }, {
+    "path": "./packages/bloom"
   }],
   "todo": [{
-    "path": "./packages/bloom"
-  }, {
     "path": "./packages/graph"
   }, {
     "path": "./packages/json"
