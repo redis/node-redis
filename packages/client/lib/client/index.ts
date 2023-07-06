@@ -141,7 +141,7 @@ type ProxyClient = RedisClient<any, any, any, any, any>;
 type NamespaceProxyClient = { self: ProxyClient };
 
 interface ScanIteratorOptions {
-  cursor?: number;
+  cursor?: RedisArgument;
 }
 
 export default class RedisClient<
@@ -799,12 +799,12 @@ export default class RedisClient<
     this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions
   ) {
-    let cursor = options?.cursor ?? 0;
+    let cursor = options?.cursor ?? '0';
     do {
       const reply = await this.scan(cursor, options);
       cursor = reply.cursor;
       yield reply.keys;
-    } while (cursor !== 0);
+    } while (cursor !== '0');
   }
 
   async* hScanIterator(
@@ -812,12 +812,12 @@ export default class RedisClient<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
-    let cursor = options?.cursor ?? 0;
+    let cursor = options?.cursor ?? '0';
     do {
       const reply = await this.hScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.entries;
-    } while (cursor !== 0);
+    } while (cursor !== '0');
   }
 
   async* sScanIterator(
@@ -825,12 +825,12 @@ export default class RedisClient<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
-    let cursor = options?.cursor ?? 0;
+    let cursor = options?.cursor ?? '0';
     do {
       const reply = await this.sScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
-    } while (cursor !== 0);
+    } while (cursor !== '0');
   }
 
   async* zScanIterator(
@@ -838,12 +838,12 @@ export default class RedisClient<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
-    let cursor = options?.cursor ?? 0;
+    let cursor = options?.cursor ?? '0';
     do {
       const reply = await this.zScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
-    } while (cursor !== 0);
+    } while (cursor !== '0');
   }
 
   /**
