@@ -1,13 +1,16 @@
-export const FIRST_KEY_INDEX = 2;
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, path?: string): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, path?: RedisArgument) {
     const args = ['JSON.DEBUG', 'MEMORY', key];
 
     if (path) {
-        args.push(path);
+      args.push(path);
     }
 
     return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;
