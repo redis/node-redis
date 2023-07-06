@@ -437,19 +437,21 @@ describe('Client', () => {
 //   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClient('scanIterator', async client => {
-    const promises = [],
-      keys = new Set();
+    const entries: Array<string> = [],
+      keys = new Set<string>();
     for (let i = 0; i < 100; i++) {
       const key = i.toString();
       keys.add(key);
-      promises.push(client.set(key, ''));
+      entries.push(key, '');
     }
 
-    await Promise.all(promises);
+    await client.mSet(entries);
 
     const results = new Set();
     for await (const keys of client.scanIterator()) {
-      results.add(...keys);
+      for (const key of keys) {
+        results.add(key);
+      }
     }
 
     assert.deepEqual(keys, results);
@@ -465,7 +467,7 @@ describe('Client', () => {
 
     const results: Record<string, string> = {};
     for await (const entries of client.hScanIterator('key')) {
-      for (const [field, value] of entries) {
+      for (const { field, value } of entries) {
         results[field] = value;
       }
     }
@@ -512,7 +514,7 @@ describe('Client', () => {
       }
     }
 
-    assert.deepEqual(members, results);
+    assert.deepEqual(map, results);
   }, GLOBAL.SERVERS.OPEN);
 
 //   describe('PubSub', () => {
