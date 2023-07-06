@@ -6,14 +6,14 @@ export default {
   IS_READ_ONLY: true,
   transformArguments(
     key: RedisArgument,
-    cursor: number,
+    cursor: RedisArgument,
     options?: ScanCommonOptions
   ) {
     return pushScanArguments(['SSCAN', key], cursor, options);
   },
   transformReply([cursor, members]: [BlobStringReply, Array<BlobStringReply>]) {
     return {
-      cursor: Number(cursor),
+      cursor,
       members
     };
   }

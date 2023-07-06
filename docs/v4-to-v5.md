@@ -131,7 +131,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `LCS IDX`: `length` has been changed to `len`, `matches` has been changed from `Array<{ key1: RangeReply; key2: RangeReply; }>` to `Array<[key1: RangeReply, key2: RangeReply]>`
 - `HEXISTS`: `boolean` -> `number` [^boolean-to-number]
 - `HRANDFIELD_COUNT_WITHVALUES`: `Record<BlobString, BlobString>` -> `Array<{ field: BlobString; value: BlobString; }>` (it can return duplicates).
-- `SCAN`, `HSCAN`, `SSCAN`, and `ZSCAN`: cursor type is `string` instead of `number`?
+- `SCAN`, `HSCAN`, `SSCAN`, and `ZSCAN`: `cursor` type is `string | Buffer` instead of `number`
 - `HSETNX`: `boolean` -> `number` [^boolean-to-number]
 - `ZINTER`: instead of `client.ZINTER('key', { WEIGHTS: [1] })` use `client.ZINTER({ key: 'key', weight: 1 }])`
 - `ZINTER_WITHSCORES`: instead of `client.ZINTER_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZINTER_WITHSCORES({ key: 'key', weight: 1 }])`

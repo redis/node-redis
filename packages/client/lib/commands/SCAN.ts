@@ -7,7 +7,7 @@ export interface ScanCommonOptions {
 
 export function pushScanArguments(
   args: CommandArguments,
-  cursor: number,
+  cursor: RedisArgument,
   options?: ScanOptions
 ): CommandArguments {
   args.push(cursor.toString());
@@ -30,7 +30,7 @@ export interface ScanOptions extends ScanCommonOptions {
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(cursor: number, options?: ScanOptions) {
+  transformArguments(cursor: string, options?: ScanOptions) {
     const args = pushScanArguments(['SCAN'], cursor, options);
 
     if (options?.TYPE) {
@@ -41,7 +41,7 @@ export default {
   },
   transformReply([cursor, keys]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
     return {
-      cursor: Number(cursor),
+      cursor,
       keys
     };
   }

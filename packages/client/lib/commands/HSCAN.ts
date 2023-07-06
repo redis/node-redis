@@ -11,7 +11,7 @@ export default {
   IS_READ_ONLY: true,
   transformArguments(
     key: RedisArgument,
-    cursor: number,
+    cursor: RedisArgument,
     options?: ScanCommonOptions
   ) {
     return pushScanArguments(['HSCAN', key], cursor, options);
@@ -27,7 +27,7 @@ export default {
     }
 
     return {
-      cursor: Number(cursor),
+      cursor,
       entries
     };
   }
