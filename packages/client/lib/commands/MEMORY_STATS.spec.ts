@@ -18,7 +18,9 @@ describe('MEMORY STATS', () => {
     assert.equal(typeof memoryStats['replication.backlog'], 'number');
     assert.equal(typeof memoryStats['clients.slaves'], 'number');
     assert.equal(typeof memoryStats['clients.normal'], 'number');
-    assert.equal(typeof memoryStats['cluster.links'], 'number');
+    if (testUtils.isVersionGreaterThan([7])) {
+      assert.equal(typeof memoryStats['cluster.links'], 'number');
+    }
     assert.equal(typeof memoryStats['aof.buffer'], 'number');
     assert.equal(typeof memoryStats['lua.caches'], 'number');
     assert.equal(typeof memoryStats['functions.caches'], 'number');

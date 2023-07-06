@@ -23,9 +23,11 @@ describe('XINFO STREAM', () => {
       'radix-tree-keys': 0,
       'radix-tree-nodes': 1,
       'last-generated-id': '0-0',
-      'max-deleted-entry-id': '0-0',
-      'entries-added': 0,
-      'recorded-first-entry-id': '0-0',
+      ...testUtils.isVersionGreaterThan([7, 0]) && {
+        'max-deleted-entry-id': '0-0',
+        'entries-added': 0,
+        'recorded-first-entry-id': '0-0',
+      },
       groups: 1,
       'first-entry': null,
       'last-entry': null

@@ -1,4 +1,14 @@
-import { ArrayReply, BlobStringReply, CommandArguments, DoubleReply, NullReply, RedisArgument, Resp2Reply, TuplesReply } from '../RESP/types';
+import { ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply } from '../RESP/types';
+
+export const transformBooleanReply = {
+  2: (reply: NumberReply<0 | 1>) => reply === 1,
+  3: undefined as unknown as () => BooleanReply
+};
+
+export const transformBooleanArrayReply = {
+  2: (reply: ArrayReply<NumberReply<0 | 1>>) => reply.map(transformBooleanReply[2]),
+  3: undefined as unknown as () => ArrayReply<BooleanReply>
+};
 
 export type BitValue = 0 | 1;
 
@@ -24,11 +34,15 @@ export function transformStringDoubleArgument(num: RedisArgument | number): Redi
 export const transformDoubleReply = {
   2: (reply: BlobStringReply) => {
     switch (reply.toString()) {
+      case 'inf':
       case '+inf':
         return Infinity;
   
       case '-inf':
         return -Infinity;
+
+      case 'nan':
+        return NaN;
   
       default:
         return Number(reply);
@@ -36,6 +50,11 @@ export const transformDoubleReply = {
   },
   3: undefined as unknown as () => DoubleReply
 };
+
+export const transformDoubleArrayReply = {
+  2: (reply: Array<BlobStringReply>) => reply.map(transformDoubleReply[2]),
+  3: undefined as unknown as () => ArrayReply<DoubleReply>
+}
 
 export const transformNullableDoubleReply = {
   2: (reply: BlobStringReply | NullReply) => {

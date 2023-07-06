@@ -15,7 +15,11 @@ describe('XINFO CONSUMERS', () => {
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true
       }),
-      client.xGroupCreateConsumer('key', 'group', 'consumer'),
+      // using `XREADGROUP` and not `XGROUP CREATECONSUMER` because the latter was introduced in Redis 6.2
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '0-0'
+      }),
       client.xInfoConsumers('key', 'group')
     ]);
 

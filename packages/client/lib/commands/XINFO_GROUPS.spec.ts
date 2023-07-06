@@ -25,8 +25,8 @@ describe('XINFO GROUPS', () => {
         consumers: 0,
         pending: 0,
         'last-delivered-id': '0-0',
-        'entries-read': null,
-        lag: 0
+        'entries-read': testUtils.isVersionGreaterThan([7, 0]) ? null : undefined,
+        lag: testUtils.isVersionGreaterThan([7, 0]) ? 0 : undefined
       }]
     );
   }, {

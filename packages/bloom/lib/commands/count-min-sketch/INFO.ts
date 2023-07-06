@@ -1,30 +1,23 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string): Array<string> {
+export type BfInfoReply = TuplesToMapReply<[
+  [BlobStringReply<'width'>, NumberReply],
+  [BlobStringReply<'depth'>, NumberReply],
+  [BlobStringReply<'count'>, NumberReply]
+]>;
+ 
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
     return ['CMS.INFO', key];
-}
-
-export type InfoRawReply = [
-    _: string,
-    width: number,
-    _: string,
-    depth: number,
-    _: string,
-    count: number
-];
-
-export interface InfoReply {
-    width: number;
-    depth: number;
-    count: number;
-}
-
-export function transformReply(reply: InfoRawReply): InfoReply {
-    return {
-        width: reply[1],
-        depth: reply[3],
-        count: reply[5]
-    };
-}
+  },
+  transformReply: {
+    2: (reply: Resp2Reply<BfInfoReply>) => ({
+      width: reply[1],
+      depth: reply[3],
+      count: reply[5]
+    }),
+    3: undefined as unknown as () => BfInfoReply
+  }
+} as const satisfies Command;

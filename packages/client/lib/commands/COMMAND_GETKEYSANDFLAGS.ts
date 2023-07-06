@@ -1,24 +1,20 @@
-// import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, SetReply, Command } from '../RESP/types';
 
-// export const IS_READ_ONLY = true;
+export type CommandGetKeysAndFlagsRawReply = ArrayReply<TuplesReply<[
+  key: BlobStringReply,
+  flags: SetReply<BlobStringReply>
+]>>;
 
-// export function transformArguments(args: Array<RedisCommandArgument>): RedisCommandArguments {
-//     return ['COMMAND', 'GETKEYSANDFLAGS', ...args];
-// }
-
-// type KeysAndFlagsRawReply = Array<[
-//     RedisCommandArgument,
-//     RedisCommandArguments
-// ]>;
-
-// type KeysAndFlagsReply = Array<{
-//     key: RedisCommandArgument;
-//     flags: RedisCommandArguments;
-// }>;
-
-// export function transformReply(reply: KeysAndFlagsRawReply): KeysAndFlagsReply {
-//     return reply.map(([key, flags]) => ({
-//         key,
-//         flags
-//     }));
-// }
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(args: Array<RedisArgument>) {
+    return ['COMMAND', 'GETKEYSANDFLAGS', ...args];
+  },
+  transformReply(reply: CommandGetKeysAndFlagsRawReply) {
+    return reply.map(([key, flags]) => ({
+      key,
+      flags
+    }));
+  }
+} as const satisfies Command;

@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BZMPOP from './BZMPOP';
 
 describe('BZMPOP', () => {
@@ -25,7 +25,7 @@ describe('BZMPOP', () => {
 
   testUtils.testAll('bzmPop - null', async client => {
     assert.equal(
-      await client.bzmPop(Number.MIN_VALUE, 'key', 'MAX'),
+      await client.bzmPop(BLOCKING_MIN_VALUE, 'key', 'MAX'),
       null
     );
   }, {
@@ -41,7 +41,7 @@ describe('BZMPOP', () => {
       },
       [, reply] = await Promise.all([
         client.zAdd(key, member),
-        client.bzmPop(Number.MIN_VALUE, key, 'MAX')
+        client.bzmPop(BLOCKING_MIN_VALUE, key, 'MAX')
       ]);
 
     assert.deepEqual(reply, {

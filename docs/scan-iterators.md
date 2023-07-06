@@ -22,7 +22,7 @@ You can override the default options by providing a configuration object:
 
 ```typescript
 client.scanIterator({
-  cursor: 0, // 0 by default
+  cursor: '0', // optional, defaults to '0'
   TYPE: 'string', // `SCAN` only
   MATCH: 'patter*',
   COUNT: 100

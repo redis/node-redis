@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BRPOPLPUSH from './BRPOPLPUSH';
 
 describe('BRPOPLPUSH', () => {
@@ -15,7 +15,7 @@ describe('BRPOPLPUSH', () => {
       await client.brPopLPush(
         '{tag}source',
         '{tag}destination',
-        Number.MIN_VALUE
+        BLOCKING_MIN_VALUE
       ),
       null
     );

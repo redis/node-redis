@@ -61,3 +61,9 @@ export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
     await setTimeout(50);
   } while (spy.callCount === calls);
 }
+
+export const BLOCKING_MIN_VALUE = (
+  utils.isVersionGreaterThan([7]) ? Number.MIN_VALUE :
+  utils.isVersionGreaterThan([6]) ? 0.01 :
+  1
+);

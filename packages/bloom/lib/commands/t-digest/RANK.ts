@@ -1,19 +1,22 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
+export function transformRankArguments(
+  command: RedisArgument,
+  key: RedisArgument,
+  values: Array<number>
+) {
+  const args = [command, key];
 
-export const IS_READ_ONLY = true;
+  for (const value of values) {
+    args.push(value.toString());
+  }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    values: Array<number>
-): RedisCommandArguments {
-    const args = ['TDIGEST.RANK', key];
-    for (const item of values) {
-        args.push(item.toString());
-    }
-
-    return args;
+  return args;
 }
 
-export declare function transformReply(): Array<number>;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments: transformRankArguments.bind(undefined, 'TDIGEST.RANK'),
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
+} as const satisfies Command;

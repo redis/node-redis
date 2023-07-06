@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 
 describe('XADD NOMKSTREAM', () => {
+  testUtils.isVersionGreaterThanHook([6, 2]);
+
   describe('transformArguments', () => {
     it('single field', () => {
       assert.deepEqual(

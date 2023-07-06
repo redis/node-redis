@@ -9,7 +9,7 @@ export const MATH_FUNCTION = {
   engine: 'LUA',
   code:
     `#!LUA name=math
-    redis.register_function{
+    redis.register_function {
       function_name = "square",
       callback = function(keys, args) return args[1] * args[1] end,
       flags = { "no-writes" }

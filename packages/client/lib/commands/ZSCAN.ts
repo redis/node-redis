@@ -12,14 +12,14 @@ export default {
   IS_READ_ONLY: true,
   transformArguments(
     key: RedisArgument,
-    cursor: number,
+    cursor: RedisArgument,
     options?: ScanCommonOptions
   ) {
     return pushScanArguments(['ZSCAN', key], cursor, options);
   },
   transformReply([cursor, rawMembers]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
     return {
-      cursor: Number(cursor),
+      cursor,
       members: transformSortedSetReply[2](rawMembers)
     };
   }
