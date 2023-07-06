@@ -42,6 +42,7 @@ export const transformDoubleReply = {
         return -Infinity;
 
       case 'nan':
+        return NaN;
   
       default:
         return Number(reply);
