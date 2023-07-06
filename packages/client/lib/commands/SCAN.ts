@@ -30,7 +30,7 @@ export interface ScanOptions extends ScanCommonOptions {
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(cursor: string, options?: ScanOptions) {
+  transformArguments(cursor: RedisArgument, options?: ScanOptions) {
     const args = pushScanArguments(['SCAN'], cursor, options);
 
     if (options?.TYPE) {
