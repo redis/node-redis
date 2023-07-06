@@ -1,3 +1,4 @@
+import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import COUNT from './COUNT';
 import INCRBY from './INCRBY';
@@ -33,4 +34,4 @@ export default {
   query: QUERY as QUERY,
   RESERVE: RESERVE as RESERVE,
   reserve: RESERVE as RESERVE
-};
+} as const satisfies RedisCommands;

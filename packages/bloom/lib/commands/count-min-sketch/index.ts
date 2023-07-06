@@ -26,4 +26,4 @@ export default {
   merge: MERGE as MERGE,
   QUERY: QUERY as QUERY,
   query: QUERY as QUERY,
-} satisfies RedisCommands;
+} as const satisfies RedisCommands;

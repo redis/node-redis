@@ -42,4 +42,4 @@ export default {
   reserve: RESERVE as RESERVE,
   SCANDUMP: SCANDUMP as SCANDUMP,
   scanDump: SCANDUMP as SCANDUMP
-} satisfies RedisCommands;
+} as const satisfies RedisCommands;

@@ -1,3 +1,4 @@
+import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ADDNX from './ADDNX';
 import COUNT from './COUNT';
@@ -45,4 +46,4 @@ export default {
   reserve: RESERVE as RESERVE,
   SCANDUMP: SCANDUMP as SCANDUMP,
   scanDump: SCANDUMP as SCANDUMP
-};
+} as const satisfies RedisCommands;

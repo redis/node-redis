@@ -11,4 +11,4 @@ export default {
   cf,
   tDigest,
   topK
-} satisfies RedisModules;
+} as const satisfies RedisModules;

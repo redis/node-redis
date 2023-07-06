@@ -1,5 +1,5 @@
 import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { transformArrayDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformDoubleArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -13,5 +13,5 @@ export default {
 
     return args;
   },
-  transformReply: transformArrayDoubleReply
+  transformReply: transformDoubleArrayReply
 } as const satisfies Command;

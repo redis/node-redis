@@ -1,5 +1,6 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
+
 interface CommonOptions {
   REDIRECT?: number;
   NOLOOP?: boolean;
@@ -18,7 +19,7 @@ interface OptOutOptions {
   OPTOUT?: boolean;
 }
 
-type ClientTrackingOptions = CommonOptions & (
+export type ClientTrackingOptions = CommonOptions & (
   BroadcastOptions |
   OptInOptions |
   OptOutOptions

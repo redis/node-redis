@@ -1,3 +1,4 @@
+import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import BYRANK from './BYRANK';
 import BYREVRANK from './BYREVRANK';
@@ -57,4 +58,4 @@ export default {
   revRank: REVRANK as REVRANK,
   TRIMMED_MEAN: TRIMMED_MEAN as TRIMMED_MEAN,
   trimmedMean: TRIMMED_MEAN as TRIMMED_MEAN
-};
+} as const satisfies RedisCommands;
