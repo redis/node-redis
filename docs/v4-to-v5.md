@@ -174,6 +174,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `XINFO GROUPS`: `lastDeliveredId` -> `last-delivered-id` [^map-keys]
 - `XINFO STREAM`: `radixTreeKeys` -> `radix-tree-keys`, `radixTreeNodes` -> `radix-tree-nodes`, `lastGeneratedId` -> `last-generated-id`, `maxDeletedEntryId` -> `max-deleted-entry-id`, `entriesAdded` -> `entries-added`, `recordedFirstEntryId` -> `recorded-first-entry-id`, `firstEntry` -> `first-entry`, `lastEntry` -> `last-entry`
 - `XAUTOCLAIM`, `XCLAIM`, `XRANGE`, `XREVRANGE`: `Array<{ name: string; messages: Array<{ id: string; message: Record<string, string> }>; }>` -> `Record<string, Array<{ id: string; message: Record<string, string> }>>`
+- `FT.SUGDEL`: [^boolean-to-number]
 
 [^enum-to-constants]: TODO
 
