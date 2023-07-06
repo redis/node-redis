@@ -11,6 +11,7 @@ export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'cluster.links'>, NumberReply],
   [BlobStringReply<'aof.buffer'>, NumberReply],
   [BlobStringReply<'lua.caches'>, NumberReply],
+  /** added in 7.0 */
   [BlobStringReply<'functions.caches'>, NumberReply],
   [BlobStringReply<'overhead.total'>, NumberReply],
   [BlobStringReply<'keys.count'>, NumberReply],

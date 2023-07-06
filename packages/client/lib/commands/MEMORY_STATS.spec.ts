@@ -18,12 +18,8 @@ describe('MEMORY STATS', () => {
     assert.equal(typeof memoryStats['replication.backlog'], 'number');
     assert.equal(typeof memoryStats['clients.slaves'], 'number');
     assert.equal(typeof memoryStats['clients.normal'], 'number');
-    if (testUtils.isVersionGreaterThan([7])) {
-      assert.equal(typeof memoryStats['cluster.links'], 'number');
-    }
     assert.equal(typeof memoryStats['aof.buffer'], 'number');
     assert.equal(typeof memoryStats['lua.caches'], 'number');
-    assert.equal(typeof memoryStats['functions.caches'], 'number');
     assert.equal(typeof memoryStats['overhead.total'], 'number');
     assert.equal(typeof memoryStats['keys.count'], 'number');
     assert.equal(typeof memoryStats['keys.bytes-per-key'], 'number');
@@ -41,5 +37,10 @@ describe('MEMORY STATS', () => {
     assert.equal(typeof memoryStats['rss-overhead.bytes'], 'number');
     assert.equal(typeof memoryStats['fragmentation'], 'string');
     assert.equal(typeof memoryStats['fragmentation.bytes'], 'number');
+    
+    if (testUtils.isVersionGreaterThan([7])) {
+      assert.equal(typeof memoryStats['cluster.links'], 'number');
+      assert.equal(typeof memoryStats['functions.caches'], 'number');
+    }
   }, GLOBAL.SERVERS.OPEN);
 });
