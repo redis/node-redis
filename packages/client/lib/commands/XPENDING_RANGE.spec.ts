@@ -41,11 +41,10 @@ describe('XPENDING RANGE', () => {
   });
 
   testUtils.testAll('xPendingRange', async client => {
-    const [, , id, , reply] = await Promise.all([
+    const [, , id, reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true
       }),
-      client.xGroupCreateConsumer('key', 'group', 'consumer'),
       client.xAdd('key', '*', { field: 'value' }),
       client.xReadGroup('group', 'consumer', {
         key: 'key',

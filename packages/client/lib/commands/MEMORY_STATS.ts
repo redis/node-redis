@@ -7,6 +7,7 @@ export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'replication.backlog'>, NumberReply],
   [BlobStringReply<'clients.slaves'>, NumberReply],
   [BlobStringReply<'clients.normal'>, NumberReply],
+  /** added in 7.0 */
   [BlobStringReply<'cluster.links'>, NumberReply],
   [BlobStringReply<'aof.buffer'>, NumberReply],
   [BlobStringReply<'lua.caches'>, NumberReply],

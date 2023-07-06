@@ -66,6 +66,12 @@ import CLUSTER_SAVECONFIG from './CLUSTER_SAVECONFIG';
 import CLUSTER_SET_CONFIG_EPOCH from './CLUSTER_SET-CONFIG-EPOCH';
 import CLUSTER_SETSLOT from './CLUSTER_SETSLOT';
 import CLUSTER_SLOTS from './CLUSTER_SLOTS';
+import COMMAND_COUNT from './COMMAND_COUNT';
+import COMMAND_GETKEYS from './COMMAND_GETKEYS';
+import COMMAND_GETKEYSANDFLAGS from './COMMAND_GETKEYSANDFLAGS';
+// import COMMAND_INFO from './COMMAND_INFO';
+// import COMMAND_LIST from './COMMAND_LIST';
+// import COMMAND from './COMMAND';
 import CONFIG_GET from './CONFIG_GET';
 import CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
 import CONFIG_REWRITE from './CONFIG_REWRITE';
@@ -388,6 +394,12 @@ type CLUSTER_SAVECONFIG = typeof import('./CLUSTER_SAVECONFIG').default;
 type CLUSTER_SET_CONFIG_EPOCH = typeof import('./CLUSTER_SET-CONFIG-EPOCH').default;
 type CLUSTER_SETSLOT = typeof import('./CLUSTER_SETSLOT').default;
 type CLUSTER_SLOTS = typeof import('./CLUSTER_SLOTS').default;
+type COMMAND_COUNT = typeof import('./COMMAND_COUNT').default;
+type COMMAND_GETKEYS = typeof import('./COMMAND_GETKEYS').default;
+type COMMAND_GETKEYSANDFLAGS = typeof import('./COMMAND_GETKEYSANDFLAGS').default;
+// type COMMAND_INFO = typeof import('./COMMAND_INFO').default;
+// type COMMAND_LIST = typeof import('./COMMAND_LIST').default;
+// type COMMAND = typeof import('./COMMAND').default;
 type CONFIG_GET = typeof import('./CONFIG_GET').default;
 type CONFIG_RESETASTAT = typeof import('./CONFIG_RESETSTAT').default;
 type CONFIG_REWRITE = typeof import('./CONFIG_REWRITE').default;
@@ -778,6 +790,18 @@ type Commands = {
   clusterSetSlot: CLUSTER_SETSLOT;
   CLUSTER_SLOTS: CLUSTER_SLOTS;
   clusterSlots: CLUSTER_SLOTS;
+  COMMAND_COUNT: COMMAND_COUNT;
+  commandCount: COMMAND_COUNT;
+  COMMAND_GETKEYS: COMMAND_GETKEYS;
+  commandGetKeys: COMMAND_GETKEYS;
+  COMMAND_GETKEYSANDFLAGS: COMMAND_GETKEYSANDFLAGS;
+  commandGetKeysAndFlags: COMMAND_GETKEYSANDFLAGS;
+  // COMMAND_INFO: COMMAND_INFO;
+  // commandInfo: COMMAND_INFO;
+  // COMMAND_LIST: COMMAND_LIST;
+  // commandList: COMMAND_LIST;
+  // COMMAND: COMMAND;
+  // command: COMMAND;
   CONFIG_GET: CONFIG_GET;
   configGet: CONFIG_GET;
   CONFIG_RESETASTAT: CONFIG_RESETASTAT;
@@ -1423,6 +1447,18 @@ export default {
   clusterSetSlot: CLUSTER_SETSLOT,
   CLUSTER_SLOTS,
   clusterSlots: CLUSTER_SLOTS,
+  COMMAND_COUNT,
+  commandCount: COMMAND_COUNT,
+  COMMAND_GETKEYS,
+  commandGetKeys: COMMAND_GETKEYS,
+  COMMAND_GETKEYSANDFLAGS,
+  commandGetKeysAndFlags: COMMAND_GETKEYSANDFLAGS,
+  // COMMAND_INFO,
+  // commandInfo: COMMAND_INFO,
+  // COMMAND_LIST,
+  // commandList: COMMAND_LIST,
+  // COMMAND,
+  // command: COMMAND,
   CONFIG_GET,
   configGet: CONFIG_GET,
   CONFIG_RESETASTAT,

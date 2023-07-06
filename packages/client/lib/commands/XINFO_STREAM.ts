@@ -1,26 +1,16 @@
 import { TuplesToMapReply, BlobStringReply, NumberReply, NullReply, Resp2Reply, Command, RespType, RESP_TYPES, RedisArgument } from '../RESP/types';
 import { StreamMessageRawReply, transformStreamMessageReply } from './generic-transformers';
 
-export type XInfoStreamRawReply = TuplesToMapReply<[
-  [BlobStringReply<'length'>, NumberReply],
-  [BlobStringReply<'radix-tree-keys'>, NumberReply],
-  [BlobStringReply<'radix-tree-nodes'>, NumberReply],
-  [BlobStringReply<'last-generated-id'>, BlobStringReply],
-  [BlobStringReply<'max-deleted-entry-id'>, BlobStringReply],
-  [BlobStringReply<'entries-added'>, NumberReply],
-  [BlobStringReply<'recorded-first-entry-id'>, BlobStringReply],
-  [BlobStringReply<'groups'>, NumberReply],
-  [BlobStringReply<'first-entry'>, StreamMessageRawReply | NullReply],
-  [BlobStringReply<'last-entry'>, StreamMessageRawReply | NullReply]
-]>;
-
 export type XInfoStreamReply = TuplesToMapReply<[
   [BlobStringReply<'length'>, NumberReply],
   [BlobStringReply<'radix-tree-keys'>, NumberReply],
   [BlobStringReply<'radix-tree-nodes'>, NumberReply],
   [BlobStringReply<'last-generated-id'>, BlobStringReply],
+  /** added in 7.2 */
   [BlobStringReply<'max-deleted-entry-id'>, BlobStringReply],
+  /** added in 7.2 */
   [BlobStringReply<'entries-added'>, NumberReply],
+  /** added in 7.2 */
   [BlobStringReply<'recorded-first-entry-id'>, BlobStringReply],
   [BlobStringReply<'groups'>, NumberReply],
   [BlobStringReply<'first-entry'>, ReturnType<typeof transformStreamMessageReply> | NullReply],
@@ -34,22 +24,27 @@ export default {
     return ['XINFO', 'STREAM', key];
   },
   transformReply: {
-    2(reply: Resp2Reply<XInfoStreamRawReply>) {
-      return {
-        length: reply[1],
-        'radix-tree-keys': reply[3],
-        'radix-tree-nodes': reply[5],
-        'last-generated-id': reply[7],
-        'max-deleted-entry-id': reply[9],
-        'entries-added': reply[11],
-        'recorded-first-entry-id': reply[13],
-        groups: reply[15],
-        'first-entry': transformEntry(reply[17]),
-        'last-entry': transformEntry(reply[19])
-      };
+    // TODO: is there a "type safe" way to do it?
+    2(reply: any) {
+      const parsedReply: Partial<XInfoStreamReply['DEFAULT']> = {};
+
+      for (let i = 0; i < reply.length; i += 2) {
+        switch (reply[i]) {
+          case 'first-entry':
+          case 'last-entry':
+            parsedReply[reply[i] as ('first-entry' | 'last-entry')] = transformEntry(reply[i + 1]) as any;
+            break;
+
+          default:
+            parsedReply[reply[i] as keyof typeof parsedReply] = reply[i + 1];
+            break;
+        }
+      }
+
+      return parsedReply as XInfoStreamReply['DEFAULT'];
     },
-    3(reply: any) { // TODO: is there a "type safe" way to do it?
-      if (reply instanceof Map) { 
+    3(reply: any) {
+      if (reply instanceof Map) {
         reply.set(
           'first-entry',
           transformEntry(reply.get('first-entry'))
