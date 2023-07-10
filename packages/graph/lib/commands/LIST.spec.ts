@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LIST from './LIST';
 
-describe('LIST', () => {
+describe('GRAPH.LIST', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       LIST.transformArguments(),

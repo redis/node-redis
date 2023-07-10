@@ -1,4 +1,4 @@
-import { RedisArgument, SetReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, SetReply, Command } from '../RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,5 +6,8 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['SMEMBERS', key];
   },
-  transformReply: undefined as unknown as () => SetReply<BlobStringReply>
+  transformReply: {
+    2: undefined as unknown as () => ArrayReply<BlobStringReply>,
+    3: undefined as unknown as () => SetReply<BlobStringReply>
+  }
 } as const satisfies Command;

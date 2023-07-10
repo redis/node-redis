@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EXPLAIN from './EXPLAIN';
 
-describe('EXPLAIN', () => {
+describe('GRAPH.EXPLAIN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       EXPLAIN.transformArguments('key', 'RETURN 0'),
@@ -16,6 +16,8 @@ describe('EXPLAIN', () => {
       client.graph.explain('key', 'RETURN 0')
     ]);
     assert.ok(Array.isArray(reply));
-    assert.ok(!reply.find(x => typeof x !== 'string'));
+    for (const item of reply) {
+      assert.equal(typeof item, 'string');
+    }
   }, GLOBAL.SERVERS.OPEN);
 });

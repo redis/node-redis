@@ -6,5 +6,5 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['GRAPH.DELETE', key];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

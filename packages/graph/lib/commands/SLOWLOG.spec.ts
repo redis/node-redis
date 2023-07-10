@@ -1,8 +1,8 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SLOWLOG';
+import SLOWLOG from './SLOWLOG';
 
-describe('SLOWLOG', () => {
+describe('GRAPH.SLOWLOG', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       transformArguments('key'),
@@ -11,8 +11,10 @@ describe('SLOWLOG', () => {
   });
 
   testUtils.testWithClient('client.graph.slowLog', async client => {
-    await client.graph.query('key', 'RETURN 1');
-    const reply = await client.graph.slowLog('key');
+    const [, reply] = await Promise.all([
+      client.graph.query('key', 'RETURN 1'),
+      client.graph.slowLog('key')
+    ]);
     assert.equal(reply.length, 1);
   }, GLOBAL.SERVERS.OPEN);
 });
