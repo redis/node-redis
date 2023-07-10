@@ -1,30 +1,30 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ARRAPPEND';
+import ARRAPPEND from './ARRAPPEND';
 
 describe('ARRAPPEND', () => {
-    describe('transformArguments', () => {
-        it('single JSON', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 1),
-                ['JSON.ARRAPPEND', 'key', '$', '1']
-            );
-        });
-
-        it('multiple JSONs', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 1, 2),
-                ['JSON.ARRAPPEND', 'key', '$', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('single JSON', () => {
+      assert.deepEqual(
+        ARRAPPEND.transformArguments('key', '$', 1),
+        ['JSON.ARRAPPEND', 'key', '$', '1']
+      );
     });
 
-    testUtils.testWithClient('client.json.arrAppend', async client => {
-        await client.json.set('key', '$', []);
+    it('multiple JSONs', () => {
+      assert.deepEqual(
+        ARRAPPEND.transformArguments('key', '$', 1, 2),
+        ['JSON.ARRAPPEND', 'key', '$', '1', '2']
+      );
+    });
+  });
 
-        assert.deepEqual(
-            await client.json.arrAppend('key', '$', 1),
-            [1]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.json.arrAppend', async client => {
+    await client.json.set('key', '$', []);
+
+    assert.deepEqual(
+      await client.json.arrAppend('key', '$', 1),
+      [1]
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

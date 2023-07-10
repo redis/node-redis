@@ -1,15 +1,17 @@
 import { RedisJSON, transformRedisJsonArgument } from '.';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: string, path: string, ...jsons: Array<RedisJSON>): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, path: RedisArgument, ...jsons: Array<RedisJSON>) {
     const args = ['JSON.ARRAPPEND', key, path];
 
     for (const json of jsons) {
-        args.push(transformRedisJsonArgument(json));
+      args.push(transformRedisJsonArgument(json));
     }
 
     return args;
-}
-
-export declare function transformReply(): number | Array<number>;
+  },
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply>
+} as const satisfies Command;
