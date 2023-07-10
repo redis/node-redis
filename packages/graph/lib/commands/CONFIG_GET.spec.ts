@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CONFIG_GET from './CONFIG_GET';
 
-describe('CONFIG GET', () => {
+describe('GRAPH.CONFIG GET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       CONFIG_GET.transformArguments('TIMEOUT'),

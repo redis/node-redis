@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DELETE from './DELETE';
 
-describe('', () => {
+describe('GRAPH.DELETE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       DELETE.transformArguments('key'),
@@ -11,11 +11,11 @@ describe('', () => {
   });
 
   testUtils.testWithClient('client.graph.delete', async client => {
-    await client.graph.query('key', 'RETURN 1');
+    const [, reply] = await Promise.all([
+      client.graph.query('key', 'RETURN 1'),
+      client.graph.delete('key')
+    ]);
 
-    assert.equal(
-      typeof await client.graph.delete('key'),
-      'string'
-    );
+    assert.equal(reply, 'OK');
   }, GLOBAL.SERVERS.OPEN);
 });

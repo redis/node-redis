@@ -1,30 +1,24 @@
-export const IS_READ_ONLY = true;
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
+type SlowLogRawReply = ArrayReply<TuplesReply<[
+  timestamp: BlobStringReply,
+  command: BlobStringReply,
+  query: BlobStringReply,
+  took: BlobStringReply
+]>>;
 
-export function transformArguments(key: string) {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
     return ['GRAPH.SLOWLOG', key];
-}
-
-type SlowLogRawReply = Array<[
-    timestamp: string,
-    command: string,
-    query: string,
-    took: string
-]>;
-
-type SlowLogReply = Array<{
-    timestamp: Date;
-    command: string;
-    query: string;
-    took: number;
-}>;
-
-export function transformReply(logs: SlowLogRawReply): SlowLogReply {
-    return logs.map(([timestamp, command, query, took]) => ({
-        timestamp: new Date(Number(timestamp) * 1000),
-        command,
-        query,
-        took: Number(took)
+  },
+  transformReply(reply: SlowLogRawReply) {
+    return reply.map(([timestamp, command, query, took]) => ({
+      timestamp: Number(timestamp),
+      command,
+      query,
+      took: Number(took)
     }));
-}
+  }
+} as const satisfies Command;
