@@ -45,4 +45,4 @@ export function transformArguments(
     return args;
 }
 
-export { transformStreamMessagesReply as transformReply } from './generic-transformers';
+export { transformStreamMessagesNullReply as transformReply } from './generic-transformers';
