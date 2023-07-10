@@ -1,29 +1,28 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import DEL from './DEL';
+import CLEAR from './CLEAR';
 
-describe('DEL', () => {
+describe('CLEAR', () => {
   describe('transformArguments', () => {
     it('key', () => {
       assert.deepEqual(
-        DEL.transformArguments('key'),
-        ['JSON.DEL', 'key']
+        CLEAR.transformArguments('key'),
+        ['JSON.CLEAR', 'key']
       );
     });
 
     it('key, path', () => {
       assert.deepEqual(
-        DEL.transformArguments('key', '$.path'),
-        ['JSON.DEL', 'key', '$.path']
+        CLEAR.transformArguments('key', '$.path'),
+        ['JSON.CLEAR', 'key', '$.path']
       );
     });
   });
 
-  testUtils.testWithClient('client.json.del', async client => {
+  testUtils.testWithClient('client.json.clear', async client => {
     assert.deepEqual(
-      await client.json.del('key'),
+      await client.json.clear('key'),
       0
     );
   }, GLOBAL.SERVERS.OPEN);
 });
-

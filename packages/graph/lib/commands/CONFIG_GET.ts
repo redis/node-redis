@@ -1,12 +1,15 @@
-export const IS_READ_ONLY = true;
+import { RedisArgument, TuplesReply, ArrayReply, BlobStringReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(configKey: string): Array<string> {
+type ConfigItemReply = TuplesReply<[
+  configKey: BlobStringReply,
+  value: NumberReply
+]>;
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(configKey: RedisArgument) {
     return ['GRAPH.CONFIG', 'GET', configKey];
-}
-
-type ConfigItem = [
-    configKey: string,
-    value: number
-];
-
-export declare function transformReply(): ConfigItem | Array<ConfigItem>;
+  },
+  transformReply: undefined as unknown as () => ConfigItemReply | ArrayReply<ConfigItemReply>
+} as const satisfies Command;

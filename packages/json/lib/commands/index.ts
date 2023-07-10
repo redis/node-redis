@@ -1,6 +1,7 @@
 import * as ARRAPPEND from './ARRAPPEND';
 import * as ARRINDEX from './ARRINDEX';
 import * as ARRINSERT from './ARRINSERT';
+import CLEAR from './CLEAR';
 import * as ARRLEN from './ARRLEN';
 import * as ARRPOP from './ARRPOP';
 import * as ARRTRIM from './ARRTRIM';
@@ -26,6 +27,8 @@ export default {
     arrIndex: ARRINDEX,
     ARRINSERT,
     arrInsert: ARRINSERT,
+    CLEAR,
+    clear: CLEAR,
     ARRLEN,
     arrLen: ARRLEN,
     ARRPOP,
