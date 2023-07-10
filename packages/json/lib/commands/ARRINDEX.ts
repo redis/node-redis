@@ -1,21 +1,27 @@
+import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string, path: string, json: RedisJSON, start?: number, stop?: number): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    path: RedisArgument,
+    json: RedisJSON,
+    start?: number,
+    stop?: number
+  ) {
     const args = ['JSON.ARRINDEX', key, path, transformRedisJsonArgument(json)];
 
     if (start !== undefined && start !== null) {
-        args.push(start.toString());
+      args.push(start.toString());
 
-        if (stop !== undefined && stop !== null) {
-            args.push(stop.toString());
-        }
+      if (stop !== undefined && stop !== null) {
+        args.push(stop.toString());
+      }
     }
 
     return args;
-}
-
-export declare function transformReply(): number | Array<number>;
+  },
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply>
+} as const satisfies Command;
