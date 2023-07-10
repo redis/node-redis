@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import STRLEN from './STRLEN';
 
-describe('STRLEN', () => {
+describe('JSON.STRLEN', () => {
   describe('transformArguments', () => {
     it('without path', () => {
       assert.deepEqual(

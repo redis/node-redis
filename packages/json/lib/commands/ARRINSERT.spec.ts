@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRINSERT from './ARRINSERT';
 
-describe('ARRINSERT', () => {
+describe('JSON.ARRINSERT', () => {
   describe('transformArguments', () => {
     it('single JSON', () => {
       assert.deepEqual(

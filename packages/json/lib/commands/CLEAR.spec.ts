@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLEAR from './CLEAR';
 
-describe('CLEAR', () => {
+describe('JSON.CLEAR', () => {
   describe('transformArguments', () => {
     it('key', () => {
       assert.deepEqual(

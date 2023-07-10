@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRTRIM from './ARRTRIM';
 
-describe('ARRTRIM', () => {
+describe('JSON.ARRTRIM', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       ARRTRIM.transformArguments('key', '$', 0, 1),

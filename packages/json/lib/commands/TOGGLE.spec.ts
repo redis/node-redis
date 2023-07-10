@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TOGGLE from './TOGGLE';
 
-describe('TOGGLE', () => {
+describe('JSON.TOGGLE', () => {
   describe('transformArguments', () => {
     it('without path', () => {
       assert.deepEqual(
