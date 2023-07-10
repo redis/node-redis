@@ -176,6 +176,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `XAUTOCLAIM`, `XCLAIM`, `XRANGE`, `XREVRANGE`: `Array<{ name: string; messages: Array<{ id: string; message: Record<string, string> }>; }>` -> `Record<string, Array<{ id: string; message: Record<string, string> }>>`
 - `FT.SUGDEL`: [^boolean-to-number]
 - `TOPK.QUERY`: `Array<number>` -> `Array<boolean>`
+- `GRAPH.SLOWLOG`: `timestamp` has been changed from `Date` to `number`
 
 [^enum-to-constants]: TODO
 
