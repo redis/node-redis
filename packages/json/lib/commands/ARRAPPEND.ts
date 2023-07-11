@@ -1,5 +1,5 @@
 import { RedisJSON, transformRedisJsonArgument } from '.';
-import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, ArrayReply, NumberReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -13,5 +13,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply>
+  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

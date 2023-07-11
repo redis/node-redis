@@ -1,29 +1,29 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import STRLEN from './STRLEN';
+import TOGGLE from './TOGGLE';
 
-describe('JSON.STRLEN', () => {
+describe('JSON.TOGGLE', () => {
   describe('transformArguments', () => {
     it('without path', () => {
       assert.deepEqual(
-        STRLEN.transformArguments('key'),
-        ['JSON.STRLEN', 'key']
+        TOGGLE.transformArguments('key'),
+        ['JSON.TOGGLE', 'key']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        STRLEN.transformArguments('key', '$'),
-        ['JSON.STRLEN', 'key', '$']
+        TOGGLE.transformArguments('key', '$'),
+        ['JSON.TOGGLE', 'key', '$']
       );
     });
   });
 
-  testUtils.testWithClient('client.json.strLen', async client => {
+  testUtils.testWithClient('client.json.toggle', async client => {
     await client.json.set('key', '$', '');
 
     assert.deepEqual(
-      await client.json.strLen('key', '$'),
+      await client.json.toggle('key', '$'),
       [0]
     );
   }, GLOBAL.SERVERS.OPEN);
