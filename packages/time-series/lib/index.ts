@@ -1,9 +1,11 @@
 export { default } from './commands';
 
 export {
-  TimeSeriesDuplicatePolicies,
+  TIME_SERIES_ENCODING,
   TimeSeriesEncoding,
-  TimeSeriesAggregationType,
-  TimeSeriesReducers,
-  TimeSeriesBucketTimestamp
+  TIME_SERIES_DUPLICATE_POLICIES,
+  TimeSeriesDuplicatePolicies,
+  // TimeSeriesBucketTimestamp
 } from './commands';
+
+export { TIME_SERIES_AGGREGATION_TYPE, TimeSeriesAggregationType } from './commands/CREATERULE';

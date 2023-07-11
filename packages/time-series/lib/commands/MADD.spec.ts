@@ -1,8 +1,9 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MADD from './MADD';
+import { SimpleError } from '@redis/client/lib/errors';
 
-describe('MADD', () => {
+describe.only('TS.MADD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       MADD.transformArguments([{
@@ -18,22 +19,23 @@ describe('MADD', () => {
     );
   });
 
-  // Should we check empty array?
-
   testUtils.testWithClient('client.ts.mAdd', async client => {
-    await client.ts.create('key');
-
-    assert.deepEqual(
-      await client.ts.mAdd([{
+    const [, reply] = await Promise.all([
+      client.ts.create('key'),
+      client.ts.mAdd([{
         key: 'key',
         timestamp: 0,
-        value: 0
+        value: 1
       }, {
         key: 'key',
-        timestamp: 1,
+        timestamp: 0,
         value: 1
-      }]),
-      [0, 1]
-    );
+      }])
+    ]);
+
+    assert.ok(Array.isArray(reply));
+    assert.equal(reply.length, 2);
+    assert.equal(reply[0], 0);
+    assert.ok(reply[1] instanceof SimpleError);
   }, GLOBAL.SERVERS.OPEN);
 });

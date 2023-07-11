@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MGET_WITHLABELS';
 
-describe('MGET_WITHLABELS', () => {
+describe('TS.MGET_WITHLABELS', () => {
     describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(

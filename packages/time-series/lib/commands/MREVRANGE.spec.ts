@@ -3,7 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MREVRANGE';
 import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
 
-describe('MREVRANGE', () => {
+describe('TS.MREVRANGE', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('-', '+', 'label=value', {

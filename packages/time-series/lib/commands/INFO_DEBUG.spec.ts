@@ -4,7 +4,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { assertInfo } from './INFO.spec';
 import { transformArguments } from './INFO_DEBUG';
 
-describe('INFO_DEBUG', () => {
+describe('TS.INFO_DEBUG', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key'),

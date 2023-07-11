@@ -1,5 +1,5 @@
 import { Timestamp, transformTimestampArgument } from '.';
-import { ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, NumberReply, SimpleErrorReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface TsMAddSample {
   key: string;
@@ -23,5 +23,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply | SimpleErrorReply>
 } as const satisfies Command;

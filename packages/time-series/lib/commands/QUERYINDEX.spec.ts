@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './QUERYINDEX';
 
-describe('QUERYINDEX', () => {
+describe('TS.QUERYINDEX', () => {
     describe('transformArguments', () => {
         it('single filter', () => {
             assert.deepEqual(

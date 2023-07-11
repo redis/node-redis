@@ -3,7 +3,7 @@ import { TimeSeriesAggregationType, TimeSeriesDuplicatePolicies } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { InfoReply, transformArguments } from './INFO';
 
-describe('INFO', () => {
+describe('TS.INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('key'),

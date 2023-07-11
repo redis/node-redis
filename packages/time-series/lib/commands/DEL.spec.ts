@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DEL from './DEL';
 
-describe('DEL', () => {
+describe('TS.DEL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       DEL.transformArguments('key', '-', '+'),
@@ -11,11 +11,11 @@ describe('DEL', () => {
   });
 
   testUtils.testWithClient('client.ts.del', async client => {
-    await client.ts.create('key');
+    const [, reply] = await Promise.all([
+      client.ts.create('key'),
+      client.ts.del('key', '-', '+')
+    ]);
 
-    assert.equal(
-      await client.ts.del('key', '-', '+'),
-      0
-    );
+    assert.equal(reply, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

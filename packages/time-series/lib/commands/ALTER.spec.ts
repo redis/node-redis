@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
-import { TimeSeriesDuplicatePolicies } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import ALTER from './ALTER';
+import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
 
 describe('TS.ALTER', () => {
   describe('transformArguments', () => {
@@ -33,7 +33,7 @@ describe('TS.ALTER', () => {
     it('with DUPLICATE_POLICY', () => {
       assert.deepEqual(
         ALTER.transformArguments('key', {
-          DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK
+          DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK
         }),
         ['TS.ALTER', 'key', 'DUPLICATE_POLICY', 'BLOCK']
       );
@@ -53,7 +53,7 @@ describe('TS.ALTER', () => {
         ALTER.transformArguments('key', {
           RETENTION: 1,
           CHUNK_SIZE: 1,
-          DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK,
+          DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,
           LABELS: { label: 'value' }
         }),
         ['TS.ALTER', 'key', 'RETENTION', '1', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value']
@@ -62,11 +62,11 @@ describe('TS.ALTER', () => {
   });
 
   testUtils.testWithClient('client.ts.alter', async client => {
-    await client.ts.create('key');
+    const [, reply] = await Promise.all([
+      client.ts.create('key'),
+      client.ts.alter('key', { RETENTION: 1 })
+    ]);
 
-    assert.equal(
-      await client.ts.alter('key', { RETENTION: 1 }),
-      'OK'
-    );
+    assert.equal(reply, 'OK');
   }, GLOBAL.SERVERS.OPEN);
 });

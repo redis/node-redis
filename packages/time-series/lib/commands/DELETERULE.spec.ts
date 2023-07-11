@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TimeSeriesAggregationType } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import DELETERULE from './DELETERULE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
-describe('DELETERULE', () => {
+describe('TS.DELETERULE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       DELETERULE.transformArguments('source', 'destination'),
@@ -12,15 +12,13 @@ describe('DELETERULE', () => {
   });
 
   testUtils.testWithClient('client.ts.deleteRule', async client => {
-    await Promise.all([
+    const [, , , reply] = await Promise.all([
       client.ts.create('source'),
       client.ts.create('destination'),
-      client.ts.createRule('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1)
+      client.ts.createRule('source', 'destination', TIME_SERIES_AGGREGATION_TYPE.AVG, 1),
+      client.ts.deleteRule('source', 'destination')
     ]);
 
-    assert.equal(
-      await client.ts.deleteRule('source', 'destination'),
-      'OK'
-    );
+    assert.equal(reply, 'OK');
   }, GLOBAL.SERVERS.OPEN);
 });

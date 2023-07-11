@@ -3,7 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './MRANGE_WITHLABELS';
 import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
 
-describe('MRANGE_WITHLABELS', () => {
+describe('TS.MRANGE_WITHLABELS', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             transformArguments('-', '+', 'label=value', {

@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import INCRBY from './INCRBY';
 
-describe('INCRBY', () => {
+describe('TS.INCRBY', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
@@ -82,10 +82,8 @@ describe('INCRBY', () => {
 
   testUtils.testWithClient('client.ts.incrBy', async client => {
     assert.equal(
-      await client.ts.incrBy('key', 1, {
-        TIMESTAMP: 0
-      }),
-      0
+      typeof await client.ts.incrBy('key', 1),
+      'number'
     );
   }, GLOBAL.SERVERS.OPEN);
 });

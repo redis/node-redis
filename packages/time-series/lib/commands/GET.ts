@@ -1,5 +1,4 @@
 import { RedisArgument, TuplesReply, NumberReply, DoubleReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
-import { pushLatestArgument } from '.';
 
 export interface TsGetOptions {
   LATEST?: boolean;
@@ -11,7 +10,13 @@ export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
   transformArguments(key: RedisArgument, options?: TsGetOptions) {
-    return pushLatestArgument(['TS.GET', key], options?.LATEST);
+    const args = ['TS.GET', key];
+    
+    if (options?.LATEST) {
+      args.push('LATEST');
+    }
+
+    return args;
   },
   transformReply: {
     2(reply: Resp2Reply<TsGetReply>) {

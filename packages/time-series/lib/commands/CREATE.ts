@@ -1,14 +1,14 @@
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import {
   pushRetentionArgument,
   TimeSeriesEncoding,
   pushEncodingArgument,
   pushChunkSizeArgument,
   TimeSeriesDuplicatePolicies,
+  pushDuplicatePolicy,
   Labels,
-  pushLabelsArgument,
-  pushDuplicatePolicy
+  pushLabelsArgument
 } from '.';
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface TsCreateOptions {
   RETENTION?: number;

@@ -1,12 +1,8 @@
-import { pushRetentionArgument, Labels, pushLabelsArgument, TimeSeriesDuplicatePolicies, pushChunkSizeArgument, pushDuplicatePolicy } from '.';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { TsCreateOptions } from './CREATE';
+import { pushRetentionArgument, pushChunkSizeArgument, pushDuplicatePolicy, pushLabelsArgument } from '.';
 
-export interface TsAlterOptions {
-  RETENTION?: number;
-  CHUNK_SIZE?: number;
-  DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
-  LABELS?: Labels;
-}
+export type TsAlterOptions = Pick<TsCreateOptions, 'RETENTION' | 'CHUNK_SIZE' | 'DUPLICATE_POLICY' | 'LABELS'>;
 
 export default {
   FIRST_KEY_INDEX: 1,

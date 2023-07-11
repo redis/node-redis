@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import CREATE from './CREATE';
+import { TIME_SERIES_ENCODING, TIME_SERIES_DUPLICATE_POLICIES } from '.';
 
-describe('CREATE', () => {
+describe('TS.CREATE', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
@@ -24,7 +24,7 @@ describe('CREATE', () => {
     it('with ENCODING', () => {
       assert.deepEqual(
         CREATE.transformArguments('key', {
-          ENCODING: TimeSeriesEncoding.UNCOMPRESSED
+          ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED
         }),
         ['TS.CREATE', 'key', 'ENCODING', 'UNCOMPRESSED']
       );
@@ -42,7 +42,7 @@ describe('CREATE', () => {
     it('with DUPLICATE_POLICY', () => {
       assert.deepEqual(
         CREATE.transformArguments('key', {
-          DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK
+          DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK
         }),
         ['TS.CREATE', 'key', 'DUPLICATE_POLICY', 'BLOCK']
       );
@@ -61,9 +61,9 @@ describe('CREATE', () => {
       assert.deepEqual(
         CREATE.transformArguments('key', {
           RETENTION: 1,
-          ENCODING: TimeSeriesEncoding.UNCOMPRESSED,
+          ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED,
           CHUNK_SIZE: 1,
-          DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK,
+          DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,
           LABELS: { label: 'value' }
         }),
         ['TS.CREATE', 'key', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value']

@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GET from './GET';
 
-describe('GET', () => {
+describe('TS.GET', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
@@ -23,24 +23,24 @@ describe('GET', () => {
 
   describe('client.ts.get', () => {
     testUtils.testWithClient('null', async client => {
-      await client.ts.create('key');
+      const [, reply] = await Promise.all([
+        client.ts.create('key'),
+        client.ts.get('key')
+      ]);
 
-      assert.equal(
-        await client.ts.get('key'),
-        null
-      );
+      assert.equal(reply, null);
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('with samples', async client => {
-      await client.ts.add('key', 0, 1);
+    testUtils.testWithClient('with sample', async client => {
+      const [, reply] = await Promise.all([
+        client.ts.add('key', 0, 1),
+        client.ts.get('key')
+      ]);
 
-      assert.deepEqual(
-        await client.ts.get('key'),
-        {
-          timestamp: 0,
-          value: 1
-        }
-      );
+      assert.deepEqual(reply, {
+        timestamp: 0,
+        value: 1
+      });
     }, GLOBAL.SERVERS.OPEN);
   });
 });

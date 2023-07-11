@@ -1,34 +1,31 @@
 import { strict as assert } from 'assert';
-import { TimeSeriesAggregationType } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import CREATERULE from './CREATERULE';
+import CREATERULE, { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
-describe('CREATERULE', () => {
+describe('TS.CREATERULE', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        CREATERULE.transformArguments('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1),
+        CREATERULE.transformArguments('source', 'destination', TIME_SERIES_AGGREGATION_TYPE.AVG, 1),
         ['TS.CREATERULE', 'source', 'destination', 'AGGREGATION', 'AVG', '1']
       );
     });
 
     it('with alignTimestamp', () => {
       assert.deepEqual(
-        CREATERULE.transformArguments('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1, 1),
+        CREATERULE.transformArguments('source', 'destination', TIME_SERIES_AGGREGATION_TYPE.AVG, 1, 1),
         ['TS.CREATERULE', 'source', 'destination', 'AGGREGATION', 'AVG', '1', '1']
       );
     });
   });
 
   testUtils.testWithClient('client.ts.createRule', async client => {
-    await Promise.all([
+    const [, , reply] = await Promise.all([
       client.ts.create('source'),
-      client.ts.create('destination')
+      client.ts.create('destination'),
+      client.ts.createRule('source', 'destination', TIME_SERIES_AGGREGATION_TYPE.AVG, 1)
     ]);
 
-    assert.equal(
-      await client.ts.createRule('source', 'destination', TimeSeriesAggregationType.AVERAGE, 1),
-      'OK'
-    );
+    assert.equal(reply, 'OK');
   }, GLOBAL.SERVERS.OPEN);
 });

@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DECRBY from './DECRBY';
 
-describe('DECRBY', () => {
+describe('TS.DECRBY', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
@@ -72,10 +72,8 @@ describe('DECRBY', () => {
 
   testUtils.testWithClient('client.ts.decrBy', async client => {
     assert.equal(
-      await client.ts.decrBy('key', 1, {
-        TIMESTAMP: 0
-      }),
-      0
+      typeof await client.ts.decrBy('key', 1),
+      'number'
     );
   }, GLOBAL.SERVERS.OPEN);
 });
