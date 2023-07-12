@@ -88,4 +88,22 @@ console.log(JSON.stringify(results, null, 2));
 //     }
 //   ]
 // }
+
+// The inverse of tobytes, for parsing results out of hget.
+const frombytes = (buffer) => {
+  const array = new Float32Array(buffer.length / 4);
+  for (let i = 0; i < array.length; i++) {
+    array[i] = buffer.readFloatLE(i * 4);
+  }
+  return array;
+};
+
+// An example of how to get a particular vector back out of Redis.
+const vector = await client.hGet(
+  commandOptions({ returnBuffers: true }),
+  'noderedis:knn:a',
+  'v'
+);
+console.log(frombytes(vector));
+
 await client.quit();
