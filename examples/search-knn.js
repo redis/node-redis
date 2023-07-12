@@ -4,7 +4,7 @@
 // Inspired by RediSearch Python tests:
 // https://github.com/RediSearch/RediSearch/blob/06e36d48946ea08bd0d8b76394a4e82eeb919d78/tests/pytests/test_vecsim.py#L96
 
-import { createClient, SchemaFieldTypes } from "redis";
+import { createClient, SchemaFieldTypes, commandOptions } from "redis";
 
 const client = createClient();
 
@@ -67,6 +67,7 @@ const results = await client.sendCommand([
   "2",
 ]);
 
+console.log(results);
 // results:
 // [
 //   4,
@@ -79,5 +80,22 @@ const results = await client.sendCommand([
 //   'noderedis:knn:d',
 //   [ 'dist', '0.142507076263', 'v', '���=���>' ]
 // ]
+
+// The inverse of tobytes, for parsing results out of hget.
+const frombytes = (buffer) => {
+  const array = new Float32Array(buffer.length / 4);
+  for (let i = 0; i < array.length; i++) {
+    array[i] = buffer.readFloatLE(i * 4);
+  }
+  return array;
+};
+
+// An example of how to get a particular vector back out of Redis.
+const vector = await client.hGet(
+  commandOptions({ returnBuffers: true }),
+  "noderedis:knn:a",
+  "v"
+);
+console.log(frombytes(vector));
 
 await client.quit();
