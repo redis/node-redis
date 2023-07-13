@@ -1,4 +1,4 @@
-import { RedisArgument, Command, ArrayReply, BlobStringReply, NumberReply, NullReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, NullReply, TuplesReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 type Headers = ArrayReply<BlobStringReply>;
 
@@ -89,7 +89,7 @@ export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
   transformArguments: transformQueryArguments.bind(undefined, 'GRAPH.QUERY'),
-  transformReply(reply: QueryRawReply) {
+  transformReply(reply: UnwrapReply<QueryRawReply>) {
     return reply.length === 1 ? {
       headers: undefined,
       data: undefined,
