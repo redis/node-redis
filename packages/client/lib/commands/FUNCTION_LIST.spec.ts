@@ -25,19 +25,21 @@ describe('FUNCTION LIST', () => {
   });
 
   testUtils.testWithClient('client.functionList', async client => {
-    await loadMathFunction(client);
+    const [, reply] = await Promise.all([
+      loadMathFunction(client),
+      client.functionList()
+    ]);
 
-    assert.deepEqual(
-      await client.functionList(),
-      [{
-        library_name: MATH_FUNCTION.name,
-        engine: MATH_FUNCTION.engine,
-        functions: [{
-          name: MATH_FUNCTION.library.square.NAME,
-          description: null,
-          flags: ['no-writes']
-        }]
+    reply[0].library_name;
+
+    assert.deepEqual(reply, [{
+      library_name: MATH_FUNCTION.name,
+      engine: MATH_FUNCTION.engine,
+      functions: [{
+        name: MATH_FUNCTION.library.square.NAME,
+        description: null,
+        flags: ['no-writes']
       }]
-    );
+    }]);
   }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,4 +1,4 @@
-import { ArrayReply, BlobStringReply, NullReply, Command, RedisArgument } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NullReply, UnwrapReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
@@ -10,10 +10,13 @@ export default {
   ) {
     return pushVariadicArguments(['GEOPOS', key], member);
   },
-  transformReply(reply: ArrayReply<[BlobStringReply, BlobStringReply] | NullReply>) {
-    return reply.map(item => item === null ? null : {
-      longitude: item[0],
-      latitude: item[1]
+  transformReply(reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply]> | NullReply>>) {
+    return reply.map(item => {
+      const unwrapped = item as unknown as UnwrapReply<typeof item>;
+      return unwrapped === null ? null : {
+        longitude: unwrapped[0],
+        latitude: unwrapped[1]
+      };
     });
   }
 } as const satisfies Command;

@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, BlobStringReply, Command, NumberReply, Resp2Reply, RespVersions, TuplesToMapReply } from '../RESP/types';
+import { RedisArgument, RespVersions, TuplesToMapReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export interface HelloOptions {
   protover?: RespVersions;
@@ -45,7 +45,7 @@ export default {
     return args;
   },
   transformReply: {
-    2: (reply: Resp2Reply<HelloReply>) => ({
+    2: (reply: UnwrapReply<Resp2Reply<HelloReply>>) => ({
       server: reply[1],
       version: reply[3],
       proto: reply[5],

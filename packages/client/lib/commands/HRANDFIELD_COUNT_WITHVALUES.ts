@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, UnwrapReply, Command } from '../RESP/types';
 
 export type HRandFieldCountWithValuesReply = Array<{
   field: BlobStringReply;
@@ -12,7 +12,7 @@ export default {
     return ['HRANDFIELD', key, count.toString(), 'WITHVALUES'];
   },
   transformReply: {
-    2: (rawReply: ArrayReply<BlobStringReply>) => {
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply>>) => {
       const reply: HRandFieldCountWithValuesReply = [];
 
       let i = 0;
@@ -25,11 +25,14 @@ export default {
 
       return reply;
     },
-    3: (reply: ArrayReply<[BlobStringReply, BlobStringReply]>) => {
-      return reply.map(([field, value]) => ({
-        field,
-        value
-      })) satisfies HRandFieldCountWithValuesReply;
+    3: (reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply]>>>) => {
+      return reply.map(entry => {
+        const [field, value] = entry as unknown as UnwrapReply<typeof entry>;
+        return {
+          field,
+          value
+        };
+      }) satisfies HRandFieldCountWithValuesReply;
     }
   }
 } as const satisfies Command;

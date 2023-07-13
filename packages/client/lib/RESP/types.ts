@@ -1,3 +1,4 @@
+import { BlobError, SimpleError } from '../errors';
 import { RedisScriptConfig, SHA1 } from '../lua-script';
 import { RESP_TYPES } from './decoder';
 import { VerbatimString } from './verbatim-string';
@@ -6,120 +7,138 @@ export type RESP_TYPES = typeof RESP_TYPES;
 
 export type RespTypes = RESP_TYPES[keyof RESP_TYPES];
 
-export type RespType<
+// using interface(s) to allow circular references
+// type X = BlobStringReply | ArrayReply<X>;
+
+export interface RespType<
   RESP_TYPE extends RespTypes,
   DEFAULT,
   TYPES = never,
-  FLAG_TYPES = DEFAULT | TYPES
-> = (DEFAULT | TYPES) & {
+  TYPE_MAPPING = DEFAULT | TYPES
+> {
   RESP_TYPE: RESP_TYPE;
   DEFAULT: DEFAULT;
   TYPES: TYPES;
-  FLAG: Flag<FLAG_TYPES>;
-};
+  TYPE_MAPPING: MappedType<TYPE_MAPPING>;
+}
 
-export type NullReply = RespType<
+export interface NullReply extends RespType<
   RESP_TYPES['NULL'],
   null
->;
-export type BooleanReply<
+> {}
+
+export interface BooleanReply<
   T extends boolean = boolean
-> = RespType<
+> extends RespType<
   RESP_TYPES['BOOLEAN'],
   T
->;
-export type NumberReply<
+> {}
+
+export interface NumberReply<
   T extends number = number
-> = RespType<
+> extends RespType<
   RESP_TYPES['NUMBER'],
   T,
   `${T}`,
   number | string
->;
-export type BigNumberReply<
+> {}
+
+export interface BigNumberReply<
   T extends bigint = bigint
-> = RespType<
+> extends RespType<
   RESP_TYPES['BIG_NUMBER'],
   T,
   number | `${T}`,
   bigint | number | string
->;
-export type DoubleReply<
+> {}
+
+export interface DoubleReply<
   T extends number = number
-> = RespType<
+> extends RespType<
   RESP_TYPES['DOUBLE'],
   T,
   `${T}`,
   number | string
->;
-export type SimpleStringReply<
+> {}
+
+export interface SimpleStringReply<
   T extends string = string
-> = RespType<
+> extends RespType<
   RESP_TYPES['SIMPLE_STRING'],
   T,
   Buffer,
   string | Buffer
->;
-export type BlobStringReply<
+> {}
+
+export interface BlobStringReply<
   T extends string = string
-> = RespType<
+> extends RespType<
   RESP_TYPES['BLOB_STRING'],
   T,
   Buffer,
   string | Buffer
->;
-export type VerbatimStringReply<
+> {}
+
+export interface VerbatimStringReply<
   T extends string = string
-> = RespType<
+> extends RespType<
   RESP_TYPES['VERBATIM_STRING'],
   T,
   Buffer | VerbatimString,
   string | Buffer | VerbatimString
->;
-export type SimpleErrorReply = RespType<
+> {}
+
+export interface SimpleErrorReply extends RespType<
   RESP_TYPES['SIMPLE_ERROR'],
+  SimpleError,
   Buffer
->;
-export type BlobErrorReply = RespType<
+> {}
+
+export interface BlobErrorReply extends RespType<
   RESP_TYPES['BLOB_ERROR'],
+  BlobError,
   Buffer
->;
-export type ArrayReply<T> = RespType<
+> {}
+
+export interface ArrayReply<T> extends RespType<
   RESP_TYPES['ARRAY'],
   Array<T>,
   never,
   Array<any>
->;
-export type TuplesReply<T extends [...Array<unknown>]> = RespType<
+> {}
+
+export interface TuplesReply<T extends [...Array<unknown>]> extends RespType<
   RESP_TYPES['ARRAY'],
   T,
   never,
   Array<any>
->;
-export type SetReply<T> = RespType<
+> {}
+
+export interface SetReply<T> extends RespType<
   RESP_TYPES['SET'],
   Array<T>,
   Set<T>,
   Array<any> | Set<any>
->;
-export type MapReply<K, V> = RespType<
+> {}
+
+export interface MapReply<K, V> extends RespType<
   RESP_TYPES['MAP'],
   { [key: string]: V },
   Map<K, V> | Array<K | V>,
   Map<any, any> | Array<any>
->;
+> {}
 
 type MapKeyValue = [key: BlobStringReply, value: unknown];
 
 type MapTuples = Array<MapKeyValue>;
 
-export type TuplesToMapReply<T extends MapTuples> = RespType<
+export interface TuplesToMapReply<T extends MapTuples> extends RespType<
   RESP_TYPES['MAP'],
   {
     [P in T[number] as P[0] extends BlobStringReply<infer S> ? S : never]: P[1];
   },
   Map<T[number][0], T[number][1]> | FlattenTuples<T>
->;
+> {}
 
 type FlattenTuples<T> = (
   T extends [] ? [] :
@@ -131,31 +150,28 @@ type FlattenTuples<T> = (
   never
 );
 
-export type ReplyUnion = NullReply | BooleanReply | NumberReply | BigNumberReply | DoubleReply | SimpleStringReply | BlobStringReply | VerbatimStringReply | SimpleErrorReply | BlobErrorReply |
-  // cannot reuse ArrayReply, SetReply and MapReply because of circular reference
-  RespType<
-    RESP_TYPES['ARRAY'],
-    Array<ReplyUnion>
-  > |
-  RespType<
-    RESP_TYPES['SET'],
-    Array<ReplyUnion>,
-    Set<ReplyUnion>
-  > |
-  RespType<
-    RESP_TYPES['MAP'],
-    { [key: string]: ReplyUnion },
-    Map<ReplyUnion, ReplyUnion> | Array<ReplyUnion | ReplyUnion>
-  >;
+export type ReplyUnion = (
+  NullReply |
+  BooleanReply |
+  NumberReply |
+  BigNumberReply |
+  DoubleReply |
+  SimpleStringReply |
+  BlobStringReply |
+  VerbatimStringReply |
+  SimpleErrorReply |
+  BlobErrorReply |
+  ArrayReply<ReplyUnion> |
+  SetReply<ReplyUnion> |
+  MapReply<ReplyUnion, ReplyUnion>
+);
 
-export type Reply = ReplyWithTypeMapping<ReplyUnion, {}>;
+export type MappedType<T> = ((...args: any) => T) | (new (...args: any) => T);
 
-export type Flag<T> = ((...args: any) => T) | (new (...args: any) => T);
-
-type RespTypeUnion<T> = T extends RespType<RespTypes, unknown, unknown, infer FLAG_TYPES> ? FLAG_TYPES : never;
+type InferTypeMapping<T> = T extends RespType<RespTypes, unknown, unknown, infer FLAG_TYPES> ? FLAG_TYPES : never;
 
 export type TypeMapping = {
-  [P in RespTypes]?: Flag<RespTypeUnion<Extract<ReplyUnion, RespType<P, any, any, any>>>>;
+  [P in RespTypes]?: MappedType<InferTypeMapping<Extract<ReplyUnion, RespType<P, any, any, any>>>>;
 };
 
 type MapKey<
@@ -167,13 +183,15 @@ type MapKey<
   [RESP_TYPES.BLOB_STRING]: StringConstructor;
 }>;
 
+export type UnwrapReply<REPLY extends RespType<any, any, any, any>> = REPLY['DEFAULT' | 'TYPES'];
+
 export type ReplyWithTypeMapping<
   REPLY,
   TYPE_MAPPING extends TypeMapping
 > = (
   // if REPLY is a type, extract the coresponding type from TYPE_MAPPING or use the default type
   REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ? 
-    TYPE_MAPPING[RESP_TYPE] extends Flag<infer T> ?
+    TYPE_MAPPING[RESP_TYPE] extends MappedType<infer T> ?
       ReplyWithTypeMapping<Extract<DEFAULT | TYPES, T>, TYPE_MAPPING> :
       ReplyWithTypeMapping<DEFAULT, TYPE_MAPPING>
   : (
@@ -192,6 +210,11 @@ export type ReplyWithTypeMapping<
     REPLY
   )
 );
+
+type a = ReplyWithTypeMapping<
+  ArrayReply<TuplesReply<[BlobStringReply | NullReply]>>,
+  {}
+>;
 
 export type TransformReply = (this: void, reply: any, preserve?: any) => any; // TODO;
 
@@ -323,7 +346,7 @@ export type CommandReply<
   // if transformReply[RESP] is a function, use its return type
   COMMAND['transformReply'] extends Record<RESP, (...args: any) => infer T> ? T :
   // otherwise use the generic reply type
-  Reply
+  ReplyUnion
 );
 
 export type CommandSignature<

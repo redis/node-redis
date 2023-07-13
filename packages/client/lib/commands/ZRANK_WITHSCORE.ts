@@ -1,4 +1,4 @@
-import { NullReply, TuplesReply, NumberReply, BlobStringReply, DoubleReply, Command } from '../RESP/types';
+import { NullReply, TuplesReply, NumberReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
 import ZRANK from './ZRANK';
 
 export default {
@@ -10,7 +10,7 @@ export default {
     return redisArgs;
   },
   transformReply: {
-    2: (reply: NullReply | TuplesReply<[NumberReply, BlobStringReply]>) => {
+    2: (reply: UnwrapReply<NullReply | TuplesReply<[NumberReply, BlobStringReply]>>) => {
       if (reply === null) return null;
 
       return {
@@ -18,7 +18,7 @@ export default {
         score: Number(reply[1])
       };
     },
-    3: (reply: NullReply | TuplesReply<[BlobStringReply, DoubleReply]>) => {
+    3: (reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, DoubleReply]>>) => {
       if (reply === null) return null;
 
       return {

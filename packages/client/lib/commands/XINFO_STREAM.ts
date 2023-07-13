@@ -67,5 +67,5 @@ export default {
 } as const satisfies Command;
 
 function transformEntry(entry: StreamMessageRawReply | NullReply) {
-  return entry === null ? null : transformStreamMessageReply(entry);
+  return entry === null ? null : transformStreamMessageReply(entry as StreamMessageRawReply);
 }

@@ -1,4 +1,4 @@
-import { ArrayReply, BlobStringReply, NumberReply, DoubleReply, Command, RedisArgument } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
 import GEOSEARCH, { GeoSearchBy, GeoSearchFrom, GeoSearchOptions } from './GEOSEARCH';
 
 export const GEO_REPLY_WITH = {
@@ -35,7 +35,7 @@ export default {
     return args;
   },
   transformReply(
-    reply: ArrayReply<[BlobStringReply, ...Array<any>]>,
+    reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,
     replyWith: Array<GeoReplyWith>
   ) {
     const replyWithSet = new Set(replyWith);
@@ -45,20 +45,22 @@ export default {
       coordinatesIndex = replyWithSet.has(GEO_REPLY_WITH.COORDINATES) && ++index;
     
     return reply.map(raw => {
+      const unwrapped = raw as unknown as UnwrapReply<typeof raw>;
+
       const item: GeoReplyWithMember = {
-        member: raw[0]
+        member: unwrapped[0]
       };
 
       if (distanceIndex) {
-        item.distance = raw[distanceIndex];
+        item.distance = unwrapped[distanceIndex];
       }
   
       if (hashIndex) {
-        item.hash = raw[hashIndex];
+        item.hash = unwrapped[hashIndex];
       }
   
       if (coordinatesIndex) {
-        const [longitude, latitude] = raw[coordinatesIndex];
+        const [longitude, latitude] = unwrapped[coordinatesIndex];
         item.coordinates = {
           longitude,
           latitude

@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesReply, BlobStringReply, DoubleReply, Command } from '../RESP/types';
+import { RedisArgument, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -7,7 +7,7 @@ export default {
     return ['ZPOPMAX', key];
   },
   transformReply: {
-    2: (reply: TuplesReply<[]> | TuplesReply<[BlobStringReply, BlobStringReply]>) => {
+    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>) => {
       if (reply.length === 0) return null;
 
       return {
@@ -15,7 +15,7 @@ export default {
         score: Number(reply[1])
       };
     },
-    3: (reply: TuplesReply<[]> | TuplesReply<[BlobStringReply, DoubleReply]>) => {
+    3: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, DoubleReply]>>) => {
       if (reply.length === 0) return null;
 
       return {

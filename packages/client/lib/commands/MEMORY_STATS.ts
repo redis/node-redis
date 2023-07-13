@@ -1,4 +1,4 @@
-import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, Command, Resp2Reply } from '../RESP/types'; 
+import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types'; 
 
 export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'peak.allocated'>, NumberReply],
@@ -39,13 +39,12 @@ export default {
     return ['MEMORY', 'STATS'];
   },
   transformReply: {
-    2: (rawReply: Array<BlobStringReply | NumberReply>) => {
-      const reply: Partial<Resp2Reply<MemoryStatsReply['DEFAULT']>> = {};
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) => {
+      const reply: any = {};
 
       let i = 0;
       while (i < rawReply.length) {
-        const key = rawReply[i++] as keyof MemoryStatsReply['DEFAULT'];
-        reply[key] = rawReply[i++] as any;
+        reply[rawReply[i++] as any] = rawReply[i++];
       }
 
       return reply as MemoryStatsReply['DEFAULT'];

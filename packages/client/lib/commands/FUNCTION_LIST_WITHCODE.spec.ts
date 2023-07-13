@@ -25,20 +25,24 @@ describe('FUNCTION LIST WITHCODE', () => {
   });
 
   testUtils.testWithClient('client.functionListWithCode', async client => {
-    await loadMathFunction(client);
+    const [, reply] = await Promise.all([
+      loadMathFunction(client),
+      client.functionListWithCode()
+    ]);
+
+    const a = reply[0];
+
+    const b = a.functions[0].description;
     
-    assert.deepEqual(
-      await client.functionListWithCode(),
-      [{
-        library_name: MATH_FUNCTION.name,
-        engine: MATH_FUNCTION.engine,
-        functions: [{
-          name: MATH_FUNCTION.library.square.NAME,
-          description: null,
-          flags: ['no-writes']
-        }],
-        library_code: MATH_FUNCTION.code
-      }]
-    );
+    assert.deepEqual(reply, [{
+      library_name: MATH_FUNCTION.name,
+      engine: MATH_FUNCTION.engine,
+      functions: [{
+        name: MATH_FUNCTION.library.square.NAME,
+        description: null,
+        flags: ['no-writes']
+      }],
+      library_code: MATH_FUNCTION.code
+    }]);
   }, GLOBAL.SERVERS.OPEN);
 });

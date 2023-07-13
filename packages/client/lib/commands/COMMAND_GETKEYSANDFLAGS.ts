@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, SetReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, SetReply, UnwrapReply, Command } from '../RESP/types';
 
 export type CommandGetKeysAndFlagsRawReply = ArrayReply<TuplesReply<[
   key: BlobStringReply,
@@ -11,10 +11,13 @@ export default {
   transformArguments(args: Array<RedisArgument>) {
     return ['COMMAND', 'GETKEYSANDFLAGS', ...args];
   },
-  transformReply(reply: CommandGetKeysAndFlagsRawReply) {
-    return reply.map(([key, flags]) => ({
-      key,
-      flags
-    }));
+  transformReply(reply: UnwrapReply<CommandGetKeysAndFlagsRawReply>) {
+    return reply.map(entry => {
+      const [key, flags] = entry as unknown as UnwrapReply<typeof entry>;
+      return {
+        key,
+        flags
+      };
+    });
   }
 } as const satisfies Command;

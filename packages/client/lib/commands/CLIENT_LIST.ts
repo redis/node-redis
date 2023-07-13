@@ -36,7 +36,7 @@ export default {
       length = split.length - 1,
       reply: Array<ClientInfoReply> = [];
     for (let i = 0; i < length; i++) {
-      reply.push(CLIENT_INFO.transformReply(split[i] as VerbatimStringReply));
+      reply.push(CLIENT_INFO.transformReply(split[i] as unknown as VerbatimStringReply));
     }
 
     return reply;

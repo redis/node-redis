@@ -1,4 +1,4 @@
-import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, Resp2Reply, Command } from '../RESP/types';
+import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'direction'>, BlobStringReply],
@@ -16,14 +16,17 @@ export default {
     return ['CLUSTER', 'LINKS'];
   },
   transformReply: {
-    2: (reply: Resp2Reply<ClusterLinksReply>) => reply.map(link => ({
-      direction: link[1],
-      node: link[3],
-      'create-time': link[5],
-      events: link[7],
-      'send-buffer-allocated': link[9],
-      'send-buffer-used': link[11]
-    })),
+    2: (reply: UnwrapReply<Resp2Reply<ClusterLinksReply>>) => reply.map(link => {
+      const unwrapped = link as unknown as UnwrapReply<typeof link>;
+      return {
+        direction: unwrapped[1],
+        node: unwrapped[3],
+        'create-time': unwrapped[5],
+        events: unwrapped[7],
+        'send-buffer-allocated': unwrapped[9],
+        'send-buffer-used': unwrapped[11]
+      };
+    }),
     3: undefined as unknown as () => ClusterLinksReply
   }
 } as const satisfies Command;

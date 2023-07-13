@@ -1,5 +1,4 @@
-import { DoubleReply, Resp2Reply } from '../RESP/types';
-import { ArrayReply, BlobStringReply, Command, NumberReply, TuplesToMapReply } from '../RESP/types';
+import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export type AclLogReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'count'>, NumberReply],
@@ -30,18 +29,23 @@ export default {
     return args;
   },
   transformReply: {
-    2: (reply: Resp2Reply<AclLogReply>) => reply.map(item => ({
-      count: item[1],
-      reason: item[3],
-      context: item[5],
-      object: item[7],
-      username: item[9],
-      'age-seconds': Number(item[11]),
-      'client-info': item[13],
-      'entry-id': item[15],
-      'timestamp-created': item[17],
-      'timestamp-last-updated': item[19]
-    })),
+    2: (reply: UnwrapReply<Resp2Reply<AclLogReply>>) => {
+      return reply.map(item => {
+        const inferred = item as unknown as UnwrapReply<typeof item>;
+        return {
+          count: inferred[1],
+          reason: inferred[3],
+          context: inferred[5],
+          object: inferred[7],
+          username: inferred[9],
+          'age-seconds': Number(inferred[11]),
+          'client-info': inferred[13],
+          'entry-id': inferred[15],
+          'timestamp-created': inferred[17],
+          'timestamp-last-updated': inferred[19]
+        };
+      })
+    },
     3: undefined as unknown as () => AclLogReply
   }
 } as const satisfies Command;

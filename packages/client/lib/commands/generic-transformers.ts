@@ -1,12 +1,14 @@
-import { ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply } from '../RESP/types';
+import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, MapReply, NullReply, NumberReply, RedisArgument, TuplesReply } from '../RESP/types';
 
 export const transformBooleanReply = {
-  2: (reply: NumberReply<0 | 1>) => reply === 1,
+  2: (reply: NumberReply<0 | 1>) => reply as unknown as UnwrapReply<typeof reply> === 1,
   3: undefined as unknown as () => BooleanReply
 };
 
 export const transformBooleanArrayReply = {
-  2: (reply: ArrayReply<NumberReply<0 | 1>>) => reply.map(transformBooleanReply[2]),
+  2: (reply: ArrayReply<NumberReply<0 | 1>>) => {
+    return (reply as unknown as UnwrapReply<typeof reply>).map(transformBooleanReply[2]);
+  },
   3: undefined as unknown as () => ArrayReply<BooleanReply>
 };
 
@@ -60,7 +62,7 @@ export const transformNullableDoubleReply = {
   2: (reply: BlobStringReply | NullReply) => {
     if (reply === null) return null;
   
-    return transformDoubleReply[2](reply);
+    return transformDoubleReply[2](reply as BlobStringReply);
   },
   3: undefined as unknown as () => DoubleReply | NullReply
 };
@@ -68,10 +70,11 @@ export const transformNullableDoubleReply = {
 export function transformTuplesReply(
   reply: ArrayReply<BlobStringReply>
 ): Record<string, BlobStringReply> {
-  const message = Object.create(null);
+  const inferred = reply as unknown as UnwrapReply<typeof reply>,
+    message = Object.create(null);
 
-  for (let i = 0; i < reply.length; i += 2) {
-    message[reply[i].toString()] = reply[i + 1];
+  for (let i = 0; i < inferred.length; i += 2) {
+    message[inferred[i].toString()] = inferred[i + 1];
   }
 
   return message;
@@ -82,7 +85,8 @@ export type StreamMessageRawReply = TuplesReply<[
   message: ArrayReply<BlobStringReply>
 ]>;
 
-export function transformStreamMessageReply([id, message]: StreamMessageRawReply) {
+export function transformStreamMessageReply(reply: StreamMessageRawReply) {
+  const [id, message] = reply as unknown as UnwrapReply<typeof reply>;
   return {
     id,
     message: transformTuplesReply(message)
@@ -92,13 +96,11 @@ export function transformStreamMessageReply([id, message]: StreamMessageRawReply
 export type StreamMessagesRawReply = ArrayReply<StreamMessageRawReply>;
 
 export function transformStreamMessagesReply(reply: StreamMessagesRawReply) {
-  return reply.map(transformStreamMessageReply);
+  return (reply as unknown as UnwrapReply<typeof reply>)
+    .map(message => transformStreamMessageReply(message));
 }
 
-// export type StreamsMessagesReply = Array<{
-//   name: RedisArgument;
-//   messages: StreamMessagesReply;
-// }> | null;
+// export type StreamsMessagesReply = MapReply<BlobStringReply, StreamMessagesRawReply>;
 
 // export function transformStreamsMessagesReply(reply: Array<any> | null): StreamsMessagesReply | null {
 //   if (reply === null) return null;
@@ -118,21 +120,25 @@ export type SortedSetSide = 'MIN' | 'MAX';
 
 export const transformSortedSetReply = {
   2: (reply: ArrayReply<BlobStringReply>) => {
-    const members = [];
-    for (let i = 0; i < reply.length; i += 2) {
+    const inferred = reply as unknown as UnwrapReply<typeof reply>,
+      members = [];
+    for (let i = 0; i < inferred.length; i += 2) {
       members.push({
-        value: reply[i],
-        score: transformDoubleReply[2](reply[i + 1])
+        value: inferred[i],
+        score: transformDoubleReply[2](inferred[i + 1])
       });
     }
 
     return members;
   },
   3: (reply: ArrayReply<TuplesReply<[BlobStringReply, DoubleReply]>>) => {
-    return reply.map(([value, score]) => ({
-      value,
-      score
-    }));
+    return (reply as unknown as UnwrapReply<typeof reply>).map(member => {
+      const [value, score] = member as unknown as UnwrapReply<typeof member>;
+      return {
+        value,
+        score
+      };
+    });
   }
 }
 

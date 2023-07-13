@@ -1,4 +1,4 @@
-import { TuplesReply, BlobStringReply, ArrayReply, Command } from '../RESP/types';
+import { TuplesReply, BlobStringReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 import XAUTOCLAIM from './XAUTOCLAIM';
 
 type XAutoClaimJustIdRawReply = TuplesReply<[
@@ -15,7 +15,7 @@ export default {
     redisArgs.push('JUSTID');
     return redisArgs;
   },
-  transformReply(reply: XAutoClaimJustIdRawReply) {
+  transformReply(reply: UnwrapReply<XAutoClaimJustIdRawReply>) {
     return {
       nextId: reply[0],
       messages: reply[1],

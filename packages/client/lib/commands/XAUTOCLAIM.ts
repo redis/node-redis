@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesReply, BlobStringReply, ArrayReply, Command } from '../RESP/types';
+import { RedisArgument, TuplesReply, BlobStringReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 import { StreamMessagesRawReply, transformStreamMessagesReply } from './generic-transformers';
 
 export interface XAutoClaimOptions {
@@ -37,7 +37,7 @@ export default {
 
     return args;
   },
-  transformReply(reply: XAutoClaimRawReply) {
+  transformReply(reply: UnwrapReply<XAutoClaimRawReply>) {
     return {
       nextId: reply[0],
       messages: transformStreamMessagesReply(reply[1]),

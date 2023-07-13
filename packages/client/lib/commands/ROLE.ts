@@ -1,9 +1,9 @@
-import { ArrayReply, BlobStringReply, Command, NumberReply } from '../RESP/types';
+import { BlobStringReply, NumberReply, ArrayReply, TuplesReply, UnwrapReply, Command } from '../RESP/types';
 
 type MasterRole = [
   role: BlobStringReply<'master'>,
   replicationOffest: NumberReply,
-  replicas: ArrayReply<[host: BlobStringReply, port: BlobStringReply, replicationOffest: BlobStringReply]>
+  replicas: ArrayReply<TuplesReply<[host: BlobStringReply, port: BlobStringReply, replicationOffest: BlobStringReply]>>
 ];
 
 type SlaveRole = [
@@ -19,7 +19,7 @@ type SentinelRole = [
   masterNames: ArrayReply<BlobStringReply>
 ];
 
-type Role = MasterRole | SlaveRole | SentinelRole;
+type Role = TuplesReply<MasterRole | SlaveRole | SentinelRole>;
 
 export default {
   FIRST_KEY_INDEX: undefined,
@@ -27,18 +27,21 @@ export default {
   transformArguments() {
     return ['ROLE'];
   },
-  transformReply(reply: Role) {
-    switch (reply[0] as Role[0]['DEFAULT']) {
+  transformReply(reply: UnwrapReply<Role>) {
+    switch (reply[0] as unknown as UnwrapReply<typeof reply[0]>) {
       case 'master': {
         const [role, replicationOffest, replicas] = reply as MasterRole;
         return {
           role,
           replicationOffest,
-          replicas: replicas.map(([host, port, replicationOffest]) => ({
-            host,
-            port: Number(port),
-            replicationOffest: Number(replicationOffest)
-          })),
+          replicas: (replicas as unknown as UnwrapReply<typeof replicas>).map(replica => {
+            const [host, port, replicationOffest] = replica as unknown as UnwrapReply<typeof replica>;
+            return {
+              host,
+              port: Number(port),
+              replicationOffest: Number(replicationOffest)
+            };
+          })
         };
       }
 

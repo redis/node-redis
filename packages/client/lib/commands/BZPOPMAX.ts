@@ -1,4 +1,4 @@
-import { RedisArgument, Command, NullReply, TuplesReply, BlobStringReply, DoubleReply } from '../RESP/types';
+import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export function transformBZPopArguments(
@@ -20,14 +20,14 @@ export default {
     return transformBZPopArguments('BZPOPMAX', ...args);
   },
   transformReply: {
-    2: (reply: NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>) => {
+    2(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>>) {
       return reply === null ? null : {
         key: reply[0],
         value: reply[1],
         score: Number(reply[2])
       };
     },
-    3: (reply: NullReply | TuplesReply<[BlobStringReply, BlobStringReply, DoubleReply]>) => {
+    3(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, DoubleReply]>>) {
       return reply === null ? null : {
         key: reply[0],
         value: reply[1],

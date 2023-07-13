@@ -1,4 +1,4 @@
-import { BlobStringReply, NullReply, Command } from '../RESP/types';
+import { UnwrapReply, NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
@@ -12,7 +12,7 @@ export default {
     args.push(timeout.toString());
     return args;
   },
-  transformReply(reply: NullReply | [BlobStringReply, BlobStringReply]) {
+  transformReply(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply]>>) {
     if (reply === null) return null;
 
     return {

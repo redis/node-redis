@@ -1,10 +1,10 @@
-import { NumberReply, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { TuplesReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 
-type RawNode = [
+type RawNode = TuplesReply<[
   host: BlobStringReply,
   port: NumberReply,
   id: BlobStringReply
-];
+]>;
 
 type ClusterSlotsRawReply = ArrayReply<[
   from: NumberReply,
@@ -21,7 +21,7 @@ export default {
   transformArguments() {
     return ['CLUSTER', 'SLOTS'];
   },
-  transformReply(reply: ClusterSlotsRawReply) {
+  transformReply(reply: UnwrapReply<ClusterSlotsRawReply>) {
     return reply.map(([from, to, master, ...replicas]) => ({
       from,
       to,
@@ -31,7 +31,8 @@ export default {
   }
 } as const satisfies Command;
 
-function transformNode([host, port, id ]: RawNode) {
+function transformNode(node: RawNode) {
+  const [host, port, id] = node as unknown as UnwrapReply<typeof node>;
   return {
     host,
     port,

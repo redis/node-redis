@@ -1,4 +1,4 @@
-import { ArrayReply, BlobStringReply, NumberReply, Command } from '../RESP/types';
+import { ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export default {
@@ -11,7 +11,7 @@ export default {
 
     return args;
   },
-  transformReply(rawReply: ArrayReply<BlobStringReply | NumberReply>) {
+  transformReply(rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) {
     const reply = Object.create(null);
     let i = 0;
     while (i < rawReply.length) {

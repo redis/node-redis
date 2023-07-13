@@ -425,7 +425,6 @@ export default class RedisClient<
         } catch (err) {
           this._queue.decoder.reset();
           this.emit('error', err);
-
         }
       })
       .on('error', err => {

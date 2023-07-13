@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
 
 export interface XPendingRangeOptions {
   IDLE?: number;
@@ -41,12 +41,15 @@ export default {
 
     return args;
   },
-  transformReply(reply: XPendingRangeRawReply) {
-    return reply.map(pending => ({
-      id: pending[0],
-      consumer: pending[1],
-      millisecondsSinceLastDelivery: pending[2],
-      deliveriesCounter: pending[3]
-    }));
+  transformReply(reply: UnwrapReply<XPendingRangeRawReply>) {
+    return reply.map(pending => {
+      const unwrapped = pending as unknown as UnwrapReply<typeof pending>;
+      return {
+        id: unwrapped[0],
+        consumer: unwrapped[1],
+        millisecondsSinceLastDelivery: unwrapped[2],
+        deliveriesCounter: unwrapped[3]
+      };
+    });
   }
 } as const satisfies Command;

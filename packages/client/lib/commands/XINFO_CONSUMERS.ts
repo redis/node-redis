@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export type XInfoConsumersReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'name'>, BlobStringReply],
@@ -18,13 +18,16 @@ export default {
     return ['XINFO', 'CONSUMERS', key, group];
   },
   transformReply: {
-    2: (reply: Resp2Reply<XInfoConsumersReply>) => {
-      return reply.map(consumer => ({
-        name: consumer[1],
-        pending: consumer[3],
-        idle: consumer[5],
-        inactive: consumer[7]
-      }));
+    2: (reply: UnwrapReply<Resp2Reply<XInfoConsumersReply>>) => {
+      return reply.map(consumer => {
+        const unwrapped = consumer as unknown as UnwrapReply<typeof consumer>;
+        return {
+          name: unwrapped[1],
+          pending: unwrapped[3],
+          idle: unwrapped[5],
+          inactive: unwrapped[7]
+        };
+      });
     },
     3: undefined as unknown as () => XInfoConsumersReply
   }

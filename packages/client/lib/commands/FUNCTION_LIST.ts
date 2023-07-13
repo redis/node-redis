@@ -1,18 +1,18 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, Resp2Reply, CommandArguments, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command, ReplyWithTypeMapping } from '../RESP/types';
 
 export interface FunctionListOptions {
   LIBRARYNAME?: RedisArgument;
 }
 
 export type FunctionListReplyItem = [
-  [BlobStringReply<'library_name'>, BlobStringReply],
+  [BlobStringReply<'library_name'>, BlobStringReply | NullReply],
   [BlobStringReply<'engine'>, BlobStringReply],
   [BlobStringReply<'functions'>, ArrayReply<TuplesToMapReply<[
     [BlobStringReply<'name'>, BlobStringReply],
     [BlobStringReply<'description'>, BlobStringReply | NullReply],
     [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
   ]>>]
-]
+];
 
 export type FunctionListReply = ArrayReply<TuplesToMapReply<FunctionListReplyItem>>;
 
@@ -29,16 +29,22 @@ export default {
     return args;
   },
   transformReply: {
-    2: (reply: Resp2Reply<FunctionListReply>) => {
-      return reply.map(library => ({
-        library_name: library[1],
-        engine: library[3],
-        functions: library[5].map(fn => ({
-          name: fn[1],
-          description: fn[3],
-          flags: fn[5]
-        }))
-      }));
+    2: (reply: UnwrapReply<Resp2Reply<FunctionListReply>>) => {
+      return reply.map(library => {
+        const unwrapped = library as unknown as UnwrapReply<typeof library>;
+        return {
+          library_name: unwrapped[1],
+          engine: unwrapped[3],
+          functions: (unwrapped[5] as unknown as UnwrapReply<typeof unwrapped[5]>).map(fn => {
+            const unwrapped = fn as unknown as UnwrapReply<typeof fn>;
+            return {
+              name: unwrapped[1],
+              description: unwrapped[3],
+              flags: unwrapped[5]
+            };
+          })
+        };
+      });
     },
     3: undefined as unknown as () => FunctionListReply
   }

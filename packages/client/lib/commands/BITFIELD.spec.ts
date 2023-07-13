@@ -34,6 +34,12 @@ describe('BITFIELD', () => {
   });
 
   testUtils.testAll('bitField', async client => {
+    const a = client.bitField('key', [{
+      operation: 'GET',
+      encoding: 'i8',
+      offset: 0
+    }]);
+    
     assert.deepEqual(
       await client.bitField('key', [{
         operation: 'GET',

@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type AclUser = TuplesToMapReply<[
   [BlobStringReply<'flags'>, ArrayReply<BlobStringReply>],
@@ -23,17 +23,20 @@ export default {
     return ['ACL', 'GETUSER', username];
   },
   transformReply: {
-    2: (reply: Resp2Reply<AclUser>) => ({
+    2: (reply: UnwrapReply<Resp2Reply<AclUser>>) => ({
       flags: reply[1],
       passwords: reply[3],
       commands: reply[5],
       keys: reply[7],
       channels: reply[9],
-      selectors: reply[11]?.map(selector => ({
-        commands: selector[1],
-        keys: selector[3],
-        channels: selector[5]
-      }))
+      selectors: (reply[11] as unknown as UnwrapReply<typeof reply[11]>)?.map(selector => {
+        const inferred = selector as unknown as UnwrapReply<typeof selector>;
+        return {
+          commands: inferred[1],
+          keys: inferred[3],
+          channels: inferred[5]
+        };
+      })
     }),
     3: undefined as unknown as () => AclUser
   }

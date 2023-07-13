@@ -1,5 +1,5 @@
-import { NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, Resp2Reply, Command, RedisArgument } from '../RESP/types';
-import { pushVariadicArgument, RedisVariadicArgument, SortedSetSide, transformSortedSetReply } from './generic-transformers';
+import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { pushVariadicArgument, RedisVariadicArgument, SortedSetSide, transformSortedSetReply, transformDoubleReply } from './generic-transformers';
 
 export interface ZMPopOptions {
   COUNT?: number;
@@ -39,20 +39,23 @@ export default {
     return transformZMPopArguments(['ZMPOP'], ...args);
   },
   transformReply: {
-    2: (reply: Resp2Reply<ZMPopRawReply>) => {
+    2(reply: UnwrapReply<Resp2Reply<ZMPopRawReply>>) {
       return reply === null ? null : {
         key: reply[0],
-        members: reply[1].map(([value, score]) => ({
-          value,
-          score: Number(score)
-        }))
+        members: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(member => {
+          const [value, score] = member as unknown as UnwrapReply<typeof member>;
+          return {
+            value,
+            score: transformDoubleReply[2](score)
+          };
+        })
       };
     },
-    3: (reply: ZMPopRawReply) => {
+    3(reply: UnwrapReply<ZMPopRawReply>) {
       return reply === null ? null : {
         key: reply[0],
         members: transformSortedSetReply[3](reply[1])
       };
-    },
+    }
   }
 } as const satisfies Command;
