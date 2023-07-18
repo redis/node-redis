@@ -6,5 +6,5 @@ export default {
   transformArguments(key: RedisArgument, path: RedisArgument, start: number, stop: number) {
     return ['JSON.ARRTRIM', key, path, start.toString(), stop.toString()];
   },
-  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply | NullReply>
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

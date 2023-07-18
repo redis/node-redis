@@ -20,11 +20,11 @@ describe('JSON.TOGGLE', () => {
   });
 
   testUtils.testWithClient('client.json.toggle', async client => {
-    await client.json.set('key', '$', '');
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', ''),
+      client.json.toggle('key', '$')
+    ]);
 
-    assert.deepEqual(
-      await client.json.toggle('key', '$'),
-      [0]
-    );
+    assert.deepEqual(reply, [0]);
   }, GLOBAL.SERVERS.OPEN);
 });

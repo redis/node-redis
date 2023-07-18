@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, SimpleStringReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, ArrayReply, SimpleStringReply, NumberReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,11 +6,11 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['TOPK.LIST', key, 'WITHCOUNT'];
   },
-  transformReply(rawReply: ArrayReply<SimpleStringReply | NumberReply>) {
-    const reply = [] as unknown as ArrayReply<{
+  transformReply(rawReply: UnwrapReply<ArrayReply<SimpleStringReply | NumberReply>>) {
+    const reply: Array<{
       item: SimpleStringReply;
       count: NumberReply;
-    }>;
+    }> = [];
     
     for (let i = 0; i < rawReply.length; i++) {
       reply.push({

@@ -1,7 +1,5 @@
 import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-type ReplyItem = ArrayReply<BlobStringReply> | NullReply;
-
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
@@ -14,5 +12,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => ReplyItem | ArrayReply<ReplyItem>
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply> | ArrayReply<ArrayReply<BlobStringReply> | NullReply>
 } as const satisfies Command;

@@ -20,11 +20,11 @@ describe('JSON.ARRINSERT', () => {
   });
 
   testUtils.testWithClient('client.json.arrInsert', async client => {
-    await client.json.set('key', '$', []);
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', []),
+      client.json.arrInsert('key', '$', 0, 'json')
+    ]);
 
-    assert.deepEqual(
-      await client.json.arrInsert('key', '$', 0, 'json'),
-      [1]
-    );
+    assert.deepEqual(reply, [1]);
   }, GLOBAL.SERVERS.OPEN);
 });

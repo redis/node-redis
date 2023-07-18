@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,7 +6,7 @@ export default {
   transformArguments(key: RedisArgument, iterator: number) {
     return ['CF.SCANDUMP', key, iterator.toString()];
   },
-  transformReply(reply: TuplesReply<[NumberReply, BlobStringReply | NullReply]>) {
+  transformReply(reply: UnwrapReply<TuplesReply<[NumberReply, BlobStringReply | NullReply]>>) {
     return {
       iterator: reply[0],
       chunk: reply[1]

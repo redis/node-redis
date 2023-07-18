@@ -20,11 +20,11 @@ describe('ARRAPPEND', () => {
   });
 
   testUtils.testWithClient('client.json.arrAppend', async client => {
-    await client.json.set('key', '$', []);
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', []),
+      client.json.arrAppend('key', '$', 1)
+    ]);
 
-    assert.deepEqual(
-      await client.json.arrAppend('key', '$', 1),
-      [1]
-    );
+    assert.deepEqual(reply, [1]);
   }, GLOBAL.SERVERS.OPEN);
 });

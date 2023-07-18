@@ -1,5 +1,12 @@
-import { RedisArgument, ArrayReply, NumberReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
+
+export interface JsonArrIndexOptions {
+  range?: {
+    start: number;
+    stop?: number;
+  };
+}
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -8,20 +15,19 @@ export default {
     key: RedisArgument,
     path: RedisArgument,
     json: RedisJSON,
-    start?: number,
-    stop?: number
+    options?: JsonArrIndexOptions
   ) {
     const args = ['JSON.ARRINDEX', key, path, transformRedisJsonArgument(json)];
 
-    if (start !== undefined && start !== null) {
-      args.push(start.toString());
+    if (options?.range) {
+      args.push(options.range.start.toString());
 
-      if (stop !== undefined && stop !== null) {
-        args.push(stop.toString());
+      if (options.range.stop !== undefined) {
+        args.push(options.range.stop.toString());
       }
     }
 
     return args;
   },
-  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply | NullReply>
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

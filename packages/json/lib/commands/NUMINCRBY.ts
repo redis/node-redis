@@ -1,4 +1,4 @@
-import { RedisArgument, Command, ArrayReply, NumberReply, DoubleReply, NullReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, NumberReply, DoubleReply, NullReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,5 +6,10 @@ export default {
   transformArguments(key: RedisArgument, path: RedisArgument, by: number) {
     return ['JSON.NUMINCRBY', key, path, by.toString()];
   },
-  transformReply: undefined as unknown as () => ArrayReply<NumberReply | DoubleReply | NullReply>
+  transformReply: {
+    2: (reply: UnwrapReply<BlobStringReply>) => {
+      return JSON.parse(reply.toString()) as number | Array<number>;
+    },
+    3: undefined as unknown as () => NumberReply | DoubleReply | NullReply
+  }
 } as const satisfies Command;

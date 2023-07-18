@@ -20,11 +20,11 @@ describe('JSON.STRLEN', () => {
   });
 
   testUtils.testWithClient('client.json.strLen', async client => {
-    await client.json.set('key', '$', '');
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', ''),
+      client.json.strLen('key', '$')
+    ]);
 
-    assert.deepEqual(
-      await client.json.strLen('key', '$'),
-      [0]
-    );
+    assert.deepEqual(reply, [0]);
   }, GLOBAL.SERVERS.OPEN);
 });

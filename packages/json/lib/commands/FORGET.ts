@@ -1,13 +1,17 @@
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
+export interface JsonForgetOptions {
+  path?: RedisArgument;
+}
+
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, path?: RedisArgument) {
+  transformArguments(key: RedisArgument, options?: JsonForgetOptions) {
     const args = ['JSON.FORGET', key];
 
-    if (path) {
-      args.push(path);
+    if (options?.path) {
+      args.push(options.path);
     }
 
     return args;

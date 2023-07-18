@@ -4,17 +4,19 @@ import CLEAR from './CLEAR';
 
 describe('JSON.CLEAR', () => {
   describe('transformArguments', () => {
-    it('key', () => {
+    it('simple', () => {
       assert.deepEqual(
         CLEAR.transformArguments('key'),
         ['JSON.CLEAR', 'key']
       );
     });
 
-    it('key, path', () => {
+    it('with path', () => {
       assert.deepEqual(
-        CLEAR.transformArguments('key', '$.path'),
-        ['JSON.CLEAR', 'key', '$.path']
+        CLEAR.transformArguments('key', {
+          path: '$'
+        }),
+        ['JSON.CLEAR', 'key', '$']
       );
     });
   });

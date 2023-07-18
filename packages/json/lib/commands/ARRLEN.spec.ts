@@ -4,7 +4,7 @@ import ARRLEN from './ARRLEN';
 
 describe('JSON.ARRLEN', () => {
   describe('transformArguments', () => {
-    it('without path', () => {
+    it('simple', () => {
       assert.deepEqual(
         ARRLEN.transformArguments('key'),
         ['JSON.ARRLEN', 'key']
@@ -13,18 +13,20 @@ describe('JSON.ARRLEN', () => {
 
     it('with path', () => {
       assert.deepEqual(
-        ARRLEN.transformArguments('key', '$'),
+        ARRLEN.transformArguments('key', {
+          path: '$'
+        }),
         ['JSON.ARRLEN', 'key', '$']
       );
     });
   });
 
   testUtils.testWithClient('client.json.arrLen', async client => {
-    await client.json.set('key', '$', []);
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', []),
+      client.json.arrLen('key')
+    ]);
 
-    assert.deepEqual(
-      await client.json.arrLen('key', '$'),
-      [0]
-    );
+    assert.deepEqual(reply, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

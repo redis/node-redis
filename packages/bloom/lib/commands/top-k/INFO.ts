@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export type TopKInfoReply = TuplesToMapReply<[
   [BlobStringReply<'k'>, NumberReply],
@@ -14,7 +14,7 @@ export default {
     return ['TOPK.INFO', key];
   },
   transformReply: {
-    2: (reply: Resp2Reply<TopKInfoReply>) => ({
+    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReply>>) => ({
       k: reply[1],
       width: reply[3],
       depth: reply[5],

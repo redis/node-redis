@@ -12,5 +12,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply | NullReply>
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FORGET from './FORGET';
 
-describe('FORGET', () => {
+describe('JSON.FORGET', () => {
   describe('transformArguments', () => {
     it('key', () => {
       assert.deepEqual(
@@ -13,7 +13,9 @@ describe('FORGET', () => {
 
     it('key, path', () => {
       assert.deepEqual(
-        FORGET.transformArguments('key', '$.path'),
+        FORGET.transformArguments('key', {
+          path: '$.path'
+        }),
         ['JSON.FORGET', 'key', '$.path']
       );
     });

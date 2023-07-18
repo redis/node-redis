@@ -73,11 +73,11 @@ const benchmarkStart = process.hrtime.bigint(),
     json = {
         // timestamp,
         operationsPerSecond: times / Number(benchmarkNanoseconds) * 1_000_000_000,
-        // p0: histogram.getValueAtPercentile(0),
-        // p50: histogram.getValueAtPercentile(50),
-        // p95: histogram.getValueAtPercentile(95),
-        // p99: histogram.getValueAtPercentile(99),
-        // p100: histogram.getValueAtPercentile(100)
+        p0: histogram.getValueAtPercentile(0),
+        p50: histogram.getValueAtPercentile(50),
+        p95: histogram.getValueAtPercentile(95),
+        p99: histogram.getValueAtPercentile(99),
+        p100: histogram.getValueAtPercentile(100)
     };
 console.log(`[${basename(path)}]:`);
 console.table(json);

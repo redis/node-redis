@@ -11,11 +11,11 @@ describe('JSON.ARRTRIM', () => {
   });
 
   testUtils.testWithClient('client.json.arrTrim', async client => {
-    await client.json.set('key', '$', []);
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', []),
+      client.json.arrTrim('key', '$', 0, 1)
+    ]);
 
-    assert.deepEqual(
-      await client.json.arrTrim('key', '$', 0, 1),
-      [0]
-    );
+    assert.deepEqual(reply, [0]);
   }, GLOBAL.SERVERS.OPEN);
 });

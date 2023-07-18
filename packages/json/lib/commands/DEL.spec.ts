@@ -2,18 +2,20 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DEL from './DEL';
 
-describe('DEL', () => {
+describe('JSON.DEL', () => {
   describe('transformArguments', () => {
-    it('key', () => {
+    it('simple', () => {
       assert.deepEqual(
         DEL.transformArguments('key'),
         ['JSON.DEL', 'key']
       );
     });
 
-    it('key, path', () => {
+    it('with path', () => {
       assert.deepEqual(
-        DEL.transformArguments('key', '$.path'),
+        DEL.transformArguments('key', {
+          path: '$.path'
+        }),
         ['JSON.DEL', 'key', '$.path']
       );
     });

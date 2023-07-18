@@ -177,6 +177,10 @@ Some command arguments/replies have changed to align more closely to data types 
 - `FT.SUGDEL`: [^boolean-to-number]
 - `TOPK.QUERY`: `Array<number>` -> `Array<boolean>`
 - `GRAPH.SLOWLOG`: `timestamp` has been changed from `Date` to `number`
+- `JSON.ARRINDEX`: `start` and `end` arguments moved to `{ range: { start: number; end: number; }; }` [^future-proofing]
+- `JSON.ARRLEN`: `path` argument moved to `{ path: string; }` [^future-proofing]
+- `JSON.DEL`: `path` argument moved to `{ path: string; }` [^future-proofing]
+- `JSON.FORGET`: `path` argument moved to `{ path: string; }` [^future-proofing]
 
 [^enum-to-constants]: TODO
 

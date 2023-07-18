@@ -1,4 +1,4 @@
-import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, NumberReply, ArrayReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 2,

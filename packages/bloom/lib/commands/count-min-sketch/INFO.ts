@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export type BfInfoReply = TuplesToMapReply<[
   [BlobStringReply<'width'>, NumberReply],
@@ -13,7 +13,7 @@ export default {
     return ['CMS.INFO', key];
   },
   transformReply: {
-    2: (reply: Resp2Reply<BfInfoReply>) => ({
+    2: (reply: UnwrapReply<Resp2Reply<BfInfoReply>>) => ({
       width: reply[1],
       depth: reply[3],
       count: reply[5]

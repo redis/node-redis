@@ -19,3 +19,14 @@
 // }
 
 // export declare function transformReply(): number | Array<number>;
+
+import { SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments() {
+    return ['JSON.STRAPPEND'];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

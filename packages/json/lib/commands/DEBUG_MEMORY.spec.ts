@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DEBUG_MEMORY from './DEBUG_MEMORY';
 
-describe('DEBUG MEMORY', () => {
+describe('JSON.DEBUG MEMORY', () => {
   describe('transformArguments', () => {
     it('without path', () => {
       assert.deepEqual(
@@ -19,10 +19,10 @@ describe('DEBUG MEMORY', () => {
     });
   });
 
-  testUtils.testWithClient('client.json.arrTrim', async client => {
+  testUtils.testWithClient('client.json.debugMemory', async client => {
     assert.deepEqual(
       await client.json.debugMemory('key', '$'),
-      []
+      0
     );
   }, GLOBAL.SERVERS.OPEN);
 });

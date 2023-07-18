@@ -19,10 +19,10 @@ describe('JSON.OBJLEN', () => {
     });
   });
 
-  // testUtils.testWithClient('client.json.objLen', async client => {
-  //   assert.equal(
-  //     await client.json.objLen('key', '$'),
-  //     [null]
-  //   );
-  // }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.json.objLen', async client => {
+    assert.equal(
+      await client.json.objLen('key', '$'),
+      [null]
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

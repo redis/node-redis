@@ -5,8 +5,7 @@
     "path": "./packages/test-utils"
   }, {
     "path": "./packages/bloom"
-  }],
-  "todo": [{
+  }, {
     "path": "./packages/graph"
   }, {
     "path": "./packages/json"
@@ -16,10 +15,5 @@
     "path": "./packages/time-series"
   }, {
     "path": "./packages/redis"
-  }],
-  "typedocOptions": {
-    "entryPoints": ["./packages/client"],
-    "entryPointStrategy": "packages",
-    "out": "./documentation"
-  }
+  }]
 }
