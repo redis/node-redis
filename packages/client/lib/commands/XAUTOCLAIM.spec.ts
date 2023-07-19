@@ -58,7 +58,8 @@ describe('XAUTOCLAIM', () => {
         messages: [null, {
           id: id2,
           message
-        }]
+        }],
+        deletedMessages: undefined
       })
     });
   }, {
