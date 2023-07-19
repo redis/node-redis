@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XAUTOCLAIM from './XAUTOCLAIM';
 
-describe.only('XAUTOCLAIM', () => {
+describe('XAUTOCLAIM', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   describe('transformArguments', () => {
