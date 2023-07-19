@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XAUTOCLAIM from './XAUTOCLAIM';
 
-describe('XAUTOCLAIM', () => {
+describe.only('XAUTOCLAIM', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   describe('transformArguments', () => {
@@ -31,26 +31,35 @@ describe('XAUTOCLAIM', () => {
       }
     });
 
-    const [, , id, , reply] = await Promise.all([
+    const [, , id1, id2, , , reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true
       }),
       client.xGroupCreateConsumer('key', 'group', 'consumer'),
       client.xAdd('key', '*', message),
+      client.xAdd('key', '*', message),
       client.xReadGroup('group', 'consumer', {
         key: 'key',
         id: '>'
       }),
+      client.xTrim('key', 'MAXLEN', 1),
       client.xAutoClaim('key', 'group', 'consumer', 0, '0-0')
     ]);
 
     assert.deepEqual(reply, {
       nextId: '0-0',
-      messages: [{
-        id,
-        message
-      }],
-      deletedMessages: testUtils.isVersionGreaterThan([7, 0]) ? [] : undefined
+      ...(testUtils.isVersionGreaterThan([7, 0]) ? {
+        messages: [{
+          id: id2,
+          message
+        }],
+        deletedMessages: [id1]
+      } : {
+        messages: [null, {
+          id: id2,
+          message
+        }]
+      })
     });
   }, {
     client: GLOBAL.SERVERS.OPEN,

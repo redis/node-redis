@@ -1,5 +1,5 @@
-import { RedisArgument, TuplesReply, BlobStringReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
-import { StreamMessagesRawReply, transformStreamMessagesReply } from './generic-transformers';
+import { RedisArgument, TuplesReply, BlobStringReply, ArrayReply, NullReply, UnwrapReply, Command } from '../RESP/types';
+import { StreamMessageRawReply, isNullReply, transformStreamMessageReply } from './generic-transformers';
 
 export interface XAutoClaimOptions {
   COUNT?: number;
@@ -7,7 +7,7 @@ export interface XAutoClaimOptions {
 
 export type XAutoClaimRawReply = TuplesReply<[
   nextId: BlobStringReply,
-  messages: StreamMessagesRawReply,
+  messages: ArrayReply<StreamMessageRawReply | NullReply>,
   deletedMessages: ArrayReply<BlobStringReply>
 ]>;
 
@@ -40,7 +40,9 @@ export default {
   transformReply(reply: UnwrapReply<XAutoClaimRawReply>) {
     return {
       nextId: reply[0],
-      messages: transformStreamMessagesReply(reply[1]),
+      messages: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(message => {
+        return isNullReply(message) ? null : transformStreamMessageReply(message);
+      }),
       deletedMessages: reply[2]
     };
   }

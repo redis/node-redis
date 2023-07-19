@@ -1,4 +1,8 @@
-import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, MapReply, NullReply, NumberReply, RedisArgument, TuplesReply } from '../RESP/types';
+import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, MapReply, NullReply, NumberReply, RedisArgument, TuplesReply, RespType } from '../RESP/types';
+
+export function isNullReply(reply: unknown): reply is NullReply {
+  return reply === null;
+}
 
 export const transformBooleanReply = {
   2: (reply: NumberReply<0 | 1>) => reply as unknown as UnwrapReply<typeof reply> === 1,
