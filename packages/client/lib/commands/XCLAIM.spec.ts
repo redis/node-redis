@@ -89,16 +89,35 @@ describe('XCLAIM', () => {
     });
   });
 
-  // TODO: test with messages
   testUtils.testAll('xClaim', async client => {
-    const [, reply] = await Promise.all([
+    const message = Object.create(null, {
+      field: {
+        value: 'value',
+        enumerable: true
+      }
+    });
+
+    const [, , , , , reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true
       }),
-      client.xClaim('key', 'group', 'consumer', 1, '0-0')
+      client.xAdd('key', '1-0', message),
+      client.xAdd('key', '2-0', message),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      }),
+      client.xTrim('key', 'MAXLEN', 1),
+      client.xClaim('key', 'group', 'consumer', 0, ['1-0', '2-0'])
     ]);
 
-    assert.deepEqual(reply, []);
+    assert.deepEqual(reply, [
+      ...(testUtils.isVersionGreaterThan([7, 0]) ? [] : [null]),
+      {
+        id: '2-0',
+        message
+      }
+    ]);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

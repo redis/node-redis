@@ -1,5 +1,5 @@
-import { RedisArgument, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments, transformStreamMessagesReply } from './generic-transformers';
+import { RedisArgument, ArrayReply, NullReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments, StreamMessageReply, transformStreamMessageNullReply } from './generic-transformers';
 
 export interface XClaimOptions {
   IDLE?: number;
@@ -50,5 +50,7 @@ export default {
 
     return args;
   },
-  transformReply: transformStreamMessagesReply
+  transformReply(reply: UnwrapReply<ArrayReply<StreamMessageReply | NullReply>>) {
+    return reply.map(transformStreamMessageNullReply);
+  }
 } as const satisfies Command;

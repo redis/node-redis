@@ -1,5 +1,5 @@
-import { TuplesToMapReply, BlobStringReply, NumberReply, NullReply, Resp2Reply, Command, RespType, RESP_TYPES, RedisArgument } from '../RESP/types';
-import { StreamMessageRawReply, transformStreamMessageReply } from './generic-transformers';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
+import { isNullReply, transformTuplesReply } from './generic-transformers';
 
 export type XInfoStreamReply = TuplesToMapReply<[
   [BlobStringReply<'length'>, NumberReply],
@@ -13,8 +13,8 @@ export type XInfoStreamReply = TuplesToMapReply<[
   /** added in 7.2 */
   [BlobStringReply<'recorded-first-entry-id'>, BlobStringReply],
   [BlobStringReply<'groups'>, NumberReply],
-  [BlobStringReply<'first-entry'>, ReturnType<typeof transformStreamMessageReply> | NullReply],
-  [BlobStringReply<'last-entry'>, ReturnType<typeof transformStreamMessageReply> | NullReply]
+  [BlobStringReply<'first-entry'>, ReturnType<typeof transformEntry>],
+  [BlobStringReply<'last-entry'>, ReturnType<typeof transformEntry>]
 ]>;
 
 export default {
@@ -66,6 +66,17 @@ export default {
   }
 } as const satisfies Command;
 
-function transformEntry(entry: StreamMessageRawReply | NullReply) {
-  return entry === null ? null : transformStreamMessageReply(entry as StreamMessageRawReply);
+type RawEntry = TuplesReply<[
+  id: BlobStringReply,
+  message: ArrayReply<BlobStringReply>
+]> | NullReply;
+
+function transformEntry(entry: RawEntry) {
+  if (isNullReply(entry)) return entry;
+
+  const [id, message] = entry as unknown as UnwrapReply<typeof entry>;
+  return {
+    id,
+    message: transformTuplesReply(message)
+  };
 }

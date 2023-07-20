@@ -31,11 +31,10 @@ describe('XAUTOCLAIM', () => {
       }
     });
 
-    const [, , id1, id2, , , reply] = await Promise.all([
+    const [, id1, id2, , , reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true
       }),
-      client.xGroupCreateConsumer('key', 'group', 'consumer'),
       client.xAdd('key', '*', message),
       client.xAdd('key', '*', message),
       client.xReadGroup('group', 'consumer', {

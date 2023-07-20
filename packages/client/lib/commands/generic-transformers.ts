@@ -84,36 +84,22 @@ export function transformTuplesReply(
   return message;
 }
 
-export type StreamMessageRawReply = TuplesReply<[
+export type StreamMessageReply = TuplesReply<[
   id: BlobStringReply,
   message: ArrayReply<BlobStringReply>
 ]>;
 
-export function transformStreamMessageReply(reply: StreamMessageRawReply) {
-  const [id, message] = reply as unknown as UnwrapReply<typeof reply>;
+export function transformStreamMessageReply(reply: StreamMessageReply) {
+  const [ id, message ] = reply as unknown as UnwrapReply<typeof reply>;
   return {
     id,
     message: transformTuplesReply(message)
   };
 }
 
-export type StreamMessagesRawReply = ArrayReply<StreamMessageRawReply>;
-
-export function transformStreamMessagesReply(reply: StreamMessagesRawReply) {
-  return (reply as unknown as UnwrapReply<typeof reply>)
-    .map(message => transformStreamMessageReply(message));
+export function transformStreamMessageNullReply(reply: StreamMessageReply | NullReply) {
+  return isNullReply(reply) ? reply : transformStreamMessageReply(reply);
 }
-
-// export type StreamsMessagesReply = MapReply<BlobStringReply, StreamMessagesRawReply>;
-
-// export function transformStreamsMessagesReply(reply: Array<any> | null): StreamsMessagesReply | null {
-//   if (reply === null) return null;
-
-//   return reply.map(([name, rawMessages]) => ({
-//     name,
-//     messages: transformStreamMessagesReply(rawMessages)
-//   }));
-// }
 
 export interface SortedSetMember {
   value: RedisArgument;
