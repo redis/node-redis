@@ -14,7 +14,7 @@ interface ErrorWithCode extends Error {
 
 async function isPortAvailable(port: number): Promise<boolean> {
     try {
-        const socket = createConnection({ port });
+        const socket = createConnection({ host: '0.0.0.0', port });
         await once(socket, 'connect');
         socket.end();
     } catch (err) {

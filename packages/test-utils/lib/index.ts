@@ -136,6 +136,7 @@ export default class TestUtils {
 
             const client = RedisClient.create({
                 ...options?.clientOptions,
+                url: 'redis://0.0.0.0',
                 socket: {
                     ...options?.clientOptions?.socket,
                     port: (await dockerPromise).port

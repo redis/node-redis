@@ -83,23 +83,18 @@ describe('XCLAIM', () => {
         });
 
         assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 1, '0-0'),
+            await client.xClaim('key', 'group', 'consumer', 0, '0-0'),
             []
         );
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('client.xClaim with a message', async client => {
-        const [,,id,] = await Promise.all([
-            client.xGroupCreate('key', 'group', '$', {
-                MKSTREAM: true
-            }),
-            client.xGroupCreateConsumer('key', 'group', 'consumer'),
-            client.xAdd('key', '*', { foo: 'bar' }),
-            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' })
-        ]);
+        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
+        const id = await client.xAdd('key', '*', { foo: 'bar' });
+        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
 
         assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 1, id),
+            await client.xClaim('key', 'group', 'consumer', 0, id),
             [{
                 id,
                 message: Object.create(null, { 'foo': {
@@ -112,18 +107,13 @@ describe('XCLAIM', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('client.xClaim with a trimmed message', async client => {
-        const [,,id,,,] = await Promise.all([
-            client.xGroupCreate('key', 'group', '$', {
-                MKSTREAM: true
-            }),
-            client.xGroupCreateConsumer('key', 'group', 'consumer'),
-            client.xAdd('key', '*', { foo: 'bar' }),
-            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
-            client.xTrim('key', 'MAXLEN', 0),
-        ]);
+        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
+        const id = await client.xAdd('key', '*', { foo: 'bar' });
+        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
+        await client.xTrim('key', 'MAXLEN', 0);
 
         assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 1, id),
+            await client.xClaim('key', 'group', 'consumer', 0, id),
             testUtils.isVersionGreaterThan([7, 0]) ? []: [null]
         );
     }, GLOBAL.SERVERS.OPEN);
