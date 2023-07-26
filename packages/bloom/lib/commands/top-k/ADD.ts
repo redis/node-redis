@@ -1,4 +1,4 @@
-import { ArrayReply, SimpleStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
@@ -7,5 +7,5 @@ export default {
   transformArguments(key: RedisArgument, items: RedisVariadicArgument) {
     return pushVariadicArguments(['TOPK.ADD', key], items);
   },
-  transformReply: undefined as unknown as () => ArrayReply<SimpleStringReply>
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

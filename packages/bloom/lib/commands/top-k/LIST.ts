@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,5 +6,5 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['TOPK.LIST', key];
   },
-  transformReply: undefined as unknown as () => ArrayReply<SimpleStringReply>
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;
