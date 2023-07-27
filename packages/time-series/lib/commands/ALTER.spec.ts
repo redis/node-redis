@@ -64,7 +64,7 @@ describe('TS.ALTER', () => {
   testUtils.testWithClient('client.ts.alter', async client => {
     const [, reply] = await Promise.all([
       client.ts.create('key'),
-      client.ts.alter('key', { RETENTION: 1 })
+      client.ts.alter('key')
     ]);
 
     assert.equal(reply, 'OK');

@@ -1,4 +1,4 @@
-import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { RedisArgument, SimpleStringReply, BlobStringReply, Command } from '../RESP/types';
 
 export default {
   FIRST_KEY_INDEX: undefined,
@@ -11,5 +11,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply | BlobStringReply
 } as const satisfies Command;

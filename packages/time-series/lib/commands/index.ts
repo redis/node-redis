@@ -1,4 +1,4 @@
-import type { RedisArgument, RedisCommands } from '@redis/client/dist/lib/RESP/types';
+import type { BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -11,15 +11,16 @@ import INCRBY from './INCRBY';
 // import INFO_DEBUG from './INFO_DEBUG';
 // import INFO from './INFO';
 import MADD from './MADD';
-// import MGET from './MGET';
-// import MGET_WITHLABELS from './MGET_WITHLABELS';
-// import QUERYINDEX from './QUERYINDEX';
-// import RANGE from './RANGE';
-// import REVRANGE from './REVRANGE';
-// import MRANGE from './MRANGE';
-// import MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
-// import MREVRANGE from './MREVRANGE';
-// import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
+import MGET_WITHLABELS from './MGET_WITHLABELS';
+import MGET from './MGET';
+import MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
+import MRANGE from './MRANGE';
+import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
+import MREVRANGE from './MREVRANGE';
+import QUERYINDEX from './QUERYINDEX';
+import RANGE from './RANGE';
+import REVRANGE from './REVRANGE';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
   ADD,
@@ -46,24 +47,24 @@ export default {
   // info: INFO,
   MADD,
   mAdd: MADD,
-  // MGET,
-  // mGet: MGET,
-  // MGET_WITHLABELS,
-  // mGetWithLabels: MGET_WITHLABELS,
-  // QUERYINDEX,
-  // queryIndex: QUERYINDEX,
-  // RANGE,
-  // range: RANGE,
-  // REVRANGE,
-  // revRange: REVRANGE,
-  // MRANGE,
-  // mRange: MRANGE,
-  // MRANGE_WITHLABELS,
-  // mRangeWithLabels: MRANGE_WITHLABELS,
-  // MREVRANGE,
-  // mRevRange: MREVRANGE,
-  // MREVRANGE_WITHLABELS,
-  // mRevRangeWithLabels: MREVRANGE_WITHLABELS
+  MGET_WITHLABELS,
+  mGetWithLabels: MGET_WITHLABELS,
+  MGET,
+  mGet: MGET,
+  MRANGE_WITHLABELS,
+  mRangeWithLabels: MRANGE_WITHLABELS,
+  MRANGE,
+  mRange: MRANGE,
+  MREVRANGE_WITHLABELS,
+  mRevRangeWithLabels: MREVRANGE_WITHLABELS,
+  MREVRANGE,
+  mRevRange: MREVRANGE,
+  QUERYINDEX,
+  queryIndex: QUERYINDEX,
+  RANGE,
+  range: RANGE,
+  REVRANGE,
+  revRange: REVRANGE
 } as const satisfies RedisCommands;
 
 export function pushRetentionArgument(args: Array<RedisArgument>, retention?: number) {
@@ -148,20 +149,22 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
 //   return labels
 // }
 
-
-// export type SampleRawReply = [timestamp: number, value: string];
-
-// export interface SampleReply {
-//   timestamp: number;
-//   value: number;
-// }
-
-// export function transformSampleReply(reply: SampleRawReply): SampleReply {
-//   return {
-//     timestamp: reply[0],
-//     value: Number(reply[1])
-//   };
-// }
+export const transformSampleReply = {
+  2(reply: TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>) {
+    const [timestamp, value] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      value: Number(value)
+    };
+  },
+  3(reply: TuplesReply<[timestamp: NumberReply, value: DoubleReply]>) {
+    const [timestamp, value] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      value
+    };
+  }
+};
 
 // export enum TimeSeriesBucketTimestamp {
 //   LOW = '-',
@@ -293,16 +296,15 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
 
 // export type SelectedLabels = string | Array<string>;
 
-// export function pushWithLabelsArgument(args: RedisCommandArguments, selectedLabels?: SelectedLabels): RedisCommandArguments {
-//   if (!selectedLabels) {
-//     args.push('WITHLABELS');
-//   } else {
-//     args.push('SELECTED_LABELS');
-//     args = pushVariadicArguments(args, selectedLabels);
-//   }
-
-//   return args;
-// }
+export function pushWithLabelsArgument(args: CommandArguments, selectedLabels?: RedisVariadicArgument) {
+  if (!selectedLabels) {
+    args.push('WITHLABELS');
+    return args;
+  } else {
+    args.push('SELECTED_LABELS');
+    return pushVariadicArguments(args, selectedLabels);
+  }
+}
 
 // export interface MRangeWithLabelsOptions extends MRangeOptions {
 //   SELECTED_LABELS?: SelectedLabels;

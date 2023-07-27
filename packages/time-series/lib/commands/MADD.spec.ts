@@ -3,7 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import MADD from './MADD';
 import { SimpleError } from '@redis/client/lib/errors';
 
-describe.only('TS.MADD', () => {
+describe('TS.MADD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       MADD.transformArguments([{
