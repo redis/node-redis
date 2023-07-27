@@ -1,4 +1,4 @@
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,5 +6,5 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['GRAPH.DELETE', key];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+  transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

@@ -16,6 +16,6 @@ describe('GRAPH.DELETE', () => {
       client.graph.delete('key')
     ]);
 
-    assert.equal(reply, 'OK');
+    assert.equal(typeof reply, 'string');
   }, GLOBAL.SERVERS.OPEN);
 });
