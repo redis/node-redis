@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGADD from './SUGADD';
 
-describe('SUGADD', () => {
+describe('FT.SUGADD', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(

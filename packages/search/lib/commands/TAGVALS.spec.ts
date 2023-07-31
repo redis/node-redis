@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from '.';
 import TAGVALS from './TAGVALS';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
 
-describe('TAGVALS', () => {
+describe('FT.TAGVALS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       TAGVALS.transformArguments('index', '@field'),
@@ -12,13 +12,13 @@ describe('TAGVALS', () => {
   });
 
   testUtils.testWithClient('client.ft.tagVals', async client => {
-    await client.ft.create('index', {
-      field: SchemaFieldTypes.TAG
-    });
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TAG
+      }),
+      client.ft.tagVals('index', 'field')
+    ]);
 
-    assert.deepEqual(
-      await client.ft.tagVals('index', 'field'),
-      []
-    );
+    assert.deepEqual(reply, []);
   }, GLOBAL.SERVERS.OPEN);
 });

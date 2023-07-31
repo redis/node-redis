@@ -2,7 +2,7 @@ import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@
 
 export default {
   FIRST_KEY_INDEX: undefined,
-  IS_READ_ONLY: false,
+  IS_READ_ONLY: true,
   transformArguments(index: RedisArgument, fieldName: RedisArgument) {
     return ['FT.TAGVALS', index, fieldName];
   },

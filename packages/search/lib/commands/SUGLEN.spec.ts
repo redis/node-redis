@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGLEN from './SUGLEN';
 
-describe('SUGLEN', () => {
+describe('FT.SUGLEN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       SUGLEN.transformArguments('key'),

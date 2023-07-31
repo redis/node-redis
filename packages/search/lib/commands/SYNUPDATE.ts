@@ -1,23 +1,26 @@
-import { pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { SimpleStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
-interface SynUpdateOptions {
-    SKIPINITIALSCAN?: true;
+export interface FtSynUpdateOptions {
+  SKIPINITIALSCAN?: boolean;
 }
 
-export function transformArguments(
-    index: string,
-    groupId: string,
-    terms: string | Array<string>,
-    options?: SynUpdateOptions
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(
+    index: RedisArgument,
+    groupId: RedisArgument,
+    terms: RedisVariadicArgument,
+    options?: FtSynUpdateOptions
+  ) {
     const args = ['FT.SYNUPDATE', index, groupId];
 
     if (options?.SKIPINITIALSCAN) {
-        args.push('SKIPINITIALSCAN');
+      args.push('SKIPINITIALSCAN');
     }
 
     return pushVariadicArguments(args, terms);
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

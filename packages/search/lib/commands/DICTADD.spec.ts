@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DICTADD from './DICTADD';
 
-describe('DICTADD', () => {
+describe('FT.DICTADD', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(

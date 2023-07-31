@@ -182,6 +182,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `JSON.DEL`: `path` argument moved to `{ path: string; }` [^future-proofing]
 - `JSON.FORGET`: `path` argument moved to `{ path: string; }` [^future-proofing]
 - `TS.[M][REV]RANGE`: `enum TimeSeriesBucketTimestamp` -> `const TIME_SERIES_BUCKET_TIMESTAMP` [^enum-to-constants], `enum TimeSeriesReducers` -> `const TIME_SERIES_REDUCERS` [^enum-to-constants], the `ALIGN` argument has been moved into `AGGREGRATION`
+- `TS.SYNUPDATE`: `Array<string | Array<string>>` -> `Record<string, Array<string>>`
 
 [^enum-to-constants]: TODO
 

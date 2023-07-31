@@ -6,7 +6,7 @@ export interface FtDropIndexOptions {
 
 export default {
   FIRST_KEY_INDEX: undefined,
-  IS_READ_ONLY: false,
+  IS_READ_ONLY: true,
   transformArguments(index: RedisArgument, options?: FtDropIndexOptions) {
     const args = ['FT.DROPINDEX', index];
 

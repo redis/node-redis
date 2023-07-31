@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from '.';
 import DROPINDEX from './DROPINDEX';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
 
-describe('DROPINDEX', () => {
+describe('FT.DROPINDEX', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
@@ -21,13 +21,13 @@ describe('DROPINDEX', () => {
   });
 
   testUtils.testWithClient('client.ft.dropIndex', async client => {
-    await client.ft.create('index', {
-      field: SchemaFieldTypes.TEXT
-    });
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.dropIndex('index')
+    ]);
 
-    assert.equal(
-      await client.ft.dropIndex('index'),
-      'OK'
-    );
+    assert.equal(reply, 'OK');
   }, GLOBAL.SERVERS.OPEN);
 });

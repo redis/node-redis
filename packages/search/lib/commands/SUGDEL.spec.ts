@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGDEL from './SUGDEL';
 
-describe('SUGDEL', () => {
+describe('FT.SUGDEL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       SUGDEL.transformArguments('key', 'string'),
@@ -13,7 +13,7 @@ describe('SUGDEL', () => {
   testUtils.testWithClient('client.ft.sugDel', async client => {
     assert.equal(
       await client.ft.sugDel('key', 'string'),
-      false
+      0
     );
   }, GLOBAL.SERVERS.OPEN);
 });

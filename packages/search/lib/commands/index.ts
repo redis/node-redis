@@ -2,13 +2,13 @@ import _LIST from './_LIST';
 // import ALTER from './ALTER';
 // import AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 // import AGGREGATE from './AGGREGATE';
-// import ALIASADD from './ALIASADD';
-// import ALIASDEL from './ALIASDEL';
-// import ALIASUPDATE from './ALIASUPDATE';
+import ALIASADD from './ALIASADD';
+import ALIASDEL from './ALIASDEL';
+import ALIASUPDATE from './ALIASUPDATE';
 // import CONFIG_GET from './CONFIG_GET';
 // import CONFIG_SET from './CONFIG_SET';
 import CREATE from './CREATE';
-// import CURSOR_DEL from './CURSOR_DEL';
+import CURSOR_DEL from './CURSOR_DEL';
 // import CURSOR_READ from './CURSOR_READ';
 import DICTADD from './DICTADD';
 import DICTDEL from './DICTDEL';
@@ -20,16 +20,16 @@ import EXPLAINCLI from './EXPLAINCLI';
 // import PROFILESEARCH from './PROFILE_SEARCH';
 // import PROFILEAGGREGATE from './PROFILE_AGGREGATE';
 // import SEARCH from './SEARCH';
-// import SPELLCHECK from './SPELLCHECK';
+import SPELLCHECK from './SPELLCHECK';
 import SUGADD from './SUGADD';
 import SUGDEL from './SUGDEL';
 // import SUGGET_WITHPAYLOADS from './SUGGET_WITHPAYLOADS';
 // import SUGGET_WITHSCORES_WITHPAYLOADS from './SUGGET_WITHSCORES_WITHPAYLOADS';
 // import SUGGET_WITHSCORES from './SUGGET_WITHSCORES';
-// import SUGGET from './SUGGET';
+import SUGGET from './SUGGET';
 import SUGLEN from './SUGLEN';
-// import SYNDUMP from './SYNDUMP';
-// import SYNUPDATE from './SYNUPDATE';
+import SYNDUMP from './SYNDUMP';
+import SYNUPDATE from './SYNUPDATE';
 import TAGVALS from './TAGVALS';
 // import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 import { pushOptionalVariadicArgument, pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
@@ -45,20 +45,20 @@ export default {
   // aggregateWithCursor: AGGREGATE_WITHCURSOR,
   // AGGREGATE,
   // aggregate: AGGREGATE,
-  // ALIASADD,
-  // aliasAdd: ALIASADD,
-  // ALIASDEL,
-  // aliasDel: ALIASDEL,
-  // ALIASUPDATE,
-  // aliasUpdate: ALIASUPDATE,
+  ALIASADD,
+  aliasAdd: ALIASADD,
+  ALIASDEL,
+  aliasDel: ALIASDEL,
+  ALIASUPDATE,
+  aliasUpdate: ALIASUPDATE,
   // CONFIG_GET,
   // configGet: CONFIG_GET,
   // CONFIG_SET,
   // configSet: CONFIG_SET,
   CREATE,
   create: CREATE,
-  // CURSOR_DEL,
-  // cursorDel: CURSOR_DEL,
+  CURSOR_DEL,
+  cursorDel: CURSOR_DEL,
   // CURSOR_READ,
   // cursorRead: CURSOR_READ,
   DICTADD,
@@ -81,8 +81,8 @@ export default {
   // profileAggregate: PROFILEAGGREGATE,
   // SEARCH,
   // search: SEARCH,
-  // SPELLCHECK,
-  // spellCheck: SPELLCHECK,
+  SPELLCHECK,
+  spellCheck: SPELLCHECK,
   SUGADD,
   sugAdd: SUGADD,
   SUGDEL,
@@ -93,14 +93,14 @@ export default {
   // sugGetWithScoresWithPayloads: SUGGET_WITHSCORES_WITHPAYLOADS,
   // SUGGET_WITHSCORES,
   // sugGetWithScores: SUGGET_WITHSCORES,
-  // SUGGET,
-  // sugGet: SUGGET,
+  SUGGET,
+  sugGet: SUGGET,
   SUGLEN,
   sugLen: SUGLEN,
-  // SYNDUMP,
-  // synDump: SYNDUMP,
-  // SYNUPDATE,
-  // synUpdate: SYNUPDATE,
+  SYNDUMP,
+  synDump: SYNDUMP,
+  SYNUPDATE,
+  synUpdate: SYNUPDATE,
   TAGVALS,
   tagVals: TAGVALS
 };

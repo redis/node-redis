@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DICTDUMP from './DICTDUMP';
 
-describe('DICTDUMP', () => {
+describe('FT.DICTDUMP', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       DICTDUMP.transformArguments('dictionary'),
@@ -11,11 +11,11 @@ describe('DICTDUMP', () => {
   });
 
   testUtils.testWithClient('client.ft.dictDump', async client => {
-    await client.ft.dictAdd('dictionary', 'string')
+    const [, reply] = await Promise.all([
+      client.ft.dictAdd('dictionary', 'string'),
+      client.ft.dictDump('dictionary')
+    ]);
 
-    assert.deepEqual(
-      await client.ft.dictDump('dictionary'),
-      ['string']
-    );
+    assert.deepEqual(reply, ['string']);
   }, GLOBAL.SERVERS.OPEN);
 });

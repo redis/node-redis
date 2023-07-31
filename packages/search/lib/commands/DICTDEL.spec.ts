@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DICTDEL from './DICTDEL';
 
-describe('DICTDEL', () => {
+describe('FT.DICTDEL', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(

@@ -257,8 +257,8 @@ export interface CreateOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  IS_READ_ONLY: false,
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
   transformArguments(index: RedisArgument, schema: RediSearchSchema, options?: CreateOptions) {
     const args = ['FT.CREATE', index];
 

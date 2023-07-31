@@ -3,7 +3,7 @@ import { pushVariadicArguments, RedisVariadicArgument } from '@redis/client/dist
 
 export default {
   FIRST_KEY_INDEX: undefined,
-  IS_READ_ONLY: false,
+  IS_READ_ONLY: true,
   transformArguments(dictionary: RedisArgument, term: RedisVariadicArgument) {
     return pushVariadicArguments(['FT.DICTADD', dictionary], term);
   },

@@ -7,7 +7,7 @@ export interface FtSugAddOptions {
 
 export default {
   FIRST_KEY_INDEX: undefined,
-  IS_READ_ONLY: false,
+  IS_READ_ONLY: true,
   transformArguments(key: RedisArgument, string: RedisArgument, score: number, options?: FtSugAddOptions) {
     const args = ['FT.SUGADD', key, string, score.toString()];
 
