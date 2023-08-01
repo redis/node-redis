@@ -1,13 +1,17 @@
 import { RedisArgument, NumberReply, ArrayReply, Command } from '@redis/client/dist/lib/RESP/types';
 
+export interface JsonDebugMemoryOptions {
+  path?: RedisArgument;
+}
+
 export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, path?: RedisArgument) {
+  transformArguments(key: RedisArgument, options?: JsonDebugMemoryOptions) {
     const args = ['JSON.DEBUG', 'MEMORY', key];
 
-    if (path) {
-      args.push(path);
+    if (options?.path) {
+      args.push(options.path);
     }
 
     return args;

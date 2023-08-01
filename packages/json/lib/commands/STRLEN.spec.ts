@@ -4,7 +4,7 @@ import STRLEN from './STRLEN';
 
 describe('JSON.STRLEN', () => {
   describe('transformArguments', () => {
-    it('without path', () => {
+    it('simple', () => {
       assert.deepEqual(
         STRLEN.transformArguments('key'),
         ['JSON.STRLEN', 'key']
@@ -13,7 +13,9 @@ describe('JSON.STRLEN', () => {
 
     it('with path', () => {
       assert.deepEqual(
-        STRLEN.transformArguments('key', '$'),
+        STRLEN.transformArguments('key', {
+          path: '$'
+        }),
         ['JSON.STRLEN', 'key', '$']
       );
     });
@@ -22,9 +24,9 @@ describe('JSON.STRLEN', () => {
   testUtils.testWithClient('client.json.strLen', async client => {
     const [, reply] = await Promise.all([
       client.json.set('key', '$', ''),
-      client.json.strLen('key', '$')
+      client.json.strLen('key')
     ]);
 
-    assert.deepEqual(reply, [0]);
+    assert.deepEqual(reply, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

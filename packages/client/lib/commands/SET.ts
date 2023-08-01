@@ -30,11 +30,11 @@ export interface SetOptions {
 
   condition?: 'NX' | 'XX';
   /**
-   * @deprecated Use `condition` 'NX' instead
+   * @deprecated Use `{ condition: 'NX' }` instead.
    */
   NX?: boolean;
   /**
-   * @deprecated Use `condition` 'XX' instead
+   * @deprecated Use `{ condition: 'XX' }` instead.
    */
   XX?: boolean;
   

@@ -3,14 +3,8 @@ import { RedisArgument, ArrayReply, NumberReply, NullReply, Command, } from '@re
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, path?: RedisArgument) {
-    const args = ['JSON.TOGGLE', key]
-
-    if (path) {
-      args.push(path);
-    }
-
-    return args;
+  transformArguments(key: RedisArgument, path: RedisArgument) {
+    return ['JSON.TOGGLE', key, path];
   },
   transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

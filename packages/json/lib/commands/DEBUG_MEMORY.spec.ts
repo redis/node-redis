@@ -4,7 +4,7 @@ import DEBUG_MEMORY from './DEBUG_MEMORY';
 
 describe('JSON.DEBUG MEMORY', () => {
   describe('transformArguments', () => {
-    it('without path', () => {
+    it('simple', () => {
       assert.deepEqual(
         DEBUG_MEMORY.transformArguments('key'),
         ['JSON.DEBUG', 'MEMORY', 'key']
@@ -13,7 +13,9 @@ describe('JSON.DEBUG MEMORY', () => {
 
     it('with path', () => {
       assert.deepEqual(
-        DEBUG_MEMORY.transformArguments('key', '$'),
+        DEBUG_MEMORY.transformArguments('key', {
+          path: '$'
+        }),
         ['JSON.DEBUG', 'MEMORY', 'key', '$']
       );
     });
@@ -21,7 +23,7 @@ describe('JSON.DEBUG MEMORY', () => {
 
   testUtils.testWithClient('client.json.debugMemory', async client => {
     assert.deepEqual(
-      await client.json.debugMemory('key', '$'),
+      await client.json.debugMemory('key'),
       0
     );
   }, GLOBAL.SERVERS.OPEN);

@@ -1,12 +1,12 @@
 import _LIST from './_LIST';
-// import ALTER from './ALTER';
+import ALTER from './ALTER';
 // import AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 // import AGGREGATE from './AGGREGATE';
 import ALIASADD from './ALIASADD';
 import ALIASDEL from './ALIASDEL';
 import ALIASUPDATE from './ALIASUPDATE';
 // import CONFIG_GET from './CONFIG_GET';
-// import CONFIG_SET from './CONFIG_SET';
+import CONFIG_SET from './CONFIG_SET';
 import CREATE from './CREATE';
 import CURSOR_DEL from './CURSOR_DEL';
 // import CURSOR_READ from './CURSOR_READ';
@@ -39,8 +39,8 @@ import { CommandArguments } from '@redis/client/dist/lib/RESP/types';
 export default {
   _LIST,
   _list: _LIST,
-  // ALTER,
-  // alter: ALTER,
+  ALTER,
+  alter: ALTER,
   // AGGREGATE_WITHCURSOR,
   // aggregateWithCursor: AGGREGATE_WITHCURSOR,
   // AGGREGATE,
@@ -53,8 +53,8 @@ export default {
   aliasUpdate: ALIASUPDATE,
   // CONFIG_GET,
   // configGet: CONFIG_GET,
-  // CONFIG_SET,
-  // configSet: CONFIG_SET,
+  CONFIG_SET,
+  configSet: CONFIG_SET,
   CREATE,
   create: CREATE,
   CURSOR_DEL,

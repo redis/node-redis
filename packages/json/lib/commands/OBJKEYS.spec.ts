@@ -4,7 +4,7 @@ import OBJKEYS from './OBJKEYS';
 
 describe('JSON.OBJKEYS', () => {
   describe('transformArguments', () => {
-    it('without path', () => {
+    it('simple', () => {
       assert.deepEqual(
         OBJKEYS.transformArguments('key'),
         ['JSON.OBJKEYS', 'key']
@@ -13,7 +13,9 @@ describe('JSON.OBJKEYS', () => {
 
     it('with path', () => {
       assert.deepEqual(
-        OBJKEYS.transformArguments('key', '$'),
+        OBJKEYS.transformArguments('key', {
+          path: '$'
+        }),
         ['JSON.OBJKEYS', 'key', '$']
       );
     });
@@ -21,7 +23,7 @@ describe('JSON.OBJKEYS', () => {
 
   testUtils.testWithClient('client.json.objKeys', async client => {
     assert.deepEqual(
-      await client.json.objKeys('key', '$'),
+      await client.json.objKeys('key'),
       [null]
     );
   }, GLOBAL.SERVERS.OPEN);

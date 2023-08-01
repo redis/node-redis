@@ -19,7 +19,7 @@ import SET from './SET';
 import STRAPPEND from './STRAPPEND';
 import STRLEN from './STRLEN';
 import TOGGLE from './TOGGLE';
-// import TYPE from './TYPE';
+import TYPE from './TYPE';
 
 export default {
   ARRAPPEND,
@@ -64,8 +64,8 @@ export default {
   strLen: STRLEN,
   TOGGLE,
   toggle: TOGGLE,
-  // TYPE,
-  // type: TYPE
+  TYPE,
+  type: TYPE
 };
 
 // https://github.com/Microsoft/TypeScript/issues/3496#issuecomment-128553540

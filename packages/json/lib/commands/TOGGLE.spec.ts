@@ -3,20 +3,11 @@ import testUtils, { GLOBAL } from '../test-utils';
 import TOGGLE from './TOGGLE';
 
 describe('JSON.TOGGLE', () => {
-  describe('transformArguments', () => {
-    it('without path', () => {
-      assert.deepEqual(
-        TOGGLE.transformArguments('key'),
-        ['JSON.TOGGLE', 'key']
-      );
-    });
-
-    it('with path', () => {
-      assert.deepEqual(
-        TOGGLE.transformArguments('key', '$'),
-        ['JSON.TOGGLE', 'key', '$']
-      );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      TOGGLE.transformArguments('key', '$'),
+      ['JSON.TOGGLE', 'key', '$']
+    );
   });
 
   testUtils.testWithClient('client.json.toggle', async client => {

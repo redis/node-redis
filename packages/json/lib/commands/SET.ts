@@ -1,23 +1,34 @@
 import { RedisArgument, SimpleStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
 
-export interface NX {
-  NX: true;
-}
-
-export interface XX {
-  XX: true;
+export interface JsonSetOptions {
+  condition?: 'NX' | 'XX';
+  /**
+   * @deprecated Use `{ condition: 'NX' }` instead.
+   */
+  NX?: boolean;
+  /**
+   * @deprecated Use `{ condition: 'XX' }` instead.
+   */
+  XX?: boolean;
 }
 
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, path: RedisArgument, json: RedisJSON, options?: NX | XX) {
+  transformArguments(
+    key: RedisArgument,
+    path: RedisArgument,
+    json: RedisJSON,
+    options?: JsonSetOptions
+  ) {
     const args = ['JSON.SET', key, path, transformRedisJsonArgument(json)];
 
-    if ((<NX>options)?.NX) {
+    if (options?.condition) {
+      args.push(options?.condition);
+    } else if (options?.NX) {
       args.push('NX');
-    } else if ((<XX>options)?.XX) {
+    } else if (options?.XX) {
       args.push('XX');
     }
 
