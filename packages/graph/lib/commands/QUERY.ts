@@ -2,8 +2,7 @@ import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, NullReply, Tup
 
 type Headers = ArrayReply<BlobStringReply>;
 
-// TODO: cannot use `ArrayReply` due to circular reference
-type Data = Array<BlobStringReply | NumberReply | NullReply | Data>;
+type Data = ArrayReply<BlobStringReply | NumberReply | NullReply | Data>;
 
 type Metadata = ArrayReply<BlobStringReply>;
 
