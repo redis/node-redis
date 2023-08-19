@@ -112,7 +112,10 @@ describe('Client', () => {
             const client2 = await client.connect();
             assert.equal(client, client2);
             await client.disconnect();
-        }, GLOBAL.SERVERS.PASSWORD);
+        }, {
+            ...GLOBAL.SERVERS.PASSWORD,
+            disableClientSetup: true
+        });
     });
 
     describe('authentication', () => {
