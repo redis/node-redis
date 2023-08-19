@@ -70,6 +70,13 @@ createClient({
 });
 ```
 
+You can create the client and connect it in a single line, but if you do so and it throws an error it will halt the whole Node process:
+
+```typescript
+// In this example an error connecting will throw
+const client = await createClient().connect();
+```
+
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](./docs/client-configuration.md).
 
 To check if the the client is connected and ready to send commands, use `client.isReady` which returns a boolean. `client.isOpen` is also available.  This returns `true` when the client's underlying socket is open, and `false` when it isn't (for example when the client is still connecting or reconnecting after a network error).
