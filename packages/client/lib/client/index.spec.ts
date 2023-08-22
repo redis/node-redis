@@ -108,10 +108,12 @@ describe('Client', () => {
     });
 
     describe('connect', () => {
-        testUtils.testWithClient('connect returns an instance', async (client) => {
-            const client2 = await client.connect();
-            assert.equal(client, client2);
-            await client.disconnect();
+        testUtils.testWithClient('connect should return the clietn instance', async client => {
+            try {
+                assert.equal(await client.connect(), client);
+            } finally {
+                if (client.isOpen) await client.disconnect();
+            }
         }, {
             ...GLOBAL.SERVERS.PASSWORD,
             disableClientSetup: true

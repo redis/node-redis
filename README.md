@@ -51,11 +51,9 @@ Looking for a high-level library to handle object mapping? See [redis-om-node](h
 ```typescript
 import { createClient } from 'redis';
 
-const client = createClient();
-
-client.on('error', err => console.log('Redis Client Error', err));
-
-await client.connect();
+const client = await createClient()
+  .on('error', err => console.log('Redis Client Error', err))
+  .connect();
 
 await client.set('key', 'value');
 const value = await client.get('key');
@@ -68,13 +66,6 @@ The above code connects to localhost on port 6379. To connect to a different hos
 createClient({
   url: 'redis://alice:foobared@awesome.redis.server:6380'
 });
-```
-
-You can create the client and connect it in a single line, but if you do so and it throws an error it will halt the whole Node process:
-
-```typescript
-// In this example an error connecting will throw
-const client = await createClient().connect();
 ```
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](./docs/client-configuration.md).
