@@ -426,11 +426,11 @@ export default class RedisClient<
         });
     }
 
-    async connect(): Promise<RedisClientType<M, F, S>> {
+    async connect() {
         // see comment in constructor
         this.#isolationPool ??= this.#initiateIsolationPool();
         await this.#socket.connect();
-        return this;
+        return this as unknown as RedisClientType<M, F, S>;
     }
 
     async commandsExecutor<C extends RedisCommand>(
