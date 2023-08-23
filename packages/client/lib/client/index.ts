@@ -402,7 +402,7 @@ export default class RedisClient<
             (...args: Array<unknown>) => (this as any).sendCommand(name, ...args);
     }
 
-    #pingTimer?: NodeJS.Timer;
+    #pingTimer?: NodeJS.Timeout;
 
     #setPingTimer(): void {
         if (!this.#options?.pingInterval || !this.#socket.isReady) return;

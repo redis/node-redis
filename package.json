@@ -31,10 +31,10 @@
     "@redis/time-series": "1.0.4"
   },
   "devDependencies": {
-    "@tsconfig/node14": "^1.0.3",
-    "gh-pages": "^5.0.0",
-    "release-it": "^15.6.0",
-    "typescript": "^4.9.5"
+    "@tsconfig/node14": "^14.1.0",
+    "gh-pages": "^6.0.0",
+    "release-it": "^16.1.5",
+    "typescript": "^5.1.6"
   },
   "repository": {
     "type": "git",
