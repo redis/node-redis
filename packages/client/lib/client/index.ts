@@ -683,6 +683,7 @@ export default class RedisClient<
 
     QUIT(): Promise<string> {
         return this.#socket.quit(async () => {
+            if (this.#pingTimer) clearTimeout(this.#pingTimer);
             const quitPromise = this.#queue.addCommand<string>(['QUIT']);
             this.#tick();
             const [reply] = await Promise.all([
@@ -804,6 +805,7 @@ export default class RedisClient<
     }
 
     async disconnect(): Promise<void> {
+        if (this.#pingTimer) clearTimeout(this.#pingTimer);
         this.#queue.flushAll(new DisconnectsClientError());
         this.#socket.disconnect();
         await this.#destroyIsolationPool();
