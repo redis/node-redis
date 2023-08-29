@@ -108,7 +108,7 @@ describe('Client', () => {
     });
 
     describe('connect', () => {
-        testUtils.testWithClient('connect should return the clietn instance', async client => {
+        testUtils.testWithClient('connect should return the client instance', async client => {
             try {
                 assert.equal(await client.connect(), client);
             } finally {
