@@ -5,15 +5,31 @@ import { transformArguments } from './MSET';
 describe('MSET', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments(['1', '2'], '$', [{ a: 1 }, { b: 2 }]),
-            ['JSON.MSET', '1', '$', '{ "a":"1" } ', '2', '$', '{ "b":"2"} ']
+            transformArguments([{
+                key: '1',
+                path: '$',
+                value: 1
+            }, {
+                key: '2',
+                path: '$',
+                value: '2'
+            }]),
+            ['JSON.MSET', '1', '$', '1', '2', '$', '"2"']
         );
     });
 
-    testUtils.testWithClient('client.json.mGet', async client => {
+    testUtils.testWithClient('client.json.mSet', async client => {
         assert.deepEqual(
-            await client.json.mGet(["1", "2"], "$", [{ a: 1 }, { b: 2 }]),
-          [null, null]
+            await client.json.mSet([{
+                key: '1',
+                path: '$',
+                value: 1
+            }, {
+                key: '2',
+                path: '$',
+                value: '2'
+            }]),
+            'OK'
         );
     }, GLOBAL.SERVERS.OPEN);
 });

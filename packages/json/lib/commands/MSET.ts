@@ -1,24 +1,27 @@
-import { RedisJSON, transformRedisJsonArgument } from ".";
+import { RedisJSON, transformRedisJsonArgument } from '.';
+import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(
-    keys: Array<string>,
-    path: string,
-    json: Array<RedisJSON>
-): Array<string> {
-    
-    if (keys.length != json.length)
-        throw new Error("Number of keys and json objects must be equal");
+interface JsonMSetItem {
+    key: RedisCommandArgument;
+    path: RedisCommandArgument;
+    value: RedisJSON;
+}
 
-    let args: Array<string> = ["JSON.SET"];
+export function transformArguments(items: Array<JsonMSetItem>): Array<string> {
+    const args = new Array(1 + items.length * 3);
+    args[0] = 'JSON.MSET';
 
-    // walk through the key array, adding the key, the path and the json objects, calling transformRedisJsonArgument for each
-    for (let i = 0; i < keys.length; i++) {
-        args.push(keys[i], path, transformRedisJsonArgument(json[i]));
+    let argsIndex = 1;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        args[argsIndex++] = item.key;
+        args[argsIndex++] = item.path;
+        args[argsIndex++] = transformRedisJsonArgument(item.json);
     }
 
     return args;
 }
 
-export declare function transformReply(): "OK" | null;
+export declare function transformReply(): 'OK';
