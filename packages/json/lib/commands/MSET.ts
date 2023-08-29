@@ -18,7 +18,7 @@ export function transformArguments(items: Array<JsonMSetItem>): Array<string> {
         const item = items[i];
         args[argsIndex++] = item.key;
         args[argsIndex++] = item.path;
-        args[argsIndex++] = transformRedisJsonArgument(item.json);
+        args[argsIndex++] = transformRedisJsonArgument(item.value);
     }
 
     return args;
