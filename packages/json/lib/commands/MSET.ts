@@ -1,5 +1,5 @@
 import { RedisJSON, transformRedisJsonArgument } from '.';
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -10,6 +10,7 @@ interface JsonMSetItem {
 }
 
 export function transformArguments(items: Array<JsonMSetItem>): Array<string> {
+  
     const args = new Array(1 + items.length * 3);
     args[0] = 'JSON.MSET';
 
