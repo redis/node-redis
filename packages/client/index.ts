@@ -4,11 +4,15 @@ export { VerbatimString } from './lib/RESP/verbatim-string';
 export { defineScript } from './lib/lua-script';
 // export * from './lib/errors';
 
-import RedisClient, { RedisClientType, RedisClientOptions } from './lib/client';
-export { RedisClientType, RedisClientOptions };
+import RedisClient, { RedisClientOptions, RedisClientType } from './lib/client';
+export { RedisClientOptions, RedisClientType };
 export const createClient = RedisClient.create;
 
-import RedisCluster, { RedisClusterType, RedisClusterOptions } from './lib/cluster';
+import { RedisClientPool, RedisPoolOptions, RedisClientPoolType } from './lib/client/pool';
+export { RedisClientPoolType, RedisPoolOptions };
+export const createClientPool = RedisClientPool.create;
+
+import RedisCluster, { RedisClusterOptions, RedisClusterType } from './lib/cluster';
 export { RedisClusterType, RedisClusterOptions };
 export const createCluster = RedisCluster.create;
 

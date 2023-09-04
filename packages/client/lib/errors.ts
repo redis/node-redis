@@ -67,3 +67,5 @@ export class ErrorReply extends Error {
 export class SimpleError extends ErrorReply {}
 
 export class BlobError extends ErrorReply {}
+
+export class TimeoutError extends Error {}

@@ -7,13 +7,13 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchErr
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { Command, CommandArguments, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
+import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
-// import { RedisClientPool } from './pool';
+import { RedisPoolOptions, RedisClientPool } from './pool';
 
 interface ClientCommander<
   M extends RedisModules,
@@ -21,7 +21,7 @@ interface ClientCommander<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> extends CommanderConfig<M, F, S, RESP>{
+> extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: CommandOptions<TYPE_MAPPING>;
 }
 
@@ -72,7 +72,7 @@ export interface RedisClientOptions<
   readonly?: boolean;
   /**
    * Send `PING` command at interval (in ms).
-   * Useful with Redis deployments that do not use TCP Keep-Alive.
+   * Useful with Redis deployments that do not honor TCP Keep-Alive.
    */
   pingInterval?: number;
 }
@@ -194,13 +194,7 @@ export default class RedisClient<
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args),
         redisArgs = prefix.concat(scriptArgs),
-        reply = await this.sendCommand(redisArgs, this._commandOptions).catch((err: unknown) => {
-          if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
-
-          redisArgs[0] = 'EVAL';
-          redisArgs[1] = script.SCRIPT;
-          return this.sendCommand(redisArgs, this._commandOptions);
-        });
+        reply = await this.executeScript(script, redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
         reply;
@@ -218,8 +212,8 @@ export default class RedisClient<
       BaseClass: RedisClient,
       commands: COMMANDS,
       createCommand: RedisClient._createCommand,
-      createFunctionCommand: RedisClient._createFunctionCommand,
       createModuleCommand: RedisClient._createModuleCommand,
+      createFunctionCommand: RedisClient._createFunctionCommand,
       createScriptCommand: RedisClient._createScriptCommand,
       config
     });
@@ -227,8 +221,7 @@ export default class RedisClient<
     Client.prototype.Multi = RedisClientMultiCommand.extend(config);
 
     return (options?: Omit<RedisClientOptions, keyof Exclude<typeof config, undefined>>) => {
-      // returning a proxy of the client to prevent the namespaces.self to leak between proxies
-      // namespaces will be bootstraped on first access per proxy
+      // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
       return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
     };
   }
@@ -527,13 +520,14 @@ export default class RedisClient<
   }
 
   /**
-   * Create `RedisClientPool` using this client as a prototype
+   * Create {@link RedisClientPool `RedisClientPool`} using this client as a prototype
    */
-  // pool() {
-  //   return RedisClientPool.fromClient(
-  //     this as unknown as RedisClientType<M, F, S, RESP>
-  //   );
-  // }
+  pool(options?: Partial<RedisPoolOptions>) {
+    return RedisClientPool.create(
+      this._options,
+      options
+    );
+  }
 
   duplicate<
     _M extends RedisModules = M,
@@ -549,12 +543,13 @@ export default class RedisClient<
     }) as RedisClientType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
 
-  connect() {
-    return this._socket.connect();
+  async connect() {
+    await this._socket.connect();
+    return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
   sendCommand<T = ReplyUnion>(
-    args: CommandArguments,
+    args: Array<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
     if (!this._socket.isOpen) {
@@ -566,6 +561,22 @@ export default class RedisClient<
     const promise = this._queue.addCommand<T>(args, options);
     this._scheduleWrite();
     return promise;
+  }
+
+  async executeScript(
+    script: RedisScript,
+    args: Array<RedisArgument>,
+    options?: CommandOptions
+  ) {
+    try {
+      return await this.sendCommand(args, options);
+    } catch (err) {
+      if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
+
+      args[0] = 'EVAL';
+      args[1] = script.SCRIPT;
+      return await this.sendCommand(args, options);
+    }
   }
 
   async SELECT(db: number): Promise<void> {
@@ -728,7 +739,7 @@ export default class RedisClient<
   /**
    * @internal
    */
-  executePipeline(commands: Array<RedisMultiQueuedCommand>) {
+  _executePipeline(commands: Array<RedisMultiQueuedCommand>) {
     if (!this._socket.isOpen) {
       return Promise.reject(new ClientClosedError());
     }
@@ -745,7 +756,7 @@ export default class RedisClient<
   /**
    * @internal
    */
-  async executeMulti(
+  async _executeMulti(
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {

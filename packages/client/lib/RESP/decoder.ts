@@ -111,7 +111,10 @@ export class Decoder {
       case RESP_TYPES.NUMBER:
         return this._handleDecodedValue(
           this._config.onReply,
-          this._decodeNumber(chunk)
+          this._decodeNumber(
+            this._config.getTypeMapping()[RESP_TYPES.NUMBER],
+            chunk
+          )
         );
 
       case RESP_TYPES.BIG_NUMBER:
@@ -226,7 +229,11 @@ export class Decoder {
     return boolean;
   }
 
-  private _decodeNumber(chunk) {
+  private _decodeNumber(type, chunk) {
+    if (type === String) {
+      return this._decodeSimpleString(String, chunk);
+    }
+
     switch (chunk[this._cursor]) {
       case ASCII['+']:
         return this._maybeDecodeNumberValue(false, chunk);
@@ -675,7 +682,7 @@ export class Decoder {
         return this._decodeBoolean(chunk);
 
       case RESP_TYPES.NUMBER:
-        return this._decodeNumber(chunk);
+        return this._decodeNumber(typeMapping[RESP_TYPES.NUMBER], chunk);
 
       case RESP_TYPES.BIG_NUMBER:
         return this._decodeBigNumber(typeMapping[RESP_TYPES.BIG_NUMBER], chunk);

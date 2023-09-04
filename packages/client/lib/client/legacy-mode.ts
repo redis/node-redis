@@ -160,7 +160,7 @@ class LegacyMultiCommand {
   }
 
   exec(cb?: (err: ErrorReply | null, replies?: Array<unknown>) => unknown) {
-    const promise = this._client.executeMulti(this._multi.queue);
+    const promise = this._client._executeMulti(this._multi.queue);
 
     if (!cb) {
       promise.catch(err => this._client.emit('error', err));

@@ -19,7 +19,7 @@ redis.register_function {
 Here is the same example, but in a format that can be pasted into the `redis-cli`.
 
 ```
-FUNCTION LOAD "#!lua name=library\nredis.register_function{function_name=\"add\", callback=function(keys, args) return redis.call('GET', keys[1])+args[1] end, flags={\"no-writes\"}}"
+FUNCTION LOAD "#!lua name=library\nredis.register_function{function_name='add', callback=function(keys, args) return redis.call('GET', keys[1])+args[1] end, flags={'no-writes'}}"
 ```
 
 Load the prior redis function on the _redis server_ before running the example below.

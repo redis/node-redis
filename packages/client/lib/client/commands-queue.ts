@@ -11,7 +11,7 @@ export interface CommandOptions<T = TypeMapping> {
   asap?: boolean;
   abortSignal?: AbortSignal;
   /**
-   * Maps bettween RESP and JavaScript types
+   * Maps between RESP and JavaScript types
    */
   typeMapping?: T;
 }

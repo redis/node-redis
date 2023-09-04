@@ -173,7 +173,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
     return this._multi.transformReplies(
-      await this._client.executeMulti(this._multi.queue, this._selectedDB)
+      await this._client._executeMulti(this._multi.queue, this._selectedDB)
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -187,7 +187,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (this._multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
     return this._multi.transformReplies(
-      await this._client.executePipeline(this._multi.queue)
+      await this._client._executePipeline(this._multi.queue)
     ) as MultiReplyType<T, REPLIES>;
   }
 

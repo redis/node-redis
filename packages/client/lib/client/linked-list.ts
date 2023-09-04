@@ -138,9 +138,26 @@ export class SinglyLinkedList<T> {
     };
 
     if (this._head === undefined) {
-      this._head = this._tail = node;
+      return this._head = this._tail = node;
+    }
+
+    return this._tail!.next = this._tail = node;
+  }
+
+  remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined) {
+    --this._length;
+
+    if (this._head === node) {
+      if (this._tail === node) {
+        this._head = this._tail = undefined;
+      } else {
+        this._head = node.next;
+      }
+    } else if (this._tail === node) {
+      this._tail = parent;
+      parent!.next = undefined;
     } else {
-      this._tail!.next = this._tail = node;
+      parent!.next = node.next;
     }
   }
 

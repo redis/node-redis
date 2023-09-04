@@ -213,7 +213,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
     return this._multi.transformReplies(
-      await this._cluster.executeMulti(
+      await this._cluster._executeMulti(
         this._firstKey,
         this._isReadonly,
         this._multi.queue
@@ -231,7 +231,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     if (this._multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
     return this._multi.transformReplies(
-      await this._cluster.executePipeline(
+      await this._cluster._executePipeline(
         this._firstKey,
         this._isReadonly,
         this._multi.queue

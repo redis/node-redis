@@ -1,4 +1,4 @@
-import { RedisClientOptions } from '../client';
+import { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
@@ -224,8 +224,8 @@ export default class RedisCluster<
       BaseClass: RedisCluster,
       commands: COMMANDS,
       createCommand: RedisCluster._createCommand,
-      createFunctionCommand: RedisCluster._createFunctionCommand,
       createModuleCommand: RedisCluster._createModuleCommand,
+      createFunctionCommand: RedisCluster._createFunctionCommand,
       createScriptCommand: RedisCluster._createScriptCommand,
       config
     });
@@ -233,8 +233,7 @@ export default class RedisCluster<
     Cluster.prototype.Multi = RedisClusterMultiCommand.extend(config);
 
     return (options?: Omit<RedisClusterOptions, keyof Exclude<typeof config, undefined>>) => {
-      // returning a proxy of the client to prevent the namespaces.self to leak between proxies
-      // namespaces will be bootstraped on first access per proxy
+      // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
       return Object.create(new Cluster(options)) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING, POLICIES>;
     };
   }
@@ -388,21 +387,17 @@ export default class RedisCluster<
     return this._commandOptionsProxy('policies', policies);
   }
 
-  async sendCommand<T = ReplyUnion>(
+  async #execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
-    args: CommandArguments,
-    options?: ClusterCommandOptions,
-    deafultPolicies?: CommandPolicies
+    fn: (client: RedisClientType<M, F, S, RESP>) => Promise<T>
   ): Promise<T> {
-    // const requestPolicy = options?.policies?.request ?? deafultPolicies?.request,
-    //   responsePolicy = options?.policies?.response ?? deafultPolicies?.response;
-
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    let client = await this._slots.getClient(firstKey, isReadonly);
-    for (let i = 0; ; i++) {
+    let client = await this._slots.getClient(firstKey, isReadonly),
+      i = 0;
+    while (true) {
       try {
-        return await client.sendCommand<T>(args, options);
+        return await fn(client);
       } catch (err) {
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
@@ -424,39 +419,69 @@ export default class RedisCluster<
           await redirectTo.asking();
           client = redirectTo;
           continue;
-        } else if (err.message.startsWith('MOVED')) {
+        }
+        
+        if (err.message.startsWith('MOVED')) {
           await this._slots.rediscover(client);
           client = await this._slots.getClient(firstKey, isReadonly);
           continue;
         }
 
         throw err;
-      }
+      } 
     }
   }
 
-  /**
-   * @internal
-   */
-  async executePipeline(
+  async sendCommand<T = ReplyUnion>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
-    commands: Array<RedisMultiQueuedCommand>
+    args: CommandArguments,
+    options?: ClusterCommandOptions,
+    defaultPolicies?: CommandPolicies
+  ): Promise<T> {
+    return this.#execute(
+      firstKey,
+      isReadonly,
+      client => client.sendCommand(args, options)
+    );
+  }
+
+  executeScript(
+    script: RedisScript,
+    firstKey: RedisArgument | undefined,
+    isReadonly: boolean | undefined,
+    args: Array<RedisArgument>,
+    options?: CommandOptions
   ) {
-    const client = await this._slots.getClient(firstKey, isReadonly);
-    return client.executePipeline(commands);
+    return this.#execute(
+      firstKey,
+      isReadonly,
+      client => client.executeScript(script, args, options)
+    );
   }
 
   /**
    * @internal
    */
-  async executeMulti(
+  async _executePipeline(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     commands: Array<RedisMultiQueuedCommand>
   ) {
     const client = await this._slots.getClient(firstKey, isReadonly);
-    return client.executeMulti(commands);
+    return client._executePipeline(commands);
+  }
+
+  /**
+   * @internal
+   */
+  async _executeMulti(
+    firstKey: RedisArgument | undefined,
+    isReadonly: boolean | undefined,
+    commands: Array<RedisMultiQueuedCommand>
+  ) {
+    const client = await this._slots.getClient(firstKey, isReadonly);
+    return client._executeMulti(commands);
   }
 
   MULTI(routing?: RedisArgument): RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
