@@ -1,16 +1,16 @@
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
-import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface JsonMSetItem {
-    key: RedisCommandArgument;
-    path: RedisCommandArgument;
-    value: RedisJSON;
+export interface JsonMSetItem {
+  key: RedisArgument;
+  path: RedisArgument;
+  value: RedisJSON;
 }
 
-export function transformArguments(items: Array<JsonMSetItem>): Array<string> {
-  
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(items: Array<JsonMSetItem>) {
     const args = new Array(1 + items.length * 3);
     args[0] = 'JSON.MSET';
 
@@ -23,6 +23,6 @@ export function transformArguments(items: Array<JsonMSetItem>): Array<string> {
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
