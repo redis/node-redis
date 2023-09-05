@@ -54,7 +54,13 @@ export default {
   mSet: MSET,
   NUMINCRBY,
   numIncrBy: NUMINCRBY,
+  /**
+   * @deprecated since JSON version 2.0
+   */
   NUMMULTBY,
+  /**
+   * @deprecated since JSON version 2.0
+   */
   numMultBy: NUMMULTBY,
   OBJKEYS,
   objKeys: OBJKEYS,
