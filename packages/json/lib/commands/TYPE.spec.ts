@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TYPE from './TYPE';
 
-describe('TYPE', () => {
+describe('JSON.TYPE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(

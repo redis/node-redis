@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRAPPEND from './ARRAPPEND';
 
-describe('ARRAPPEND', () => {
+describe('JSON.ARRAPPEND', () => {
   describe('transformArguments', () => {
     it('single element', () => {
       assert.deepEqual(

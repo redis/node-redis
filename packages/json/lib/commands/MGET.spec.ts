@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET from './MGET';
 
-describe('MGET', () => {
+describe('JSON.MGET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       MGET.transformArguments(['1', '2'], '$'),

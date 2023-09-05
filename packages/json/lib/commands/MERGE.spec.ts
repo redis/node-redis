@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MERGE from './MERGE';
 
-describe('MERGE', () => {
+describe('JSON.MERGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       MERGE.transformArguments('key', '$', 'value'),
