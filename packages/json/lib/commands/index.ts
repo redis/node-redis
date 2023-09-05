@@ -1,15 +1,16 @@
 import ARRAPPEND from './ARRAPPEND';
 import ARRINDEX from './ARRINDEX';
 import ARRINSERT from './ARRINSERT';
-import CLEAR from './CLEAR';
 import ARRLEN from './ARRLEN';
 // import ARRPOP from './ARRPOP';
 import ARRTRIM from './ARRTRIM';
+import CLEAR from './CLEAR';
 import DEBUG_MEMORY from './DEBUG_MEMORY';
 import DEL from './DEL';
 import FORGET from './FORGET';
 // import GET from './GET';
 // import MGET from './MGET';
+import MSET from './MSET';
 import NUMINCRBY from './NUMINCRBY';
 import NUMMULTBY from './NUMMULTBY';
 import OBJKEYS from './OBJKEYS';
@@ -28,14 +29,14 @@ export default {
   arrIndex: ARRINDEX,
   ARRINSERT,
   arrInsert: ARRINSERT,
-  CLEAR,
-  clear: CLEAR,
   ARRLEN,
   arrLen: ARRLEN,
   // ARRPOP,
   // arrPop: ARRPOP,
   ARRTRIM,
   arrTrim: ARRTRIM,
+  CLEAR,
+  clear: CLEAR,
   DEBUG_MEMORY,
   debugMemory: DEBUG_MEMORY,
   DEL,
@@ -46,6 +47,8 @@ export default {
   // get: GET,
   // MGET,
   // mGet: MGET,
+  MSET,
+  mSet: MSET,
   NUMINCRBY,
   numIncrBy: NUMINCRBY,
   NUMMULTBY,
