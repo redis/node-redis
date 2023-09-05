@@ -439,7 +439,7 @@ export default class RedisClient<
       .on('end', () => this.emit('end'));
   }
 
-  private _pingTimer?: NodeJS.Timer;
+  private _pingTimer?: NodeJS.Timeout;
 
   private _setPingTimer(): void {
     if (!this._options?.pingInterval || !this._socket.isReady) return;
