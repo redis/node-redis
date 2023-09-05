@@ -9,6 +9,7 @@ import DEBUG_MEMORY from './DEBUG_MEMORY';
 import DEL from './DEL';
 import FORGET from './FORGET';
 // import GET from './GET';
+import MERGE from './MERGE';
 // import MGET from './MGET';
 import MSET from './MSET';
 import NUMINCRBY from './NUMINCRBY';
@@ -45,6 +46,8 @@ export default {
   forget: FORGET,
   // GET,
   // get: GET,
+  MERGE,
+  merge: MERGE,
   // MGET,
   // mGet: MGET,
   MSET,
