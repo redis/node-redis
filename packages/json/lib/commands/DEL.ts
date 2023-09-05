@@ -10,7 +10,7 @@ export default {
   transformArguments(key: RedisArgument, options?: JsonDelOptions) {
     const args = ['JSON.DEL', key];
 
-    if (options?.path) {
+    if (options?.path !== undefined) {
       args.push(options.path);
     }
 

@@ -12,7 +12,7 @@ describe('JSON.TOGGLE', () => {
 
   testUtils.testWithClient('client.json.toggle', async client => {
     const [, reply] = await Promise.all([
-      client.json.set('key', '$', ''),
+      client.json.set('key', '$', true),
       client.json.toggle('key', '$')
     ]);
 

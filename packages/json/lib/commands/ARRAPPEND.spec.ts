@@ -4,14 +4,14 @@ import ARRAPPEND from './ARRAPPEND';
 
 describe('ARRAPPEND', () => {
   describe('transformArguments', () => {
-    it('single JSON', () => {
+    it('single element', () => {
       assert.deepEqual(
-        ARRAPPEND.transformArguments('key', '$', 1),
-        ['JSON.ARRAPPEND', 'key', '$', '1']
+        ARRAPPEND.transformArguments('key', '$', 'value'),
+        ['JSON.ARRAPPEND', 'key', '$', '"value"']
       );
     });
 
-    it('multiple JSONs', () => {
+    it('multiple elements', () => {
       assert.deepEqual(
         ARRAPPEND.transformArguments('key', '$', 1, 2),
         ['JSON.ARRAPPEND', 'key', '$', '1', '2']
@@ -22,7 +22,7 @@ describe('ARRAPPEND', () => {
   testUtils.testWithClient('client.json.arrAppend', async client => {
     const [, reply] = await Promise.all([
       client.json.set('key', '$', []),
-      client.json.arrAppend('key', '$', 1)
+      client.json.arrAppend('key', '$', 'value')
     ]);
 
     assert.deepEqual(reply, [1]);

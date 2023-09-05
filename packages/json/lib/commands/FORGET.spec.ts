@@ -22,7 +22,7 @@ describe('JSON.FORGET', () => {
   });
 
   testUtils.testWithClient('client.json.forget', async client => {
-    assert.deepEqual(
+    assert.equal(
       await client.json.forget('key'),
       0
     );

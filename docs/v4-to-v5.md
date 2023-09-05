@@ -178,6 +178,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `TOPK.QUERY`: `Array<number>` -> `Array<boolean>`
 - `GRAPH.SLOWLOG`: `timestamp` has been changed from `Date` to `number`
 - `JSON.ARRINDEX`: `start` and `end` arguments moved to `{ range: { start: number; end: number; }; }` [^future-proofing]
+- `JSON.ARRPOP`: `path` and `index` arguments moved to `{ path: string; index: number; }` [^future-proofing]
 - `JSON.ARRLEN`, `JSON.CLEAR`, `JSON.DEBUG MEMORY`, `JSON.DEL`, `JSON.FORGET`, `JSON.OBJKEYS`, `JSON.OBJLEN`, `JSON.STRAPPEND`, `JSON.STRLEN`, `JSON.TYPE`: `path` argument moved to `{ path: string; }` [^future-proofing]
 - : `path` argument moved to `{ path: string; }` [^future-proofing]
 - `TS.[M][REV]RANGE`: `enum TimeSeriesBucketTimestamp` -> `const TIME_SERIES_BUCKET_TIMESTAMP` [^enum-to-constants], `enum TimeSeriesReducers` -> `const TIME_SERIES_REDUCERS` [^enum-to-constants], the `ALIGN` argument has been moved into `AGGREGRATION`

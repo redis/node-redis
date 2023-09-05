@@ -10,7 +10,7 @@ export default {
   transformArguments(key: RedisArgument, options?: JsonClearOptions) {
     const args = ['JSON.CLEAR', key];
 
-    if (options?.path) {
+    if (options?.path !== undefined) {
       args.push(options.path);
     }
 

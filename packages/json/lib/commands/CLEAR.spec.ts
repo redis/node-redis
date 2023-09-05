@@ -22,9 +22,11 @@ describe('JSON.CLEAR', () => {
   });
 
   testUtils.testWithClient('client.json.clear', async client => {
-    assert.deepEqual(
-      await client.json.clear('key'),
-      0
-    );
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', null),
+      client.json.clear('key')
+    ]);
+
+    assert.equal(reply, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

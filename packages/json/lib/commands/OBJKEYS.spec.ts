@@ -22,9 +22,9 @@ describe('JSON.OBJKEYS', () => {
   });
 
   testUtils.testWithClient('client.json.objKeys', async client => {
-    assert.deepEqual(
+    assert.equal(
       await client.json.objKeys('key'),
-      [null]
+      null
     );
   }, GLOBAL.SERVERS.OPEN);
 });

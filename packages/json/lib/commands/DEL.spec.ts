@@ -22,7 +22,7 @@ describe('JSON.DEL', () => {
   });
 
   testUtils.testWithClient('client.json.del', async client => {
-    assert.deepEqual(
+    assert.equal(
       await client.json.del('key'),
       0
     );

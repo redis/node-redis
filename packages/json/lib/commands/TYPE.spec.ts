@@ -6,14 +6,14 @@ describe('TYPE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        transformArguments('key'),
+        TYPE.transformArguments('key'),
         ['JSON.TYPE', 'key']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        transformArguments('key', {
+        TYPE.transformArguments('key', {
           path: '$'
         }),
         ['JSON.TYPE', 'key', '$']
@@ -22,11 +22,9 @@ describe('TYPE', () => {
   });
 
   testUtils.testWithClient('client.json.type', async client => {
-    assert.deepEqual(
-      await client.json.type('key', {
-        path: '$'
-      }),
-      [null]
+    assert.equal(
+      await client.json.type('key'),
+      null
     );
   }, GLOBAL.SERVERS.OPEN);
 });

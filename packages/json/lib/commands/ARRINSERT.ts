@@ -11,16 +11,16 @@ export default {
     json: RedisJSON,
     ...jsons: Array<RedisJSON>
   ) {
-    const args = [
-      'JSON.ARRINSERT',
-      key,
-      path,
-      index.toString(),
-      transformRedisJsonArgument(json)
-    ];
+    const args = new Array<RedisArgument>(4 + jsons.length);
+    args[0] = 'JSON.ARRINSERT';
+    args[1] = key;
+    args[2] = path;
+    args[3] = index.toString();
+    args[4] = transformRedisJsonArgument(json);
 
-    for (const json of jsons) {
-      args.push(transformRedisJsonArgument(json));
+    let argsIndex = 5;
+    for (let i = 0; i < jsons.length; i++) {
+      args[argsIndex++] = transformRedisJsonArgument(jsons[i]);
     }
 
     return args;

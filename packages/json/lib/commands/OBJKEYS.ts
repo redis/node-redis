@@ -10,7 +10,7 @@ export default {
   transformArguments(key: RedisArgument, options?: JsonObjKeysOptions) {
     const args = ['JSON.OBJKEYS', key];
 
-    if (options?.path) {
+    if (options?.path !== undefined) {
       args.push(options.path);
     }
 

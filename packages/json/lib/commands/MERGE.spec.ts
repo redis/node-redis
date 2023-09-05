@@ -6,7 +6,7 @@ describe('MERGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       MERGE.transformArguments('key', '$', 'value'),
-      ['JSON.MERGE', 'key', '$', 'value']
+      ['JSON.MERGE', 'key', '$', '"value"']
     );
   });
 

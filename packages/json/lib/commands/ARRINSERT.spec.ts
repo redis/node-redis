@@ -4,14 +4,14 @@ import ARRINSERT from './ARRINSERT';
 
 describe('JSON.ARRINSERT', () => {
   describe('transformArguments', () => {
-    it('single JSON', () => {
+    it('single element', () => {
       assert.deepEqual(
-        ARRINSERT.transformArguments('key', '$', 0, 'json'),
-        ['JSON.ARRINSERT', 'key', '$', '0', '"json"']
+        ARRINSERT.transformArguments('key', '$', 0, 'value'),
+        ['JSON.ARRINSERT', 'key', '$', '0', '"value"']
       );
     });
 
-    it('multiple JSONs', () => {
+    it('multiple elements', () => {
       assert.deepEqual(
         ARRINSERT.transformArguments('key', '$', 0, '1', '2'),
         ['JSON.ARRINSERT', 'key', '$', '0', '"1"', '"2"']
@@ -22,7 +22,7 @@ describe('JSON.ARRINSERT', () => {
   testUtils.testWithClient('client.json.arrInsert', async client => {
     const [, reply] = await Promise.all([
       client.json.set('key', '$', []),
-      client.json.arrInsert('key', '$', 0, 'json')
+      client.json.arrInsert('key', '$', 0, 'value')
     ]);
 
     assert.deepEqual(reply, [1]);

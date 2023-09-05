@@ -10,7 +10,7 @@ export default {
   transformArguments(key: RedisArgument, options?: JsonDebugMemoryOptions) {
     const args = ['JSON.DEBUG', 'MEMORY', key];
 
-    if (options?.path) {
+    if (options?.path !== undefined) {
       args.push(options.path);
     }
 

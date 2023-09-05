@@ -6,33 +6,32 @@ describe('JSON.ARRINDEX', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ARRINDEX.transformArguments('key', '$', 'json'),
-        ['JSON.ARRINDEX', 'key', '$', '"json"']
+        ARRINDEX.transformArguments('key', '$', 'value'),
+        ['JSON.ARRINDEX', 'key', '$', '"value"']
       );
     });
-    
 
     describe('with range', () => {
       it('start only', () => {
         assert.deepEqual(
-          ARRINDEX.transformArguments('key', '$', 'json', {
+          ARRINDEX.transformArguments('key', '$', 'value', {
             range: {
               start: 0
             }
           }),
-          ['JSON.ARRINDEX', 'key', '$', '"json"', '0']
+          ['JSON.ARRINDEX', 'key', '$', '"value"', '0']
         );
       });
 
       it('with start and stop', () => {
         assert.deepEqual(
-          ARRINDEX.transformArguments('key', '$', 'json', {
+          ARRINDEX.transformArguments('key', '$', 'value', {
             range: {
               start: 0,
               stop: 1
             }
           }),
-          ['JSON.ARRINDEX', 'key', '$', '"json"', '0', '1']
+          ['JSON.ARRINDEX', 'key', '$', '"value"', '0', '1']
         );
       });
     });
@@ -41,7 +40,7 @@ describe('JSON.ARRINDEX', () => {
   testUtils.testWithClient('client.json.arrIndex', async client => {
     const [, reply] = await Promise.all([
       client.json.set('key', '$', []),
-      client.json.arrIndex('key', '$', 'json')
+      client.json.arrIndex('key', '$', 'value')
     ]);
 
     assert.deepEqual(reply, [-1]);

@@ -11,11 +11,11 @@ describe('JSON.NUMINCRBY', () => {
   });
 
   testUtils.testWithClient('client.json.numIncrBy', async client => {
-    await client.json.set('key', '$', 0);
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', 0),
+      client.json.numIncrBy('key', '$', 1)
+    ]);
 
-    assert.deepEqual(
-      await client.json.numIncrBy('key', '$', 1),
-      [1]
-    );
+    assert.deepEqual(reply, [1]);
   }, GLOBAL.SERVERS.OPEN);
 });

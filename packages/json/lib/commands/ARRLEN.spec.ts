@@ -27,6 +27,6 @@ describe('JSON.ARRLEN', () => {
       client.json.arrLen('key')
     ]);
 
-    assert.deepEqual(reply, 0);
+    assert.equal(reply, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

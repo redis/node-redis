@@ -11,11 +11,11 @@ describe('JSON.NUMMULTBY', () => {
   });
 
   testUtils.testWithClient('client.json.numMultBy', async client => {
-    await client.json.set('key', '$', 1);
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', 1),
+      client.json.numMultBy('key', '$', 2)
+    ]);
 
-    assert.deepEqual(
-      await client.json.numMultBy('key', '$', 2),
-      [2]
-    );
+    assert.deepEqual(reply, [2]);
   }, GLOBAL.SERVERS.OPEN);
 });

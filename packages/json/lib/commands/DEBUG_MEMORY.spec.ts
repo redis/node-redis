@@ -22,7 +22,7 @@ describe('JSON.DEBUG MEMORY', () => {
   });
 
   testUtils.testWithClient('client.json.debugMemory', async client => {
-    assert.deepEqual(
+    assert.equal(
       await client.json.debugMemory('key'),
       0
     );

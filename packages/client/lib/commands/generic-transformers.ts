@@ -4,6 +4,10 @@ export function isNullReply(reply: unknown): reply is NullReply {
   return reply === null;
 }
 
+export function isArrayReply(reply: unknown): reply is ArrayReply<unknown> {
+  return Array.isArray(reply);
+}
+
 export const transformBooleanReply = {
   2: (reply: NumberReply<0 | 1>) => reply as unknown as UnwrapReply<typeof reply> === 1,
   3: undefined as unknown as () => BooleanReply

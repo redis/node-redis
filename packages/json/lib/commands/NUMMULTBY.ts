@@ -1,4 +1,5 @@
-import { RedisArgument, Command, ArrayReply, NumberReply, DoubleReply, NullReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import NUMINCRBY from './NUMINCRBY';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,5 +7,5 @@ export default {
   transformArguments(key: RedisArgument, path: RedisArgument, by: number) {
     return ['JSON.NUMMULTBY', key, path, by.toString()];
   },
-  transformReply: undefined as unknown as () => ArrayReply<NumberReply | DoubleReply | NullReply>
+  transformReply: NUMINCRBY.transformReply
 } as const satisfies Command;

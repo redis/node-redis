@@ -1,27 +1,32 @@
-import { RedisJSON, transformRedisJsonNullReply } from '.';
+import { RedisArgument, ArrayReply, NullReply, BlobStringReply, Command, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { isArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformRedisJsonNullReply } from '.';
 
-export const FIRST_KEY_INDEX = 1;
+export interface RedisArrPopOptions {
+  path: RedisArgument;
+  index?: number;
+}
 
-export function transformArguments(key: string, path?: string, index?: number): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, options?: RedisArrPopOptions) {
     const args = ['JSON.ARRPOP', key];
 
-    if (path) {
-        args.push(path);
+    if (options) {
+      args.push(options.path);
 
-        if (index !== undefined && index !== null) {
-            args.push(index.toString());
-        }
+      if (options.index !== undefined) {
+        args.push(options.index.toString());
+      }
     }
-
+    
     return args;
-}
+  },
+  transformReply(reply: NullReply | BlobStringReply | ArrayReply<NullReply | BlobStringReply>) {
+    return isArrayReply(reply) ?
+      (reply as unknown as UnwrapReply<typeof reply>).map(item => transformRedisJsonNullReply(item)) :
+      transformRedisJsonNullReply(reply);
+  }
+} as const satisfies Command;
 
-export function transformReply(reply: null | string | Array<null | string>): null | RedisJSON | Array<RedisJSON> {
-    if (reply === null) return null;
-
-    if (Array.isArray(reply)) {
-        return reply.map(transformRedisJsonNullReply);
-    }
-
-    return transformRedisJsonNullReply(reply);
-}
