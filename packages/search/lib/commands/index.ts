@@ -395,6 +395,10 @@ export function pushSearchOptions(
     args: RedisCommandArguments,
     options?: SearchOptions
 ): RedisCommandArguments {
+    if (options?.NOCONTENT) {
+        args.push('NOCONTENT');
+    }
+
     if (options?.VERBATIM) {
         args.push('VERBATIM');
     }

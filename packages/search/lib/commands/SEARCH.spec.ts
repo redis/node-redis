@@ -12,6 +12,13 @@ describe('SEARCH', () => {
             );
         });
 
+        it('with NOCONTENT', () => {
+            assert.deepEqual(
+                transformArguments('index', 'query', { NOCONTENT: true }),
+                ['FT.SEARCH', 'index', 'query', 'NOCONTENT']
+            );
+        });
+
         it('with VERBATIM', () => {
             assert.deepEqual(
                 transformArguments('index', 'query', { VERBATIM: true }),
