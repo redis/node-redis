@@ -17,12 +17,12 @@ export function transformArguments(
     );
 }
 
-export interface SearchNonContentReply {
+export interface SearchNoContentReply {
     total: number;
     documents: Array<string>;
 };
 
-export function transformReply(reply: SearchRawReply): SearchNonContentReply {
+export function transformReply(reply: SearchRawReply): SearchNoContentReply {
     return {
         total: reply[0],
         documents: reply.slice(1)
