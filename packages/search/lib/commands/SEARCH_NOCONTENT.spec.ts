@@ -26,7 +26,7 @@ describe('SEARCH_NOCONTENT', () => {
         testUtils.testWithClient('returns total and keys', async client => {
             await Promise.all([
                 client.ft.create('index', {
-                    field: SchemaFieldTypes.NUMERIC
+                    field: SchemaFieldTypes.TEXT
                 }),
                 client.hSet('1', 'field', 'field1'),
                 client.hSet('2', 'field', 'field2'),
