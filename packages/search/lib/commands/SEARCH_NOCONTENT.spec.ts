@@ -22,7 +22,7 @@ describe('SEARCH_NOCONTENT', () => {
         });
     });
 
-    describe.skip('client.ft.searchNoContent', () => {
+    describe('client.ft.searchNoContent', () => {
         testUtils.testWithClient('returns total and keys', async client => {
             await Promise.all([
                 client.ft.create('index', {
