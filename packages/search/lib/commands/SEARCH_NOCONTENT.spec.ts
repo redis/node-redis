@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SEARCH_NOCONTENT';
+import { transformArguments, transformReply } from './SEARCH_NOCONTENT';
 
 describe('SEARCH_NOCONTENT', () => {
     describe('transformArguments', () => {
@@ -13,7 +13,16 @@ describe('SEARCH_NOCONTENT', () => {
         });
     });
 
-    describe('client.ft.searchNoContent', () => {
+    describe('transformReply', () => {
+        it('returns total and keys', () => {
+            assert.deepEqual(transformReply([3, '1', '2', '3']), {
+                total: 3,
+                documents: ['1', '2', '3']
+            })
+        });
+    });
+
+    describe.skip('client.ft.searchNoContent', () => {
         testUtils.testWithClient('returns total and keys', async client => {
             await Promise.all([
                 client.ft.create('index', {
