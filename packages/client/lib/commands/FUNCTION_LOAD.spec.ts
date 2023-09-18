@@ -11,16 +11,20 @@ export const MATH_FUNCTION = {
     `#!LUA name=math
     redis.register_function {
       function_name = "square",
-      callback = function(keys, args) return args[1] * args[1] end,
+      callback = function(keys, args) {
+        local number = redis.call('GET', keys[1])
+        return number * number
+      },
       flags = { "no-writes" }
     }`,
   library: {
     square: {
       NAME: 'square',
       IS_READ_ONLY: true,
-      NUMBER_OF_KEYS: 0,
-      transformArguments(number: number) {
-        return [number.toString()];
+      NUMBER_OF_KEYS: 1,
+      FIRST_KEY_INDEX: 0,
+      transformArguments(key: string) {
+        return [key];
       },
       transformReply: undefined as unknown as () => NumberReply
     }

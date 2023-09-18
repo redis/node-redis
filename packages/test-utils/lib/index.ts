@@ -4,14 +4,13 @@ import {
   RedisScripts,
   RespVersions,
   TypeMapping,
-  CommandPolicies,
+  // CommandPolicies,
   createClient,
   RedisClientOptions,
   RedisClientType,
   createCluster,
   RedisClusterOptions,
-  RedisClusterType,
-  RESP_TYPES
+  RedisClusterType
 } from '@redis/client/index';
 import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
 import yargs from 'yargs';
@@ -44,11 +43,11 @@ interface ClusterTestOptions<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping,
-  POLICIES extends CommandPolicies
+  TYPE_MAPPING extends TypeMapping
+  // POLICIES extends CommandPolicies
 > extends CommonTestOptions {
   serverArguments: Array<string>;
-  clusterConfiguration?: Partial<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>>;
+  clusterConfiguration?: Partial<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>>;
   numberOfMasters?: number;
   numberOfReplicas?: number;
 }
@@ -58,11 +57,11 @@ interface AllTestOptions<
   F extends RedisFunctions,
   S extends RedisScripts,
   RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping,
-  POLICIES extends CommandPolicies
+  TYPE_MAPPING extends TypeMapping
+  // POLICIES extends CommandPolicies
 > {
   client: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>;
-  cluster: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>;
+  cluster: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
 }
 
 interface Version {
@@ -197,9 +196,9 @@ export default class TestUtils {
     F extends RedisFunctions,
     S extends RedisScripts,
     RESP extends RespVersions,
-    TYPE_MAPPING extends TypeMapping,
-    POLICIES extends CommandPolicies
-  >(cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING, POLICIES>): Promise<unknown> {
+    TYPE_MAPPING extends TypeMapping
+    // POLICIES extends CommandPolicies
+  >(cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>): Promise<unknown> {
     return Promise.all(
       cluster.masters.map(async ({ client }) => {
         if (client) {
@@ -214,12 +213,12 @@ export default class TestUtils {
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
-    TYPE_MAPPING extends TypeMapping = {},
-    POLICIES extends CommandPolicies = {}
+    TYPE_MAPPING extends TypeMapping = {}
+    // POLICIES extends CommandPolicies = {}
   >(
     title: string,
-    fn: (cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING, POLICIES>) => unknown,
-    options: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>
+    fn: (cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) => unknown,
+    options: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>
   ): void {
     let dockersPromise: ReturnType<typeof spawnRedisCluster>;
     if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
@@ -267,12 +266,12 @@ export default class TestUtils {
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
-    TYPE_MAPPING extends TypeMapping = {},
-    POLICIES extends CommandPolicies = {}
+    TYPE_MAPPING extends TypeMapping = {}
+    // POLICIES extends CommandPolicies = {}
   >(
     title: string,
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | RedisClusterType<M, F, S, RESP, TYPE_MAPPING, POLICIES>) => unknown,
-    options: AllTestOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) => unknown,
+    options: AllTestOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>
   ) {
     this.testWithClient(`client.${title}`, fn, options.client);
     this.testWithCluster(`cluster.${title}`, fn, options.cluster);

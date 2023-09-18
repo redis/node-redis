@@ -1,6 +1,6 @@
 import { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
+import { Command, CommandArguments, CommanderConfig, CommandSignature, /*CommandPolicies, CommandWithPoliciesSignature,*/ TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -65,12 +65,48 @@ export interface RedisClusterOptions<
   nodeAddressMap?: NodeAddressMap;
 }
 
+// remove once request & response policies are ready
+type ClusterCommand<
+  NAME extends PropertyKey,
+  COMMAND extends Command
+> = COMMAND['FIRST_KEY_INDEX'] extends undefined ? (
+  COMMAND['IS_FORWARD_COMMAND'] extends true ? NAME : never
+) : NAME;
+
+// CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING, POLICIES>
 type WithCommands<
   RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping,
-  // POLICIES extends CommandPolicies
+  TYPE_MAPPING extends TypeMapping
 > = {
-[P in keyof typeof COMMANDS]: CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING, POLICIES>;
+  [P in keyof typeof COMMANDS as ClusterCommand<P, (typeof COMMANDS)[P]>]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
+};
+
+type WithModules<
+  M extends RedisModules,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  [P in keyof M]: {
+    [C in keyof M[P] as ClusterCommand<C, M[P][C]>]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
+  };
+};
+
+type WithFunctions<
+  F extends RedisFunctions,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  [L in keyof F]: {
+    [C in keyof F[L] as ClusterCommand<C, F[L][C]>]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
+  };
+};
+
+type WithScripts<
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  [P in keyof S as ClusterCommand<P, S[P]>]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
 };
 
 export type RedisClusterType<
@@ -80,17 +116,22 @@ export type RedisClusterType<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {},
   // POLICIES extends CommandPolicies = {}
-> = RedisCluster<M, F, S, RESP, TYPE_MAPPING, POLICIES> & WithCommands<RESP, TYPE_MAPPING/*, POLICIES*/>;
-// & WithModules<M> & WithFunctions<F> & WithScripts<S>
+> = (
+  RedisCluster<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/> &
+  WithCommands<RESP, TYPE_MAPPING> &
+  WithModules<M, RESP, TYPE_MAPPING> &
+  WithFunctions<F, RESP, TYPE_MAPPING> &
+  WithScripts<S, RESP, TYPE_MAPPING>
+);
 
 export interface ClusterCommandOptions<
-  TYPE_MAPPING extends TypeMapping = TypeMapping,
-  POLICIES extends CommandPolicies = CommandPolicies
+  TYPE_MAPPING extends TypeMapping = TypeMapping
+  // POLICIES extends CommandPolicies = CommandPolicies
 > extends CommandOptions<TYPE_MAPPING> {
-  policies?: POLICIES;
+  // policies?: POLICIES;
 }
 
-type ProxyCluster = RedisCluster<any, any, any, any, any, any>;
+type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
 
 type NamespaceProxyCluster = { self: ProxyCluster };
 
@@ -100,20 +141,30 @@ export default class RedisCluster<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping,
-  POLICIES extends CommandPolicies
+  // POLICIES extends CommandPolicies
 > extends EventEmitter {
   static extractFirstKey<C extends Command>(
     command: C,
     args: Parameters<C['transformArguments']>,
     redisArgs: Array<RedisArgument>
-  ): RedisArgument | undefined {
-    if (command.FIRST_KEY_INDEX === undefined) {
-      return undefined;
-    } else if (typeof command.FIRST_KEY_INDEX === 'number') {
-      return redisArgs[command.FIRST_KEY_INDEX];
+  ) {
+    let key: RedisArgument | undefined;
+    switch (typeof command.FIRST_KEY_INDEX) {
+      case 'number':
+        key = redisArgs[command.FIRST_KEY_INDEX];
+        break;
+      
+      case 'function':
+        key = command.FIRST_KEY_INDEX(...args);
+        break;
     }
 
-    return command.FIRST_KEY_INDEX(...args);
+    // TODO: remove once request & response policies are ready
+    if (key === undefined && !command.IS_FORWARD_COMMAND) {
+      throw new Error('TODO');
+    }
+
+    return key;
   }
 
   private static _createCommand(command: Command, resp: RespVersions) {
@@ -130,7 +181,7 @@ export default class RedisCluster<
           command.IS_READ_ONLY,
           redisArgs,
           this._commandOptions,
-          command.POLICIES
+          // command.POLICIES
         );
 
       return transformReply ?
@@ -153,7 +204,7 @@ export default class RedisCluster<
           command.IS_READ_ONLY,
           redisArgs,
           this.self._commandOptions,
-          command.POLICIES
+          // command.POLICIES
         );
 
       return transformReply ?
@@ -167,18 +218,18 @@ export default class RedisCluster<
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args),
-        redisArgs = prefix.concat(fnArgs),
         firstKey = RedisCluster.extractFirstKey(
           fn,
-          fnArgs,
-          redisArgs
+          args,
+          fnArgs
         ),
+        redisArgs = prefix.concat(fnArgs),
         reply = await this.self.sendCommand(
           firstKey,
           fn.IS_READ_ONLY,
           redisArgs,
           this.self._commandOptions,
-          fn.POLICIES
+          // fn.POLICIES
         );
 
       return transformReply ?
@@ -192,18 +243,19 @@ export default class RedisCluster<
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
         firstKey = RedisCluster.extractFirstKey(
           script,
-          scriptArgs,
-          redisArgs
+          args,
+          scriptArgs
         ),
-        reply = await this.sendCommand(
+        redisArgs = prefix.concat(scriptArgs),
+        reply = await this.executeScript(
+          script,
           firstKey,
           script.IS_READ_ONLY,
           redisArgs,
           this._commandOptions,
-          script.POLICIES
+          // script.POLICIES
         );
 
       return transformReply ?
@@ -218,8 +270,8 @@ export default class RedisCluster<
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {},
-    POLICIES extends CommandPolicies = {}
-  >(config?: ClusterCommander<M, F, S, RESP, TYPE_MAPPING, POLICIES>) {
+    // POLICIES extends CommandPolicies = {}
+  >(config?: ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     const Cluster = attachConfig({
       BaseClass: RedisCluster,
       commands: COMMANDS,
@@ -234,7 +286,7 @@ export default class RedisCluster<
 
     return (options?: Omit<RedisClusterOptions, keyof Exclude<typeof config, undefined>>) => {
       // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
-      return Object.create(new Cluster(options)) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING, POLICIES>;
+      return Object.create(new Cluster(options)) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
     };
   }
 
@@ -244,16 +296,16 @@ export default class RedisCluster<
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {},
-    POLICIES extends CommandPolicies = {}
-  >(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>) {
+    // POLICIES extends CommandPolicies = {}
+  >(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     return RedisCluster.factory(options)(options);
   }
 
-  private readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>;
+  private readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
 
   private readonly _slots: RedisClusterSlots<M, F, S, RESP>;
 
-  private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING, POLICIES>;
+  private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 
   /**
    * An array of the cluster slots, each slot contain its `master` and `replicas`.
@@ -306,7 +358,7 @@ export default class RedisCluster<
     return this._slots.isOpen;
   }
 
-  constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING, POLICIES>) {
+  constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     super();
 
     this._options = options;
@@ -336,9 +388,9 @@ export default class RedisCluster<
   }
 
   withCommandOptions<
-    OPTIONS extends ClusterCommandOptions<TYPE_MAPPING, CommandPolicies>,
+    OPTIONS extends ClusterCommandOptions<TYPE_MAPPING/*, CommandPolicies*/>,
     TYPE_MAPPING extends TypeMapping,
-    POLICIES extends CommandPolicies
+    // POLICIES extends CommandPolicies
   >(options: OPTIONS) {
     const proxy = Object.create(this);
     proxy._commandOptions = options;
@@ -347,8 +399,8 @@ export default class RedisCluster<
       F,
       S,
       RESP,
-      TYPE_MAPPING extends TypeMapping ? TYPE_MAPPING : {},
-      POLICIES extends CommandPolicies ? POLICIES : {}
+      TYPE_MAPPING extends TypeMapping ? TYPE_MAPPING : {}
+      // POLICIES extends CommandPolicies ? POLICIES : {}
     >;
   }
 
@@ -367,8 +419,8 @@ export default class RedisCluster<
       F, 
       S,
       RESP,
-      K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING,
-      K extends 'policies' ? V extends CommandPolicies ? V : {} : POLICIES
+      K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING
+      // K extends 'policies' ? V extends CommandPolicies ? V : {} : POLICIES
     >;
   }
 
@@ -379,15 +431,15 @@ export default class RedisCluster<
     return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
-  /**
-   * Override the `policies` command option
-   * TODO
-   */
-  withPolicies<POLICIES extends CommandPolicies> (policies: POLICIES) {
-    return this._commandOptionsProxy('policies', policies);
-  }
+  // /**
+  //  * Override the `policies` command option
+  //  * TODO
+  //  */
+  // withPolicies<POLICIES extends CommandPolicies> (policies: POLICIES) {
+  //   return this._commandOptionsProxy('policies', policies);
+  // }
 
-  async #execute<T>(
+  private async _execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     fn: (client: RedisClientType<M, F, S, RESP>) => Promise<T>
@@ -437,9 +489,9 @@ export default class RedisCluster<
     isReadonly: boolean | undefined,
     args: CommandArguments,
     options?: ClusterCommandOptions,
-    defaultPolicies?: CommandPolicies
+    // defaultPolicies?: CommandPolicies
   ): Promise<T> {
-    return this.#execute(
+    return this._execute(
       firstKey,
       isReadonly,
       client => client.sendCommand(args, options)
@@ -453,7 +505,7 @@ export default class RedisCluster<
     args: Array<RedisArgument>,
     options?: CommandOptions
   ) {
-    return this.#execute(
+    return this._execute(
       firstKey,
       isReadonly,
       client => client.executeScript(script, args, options)

@@ -17,13 +17,14 @@ describe('FCALL_RO', () => {
   });
 
   testUtils.testWithClient('client.fCallRo', async client => {
-    await loadMathFunction(client);
+    const [,, reply] = await Promise.all([
+      loadMathFunction(client),
+      client.set('key', '2'),
+      client.fCallRo(MATH_FUNCTION.library.square.NAME, {
+        arguments: ['key']
+      })
+    ]);
 
-    assert.equal(
-      await client.fCallRo(MATH_FUNCTION.library.square.NAME, {
-        arguments: ['2']
-      }),
-      4
-    );
+    assert.equal(reply, 4);
   }, GLOBAL.SERVERS.OPEN);
 });

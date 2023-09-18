@@ -200,9 +200,8 @@ export type ReplyWithTypeMapping<
     REPLY extends Array<infer T> ? Array<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
     REPLY extends Set<infer T> ? Set<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
     REPLY extends Map<infer K, infer V> ? Map<MapKey<K, TYPE_MAPPING>, ReplyWithTypeMapping<V, TYPE_MAPPING>> :
-    // `Date` & `Buffer` are supersets of `Record`, so they need to be checked first
-    REPLY extends Date ? REPLY :
-    REPLY extends Buffer ? REPLY :
+    // `Date | Buffer | Error` are supersets of `Record`, so they need to be checked first
+    REPLY extends Date | Buffer | Error ? REPLY :
     REPLY extends Record<PropertyKey, any> ? {
       [P in keyof REPLY]: ReplyWithTypeMapping<REPLY[P], TYPE_MAPPING>;
     } :
@@ -222,57 +221,62 @@ export type RedisArgument = string | Buffer;
 
 export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 
-export const REQUEST_POLICIES = {
-  /**
-   * TODO
-   */
-  ALL_NODES: 'all_nodes',
-  /**
-   * TODO
-   */
-  ALL_SHARDS: 'all_shards',
-  /**
-   * TODO
-   */
-  SPECIAL: 'special'
-} as const;
+// export const REQUEST_POLICIES = {
+//   /**
+//    * TODO
+//    */
+//   ALL_NODES: 'all_nodes',
+//   /**
+//    * TODO
+//    */
+//   ALL_SHARDS: 'all_shards',
+//   /**
+//    * TODO
+//    */
+//   SPECIAL: 'special'
+// } as const;
 
-export type REQUEST_POLICIES = typeof REQUEST_POLICIES;
+// export type REQUEST_POLICIES = typeof REQUEST_POLICIES;
 
-export type RequestPolicies = REQUEST_POLICIES[keyof REQUEST_POLICIES];
+// export type RequestPolicies = REQUEST_POLICIES[keyof REQUEST_POLICIES];
 
-export const RESPONSE_POLICIES = {
-  /**
-   * TODO
-   */
-  ONE_SUCCEEDED: 'one_succeeded',
-  /**
-   * TODO
-   */
-  ALL_SUCCEEDED: 'all_succeeded',
-  /**
-   * TODO
-   */
-  LOGICAL_AND: 'agg_logical_and',
-  /**
-   * TODO
-   */
-  SPECIAL: 'special'
-} as const;
+// export const RESPONSE_POLICIES = {
+//   /**
+//    * TODO
+//    */
+//   ONE_SUCCEEDED: 'one_succeeded',
+//   /**
+//    * TODO
+//    */
+//   ALL_SUCCEEDED: 'all_succeeded',
+//   /**
+//    * TODO
+//    */
+//   LOGICAL_AND: 'agg_logical_and',
+//   /**
+//    * TODO
+//    */
+//   SPECIAL: 'special'
+// } as const;
 
-export type RESPONSE_POLICIES = typeof RESPONSE_POLICIES;
+// export type RESPONSE_POLICIES = typeof RESPONSE_POLICIES;
 
-export type ResponsePolicies = RESPONSE_POLICIES[keyof RESPONSE_POLICIES];
+// export type ResponsePolicies = RESPONSE_POLICIES[keyof RESPONSE_POLICIES];
 
-export type CommandPolicies = {
-  request?: RequestPolicies | null;
-  response?: ResponsePolicies | null;
-};
+// export type CommandPolicies = {
+//   request?: RequestPolicies | null;
+//   response?: ResponsePolicies | null;
+// };
 
 export type Command = {
   FIRST_KEY_INDEX?: number | ((this: void, ...args: Array<any>) => RedisArgument | undefined);
   IS_READ_ONLY?: boolean;
-  POLICIES?: CommandPolicies;
+  /**
+   * @internal
+   * TODO: remove once `POLICIES` is implemented
+   */
+  IS_FORWARD_COMMAND?: boolean;
+  // POLICIES?: CommandPolicies;
   transformArguments(this: void, ...args: Array<any>): CommandArguments;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
@@ -355,32 +359,32 @@ export type CommandSignature<
   TYPE_MAPPING extends TypeMapping
 > = (...args: Parameters<COMMAND['transformArguments']>) => Promise<ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>>;
 
-export type CommandWithPoliciesSignature<
-  COMMAND extends Command,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping,
-  POLICIES extends CommandPolicies
-> = (...args: Parameters<COMMAND['transformArguments']>) => Promise<
-  ReplyWithPolicy<
-    ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>,
-    MergePolicies<COMMAND, POLICIES>
-  >
->;
+// export type CommandWithPoliciesSignature<
+//   COMMAND extends Command,
+//   RESP extends RespVersions,
+//   TYPE_MAPPING extends TypeMapping,
+//   POLICIES extends CommandPolicies
+// > = (...args: Parameters<COMMAND['transformArguments']>) => Promise<
+//   ReplyWithPolicy<
+//     ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>,
+//     MergePolicies<COMMAND, POLICIES>
+//   >
+// >;
 
-export type MergePolicies<
-  COMMAND extends Command,
-  POLICIES extends CommandPolicies
-> = Omit<COMMAND['POLICIES'], keyof POLICIES> & POLICIES;
+// export type MergePolicies<
+//   COMMAND extends Command,
+//   POLICIES extends CommandPolicies
+// > = Omit<COMMAND['POLICIES'], keyof POLICIES> & POLICIES;
 
-type ReplyWithPolicy<
-  REPLY,
-  POLICIES extends CommandPolicies,
-> = (
-  POLICIES['request'] extends REQUEST_POLICIES['SPECIAL'] ? never :
-  POLICIES['request'] extends null | undefined ? REPLY :
-  unknown extends POLICIES['request'] ? REPLY :
-  POLICIES['response'] extends RESPONSE_POLICIES['SPECIAL'] ? never :
-  POLICIES['response'] extends RESPONSE_POLICIES['ALL_SUCCEEDED' | 'ONE_SUCCEEDED' | 'LOGICAL_AND'] ? REPLY :
-  // otherwise, return array of replies
-  Array<REPLY>
-);
+// type ReplyWithPolicy<
+//   REPLY,
+//   POLICIES extends CommandPolicies,
+// > = (
+//   POLICIES['request'] extends REQUEST_POLICIES['SPECIAL'] ? never :
+//   POLICIES['request'] extends null | undefined ? REPLY :
+//   unknown extends POLICIES['request'] ? REPLY :
+//   POLICIES['response'] extends RESPONSE_POLICIES['SPECIAL'] ? never :
+//   POLICIES['response'] extends RESPONSE_POLICIES['ALL_SUCCEEDED' | 'ONE_SUCCEEDED' | 'LOGICAL_AND'] ? REPLY :
+//   // otherwise, return array of replies
+//   Array<REPLY>
+// );

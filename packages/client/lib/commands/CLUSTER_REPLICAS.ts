@@ -1,4 +1,4 @@
-import { RedisArgument, VerbatimStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, VerbatimStringReply, Command } from '../RESP/types';
 
 export default {
   FIRST_KEY_INDEX: undefined,

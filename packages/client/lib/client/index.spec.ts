@@ -11,15 +11,19 @@ import { once } from 'node:events';
 // import { promisify } from 'node:util';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
+import { NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
 
 export const SQUARE_SCRIPT = defineScript({
-  SCRIPT: 'return ARGV[1] * ARGV[1];',
-  NUMBER_OF_KEYS: 0,
-  transformArguments(number: number): Array<string> {
-    return [number.toString()];
+  SCRIPT:
+    `local number = redis.call('GET', KEYS[1])
+    return number * number`,
+  NUMBER_OF_KEYS: 1,
+  FIRST_KEY_INDEX: 0,
+  transformArguments(key: string) {
+    return [key];
   },
-  transformReply: undefined as unknown as () => number
+  transformReply: undefined as unknown as () => NumberReply
 });
 
 describe('Client', () => {
@@ -214,9 +218,10 @@ describe('Client', () => {
     testUtils.testWithClient('with script', async client => {
       assert.deepEqual(
         await client.multi()
-          .square(2)
+          .set('key', '2')
+          .square('key')
           .exec(),
-        [4]
+        ['OK', 4]
       );
     }, {
       ...GLOBAL.SERVERS.OPEN,
@@ -280,10 +285,12 @@ describe('Client', () => {
   });
 
   testUtils.testWithClient('scripts', async client => {
-    assert.equal(
-      await client.square(2),
-      4
-    );
+    const [, reply] = await Promise.all([
+      client.set('key', '2'),
+      client.square('key')
+    ]);
+
+    assert.equal(reply, 4);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
@@ -319,12 +326,13 @@ describe('Client', () => {
   });
 
   testUtils.testWithClient('functions', async client => {
-    await loadMathFunction(client);
+    const [,, reply] = await Promise.all([
+      loadMathFunction(client),
+      client.set('key', '2'),
+      client.math.square('key')
+    ]);
 
-    assert.equal(
-      await client.math.square(2),
-      4
-    );
+    assert.equal(reply, 4);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     minimumDockerVersion: [7, 0],
