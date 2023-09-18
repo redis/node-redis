@@ -51,11 +51,9 @@ Looking for a high-level library to handle object mapping? See [redis-om-node](h
 ```typescript
 import { createClient } from 'redis';
 
-const client = createClient();
-
-client.on('error', err => console.log('Redis Client Error', err));
-
-await client.connect();
+const client = await createClient()
+  .on('error', err => console.log('Redis Client Error', err))
+  .connect();
 
 await client.set('key', 'value');
 const value = await client.get('key');

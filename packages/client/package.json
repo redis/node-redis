@@ -1,6 +1,6 @@
 {
   "name": "@redis/client",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,22 +21,22 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@redis/test-utils": "*",
-    "@types/node": "^20.2.3",
-    "@types/sinon": "^10.0.15",
+    "@types/node": "^20.6.2",
+    "@types/sinon": "^10.0.16",
     "@types/yallist": "^4.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.59.7",
-    "@typescript-eslint/parser": "^5.59.7",
-    "eslint": "^8.41.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.2",
+    "@typescript-eslint/parser": "^6.7.2",
+    "eslint": "^8.49.0",
     "nyc": "^15.1.0",
-    "release-it": "^15.10.3",
-    "sinon": "^15.1.0",
+    "release-it": "^16.1.5",
+    "sinon": "^16.0.0",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.1",
-    "typedoc": "^0.24.7",
-    "typescript": "^5.0.4"
+    "typedoc": "^0.25.1",
+    "typescript": "^5.2.2"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "repository": {
     "type": "git",

@@ -402,7 +402,7 @@ export default class RedisClient<
             (...args: Array<unknown>) => (this as any).sendCommand(name, ...args);
     }
 
-    #pingTimer?: NodeJS.Timer;
+    #pingTimer?: NodeJS.Timeout;
 
     #setPingTimer(): void {
         if (!this.#options?.pingInterval || !this.#socket.isReady) return;
@@ -426,10 +426,11 @@ export default class RedisClient<
         });
     }
 
-    connect(): Promise<void> {
+    async connect() {
         // see comment in constructor
         this.#isolationPool ??= this.#initiateIsolationPool();
-        return this.#socket.connect();
+        await this.#socket.connect();
+        return this as unknown as RedisClientType<M, F, S>;
     }
 
     async commandsExecutor<C extends RedisCommand>(
@@ -683,6 +684,7 @@ export default class RedisClient<
 
     QUIT(): Promise<string> {
         return this.#socket.quit(async () => {
+            if (this.#pingTimer) clearTimeout(this.#pingTimer);
             const quitPromise = this.#queue.addCommand<string>(['QUIT']);
             this.#tick();
             const [reply] = await Promise.all([
@@ -804,6 +806,7 @@ export default class RedisClient<
     }
 
     async disconnect(): Promise<void> {
+        if (this.#pingTimer) clearTimeout(this.#pingTimer);
         this.#queue.flushAll(new DisconnectsClientError());
         this.#socket.disconnect();
         await this.#destroyIsolationPool();
