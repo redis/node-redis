@@ -32,7 +32,6 @@
     --light-color-ts-accessor: var(--light-color-ts-property);
     --light-color-ts-get-signature: var(--light-color-ts-accessor);
     --light-color-ts-set-signature: var(--light-color-ts-accessor);
-    /* object literal not included as it is not used and will be removed in 0.25 */
     --light-color-ts-type-alias: #d51270;
     /* reference not included as links will be colored with the kind that it points to */
 
@@ -72,7 +71,6 @@
     --dark-color-ts-accessor: var(--dark-color-ts-property);
     --dark-color-ts-get-signature: var(--dark-color-ts-accessor);
     --dark-color-ts-set-signature: var(--dark-color-ts-accessor);
-    /* object literal not included as it is not used and will be removed in 0.25 */
     --dark-color-ts-type-alias: #ff6492;
     /* reference not included as links will be colored with the kind that it points to */
 
@@ -468,13 +466,12 @@ blockquote {
     padding: 0 0 0 20px;
     margin: 0;
 }
-.tsd-typography h4,
 .tsd-typography .tsd-index-panel h3,
 .tsd-index-panel .tsd-typography h3,
+.tsd-typography h4,
 .tsd-typography h5,
 .tsd-typography h6 {
     font-size: 1em;
-    margin: 0;
 }
 .tsd-typography h5,
 .tsd-typography h6 {
@@ -484,6 +481,19 @@ blockquote {
 .tsd-typography ul,
 .tsd-typography ol {
     margin: 1em 0;
+}
+.tsd-typography table {
+    border-collapse: collapse;
+    border: none;
+}
+.tsd-typography td,
+.tsd-typography th {
+    padding: 6px 13px;
+    border: 1px solid var(--color-accent);
+}
+.tsd-typography thead,
+.tsd-typography tr:nth-child(even) {
+    background-color: var(--color-background-secondary);
 }
 
 .tsd-breadcrumb {
@@ -900,8 +910,9 @@ a.tsd-index-link {
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.25);
 }
 #tsd-search .results li {
-    padding: 0 10px;
     background-color: var(--color-background);
+    line-height: initial;
+    padding: 4px;
 }
 #tsd-search .results li:nth-child(even) {
     background-color: var(--color-background-secondary);
@@ -909,12 +920,15 @@ a.tsd-index-link {
 #tsd-search .results li.state {
     display: none;
 }
-#tsd-search .results li.current,
-#tsd-search .results li:hover {
+#tsd-search .results li.current:not(.no-results),
+#tsd-search .results li:hover:not(.no-results) {
     background-color: var(--color-accent);
 }
 #tsd-search .results a {
-    display: block;
+    display: flex;
+    align-items: center;
+    padding: 0.25rem;
+    box-sizing: border-box;
 }
 #tsd-search .results a:before {
     top: 10px;
@@ -1070,7 +1084,9 @@ ul.tsd-type-parameter-list h5 {
     overflow: hidden;
     opacity: 0.8;
     height: 40px;
-    transition: opacity 0.1s, background-color 0.2s;
+    transition:
+        opacity 0.1s,
+        background-color 0.2s;
     vertical-align: bottom;
     cursor: pointer;
 }
@@ -1122,7 +1138,7 @@ img {
 }
 
 .deprecated {
-    text-decoration: line-through;
+    text-decoration: line-through !important;
 }
 
 .warning {
