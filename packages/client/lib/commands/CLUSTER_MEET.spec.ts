@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import CLUSTER_MEET from './CLUSTER_MEET';
 
 describe('CLUSTER MEET', () => {

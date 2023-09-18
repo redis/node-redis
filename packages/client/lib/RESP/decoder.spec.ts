@@ -1,4 +1,4 @@
-// import { strict as assert } from 'assert';
+// import { strict as assert } from 'node:assert';
 // import { SinonSpy, spy } from 'sinon';
 // import { Decoder, RESP_TYPES } from './decoder';
 // import { ErrorReply } from '../errors';

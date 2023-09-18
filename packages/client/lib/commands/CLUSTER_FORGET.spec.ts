@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import CLUSTER_FORGET from './CLUSTER_FORGET';
 
 describe('CLUSTER FORGET', () => {

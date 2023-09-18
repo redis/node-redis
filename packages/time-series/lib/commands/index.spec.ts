@@ -1,5 +1,5 @@
 // import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-// import { strict as assert } from 'assert';
+// import { strict as assert } from 'node:assert';
 // import {
 //     transformTimestampArgument,
 //     pushRetentionArgument,

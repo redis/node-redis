@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FLUSHDB from './FLUSHDB';
 import { REDIS_FLUSH_MODES } from './FLUSHALL';

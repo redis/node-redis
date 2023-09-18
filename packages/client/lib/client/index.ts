@@ -1,11 +1,11 @@
 import COMMANDS from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
-import { URL } from 'url';
-import { TcpSocketConnectOpts } from 'net';
+import { URL } from 'node:url';
+import { TcpSocketConnectOpts } from 'node:net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';

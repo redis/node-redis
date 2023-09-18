@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import COMMAND_COUNT from './COMMAND_COUNT';
 

@@ -1,7 +1,7 @@
 import COMMANDS from '../commands';
 import { Command, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientType, RedisClientOptions, RedisClientExtensions } from '.';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';

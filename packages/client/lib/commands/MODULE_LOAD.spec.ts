@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import MODULE_LOAD from './MODULE_LOAD';
 
 describe('MODULE LOAD', () => {

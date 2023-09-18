@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ALIASADD from './ALIASADD';
 import { SCHEMA_FIELD_TYPE } from './CREATE';

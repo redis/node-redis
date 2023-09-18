@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_LIST_WITHCODE from './FUNCTION_LIST_WITHCODE';
 import { MATH_FUNCTION, loadMathFunction } from './FUNCTION_LOAD.spec';

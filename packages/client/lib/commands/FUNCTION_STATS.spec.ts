@@ -1,5 +1,5 @@
-// import { strict as assert } from 'assert';
-// import testUtils, { GLOBAL } from '../test-utils';
+// import { strict as assert } from 'node:assert';
+import testUtils, { GLOBAL } from '../test-utils';
 // import { transformArguments } from './FUNCTION_STATS';
 
 // describe('FUNCTION STATS', () => {

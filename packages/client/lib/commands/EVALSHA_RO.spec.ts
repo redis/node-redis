@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils from '../test-utils';
 import EVALSHA_RO from './EVALSHA_RO';
 

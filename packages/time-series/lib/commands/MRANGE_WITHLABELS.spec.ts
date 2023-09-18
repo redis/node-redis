@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';

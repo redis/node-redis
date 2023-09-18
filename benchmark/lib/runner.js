@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { basename } from 'path';
-import { promises as fs } from 'fs';
+import { basename } from 'node:path';
+import { promises as fs } from 'node:fs';
 import * as hdr from 'hdr-histogram-js';
 hdr.initWebAssemblySync();
 

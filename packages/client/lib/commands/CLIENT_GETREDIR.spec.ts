@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import CLIENT_GETREDIR from './CLIENT_GETREDIR';
 
 describe('CLIENT GETREDIR', () => {

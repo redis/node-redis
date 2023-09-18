@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import CLIENT_KILL, { CLIENT_KILL_FILTERS } from './CLIENT_KILL';
 
 describe('CLIENT KILL', () => {

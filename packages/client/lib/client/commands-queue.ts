@@ -4,7 +4,7 @@ import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
-import { EventEmitter } from 'stream';
+import { EventEmitter } from 'node:stream';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;

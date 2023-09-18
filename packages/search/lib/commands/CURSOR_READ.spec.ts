@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import { SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CURSOR_READ';

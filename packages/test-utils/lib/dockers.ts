@@ -1,11 +1,11 @@
-import { createConnection } from 'net';
-import { once } from 'events';
+import { createConnection } from 'node:net';
+import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
 import { setTimeout } from 'timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
-import * as path from 'path';
-import { promisify } from 'util';
-import { exec } from 'child_process';
+import * as path from 'node:path';
+import { promisify } from 'node:util';
+import { exec } from 'node:child_process';
 const execAsync = promisify(exec);
 
 interface ErrorWithCode extends Error {

@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 // import { RedisClientMultiCommandType } from './multi-command';
@@ -6,9 +6,9 @@ import RedisClient, { RedisClientType } from '.';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 // import { spy } from 'sinon';
-import { once } from 'events';
+import { once } from 'node:events';
 // import { ClientKillFilters } from '../commands/CLIENT_KILL';
-// import { promisify } from 'util';
+// import { promisify } from 'node:util';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
 import { SortedSetMember } from '../commands/generic-transformers';

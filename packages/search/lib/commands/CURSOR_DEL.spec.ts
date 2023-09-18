@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CURSOR_DEL from './CURSOR_DEL';
 import { SCHEMA_FIELD_TYPE } from './CREATE';

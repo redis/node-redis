@@ -1,6 +1,6 @@
 import { createClient } from 'redis-v3';
-import { once } from 'events';
-import { promisify } from 'util';
+import { once } from 'node:events';
+import { promisify } from 'node:util';
 
 export default async (host) => {
     const client = createClient({ host }),

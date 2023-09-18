@@ -1,8 +1,8 @@
 import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
-import { types } from 'util';
-import { EventEmitter } from 'stream';
+import { types } from 'node:util';
+import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PubSubType, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions } from '../RESP/types';
 

@@ -127,7 +127,7 @@ import FUNCTION_LIST_WITHCODE from './FUNCTION_LIST_WITHCODE';
 import FUNCTION_LIST from './FUNCTION_LIST';
 import FUNCTION_LOAD from './FUNCTION_LOAD';
 import FUNCTION_RESTORE from './FUNCTION_RESTORE';
-// import FUNCTION_STATS from './FUNCTION_STATS';
+import FUNCTION_STATS from './FUNCTION_STATS';
 import HDEL from './HDEL';
 import HELLO from './HELLO';
 import HEXISTS from './HEXISTS';
@@ -537,8 +537,8 @@ export default {
   functionLoad: FUNCTION_LOAD,
   FUNCTION_RESTORE,
   functionRestore: FUNCTION_RESTORE,
-  // FUNCTION_STATS,
-  // functionStats: FUNCTION_STATS,
+  FUNCTION_STATS,
+  functionStats: FUNCTION_STATS,
   GEOADD,
   geoAdd: GEOADD,
   GEODIST,

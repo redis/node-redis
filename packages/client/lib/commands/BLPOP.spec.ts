@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BLPOP from './BLPOP';
 

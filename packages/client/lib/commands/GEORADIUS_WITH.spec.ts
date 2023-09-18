@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEORADIUS_WITH from './GEORADIUS_WITH';
 import { GEO_REPLY_WITH } from './GEOSEARCH_WITH';

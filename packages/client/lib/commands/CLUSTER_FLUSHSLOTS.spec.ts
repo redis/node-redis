@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import CLUSTER_FLUSHSLOTS from './CLUSTER_FLUSHSLOTS';
 
 describe('CLUSTER FLUSHSLOTS', () => {

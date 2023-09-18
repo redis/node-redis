@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import CLUSTER_FAILOVER, { FAILOVER_MODES } from './CLUSTER_FAILOVER';
 
 describe('CLUSTER FAILOVER', () => {

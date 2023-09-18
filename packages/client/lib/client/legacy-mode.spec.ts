@@ -1,10 +1,10 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { promisify } from 'util';
+import { promisify } from 'node:util';
 import { RedisLegacyClientType } from './legacy-mode';
 import { ErrorReply } from '../errors';
 import { RedisClientType } from '.';
-import { once } from 'events';
+import { once } from 'node:events';
 
 function testWithLegacyClient(title: string, fn: (legacy: RedisLegacyClientType, client: RedisClientType) => Promise<unknown>) {
   testUtils.testWithClient(title, client => fn(client.legacy(), client), GLOBAL.SERVERS.OPEN);

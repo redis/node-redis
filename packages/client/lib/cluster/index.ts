@@ -2,7 +2,7 @@ import { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { Command, CommandArguments, CommanderConfig, CommandPolicies, CommandWithPoliciesSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
@@ -16,14 +16,14 @@ interface ClusterCommander<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping,
-  POLICIES extends CommandPolicies
+  // POLICIES extends CommandPolicies
 > extends CommanderConfig<M, F, S, RESP>{
-  commandOptions?: ClusterCommandOptions<TYPE_MAPPING, POLICIES>;
+  commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 }
 
 export type RedisClusterClientOptions = Omit<
   RedisClientOptions,
-  keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, CommandPolicies>
+  keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
 >;
 
 export interface RedisClusterOptions<
@@ -32,8 +32,8 @@ export interface RedisClusterOptions<
   S extends RedisScripts = RedisScripts,
   RESP extends RespVersions = RespVersions,
   TYPE_MAPPING extends TypeMapping = TypeMapping,
-  POLICIES extends CommandPolicies = CommandPolicies
-> extends ClusterCommander<M, F, S, RESP, TYPE_MAPPING, POLICIES> {
+  // POLICIES extends CommandPolicies = CommandPolicies
+> extends ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/> {
   /**
    * Should contain details for some of the cluster nodes that the client will use to discover 
    * the "cluster topology". We recommend including details for at least 3 nodes here.
@@ -68,9 +68,9 @@ export interface RedisClusterOptions<
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping,
-  POLICIES extends CommandPolicies
+  // POLICIES extends CommandPolicies
 > = {
-  [P in keyof typeof COMMANDS]: CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING, POLICIES>;
+[P in keyof typeof COMMANDS]: CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING, POLICIES>;
 };
 
 export type RedisClusterType<
@@ -79,8 +79,8 @@ export type RedisClusterType<
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {},
-  POLICIES extends CommandPolicies = {}
-> = RedisCluster<M, F, S, RESP, TYPE_MAPPING, POLICIES> & WithCommands<RESP, TYPE_MAPPING, POLICIES>;
+  // POLICIES extends CommandPolicies = {}
+> = RedisCluster<M, F, S, RESP, TYPE_MAPPING, POLICIES> & WithCommands<RESP, TYPE_MAPPING/*, POLICIES*/>;
 // & WithModules<M> & WithFunctions<F> & WithScripts<S>
 
 export interface ClusterCommandOptions<

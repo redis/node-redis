@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOSEARCH_WITH, { GEO_REPLY_WITH } from './GEOSEARCH_WITH';
 import { CommandArguments } from '../RESP/types';

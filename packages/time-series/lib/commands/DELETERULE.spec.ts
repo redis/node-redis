@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DELETERULE from './DELETERULE';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';

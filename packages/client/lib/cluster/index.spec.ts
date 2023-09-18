@@ -1,4 +1,4 @@
-// import { strict as assert } from 'assert';
+// import { strict as assert } from 'node:assert';
 // import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 // import RedisCluster from '.';
 // import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';

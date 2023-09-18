@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils from '../test-utils';
 import ACL_SAVE from './ACL_SAVE';
 
