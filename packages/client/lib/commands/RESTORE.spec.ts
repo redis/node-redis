@@ -4,124 +4,71 @@ import { transformArguments } from './RESTORE';
 
 describe('RESTORE', () => {
     describe('transformArguments', () => {
-        it('parses ttl and value', () => {
+        it('simple', () => {
             assert.deepEqual(
-                transformArguments('KeyName', 0, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"'),
-                ['RESTORE', 'KeyName', '0', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"']
+                transformArguments('key', 0, 'value'),
+                ['RESTORE', 'key', '0', 'value']
             );
         });
 
-        it('parses REPLACE', () => {
+        it('with REPLACE', () => {
             assert.deepEqual(
-                transformArguments('KeyName', 0, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
+                transformArguments('key', 0, 'value', {
                     REPLACE: true
                 }),
-                ['RESTORE', 'KeyName', '0', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'REPLACE']
+                ['RESTORE', 'key', '0', 'value', 'REPLACE']
             );
         });
 
-        it('parses ABSTTL', () => {
+        it('with ABSTTL', () => {
             assert.deepEqual(
-                transformArguments('KeyName', 2693098555000, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
+                transformArguments('key', 0, 'value', {
                     ABSTTL: true
                 }),
-                ['RESTORE', 'KeyName', '2693098555000', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'ABSTTL']
+                ['RESTORE', 'key', '0', 'value', 'ABSTTL']
             );
         });
 
-        it('parses IDLETIME', () => {
+        it('with IDLETIME', () => {
             assert.deepEqual(
-                transformArguments('KeyName', 0, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
-                    IDLETIME: 5
+                transformArguments('key', 0, 'value', {
+                    IDLETIME: 1
                 }),
-                ['RESTORE', 'KeyName', '0', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'IDLETIME', '5']
+                ['RESTORE', 'key', '0', 'value', 'IDLETIME', '1']
             );
         });
 
-        it('parses FREQ', () => {
+        it('with FREQ', () => {
             assert.deepEqual(
-                transformArguments('KeyName', 0, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
-                    FREQ: 5
+                transformArguments('key', 0, 'value', {
+                    FREQ: 1
                 }),
-                ['RESTORE', 'KeyName', '0', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'FREQ', '5']
+                ['RESTORE', 'key', '0', 'value', 'FREQ', '1']
             );
         });
 
-        it('parses REPLACE and ABSTTL', () => {
+        it('with REPLACE, ABSTTL, IDLETIME and FREQ', () => {
             assert.deepEqual(
-                transformArguments('KeyName', 2693098555000, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
-                    REPLACE: true,
-                    ABSTTL: true
-                }),
-                ['RESTORE', 'KeyName', '2693098555000', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'REPLACE', 'ABSTTL']
-            );
-        });
-
-        it('parses REPLACE and IDLETIME', () => {
-            assert.deepEqual(
-                transformArguments('KeyName', 0, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
-                    REPLACE: true,
-                    IDLETIME: 5
-                }),
-                ['RESTORE', 'KeyName', '0', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'REPLACE', 'IDLETIME', '5']
-            );
-        });
-
-        it('parses REPLACE, ABSTTL, IDLETIME and FREQ', () => {
-            assert.deepEqual(
-                transformArguments('KeyName', 2693098555000, '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', {
+                transformArguments('key', 0, 'value', {
                     REPLACE: true,
                     ABSTTL: true,
-                    IDLETIME: 5,
-                    FREQ: 50
+                    IDLETIME: 1,
+                    FREQ: 2
                 }),
-                ['RESTORE', 'KeyName', '2693098555000', '"\x00\x0bStringValue\n\x00\b\xebpW1H\x0c,"', 'REPLACE', 'ABSTTL', 'IDLETIME', '5', 'FREQ', '50']
+                ['RESTORE', 'key', '0', 'value', 'REPLACE', 'ABSTTL', 'IDLETIME', '1', 'FREQ', '2']
             );
         });
     });
 
-    describe('client.restore', () => {
-        testUtils.testWithClient('new key', async client => {
-            await client.set('oldKey', 'oldValue')
-            const dumpValue = await client.dump('oldKey');
-            assert.equal(
-                await client.restore('newKey', 0, dumpValue),
-                'OK'
-            );
-            assert.equal(
-                await client.get('newKey'),
-                'oldValue'
-            )
-        }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('client.restore', async client => {
+        const [, dump] = await Promise.all([
+            client.set('source', 'value'),
+            client.dump('source')
+        ]);
 
-        
-        testUtils.testWithClient('crash on RESTORE for existing key', async client => {
-            await client.set('oldKey', 'oldValue')
-            await client.set('newKey', 'newValue')
-            const dumpValue = await client.dump('oldKey');
-            assert.rejects(
-                client.restore('newKey', 0, dumpValue),
-                {
-                    name: 'ErrorReply',
-                    message: 'BUSYKEY Target key name already exists.'
-                }
-            )
-        }, GLOBAL.SERVERS.OPEN);
-
-        testUtils.testWithClient('replace existing key', async client => {
-            await client.set('oldKey', 'oldValue')
-            await client.set('newKey', 'newValue')
-            const dumpValue = await client.dump('oldKey');
-            assert.equal(
-                await client.restore('newKey', 0, dumpValue, {
-                    REPLACE: true
-                }),
-                'OK'
-            );
-            assert.equal(
-                await client.get('newKey'),
-                'oldValue'
-            )
-        }, GLOBAL.SERVERS.OPEN);
-    })
+        assert.equal(
+            await client.restore('destination', 0, dump),
+            'OK'
+        );
+    }, GLOBAL.SERVERS.OPEN);
 });

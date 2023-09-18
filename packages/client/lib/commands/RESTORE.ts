@@ -1,5 +1,7 @@
 import { RedisCommandArgument, RedisCommandArguments } from '.';
 
+export const FIRST_KEY_INDEX = 1;
+
 interface RestoreOptions {
     REPLACE?: true;
     ABSTTL?: true;
