@@ -13,17 +13,19 @@ describe('XINFO CONSUMERS', () => {
     it('transformReply', () => {
         assert.deepEqual(
             transformReply([
-                ['name', 'Alice', 'pending', 1, 'idle', 9104628],
-                ['name', 'Bob', 'pending', 1, 'idle', 83841983]
+                ['name', 'Alice', 'pending', 1, 'idle', 9104628, 'inactive', 9281221],
+                ['name', 'Bob', 'pending', 1, 'idle', 83841983, 'inactive', 7213871]
             ]),
             [{
                 name: 'Alice',
                 pending: 1,
-                idle: 9104628
+                idle: 9104628,
+                inactive: 9281221,
             }, {
                 name: 'Bob',
                 pending: 1,
-                idle: 83841983
+                idle: 83841983,
+                inactive: 7213871,
             }]
         );
     });

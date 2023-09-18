@@ -20,6 +20,7 @@ import * as INFO from './INFO';
 import * as PROFILESEARCH from './PROFILE_SEARCH';
 import * as PROFILEAGGREGATE from './PROFILE_AGGREGATE';
 import * as SEARCH from './SEARCH';
+import * as SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
 import * as SPELLCHECK from './SPELLCHECK';
 import * as SUGADD from './SUGADD';
 import * as SUGDEL from './SUGDEL';
@@ -80,6 +81,8 @@ export default {
     profileAggregate: PROFILEAGGREGATE,
     SEARCH,
     search: SEARCH,
+    SEARCH_NOCONTENT,
+    searchNoContent: SEARCH_NOCONTENT,
     SPELLCHECK,
     spellCheck: SPELLCHECK,
     SUGADD,
@@ -508,6 +511,10 @@ export function pushSearchOptions(
 
     if (options?.RETURN?.length === 0) {
         args.preserve = true;
+    }
+
+    if (options?.TIMEOUT !== undefined) {
+        args.push('TIMEOUT', options.TIMEOUT.toString());
     }
 
     return args;

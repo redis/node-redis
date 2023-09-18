@@ -4,15 +4,24 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CURSOR_READ';
 
 describe('CURSOR READ', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('index', 0),
-            ['FT.CURSOR', 'READ', 'index', '0']
-        );
+    describe('transformArguments', () => {
+        it('without options', () => {
+            assert.deepEqual(
+                transformArguments('index', 0),
+                ['FT.CURSOR', 'READ', 'index', '0']
+            );
+        });
+
+        it('with COUNT', () => {
+            assert.deepEqual(
+                transformArguments('index', 0, { COUNT: 1 }),
+                ['FT.CURSOR', 'READ', 'index', '0', 'COUNT', '1']
+            );
+        });
     });
 
     testUtils.testWithClient('client.ft.cursorRead', async client => {
-        const [ ,, { cursor } ] = await Promise.all([
+        const [, , { cursor }] = await Promise.all([
             client.ft.create('idx', {
                 field: {
                     type: SchemaFieldTypes.TEXT

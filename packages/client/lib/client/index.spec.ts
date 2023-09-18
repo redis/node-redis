@@ -107,6 +107,19 @@ describe('Client', () => {
         });
     });
 
+    describe('connect', () => {
+        testUtils.testWithClient('connect should return the client instance', async client => {
+            try {
+                assert.equal(await client.connect(), client);
+            } finally {
+                if (client.isOpen) await client.disconnect();
+            }
+        }, {
+            ...GLOBAL.SERVERS.PASSWORD,
+            disableClientSetup: true
+        });
+    });
+
     describe('authentication', () => {
         testUtils.testWithClient('Client should be authenticated', async client => {
             assert.equal(

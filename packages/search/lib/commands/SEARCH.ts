@@ -6,7 +6,6 @@ export const FIRST_KEY_INDEX = 1;
 export const IS_READ_ONLY = true;
 
 export interface SearchOptions {
-    // NOCONTENT?: true; TODO
     VERBATIM?: true;
     NOSTOPWORDS?: true;
     // WITHSCORES?: true;
@@ -55,6 +54,7 @@ export interface SearchOptions {
     };
     PARAMS?: Params;
     DIALECT?: number;
+    TIMEOUT?: number;
 }
 
 export function transformArguments(
