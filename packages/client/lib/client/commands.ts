@@ -23,6 +23,7 @@ import * as CLIENT_ID from '../commands/CLIENT_ID';
 import * as CLIENT_KILL from '../commands/CLIENT_KILL';
 import * as CLIENT_LIST from '../commands/CLIENT_LIST';
 import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
+import * as CLIENT_NO_TOUCH from '../commands/CLIENT_NO-TOUCH';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_TRACKING from '../commands/CLIENT_TRACKING';
@@ -84,6 +85,7 @@ import * as KEYS from '../commands/KEYS';
 import * as LASTSAVE from '../commands/LASTSAVE';
 import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
 import * as LATENCY_GRAPH from '../commands/LATENCY_GRAPH';
+import * as LATENCY_LATEST from '../commands/LATENCY_LATEST';
 import * as LOLWUT from '../commands/LOLWUT';
 import * as MEMORY_DOCTOR from '../commands/MEMORY_DOCTOR';
 import * as MEMORY_MALLOC_STATS from '../commands/MEMORY_MALLOC-STATS';
@@ -166,6 +168,8 @@ export default {
     clientKill: CLIENT_KILL,
     'CLIENT_NO-EVICT': CLIENT_NO_EVICT,
     clientNoEvict: CLIENT_NO_EVICT,
+    'CLIENT_NO-TOUCH': CLIENT_NO_TOUCH,
+    clientNoTouch: CLIENT_NO_TOUCH,
     CLIENT_LIST,
     clientList: CLIENT_LIST,
     CLIENT_PAUSE,
@@ -290,6 +294,8 @@ export default {
     latencyDoctor: LATENCY_DOCTOR,
     LATENCY_GRAPH,
     latencyGraph: LATENCY_GRAPH,
+    LATENCY_LATEST,
+    latencyLatest: LATENCY_LATEST,
     LOLWUT,
     lolwut: LOLWUT,
     MEMORY_DOCTOR,

@@ -68,7 +68,7 @@ describe('Graph', () => {
 
         // check with and without metadata cache
         for (let i = 0; i < 2; i++) {
-            const { data } = await graph.query('CREATE ()-[edge :edge]->() RETURN edge');
+            const { data } = await graph.query<any>('CREATE ()-[edge :edge]->() RETURN edge');
             assert.ok(Array.isArray(data));
             assert.equal(data.length, 1);
             assert.equal(typeof data[0].edge.id, 'number');
@@ -85,7 +85,7 @@ describe('Graph', () => {
 
         // check with and without metadata cache
         for (let i = 0; i < 2; i++) {
-            const { data } = await graph.query('CREATE (node :node { p: 0 }) RETURN node');
+            const { data } = await graph.query<any>('CREATE (node :node { p: 0 }) RETURN node');
             assert.ok(Array.isArray(data));
             assert.equal(data.length, 1);
             assert.equal(typeof data[0].node.id, 'number');
@@ -98,7 +98,7 @@ describe('Graph', () => {
         const graph = new Graph(client as any, 'graph'),
             [, { data }] = await Promise.all([
                 await graph.query('CREATE ()-[:edge]->()'),
-                await graph.roQuery('MATCH path = ()-[:edge]->() RETURN path')
+                await graph.roQuery<any>('MATCH path = ()-[:edge]->() RETURN path')
             ]);
 
         assert.ok(Array.isArray(data));

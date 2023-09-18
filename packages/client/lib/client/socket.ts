@@ -291,7 +291,7 @@ export default class RedisSocket extends EventEmitter {
         this.#socket.cork();
         this.#isCorked = true;
 
-        queueMicrotask(() => {
+        setImmediate(() => {
             this.#socket?.uncork();
             this.#isCorked = false;
         });

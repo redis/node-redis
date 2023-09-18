@@ -55,6 +55,7 @@ export interface SearchOptions {
     };
     PARAMS?: Params;
     DIALECT?: number;
+    TIMEOUT?: number;
 }
 
 export function transformArguments(
