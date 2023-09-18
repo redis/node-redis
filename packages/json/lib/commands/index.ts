@@ -9,6 +9,7 @@ import * as DEL from './DEL';
 import * as FORGET from './FORGET';
 import * as GET from './GET';
 import * as MGET from './MGET';
+import * as MSET from './MSET';
 import * as NUMINCRBY from './NUMINCRBY';
 import * as NUMMULTBY from './NUMMULTBY';
 import * as OBJKEYS from './OBJKEYS';
@@ -42,6 +43,8 @@ export default {
     get: GET,
     MGET,
     mGet: MGET,
+    MSET,
+    mSet: MSET,
     NUMINCRBY,
     numIncrBy: NUMINCRBY,
     NUMMULTBY,
