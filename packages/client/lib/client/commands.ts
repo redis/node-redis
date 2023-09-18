@@ -46,6 +46,7 @@ import * as CLUSTER_KEYSLOT from '../commands/CLUSTER_KEYSLOT';
 import * as CLUSTER_LINKS from '../commands/CLUSTER_LINKS';
 import * as CLUSTER_MEET from '../commands/CLUSTER_MEET';
 import * as CLUSTER_MYID from '../commands/CLUSTER_MYID';
+import * as CLUSTER_MYSHARDID from '../commands/CLUSTER_MYSHARDID';
 import * as CLUSTER_NODES from '../commands/CLUSTER_NODES';
 import * as CLUSTER_REPLICAS from '../commands/CLUSTER_REPLICAS';
 import * as CLUSTER_REPLICATE from '../commands/CLUSTER_REPLICATE';
@@ -216,6 +217,8 @@ export default {
     clusterMeet: CLUSTER_MEET,
     CLUSTER_MYID,
     clusterMyId: CLUSTER_MYID,
+    CLUSTER_MYSHARDID,
+    clusterMyShardId: CLUSTER_MYSHARDID,
     CLUSTER_NODES,
     clusterNodes: CLUSTER_NODES,
     CLUSTER_REPLICAS,
