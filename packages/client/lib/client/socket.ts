@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
-import { setTimeout } from 'timers/promises';
+import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 
 export interface RedisSocketCommonOptions {

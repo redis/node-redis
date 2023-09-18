@@ -1,6 +1,6 @@
 import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
-import { setTimeout } from 'timers/promises';
+import { setTimeout } from 'node:timers/promises';
 
 const utils = new TestUtils({
   dockerImageName: 'redis',

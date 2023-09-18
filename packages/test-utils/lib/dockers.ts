@@ -1,7 +1,7 @@
 import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
-import { setTimeout } from 'timers/promises';
+import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
