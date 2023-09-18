@@ -21,7 +21,7 @@
     "sinon": "^15.2.0"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
