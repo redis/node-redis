@@ -110,6 +110,7 @@ import * as PTTL from '../commands/PTTL';
 import * as PUBLISH from '../commands/PUBLISH';
 import * as RENAME from '../commands/RENAME';
 import * as RENAMENX from '../commands/RENAMENX';
+import * as RESTORE from '../commands/RESTORE';
 import * as RPOP_COUNT from '../commands/RPOP_COUNT';
 import * as RPOP from '../commands/RPOP';
 import * as RPOPLPUSH from '../commands/RPOPLPUSH';
@@ -434,6 +435,8 @@ export default {
     rename: RENAME,
     RENAMENX,
     renameNX: RENAMENX,
+    RESTORE,
+    restore: RESTORE,
     RPOP_COUNT,
     rPopCount: RPOP_COUNT,
     RPOP,
