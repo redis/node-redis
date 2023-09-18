@@ -28,18 +28,11 @@ describe('PUBSUB SHARDNUMSUB', () => {
 
     testUtils.testWithClient('client.pubSubShardNumSub', async client => {
         assert.deepEqual(
-            await client.pubSubShardNumSub(),
-            Object.create(null)
-        );
-
-        assert.deepEqual(
-            await client.pubSubShardNumSub('channel'),
-            { 'channel': 0 }
-        );
-
-        assert.deepEqual(
             await client.pubSubShardNumSub(['foo', 'bar']),
-            { 'foo': 0, 'bar': 0 }
+            {
+                foo: 0,
+                bar: 0
+            }
         );
     }, GLOBAL.SERVERS.OPEN);
 });

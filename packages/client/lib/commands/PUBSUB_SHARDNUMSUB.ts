@@ -16,7 +16,7 @@ export function transformArguments(
 export function transformReply(rawReply: Array<string | number>): Record<string, number> {
     const transformedReply = Object.create(null);
 
-    for (let i = 0; i < rawReply.length; i +=2) {
+    for (let i = 0; i < rawReply.length; i += 2) {
         transformedReply[rawReply[i]] = rawReply[i + 1];
     }
 
