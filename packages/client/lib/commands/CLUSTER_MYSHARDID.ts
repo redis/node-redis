@@ -1,9 +1,7 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+export const IS_READ_ONLY = true;
 
-export function transformArguments(): RedisCommandArguments {
-    const args: RedisCommandArguments = ['CLUSTER', 'MYSHARDID'];
-
-    return args;
+export function transformArguments() {
+    return ['CLUSTER', 'MYSHARDID'];
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): string | Buffer;

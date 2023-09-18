@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import testUtils from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CLUSTER_MYSHARDID';
 
 describe('CLUSTER MYSHARDID', () => {
@@ -11,4 +11,12 @@ describe('CLUSTER MYSHARDID', () => {
             ['CLUSTER', 'MYSHARDID']
         );
     });
+
+    testUtils.testWithCluster('clusterNode.clusterMyShardId', async cluster => {
+        const client = await cluster.nodeClient(cluster.masters[0]);
+        assert.equal(
+            typeof await client.clusterMyShardId(),
+            'string'
+        );
+    }, GLOBAL.CLUSTERS.OPEN);
 });
