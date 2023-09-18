@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './PUBSUB_SHARDNUMSUB';
 
 describe('PUBSUB SHARDNUMSUB', () => {
+    testUtils.isVersionGreaterThanHook([7]);
+
     describe('transformArguments', () => {
         it('simple', () => {
             assert.deepEqual(
@@ -29,10 +31,18 @@ describe('PUBSUB SHARDNUMSUB', () => {
     testUtils.testWithClient('client.pubSubShardNumSub', async client => {
         assert.deepEqual(
             await client.pubSubShardNumSub(['foo', 'bar']),
-            {
-                foo: 0,
-                bar: 0
-            }
+            Object.create(null, {
+                foo: {
+                    value: 0,
+                    configurable: true,
+                    enumerable: true
+                },
+                bar: {
+                    value: 0,
+                    configurable: true,
+                    enumerable: true
+                }
+            })
         );
     }, GLOBAL.SERVERS.OPEN);
 });
