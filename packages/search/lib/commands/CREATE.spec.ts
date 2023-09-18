@@ -194,6 +194,42 @@ describe('FT.CREATE', () => {
           );
         });
       });
+
+      describe('GEOSHAPE', () => {
+        describe('without options', () => {
+          it('SCHEMA_FIELD_TYPE.GEOSHAPE', () => {
+            assert.deepEqual(
+              CREATE.transformArguments('index', {
+                field: SCHEMA_FIELD_TYPE.GEOSHAPE
+              }),
+              ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE']
+            );
+          });
+
+          it('{ type: SCHEMA_FIELD_TYPE.GEOSHAPE }', () => {
+            assert.deepEqual(
+              CREATE.transformArguments('index', {
+                field: {
+                  type: SCHEMA_FIELD_TYPE.GEOSHAPE
+                }
+              }),
+              ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE']
+            );
+          });
+        });
+
+        it('with COORD_SYSTEM', () => {
+          assert.deepEqual(
+            CREATE.transformArguments('index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.GEOSHAPE,
+                COORD_SYSTEM: 'SPHERICAL'
+              }
+            }),
+            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE', 'COORD_SYSTEM', 'SPHERICAL']
+          );
+        });
+      });
   
       it('with AS', () => {
         assert.deepEqual(

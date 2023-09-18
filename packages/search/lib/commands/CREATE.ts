@@ -7,7 +7,8 @@ export const SCHEMA_FIELD_TYPE = {
   NUMERIC: 'NUMERIC',
   GEO: 'GEO',
   TAG: 'TAG',
-  VECTOR: 'VECTOR'
+  VECTOR: 'VECTOR',
+  GEOSHAPE: 'GEOSHAPE'
 } as const;
 
 export type SchemaFieldType = typeof SCHEMA_FIELD_TYPE[keyof typeof SCHEMA_FIELD_TYPE];
@@ -85,6 +86,17 @@ type SchemaHNSWVectorField = SchemaVectorField<typeof SCHEMA_VECTOR_FIELD_ALGORI
   EF_RUNTIME?: number;
 }>;
 
+export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
+  SPHERICAL: 'SPHERICAL',
+  FLAT: 'FLAT'
+} as const;
+
+export type SchemaGeoShapeFieldCoordSystem = typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM[keyof typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM];
+
+type SchemaGeoShapeField = SchemaField<typeof SCHEMA_FIELD_TYPE['GEOSHAPE'], {
+  COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
+}>;
+
 export interface RediSearchSchema {
   [field: string]:(
     SchemaTextField |
@@ -92,7 +104,8 @@ export interface RediSearchSchema {
     SchemaGeoField |
     SchemaTagField |
     SchemaFlatVectorField |
-    SchemaHNSWVectorField
+    SchemaHNSWVectorField |
+    SchemaGeoShapeField
   );
 }
 
@@ -191,6 +204,13 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
         args[lengthIndex] = (args.length - lengthIndex - 1).toString();
 
         continue; // vector fields do not contain SORTABLE and NOINDEX options
+    
+      case SCHEMA_FIELD_TYPE.GEOSHAPE:
+        if (fieldOptions.COORD_SYSTEM !== undefined) {
+          args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
+        }
+
+        continue; // geo shape fields do not contain SORTABLE and NOINDEX options
     }
 
     if (fieldOptions.SORTABLE) {
