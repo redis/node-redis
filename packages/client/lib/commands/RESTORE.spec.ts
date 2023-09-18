@@ -63,7 +63,7 @@ describe('RESTORE', () => {
     testUtils.testWithClient('client.restore', async client => {
         const [, dump] = await Promise.all([
             client.set('source', 'value'),
-            client.dump('source')
+            client.dump(client.commandOptions({ returnBuffers: true }), 'source')
         ]);
 
         assert.equal(
