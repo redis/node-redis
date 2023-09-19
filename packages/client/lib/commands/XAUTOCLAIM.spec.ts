@@ -24,71 +24,75 @@ describe('XAUTOCLAIM', () => {
     });
 
     testUtils.testWithClient('client.xAutoClaim without messages', async client => {
-        await Promise.all([
+        const [,, reply] = await Promise.all([
             client.xGroupCreate('key', 'group', '$', { MKSTREAM: true }),
             client.xGroupCreateConsumer('key', 'group', 'consumer'),
+            client.xAutoClaim('key', 'group', 'consumer', 1, '0-0')
         ]);
 
-        assert.deepEqual(
-            await client.xAutoClaim('key', 'group', 'consumer', 1, '0-0'),
-            {
-                nextId: '0-0',
-                messages: []
-            }
-        );
+        assert.deepEqual(reply, {
+            nextId: '0-0',
+            messages: []
+        });
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('client.xAutoClaim with messages', async client => {
-        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
-        await client.xGroupCreateConsumer('key', 'group', 'consumer');
-        const id = await client.xAdd('key', '*', { foo: 'bar' });
-        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
+        const [,, id,, reply] = await Promise.all([
+            client.xGroupCreate('key', 'group', '$', { MKSTREAM: true }),
+            client.xGroupCreateConsumer('key', 'group', 'consumer'),
+            client.xAdd('key', '*', { foo: 'bar' }),
+            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
+            client.xAutoClaim('key', 'group', 'consumer', 0, '0-0')
+        ]);
 
-        assert.deepEqual(
-            await client.xAutoClaim('key', 'group', 'consumer', 0, '0-0'),
-            {
-                nextId: '0-0',
-                messages: [{
-                    id,
-                    message: Object.create(null, { 'foo': {
+        assert.deepEqual(reply, {
+            nextId: '0-0',
+            messages: [{
+                id,
+                message: Object.create(null, {
+                    foo: {
                         value: 'bar',
                         configurable: true,
                         enumerable: true
-                    } })
-                }]
-            }
-        );
+                    }
+                })
+            }]
+        });
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('client.xAutoClaim with trimmed messages', async client => {
-        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
-        await client.xGroupCreateConsumer('key', 'group', 'consumer');
-        await client.xAdd('key', '*', { foo: 'bar' });
-        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
-        await client.xTrim('key', 'MAXLEN', 0);
-        const id = await client.xAdd('key', '*', { bar: 'baz' });
-        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
+        const [,,,,, id,, reply] = await Promise.all([
+            client.xGroupCreate('key', 'group', '$', { MKSTREAM: true }),
+            client.xGroupCreateConsumer('key', 'group', 'consumer'),
+            client.xAdd('key', '*', { foo: 'bar' }),
+            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
+            client.xTrim('key', 'MAXLEN', 0),
+            client.xAdd('key', '*', { bar: 'baz' }),
+            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
+            client.xAutoClaim('key', 'group', 'consumer', 0, '0-0')
+        ]);
 
-        assert.deepEqual(
-            await client.xAutoClaim('key', 'group', 'consumer', 0, '0-0'),
-            {
-                nextId: '0-0',
-                messages: testUtils.isVersionGreaterThan([7, 0]) ? [{
-                    id,
-                    message: Object.create(null, { 'bar': {
+        assert.deepEqual(reply, {
+            nextId: '0-0',
+            messages: testUtils.isVersionGreaterThan([7, 0]) ? [{
+                id,
+                message: Object.create(null, {
+                    bar: {
                         value: 'baz',
                         configurable: true,
                         enumerable: true
-                    } })
-                }] : [null, {
-                    id,
-                    message: Object.create(null, { 'bar': {
+                    }
+                })
+            }] : [null, {
+                id,
+                message: Object.create(null, {
+                    bar: {
                         value: 'baz',
                         configurable: true,
                         enumerable: true
-                    } })
-                }]
-            }
-        );
+                    }
+                })
+            }]
+        });
     }, GLOBAL.SERVERS.OPEN);
 });
