@@ -18,7 +18,7 @@
   "devDependencies": {
     "@redis/test-utils": "*",
     "@types/sinon": "^10.0.16",
-    "sinon": "^15.2.0"
+    "sinon": "^16.0.0"
   },
   "engines": {
     "node": ">=18"
