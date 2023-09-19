@@ -17,7 +17,7 @@ export type EventType = (
     'rdb-unlink-temp-file'
 );
 
-export function transformArguments (event: EventType) {
+export function transformArguments(event: EventType) {
     return ['LATENCY', 'HISTORY', event];
 }
 
