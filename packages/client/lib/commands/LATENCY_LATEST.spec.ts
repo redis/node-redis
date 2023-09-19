@@ -11,13 +11,13 @@ describe('LATENCY LATEST', () => {
   });
 
   testUtils.testWithClient('client.latencyLatest', async client => {
-    await Promise.all([
+    const [,, reply] = await Promise.all([
       client.configSet('latency-monitor-threshold', '100'),
-      client.sendCommand(['DEBUG', 'SLEEP', '1'])
+      client.sendCommand(['DEBUG', 'SLEEP', '1']),
+      client.latencyLatest()
     ]);
-    const latency = await client.latencyLatest();
-    assert.ok(Array.isArray(latency));
-    for (const [name, timestamp, latestLatency, allTimeLatency] of latency) {
+    assert.ok(Array.isArray(reply));
+    for (const [name, timestamp, latestLatency, allTimeLatency] of reply) {
       assert.equal(typeof name, 'string');
       assert.equal(typeof timestamp, 'number');
       assert.equal(typeof latestLatency, 'number');

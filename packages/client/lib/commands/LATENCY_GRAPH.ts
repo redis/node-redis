@@ -1,4 +1,4 @@
-import { SimpleStringReply, Command, BlobStringReply } from '../RESP/types';
+import { BlobStringReply, Command } from '../RESP/types';
 
 export const LATENCY_EVENTS = {
   ACTIVE_DEFRAG_CYCLE: 'active-defrag-cycle',

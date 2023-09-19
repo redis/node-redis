@@ -15,14 +15,12 @@ describe('LATENCY GRAPH', () => {
   });
 
   testUtils.testWithClient('client.latencyGraph', async client => {
-    await Promise.all([
+    const [,, reply] = await Promise.all([
       client.configSet('latency-monitor-threshold', '1'),
-      client.sendCommand(['DEBUG', 'SLEEP', '0.001'])
+      client.sendCommand(['DEBUG', 'SLEEP', '0.001']),
+      client.latencyGraph('command')
     ]);
 
-    assert.equal(
-      typeof await client.latencyGraph('command'),
-      'string'
-    );
+    assert.equal(typeof reply, 'string');
   }, GLOBAL.SERVERS.OPEN);
 });

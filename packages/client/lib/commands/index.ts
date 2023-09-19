@@ -38,6 +38,7 @@ import CLIENT_INFO from './CLIENT_INFO';
 import CLIENT_KILL from './CLIENT_KILL';
 import CLIENT_LIST from './CLIENT_LIST';
 import CLIENT_NO_EVICT from './CLIENT_NO-EVICT';
+import CLIENT_NO_TOUCH from './CLIENT_NO-TOUCH';
 import CLIENT_PAUSE from './CLIENT_PAUSE';
 import CLIENT_SETNAME from './CLIENT_SETNAME';
 import CLIENT_TRACKING from './CLIENT_TRACKING';
@@ -59,6 +60,7 @@ import CLUSTER_KEYSLOT from './CLUSTER_KEYSLOT';
 import CLUSTER_LINKS from './CLUSTER_LINKS';
 import CLUSTER_MEET from './CLUSTER_MEET';
 import CLUSTER_MYID from './CLUSTER_MYID';
+import CLUSTER_MYSHARDID from './CLUSTER_MYSHARDID';
 import CLUSTER_NODES from './CLUSTER_NODES';
 import CLUSTER_REPLICAS from './CLUSTER_REPLICAS';
 import CLUSTER_REPLICATE from './CLUSTER_REPLICATE';
@@ -154,6 +156,7 @@ import KEYS from './KEYS';
 import LASTSAVE from './LASTSAVE';
 import LATENCY_DOCTOR from './LATENCY_DOCTOR';
 import LATENCY_GRAPH from './LATENCY_GRAPH';
+import LATENCY_HISTORY from './LATENCY_HISTORY';
 import LATENCY_LATEST from './LATENCY_LATEST';
 import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
 import LCS_IDX from './LCS_IDX';
@@ -205,11 +208,15 @@ import PUBLISH from './PUBLISH';
 import PUBSUB_CHANNELS from './PUBSUB_CHANNELS';
 import PUBSUB_NUMPAT from './PUBSUB_NUMPAT';
 import PUBSUB_NUMSUB from './PUBSUB_NUMSUB';
+import PUBSUB_SHARDNUMSUB from './PUBSUB_SHARDNUMSUB';
 import PUBSUB_SHARDCHANNELS from './PUBSUB_SHARDCHANNELS';
 import RANDOMKEY from './RANDOMKEY';
 import READONLY from './READONLY';
 import RENAME from './RENAME';
 import RENAMENX from './RENAMENX';
+import REPLICAOF from './REPLICAOF';
+import RESTORE_ASKING from './RESTORE-ASKING';
+import RESTORE from './RESTORE';
 import ROLE from './ROLE';
 import RPOP_COUNT from './RPOP_COUNT';
 import RPOP from './RPOP';
@@ -405,6 +412,8 @@ export default {
   clientList: CLIENT_LIST,
   'CLIENT_NO-EVICT': CLIENT_NO_EVICT,
   clientNoEvict: CLIENT_NO_EVICT,
+  'CLIENT_NO-TOUCH': CLIENT_NO_TOUCH,
+  clientNoTouch: CLIENT_NO_TOUCH,
   CLIENT_PAUSE,
   clientPause: CLIENT_PAUSE,
   CLIENT_SETNAME,
@@ -447,6 +456,8 @@ export default {
   clusterMeet: CLUSTER_MEET,
   CLUSTER_MYID,
   clusterMyId: CLUSTER_MYID,
+  CLUSTER_MYSHARDID,
+  clusterMyShardId: CLUSTER_MYSHARDID,
   CLUSTER_NODES,
   clusterNodes: CLUSTER_NODES,
   CLUSTER_REPLICAS,
@@ -637,6 +648,8 @@ export default {
   latencyDoctor: LATENCY_DOCTOR,
   LATENCY_GRAPH,
   latencyGraph: LATENCY_GRAPH,
+  LATENCY_HISTORY,
+  latencyHistory: LATENCY_HISTORY,
   LATENCY_LATEST,
   latencyLatest: LATENCY_LATEST,
   LCS_IDX_WITHMATCHLEN,
@@ -741,6 +754,8 @@ export default {
   pubSubNumPat: PUBSUB_NUMPAT,
   PUBSUB_NUMSUB,
   pubSubNumSub: PUBSUB_NUMSUB,
+  PUBSUB_SHARDNUMSUB,
+  pubSubShardNumSub: PUBSUB_SHARDNUMSUB,
   PUBSUB_SHARDCHANNELS,
   pubSubShardChannels: PUBSUB_SHARDCHANNELS,
   RANDOMKEY,
@@ -751,6 +766,12 @@ export default {
   rename: RENAME,
   RENAMENX,
   renameNX: RENAMENX,
+  REPLICAOF,
+  replicaOf: REPLICAOF,
+  'RESTORE-ASKING': RESTORE_ASKING,
+  restoreAsking: RESTORE_ASKING,
+  RESTORE,
+  restore: RESTORE,
   RPOP_COUNT,
   rPopCount: RPOP_COUNT,
   ROLE,
