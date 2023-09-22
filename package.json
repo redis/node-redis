@@ -31,7 +31,7 @@
     "@redis/time-series": "1.0.5"
   },
   "devDependencies": {
-    "@tsconfig/node18": "^18.2.2",
+    "@tsconfig/node14": "^14.1.0",
     "gh-pages": "^6.0.0",
     "release-it": "^16.1.5",
     "typescript": "^5.2.2"
