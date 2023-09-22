@@ -24,10 +24,10 @@
   },
   "dependencies": {
     "@redis/bloom": "1.2.0",
-    "@redis/client": "1.5.10",
+    "@redis/client": "1.5.11",
     "@redis/graph": "1.1.0",
-    "@redis/json": "1.0.5",
-    "@redis/search": "1.1.4",
+    "@redis/json": "1.0.6",
+    "@redis/search": "1.1.5",
     "@redis/time-series": "1.0.5"
   },
   "devDependencies": {
