@@ -11,6 +11,8 @@ export default function encodeCommand(args: RedisCommandArguments): Array<RedisC
         const arg = args[i];
         if (typeof arg === 'string') {
             strings += '$' + Buffer.byteLength(arg) + CRLF + arg + CRLF;
+        if (typeof arg === 'number') {
+            strings += '$' + Buffer.byteLength(String(arg)) + CRLF + arg + CRLF;
         } else if (arg instanceof Buffer) {
             toWrite.push(
                 strings + '$' + arg.length.toString() + CRLF,
