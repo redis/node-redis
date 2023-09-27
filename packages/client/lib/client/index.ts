@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
+import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands, RedisCommandsSignatures } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -68,25 +68,17 @@ export interface RedisClientOptions<
     pingInterval?: number;
 }
 
-type WithCommands = {
-    [P in keyof typeof COMMANDS]: RedisCommandSignature<(typeof COMMANDS)[P]>;
-};
+type WithCommands = RedisCommandsSignatures<typeof COMMANDS>;
 
 export type WithModules<M extends RedisModules> = {
-    [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P] as ExcludeMappedString<C>]: RedisCommandSignature<M[P][C]>;
-    };
+    [P in keyof M as ExcludeMappedString<P>]: RedisCommandsSignatures<M[P]>;
 };
 
 export type WithFunctions<F extends RedisFunctions> = {
-    [P in keyof F as ExcludeMappedString<P>]: {
-        [FF in keyof F[P] as ExcludeMappedString<FF>]: RedisCommandSignature<F[P][FF]>;
-    };
+    [P in keyof F as ExcludeMappedString<P>]: RedisCommandsSignatures<F[P]>;
 };
 
-export type WithScripts<S extends RedisScripts> = {
-    [P in keyof S as ExcludeMappedString<P>]: RedisCommandSignature<S[P]>;
-};
+export type WithScripts<S extends RedisScripts> = RedisCommandsSignatures<S>;
 
 export type RedisClientType<
     M extends RedisModules = Record<string, never>,

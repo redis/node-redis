@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, RedisFunction } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisFunction, RedisCommandsSignatures } from '../commands';
 import { ClientCommandOptions, RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import { attachExtensions, transformCommandReply, attachCommands, transformCommandArguments } from '../commander';
@@ -50,9 +50,7 @@ export interface RedisClusterOptions<
     nodeAddressMap?: NodeAddressMap;
 }
 
-type WithCommands = {
-    [P in keyof typeof COMMANDS]: RedisCommandSignature<(typeof COMMANDS)[P]>;
-};
+type WithCommands = RedisCommandsSignatures<typeof COMMANDS>;
 
 export type RedisClusterType<
     M extends RedisModules = Record<string, never>,
