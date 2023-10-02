@@ -202,7 +202,7 @@ export default class TestUtils {
     return Promise.all(
       cluster.masters.map(async master => {
         if (master.client) {
-          (await cluster.nodeClient(master)).flushAll();
+          await (await cluster.nodeClient(master)).flushAll();
         }
       })
     );
@@ -245,7 +245,6 @@ export default class TestUtils {
               port
             }
           })),
-          minimizeConnections: true,
           ...options.clusterConfiguration
         });
 
