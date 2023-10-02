@@ -245,6 +245,7 @@ export default class TestUtils {
               port
             }
           })),
+          minimizeConnections: true,
           ...options.clusterConfiguration
         });
 
