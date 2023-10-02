@@ -21,7 +21,7 @@ describe('FCALL', () => {
       loadMathFunction(client),
       client.set('key', '2'),
       client.fCall(MATH_FUNCTION.library.square.NAME, {
-        arguments: ['key']
+        keys: ['key']
       })
     ]);
 

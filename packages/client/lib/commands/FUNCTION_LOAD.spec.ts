@@ -4,6 +4,8 @@ import FUNCTION_LOAD from './FUNCTION_LOAD';
 import { RedisClientType } from '../client';
 import { NumberReply, RedisFunctions, RedisModules, RedisScripts, RespVersions } from '../RESP/types';
 
+
+
 export const MATH_FUNCTION = {
   name: 'math',
   engine: 'LUA',
@@ -11,10 +13,10 @@ export const MATH_FUNCTION = {
     `#!LUA name=math
     redis.register_function {
       function_name = "square",
-      callback = function(keys, args) {
+      callback = function(keys, args)
         local number = redis.call('GET', keys[1])
         return number * number
-      },
+      end,
       flags = { "no-writes" }
     }`,
   library: {

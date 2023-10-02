@@ -11,10 +11,11 @@ describe('CLUSTER REPLICAS', () => {
   });
 
   testUtils.testWithCluster('clusterNode.clusterReplicas', async cluster => {
-    const client = await cluster.nodeClient(cluster.masters[0]);
-    assert.equal(
-      typeof await client.clusterReplicas(cluster.masters[0].id),
-      'string'
-    );
+    const client = await cluster.nodeClient(cluster.masters[0]),
+      reply = await client.clusterReplicas(cluster.masters[0].id);
+    assert.ok(Array.isArray(reply));
+    for (const replica of reply) {
+      assert.equal(typeof replica, 'string');  
+    }
   }, GLOBAL.CLUSTERS.OPEN);
 });

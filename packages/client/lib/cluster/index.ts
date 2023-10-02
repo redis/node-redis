@@ -17,7 +17,7 @@ interface ClusterCommander<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping,
   // POLICIES extends CommandPolicies
-> extends CommanderConfig<M, F, S, RESP>{
+> extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 }
 
@@ -303,7 +303,7 @@ export default class RedisCluster<
 
   private readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
 
-  private readonly _slots: RedisClusterSlots<M, F, S, RESP>;
+  private readonly _slots: RedisClusterSlots<M, F, S, RESP, TYPE_MAPPING>;
 
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 
@@ -313,14 +313,6 @@ export default class RedisCluster<
    */
   get slots() {
     return this._slots.slots;
-  }
-
-  /**
-   * An array of cluster shards, each shard contain its `master` and `replicas`.
-   * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific node (master or replica).
-   */
-  get shards() {
-    return this._slots.shards;
   }
 
   /**
@@ -442,7 +434,7 @@ export default class RedisCluster<
   private async _execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
-    fn: (client: RedisClientType<M, F, S, RESP>) => Promise<T>
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
   ): Promise<T> {
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
     let client = await this._slots.getClient(firstKey, isReadonly),
@@ -655,7 +647,7 @@ export default class RedisCluster<
     return this._slots.destroy();
   }
 
-  nodeClient(node: ShardNode<M, F, S, RESP>) {
+  nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
     return this._slots.nodeClient(node);
   }
 

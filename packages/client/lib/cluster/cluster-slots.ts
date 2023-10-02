@@ -4,7 +4,7 @@ import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { types } from 'node:util';
 import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PubSubType, PubSubTypeListeners } from '../client/pub-sub';
-import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions } from '../RESP/types';
+import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 
 // TODO: ?!
 // We need to use 'require', because it's not possible with Typescript to import
@@ -21,34 +21,26 @@ export type NodeAddressMap = {
   [address: string]: NodeAddress;
 } | ((address: string) => NodeAddress | undefined);
 
-type ValueOrPromise<T> = T | Promise<T>;
-
-type ClientOrPromise<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions = 2
-> = ValueOrPromise<RedisClientType<M, F, S, RESP>>;
-
 export interface Node<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > {
   address: string;
-  client?: ClientOrPromise<M, F, S, RESP>;
+  client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+  connectPromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
 }
 
 export interface ShardNode<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
-> extends Node<M, F, S, RESP> {
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends Node<M, F, S, RESP, TYPE_MAPPING>, NodeAddress {
   id: string;
-  host: string;
-  port: number;
   readonly: boolean;
 }
 
@@ -56,35 +48,45 @@ export interface MasterNode<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
-> extends ShardNode<M, F, S, RESP> {
-  pubSubClient?: ClientOrPromise<M, F, S, RESP>;
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends ShardNode<M, F, S, RESP, TYPE_MAPPING> {
+  pubSub?: {
+    connectPromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+  };
 }
 
 export interface Shard<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > {
-  master: MasterNode<M, F, S, RESP>;
-  replicas?: Array<ShardNode<M, F, S, RESP>>;
-  nodesIterator?: IterableIterator<ShardNode<M, F, S, RESP>>;
+  master: MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+  replicas?: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
+  nodesIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
 }
 
 type ShardWithReplicas<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
-> = Shard<M, F, S, RESP> & Required<Pick<Shard<M, F, S, RESP>, 'replicas'>>;
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = Shard<M, F, S, RESP, TYPE_MAPPING> & Required<Pick<Shard<M, F, S, RESP, TYPE_MAPPING>, 'replicas'>>;
 
-export type PubSubNode<
+type PubSubNode<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
-> = Required<Node<M, F, S, RESP>>;
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = (
+  Exclude<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
+  Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>>
+);
 
 type PubSubToResubscribe = Record<
   PubSubType.CHANNELS | PubSubType.PATTERNS,
@@ -101,19 +103,19 @@ export default class RedisClusterSlots<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
-  RESP extends RespVersions
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > {
   private static _SLOTS = 16384;
 
-  private readonly _options: RedisClusterOptions<M, F, S, RESP>;
+  private readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>;
   private readonly _clientFactory: ReturnType<typeof RedisClient.factory<M, F, S, RESP>>;
   private readonly _emit: EventEmitter['emit'];
-  slots = new Array<Shard<M, F, S, RESP>>(RedisClusterSlots._SLOTS);
-  shards = new Array<Shard<M, F, S,RESP>>();
-  masters = new Array<ShardNode<M, F, S, RESP>>();
-  replicas = new Array<ShardNode<M, F, S, RESP>>();
-  readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP> | ShardNode<M, F, S, RESP>>();
-  pubSubNode?: PubSubNode<M, F, S, RESP>;
+  slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots._SLOTS);
+  masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
+  replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
+  readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
+  pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
 
   private _isOpen = false;
 
@@ -122,7 +124,7 @@ export default class RedisClusterSlots<
   }
 
   constructor(
-    options: RedisClusterOptions<M, F, S, RESP>,
+    options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>,
     emit: EventEmitter['emit']
   ) {
     this._options = options;
@@ -147,10 +149,12 @@ export default class RedisClusterSlots<
   private async _discoverWithRootNodes() {
     let start = Math.floor(Math.random() * this._options.rootNodes.length);
     for (let i = start; i < this._options.rootNodes.length; i++) {
+      if (!this._isOpen) throw new Error('Cluster closed');
       if (await this._discover(this._options.rootNodes[i])) return;
     }
 
     for (let i = 0; i < start; i++) {
+      if (!this._isOpen) throw new Error('Cluster closed');
       if (await this._discover(this._options.rootNodes[i])) return;
     }
 
@@ -159,7 +163,6 @@ export default class RedisClusterSlots<
 
   private _resetSlots() {
     this.slots = new Array(RedisClusterSlots._SLOTS);
-    this.shards = [];
     this.masters = [];
     this.replicas = [];
     this._randomNodeIterator = undefined;
@@ -167,15 +170,13 @@ export default class RedisClusterSlots<
 
   private async _discover(rootNode: RedisClusterClientOptions) {
     this._resetSlots();
-    const addressesInUse = new Set<string>();
-
     try {
-      const shards = await this._getShards(rootNode),
+      const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
         eagerConnect = this._options.minimizeConnections !== true;
 
-      for (const { from, to, master, replicas } of shards) {
-        const shard: Shard<M, F, S, RESP> = {
+      for (const { from, to, master, replicas } of await this._getShards(rootNode)) {
+        const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
           master: this._initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
         };
 
@@ -185,33 +186,24 @@ export default class RedisClusterSlots<
           );
         }
 
-        this.shards.push(shard);
-
         for (let i = from; i <= to; i++) {
           this.slots[i] = shard;
         }
       }
 
       if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-        if (types.isPromise(this.pubSubNode.client)) {
+        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PubSubType.CHANNELS),
+          patternsListeners = this.pubSubNode.client.getPubSubListeners(PubSubType.PATTERNS);
+
+        this.pubSubNode.client.destroy();
+
+        if (channelsListeners.size || patternsListeners.size) {
           promises.push(
-            this.pubSubNode.client.then(client => client.disconnect())
+            this._initiatePubSubClient({
+              [PubSubType.CHANNELS]: channelsListeners,
+              [PubSubType.PATTERNS]: patternsListeners
+            })
           );
-          this.pubSubNode = undefined;
-        } else {
-          promises.push(this.pubSubNode.client.disconnect());
-
-          const channelsListeners = this.pubSubNode.client.getPubSubListeners(PubSubType.CHANNELS),
-            patternsListeners = this.pubSubNode.client.getPubSubListeners(PubSubType.PATTERNS);
-
-          if (channelsListeners.size || patternsListeners.size) {
-            promises.push(
-              this._initiatePubSubClient({
-                [PubSubType.CHANNELS]: channelsListeners,
-                [PubSubType.PATTERNS]: patternsListeners
-              })
-            );
-          }
         }
       }
 
@@ -219,16 +211,12 @@ export default class RedisClusterSlots<
         if (addressesInUse.has(address)) continue;
 
         if (node.client) {
-          promises.push(
-            this._execOnNodeClient(node.client, client => client.disconnect())
-          );
+          node.client.destroy();
         }
 
-        const { pubSubClient } = node as MasterNode<M, F, S, RESP>;
-        if (pubSubClient) {
-          promises.push(
-            this._execOnNodeClient(pubSubClient, client => client.disconnect())
-          );
+        const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+        if (pubSub) {
+          pubSub.client.destroy();
         }
 
         this.nodeByAddress.delete(address);
@@ -248,12 +236,12 @@ export default class RedisClusterSlots<
     options.socket ??= {};
     options.socket.reconnectStrategy = false;
     options.RESP = this._options.RESP;
+    options.commandOptions = undefined;
 
-    const client = RedisClient.factory(this._options)(options);
-
-    client.on('error', err => this._emit('error', err));
-
-    await client.connect();
+    // TODO: find a way to avoid type casting
+    const client = await this._clientFactory(options as RedisClientOptions<M, F, S, RESP, {}>)
+      .on('error', err => this._emit('error', err))
+      .connect();
 
     try {
       // switch to `CLUSTER SHARDS` when Redis 7.0 will be the minimum supported version
@@ -273,7 +261,7 @@ export default class RedisClusterSlots<
     }
   }
 
-  private _clientOptionsDefaults(options?: RedisClientOptions): RedisClientOptions | undefined {
+  private _clientOptionsDefaults(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     if (!this._options.defaults) return options;
 
     let socket;
@@ -301,7 +289,6 @@ export default class RedisClusterSlots<
     promises: Array<Promise<unknown>>
   ) {
     const address = `${shard.host}:${shard.port}`;
-    addressesInUse.add(address);
 
     let node = this.nodeByAddress.get(address);
     if (!node) {
@@ -309,7 +296,8 @@ export default class RedisClusterSlots<
         ...shard,
         address,
         readonly,
-        client: undefined
+        client: undefined,
+        connectPromise: undefined
       };
 
       if (eagerConnent) {
@@ -319,16 +307,16 @@ export default class RedisClusterSlots<
       this.nodeByAddress.set(address, node);
     }
 
-    (readonly ? this.replicas : this.masters).push(node);
+    if (!addressesInUse.has(address)) {
+      addressesInUse.add(address);
+      (readonly ? this.replicas : this.masters).push(node);
+    }
 
     return node;
   }
 
-  private async _createClient(
-    node: ShardNode<M, F, S, RESP>,
-    readonly = node.readonly
-  ) {
-    const client = this._clientFactory(
+  private _createClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly = node.readonly) {
+    return this._clientFactory(
       this._clientOptionsDefaults({
         socket: this._getNodeAddress(node.address) ?? {
           host: node.host,
@@ -337,38 +325,29 @@ export default class RedisClusterSlots<
         readonly,
         RESP: this._options.RESP
       })
+    ).on('error', err => console.error(err));
+  }
+
+  private _createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
+    const client = node.client = this._createClient(node, readonly);
+    return node.connectPromise = client.connect()
+      .finally(() => node.connectPromise = undefined);
+  }
+
+  nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
+    return (
+      node.connectPromise ?? // if the node is connecting
+      node.client ?? // if the node is connected
+      this._createNodeClient(node) // if the not is disconnected
     );
-    client.on('error', err => this._emit('error', err));
-
-    await client.connect();
-
-    return client;
   }
 
-  private _createNodeClient(node: ShardNode<M, F, S, RESP>) {
-    const promise = this._createClient(node)
-      .then(client => {
-        node.client = client;
-        return client;
-      })
-      .catch(err => {
-        node.client = undefined;
-        throw err;
-      });
-    node.client = promise;
-    return promise;
-  }
-
-  nodeClient(node: ShardNode<M, F, S, RESP>) {
-    return node.client ?? this._createNodeClient(node);
-  }
-
-  #runningRediscoverPromise?: Promise<void>;
+  private _runningRediscoverPromise?: Promise<void>;
 
   async rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
-    this.#runningRediscoverPromise ??= this._rediscover(startWith)
-      .finally(() => this.#runningRediscoverPromise = undefined);
-    return this.#runningRediscoverPromise;
+    this._runningRediscoverPromise ??= this._rediscover(startWith)
+      .finally(() => this._runningRediscoverPromise = undefined);
+    return this._runningRediscoverPromise;
   }
 
   private async _rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
@@ -399,11 +378,11 @@ export default class RedisClusterSlots<
     this._isOpen = false;
 
     for (const client of this._clients()) {
-      this._execOnNodeClient(client, client => client.destroy());
+      client.destroy();
     }
 
     if (this.pubSubNode) {
-      this._execOnNodeClient(this.pubSubNode.client, client => client.destroy());
+      this.pubSubNode.client.destroy();
       this.pubSubNode = undefined;
     }
 
@@ -412,21 +391,19 @@ export default class RedisClusterSlots<
   }
 
   private *_clients() {
-    for (const { master, replicas } of this.shards) {
+    for (const master of this.masters) {
       if (master.client) {
         yield master.client;
       }
 
-      if (master.pubSubClient) {
-        yield master.pubSubClient;
+      if (master.pubSub) {
+        yield master.pubSub.client;
       }
+    }
 
-      if (replicas) {
-        for (const { client } of replicas) {
-          if (client) {
-            yield client;
-          }
-        }
+    for (const replica of this.replicas) {
+      if (replica.client) {
+        yield replica.client;
       }
     }
   }
@@ -436,11 +413,11 @@ export default class RedisClusterSlots<
 
     const promises = [];
     for (const client of this._clients()) {
-      promises.push(this._execOnNodeClient(client, fn));
+      promises.push(fn(client));
     }
 
     if (this.pubSubNode) {
-      promises.push(this._execOnNodeClient(this.pubSubNode.client, fn));
+      promises.push(fn(this.pubSubNode.client));
       this.pubSubNode = undefined;
     }
 
@@ -450,19 +427,10 @@ export default class RedisClusterSlots<
     await Promise.allSettled(promises);
   }
 
-  private _execOnNodeClient<T>(
-    client: ClientOrPromise<M, F, S, RESP>,
-    fn: (client: RedisClientType<M, F, S, RESP>) => T
-  ): T | Promise<T> {
-    return types.isPromise(client) ?
-      client.then(fn) :
-      fn(client);
-  }
-
   getClient(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
-  ): ClientOrPromise<M, F, S, RESP> {
+  ) {
     if (!firstKey) {
       return this.nodeClient(this.getRandomNode());
     }
@@ -503,14 +471,14 @@ export default class RedisClusterSlots<
     }
   }
 
-  _randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP>>;
+  _randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
 
   getRandomNode() {
     this._randomNodeIterator ??= this._iterateAllNodes();
-    return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP>;
+    return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
 
-  private *_slotNodesIterator(slot: ShardWithReplicas<M, F, S, RESP>) {
+  private *_slotNodesIterator(slot: ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>) {
     let i = Math.floor(Math.random() * (1 + slot.replicas.length));
     if (i < slot.replicas.length) {
       do {
@@ -533,8 +501,8 @@ export default class RedisClusterSlots<
       return slot.master;
     }
 
-    slot.nodesIterator ??= this._slotNodesIterator(slot as ShardWithReplicas<M, F, S, RESP>);
-    return slot.nodesIterator.next().value as ShardNode<M, F, S, RESP>;
+    slot.nodesIterator ??= this._slotNodesIterator(slot as ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>);
+    return slot.nodesIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
 
   getMasterByAddress(address: string) {
@@ -545,20 +513,22 @@ export default class RedisClusterSlots<
   }
 
   getPubSubClient() {
-    return this.pubSubNode ?
-      this.pubSubNode.client :
-      this._initiatePubSubClient();
+    if (!this.pubSubNode) return this._initiatePubSubClient();
+
+    return this.pubSubNode.connectPromise ?? this.pubSubNode.client;
   }
 
   private async _initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
     const index = Math.floor(Math.random() * (this.masters.length + this.replicas.length)),
       node = index < this.masters.length ?
         this.masters[index] :
-        this.replicas[index - this.masters.length];
-
+        this.replicas[index - this.masters.length],
+        client = this._createClient(node, true);
+      
     this.pubSubNode = {
       address: node.address,
-      client: this._createClient(node, true)
+      client,
+      connectPromise: client.connect()
         .then(async client => {
           if (toResubscribe) {
             await Promise.all([
@@ -567,7 +537,7 @@ export default class RedisClusterSlots<
             ]);
           }
 
-          this.pubSubNode!.client = client;
+          this.pubSubNode!.connectPromise = undefined;
           return client;
         })
         .catch(err => {
@@ -576,7 +546,7 @@ export default class RedisClusterSlots<
         })
     };
 
-    return this.pubSubNode.client as Promise<RedisClientType<M, F, S, RESP>>;
+    return this.pubSubNode.connectPromise!;
   }
 
   async executeUnsubscribeCommand(
@@ -593,52 +563,58 @@ export default class RedisClusterSlots<
 
   getShardedPubSubClient(channel: string) {
     const { master } = this.slots[calculateSlot(channel)];
-    return master.pubSubClient ?? this.#initiateShardedPubSubClient(master);
+    if (!master.pubSub) return this._initiateShardedPubSubClient(master);
+    return master.pubSub.connectPromise ?? master.pubSub.client;
   }
 
-  #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP>) {
-    const promise = this._createClient(master, true)
-      .then(client => {
-        client.on('server-sunsubscribe', async (channel, listeners) => {
-          try {
-            await this.rediscover(client);
-            const redirectTo = await this.getShardedPubSubClient(channel);
-            redirectTo.extendPubSubChannelListeners(
-              PubSubType.SHARDED,
-              channel,
-              listeners
-            );
-          } catch (err) {
-            this._emit('sharded-shannel-moved-error', err, channel, listeners);
-          }
-        });
-
-        master.pubSubClient = client;
-        return client;
-      })
-      .catch(err => {
-        master.pubSubClient = undefined;
-        throw err;
+  private async _initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
+    const client = this._createClient(master, true)
+      .on('server-sunsubscribe', async (channel, listeners) => {
+        try {
+          await this.rediscover(client);
+          const redirectTo = await this.getShardedPubSubClient(channel);
+          await redirectTo.extendPubSubChannelListeners(
+            PubSubType.SHARDED,
+            channel,
+            listeners
+          );
+        } catch (err) {
+          this._emit('sharded-shannel-moved-error', err, channel, listeners);
+        }
       });
 
-    master.pubSubClient = promise;
+    master.pubSub = {
+      client,
+      connectPromise: client.connect()
+        .then(client => {
+          master.pubSub!.connectPromise = undefined;
+          return client;
+        })
+        .catch(err => {
+          master.pubSub = undefined;
+          throw err;
+        })
+    };
 
-    return promise;
+    return master.pubSub.connectPromise!;
   }
 
   async executeShardedUnsubscribeCommand(
     channel: string,
-    unsubscribe: (client: RedisClientType<M, F, S, RESP>) => Promise<void>
-  ): Promise<void> {
+    unsubscribe: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<void>
+  ) {
     const { master } = this.slots[calculateSlot(channel)];
-    if (!master.pubSubClient) return Promise.resolve();
+    if (!master.pubSub) return;
 
-    const client = await master.pubSubClient;
+    const client = master.pubSub.connectPromise ?
+      await master.pubSub.connectPromise :
+      master.pubSub.client;
+
     await unsubscribe(client);
 
     if (!client.isPubSubActive) {
-      await client.disconnect();
-      master.pubSubClient = undefined;
+      client.destroy();
+      master.pubSub = undefined;
     }
   }
 }

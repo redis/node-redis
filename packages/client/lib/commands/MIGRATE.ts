@@ -1,13 +1,14 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 import { AuthOptions } from './AUTH';
 
-interface MigrateOptions {
+export interface MigrateOptions {
   COPY?: true;
   REPLACE?: true;
   AUTH?: AuthOptions;
 }
 
 export default {
+  IS_READ_ONLY: false,
   transformArguments(
     host: RedisArgument,
     port: number,
@@ -62,5 +63,5 @@ export default {
   
     return args;
   },
-  transformReply: undefined as unknown as () => SimpleStringReply
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

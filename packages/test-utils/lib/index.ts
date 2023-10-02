@@ -200,9 +200,9 @@ export default class TestUtils {
     // POLICIES extends CommandPolicies
   >(cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>): Promise<unknown> {
     return Promise.all(
-      cluster.masters.map(async ({ client }) => {
-        if (client) {
-          await (await client).flushAll();
+      cluster.masters.map(async master => {
+        if (master.client) {
+          (await cluster.nodeClient(master)).flushAll();
         }
       })
     );
@@ -256,7 +256,7 @@ export default class TestUtils {
         await fn(cluster);
       } finally {
         await TestUtils.#clusterFlushAll(cluster);
-        await cluster.disconnect();
+        cluster.destroy();
       }
     });
   }

@@ -20,7 +20,7 @@ describe('Multi Command', () => {
       multi.addScript(SQUARE_SCRIPT, ['1']);
       assert.deepEqual(
         Array.from(multi.queue.at(-1).args),
-        ['EVAL', SQUARE_SCRIPT.SCRIPT, '0', '1']
+        ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '1']
       );
     });
 
@@ -28,7 +28,7 @@ describe('Multi Command', () => {
       multi.addScript(SQUARE_SCRIPT, ['2']);
       assert.deepEqual(
         Array.from(multi.queue.at(-1).args),
-        ['EVALSHA', SQUARE_SCRIPT.SHA1, '0', '2']
+        ['EVALSHA', SQUARE_SCRIPT.SHA1, '1', '2']
       );
     });
 

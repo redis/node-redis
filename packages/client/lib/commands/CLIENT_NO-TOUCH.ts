@@ -1,4 +1,4 @@
-import { SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { SimpleStringReply, Command } from '../RESP/types';
 
 export default {
   FIRST_KEY_INDEX: undefined,

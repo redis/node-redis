@@ -15,23 +15,13 @@ import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 
-interface ClientCommander<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> extends CommanderConfig<M, F, S, RESP> {
-  commandOptions?: CommandOptions<TYPE_MAPPING>;
-}
-
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
   RESP extends RespVersions = RespVersions,
   TYPE_MAPPING extends TypeMapping = TypeMapping
-> extends ClientCommander<M, F, S, RESP, TYPE_MAPPING> {
+> extends CommanderConfig<M, F, S, RESP> {
   /**
    * `redis[s]://[[username][:password]@][host][:port][/db-number]`
    * See [`redis`](https://www.iana.org/assignments/uri-schemes/prov/redis) and [`rediss`](https://www.iana.org/assignments/uri-schemes/prov/rediss) IANA registration for more details
@@ -75,6 +65,10 @@ export interface RedisClientOptions<
    * Useful with Redis deployments that do not honor TCP Keep-Alive.
    */
   pingInterval?: number;
+  /**
+   * TODO
+   */
+  commandOptions?: CommandOptions<TYPE_MAPPING>;
 }
 
 type WithCommands<
@@ -205,9 +199,8 @@ export default class RedisClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
-    TYPE_MAPPING extends TypeMapping = {}
-  >(config?: ClientCommander<M, F, S, RESP, TYPE_MAPPING>) {
+    RESP extends RespVersions = 2
+  >(config?: CommanderConfig<M, F, S, RESP>) {
     const Client = attachConfig({
       BaseClass: RedisClient,
       commands: COMMANDS,
@@ -220,7 +213,9 @@ export default class RedisClient<
 
     Client.prototype.Multi = RedisClientMultiCommand.extend(config);
 
-    return (options?: Omit<RedisClientOptions, keyof Exclude<typeof config, undefined>>) => {
+    return <TYPE_MAPPING extends TypeMapping = {}>(
+      options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
+    ) => {
       // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
       return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
     };

@@ -184,6 +184,7 @@ import MEMORY_PURGE from './MEMORY_PURGE';
 import MEMORY_STATS from './MEMORY_STATS';
 import MEMORY_USAGE from './MEMORY_USAGE';
 import MGET from './MGET';
+import MIGRATE from './MIGRATE';
 import MODULE_LIST from './MODULE_LIST';
 import MODULE_LOAD from './MODULE_LOAD';
 import MODULE_UNLOAD from './MODULE_UNLOAD';
@@ -703,6 +704,8 @@ export default {
   memoryUsage: MEMORY_USAGE,
   MGET,
   mGet: MGET,
+  MIGRATE,
+  migrate: MIGRATE,
   MODULE_LIST,
   moduleList: MODULE_LIST,
   MODULE_LOAD,
