@@ -1,87 +1,70 @@
-// // import { RedisCommandArguments } from '.';
+import { Command, TuplesToMapReply, BlobStringReply, NullReply, NumberReply, MapReply, Resp2Reply, UnwrapReply } from '../RESP/types';
+import { isNullReply } from './generic-transformers';
 
-// // export function transformArguments(): RedisCommandArguments {
-// //     return ['FUNCTION', 'STATS'];
-// // }
+type RunningScript = NullReply | TuplesToMapReply<[
+  [BlobStringReply<'name'>, BlobStringReply],
+  [BlobStringReply<'command'>, BlobStringReply],
+  [BlobStringReply<'duration_ms'>, NumberReply]
+]>;
 
-// // type FunctionStatsRawReply = [
-// //     'running_script',
-// //     null | [
-// //         'name',
-// //         string,
-// //         'command',
-// //         string,
-// //         'duration_ms',
-// //         number
-// //     ],
-// //     'engines',
-// //     Array<any> // "flat tuples" (there is no way to type that)
-// //     // ...[string, [
-// //     //     'libraries_count',
-// //     //     number,
-// //     //     'functions_count',
-// //     //     number
-// //     // ]]
-// // ];
+type Engine = TuplesToMapReply<[
+  [BlobStringReply<'libraries_count'>, NumberReply],
+  [BlobStringReply<'functions_count'>, NumberReply]
+]>;
 
-// // interface FunctionStatsReply {
-// //     runningScript: null | {
-// //         name: string;
-// //         command: string;
-// //         durationMs: number;
-// //     };
-// //     engines: Record<string, {
-// //         librariesCount: number;
-// //         functionsCount: number;
-// //     }>;
-// // }
+type Engines = MapReply<BlobStringReply, Engine>;
 
-// // export function transformReply(reply: FunctionStatsRawReply): FunctionStatsReply {
-// //     const engines = Object.create(null);
-// //     for (let i = 0; i < reply[3].length; i++) {
-// //         engines[reply[3][i]] = {
-// //             librariesCount: reply[3][++i][1],
-// //             functionsCount: reply[3][i][3]
-// //         };
-// //     }
+type FunctionStatsReply = TuplesToMapReply<[
+  [BlobStringReply<'running_script'>, RunningScript],
+  [BlobStringReply<'engines'>, Engines]
+]>;
 
-// //     return {
-// //         runningScript: reply[1] === null ? null : {
-// //             name: reply[1][1],
-// //             command: reply[1][3],
-// //             durationMs: reply[1][5]
-// //         },
-// //         engines
-// //     };
-// // }
+export default {
+  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: undefined,
+  transformArguments() {
+    return ['FUNCTION', 'STATS'];
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<FunctionStatsReply>>) => {
+      return {
+        running_script: transformRunningScript(reply[1]),
+        engines: transformEngines(reply[3])
+      };
+    },
+    3: undefined as unknown as () => FunctionStatsReply
+  }
+} as const satisfies Command;
 
+function transformRunningScript(reply: Resp2Reply<RunningScript>) {
+  if (isNullReply(reply)) {
+    return null;
+  }
 
-// // #!LUA name=math \n redis.register_function{ function_name = "square", callback = function(keys, args) return args[1] * args[1] end, flags = { "no-writes" } }
+  const unwraped = reply as unknown as UnwrapReply<typeof reply>;
+  return {
+    name: unwraped[1],
+    command: unwraped[3],
+    duration_ms: unwraped[5]
+  };
+}
 
-// import { Command, TuplesToMapReply, BlobStringReply, NullReply, NumberReply, MapReply } from '../RESP/types';
+function transformEngines(reply: Resp2Reply<Engines>) {
+  const unwraped = reply as unknown as UnwrapReply<typeof reply>;
 
-// type FunctionStatsReply = TuplesToMapReply<[
-//   [BlobStringReply<'running_script'>, NullReply | TuplesToMapReply<[
-//     [BlobStringReply<'name'>, BlobStringReply],
-//     [BlobStringReply<'command'>, BlobStringReply],
-//     [BlobStringReply<'duration_ms'>, NumberReply]
-//   ]>],
-//   [BlobStringReply<'engines'>, MapReply<BlobStringReply, TuplesToMapReply<[
-//     [BlobStringReply<'libraries_count'>, NumberReply],
-//     [BlobStringReply<'functions_count'>, NumberReply]
-//   ]>>]
-// ]>;
+  const engines: Record<string, {
+    libraries_count: NumberReply;
+    functions_count: NumberReply;
+  }> = Object.create(null);
+  for (let i = 0; i < unwraped.length; i++) {
+    const name = unwraped[i] as BlobStringReply,
+      stats = unwraped[++i] as Resp2Reply<Engine>,
+      unwrapedStats = stats as unknown as UnwrapReply<typeof stats>;
+    engines[name.toString()] = {
+      libraries_count: unwrapedStats[1],
+      functions_count: unwrapedStats[3]
+    };
+  }
 
-// export default {
-//   IS_READ_ONLY: true,
-//   FIRST_KEY_INDEX: undefined,
-//   transformArguments() {
-//     return ['FUNCTION', 'STATS'];
-//   },
-//   transformReply: {
-//     2: (reply) => {
-
-//     },
-//     3: undefined as unknown as () => 
-//   }
-// } as const satisfies Command;
+  return engines;
+}
