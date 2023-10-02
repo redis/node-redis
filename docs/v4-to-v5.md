@@ -164,6 +164,7 @@ Some command arguments/replies have changed to align more closely to data types 
 - `CLIENT TRACKINGINFO`: `flags` in RESP2 - `Set<string>` -> `Array<string>` (to match RESP3 default type mapping)
 - `CLUSETER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
 - `FUNCTION RESTORE`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
+- `FUNCTION STATS`: `runningScript` -> `running_script`, `durationMs` -> `duration_ms`, `librariesCount` -> `libraries_count`, `functionsCount` -> `functions_count` [^map-keys]
 - `CLUSTER RESET`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants], the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
