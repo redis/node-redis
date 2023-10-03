@@ -5,7 +5,7 @@ import ALTER from './ALTER';
 import ALIASADD from './ALIASADD';
 import ALIASDEL from './ALIASDEL';
 import ALIASUPDATE from './ALIASUPDATE';
-// import CONFIG_GET from './CONFIG_GET';
+import CONFIG_GET from './CONFIG_GET';
 import CONFIG_SET from './CONFIG_SET';
 import CREATE from './CREATE';
 import CURSOR_DEL from './CURSOR_DEL';
@@ -51,8 +51,8 @@ export default {
   aliasDel: ALIASDEL,
   ALIASUPDATE,
   aliasUpdate: ALIASUPDATE,
-  // CONFIG_GET,
-  // configGet: CONFIG_GET,
+  CONFIG_GET,
+  configGet: CONFIG_GET,
   CONFIG_SET,
   configSet: CONFIG_SET,
   CREATE,
