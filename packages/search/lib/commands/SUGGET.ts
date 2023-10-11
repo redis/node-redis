@@ -1,4 +1,4 @@
-import { ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { NullReply, ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 
 export interface FtSugGetOptions {
   FUZZY?: boolean;
@@ -21,5 +21,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+  transformReply: undefined as unknown as () => NullReply | ArrayReply<BlobStringReply>
 } as const satisfies Command;
