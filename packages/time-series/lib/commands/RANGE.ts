@@ -1,5 +1,5 @@
-import { CommandArguments, RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { Timestamp, transformTimestampArgument } from '.';
+import { CommandArguments, RedisArgument, ArrayReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { Timestamp, transformTimestampArgument, SampleRawReply, transformSampleReply } from '.';
 import { TimeSeriesAggregationType } from './CREATERULE';
 
 export const TIME_SERIES_BUCKET_TIMESTAMP = {
@@ -107,11 +107,13 @@ export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
   transformArguments: transformRangeArguments.bind(undefined, 'TS.RANGE'),
-  // TODO
-  // import { SampleReply, transformRangeReply } from '.';
-  // export function transformReply(reply: Array<SampleRawReply>): Array<SampleReply> {
-  //     return transformRangeReply(reply);
-  // }
-  transformReply: undefined as unknown as () => any
+  transformReply: {
+    2(reply: UnwrapReply<ArrayReply<SampleRawReply[2]>>) {
+      return reply.map(sample => transformSampleReply['2'](sample));
+    },
+    3(reply: UnwrapReply<ArrayReply<SampleRawReply[3]>>) {
+      return reply.map(sample => transformSampleReply['3'](sample));
+    }
+  }
 } as const satisfies Command;
 

@@ -27,6 +27,5 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MRANGE'),
   // TODO
-  // export { transformMRangeWithLabelsReply as transformReply } from '.';
   transformReply: undefined as unknown as () => any
 } as const satisfies Command;

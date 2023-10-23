@@ -77,7 +77,11 @@ legacyClient.set('key', 'value', (err, reply) => {
 
 ## Isolation Pool
 
-TODO
+[TODO](./blocking-commands.md).
+
+```javascript
+await client.get(client.commandOptions({ isolated: true }), 'key');
+```
 
 ```javascript
 await client.sendCommand(['GET', 'key']);
@@ -123,35 +127,47 @@ await cluster.multi()
 
 ## Commands
 
-Some command arguments/replies have changed to align more closely to data types returned by Redis:
+### Redis
 
 - `ACL GETUSER`: `selectors`
+- `COPY`: `destinationDb` -> `DB`, `replace` -> `REPLACE`, `boolean` -> `number` [^boolean-to-number]
 - `CLIENT KILL`: `enum ClientKillFilters` -> `const CLIENT_KILL_FILTERS` [^enum-to-constants]
 - `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants]
-- `LCS IDX`: `length` has been changed to `len`, `matches` has been changed from `Array<{ key1: RangeReply; key2: RangeReply; }>` to `Array<[key1: RangeReply, key2: RangeReply]>`
+- `CLIENT TRACKINGINFO`: `flags` in RESP2 - `Set<string>` -> `Array<string>` (to match RESP3 default type mapping)
+- `CLUSETER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
+- `CLUSTER RESET`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
+- `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants], the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
+- `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
+- `CLUSTER NODES`, `CLUSTER REPLICAS`, `CLUSTER INFO`: returning the raw `VerbatimStringReply`
+- `EXPIRE`: `boolean` -> `number` [^boolean-to-number]
+- `EXPIREAT`: `boolean` -> `number` [^boolean-to-number]
+- `HSCAN`: `tuples` has been renamed to `entries`
 - `HEXISTS`: `boolean` -> `number` [^boolean-to-number]
 - `HRANDFIELD_COUNT_WITHVALUES`: `Record<BlobString, BlobString>` -> `Array<{ field: BlobString; value: BlobString; }>` (it can return duplicates).
-- `SCAN`, `HSCAN`, `SSCAN`, and `ZSCAN`: `cursor` type is `string | Buffer` instead of `number`
 - `HSETNX`: `boolean` -> `number` [^boolean-to-number]
+
+- `LCS IDX`: `length` has been changed to `len`, `matches` has been changed from `Array<{ key1: RangeReply; key2: RangeReply; }>` to `Array<[key1: RangeReply, key2: RangeReply]>`
+
+
 - `ZINTER`: instead of `client.ZINTER('key', { WEIGHTS: [1] })` use `client.ZINTER({ key: 'key', weight: 1 }])`
 - `ZINTER_WITHSCORES`: instead of `client.ZINTER_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZINTER_WITHSCORES({ key: 'key', weight: 1 }])`
 - `ZUNION`: instead of `client.ZUNION('key', { WEIGHTS: [1] })` use `client.ZUNION({ key: 'key', weight: 1 }])`
 - `ZUNION_WITHSCORES`: instead of `client.ZUNION_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZUNION_WITHSCORES({ key: 'key', weight: 1 }])`
-- `SETNX`: `boolean` -> `number` [^boolean-to-number]
-- `COPY`: `destinationDb` -> `DB`, `replace` -> `REPLACE`, `boolean` -> `number` [^boolean-to-number]
-- `EXPIRE`: `boolean` -> `number` [^boolean-to-number]
-- `EXPIREAT`: `boolean` -> `number` [^boolean-to-number]
+- `ZMPOP`: `{ elements: Array<{ member: string; score: number; }>; }` -> `{ members: Array<{ value: string; score: number; }>; }` to match other sorted set commands (e.g. `ZRANGE`, `ZSCAN`)
+
 - `MOVE`: `boolean` -> `number` [^boolean-to-number]
 - `PEXPIRE`: `boolean` -> `number` [^boolean-to-number]
 - `PEXPIREAT`: `boolean` -> `number` [^boolean-to-number]
-- `RENAMENX`: `boolean` -> `number` [^boolean-to-number]
-- `HSCAN`: `tuples` has been renamed to `entries`
 - `PFADD`: `boolean` -> `number` [^boolean-to-number]
+
+- `RENAMENX`: `boolean` -> `number` [^boolean-to-number]
+- `SETNX`: `boolean` -> `number` [^boolean-to-number]
+- `SCAN`, `HSCAN`, `SSCAN`, and `ZSCAN`: `reply.cursor` will not be converted to number to avoid issues when the number is bigger than `Number.MAX_SAFE_INTEGER`. See [here](https://github.com/redis/node-redis/issues/2561).
 - `SCRIPT EXISTS`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 - `SISMEMBER`: `boolean` -> `number` [^boolean-to-number]
 - `SMISMEMBER`: `Array<boolean>` -> `Array<number>` [^boolean-to-number]
 - `SMOVE`: `boolean` -> `number` [^boolean-to-number]
-- `TS.ADD`: `boolean` -> `number` [^boolean-to-number]
+
 - `GEOSEARCH_WITH`/`GEORADIUS_WITH`: `GeoReplyWith` -> `GEO_REPLY_WITH` [^enum-to-constants]
 - `GEORADIUSSTORE` -> `GEORADIUS_STORE`
 - `GEORADIUSBYMEMBERSTORE` -> `GEORADIUSBYMEMBER_STORE`
@@ -161,34 +177,46 @@ Some command arguments/replies have changed to align more closely to data types 
 - `HELLO`: `protover` moved from the options object to it's own argument, `auth` -> `AUTH`, `clientName` -> `SETNAME`
 - `MODULE LIST`: `version` -> `ver` [^map-keys]
 - `MEMORY STATS`: [^map-keys]
-- `CLIENT TRACKINGINFO`: `flags` in RESP2 - `Set<string>` -> `Array<string>` (to match RESP3 default type mapping)
-- `CLUSETER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
 - `FUNCTION RESTORE`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `FUNCTION STATS`: `runningScript` -> `running_script`, `durationMs` -> `duration_ms`, `librariesCount` -> `libraries_count`, `functionsCount` -> `functions_count` [^map-keys]
-- `CLUSTER RESET`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
-- `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants], the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
-- `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
+
 - `TIME`: `Date` -> `[unixTimestamp: string, microseconds: string]`
-- `ZMPOP`: `{ elements: Array<{ member: string; score: number; }>; }` -> `{ members: Array<{ value: string; score: number; }>; }` to match other sorted set commands (e.g. `ZRANGE`, `ZSCAN`)
+
 - `XGROUP_CREATECONSUMER`: [^boolean-to-number]
 - `XGROUP_DESTROY`: [^boolean-to-number]
 - `XINFO GROUPS`: `lastDeliveredId` -> `last-delivered-id` [^map-keys]
 - `XINFO STREAM`: `radixTreeKeys` -> `radix-tree-keys`, `radixTreeNodes` -> `radix-tree-nodes`, `lastGeneratedId` -> `last-generated-id`, `maxDeletedEntryId` -> `max-deleted-entry-id`, `entriesAdded` -> `entries-added`, `recordedFirstEntryId` -> `recorded-first-entry-id`, `firstEntry` -> `first-entry`, `lastEntry` -> `last-entry`
 - `XAUTOCLAIM`, `XCLAIM`, `XRANGE`, `XREVRANGE`: `Array<{ name: string; messages: Array<{ id: string; message: Record<string, string> }>; }>` -> `Record<string, Array<{ id: string; message: Record<string, string> }>>`
-- `FT.SUGDEL`: [^boolean-to-number]
+
+- `COMMAND LIST`: `enum FilterBy` -> `const COMMAND_LIST_FILTER_BY` [^enum-to-constants], the filter argument has been moved from a "top level argument" into ` { FILTERBY: { type: <MODULE|ACLCAT|PATTERN>; value: <value> } }`
+
+### Bloom
+
 - `TOPK.QUERY`: `Array<number>` -> `Array<boolean>`
+
+### Graph
+
 - `GRAPH.SLOWLOG`: `timestamp` has been changed from `Date` to `number`
+
+### JSON
+
 - `JSON.ARRINDEX`: `start` and `end` arguments moved to `{ range: { start: number; end: number; }; }` [^future-proofing]
 - `JSON.ARRPOP`: `path` and `index` arguments moved to `{ path: string; index: number; }` [^future-proofing]
 - `JSON.ARRLEN`, `JSON.CLEAR`, `JSON.DEBUG MEMORY`, `JSON.DEL`, `JSON.FORGET`, `JSON.OBJKEYS`, `JSON.OBJLEN`, `JSON.STRAPPEND`, `JSON.STRLEN`, `JSON.TYPE`: `path` argument moved to `{ path: string; }` [^future-proofing]
+
+### Search
+
+- `FT.SUGDEL`: [^boolean-to-number]
+
+### Time Series
+
+- `TS.ADD`: `boolean` -> `number` [^boolean-to-number]
 - `TS.[M][REV]RANGE`: `enum TimeSeriesBucketTimestamp` -> `const TIME_SERIES_BUCKET_TIMESTAMP` [^enum-to-constants], `enum TimeSeriesReducers` -> `const TIME_SERIES_REDUCERS` [^enum-to-constants], the `ALIGN` argument has been moved into `AGGREGRATION`
 - `TS.SYNUPDATE`: `Array<string | Array<string>>` -> `Record<string, Array<string>>`
-- `CLUSTER NODES`, `CLUSTER REPLICAS`, `CLUSTER INFO`: returning the raw `VerbatimStringReply`
+- `TS.M[REV]RANGE[_WITHLABELS]`, `TS.MGET[_WITHLABELS]`: TODO
 
 [^enum-to-constants]: TODO
 
-[^boolean-to-number]: TODO
-
-[^map-keys]: [TODO](https://github.com/redis/node-redis/discussions/2506)
+[^map-keys]: To avoid unnecessary transformations and confusion, map keys will not be transformed to "js friendly" names (i.e. `number-of-keys` will not be renamed to `numberOfKeys`). See [here](https://github.com/redis/node-redis/discussions/2506).
 
 [^future-proofing]: TODO

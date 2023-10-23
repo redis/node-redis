@@ -1,11 +1,9 @@
 import { Command } from '@redis/client/dist/lib/RESP/types';
-import { transformMRangeWithLabelsArguments } from './MRANGE_WITHLABELS';
+import MRANGE_WITHLABELS, { transformMRangeWithLabelsArguments } from './MRANGE_WITHLABELS';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
-  IS_READ_ONLY: true,
+  FIRST_KEY_INDEX: MRANGE_WITHLABELS.FIRST_KEY_INDEX,
+  IS_READ_ONLY: MRANGE_WITHLABELS.IS_READ_ONLY,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MREVRANGE'),
-  // TODO
-  // export { transformMRangeWithLabelsReply as transformReply } from '.';
-  transformReply: undefined as unknown as () => any
+  transformReply: MRANGE_WITHLABELS.transformReply
 } as const satisfies Command;

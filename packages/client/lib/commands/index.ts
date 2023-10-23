@@ -73,7 +73,7 @@ import COMMAND_COUNT from './COMMAND_COUNT';
 import COMMAND_GETKEYS from './COMMAND_GETKEYS';
 import COMMAND_GETKEYSANDFLAGS from './COMMAND_GETKEYSANDFLAGS';
 // import COMMAND_INFO from './COMMAND_INFO';
-// import COMMAND_LIST from './COMMAND_LIST';
+import COMMAND_LIST from './COMMAND_LIST';
 // import COMMAND from './COMMAND';
 import CONFIG_GET from './CONFIG_GET';
 import CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
@@ -483,8 +483,8 @@ export default {
   commandGetKeysAndFlags: COMMAND_GETKEYSANDFLAGS,
   // COMMAND_INFO,
   // commandInfo: COMMAND_INFO,
-  // COMMAND_LIST,
-  // commandList: COMMAND_LIST,
+  COMMAND_LIST,
+  commandList: COMMAND_LIST,
   // COMMAND,
   // command: COMMAND,
   CONFIG_GET,

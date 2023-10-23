@@ -1,6 +1,5 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from '.';
 import SPELLCHECK from './SPELLCHECK';
 
 describe('FT.SPELLCHECK', () => {
@@ -63,7 +62,7 @@ describe('FT.SPELLCHECK', () => {
   testUtils.testWithClient('client.ft.spellCheck', async client => {
     const [,, reply] = await Promise.all([
       client.ft.create('index', {
-        field: SchemaFieldTypes.TEXT
+        field: 'TEXT'
       }),
       client.hSet('key', 'field', 'query'),
       client.ft.spellCheck('index', 'quer')

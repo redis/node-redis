@@ -14,7 +14,7 @@ type QueryRawReply = TuplesReply<[
   metadata: Metadata
 ]>;
 
-type QueryParam = null | string | number | boolean | QueryParams | Array<QueryParam>;
+type QueryParam = null | RedisArgument | number | boolean | QueryParams | Array<QueryParam>;
 
 type QueryParams = {
   [key: string]: QueryParam;

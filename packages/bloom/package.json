@@ -2,8 +2,8 @@
   "name": "@redis/bloom",
   "version": "1.2.0",
   "license": "MIT",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
   "files": [
     "dist/",
     "!dist/tsconfig.tsbuildinfo"

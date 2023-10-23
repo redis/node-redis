@@ -7,7 +7,7 @@ import LIST from './LIST';
 import PROFILE from './PROFILE';
 import QUERY from './QUERY';
 import RO_QUERY from './RO_QUERY';
-// import SLOWLOG from './SLOWLOG';
+import SLOWLOG from './SLOWLOG';
 
 export default {
   CONFIG_GET,
@@ -26,6 +26,6 @@ export default {
   query: QUERY,
   RO_QUERY,
   roQuery: RO_QUERY,
-  // SLOWLOG,
-  // slowLog: SLOWLOG
+  SLOWLOG,
+  slowLog: SLOWLOG
 } as const satisfies RedisCommands;

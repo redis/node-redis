@@ -5,7 +5,7 @@ import SLOWLOG from './SLOWLOG';
 describe('GRAPH.SLOWLOG', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      transformArguments('key'),
+      SLOWLOG.transformArguments('key'),
       ['GRAPH.SLOWLOG', 'key']
     );
   });

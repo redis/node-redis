@@ -1,5 +1,5 @@
 import { RedisArgument, Command, CommandArguments } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { Timestamp } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
 import { pushFilterArgument } from './MGET';
@@ -63,6 +63,5 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeArguments.bind(undefined, 'TS.MRANGE'),
   // TODO
-  // export { transformMRangeReply as transformReply } from '.';
   transformReply: undefined as unknown as () => any
 } as const satisfies Command;

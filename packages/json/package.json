@@ -2,8 +2,8 @@
   "name": "@redis/json",
   "version": "1.0.6",
   "license": "MIT",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
   "files": [
     "dist/"
   ],

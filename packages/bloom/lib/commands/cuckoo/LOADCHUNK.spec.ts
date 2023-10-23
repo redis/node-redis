@@ -19,7 +19,7 @@ describe('CF.LOADCHUNK', () => {
     ]);
 
     assert.equal(
-      await client.cf.loadChunk('destination', iterator, chunk),
+      await client.cf.loadChunk('destination', iterator, chunk!),
       'OK'
     );
   }, {

@@ -14,8 +14,8 @@ import DICTADD from './DICTADD';
 import DICTDEL from './DICTDEL';
 import DICTDUMP from './DICTDUMP';
 import DROPINDEX from './DROPINDEX';
-import EXPLAIN from './EXPLAIN';
-import EXPLAINCLI from './EXPLAINCLI';
+// import EXPLAIN from './EXPLAIN';
+// import EXPLAINCLI from './EXPLAINCLI';
 // import INFO from './INFO';
 // import PROFILESEARCH from './PROFILE_SEARCH';
 // import PROFILEAGGREGATE from './PROFILE_AGGREGATE';
@@ -32,9 +32,9 @@ import SYNDUMP from './SYNDUMP';
 import SYNUPDATE from './SYNUPDATE';
 import TAGVALS from './TAGVALS';
 // import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushOptionalVariadicArgument, pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { SearchOptions } from './SEARCH';
-import { CommandArguments } from '@redis/client/dist/lib/RESP/types';
+// import { pushOptionalVariadicArgument, pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+// import { SearchOptions } from './SEARCH';
+// import { CommandArguments } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   _LIST,
@@ -69,10 +69,10 @@ export default {
   dictDump: DICTDUMP,
   DROPINDEX,
   dropIndex: DROPINDEX,
-  EXPLAIN,
-  explain: EXPLAIN,
-  EXPLAINCLI,
-  explainCli: EXPLAINCLI,
+  // EXPLAIN,
+  // explain: EXPLAIN,
+  // EXPLAINCLI,
+  // explainCli: EXPLAINCLI,
   // INFO,
   // info: INFO,
   // PROFILESEARCH,
@@ -135,41 +135,41 @@ export default {
 
 export type PropertyName = `${'@' | '$.'}${string}`;
 
-export type SortByProperty = string | {
-  BY: string;
-  DIRECTION?: 'ASC' | 'DESC';
-};
+// export type SortByProperty = string | {
+//   BY: string;
+//   DIRECTION?: 'ASC' | 'DESC';
+// };
 
-export function pushSortByProperty(args: RedisCommandArguments, sortBy: SortByProperty): void {
-  if (typeof sortBy === 'string') {
-    args.push(sortBy);
-  } else {
-    args.push(sortBy.BY);
+// export function pushSortByProperty(args: RedisCommandArguments, sortBy: SortByProperty): void {
+//   if (typeof sortBy === 'string') {
+//     args.push(sortBy);
+//   } else {
+//     args.push(sortBy.BY);
 
-    if (sortBy.DIRECTION) {
-      args.push(sortBy.DIRECTION);
-    }
-  }
-}
+//     if (sortBy.DIRECTION) {
+//       args.push(sortBy.DIRECTION);
+//     }
+//   }
+// }
 
-export function pushSortByArguments(args: RedisCommandArguments, name: string, sortBy: SortByProperty | Array<SortByProperty>): RedisCommandArguments {
-  const lengthBefore = args.push(
-    name,
-    '' // will be overwritten
-  );
+// export function pushSortByArguments(args: RedisCommandArguments, name: string, sortBy: SortByProperty | Array<SortByProperty>): RedisCommandArguments {
+//   const lengthBefore = args.push(
+//     name,
+//     '' // will be overwritten
+//   );
 
-  if (Array.isArray(sortBy)) {
-    for (const field of sortBy) {
-      pushSortByProperty(args, field);
-    }
-  } else {
-    pushSortByProperty(args, sortBy);
-  }
+//   if (Array.isArray(sortBy)) {
+//     for (const field of sortBy) {
+//       pushSortByProperty(args, field);
+//     }
+//   } else {
+//     pushSortByProperty(args, sortBy);
+//   }
 
-  args[lengthBefore - 1] = (args.length - lengthBefore).toString();
+//   args[lengthBefore - 1] = (args.length - lengthBefore).toString();
 
-  return args;
-}
+//   return args;
+// }
 
 // export function pushArgumentsWithLength(args: CommandArguments, fn: (args: CommandArguments) => void) {
 //   const lengthIndex = args.push('') - 1;
@@ -375,268 +375,268 @@ export function pushSortByArguments(args: RedisCommandArguments, name: string, s
 //   }
 // }
 
-export type Params = Record<string, RedisCommandArgument | number>;
+// export type Params = Record<string, RedisCommandArgument | number>;
 
-export function pushParamsArgs(
-  args: RedisCommandArguments,
-  params?: Params
-): RedisCommandArguments {
-  if (params) {
-    const enrties = Object.entries(params);
-    args.push('PARAMS', (enrties.length * 2).toString());
-    for (const [key, value] of enrties) {
-      args.push(key, typeof value === 'number' ? value.toString() : value);
-    }
-  }
+// export function pushParamsArgs(
+//   args: RedisCommandArguments,
+//   params?: Params
+// ): RedisCommandArguments {
+//   if (params) {
+//     const enrties = Object.entries(params);
+//     args.push('PARAMS', (enrties.length * 2).toString());
+//     for (const [key, value] of enrties) {
+//       args.push(key, typeof value === 'number' ? value.toString() : value);
+//     }
+//   }
 
-  return args;
-}
+//   return args;
+// }
 
-export function pushSearchOptions(
-  args: RedisCommandArguments,
-  options?: SearchOptions
-): RedisCommandArguments {
-  if (options?.VERBATIM) {
-    args.push('VERBATIM');
-  }
+// export function pushSearchOptions(
+//   args: RedisCommandArguments,
+//   options?: SearchOptions
+// ): RedisCommandArguments {
+//   if (options?.VERBATIM) {
+//     args.push('VERBATIM');
+//   }
 
-  if (options?.NOSTOPWORDS) {
-    args.push('NOSTOPWORDS');
-  }
+//   if (options?.NOSTOPWORDS) {
+//     args.push('NOSTOPWORDS');
+//   }
 
-  // if (options?.WITHSCORES) {
-  //     args.push('WITHSCORES');
-  // }
+//   // if (options?.WITHSCORES) {
+//   //     args.push('WITHSCORES');
+//   // }
 
-  // if (options?.WITHPAYLOADS) {
-  //     args.push('WITHPAYLOADS');
-  // }
+//   // if (options?.WITHPAYLOADS) {
+//   //     args.push('WITHPAYLOADS');
+//   // }
 
-  pushOptionalVariadicArgument(args, 'INKEYS', options?.INKEYS);
-  pushOptionalVariadicArgument(args, 'INFIELDS', options?.INFIELDS);
-  pushOptionalVariadicArgument(args, 'RETURN', options?.RETURN);
+//   pushOptionalVariadicArgument(args, 'INKEYS', options?.INKEYS);
+//   pushOptionalVariadicArgument(args, 'INFIELDS', options?.INFIELDS);
+//   pushOptionalVariadicArgument(args, 'RETURN', options?.RETURN);
 
-  if (options?.SUMMARIZE) {
-    args.push('SUMMARIZE');
+//   if (options?.SUMMARIZE) {
+//     args.push('SUMMARIZE');
 
-    if (typeof options.SUMMARIZE === 'object') {
-      if (options.SUMMARIZE.FIELDS) {
-        args.push('FIELDS');
-        pushVariadicArgument(args, options.SUMMARIZE.FIELDS);
-      }
+//     if (typeof options.SUMMARIZE === 'object') {
+//       if (options.SUMMARIZE.FIELDS) {
+//         args.push('FIELDS');
+//         pushVariadicArgument(args, options.SUMMARIZE.FIELDS);
+//       }
 
-      if (options.SUMMARIZE.FRAGS) {
-        args.push('FRAGS', options.SUMMARIZE.FRAGS.toString());
-      }
+//       if (options.SUMMARIZE.FRAGS) {
+//         args.push('FRAGS', options.SUMMARIZE.FRAGS.toString());
+//       }
 
-      if (options.SUMMARIZE.LEN) {
-        args.push('LEN', options.SUMMARIZE.LEN.toString());
-      }
+//       if (options.SUMMARIZE.LEN) {
+//         args.push('LEN', options.SUMMARIZE.LEN.toString());
+//       }
 
-      if (options.SUMMARIZE.SEPARATOR) {
-        args.push('SEPARATOR', options.SUMMARIZE.SEPARATOR);
-      }
-    }
-  }
+//       if (options.SUMMARIZE.SEPARATOR) {
+//         args.push('SEPARATOR', options.SUMMARIZE.SEPARATOR);
+//       }
+//     }
+//   }
 
-  if (options?.HIGHLIGHT) {
-    args.push('HIGHLIGHT');
+//   if (options?.HIGHLIGHT) {
+//     args.push('HIGHLIGHT');
 
-    if (typeof options.HIGHLIGHT === 'object') {
-      if (options.HIGHLIGHT.FIELDS) {
-        args.push('FIELDS');
-        pushVariadicArgument(args, options.HIGHLIGHT.FIELDS);
-      }
+//     if (typeof options.HIGHLIGHT === 'object') {
+//       if (options.HIGHLIGHT.FIELDS) {
+//         args.push('FIELDS');
+//         pushVariadicArgument(args, options.HIGHLIGHT.FIELDS);
+//       }
 
-      if (options.HIGHLIGHT.TAGS) {
-        args.push('TAGS', options.HIGHLIGHT.TAGS.open, options.HIGHLIGHT.TAGS.close);
-      }
-    }
-  }
+//       if (options.HIGHLIGHT.TAGS) {
+//         args.push('TAGS', options.HIGHLIGHT.TAGS.open, options.HIGHLIGHT.TAGS.close);
+//       }
+//     }
+//   }
 
-  if (options?.SLOP) {
-    args.push('SLOP', options.SLOP.toString());
-  }
+//   if (options?.SLOP) {
+//     args.push('SLOP', options.SLOP.toString());
+//   }
 
-  if (options?.INORDER) {
-    args.push('INORDER');
-  }
+//   if (options?.INORDER) {
+//     args.push('INORDER');
+//   }
 
-  if (options?.LANGUAGE) {
-    args.push('LANGUAGE', options.LANGUAGE);
-  }
+//   if (options?.LANGUAGE) {
+//     args.push('LANGUAGE', options.LANGUAGE);
+//   }
 
-  if (options?.EXPANDER) {
-    args.push('EXPANDER', options.EXPANDER);
-  }
+//   if (options?.EXPANDER) {
+//     args.push('EXPANDER', options.EXPANDER);
+//   }
 
-  if (options?.SCORER) {
-    args.push('SCORER', options.SCORER);
-  }
+//   if (options?.SCORER) {
+//     args.push('SCORER', options.SCORER);
+//   }
 
-  // if (options?.EXPLAINSCORE) {
-  //     args.push('EXPLAINSCORE');
-  // }
+//   // if (options?.EXPLAINSCORE) {
+//   //     args.push('EXPLAINSCORE');
+//   // }
 
-  // if (options?.PAYLOAD) {
-  //     args.push('PAYLOAD', options.PAYLOAD);
-  // }
+//   // if (options?.PAYLOAD) {
+//   //     args.push('PAYLOAD', options.PAYLOAD);
+//   // }
 
-  if (options?.SORTBY) {
-    args.push('SORTBY');
-    pushSortByProperty(args, options.SORTBY);
-  }
+//   if (options?.SORTBY) {
+//     args.push('SORTBY');
+//     pushSortByProperty(args, options.SORTBY);
+//   }
 
-  // if (options?.MSORTBY) {
-  //     pushSortByArguments(args, 'MSORTBY', options.MSORTBY);
-  // }
+//   // if (options?.MSORTBY) {
+//   //     pushSortByArguments(args, 'MSORTBY', options.MSORTBY);
+//   // }
 
-  if (options?.LIMIT) {
-    args.push(
-      'LIMIT',
-      options.LIMIT.from.toString(),
-      options.LIMIT.size.toString()
-    );
-  }
+//   if (options?.LIMIT) {
+//     args.push(
+//       'LIMIT',
+//       options.LIMIT.from.toString(),
+//       options.LIMIT.size.toString()
+//     );
+//   }
 
-  if (options?.PARAMS) {
-    pushParamsArgs(args, options.PARAMS);
-  }
+//   if (options?.PARAMS) {
+//     pushParamsArgs(args, options.PARAMS);
+//   }
 
-  if (options?.DIALECT) {
-    args.push('DIALECT', options.DIALECT.toString());
-  }
+//   if (options?.DIALECT) {
+//     args.push('DIALECT', options.DIALECT.toString());
+//   }
 
-  if (options?.RETURN?.length === 0) {
-    args.preserve = true;
-  }
+//   if (options?.RETURN?.length === 0) {
+//     args.preserve = true;
+//   }
 
-  if (options?.TIMEOUT !== undefined) {
-    args.push('TIMEOUT', options.TIMEOUT.toString());
-  }
+//   if (options?.TIMEOUT !== undefined) {
+//     args.push('TIMEOUT', options.TIMEOUT.toString());
+//   }
 
-  return args;
-}
+//   return args;
+// }
 
-interface SearchDocumentValue {
-  [key: string]: string | number | null | Array<SearchDocumentValue> | SearchDocumentValue;
-}
+// interface SearchDocumentValue {
+//   [key: string]: string | number | null | Array<SearchDocumentValue> | SearchDocumentValue;
+// }
 
-export interface SearchReply {
-  total: number;
-  documents: Array<{
-    id: string;
-    value: SearchDocumentValue;
-  }>;
-}
+// export interface SearchReply {
+//   total: number;
+//   documents: Array<{
+//     id: string;
+//     value: SearchDocumentValue;
+//   }>;
+// }
 
-export interface ProfileOptions {
-  LIMITED?: true;
-}
+// export interface ProfileOptions {
+//   LIMITED?: true;
+// }
 
-export type ProfileRawReply<T> = [
-  results: T,
-  profile: [
-    _: string,
-    TotalProfileTime: string,
-    _: string,
-    ParsingTime: string,
-    _: string,
-    PipelineCreationTime: string,
-    _: string,
-    IteratorsProfile: Array<any>
-  ]
-];
+// export type ProfileRawReply<T> = [
+//   results: T,
+//   profile: [
+//     _: string,
+//     TotalProfileTime: string,
+//     _: string,
+//     ParsingTime: string,
+//     _: string,
+//     PipelineCreationTime: string,
+//     _: string,
+//     IteratorsProfile: Array<any>
+//   ]
+// ];
 
-export interface ProfileReply {
-  results: SearchReply | AGGREGATE.AggregateReply;
-  profile: ProfileData;
-}
+// export interface ProfileReply {
+//   results: SearchReply | AGGREGATE.AggregateReply;
+//   profile: ProfileData;
+// }
 
-interface ChildIterator {
-  type?: string,
-  counter?: number,
-  term?: string,
-  size?: number,
-  time?: string,
-  childIterators?: Array<ChildIterator>
-}
+// interface ChildIterator {
+//   type?: string,
+//   counter?: number,
+//   term?: string,
+//   size?: number,
+//   time?: string,
+//   childIterators?: Array<ChildIterator>
+// }
 
-interface IteratorsProfile {
-  type?: string,
-  counter?: number,
-  queryType?: string,
-  time?: string,
-  childIterators?: Array<ChildIterator>
-}
+// interface IteratorsProfile {
+//   type?: string,
+//   counter?: number,
+//   queryType?: string,
+//   time?: string,
+//   childIterators?: Array<ChildIterator>
+// }
 
-interface ProfileData {
-  totalProfileTime: string,
-  parsingTime: string,
-  pipelineCreationTime: string,
-  iteratorsProfile: IteratorsProfile
-}
+// interface ProfileData {
+//   totalProfileTime: string,
+//   parsingTime: string,
+//   pipelineCreationTime: string,
+//   iteratorsProfile: IteratorsProfile
+// }
 
-export function transformProfile(reply: Array<any>): ProfileData {
-  return {
-    totalProfileTime: reply[0][1],
-    parsingTime: reply[1][1],
-    pipelineCreationTime: reply[2][1],
-    iteratorsProfile: transformIterators(reply[3][1])
-  };
-}
+// export function transformProfile(reply: Array<any>): ProfileData {
+//   return {
+//     totalProfileTime: reply[0][1],
+//     parsingTime: reply[1][1],
+//     pipelineCreationTime: reply[2][1],
+//     iteratorsProfile: transformIterators(reply[3][1])
+//   };
+// }
 
-function transformIterators(IteratorsProfile: Array<any>): IteratorsProfile {
-  var res: IteratorsProfile = {};
-  for (let i = 0; i < IteratorsProfile.length; i += 2) {
-    const value = IteratorsProfile[i + 1];
-    switch (IteratorsProfile[i]) {
-      case 'Type':
-        res.type = value;
-        break;
-      case 'Counter':
-        res.counter = value;
-        break;
-      case 'Time':
-        res.time = value;
-        break;
-      case 'Query type':
-        res.queryType = value;
-        break;
-      case 'Child iterators':
-        res.childIterators = value.map(transformChildIterators);
-        break;
-    }
-  }
+// function transformIterators(IteratorsProfile: Array<any>): IteratorsProfile {
+//   var res: IteratorsProfile = {};
+//   for (let i = 0; i < IteratorsProfile.length; i += 2) {
+//     const value = IteratorsProfile[i + 1];
+//     switch (IteratorsProfile[i]) {
+//       case 'Type':
+//         res.type = value;
+//         break;
+//       case 'Counter':
+//         res.counter = value;
+//         break;
+//       case 'Time':
+//         res.time = value;
+//         break;
+//       case 'Query type':
+//         res.queryType = value;
+//         break;
+//       case 'Child iterators':
+//         res.childIterators = value.map(transformChildIterators);
+//         break;
+//     }
+//   }
 
-  return res;
-}
+//   return res;
+// }
 
-function transformChildIterators(IteratorsProfile: Array<any>): ChildIterator {
-  var res: ChildIterator = {};
-  for (let i = 1; i < IteratorsProfile.length; i += 2) {
-    const value = IteratorsProfile[i + 1];
-    switch (IteratorsProfile[i]) {
-      case 'Type':
-        res.type = value;
-        break;
-      case 'Counter':
-        res.counter = value;
-        break;
-      case 'Time':
-        res.time = value;
-        break;
-      case 'Size':
-        res.size = value;
-        break;
-      case 'Term':
-        res.term = value;
-        break;
-      case 'Child iterators':
-        res.childIterators = value.map(transformChildIterators);
-        break;
-    }
-  }
+// function transformChildIterators(IteratorsProfile: Array<any>): ChildIterator {
+//   var res: ChildIterator = {};
+//   for (let i = 1; i < IteratorsProfile.length; i += 2) {
+//     const value = IteratorsProfile[i + 1];
+//     switch (IteratorsProfile[i]) {
+//       case 'Type':
+//         res.type = value;
+//         break;
+//       case 'Counter':
+//         res.counter = value;
+//         break;
+//       case 'Time':
+//         res.time = value;
+//         break;
+//       case 'Size':
+//         res.size = value;
+//         break;
+//       case 'Term':
+//         res.term = value;
+//         break;
+//       case 'Child iterators':
+//         res.childIterators = value.map(transformChildIterators);
+//         break;
+//     }
+//   }
 
-  return res;
-}
+//   return res;
+// }
