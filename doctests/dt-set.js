@@ -88,7 +88,7 @@ console.log(res10)  // >>> ['bike:1', 'bike:2', 'bike:3']
 
 // REMOVE_START
 assert.equal(res9, 3)
-assert.deepEqual(res10, ['bike:1', 'bike:2', 'bike:3'])
+assert.deepEqual(res10.sort(), ['bike:1', 'bike:2', 'bike:3'])
 // REMOVE_END
 
 // STEP_START smIsMember
@@ -144,7 +144,7 @@ console.log(res18)  // >>> ['bike:2', 'bike:3']
 
 // REMOVE_START
 assert.deepEqual(res14, ['bike:1'])
-assert.deepEqual(res15, [ 'bike:2', 'bike:1', 'bike:4', 'bike:3' ])
+assert.deepEqual(res15.sort(), ['bike:1', 'bike:2', 'bike:3', 'bike:4'])
 assert.deepEqual(res16, [])
 assert.deepEqual(res17, ['bike:4'])
 assert.deepEqual(res18, ['bike:2', 'bike:3'])
