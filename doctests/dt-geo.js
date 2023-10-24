@@ -13,23 +13,23 @@ await client.del('bikes:rentable')
 
 // STEP_START geoAdd
 const res1 = await client.geoAdd('bikes:rentable', { 
-  longitude:-122.27652, 
-  latitude:37.805186, 
-  member:'station:1'
+  longitude: -122.27652,
+  latitude: 37.805186,
+  member: 'station:1'
 });
 console.log(res1)  // 1
 
 const res2 = await client.geoAdd('bikes:rentable', {
-  longitude:-122.2674626,
-  latitude:37.8062344,
-  member:'station:2'
+  longitude: -122.2674626,
+  latitude: 37.8062344,
+  member: 'station:2'
 });
 console.log(res2)  // 1
 
 const res3 = await client.geoAdd('bikes:rentable', {
-  longitude:-122.2469854,
-  latitude:37.8104049,
-  member:'station:3'
+  longitude: -122.2469854,
+  latitude: 37.8104049,
+  member: 'station:3'
 })
 console.log(res3)  // 1
 // STEP_END
