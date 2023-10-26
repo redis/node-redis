@@ -28,15 +28,15 @@ export interface RedisSocketCommonOptions {
   reconnectStrategy?: false | number | ((retries: number, cause: Error) => false | Error | number);
 }
 
-type RedisNetSocketOptions = Partial<net.SocketConnectOpts> & {
+export interface RedisNetConnectOpts extends Omit<Partial<net.TcpNetConnectOpts>, 'keepAlive'>, Partial<net.IpcNetConnectOpts>, RedisSocketCommonOptions {
   tls?: false;
 };
 
-export interface RedisTlsSocketOptions extends tls.ConnectionOptions {
+export interface RedisTlsSocketOptions extends Partial<tls.ConnectionOptions>, RedisSocketCommonOptions {
   tls: true;
-}
+};
 
-export type RedisSocketOptions = RedisSocketCommonOptions & (RedisNetSocketOptions | RedisTlsSocketOptions);
+export type RedisSocketOptions = RedisNetConnectOpts | RedisTlsSocketOptions
 
 interface CreateSocketReturn<T> {
   connectEvent: string;
