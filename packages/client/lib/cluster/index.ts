@@ -20,12 +20,12 @@ export interface RedisClusterOptions<
     S extends RedisScripts = Record<string, never>
 > extends RedisExtensions<M, F, S> {
     /**
-     * Should contain details for some of the cluster nodes that the client will use to discover 
+     * Should contain details for some of the cluster nodes that the client will use to discover
      * the "cluster topology". We recommend including details for at least 3 nodes here.
      */
     rootNodes: Array<RedisClusterClientOptions>;
     /**
-     * Default values used for every client in the cluster. Use this to specify global values, 
+     * Default values used for every client in the cluster. Use this to specify global values,
      * for example: ACL credentials, timeouts, TLS configuration etc.
      */
     defaults?: Partial<RedisClusterClientOptions>;
@@ -45,7 +45,7 @@ export interface RedisClusterOptions<
     /**
      * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
      * Useful when the cluster is running on another network
-     * 
+     *
      */
     nodeAddressMap?: NodeAddressMap;
 }
@@ -98,7 +98,7 @@ export default class RedisCluster<
     readonly #options: RedisClusterOptions<M, F, S>;
 
     readonly #slots: RedisClusterSlots<M, F, S>;
-    
+
     get slots() {
         return this.#slots.slots;
     }
@@ -310,7 +310,7 @@ export default class RedisCluster<
         listener?: PubSubListener<boolean>,
         bufferMode?: T
     ) {
-        return this.#slots.executeUnsubscribeCommand(client => 
+        return this.#slots.executeUnsubscribeCommand(client =>
             client.UNSUBSCRIBE(channels, listener, bufferMode)
         );
     }
@@ -333,7 +333,7 @@ export default class RedisCluster<
         listener?: PubSubListener<T>,
         bufferMode?: T
     ) {
-        return this.#slots.executeUnsubscribeCommand(client => 
+        return this.#slots.executeUnsubscribeCommand(client =>
             client.PUNSUBSCRIBE(patterns, listener, bufferMode)
         );
     }
@@ -344,7 +344,7 @@ export default class RedisCluster<
         channels: string | Array<string>,
         listener: PubSubListener<T>,
         bufferMode?: T
-    ) { 
+    ) {
         const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16,
             firstChannel = Array.isArray(channels) ? channels[0] : channels;
         let client = await this.#slots.getShardedPubSubClient(firstChannel);
@@ -371,7 +371,7 @@ export default class RedisCluster<
 
     SUNSUBSCRIBE<T extends boolean = false>(
         channels: string | Array<string>,
-        listener: PubSubListener<T>,
+        listener?: PubSubListener<T>,
         bufferMode?: T
     ) {
         return this.#slots.executeShardedUnsubscribeCommand(
@@ -391,7 +391,7 @@ export default class RedisCluster<
     }
 
     nodeClient(node: ShardNode<M, F, S>) {
-        return this.#slots.nodeClient(node); 
+        return this.#slots.nodeClient(node);
     }
 
     getRandomNode() {
