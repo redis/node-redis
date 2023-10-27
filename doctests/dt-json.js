@@ -12,138 +12,135 @@ await client.connect();
 await client.flushDb();
 // REMOVE_END
 
-// // STEP_START set_get
+// STEP_START set_get
+const res1 = await client.json.set("bike", "$", '"Hyperion"');
+console.log(res1); // OK
 
-// const res1 = await client.json.set("bike", "$", '"Hyperion"')
-// console.log(res1) // OK
+const res2 = await client.json.get("bike", "$");
+console.log(res2); // "Hyperion"
 
-// const res2 = await client.json.get("bike", "$")
-// console.log(res2) // "Hyperion"
+const res3 = await client.json.type("bike", "$");
+console.log(res3); //  [ 'string' ]
+// STEP_END
 
-// const res3 = await client.json.type("bike", "$")
-// console.log(res3) //  [ 'string' ]
-// // STEP_END
+// REMOVE_START
+assert.equal(res2, '"Hyperion"');
+// REMOVE_END
 
-// // REMOVE_START
-// assert.equal(res2, '"Hyperion"');
-// // REMOVE_END
+// STEP_START str
+const res4 = await client.json.strLen("bike", "$");
+console.log(res4) //  [10]
 
-// // STEP_START str
-// const res4 = await client.json.strLen("bike", "$");
-// console.log(res4) //  [10]
+const res5 = await client.json.strAppend("bike", '" (Enduro bikes)"');
+console.log(res5) //  27
 
-// const res5 = await client.json.strAppend("bike", '" (Enduro bikes)"');
-// console.log(res5) //  27
+const res6 = await client.json.get("bike", "$");
+console.log(res6) //  ['"Hyperion"" (Enduro bikes)"']
+// STEP_END
 
-// const res6 = await client.json.get("bike", "$");
-// console.log(res6) //  ['"Hyperion"" (Enduro bikes)"']
-// // STEP_END
+// REMOVE_START
+assert.equal(res6, ['"Hyperion"" (Enduro bikes)"']);
+// REMOVE_END
 
-// // REMOVE_START
-// assert.equal(res6, ['"Hyperion"" (Enduro bikes)"']);
-// // REMOVE_END
+// STEP_START num
+const res7 = await client.json.set("crashes", "$", 0);
+console.log(res7) //  True
 
-// // STEP_START num
-// const res7 = await client.json.set("crashes", "$", 0);
-// console.log(res7) //  True
+const res8 = await client.json.numIncrBy("crashes", "$", 1);
+console.log(res8) //  [1]
 
-// const res8 = await client.json.numIncrBy("crashes", "$", 1);
-// console.log(res8) //  [1]
+const res9 = await client.json.numIncrBy("crashes", "$", 1.5);
+console.log(res9) //  [2.5]
 
-// const res9 = await client.json.numIncrBy("crashes", "$", 1.5);
-// console.log(res9) //  [2.5]
+const res10 = await client.json.numIncrBy("crashes", "$", -0.75);
+console.log(res10) //  [1.75]
+// STEP_END
 
-// const res10 = await client.json.numIncrBy("crashes", "$", -0.75);
-// console.log(res10) //  [1.75]
-// // STEP_END
+// REMOVE_START
+assert.deepEqual(res10, [1.75])
+// REMOVE_END
 
-// // REMOVE_START
-// assert.deepEqual(res10, [1.75])
-// // REMOVE_END
+// STEP_START arr
+const res11 = await client.json.set("newbike", "$", ["Deimos", {"crashes": 0 }, null]);
+console.log(res11); //  True
 
-// // STEP_START arr
-// const res11 = await client.json.set("newbike", "$", ["Deimos", {
-//   "crashes": 0
-// }, null])
-// console.log(res11) //  True
+const res12 = await client.json.get("newbike", "$");
+console.log(res12); //  ['["Deimos", { "crashes": 0 }, null]']
 
-// const res12 = await client.json.get("newbike", "$")
-// console.log(res12) //  ['["Deimos", { "crashes": 0 }, null]']
+const res13 = await client.json.get("newbike", "$[1].crashes");
+console.log(res13); //  ['0']
 
-// const res13 = await client.json.get("newbike", "$[1].crashes")
-// console.log(res13) //  ['0']
+const res14 = await client.json.del("newbike", "$.[-1]");
+console.log(res14); //  [1]
 
-// const res14 = await client.json.del("newbike", "$.[-1]")
-// console.log(res14) //  [1]
+const res15 = await client.json.get("newbike", "$");
+console.log(res15); //  [['Deimos', {'crashes': 0}]]
+// STEP_END
 
-// const res15 = await client.json.get("newbike", "$")
-// console.log(res15) //  [['Deimos', {'crashes': 0}]]
-// // STEP_END
+// REMOVE_START
+assert.deepEqual(res15, ["Deimos", {
+  "crashes": 0
+}]);
+// REMOVE_END
 
-// // REMOVE_START
-// assert.deepEqual(res15, ["Deimos", {
-//   "crashes": 0
-// }])
-// // REMOVE_END
+// STEP_START arr2
+const res16 = await client.json.set("riders", "$", []);
+console.log(res16); //  True
 
-// // STEP_START arr2
-// const res16 = await client.json.set("riders", "$", [])
-// console.log(res16) //  True
+const res17 = await client.json.arrAppend("riders", "$", "Norem");
+console.log(res17); //  [1]
 
-// const res17 = await client.json.arrAppend("riders", "$", "Norem")
-// console.log(res17) //  [1]
+const res18 = await client.json.get("riders", "$");
+console.log(res18); //  [['Norem']]
 
-// const res18 = await client.json.get("riders", "$")
-// console.log(res18) //  [['Norem']]
+const res19 = await client.json.arrInsert("riders", "$", 1, "Prickett", "Royse", "Castilla");
+console.log(res19); //  [4]
 
-// const res19 = await client.json.arrInsert("riders", "$", 1, "Prickett", "Royse", "Castilla")
-// console.log(res19) //  [4]
+const res20 = await client.json.get("riders", "$");
+console.log(res20); //  [['Norem', 'Prickett', 'Royse', 'Castilla']]
 
-// const res20 = await client.json.get("riders", "$")
-// console.log(res20) //  [['Norem', 'Prickett', 'Royse', 'Castilla']]
+const res21 = await client.json.arrTrim("riders", "$", 1, 1);
+console.log(res21); //  [1]
 
-// const res21 = await client.json.arrTrim("riders", "$", 1, 1)
-// console.log(res21) //  [1]
+const res22 = await client.json.get("riders", "$");
+console.log(res22); //  [['Prickett']]
 
-// const res22 = await client.json.get("riders", "$")
-// console.log(res22) //  [['Prickett']]
+const res23 = await client.json.arrPop("riders", "$");
+console.log(res23); //  ['"Prickett"']
 
-// const res23 = await client.json.arrPop("riders", "$")
-// console.log(res23) //  ['"Prickett"']
+const res24 = await client.json.arrPop("riders", "$");
+console.log(res24); //  [null]
+// STEP_END
 
-// const res24 = await client.json.arrPop("riders", "$")
-// console.log(res24) //  [None]
-// // STEP_END
+// REMOVE_START
+assert.deepEqual(res24, [null]);
+// REMOVE_END
 
-// // REMOVE_START
-// // assert res24 == [None]
-// // REMOVE_END
+// STEP_START obj
+const res25 = await client.json.set(
+  "bike:1", "$", {
+    "model": "Deimos",
+    "brand": "Ergonom",
+    "price": 4972
+  }
+);
+console.log(res25); //  True
 
-// // STEP_START obj
-// const res25 = await client.json.set(
-//   "bike:1", "$", {
-//     "model": "Deimos",
-//     "brand": "Ergonom",
-//     "price": 4972
-//   }
-// )
-// console.log(res25) //  True
+const res26 = await client.json.objLen("bike:1", "$");
+console.log(res26); //  [3]
 
-// const res26 = await client.json.objLen("bike:1", "$")
-// console.log(res26) //  [3]
+const res27 = await client.json.objKeys("bike:1", "$");
+console.log(res27); //  [['model', 'brand', 'price']]
+// STEP_END
 
-// const res27 = await client.json.objKeys("bike:1", "$")
-// console.log(res27) //  [['model', 'brand', 'price']]
-// // STEP_END
+// REMOVE_START
+assert.deepEqual(res27, [
+  ["model", "brand", "price"]
+]);
+// REMOVE_END
 
-// // REMOVE_START
-// assert.deepEqual(res27, [
-//   ["model", "brand", "price"]
-// ])
-// // REMOVE_END
-
-// // STEP_START set_bikes
-// // HIDE_START
+// STEP_START set_bikes
+// HIDE_START
 const inventoryJSON = {
   "inventory": {
     "mountain_bikes": [{
@@ -202,14 +199,14 @@ const inventoryJSON = {
       },
     ],
   }
-}
+};
 // HIDE_END
 
 const res28 = await client.json.set("bikes:inventory", "$", inventoryJSON);
 console.log(res28); //  OK
 // STEP_END
 
-// // STEP_START get_bikes
+// STEP_START get_bikes
 const res29 = await client.json.get("bikes:inventory", {
   path: "$.inventory.*"
 });
@@ -261,7 +258,7 @@ console.log(res29);
     ]
   ]
 */
-// // STEP_END
+// STEP_END
 
 // STEP_START get_mtnbikes
 const res30 = await client.json.get("bikes:inventory", {
@@ -272,12 +269,12 @@ console.log(res30); //  ['Phoebe', 'Quaoar', 'Weywot']
 const res31 = await client.json.get("bikes:inventory", {
   path: '$.inventory["mountain_bikes"][*].model'
 });
-console.log(res31) //  ['Phoebe', 'Quaoar', 'Weywot']
+console.log(res31); //  ['Phoebe', 'Quaoar', 'Weywot']
 
 const res32 = await client.json.get("bikes:inventory", {
   path: "$..mountain_bikes[*].model"
 });
-console.log(res32) //  [['Phoebe', 'Quaoar', 'Weywot']]
+console.log(res32); //  [['Phoebe', 'Quaoar', 'Weywot']]
 // STEP_END
 
 // REMOVE_START
@@ -311,8 +308,8 @@ assert.deepEqual(res34, ["Phoebe", "Quaoar"]);
 // STEP_START filters
 const res35 = await client.json.get("bikes:inventory", {
   path: "$..mountain_bikes[?(@.price < 3000 && @.specs.weight < 10)]"
-})
-console.log(res35)
+});
+console.log(res35);
 /*
 [
   {
@@ -329,8 +326,8 @@ console.log(res35)
 //  names of bikes made from an alloy
 const res36 = await client.json.get("bikes:inventory", {
   path: "$..[?(@.specs.material == 'alloy')].model"
-})
-console.log(res36)  //  ['Weywot', 'Mimas']
+});
+console.log(res36); //  ['Weywot', 'Mimas']
 // REMOVE_START
 assert.deepEqual(res36, ["Weywot", "Mimas"]);
 // REMOVE_END
@@ -352,31 +349,31 @@ const res38 = await client.json.get("bikes:inventory", {
 });
 console.log(res38);  //  [1920, 2072, 3264, 1475, 3941]
 
-const res39 = await client.json.numIncrBy("bikes:inventory", "$..price", -100)
-console.log(res39)  //  [1820, 1972, 3164, 1375, 3841]
+const res39 = await client.json.numIncrBy("bikes:inventory", "$..price", -100);
+console.log(res39);  //  [1820, 1972, 3164, 1375, 3841]
 
-const res40 = await client.json.numIncrBy("bikes:inventory", "$..price", 100)
-console.log(res40)  //  [1920, 2072, 3264, 1475, 3941]
+const res40 = await client.json.numIncrBy("bikes:inventory", "$..price", 100);
+console.log(res40);  //  [1920, 2072, 3264, 1475, 3941]
 // STEP_END
 
 // REMOVE_START
-assert.deepEqual(res40.sort(), [1475, 1920, 2072, 3264, 3941])
+assert.deepEqual(res40.sort(), [1475, 1920, 2072, 3264, 3941]);
 // REMOVE_END
 
 // STEP_START update_filters
-const res14 = await client.json.arrAppend(
+const res41 = await client.json.arrAppend(
     "bikes:inventory", "$.inventory.*[?(@.price<2000)].colors", "pink"
-)
-console.log(res14)  //  [3, 3]
+);
+console.log(res41);  //  [3, 3]
 
-const res15 = await client.json.get("bikes:inventory", {
+const res42 = await client.json.get("bikes:inventory", {
   path: "$..[*].colors"
 });
-console.log(res15);  //  [['black', 'silver', 'pink'], ['black', 'white'], ['black', 'silver', 'pink']]
+console.log(res42);  //  [['black', 'silver', 'pink'], ['black', 'white'], ['black', 'silver', 'pink']]
 // STEP_END
 
 // REMOVE_START
-assert.deepEqual(res15, [
+assert.deepEqual(res42, [
     ["black", "silver", "pink"],
     ["black", "white"],
     ["black", "silver", "pink"],
