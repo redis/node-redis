@@ -1,4 +1,4 @@
-import { RedisArgument, DoubleReply, Command } from '../RESP/types';
+import { RedisArgument, Command } from '../RESP/types';
 import { transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
 export default {

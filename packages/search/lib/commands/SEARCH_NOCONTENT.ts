@@ -1,30 +1,13 @@
-import { RedisCommandArguments } from "@redis/client/dist/lib/commands";
-import { pushSearchOptions } from ".";
-import { SearchOptions, SearchRawReply } from "./SEARCH";
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import SEARCH from './SEARCH';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    index: string,
-    query: string,
-    options?: SearchOptions
-): RedisCommandArguments {
-    return pushSearchOptions(
-        ['FT.SEARCH', index, query, 'NOCONTENT'],
-        options
-    );
-}
-
-export interface SearchNoContentReply {
-    total: number;
-    documents: Array<string>;
-};
-
-export function transformReply(reply: SearchRawReply): SearchNoContentReply {
-    return {
-        total: reply[0],
-        documents: reply.slice(1)
-    };
-}
+export default {
+  FIRST_KEY_INDEX: SEARCH.FIRST_KEY_INDEX,
+  IS_READ_ONLY: SEARCH.IS_READ_ONLY,
+  transformArguments(...args: Parameters<typeof SEARCH.transformArguments>) {
+    const redisArgs = SEARCH.transformArguments(...args);
+    redisArgs.push('NOCONTENT');
+    return redisArgs;
+  },
+  transformReply: undefined as unknown as () => any
+} as const satisfies Command;

@@ -1,4 +1,4 @@
-import { RedisArgument, NumberReply, ArrayReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface JsonDebugMemoryOptions {
   path?: RedisArgument;

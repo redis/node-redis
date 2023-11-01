@@ -1,6 +1,5 @@
 import { RedisArgument, SimpleStringReply, Command, CommandArguments } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { PropertyName } from '.';
 
 export const SCHEMA_FIELD_TYPE = {
   TEXT: 'TEXT',
@@ -257,14 +256,16 @@ export const REDISEARCH_LANGUAGE = {
 
 export type RediSearchLanguage = typeof REDISEARCH_LANGUAGE[keyof typeof REDISEARCH_LANGUAGE];
 
+export type RediSearchProperty = `${'@' | '$.'}${string}`;
+
 export interface CreateOptions {
   ON?: 'HASH' | 'JSON';
   PREFIX?: RedisVariadicArgument;
   FILTER?: RedisArgument;
   LANGUAGE?: RediSearchLanguage;
-  LANGUAGE_FIELD?: PropertyName;
+  LANGUAGE_FIELD?: RediSearchProperty;
   SCORE?: number;
-  SCORE_FIELD?: PropertyName;
+  SCORE_FIELD?: RediSearchProperty;
   // PAYLOAD_FIELD?: string;
   MAXTEXTFIELDS?: boolean;
   TEMPORARY?: number;

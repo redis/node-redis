@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r source-map-support/register -r ts-node/register './lib/**/*.spec.ts'"
+    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
   },
   "peerDependencies": {
     "@redis/client": "*"

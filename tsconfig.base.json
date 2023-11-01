@@ -1,12 +1,18 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json",
   "compilerOptions": {
+    "lib": ["ES2023"],
+    "module": "ES2022",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    
     "composite": true,
     "declaration": true,
     "allowJs": true
-  },
-  "ts-node": {
-    "files": true,
-    "transpileOnly": true
   }
 }

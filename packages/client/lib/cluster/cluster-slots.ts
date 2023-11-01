@@ -1,16 +1,10 @@
 import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
-import { types } from 'node:util';
 import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PubSubType, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
-
-// TODO: ?!
-// We need to use 'require', because it's not possible with Typescript to import
-// function that are exported as 'module.exports = function`, without esModuleInterop
-// set to true.
-const calculateSlot = require('cluster-key-slot');
+import calculateSlot from 'cluster-key-slot';
 
 interface NodeAddress {
   host: string;

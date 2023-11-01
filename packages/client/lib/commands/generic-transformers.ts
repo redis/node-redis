@@ -1,4 +1,4 @@
-import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, MapReply, NullReply, NumberReply, RedisArgument, TuplesReply, RespType } from '../RESP/types';
+import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply } from '../RESP/types';
 
 export function isNullReply(reply: unknown): reply is NullReply {
   return reply === null;

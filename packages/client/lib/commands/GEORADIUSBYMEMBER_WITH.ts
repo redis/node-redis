@@ -1,4 +1,4 @@
-import { RedisArgument, CommandArguments, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, CommandArguments, Command } from '../RESP/types';
 import GEORADIUSBYMEMBER from './GEORADIUSBYMEMBER';
 import { GeoSearchOptions, GeoUnits, pushGeoSearchOptions } from './GEOSEARCH';
 import GEOSEARCH_WITH, { GeoReplyWith } from './GEOSEARCH_WITH';

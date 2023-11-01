@@ -1,4 +1,4 @@
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, Command, CommandArguments, ReplyUnion } from '../RESP/types';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, Command, CommandArguments, ReplyUnion } from '../RESP/types';
 import { RedisClientType } from '.';
 import { getTransformReply } from '../commander';
 import { ErrorReply } from '../errors';

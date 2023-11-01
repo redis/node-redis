@@ -1,4 +1,4 @@
-import { RedisClientType } from '@redis/client/dist/lib/client/index';
+import { RedisClientType } from '@redis/client';
 import { RedisArgument, RedisFunctions, RedisScripts } from '@redis/client/dist/lib/RESP/types';
 import QUERY, { QueryOptions } from './commands/QUERY';
 
@@ -132,7 +132,7 @@ type GraphReply<T> = {
 type GraphClientType = RedisClientType<{
   graph: {
     query: typeof QUERY,
-    roQuery: typeof import('./commands/RO_QUERY').default
+    roQuery: typeof import('./commands/RO_QUERY.js').default
   }
 }, RedisFunctions, RedisScripts>;
 

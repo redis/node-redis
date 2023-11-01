@@ -1,4 +1,4 @@
-import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types'; 
+import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command } from '../RESP/types'; 
 
 export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'peak.allocated'>, NumberReply],

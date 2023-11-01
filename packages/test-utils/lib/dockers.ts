@@ -46,7 +46,7 @@ export interface RedisServerDocker {
   dockerId: string;
 }
 
-// extrea ".." cause it'll be in `./dist`
+// extra ".." cause it'll be in `./dist`
 const DOCKER_FODLER_PATH = path.join(__dirname, '../../docker');
 
 async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {

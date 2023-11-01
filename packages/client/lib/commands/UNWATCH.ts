@@ -1,4 +1,4 @@
-import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { SimpleStringReply, Command } from '../RESP/types';
 
 export default {
   FIRST_KEY_INDEX: undefined,

@@ -1,5 +1,5 @@
 import { Command } from '../RESP/types';
-import EVAL, { EvalOptions, transformEvalArguments } from './EVAL';
+import EVAL, { transformEvalArguments } from './EVAL';
 
 export default {
   FIRST_KEY_INDEX: EVAL.FIRST_KEY_INDEX,

@@ -210,11 +210,6 @@ export type ReplyWithTypeMapping<
   )
 );
 
-type a = ReplyWithTypeMapping<
-  ArrayReply<TuplesReply<[BlobStringReply | NullReply]>>,
-  {}
->;
-
 export type TransformReply = (this: void, reply: any, preserve?: any) => any; // TODO;
 
 export type RedisArgument = string | Buffer;

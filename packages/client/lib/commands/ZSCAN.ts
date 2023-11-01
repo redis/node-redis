@@ -1,6 +1,6 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 import { ScanCommonOptions, pushScanArguments } from './SCAN';
-import { SortedSetMember, transformDoubleReply, transformSortedSetReply } from './generic-transformers';
+import { transformSortedSetReply } from './generic-transformers';
 
 export interface HScanEntry {
   field: BlobStringReply;

@@ -1,5 +1,4 @@
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export interface BfReserveOptions {
   EXPANSION?: number;

@@ -1,4 +1,4 @@
-import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 import { transformBooleanReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {

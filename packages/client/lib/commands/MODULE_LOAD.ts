@@ -1,5 +1,4 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
-import { pushVariadicArguments } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: undefined,
