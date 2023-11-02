@@ -4,7 +4,8 @@
     "declaration": true,
     "allowJs": true,
     "useDefineForClassFields": true,
-    "esModuleInterop": false
+    "esModuleInterop": false,
+    "resolveJsonModule": true
   },
   "ts-node": {
     "files": true
