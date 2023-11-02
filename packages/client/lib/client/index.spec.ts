@@ -139,7 +139,7 @@ describe('Client', () => {
         }, {
             ...GLOBAL.SERVERS.PASSWORD,
             clientOptions: {
-     1           ...GLOBAL.SERVERS.PASSWORD.clientOptions,
+                ...GLOBAL.SERVERS.PASSWORD.clientOptions,
                 disableClientInfo: true
             },
             minimumDockerVersion: [7, 2]
