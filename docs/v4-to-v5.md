@@ -207,6 +207,7 @@ await cluster.multi()
 ### Search
 
 - `FT.SUGDEL`: [^boolean-to-number]
+- `FT.CURSOR READ`: `cursor` type changed from `number` to `string` (in and out) to avoid issues when the number is bigger than `Number.MAX_SAFE_INTEGER`. See [here](https://github.com/redis/node-redis/issues/2561).
 
 ### Time Series
 

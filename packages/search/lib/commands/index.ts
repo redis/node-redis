@@ -9,7 +9,7 @@ import CONFIG_GET from './CONFIG_GET';
 import CONFIG_SET from './CONFIG_SET';
 import CREATE from './CREATE';
 import CURSOR_DEL from './CURSOR_DEL';
-// import CURSOR_READ from './CURSOR_READ';
+import CURSOR_READ from './CURSOR_READ';
 import DICTADD from './DICTADD';
 import DICTDEL from './DICTDEL';
 import DICTDUMP from './DICTDUMP';
@@ -61,8 +61,8 @@ export default {
   create: CREATE,
   CURSOR_DEL,
   cursorDel: CURSOR_DEL,
-  // CURSOR_READ,
-  // cursorRead: CURSOR_READ,
+  CURSOR_READ,
+  cursorRead: CURSOR_READ,
   DICTADD,
   dictAdd: DICTADD,
   DICTDEL,
