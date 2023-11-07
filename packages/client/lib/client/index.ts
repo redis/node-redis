@@ -69,7 +69,7 @@ export interface RedisClientOptions<
      */
     pingInterval?: number;
     /**
-     * Don't send client info to Redis server
+     * If set to true, disables sending client identifier (user-agent like message) to the redis server
      */
     disableClientInfo?: boolean;
     /**
