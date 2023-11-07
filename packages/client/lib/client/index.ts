@@ -11,10 +11,12 @@ import { ScanCommandOptions } from '../commands/SCAN';
 import { HScanTuple } from '../commands/HSCAN';
 import { attachCommands, attachExtensions, fCallArguments, transformCommandArguments, transformCommandReply, transformLegacyCommandArguments } from '../commander';
 import { Pool, Options as PoolOptions, createPool } from 'generic-pool';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, ErrorReply } from '../errors';
 import { URL } from 'url';
 import { TcpSocketConnectOpts } from 'net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
+
+import {version} from '../../package.json';
 
 export interface RedisClientOptions<
     M extends RedisModules = RedisModules,
@@ -66,6 +68,14 @@ export interface RedisClientOptions<
      * Useful with Redis deployments that do not use TCP Keep-Alive.
      */
     pingInterval?: number;
+    /**
+     * If set to true, disables sending client identifier (user-agent like message) to the redis server
+     */
+    disableClientInfo?: boolean;
+    /**
+     * Tag to append to library name that is sent to the Redis server
+     */
+    clientInfoTag?: string;
 }
 
 type WithCommands = {
@@ -273,6 +283,33 @@ export default class RedisClient<
                     )
                 );
             }
+
+            if (!this.#options?.disableClientInfo) {
+                promises.push(
+                    this.#queue.addCommand(
+                        [  'CLIENT', 'SETINFO', 'LIB-VER', version],
+                        { asap: true }
+                    ).catch(err => {
+                        if (!(err instanceof ErrorReply)) {
+                            throw err;
+                        }
+                    })
+                );
+
+                promises.push(
+                    this.#queue.addCommand(
+                        [
+                           'CLIENT', 'SETINFO', 'LIB-NAME',
+                            this.#options?.clientInfoTag ? `node-redis(${this.#options.clientInfoTag})` : 'node-redis'
+                        ],
+                        { asap: true }
+                    ).catch(err => {
+                        if (!(err instanceof ErrorReply)) {
+                            throw err;
+                        }
+                    })
+                );
+              }
 
             if (this.#options?.name) {
                 promises.push(

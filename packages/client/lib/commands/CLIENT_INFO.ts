@@ -31,6 +31,9 @@ export interface ClientInfoReply {
     user?: string; // 6.0
     redir?: number; // 6.2
     resp?: number; // 7.0
+    // 7.2
+    libName?: string;
+    libVer?: string;
 }
 
 const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
@@ -62,7 +65,9 @@ export function transformReply(rawReply: string): ClientInfoReply {
         totMem: Number(map['tot-mem']),
         events: map.events,
         cmd: map.cmd,
-        user: map.user
+        user: map.user,
+        libName: map['lib-name'],
+        libVer: map['lib-ver'],
     };
 
     if (map.laddr !== undefined) {
