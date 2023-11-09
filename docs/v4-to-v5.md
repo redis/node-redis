@@ -134,7 +134,8 @@ await cluster.multi()
 - `CLIENT KILL`: `enum ClientKillFilters` -> `const CLIENT_KILL_FILTERS` [^enum-to-constants]
 - `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants]
 - `CLIENT TRACKINGINFO`: `flags` in RESP2 - `Set<string>` -> `Array<string>` (to match RESP3 default type mapping)
-- `CLUSETER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
+- `CLUSTER INFO`:
+- `CLUSTER SETSLOT`: `ClusterSlotStates` -> `CLUSTER_SLOT_STATES` [^enum-to-constants]
 - `CLUSTER RESET`: the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `CLUSTER FAILOVER`: `enum FailoverModes` -> `const FAILOVER_MODES` [^enum-to-constants], the second argument is `{ mode: string; }` instead of `string` [^future-proofing]
 - `CLUSTER LINKS`: `createTime` -> `create-time`, `sendBufferAllocated` -> `send-buffer-allocated`, `sendBufferUsed` -> `send-buffer-used` [^map-keys]
@@ -145,7 +146,7 @@ await cluster.multi()
 - `HEXISTS`: `boolean` -> `number` [^boolean-to-number]
 - `HRANDFIELD_COUNT_WITHVALUES`: `Record<BlobString, BlobString>` -> `Array<{ field: BlobString; value: BlobString; }>` (it can return duplicates).
 - `HSETNX`: `boolean` -> `number` [^boolean-to-number]
-
+- `INFO`:
 - `LCS IDX`: `length` has been changed to `len`, `matches` has been changed from `Array<{ key1: RangeReply; key2: RangeReply; }>` to `Array<[key1: RangeReply, key2: RangeReply]>`
 
 

@@ -2,7 +2,7 @@ import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import CARD from './CARD';
 import EXISTS from './EXISTS';
-// import INFO from './INFO';
+import INFO from './INFO';
 import INSERT from './INSERT';
 import LOADCHUNK from './LOADCHUNK';
 import MADD from './MADD';
@@ -17,8 +17,8 @@ export default {
   card: CARD,
   EXISTS,
   exists: EXISTS,
-  // INFO,
-  // info: INFO,
+  INFO,
+  info: INFO,
   INSERT,
   insert: INSERT,
   LOADCHUNK,

@@ -4,7 +4,7 @@ import ADDNX from './ADDNX';
 import COUNT from './COUNT';
 import DEL from './DEL';
 import EXISTS from './EXISTS';
-// import INFO from './INFO';
+import INFO from './INFO';
 import INSERT from './INSERT';
 import INSERTNX from './INSERTNX';
 import LOADCHUNK from './LOADCHUNK';
@@ -22,8 +22,8 @@ export default {
   del: DEL,
   EXISTS,
   exists: EXISTS,
-  // INFO,
-  // info: INFO,
+  INFO,
+  info: INFO,
   INSERT,
   insert: INSERT,
   INSERTNX,

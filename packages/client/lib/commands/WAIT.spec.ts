@@ -10,13 +10,10 @@ describe('WAIT', () => {
     );
   });
 
-  testUtils.testAll('wait', async client => {
+  testUtils.testWithClient('client.wait', async client => {
     assert.equal(
       await client.wait(0, 1),
       0
     );
-  }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
-  });
+  }, GLOBAL.SERVERS.OPEN);
 });

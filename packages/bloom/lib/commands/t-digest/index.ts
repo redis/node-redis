@@ -4,7 +4,7 @@ import BYRANK from './BYRANK';
 import BYREVRANK from './BYREVRANK';
 import CDF from './CDF';
 import CREATE from './CREATE';
-// import INFO from './INFO';
+import INFO from './INFO';
 import MAX from './MAX';
 import MERGE from './MERGE';
 import MIN from './MIN';
@@ -25,8 +25,8 @@ export default {
   cdf: CDF,
   CREATE,
   create: CREATE,
-  // INFO,
-  // info: INFO,
+  INFO,
+  info: INFO,
   MAX,
   max: MAX,
   MERGE,
