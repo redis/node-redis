@@ -14,5 +14,7 @@
     "path": "./packages/search"
   }, {
     "path": "./packages/time-series"
+  }, {
+    "path": "./packages/redis"
   }]
 }
