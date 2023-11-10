@@ -78,7 +78,7 @@ type PubSubNode<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = (
-  Exclude<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
+  Omit<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
   Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>>
 );
 
