@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "lib": ["ES2023"],
-    "module": "ES2022",
+    "module": "CommonJS",
     "moduleResolution": "Node",
     "target": "ES2022",
 
