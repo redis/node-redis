@@ -10,12 +10,12 @@
     "!dist/tsconfig.tsbuildinfo"
   ],
   "dependencies": {
-    "@redis/bloom": "2.0.0-next.1",
+    "@redis/bloom": "2.0.0-next.2",
     "@redis/client": "2.0.0-next.4",
-    "@redis/graph": "2.0.0-next.1",
-    "@redis/json": "2.0.0-next.1",
-    "@redis/search": "2.0.0-next.1",
-    "@redis/time-series": "2.0.0-next.1"
+    "@redis/graph": "2.0.0-next.2",
+    "@redis/json": "2.0.0-next.2",
+    "@redis/search": "2.0.0-next.2",
+    "@redis/time-series": "2.0.0-next.2"
   },
   "repository": {
     "type": "git",
