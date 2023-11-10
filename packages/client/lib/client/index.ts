@@ -517,7 +517,7 @@ export default class RedisClient<
   /**
    * Create {@link RedisClientPool `RedisClientPool`} using this client as a prototype
    */
-  pool(options?: Partial<RedisPoolOptions>) {
+  createPool(options?: Partial<RedisPoolOptions>) {
     return RedisClientPool.create(
       this._options,
       options

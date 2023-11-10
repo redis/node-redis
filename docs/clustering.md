@@ -4,26 +4,22 @@
 
 Connecting to a cluster is a bit different. Create the client by specifying some (or all) of the nodes in your cluster and then use it like a regular client instance:
 
-```typescript
+```javascript
 import { createCluster } from 'redis';
 
-const cluster = createCluster({
-  rootNodes: [
-    {
+const cluster = await createCluster({
+    rootNodes: [{
       url: 'redis://10.0.0.1:30001'
-    },
-    {
+    }, {
       url: 'redis://10.0.0.2:30002'
-    }
-  ]
-});
-
-cluster.on('error', (err) => console.log('Redis Cluster Error', err));
-
-await cluster.connect();
+    }]
+  })
+  .on('error', err => console.log('Redis Cluster Error', err))
+  .connect();
 
 await cluster.set('key', 'value');
 const value = await cluster.get('key');
+await cluster.close();
 ```
 
 ## `createCluster` configuration

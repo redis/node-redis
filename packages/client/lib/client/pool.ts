@@ -216,7 +216,7 @@ export class RedisClientPool<
   }
 
   /**
-   * You are probably looking for {@link RedisClient.pool `RedisClient.pool`},
+   * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
    * {@link RedisClientPool.fromClient `RedisClientPool.fromClient`},
    * or {@link RedisClientPool.fromOptions `RedisClientPool.fromOptions`}...
    */

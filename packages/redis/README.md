@@ -61,7 +61,7 @@ To check if the the client is connected and ready to send commands, use `client.
 
 There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) and a friendlier camel-cased version (`hSet`, `hGetAll`, etc.):
 
-```typescript
+```javascript
 // raw Redis commands
 await client.HSET('key', 'field', 'value');
 await client.HGETALL('key');
@@ -73,7 +73,7 @@ await client.hGetAll('key');
 
 Modifiers to commands are specified using a JavaScript object:
 
-```typescript
+```javascript
 await client.set('key', 'value', {
   expiration: {
     type: 'EX',
@@ -85,7 +85,7 @@ await client.set('key', 'value', {
 
 Replies will be mapped to useful data structures:
 
-```typescript
+```javascript
 await client.hGetAll('key'); // { field1: 'value1', field2: 'value2' }
 await client.hVals('key'); // ['value1', 'value2']
 ```
@@ -96,7 +96,7 @@ await client.hVals('key'); // ['value1', 'value2']
 
 If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`:
 
-```typescript
+```javascript
 await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
 
 await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
@@ -110,7 +110,7 @@ There are two functions that disconnect a client from the Redis server. In most 
 
 #### `.close()`
 
-```typescript
+```javascript
 const [ping, get] = await Promise.all([
   client.ping(),
   client.get('key'),
@@ -134,14 +134,14 @@ Forcibly close a client's connection to Redis immediately. Calling `destroy` wil
 
 Node Redis will automatically pipeline requests that are made during the same "tick".
 
-```typescript
+```javascript
 client.set('Tm9kZSBSZWRpcw==', 'users:1');
 client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==');
 ```
 
 Of course, if you don't do something with your Promises you're certain to get [unhandled Promise exceptions](https://nodejs.org/api/process.html#process_event_unhandledrejection). To take advantage of auto-pipelining and handle your Promises, use `Promise.all()`.
 
-```typescript
+```javascript
 await Promise.all([
   client.set('Tm9kZSBSZWRpcw==', 'users:1'),
   client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
@@ -172,7 +172,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 - [Scan Iterators](../../docs/scan-iterators.md).
 - [Programmability](../../docs/programmability.md).
 - [Command Options](../../docs/command-options.md).
-- [Blocking Commands](../../docs/blocking-commands.md).
+- [Pool](../../docs/pool.md).
 - [Clustering](../../docs/clustering.md).
 
 ## Supported Redis versions

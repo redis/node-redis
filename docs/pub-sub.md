@@ -6,7 +6,7 @@ The Pub/Sub API is implemented by `RedisClient` and `RedisCluster`.
 
 Pub/Sub requires a dedicated stand-alone client. You can easily get one by `.duplicate()`ing an existing `RedisClient`:
 
-```typescript
+```javascript
 const subscriber = client.duplicate();
 subscriber.on('error', err => console.error(err));
 await subscriber.connect();

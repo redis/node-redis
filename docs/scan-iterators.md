@@ -4,7 +4,7 @@
 
 [`SCAN`](https://redis.io/commands/scan) results can be looped over using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
 
-```typescript
+```javascript
 for await (const keys of client.scanIterator()) {
   const values = await client.mGet(keys);
 }
@@ -12,7 +12,7 @@ for await (const keys of client.scanIterator()) {
 
 This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 
-```typescript
+```javascript
 for await (const entries of client.hScanIterator('hash')) {}
 for await (const members of client.sScanIterator('set')) {}
 for await (const membersWithScores of client.zScanIterator('sorted-set')) {}
@@ -20,7 +20,7 @@ for await (const membersWithScores of client.zScanIterator('sorted-set')) {}
 
 You can override the default options by providing a configuration object:
 
-```typescript
+```javascript
 client.scanIterator({
   cursor: '0', // optional, defaults to '0'
   TYPE: 'string', // `SCAN` only
