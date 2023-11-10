@@ -32,11 +32,6 @@ import SUGLEN from './SUGLEN';
 import SYNDUMP from './SYNDUMP';
 import SYNUPDATE from './SYNUPDATE';
 import TAGVALS from './TAGVALS';
-import { RedisArgument } from '@redis/client';
-// import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-// import { pushOptionalVariadicArgument, pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-// import { SearchOptions } from './SEARCH';
-// import { CommandArguments } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   _LIST,

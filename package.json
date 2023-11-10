@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "test": "npm run test -ws --if-present",
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' tsc --build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' tsc --build",
     "documentation": "typedoc",
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },

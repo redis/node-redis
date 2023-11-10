@@ -5,5 +5,18 @@
   },
   "include": [
     "./index.ts"
-  ]
+  ],
+  "references": [{
+    "path": "./packages/client"
+  }, {
+    "path": "./packages/bloom"
+  }, {
+    "path": "./packages/graph"
+  }, {
+    "path": "./packages/json"
+  }, {
+    "path": "./packages/search"
+  }, {
+    "path": "./packages/time-series"
+  }]
 }

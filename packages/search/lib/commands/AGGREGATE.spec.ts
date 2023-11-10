@@ -1,7 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import AGGREGATE from './AGGREGATE';
-// import { SchemaFieldTypes } from '.';
 
 describe('AGGREGATE', () => {
   describe('transformArguments', () => {

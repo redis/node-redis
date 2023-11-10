@@ -194,15 +194,15 @@ export default {
             break;
 
           case FT_AGGREGATE_STEPS.APPLY:
-            args.push('APPLY', step.expression, 'AS', step.AS);
+            args.push(step.expression, 'AS', step.AS);
             break;
 
           case FT_AGGREGATE_STEPS.LIMIT:
-            args.push('LIMIT', step.from.toString(), step.size.toString());
+            args.push(step.from.toString(), step.size.toString());
             break;
 
           case FT_AGGREGATE_STEPS.FILTER:
-            args.push('FILTER', step.expression);
+            args.push(step.expression);
             break;
         }
       }
