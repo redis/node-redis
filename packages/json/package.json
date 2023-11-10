@@ -11,7 +11,7 @@
     "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
   },
   "peerDependencies": {
-    "@redis/client": "*"
+    "@redis/client": "^2.0.0-next.3"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
