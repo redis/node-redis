@@ -44,7 +44,11 @@ export interface RedisSentinelOptions<
   /**
    * TODO
    */
-  poolSize?: number;
+  masterPoolSize?: number;
+  /**
+   * TODO
+   */
+  replicaPoolSize?: number;
 }
 
 export type PubSubToResubscribe = Record<
@@ -52,7 +56,7 @@ export type PubSubToResubscribe = Record<
   PubSubTypeListeners
 >;
 
-interface SentinelCommander<
+export interface SentinelCommander<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
