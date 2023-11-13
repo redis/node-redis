@@ -504,33 +504,17 @@ export default class RedisCluster<
     );
   }
 
-  /**
-   * @internal
-   */
-  async _executePipeline(
-    firstKey: RedisArgument | undefined,
-    isReadonly: boolean | undefined,
-    commands: Array<RedisMultiQueuedCommand>
-  ) {
-    const client = await this._slots.getClient(firstKey, isReadonly);
-    return client._executePipeline(commands);
-  }
-
-  /**
-   * @internal
-   */
-  async _executeMulti(
-    firstKey: RedisArgument | undefined,
-    isReadonly: boolean | undefined,
-    commands: Array<RedisMultiQueuedCommand>
-  ) {
-    const client = await this._slots.getClient(firstKey, isReadonly);
-    return client._executeMulti(commands);
-  }
-
-  MULTI(routing?: RedisArgument): RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
-    return new (this as any).Multi(
-      this,
+  MULTI(routing?: RedisArgument) {
+    type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
+    return new ((this as any).Multi as Multi)(
+      async (firstKey, isReadonly, commands) => {
+        const client = await this._slots.getClient(firstKey, isReadonly);
+        return client._executeMulti(commands);
+      },
+      async (firstKey, isReadonly, commands) => {
+        const client = await this._slots.getClient(firstKey, isReadonly);
+        return client._executePipeline(commands);
+      },
       routing
     );
   }

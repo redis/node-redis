@@ -1,8 +1,7 @@
 import COMMANDS from '../commands';
-import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../multi-command';
+import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import { RedisClientType } from '.';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -84,6 +83,10 @@ export type RedisClientMultiCommandType<
   WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
 );
 
+type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
+
+type ExecutePipeline = (commands: Array<RedisMultiQueuedCommand>) => Promise<Array<unknown>>;
+
 export default class RedisClientMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
@@ -149,11 +152,14 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   }
 
   private readonly _multi = new RedisMultiCommand();
-  private readonly _client: RedisClientType;
+  private readonly _executeMulti: ExecuteMulti;
+  private readonly _executePipeline: ExecutePipeline;
   private _selectedDB?: number;
 
-  constructor(client: RedisClientType) {
-    this._client = client;
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecutePipeline) {
+    this._executeMulti = executeMulti;
+    this._executePipeline = executePipeline;
+    // this._client = client;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {
@@ -173,7 +179,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
     return this._multi.transformReplies(
-      await this._client._executeMulti(this._multi.queue, this._selectedDB)
+      await this._executeMulti(this._multi.queue, this._selectedDB)
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -187,7 +193,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (this._multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
     return this._multi.transformReplies(
-      await this._client._executePipeline(this._multi.queue)
+      await this._executePipeline(this._multi.queue)
     ) as MultiReplyType<T, REPLIES>;
   }
 

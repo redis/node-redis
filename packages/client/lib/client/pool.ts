@@ -6,6 +6,7 @@ import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-l
 import { TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
+import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 
 export interface RedisPoolOptions {
   /**
@@ -118,7 +119,6 @@ export class RedisClientPool<
     clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
     options?: Partial<RedisPoolOptions>
   ) {
-    // @ts-ignore
     const Pool = attachConfig({
       BaseClass: RedisClientPool,
       commands: COMMANDS,
@@ -128,6 +128,8 @@ export class RedisClientPool<
       createScriptCommand: RedisClientPool._createScriptCommand,
       config: clientOptions
     });
+
+    Pool.prototype.Multi = RedisClientMultiCommand.extend(clientOptions);
 
     // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
     return Object.create(
@@ -327,8 +329,8 @@ export class RedisClientPool<
     this._returnClient(node);
   }
   
-  execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
+  execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>) {
+    return new Promise<Awaited<T>>((resolve, reject) => {
       const client = this._idleClients.shift(),
         { tail } = this._tasksQueue;
       if (!client) {
@@ -424,6 +426,16 @@ export class RedisClientPool<
   ) {
     return this.execute(client => client.executeScript(script, args, options));
   }
+
+  MULTI() {
+    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
+    return new ((this as any).Multi as Multi)(
+      (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
+      commands => this.execute(client => client._executePipeline(commands))
+    );
+  }
+
+  multi = this.MULTI;
 
   async close() {
     if (this._isClosing) return; // TODO: throw err?
