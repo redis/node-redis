@@ -333,6 +333,9 @@ import ZSCORE from './ZSCORE';
 import ZUNION_WITHSCORES from './ZUNION_WITHSCORES';
 import ZUNION from './ZUNION';
 import ZUNIONSTORE from './ZUNIONSTORE';
+import SENTINEL_SENTINELS from './SENTINEL_SENTINELS';
+import SENTINEL_MASTER from './SENTINEL_MASTER';
+import SENTINEL_REPLICAS from './SENTINEL_REPLICAS';
 
 export default {
   ACL_CAT,
@@ -1004,5 +1007,11 @@ export default {
   ZUNION,
   zUnion: ZUNION,
   ZUNIONSTORE,
-  zUnionStore: ZUNIONSTORE
+  zUnionStore: ZUNIONSTORE,
+  SENTINEL_SENTINELS,
+  sentinelSentinels: SENTINEL_SENTINELS,
+  SENTINEL_MASTER,
+  sentinelMaster: SENTINEL_MASTER,
+  SENTINEL_REPLICAS,
+  sentinelReplicas: SENTINEL_REPLICAS
 } as const satisfies RedisCommands;

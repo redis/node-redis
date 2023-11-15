@@ -1,19 +1,18 @@
-import { RedisNode } from './types';
+import { NodeInfo, RedisNode } from './types';
 
 /* TODO: should use map interface, would need a transform reply probably? as resp2 is list form, which this depends on */
-export function parseNode(data: any): RedisNode | undefined{
-  const flags: string = data[9];
-  if (flags.includes("s_down")) {
+export function parseNode(node: NodeInfo): RedisNode | undefined{
+  if (node.flags.includes("s_down")) {
     return undefined;
   }
 
-  return { "host": data[3], "port": Number(data[5]) };
+  return { "host": node.ip, "port": Number(node.port) };
 }
 
-export function createNodeList(data: any) {
+export function createNodeList(nodes: Array<NodeInfo>) {
   var nodeList: Array<RedisNode> = [];
 
-  for (const nodeData of data) {
+  for (const nodeData of nodes) {
     const node = parseNode(nodeData)
     if (node === undefined) {
       continue;

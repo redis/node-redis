@@ -6,7 +6,6 @@ import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
-import { RedisMultiQueuedCommand } from '../multi-command';
 import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 

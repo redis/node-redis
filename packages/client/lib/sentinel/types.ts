@@ -130,3 +130,9 @@ export interface SentinelCommandOptions<
 export type ProxySentinel = RedisSentinel<any, any, any, any, any>;
 
 export type NamespaceProxySentinel = { self: ProxySentinel };
+
+export type NodeInfo = {
+  ip: any,
+  port: any,
+  flags: any,
+};

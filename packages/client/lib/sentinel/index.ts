@@ -95,10 +95,12 @@ export default class RedisSentinel<
     })
   }
 
+  /* used to setup RedisSentinel objects with leases */
   #setClientInfo(clientInfo?: clientInfo) {
     this.clientInfo = clientInfo;
   }
 
+  /* used to setup RedisSentinel objects with leases */
   #setInternalObject(internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>) {
     this.internal = internal;
   }
@@ -305,6 +307,7 @@ export default class RedisSentinel<
       clientInfo = this.tmpClientInfo;
       this.tmpClientInfoCount++;
     }
+
     try {
       return await this.internal.execute(clientInfo, fn, execType, isReadonly);
     } finally {
@@ -689,7 +692,7 @@ class RedisSentinelInternal<
         /* need to unset on exec, if success or not */
         const watchEpoch = clientInfo.watchEpoch;
         clientInfo.watchEpoch = undefined;
-        if (watchEpoch !== this.#configEpoch) { 
+        if (watchEpoch !== undefined && watchEpoch !== this.#configEpoch) {
           throw new Error("sentinel config changed in middle of a WATCH Transaction");
         }
       }
@@ -718,20 +721,31 @@ class RedisSentinelInternal<
         throw err;
       } 
     }
-  }  
-  
+  }
+
+  /* instead of using raw sendCommand, perhaps should have a real command with transforms here, to avoid my ugly attempt at typing */
   async #updateSentinelNodes(node: RedisNode) {
-    const sentinels = await this.#sentinelClient?.sendCommand(['SENTINEL', 'SENTINELS', this.#name]);
-    const list = [node]
-    const sentinelList = createNodeList(sentinels)
+    const sentinelData = await this.#sentinelClient?.sentinelSentinels(this.#name) as Array<any>;
+
+    const sentinelList = createNodeList(sentinelData);
+
+    const list = [node];
     this.#sentinelRootNodes = list.concat(sentinelList);
   }
   
+  /* same comment from updateSentinelNodes */
   async #getDBNodes() {
-    const [master, replicas] = await Promise.all([
-      this.#sentinelClient?.sendCommand(['SENTINEL', 'MASTER', this.#name]),
-      this.#sentinelClient?.sendCommand(['SENTINEL', 'REPLICAS', this.#name])
+    const [masterReply, replicaReply] = await Promise.all([
+      this.#sentinelClient?.sentinelMaster(this.#name),
+      this.#sentinelClient?.sentinelReplicas(this.#name),
     ]);
+
+    const master = masterReply as any;
+    const replicas = replicaReply as Array<any>;
+
+//    const master = {ip: masterData!.ip, port: masterData!.port, flags: masterData!.flags};
+//    const initial: Array<NodeInfo> = [];
+//    const replicas = replicaData.reduce((replicas: Array<NodeInfo>, x: any) => {replicas.push({ip: x.ip, port: x.port, flags: x.flags}); return replicas}, initial) as Array<NodeInfo>;
 
     return {
       master,
@@ -860,7 +874,7 @@ class RedisSentinelInternal<
       case 'REPLICA':
         return this.#replicaClients[clientInfo.id];
     }
-  } 
+  }
 
   async #reset() {
     if (this.#connectPromise !== undefined) {
@@ -1015,5 +1029,4 @@ class RedisSentinelInternal<
 
     return this.isReady;
   }
-
 }
