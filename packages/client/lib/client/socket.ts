@@ -199,7 +199,7 @@ export default class RedisSocket extends EventEmitter {
                         .off('error', reject)
                         .once('error', (err: Error) => this.#onSocketError(err))
                         .once('close', hadError => {
-                            if (!hadError && this.#isReady && this.#socket === socket) {
+                            if (!hadError && this.#isOpen && this.#socket === socket) {
                                 this.#onSocketError(new SocketClosedUnexpectedlyError());
                             }
                         })
@@ -229,10 +229,11 @@ export default class RedisSocket extends EventEmitter {
     }
 
     #onSocketError(err: Error): void {
+        const wasReady = this.#isReady;
         this.#isReady = false;
         this.emit('error', err);
 
-        if (!this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
+        if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
         
         this.emit('reconnecting');
         this.#connect().catch(() => {
