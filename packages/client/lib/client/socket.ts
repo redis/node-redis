@@ -217,10 +217,11 @@ export default class RedisSocket extends EventEmitter {
   }
 
   private _onSocketError(err: Error): void {
+    const wasReady = this._isReady;
     this._isReady = false;
     this.emit('error', err);
 
-    if (!this._isOpen || typeof this._shouldReconnect(0, err) !== 'number') return;
+    if (!wasReady || !this._isOpen || typeof this._shouldReconnect(0, err) !== 'number') return;
 
     this.emit('reconnecting');
     this._connect().catch(() => {
