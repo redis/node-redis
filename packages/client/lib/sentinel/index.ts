@@ -545,7 +545,6 @@ class RedisSentinelInternal<
     options.socket.host = node.host;
     options.socket.port = node.port;
     
-
     return RedisClient.create(options);
   }
 
@@ -723,7 +722,6 @@ class RedisSentinelInternal<
     }
   }
 
-  /* instead of using raw sendCommand, perhaps should have a real command with transforms here, to avoid my ugly attempt at typing */
   async #updateSentinelNodes(node: RedisNode) {
     const sentinelData = await this.#sentinelClient?.sentinelSentinels(this.#name) as Array<any>;
 
@@ -733,7 +731,6 @@ class RedisSentinelInternal<
     this.#sentinelRootNodes = list.concat(sentinelList);
   }
   
-  /* same comment from updateSentinelNodes */
   async #getDBNodes() {
     const [masterReply, replicaReply] = await Promise.all([
       this.#sentinelClient?.sentinelMaster(this.#name),
@@ -742,10 +739,6 @@ class RedisSentinelInternal<
 
     const master = masterReply as any;
     const replicas = replicaReply as Array<any>;
-
-//    const master = {ip: masterData!.ip, port: masterData!.port, flags: masterData!.flags};
-//    const initial: Array<NodeInfo> = [];
-//    const replicas = replicaData.reduce((replicas: Array<NodeInfo>, x: any) => {replicas.push({ip: x.ip, port: x.port, flags: x.flags}); return replicas}, initial) as Array<NodeInfo>;
 
     return {
       master,
