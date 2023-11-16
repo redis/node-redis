@@ -802,10 +802,10 @@ class RedisSentinelInternal<
           this.#sentinelReset();
         })
   
-        const data = await client.sendCommand(['SENTINEL', 'MASTER', this.#name]) as Array<string>;
+        const data = await client.sentinelMaster(this.#name) as any;
 
         /* TODO: better to use map interface */
-        const epoch = Number(data[29]);
+        const epoch = Number(data['config-epoch']);
 
         return { client, epoch };
       } catch (err) {
