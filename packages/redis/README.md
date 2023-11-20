@@ -55,7 +55,9 @@ createClient({
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](../../docs/client-configuration.md).
 
-To check if the the client is connected and ready to send commands, use `client.isReady` which returns a boolean. `client.isOpen` is also available.  This returns `true` when the client's underlying socket is open, and `false` when it isn't (for example when the client is still connecting or reconnecting after a network error).
+To client exposes 2 `boolean`s that track the client state:
+1. `isOpen` - the client is either connecting or connected.
+2. `isReady` - the client is connected and ready to send 
 
 ### Redis Commands
 
@@ -97,18 +99,16 @@ await client.hVals('key'); // ['value1', 'value2']
 If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`:
 
 ```javascript
-await client.sendCommand(['SET', 'key', 'value', 'NX']); // 'OK'
-
+await client.sendCommand(['SET', 'key', 'value', 'EX', '10', 'NX']); // 'OK'
 await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
 ```
 
 ### Disconnecting
 
-There are two functions that disconnect a client from the Redis server. In most scenarios you should use `.close()` to ensure that pending commands are sent to Redis before closing a connection.
-
-> :warning: The `.quit()` and `.disconnect()` methods have been deprecated in v5. For more details, refer to the [v4-to-v5 guide](../../docs/v4-to-v5.md#quit-vs-disconnect).
-
 #### `.close()`
+
+Gracefully close a client's connection to Redis.
+Wait for commands in process, but reject any new commands.
 
 ```javascript
 const [ping, get] = await Promise.all([
@@ -124,11 +124,34 @@ try {
 }
 ```
 
-> :warning: `.close` is just like `.quit()` which was depreacted in Redis 7.2. See the [relevant section in the migration guide](../../docs/v4-to-v5.md#Quit-VS-Disconnect) for more information.
+> `.close()` is just like `.quit()` which was depreacted v5. See the [relevant section in the migration guide](../../docs/v4-to-v5.md#Quit-VS-Disconnect) for more information.
 
 #### `.destroy()`
 
-Forcibly close a client's connection to Redis immediately. Calling `destroy` will not send further pending commands to the Redis server, or wait for or parse outstanding responses.
+Forcibly close a client's connection to Redis.
+
+```javascript
+try {
+  const promise = Promise.all([
+    client.ping(),
+    client.get('key')
+  ]);
+
+  client.destroy();
+
+  await promise;
+} catch (err) {
+  // DisconnectsClientError
+}
+
+try {
+  await client.get('key');
+} catch (err) {
+  // ClientClosedError
+}
+```
+
+> `.destroy()` is just like `.disconnect()` which was depreated in v5. See the [relevant section in the migration guide](../../docs/v4-to-v5.md#Quit-VS-Disconnect) for more information.
 
 ### Auto-Pipelining
 
@@ -167,7 +190,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 
 ### Links
 
-- [Multi](../../docs/multi.md).
+- [Transactions (`MULTI`/`EXEC`)](../../docs/transactions.md).
 - [Pub/Sub](../../docs/pub-sub.md).
 - [Scan Iterators](../../docs/scan-iterators.md).
 - [Programmability](../../docs/programmability.md).
@@ -181,6 +204,7 @@ Node Redis is supported with the following versions of Redis:
 
 | Version | Supported          |
 |---------|--------------------|
+| 7.2.z   | :heavy_check_mark: |
 | 7.0.z   | :heavy_check_mark: |
 | 6.2.z   | :heavy_check_mark: |
 | 6.0.z   | :heavy_check_mark: |
