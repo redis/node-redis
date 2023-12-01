@@ -12,6 +12,7 @@ interface PubSubNode<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > {
+  destroy: boolean;
   client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   connectPromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
 }
@@ -52,25 +53,26 @@ export class PubSubProxy<
 
     options.socket.host = this.#node.host;
     options.socket.port = this.#node.port;
-    
+    options.socket.reconnectStrategy = false;
 
     return RedisClient.create(options);
   }
 
   async changeNode(node: RedisNode) {
     this.#node = node;
+
+    if (this.#pubSubNode) {
+      await this.close();
+    }
     
     if (this.hasListeners()) {
-        if (this.#pubSubNode) {
-            this.destroy();
-        }
-
-        await this.#initiatePubSubClient();
+      await this.#initiatePubSubClient();
     }
   }
 
   async close() {
     if (this.#pubSubNode) {
+      if (this.#pubSubNode.connectPromise === undefined) {
         const client = this.#pubSubNode.client;
 
         /* probably less needed, as close() means we're probably also shutting down whoever holds this */
@@ -78,26 +80,41 @@ export class PubSubProxy<
         this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
 
         this.#pubSubNode = undefined;
-        return client.close();
+        if (client.isOpen) {
+          client.close();
+        }
+      } else {
+        this.#pubSubNode.destroy = true;
+        await this.#pubSubNode.connectPromise;
+      }
     }
   }
 
   destroy() {
     if (this.#pubSubNode) {
+      if (this.#pubSubNode.connectPromise === undefined) {
         const client = this.#pubSubNode.client;
 
         this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
         this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
 
         this.#pubSubNode = undefined;
-        return client.destroy();
+        if (client.isOpen) {
+          client.destroy();
+        }
+      } else {
+        this.#pubSubNode.destroy = true;
+      }
     }
   }
 
   async #initiatePubSubClient() {
     const client = this.#createClient()
-      
+      .on('uncaughtException', err => this.emit('error', err))
+      .on("error", err => this.emit('error', err));
+            
     this.#pubSubNode = {
+      destroy: false,
       client: client,
       connectPromise: client.connect()
         .then(async client => {
@@ -109,6 +126,9 @@ export class PubSubProxy<
           }
 
           this.#pubSubNode!.connectPromise = undefined;
+          if (this.#pubSubNode?.destroy) {
+            this.destroy()
+          }
           return client;
         })
         .catch(err => {

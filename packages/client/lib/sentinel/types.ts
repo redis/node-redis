@@ -36,11 +36,11 @@ export interface RedisSentinelOptions<
   /**
    * TODO
    */
-  nodeClientOptions?: RedisClientOptions;
+  nodeClientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   /**
    * TODO
    */
-  sentinelClientOptions?: RedisClientOptions;
+  sentinelClientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   /**
    * TODO
    */
@@ -49,6 +49,10 @@ export interface RedisSentinelOptions<
    * TODO
    */
   replicaPoolSize?: number;
+  /**
+   * TODO
+   */
+  debug?: boolean;
 }
 
 export type PubSubToResubscribe = Record<
