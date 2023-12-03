@@ -6,7 +6,7 @@ import { WatchError } from "../errors";
 
 /* used to ensure test environment resets to normal state
    i.e. 
-   - all redis nodes are active
+   - all redis nodes are active and are part of the topology
    before allowing things to continue.
 */
 async function steadyState(frame: SentinelFramework) {
@@ -53,6 +53,11 @@ describe.only('Client', () => {
   after(async function() {
     this.timeout(15000);
 
+    if (sentinel !== undefined) {
+      sentinel.destroy();
+    }
+    sentinel = undefined;
+
     await frame.cleanup();
   })
 
@@ -98,27 +103,7 @@ describe.only('Client', () => {
     assert.equal(await sentinel.get('x'), null);
   });
 
-  // how to confirm that this actually read from a replica?
-  it('replica reads', async function() {
-    this.timeout(30000);
-  
-    sentinel = frame.getSentinelClient({useReplicas: true});
-    sentinel.on("error", () => {});
-    await sentinel.connect();
-    assert.equal(await sentinel.set("x", 456), 'OK');
-    await setTimeout(5000);
-    for (let i=0; i < 15; i++) {
-      try {
-        assert.equal(await sentinel.get("x"), '456');
-        break;
-      } catch (err) {
-        await setTimeout(1000);
-      }
-    }
-    assert.equal(await sentinel.get("x"), '456');
-  });
-
-  it('block on queue', async function () {
+  it('block on pool', async function () {
     this.timeout(30000);
   
     sentinel = frame.getSentinelClient({useReplicas: true});
@@ -158,38 +143,98 @@ describe.only('Client', () => {
     assert.equal(set, true);
   });
 
-  it('clean watch', async function() {
+  // by taking a lease, we know we will block, if no clients are available, so read occuring, means replica read occurs
+  it('replica reads', async function() {
+    this.timeout(30000);
+
+    sentinel = frame.getSentinelClient({useReplicas: true});
+    sentinel.on("error", () => {});
+    await sentinel.connect();
+
+    const clientLease = await sentinel.getMasterClientLease();
+    clientLease.set('x', 456);
+
+    let matched = false;
+    for (let i=0; i < 15; i++) {
+      try {
+        assert.equal(await sentinel.get("x"), '456');
+        matched = true;
+        break;
+      } catch (err) {
+        await setTimeout(1000);
+      }
+    }
+
+    clientLease.release();
+
+    assert.equal(matched, true);
+  });
+
+  it('use - watch - clean', async function() {
     this.timeout(30000);
   
     sentinel = frame.getSentinelClient({masterPoolSize: 2});
     await sentinel.connect();
 
     let promise = sentinel.use(async (client) => {
-      client.set("x", 1);
-      client.watch("x");
+      await client.set("x", 1);
+      await client.watch("x");
       return client.multi().get("x").exec();
     });
 
-    const ret = await promise as Array<any>;
-    assert.equal(ret[0], '1');
+    assert.deepEqual(await promise, ['1']);
   });
 
-  it('dirty watch', async function() {
+  it('use - watch - dirty', async function() {
     this.timeout(30000);
   
     sentinel = frame.getSentinelClient({masterPoolSize: 2});
     await sentinel.connect();
 
     let promise = sentinel.use(async (client) => {
-      client.set("x", 1);
-      client.watch("x");
-      await sentinel!.set("x", 2);
-      return client.multi().get("x").exec();
+      await client.set('x', 1);
+      await client.watch('x');
+      await sentinel!.set('x', 2);
+      return client.multi().get('x').exec();
     });
 
     await assert.rejects(promise, WatchError);
   });
 
+  it('lease - watch - clean', async function() {
+    sentinel = frame.getSentinelClient({masterPoolSize: 2});
+    await sentinel.connect();
+
+    const leasedClient = await sentinel.getMasterClientLease();
+    await leasedClient.set('x', 1);
+    await leasedClient.watch('x');
+    assert.deepEqual(await leasedClient.multi().get('x').exec(), ['1'])
+  });
+
+  it('lease - watch - dirty', async function() {
+    sentinel = frame.getSentinelClient({masterPoolSize: 2});
+    await sentinel.connect();
+
+    const leasedClient = await sentinel.getMasterClientLease();
+    await leasedClient.set('x', 1);
+    await leasedClient.watch('x');
+    await leasedClient.set('x', 2);
+
+    await assert.rejects(leasedClient.multi().get('x').exec(), WatchError);
+  });
+
+  
+  it('watch does not carry through leases', async function() {
+    sentinel = frame.getSentinelClient();
+    await sentinel.connect();
+
+    // each of these commands is an independent lease
+    assert.equal(await sentinel.watch("x"), 'OK')
+    assert.equal(await sentinel.set('x', 1), 'OK');
+    assert.deepEqual(await sentinel.multi().get('x').exec(), ['1']);
+  });
+
+  // stops master to force sentinel to update 
   it('stop master', async function() {
     this.timeout(30000);
 
@@ -197,22 +242,25 @@ describe.only('Client', () => {
     sentinel.on("error", () => {});
     await sentinel.connect();
 
-    let resolve;
-    const promise = new Promise((res) => {
-      resolve = res;
+    let masterChangeResolve;
+    const masterChangePromise = new Promise((res) => {
+      masterChangeResolve = res;
     })
 
-    sentinel.once('master-change', (node) => {
-      resolve(node);
+    const masterPort = await frame.getMasterPort();
+    sentinel.on('master-change', (node: RedisNode) => {
+      if (node.port != masterPort) {
+        masterChangeResolve(node);
+      }
     });
-
-    const masterPort = await frame.getMasterPort();   
+      
     await frame.stopNode(masterPort.toString());
 
-    const newMaster = await promise as RedisNode;
+    const newMaster = await masterChangePromise as RedisNode;
     assert.notEqual(masterPort, newMaster.port);
   });
 
+  // if master changes, client should make sure user knows watches are invalid
   it('watch across master change', async function() {
     this.timeout(30000);
   
@@ -242,6 +290,7 @@ describe.only('Client', () => {
     await assert.rejects(async () => {await client.multi().get("x").exec()}, new Error("sentinel config changed in middle of a WATCH Transaction"));
   });
 
+  // same as above, but set a watch before and after master change, shouldn't change the fact that watches are invalid
   it('watch before and after master change', async function() {
     this.timeout(30000);
   
@@ -311,6 +360,7 @@ describe.only('Client', () => {
     await pubSubPromise;
   });
 
+  // pubsub continues to work, even with a master change
   it('pubsub - channel - with master change', async function() {
     this.timeout(30000);
   
@@ -367,11 +417,13 @@ describe.only('Client', () => {
       masterChangeResolve = res;
     })
 
-    sentinel.once('master-change', (node) => {
-      masterChangeResolve(node);
+    const masterPort = await frame.getMasterPort();
+    sentinel.on('master-change', (node: RedisNode) => {
+      if (node.port != masterPort) {
+        masterChangeResolve(node);
+      }
     });
 
-    const masterPort = await frame.getMasterPort();   
     await frame.stopNode(masterPort.toString());
 
     const newMaster = await masterChangePromise as RedisNode;
@@ -384,6 +436,7 @@ describe.only('Client', () => {
     await pubSubPromise;
   })
 
+  // if we stop a node, the comand should "retry" until we reconfigure topology and execute on new topology
   it('command immeaditely after stopping master', async function() {
     this.timeout(30000);
   
@@ -396,11 +449,13 @@ describe.only('Client', () => {
       masterChangeResolve = res;
     })
 
-    sentinel.once('master-change', (node) => {
-      masterChangeResolve(node);
+    const masterPort = await frame.getMasterPort();
+    sentinel.on('master-change', (node: RedisNode) => {
+      if (node.port != masterPort) {
+        masterChangeResolve(node);
+      }
     });
 
-    const masterPort = await frame.getMasterPort();
     await frame.stopNode(masterPort.toString());
     assert.equal(await sentinel.set('x', 123), 'OK');
 
@@ -408,5 +463,51 @@ describe.only('Client', () => {
     assert.notEqual(masterPort, newMaster.port);
 
     assert.equal(await sentinel.get('x'), '123');
+  })
+
+  it('shutdown sentinel node', async function() {
+    this.timeout(10000);
+
+    sentinel = frame.getSentinelClient();
+    sentinel.on("error", () => {});
+    await sentinel.connect();
+
+    let sentinelChangeResolve;
+    const sentinelChangePromise = new Promise((res) => {
+      sentinelChangeResolve = res;
+    })
+
+    sentinel.once('sentinel-change', node => {
+      sentinelChangeResolve(node);
+    });
+
+    const sentinelPort = sentinel.options.sentinelRootNodes[0].port;
+    await frame.stopSentinel(sentinelPort.toString());
+
+    const newSentinel = await sentinelChangePromise as RedisNode;
+    assert.notEqual(sentinelPort, newSentinel.port);
+  })
+
+  it('timer works, and updates sentinel list', async function () {
+    this.timeout(30000);
+
+    sentinel = frame.getSentinelClient({scanInterval: 1000});
+    await sentinel.connect();
+
+    let sentinelChangeResolve;
+    const sentinelChangePromise = new Promise((res) => {
+      sentinelChangeResolve = res;
+    })
+
+    sentinel.once('sentinels-modified', size => {
+      if (size == 4) {
+        sentinelChangeResolve(size);
+      }
+    });
+
+    await frame.addSentinel();
+    const newSentinelSize = await sentinelChangePromise as number;
+
+    assert.equal(newSentinelSize, 4);
   })
 });

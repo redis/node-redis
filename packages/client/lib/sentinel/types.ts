@@ -53,6 +53,10 @@ export interface RedisSentinelOptions<
    * TODO
    */
   debug?: boolean;
+  /**
+   * TODO
+   */
+  scanInterval?: number;
 }
 
 export type PubSubToResubscribe = Record<

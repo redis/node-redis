@@ -65,7 +65,7 @@ export class PubSubProxy<
       await this.close();
     }
     
-    if (this.hasListeners()) {
+    if (this.#hasSavedListeners()) {
       await this.#initiatePubSubClient();
     }
   }
@@ -140,7 +140,7 @@ export class PubSubProxy<
     return this.#pubSubNode.connectPromise!;
   }
 
-  getPubSubClient()  {
+  #getPubSubClient()  {
     if (!this.#pubSubNode) return this.#initiatePubSubClient();
 
     return this.#pubSubNode.connectPromise ?? this.#pubSubNode.client;
@@ -151,7 +151,7 @@ export class PubSubProxy<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    const client = await this.getPubSubClient();
+    const client = await this.#getPubSubClient();
     const resp = await client.SUBSCRIBE(channels, listener, bufferMode);
 
     return resp;
@@ -162,7 +162,7 @@ export class PubSubProxy<
     listener?: PubSubListener<boolean>,
     bufferMode?: T
   ) {
-    const client = await this.getPubSubClient();
+    const client = await this.#getPubSubClient();
     const resp = await client.UNSUBSCRIBE(channels, listener, bufferMode);
 
     if (!client.isPubSubActive) {
@@ -178,7 +178,7 @@ export class PubSubProxy<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    const client = await this.getPubSubClient();
+    const client = await this.#getPubSubClient();
     const resp = await client.PSUBSCRIBE(patterns, listener, bufferMode);
 
     return resp;
@@ -189,7 +189,7 @@ export class PubSubProxy<
     listener?: PubSubListener<T>,
     bufferMode?: T
   ) {
-    const client = await this.getPubSubClient();
+    const client = await this.#getPubSubClient();
     const resp = await client.PUNSUBSCRIBE(patterns, listener, bufferMode);
 
     if (!client.isPubSubActive) {
@@ -200,10 +200,10 @@ export class PubSubProxy<
     return resp;
   }
 
-  hasListeners(): boolean {
-    var x = this.#channelsListeners !== undefined && this.#channelsListeners.size > 0;
-    var y = this.#patternsListeners !== undefined && this.#patternsListeners.size > 0;
+  #hasSavedListeners(): boolean {
+    var channels = this.#channelsListeners !== undefined && this.#channelsListeners.size > 0;
+    var patterns = this.#patternsListeners !== undefined && this.#patternsListeners.size > 0;
 
-    return x || y;
+    return channels || patterns;
   }
 }

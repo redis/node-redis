@@ -187,7 +187,7 @@ export class SentinelFramework extends DockerBase {
 
     const options: RedisSentinelOptions<{}, {}, {}, 2, {}> = {
       name: this.config.sentinelName,
-      sentinelRootNodes: [{host: '127.0.0.1',  port: this.#sentinelList[0].docker.port}],
+      sentinelRootNodes: this.#sentinelList.map((sentinel) => {return {host: '127.0.0.1', port: sentinel.docker.port}}) 
     }
 
     if (opts) {
@@ -322,6 +322,23 @@ export class SentinelFramework extends DockerBase {
     return [
       ...await Promise.all(promises)
     ]
+  }
+
+  async addSentinel() {
+    const quorum = this.config.sentinelQuorum?.toString() ?? "2";
+    const node = this.#nodeList[0];
+    const sentinel = await this.spawnRedisSentinelSentinelDocker();
+
+    this.#sentinelList.push(sentinel);
+    this.#sentinelMap.set(sentinel.docker.port.toString(), sentinel);
+
+    await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
+    await sentinel.client.sentinelSet(this.config.sentinelName, 
+      [
+        {option: "down-after-milliseconds", value: "100"},
+        {option: "failover-timeout", value: "5000"}
+      ]
+    );
   }
 
   async getMaster(): Promise<string|undefined> {

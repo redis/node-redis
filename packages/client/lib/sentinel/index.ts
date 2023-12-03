@@ -57,13 +57,13 @@ export default class RedisSentinel<
 
   internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>;
-  
+
   static extractWatchUnwatchExec(redisArgs: Array<RedisArgument>): execType | undefined {
     if (redisArgs[0] === "WATCH" || redisArgs[0] === "UNWATCH") {
       return redisArgs[0];
     } else {
       return undefined
-    } 
+    }
   }
 
   get isOpen() {
@@ -97,6 +97,8 @@ export default class RedisSentinel<
       this.emit('replica-removed', node);
     }).on('replica-added', node => {
       this.emit('replica-added', node);
+    }).on('sentinels-modified', (size) => {
+      this.emit('sentinels-modified', size);
     });
   }
 
@@ -109,7 +111,7 @@ export default class RedisSentinel<
   #setInternalObject(internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>) {
     this.internal = internal;
   }
-  
+
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxySentinel, ...args: Array<unknown>) {
@@ -230,7 +232,7 @@ export default class RedisSentinel<
       commandOptions: this._commandOptions,
       ...overrides
     }) as RedisSentinelType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
-  }  
+  }
 
   withCommandOptions<
     OPTIONS extends CommandOptions<TYPE_MAPPING>,
@@ -259,7 +261,7 @@ export default class RedisSentinel<
     proxy._commandOptions[key] = value;
     return proxy as RedisSentinelType<
       M,
-      F, 
+      F,
       S,
       RESP,
       K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING
@@ -294,7 +296,7 @@ export default class RedisSentinel<
       return await this.internal.execute(fn, clientInfo, execType);
     } finally {
       if (clientInfo !== undefined && this.clientInfo == undefined) {
-        this.internal.releasClientLease(clientInfo);  
+        this.internal.releaseClientLease(clientInfo);
       }
     }
   }
@@ -305,7 +307,7 @@ export default class RedisSentinel<
     try {
       return await this.internal.execute(fn, clientInfo, undefined);
     } finally {
-      this.internal.releasClientLease(clientInfo);
+      this.internal.releaseClientLease(clientInfo);
     }
   }
 
@@ -348,7 +350,7 @@ export default class RedisSentinel<
       client => client._executePipeline(commands)
     );
   }
-  
+
   /**f
     * @internal
     */
@@ -362,18 +364,28 @@ export default class RedisSentinel<
       client => client._executeMulti(commands)
     );
   }
-  
+
   MULTI(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
     return new (this as any).Multi(this);
   }
-  
+
   multi = this.MULTI;
 
   async close() {
+    /* calling close() on a leased version */
+    if (this.clientInfo !== undefined) {
+      return this.release();
+    }
+
     return this.internal.close();
   }
 
   destroy() {
+    /* calling destroy() on a leased version */
+    if (this.clientInfo !== undefined) {
+      return this.release();
+    }
+
     return this.internal.destroy();
   }
 
@@ -427,13 +439,9 @@ export default class RedisSentinel<
 
   release() {
     if (this.clientInfo) {
-      this.internal.releasClientLease(this.clientInfo);
+      this.internal.releaseClientLease(this.clientInfo);
       this.clientInfo = undefined;
     }
-  }
-
-  observe() {
-    return this.internal.observe();
   }
 
   setDebug(val: boolean) {
@@ -464,15 +472,15 @@ class RedisSentinelInternal<
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   readonly #sentinelClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   readonly #useReplicas: boolean;
-  
+  readonly #scanInterval: number;
+
   debug: boolean;
 
   #configEpoch: number = 0;
 
   #sentinelRootNodes: Array<RedisNode>;
   #sentinelClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
-  #pubsubClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
-  
+
   #masterClients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
   #masterClientQueue: WaitQueue<number>;
   readonly #masterPoolSize: number;
@@ -485,6 +493,8 @@ class RedisSentinelInternal<
   #maxCommandRediscovers: number;
   #pubSubProxy: PubSubProxy<M, F, S, RESP, TYPE_MAPPING>;
 
+  #scanTimer?: NodeJS.Timeout
+
   #destroy = false;
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -493,6 +503,7 @@ class RedisSentinelInternal<
     this.#name = options.name;
     this.#useReplicas = options.useReplicas ?? false;
     this.debug = options.debug ?? false;
+    this.#scanInterval = options.scanInterval ?? 0;
 
     this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
@@ -510,7 +521,7 @@ class RedisSentinelInternal<
     }
 
     this.#masterClientQueue = new WaitQueue<number>();
-    for (let i=0; i < this.#masterPoolSize; i++) {
+    for (let i = 0; i < this.#masterPoolSize; i++) {
       this.#masterClientQueue.push(i);
     }
 
@@ -525,7 +536,7 @@ class RedisSentinelInternal<
   }
 
   #createClient(node: RedisNode, clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
-    const options = { ...clientOptions} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+    const options = { ...clientOptions } as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
 
     if (clientOptions.socket) {
       options.socket = { ...clientOptions.socket };
@@ -536,7 +547,7 @@ class RedisSentinelInternal<
     options.socket.host = node.host;
     options.socket.port = node.port;
     options.socket.reconnectStrategy = false;
-    
+
     return RedisClient.create(options);
   }
 
@@ -555,9 +566,13 @@ class RedisSentinelInternal<
     return clientInfo;
   }
 
-  releasClientLease(clientInfo: clientInfo) {
+  releaseClientLease(clientInfo: clientInfo) {
     switch (clientInfo.type) {
       case 'MASTER':
+        const client = this.#masterClients[clientInfo.id];
+        if (client.isReady && clientInfo.watchEpoch !== undefined) {
+          client.unwatch();
+        }
         this.#masterClientQueue.push(clientInfo.id);
         break;
     }
@@ -578,6 +593,10 @@ class RedisSentinelInternal<
       if (this.#destroy) {
         this.#debugLog("in connect and want to destroy");
         this.destroy();
+      } else {
+        if (this.#scanInterval > 0) {
+          this.#scanTimer = setInterval(this.#reset.bind(this), this.#scanInterval);
+        }
       }
     }
   }
@@ -625,30 +644,28 @@ class RedisSentinelInternal<
         }
       }
 
-      if (execType !== undefined) {
-        if (execType === "WATCH") {
-          if (clientInfo === undefined) {
-            throw new Error("WATCH only works on a client with a lease");
-          } else if (clientInfo.watchEpoch === undefined) {
-            clientInfo.watchEpoch = this.#configEpoch;
-          }
-        } else if (execType === "UNWATCH") {
-          if (clientInfo === undefined) {
-            throw new Error("UNWATCH only works on a client with a lease");
-          } else {
-            clientInfo.watchEpoch = undefined;
-          }
-        } if (execType === "EXEC") {
-          /* need to unset on exec, if success or not */
-          if (clientInfo !== undefined) {
-            clientInfo.watchEpoch = undefined;
-          }
-          if (watchEpoch !== undefined && watchEpoch !== this.#configEpoch) {
-            throw new Error("sentinel config changed in middle of a WATCH Transaction");
-          }
+      if (execType === "WATCH") {
+        if (clientInfo === undefined) {
+          throw new Error("WATCH only works on a client with a lease");
+        } else if (clientInfo.watchEpoch === undefined) {
+          clientInfo.watchEpoch = this.#configEpoch;
         }
-      }  
-  
+      } else if (execType === "UNWATCH") {
+        if (clientInfo === undefined) {
+          throw new Error("UNWATCH only works on a client with a lease");
+        } else {
+          clientInfo.watchEpoch = undefined;
+        }
+      } if (execType === "EXEC") {
+        /* need to unset on exec, if success or not */
+        if (clientInfo !== undefined) {
+          clientInfo.watchEpoch = undefined;
+        }
+        if (watchEpoch !== undefined && watchEpoch !== this.#configEpoch) {
+          throw new Error("sentinel config changed in middle of a WATCH Transaction");
+        }
+      }
+
       const client = this.#getClient(clientInfo);
 
       if (!client.isReady) {
@@ -658,10 +675,7 @@ class RedisSentinelInternal<
       this.#debugLog("attemping to send command to " + client.options?.socket?.host + ":" + client.options?.socket?.port)
 
       try {
-        this.#debugLog(`execute: executing fn`);
-        const ret = await fn(client);
-        this.#debugLog(`execute: ret = ${ret}`);
-        return ret;
+        return await fn(client);
       } catch (err) {
         if (++iter > this.#maxCommandRediscovers || !(err instanceof Error)) {
           throw err;
@@ -672,9 +686,9 @@ class RedisSentinelInternal<
           a) READONLY error (topology has changed) but we haven't been notified yet via pubsub
           b) client is "not ready" (disconnected), which means topology might have changed, but sentinel might not see it yet
         */
-        if (clientInfo?.type == 'MASTER' && 
-            (err.message.startsWith('READONLY') || !client.isReady)
-         ) {
+        if (clientInfo?.type == 'MASTER' &&
+          (err.message.startsWith('READONLY') || !client.isReady)
+        ) {
           await this.#reset();
           continue;
         }
@@ -685,32 +699,17 @@ class RedisSentinelInternal<
   }
 
   async #createPubSub() {
-    if (this.#pubsubClient !== undefined) {
-      if (this.#pubsubClient.isOpen) {
-        if (this.#pubsubClient.isReady) {
-          await this.#pubsubClient.pUnsubscribe();
-        }
-        this.#pubsubClient.destroy();
-      }
-      this.#pubsubClient = undefined
-    }
-  
-    this.#pubsubClient = await this.#sentinelClient?.duplicate()
-      .on('error', err => this.emit('error', err))
-      .on('uncaughtException', err => this.emit('error', err))
-      .connect();
-  
     /* Whenever sentinels or slaves get added, or when slave configuration changes, reconfigure */
-    this.#pubsubClient?.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown'], (message, channel) => {
+    this.#sentinelClient!.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown'], (message, channel) => {
       this.#debugLog("pubsub control channel message on " + channel);
       this.#doPubSubReset();
     }, true);
   }
-  
+
   async #doPubSubReset() {
     await this.#reset()
   }
-    
+
   #getClient(clientInfo?: clientInfo): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
     if (clientInfo !== undefined) {
       return this.#masterClients[clientInfo.id];
@@ -735,6 +734,7 @@ class RedisSentinelInternal<
 
     /* already in a reset/connection loop */
     if (this.#connectPromise !== undefined) {
+      this.#debugLog("connectPromise already defined, waiting on it");
       return await this.#connectPromise;
     }
 
@@ -759,6 +759,10 @@ class RedisSentinelInternal<
 
     this.#isReady = false;
 
+    if (this.#scanTimer) {
+      clearInterval(this.#scanTimer);
+    }
+
     const promises = [];
 
     if (this.#sentinelClient !== undefined) {
@@ -766,13 +770,6 @@ class RedisSentinelInternal<
         promises.push(this.#sentinelClient.close());
       }
       this.#sentinelClient = undefined;
-    }
-
-    if (this.#pubsubClient !== undefined) {
-      if (this.#pubsubClient.isOpen) {
-        promises.push(this.#pubsubClient.close());
-      }
-      this.#pubsubClient = undefined;
     }
 
     for (const client of this.#masterClients) {
@@ -796,7 +793,7 @@ class RedisSentinelInternal<
     await Promise.all(promises);
 
     this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions).on("error", err => this.emit('error', err));
-    
+
     this.#isOpen = false;
   }
 
@@ -808,11 +805,8 @@ class RedisSentinelInternal<
 
     this.#isReady = false;
 
-    if (this.#pubsubClient !== undefined) {
-      if (this.#pubsubClient.isOpen) {
-        this.#pubsubClient.destroy();
-      }
-      this.#pubsubClient = undefined;
+    if (this.#scanTimer) {
+      clearInterval(this.#scanTimer);
     }
 
     if (this.#sentinelClient !== undefined) {
@@ -889,12 +883,12 @@ class RedisSentinelInternal<
   async observe() {
     for (const node of this.#sentinelRootNodes) {
       let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
-      try { 
+      try {
         client = this.#createClient(node, this.#sentinelClientOptions)
           .on('uncaughtException', err => this.emit('error', err))
           .on('error', (err) => this.emit('error', err));
         await client.connect();
-    
+
         const sentinelData = await client.sentinelSentinels(this.#name) as Array<any>;
         const masterData = await client.sentinelMaster(this.#name) as any;
         const replicaData = await client.sentinelReplicas(this.#name) as Array<any>;
@@ -911,8 +905,9 @@ class RedisSentinelInternal<
           useReplicas: this.#useReplicas
         }
 
-        // this.printObserved(ret);
-
+        if (this.debug) {
+          this.printObserved(ret);
+        }
         return ret;
       } catch (err) {
         this.emit('error', err);
@@ -930,12 +925,12 @@ class RedisSentinelInternal<
     let master = parseNode(observed.masterData);
     if (master === undefined) {
       throw new Error("no valid master node");
-    } 
+    }
 
     if (master.host === observed.currentMaster?.host && master.port === observed.currentMaster?.port) {
       master = undefined;
     }
-    
+
     let sentinel: RedisNode | undefined = observed.sentinelConnected;
     if (sentinel.host === observed.currentSentinel?.host && sentinel.port === observed.currentSentinel.port) {
       sentinel = undefined;
@@ -982,7 +977,9 @@ class RedisSentinelInternal<
       replicasToOpen: replicasToOpen,
     };
 
-    // this.printAnalyzed(ret);
+    if (this.debug) {
+      this.printAnalyzed(ret);
+    }
 
     return ret;
   }
@@ -991,14 +988,18 @@ class RedisSentinelInternal<
     let changes = false;
     if (analyzed.sentinelToOpen) {
       changes = true;
-      if (this.#sentinelClient !== undefined) {        
+      if (this.#sentinelClient !== undefined && this.#sentinelClient.isOpen) {
         this.#sentinelClient.destroy()
         this.#sentinelClient = undefined;
       }
 
       this.#sentinelClient = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions)
         .on('uncaughtException', err => this.emit('error', err))
-        .on('error', err => this.emit('error', err));
+        .on('error', err => {
+          this.emit('error', err)
+          this.#reset();
+        });
+
       await this.#sentinelClient.connect();
 
       this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
@@ -1016,11 +1017,11 @@ class RedisSentinelInternal<
       }
       this.#masterClients = [];
 
-      for(let i=0; i < this.#masterPoolSize; i++) {
+      for (let i = 0; i < this.#masterPoolSize; i++) {
         const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions)
           .on('uncaughtException', err => this.emit('error', err))
           .on('error', err => this.emit('error', err));
-        
+
         this.#masterClients.push(client);
         await client.connect();
 
@@ -1064,7 +1065,7 @@ class RedisSentinelInternal<
     if (analyzed.replicasToOpen.size != 0) {
       changes = true;
       for (const [node, size] of analyzed.replicasToOpen) {
-        for(let i=0; i < size; i++) {
+        for (let i = 0; i < size; i++) {
           const client = this.#createClient(node, this.#nodeClientOptions)
             .on('uncaughtException', err => this.emit('error', err))
             .on('error', err => this.emit('error', err));
@@ -1078,7 +1079,10 @@ class RedisSentinelInternal<
       }
     }
 
-    this.#sentinelRootNodes = analyzed.sentinelList;
+    if (analyzed.sentinelList.length != this.#sentinelRootNodes.length) {
+      this.#sentinelRootNodes = analyzed.sentinelList;
+      this.emit('sentinels-modified', analyzed.sentinelList.length);
+    }
 
     return changes;
   }
@@ -1090,7 +1094,7 @@ class RedisSentinelInternal<
 
     for (const master of this.#masterClients) {
       if (master.isReady) {
-        return clientSocketToNode(master.options!.socket!);    
+        return clientSocketToNode(master.options!.socket!);
       }
     }
 
