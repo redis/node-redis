@@ -57,7 +57,7 @@ abstract class DockerBase {
         return true;
       }
     }
-  
+
     return false;
   }
 
@@ -65,17 +65,17 @@ abstract class DockerBase {
     const port = (await portIterator.next()).value;
     let cmdLine = `docker run --stop-timeout 2 --init -d --network host ${image}:${version} ${serverArguments.join(' ')}`;
     cmdLine = cmdLine.replace('{port}', `--port ${port.toString()}`);
-//    console.log("spawnRedisServerDocker: cmdLine = " + cmdLine);
+    //    console.log("spawnRedisServerDocker: cmdLine = " + cmdLine);
     const { stdout, stderr } = await execAsync(cmdLine);
-  
+
     if (!stdout) {
       throw new Error(`docker run error - ${stderr}`);
     }
-  
+
     while (await isPortAvailable(port)) {
       await setTimeout(50);
     }
-  
+
     return {
       port,
       dockerId: stdout.trim()
@@ -84,19 +84,19 @@ abstract class DockerBase {
 
   async dockerRemove(dockerId: string): Promise<void> {
     try {
-      await this.dockerStop(dockerId);``
+      await this.dockerStop(dockerId); ``
     } catch (err) {
       // its ok if stop failed, as we are just going to remove, will just be slower
       console.log(`dockerStop failed in remove: ${err}`);
     }
-    
+
     const { stderr } = await execAsync(`docker rm -f ${dockerId}`);
     if (stderr) {
       console.log("docker rm failed");
       throw new Error(`docker rm error - ${stderr}`);
-    }   
+    }
   }
-  
+
   async dockerStop(dockerId: string): Promise<void> {
     /* this is an optimization to get around slow docker stop times, but will fail if container is already stopped */
     try {
@@ -110,13 +110,13 @@ abstract class DockerBase {
       throw new Error(`docker stop error - ${ret.stderr}`);
     }
   }
-  
+
   async dockerStart(dockerId: string): Promise<void> {
     const { stderr } = await execAsync(`docker start ${dockerId}`);
     if (stderr) {
       throw new Error(`docker start error - ${stderr}`);
     }
-  }  
+  }
 }
 
 export interface RedisSentinelConfig {
@@ -132,7 +132,7 @@ export interface RedisSentinelConfig {
   sentinelQuorum?: number;
 }
 
-type ArrayElement<ArrayType extends readonly unknown[]> = 
+type ArrayElement<ArrayType extends readonly unknown[]> =
   ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
 
 export interface SentinelController {
@@ -149,7 +149,7 @@ export interface SentinelController {
   restartNode(id: string): Promise<void>;
   stopSentinel(id: string): Promise<void>;
   restartSentinel(id: string): Promise<void>;
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>) : RedisSentinelType<{}, {}, {}, 2, {}>;
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>): RedisSentinelType<{}, {}, {}, 2, {}>;
 }
 
 export class SentinelFramework extends DockerBase {
@@ -177,7 +177,7 @@ export class SentinelFramework extends DockerBase {
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
   }
 
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>) : RedisSentinelType<{}, {}, {}, 2, {}>{
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>): RedisSentinelType<{}, {}, {}, 2, {}> {
     if (opts?.sentinelRootNodes !== undefined) {
       throw new Error("cannot specify sentinelRootNodes here");
     }
@@ -187,7 +187,7 @@ export class SentinelFramework extends DockerBase {
 
     const options: RedisSentinelOptions<{}, {}, {}, 2, {}> = {
       name: this.config.sentinelName,
-      sentinelRootNodes: this.#sentinelList.map((sentinel) => {return {host: '127.0.0.1', port: sentinel.docker.port}}) 
+      sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } })
     }
 
     if (opts) {
@@ -205,7 +205,7 @@ export class SentinelFramework extends DockerBase {
     if (this.#nodeMap.size != 0 || this.#sentinelMap.size != 0) {
       throw new Error("inconsistent state with partial setup");
     }
-  
+
     this.#nodeList = await this.spawnRedisSentinelNodes();
     this.#nodeList.map((value) => this.#nodeMap.set(value.docker.port.toString(), value));
 
@@ -222,20 +222,20 @@ export class SentinelFramework extends DockerBase {
 
     return Promise.all(
       [...this.#nodeMap!.values(), ...this.#sentinelMap!.values()].map(
-        async ({docker, client}) => {
+        async ({ docker, client }) => {
           client.destroy();
           this.dockerRemove(docker.dockerId);
         }
       )
     ).finally(async () => {
-      this.#spawned = false; 
-      this.#nodeMap.clear(); 
+      this.#spawned = false;
+      this.#nodeMap.clear();
       this.#sentinelMap.clear();
     });
   }
 
   protected async spawnRedisSentinelNodeDocker() {
-    let imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? {image: "redis", version: "latest"};
+    let imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis", version: "latest" };
     let serverArguments: Array<string> = this.config.nodeServerArguments ?? ["/usr/local/bin/redis-server", "{port}"];
 
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
@@ -243,19 +243,19 @@ export class SentinelFramework extends DockerBase {
       socket: {
         port: docker.port
       }
-    }).on("error", () => {});
-  
+    }).on("error", () => { });
+
     await client.connect();
-  
+
     return {
       docker,
       client
     };
-  } 
+  }
 
   protected async spawnRedisSentinelNodes() {
     const master = await this.spawnRedisSentinelNodeDocker();
-   
+
     const promises: Array<ReturnType<SentinelFramework['spawnRedisSentinelNodeDocker']>> = [];
 
     for (let i = 0; i < (this.config.numberOfNodes ?? 0) - 1; i++) {
@@ -266,16 +266,16 @@ export class SentinelFramework extends DockerBase {
         })
       );
     }
-  
+
     return [
       master,
       ...await Promise.all(promises)
-    ];  
+    ];
   }
 
   protected async spawnRedisSentinelSentinelDocker() {
-    let imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? {image: "redis", version: "latest"}
-    let serverArguments: Array<string> = this.config.nodeServerArguments ?? 
+    let imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis", version: "latest" }
+    let serverArguments: Array<string> = this.config.nodeServerArguments ??
       [
         "/bin/bash",
         "-c",
@@ -288,8 +288,8 @@ export class SentinelFramework extends DockerBase {
       socket: {
         port: docker.port
       }
-    }).on("error", () => {});
-  
+    }).on("error", () => { });
+
     await client.connect();
 
     return {
@@ -308,10 +308,10 @@ export class SentinelFramework extends DockerBase {
       promises.push(
         this.spawnRedisSentinelSentinelDocker().then(async sentinel => {
           await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
-          await sentinel.client.sentinelSet(this.config.sentinelName, 
+          await sentinel.client.sentinelSet(this.config.sentinelName,
             [
-              {option: "down-after-milliseconds", value: "100"},
-              {option: "failover-timeout", value: "5000"}
+              { option: "down-after-milliseconds", value: "100" },
+              { option: "failover-timeout", value: "5000" }
             ]
           );
           return sentinel;
@@ -333,15 +333,15 @@ export class SentinelFramework extends DockerBase {
     this.#sentinelMap.set(sentinel.docker.port.toString(), sentinel);
 
     await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
-    await sentinel.client.sentinelSet(this.config.sentinelName, 
+    await sentinel.client.sentinelSet(this.config.sentinelName,
       [
-        {option: "down-after-milliseconds", value: "100"},
-        {option: "failover-timeout", value: "5000"}
+        { option: "down-after-milliseconds", value: "100" },
+        { option: "failover-timeout", value: "5000" }
       ]
     );
   }
 
-  async getMaster(): Promise<string|undefined> {
+  async getMaster(): Promise<string | undefined> {
     for (const sentinel of this.#sentinelMap!.values()) {
       let info;
 
@@ -355,10 +355,10 @@ export class SentinelFramework extends DockerBase {
         console.log("getMaster: sentinelMaster call failed: " + err);
         continue;
       }
-       
+
       if (this.#nodeMap.get(info.port) === undefined) {
-          throw new Error("couldn't find master node for " + info.port);
-        }
+        throw new Error("couldn't find master node for " + info.port);
+      }
 
       return info.port;
     }
@@ -420,7 +420,7 @@ export class SentinelFramework extends DockerBase {
     }
 
     return this.dockerStart(sentinel.docker.dockerId);
-  }  
+  }
 
   getNodePort(id: string) {
     let node = this.#nodeMap.get(id);
@@ -456,7 +456,7 @@ export class SentinelFramework extends DockerBase {
     }
 
     return ports
-  }  
+  }
 
   getSetinel(i: number): string {
     return this.#sentinelList[i].docker.port.toString();

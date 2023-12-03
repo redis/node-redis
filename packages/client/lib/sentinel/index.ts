@@ -17,23 +17,10 @@ import { setTimeout } from 'node:timers/promises';
 // js files will be in the 'dist' folder
 // 
 
-//var sentinel = new RedisSentinel({name: "redis-primary", sentinelRootNodes: [{"host": "127.0.0.1", "port": 26380}]})
-//await sentinel.connect()
-//sentinel.sendCommand(false, ["set", "x",  "1"])
-//sentinel.sendCommand(true, ["get", "x"])
-
 /* TODO:
-   1) support config fot master/replica clients (not socket)
-   2) support for commands/scripts/functions attached to sentinel object
-   3) see if any sentinel commands should be given direct javascript interfaces
+   3) move sentinel commands implemented with javascript interfaces to be a pseudo module in the code
    4) support command optionsu(type mapping, abort signals)
    5) `testWithSentinel`
-
-   1) remove command policies
-   2) pubsub
-   3) investigate pool
-
-   sentinel = create(pool_size=3)
 */
 
 type execType = "WATCH" | "UNWATCH" | "EXEC";
@@ -579,7 +566,7 @@ class RedisSentinelInternal<
   }
 
   async connect() {
-    if (!this.#isOpen && this.#connectPromise !== undefined) {
+    if (this.#isOpen) {
       throw new Error("already attempting to open")
     }
 
@@ -732,7 +719,7 @@ class RedisSentinelInternal<
       return;
     }
 
-    /* already in a reset/connection loop */
+    // already in #connect()
     if (this.#connectPromise !== undefined) {
       this.#debugLog("connectPromise already defined, waiting on it");
       return await this.#connectPromise;
