@@ -211,9 +211,7 @@ export default class RedisCommandsQueue {
         signal.addEventListener('abort', value.abort.listener, { once: true });
       }
 
-      node = options?.asap ? 
-        this._toWrite.unshift(value) :
-        this._toWrite.push(value);
+      node = this._toWrite.add(value, options?.asap);
     });
   }
 
@@ -272,7 +270,7 @@ export default class RedisCommandsQueue {
     if (command === undefined) return;
 
     return new Promise<void>((resolve, reject) => {
-      (asap ? this._toWrite.unshift : this._toWrite.push)({
+      this._toWrite.add({
         args: command.args,
         chainId: undefined,
         abort: undefined,
@@ -287,7 +285,7 @@ export default class RedisCommandsQueue {
         },
         channelsCounter: command.channelsCounter,
         typeMapping: PUSH_TYPE_MAPPING
-      }); 
+      }, asap);
     });
   }
 
