@@ -335,7 +335,7 @@ export default class RedisClient<
 
   private _initiateSocket(): RedisSocket {
     const socketInitiator = async (): Promise<void> => {
-      const promises = [];
+      const promises = [this._queue.resubscribe()];
 
       if (this._monitorCallback) {
         promises.push(
@@ -406,11 +406,6 @@ export default class RedisClient<
             )
           );
         }
-      }
-
-      const resubscribePromise = this._queue.resubscribe();
-      if (resubscribePromise) {
-        promises.push(resubscribePromise);
       }
 
       if (promises.length) {
