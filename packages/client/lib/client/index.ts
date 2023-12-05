@@ -7,7 +7,7 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchErr
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
+import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
@@ -137,6 +137,8 @@ type NamespaceProxyClient = { self: ProxyClient };
 interface ScanIteratorOptions {
   cursor?: RedisArgument;
 }
+
+export type MonitorCallback<TYPE_MAPPING extends TypeMapping = TypeMapping> = (reply: ReplyWithTypeMapping<SimpleStringReply, TYPE_MAPPING>) => unknown;
 
 export default class RedisClient<
   M extends RedisModules,
@@ -276,6 +278,7 @@ export default class RedisClient<
   private readonly _socket: RedisSocket;
   private readonly _queue: RedisCommandsQueue;
   private _selectedDB = 0;
+  private _monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
@@ -332,7 +335,17 @@ export default class RedisClient<
 
   private _initiateSocket(): RedisSocket {
     const socketInitiator = async (): Promise<void> => {
-      const promises = [];
+      const promises = [this._queue.resubscribe()];
+
+      if (this._monitorCallback) {
+        promises.push(
+          this._queue.monitor(
+            this._monitorCallback,
+            this._commandOptions?.typeMapping,
+            true
+          )
+        );
+      }
 
       if (this._selectedDB !== 0) {
         promises.push(
@@ -393,11 +406,6 @@ export default class RedisClient<
             )
           );
         }
-      }
-
-      const resubscribePromise = this._queue.resubscribe();
-      if (resubscribePromise) {
-        promises.push(resubscribePromise);
       }
 
       if (promises.length) {
@@ -854,6 +862,22 @@ export default class RedisClient<
       yield reply.members;
     } while (cursor !== '0');
   }
+
+  async MONITOR(callback: MonitorCallback<TYPE_MAPPING>) {
+    const promise = this._queue.monitor(callback, this._commandOptions?.typeMapping);
+    this._scheduleWrite();
+
+    const off = await promise;
+    this._monitorCallback = callback;
+    return async () => {
+      const promise = off();
+      this._scheduleWrite();
+      await promise;
+      this._monitorCallback = undefined;
+    };
+  }
+
+  monitor = this.MONITOR;
 
   /**
    * @deprecated use .close instead

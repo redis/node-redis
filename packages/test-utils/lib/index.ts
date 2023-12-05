@@ -8,6 +8,9 @@ import {
   createClient,
   RedisClientOptions,
   RedisClientType,
+  RedisPoolOptions,
+  RedisClientPoolType,
+  createClientPool,
   createCluster,
   RedisClusterOptions,
   RedisClusterType
@@ -23,6 +26,7 @@ interface TestUtilsConfig {
 }
 
 interface CommonTestOptions {
+  serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
 }
 
@@ -33,9 +37,19 @@ interface ClientTestOptions<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > extends CommonTestOptions {
-  serverArguments: Array<string>;
   clientOptions?: Partial<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
   disableClientSetup?: boolean;
+}
+
+interface ClientPoolTestOptions<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends CommonTestOptions {
+  clientOptions?: Partial<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
+  poolOptions?: RedisPoolOptions;
 }
 
 interface ClusterTestOptions<
@@ -46,7 +60,6 @@ interface ClusterTestOptions<
   TYPE_MAPPING extends TypeMapping
   // POLICIES extends CommandPolicies
 > extends CommonTestOptions {
-  serverArguments: Array<string>;
   clusterConfiguration?: Partial<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>>;
   numberOfMasters?: number;
   numberOfReplicas?: number;
@@ -164,9 +177,9 @@ export default class TestUtils {
       if (!dockerPromise) return this.skip();
 
       const client = createClient({
-        ...options?.clientOptions,
+        ...options.clientOptions,
         socket: {
-          ...options?.clientOptions?.socket,
+          ...options.clientOptions?.socket,
           // TODO
           // @ts-ignore
           port: (await dockerPromise).port
@@ -187,6 +200,53 @@ export default class TestUtils {
           await client.flushAll();
           client.destroy();
         }
+      }
+    });
+  }
+
+  testWithClientPool<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(
+    title: string,
+    fn: (client: RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    options: ClientPoolTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ): void {
+    let dockerPromise: ReturnType<typeof spawnRedisServer>;
+    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+      const dockerImage = this.#DOCKER_IMAGE;
+      before(function () {
+        this.timeout(30000);
+
+        dockerPromise = spawnRedisServer(dockerImage, options.serverArguments);
+        return dockerPromise;
+      });
+    }
+
+    it(title, async function () {
+      if (!dockerPromise) return this.skip();
+
+      const pool = createClientPool({
+        ...options.clientOptions,
+        socket: {
+          ...options.clientOptions?.socket,
+          // TODO
+          // @ts-ignore
+          port: (await dockerPromise).port
+        }
+      }, options.poolOptions);
+
+      await pool.connect();
+
+      try {
+        await pool.flushAll();
+        await fn(pool);
+      } finally {
+        await pool.flushAll();
+        pool.destroy();
       }
     });
   }
@@ -228,8 +288,8 @@ export default class TestUtils {
 
         dockersPromise = spawnRedisCluster({
           ...dockerImage,
-          numberOfMasters: options?.numberOfMasters,
-          numberOfReplicas: options?.numberOfReplicas
+          numberOfMasters: options.numberOfMasters,
+          numberOfReplicas: options.numberOfReplicas
         }, options.serverArguments);
         return dockersPromise;
       });

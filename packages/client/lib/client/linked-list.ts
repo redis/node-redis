@@ -59,6 +59,12 @@ export class DoublyLinkedList<T> {
     };
   }
 
+  add(value: T, prepend = false) {
+    return prepend ?
+      this.unshift(value) :
+      this.push(value);
+  }
+
   shift() {
     if (this._head === undefined) return undefined;
 

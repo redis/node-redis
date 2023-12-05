@@ -5,6 +5,7 @@ import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { EventEmitter } from 'node:stream';
+import { MonitorCallback } from '.';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -23,6 +24,7 @@ export interface CommandToWrite extends CommandWaitingForReply {
     signal: AbortSignal;
     listener: () => unknown;
   };
+  resolveOnWrite?: boolean;
 }
 
 interface CommandWaitingForReply {
@@ -151,8 +153,33 @@ export default class RedisCommandsQueue {
       }
     });
   }
+  
+  async monitor(callback: MonitorCallback, typeMapping: TypeMapping = {}, asap = false) {
+    await this.addCommand(
+      ['MONITOR'],
+      { asap },
+      true
+    );
 
-  addCommand<T>(args: CommandArguments, options?: CommandOptions): Promise<T> {
+    const { onReply, getTypeMapping } = this.decoder;
+    this.decoder.onReply = callback;
+    this.decoder.getTypeMapping = () => typeMapping;
+    return () => new Promise<void>(async resolve => {
+      await this.addCommand(['RESET'], undefined, true);
+      this.decoder.onReply = (reply: string) => {
+        if (reply !== 'RESET') return callback(reply);
+        this.decoder.onReply = onReply;
+        this.decoder.getTypeMapping = getTypeMapping;
+        resolve();
+      };
+    });
+  }
+
+  addCommand<T>(
+    args: CommandArguments,
+    options?: CommandOptions,
+    resolveOnWrite?: boolean
+  ): Promise<T> {
     if (this._maxLength && this._toWrite.length + this._waitingForReply.length >= this._maxLength) {
       return Promise.reject(new Error('The queue is full'));
     } else if (options?.abortSignal?.aborted) {
@@ -164,10 +191,12 @@ export default class RedisCommandsQueue {
       const value: CommandToWrite = {
         args,
         chainId: options?.chainId,
-        typeMapping: options?.typeMapping,
+        abort: undefined,
+        resolveOnWrite,
         resolve,
         reject,
-        abort: undefined
+        channelsCounter: undefined,
+        typeMapping: options?.typeMapping
       };
 
       const signal = options?.abortSignal;
@@ -182,9 +211,7 @@ export default class RedisCommandsQueue {
         signal.addEventListener('abort', value.abort.listener, { once: true });
       }
 
-      node = options?.asap ? 
-        this._toWrite.unshift(value) :
-        this._toWrite.push(value);
+      node = this._toWrite.add(value, options?.asap);
     });
   }
 
@@ -194,7 +221,7 @@ export default class RedisCommandsQueue {
     listener: PubSubListener<T>,
     returnBuffers?: T
   ) {
-    return this._pushPubSubCommand(
+    return this._addPubSubCommand(
       this._pubSub.subscribe(type, channels, listener, returnBuffers)
     );
   }
@@ -205,7 +232,7 @@ export default class RedisCommandsQueue {
     listener?: PubSubListener<T>,
     returnBuffers?: T
   ) {
-    return this._pushPubSubCommand(
+    return this._addPubSubCommand(
       this._pubSub.unsubscribe(type, channels, listener, returnBuffers)
     );
   }
@@ -215,7 +242,7 @@ export default class RedisCommandsQueue {
     if (!commands.length) return;
 
     return Promise.all(
-      commands.map(command => this._pushPubSubCommand(command))
+      commands.map(command => this._addPubSubCommand(command, true))
     );
   }
 
@@ -224,13 +251,13 @@ export default class RedisCommandsQueue {
     channel: string,
     listeners: ChannelListeners
   ) {
-    return this._pushPubSubCommand(
+    return this._addPubSubCommand(
       this._pubSub.extendChannelListeners(type, channel, listeners)
     );
   }
 
   extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
-    return this._pushPubSubCommand(
+    return this._addPubSubCommand(
       this._pubSub.extendTypeListeners(type, listeners)
     );
   }
@@ -239,23 +266,26 @@ export default class RedisCommandsQueue {
     return this._pubSub.getTypeListeners(type);
   }
 
-  private _pushPubSubCommand(command: PubSubCommand) {
+  private _addPubSubCommand(command: PubSubCommand, asap = false) {
     if (command === undefined) return;
 
     return new Promise<void>((resolve, reject) => {
-      this._toWrite.push({
+      this._toWrite.add({
         args: command.args,
-        channelsCounter: command.channelsCounter,
-        typeMapping: PUSH_TYPE_MAPPING,
-        resolve: () => {
+        chainId: undefined,
+        abort: undefined,
+        resolveOnWrite: false,
+        resolve() {
           command.resolve();
           resolve();
         },
-        reject: err => {
+        reject(err) {
           command.reject?.();
           reject(err);
-        }
-      });
+        },
+        channelsCounter: command.channelsCounter,
+        typeMapping: PUSH_TYPE_MAPPING
+      }, asap);
     });
   }
 
@@ -279,13 +309,19 @@ export default class RedisCommandsQueue {
         RedisCommandsQueue._removeAbortListener(toSend);
         toSend.abort = undefined;
       }
-  
-      // TODO reuse `toSend` or create new object?
-      (toSend as any).args = undefined;
-      (toSend as any).chainId = undefined;
-  
-      this._waitingForReply.push(toSend);
-      this._chainInExecution = toSend.chainId;
+
+      if (toSend.resolveOnWrite) {
+        toSend.resolve();
+      } else {
+        // TODO reuse `toSend` or create new object? 
+        (toSend as any).args = undefined;
+
+        this._chainInExecution = toSend.chainId;
+        toSend.chainId = undefined;
+
+        this._waitingForReply.push(toSend);
+      }
+      
       yield encoded;
       toSend = this._toWrite.shift();
     }

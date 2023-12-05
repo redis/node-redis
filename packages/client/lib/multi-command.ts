@@ -1,6 +1,5 @@
-import { CommandArguments, RedisScript, TransformReply } from './RESP/types';
+import { CommandArguments, RedisScript, ReplyUnion, TransformReply } from './RESP/types';
 
-// TODO: enum?
 export type MULTI_REPLY = {
   GENERIC: 'generic';
   TYPED: 'typed';
@@ -8,7 +7,7 @@ export type MULTI_REPLY = {
 
 export type MultiReply = MULTI_REPLY[keyof MULTI_REPLY];
 
-export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<unknown>;
+export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<ReplyUnion>;
 
 export interface RedisMultiQueuedCommand {
   args: CommandArguments;
