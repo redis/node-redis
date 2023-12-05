@@ -622,10 +622,8 @@ class RedisSentinelInternal<
     const watchEpoch = clientInfo?.watchEpoch;
 
     while (true) {
-      if (!this.isReady) {
-        if (!(await this.waitReady())) {
-          throw new Error("sentinel didn't get ready to be used")
-        }
+      if (this.#connectPromise !== undefined) {
+        await this.#connectPromise;
       }
 
       if (execType === "WATCH") {
@@ -732,8 +730,9 @@ class RedisSentinelInternal<
   }
 
   async close() {
+    this.#destroy = true;
+
     if (this.#connectPromise != undefined) {
-      this.#destroy = true;
       await this.#connectPromise;
     }
 
@@ -781,8 +780,9 @@ class RedisSentinelInternal<
   // destroy has to be async because its stopping others async events, timers and the like
   // and shouldn't return until its finished.
   async destroy() {
+    this.#destroy = true;
+
     if (this.#connectPromise != undefined) {
-      this.#destroy = true;
       await this.#connectPromise;
     }
 
@@ -851,14 +851,6 @@ class RedisSentinelInternal<
     bufferMode?: T
   ) {
     return this.#pubSubProxy.pUnsubscribe(patterns, listener, bufferMode);
-  }
-
-  async waitReady(): Promise<boolean> {
-    for (let i = 0; i < this.#maxCommandRediscovers && this.#isOpen && !this.#isReady; i++) {
-      await setTimeout(1000);
-    }
-
-    return this.isReady;
   }
 
   async observe() {
@@ -966,6 +958,7 @@ class RedisSentinelInternal<
 
   async transform(analyzed: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["analyze"]>) {
     let changes = false;
+    
     if (analyzed.sentinelToOpen) {
       changes = true;
       if (this.#sentinelClient !== undefined && this.#sentinelClient.isOpen) {
@@ -1009,36 +1002,35 @@ class RedisSentinelInternal<
       await this.#pubSubProxy.changeNode(analyzed.masterToOpen);
       this.emit('master-change', analyzed.masterToOpen);
       this.#configEpoch++;
-
     }
 
-    if (analyzed.replicasToClose.length != 0) {
-      const newClientList: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const replicaCloseSet = new Set<string>();
+    for (const node of analyzed.replicasToClose) {
+      const str = JSON.stringify(node);
+      replicaCloseSet.add(str);
+    }
 
-      changes = true;
-      const replicaCloseSet = new Set<string>();
-      for (const node of analyzed.replicasToClose) {
-        const str = JSON.stringify(node);
-        replicaCloseSet.add(str);
-      }
+    const newClientList: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const removedSet = new Set<string>();
 
-      for (const replica of this.#replicaClients) {
-        const node = clientSocketToNode(replica.options!.socket!);
-        const str = JSON.stringify(node);
-        if (replicaCloseSet.has(str)) {
-          if (replica.isOpen) {
-            this.#debugLog(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
-            replica.destroy()
-          }
-          this.emit('replica-removed', node);
-        } else {
-          if (replica.isOpen) {
-            newClientList.push(replica);
-          }
+    for (const replica of this.#replicaClients) {
+      const node = clientSocketToNode(replica.options!.socket!);
+      const str = JSON.stringify(node);
+    
+      if (replicaCloseSet.has(str) || !replica.isOpen) {
+        if (replica.isOpen) {
+          this.#debugLog(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
+          replica.destroy()
         }
+        if (!removedSet.has(str)) {
+          this.emit('replica-removed', node);
+          removedSet.add(str);
+        }
+      } else {
+        newClientList.push(replica);
       }
-      this.#replicaClients = newClientList;
     }
+    this.#replicaClients = newClientList;
 
     if (analyzed.replicasToOpen.size != 0) {
       changes = true;
