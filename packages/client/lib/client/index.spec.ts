@@ -5,7 +5,7 @@ import RedisClient, { RedisClientType } from '.';
 // import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
-// import { spy } from 'sinon';
+import { spy } from 'sinon';
 import { once } from 'node:events';
 // import { ClientKillFilters } from '../commands/CLIENT_KILL';
 // import { promisify } from 'node:util';
@@ -741,4 +741,66 @@ describe('Client', () => {
 //     },
 //     disableClientSetup: true
 //   });
+
+  describe('MONITOR', () => {
+    testUtils.testWithClient('should be able to monitor commands', async client => {
+      const duplicate = await client.duplicate().connect(),
+        listener = spy(message => assert.equal(typeof message, 'string'));
+      await duplicate.monitor(listener);
+
+      try {
+        await Promise.all([
+          waitTillBeenCalled(listener),
+          client.ping()
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should keep monitoring after reconnection', async client => {
+      const duplicate = await client.duplicate().connect(),
+        listener = spy(message => assert.equal(typeof message, 'string'));
+      await duplicate.monitor(listener);
+
+      try {
+        await Promise.all([
+          once(duplicate, 'error'),
+          client.clientKill({
+            filter: 'SKIPME',
+            skipMe: true
+          })
+        ]);
+        await Promise.all([
+          waitTillBeenCalled(listener),
+          client.ping()
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should be able to go back to "normal mode"', async client => {
+      const off = await client.monitor(() => {});
+      await off();
+      await assert.doesNotReject(client.ping());
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should respect type mapping', async client => {
+      const duplicate = await client.duplicate().connect(),
+        listener = spy(message => assert.ok(message instanceof Buffer));
+      await duplicate.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      }).monitor(listener);
+
+      try {
+        await Promise.all([
+          waitTillBeenCalled(listener),
+          client.ping()
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+  });
 });

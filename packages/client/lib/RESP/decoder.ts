@@ -49,14 +49,18 @@ interface DecoderOptions {
 }
 
 export class Decoder {
-  private readonly _config;
-
+  onReply;
+  onErrorReply;
+  onPush;
+  getTypeMapping;
   private _cursor = 0;
-
   private _next;
 
   constructor(config: DecoderOptions) {
-    this._config = config;
+    this.onReply = config.onReply;
+    this.onErrorReply = config.onErrorReply;
+    this.onPush = config.onPush;
+    this.getTypeMapping = config.getTypeMapping;
   }
 
   reset() {
@@ -99,102 +103,102 @@ export class Decoder {
   private _decodeTypeValue(type, chunk) {
     switch (type) {
       case RESP_TYPES.NULL:
-        this._config.onReply(this._decodeNull());
+        this.onReply(this._decodeNull());
         return false;
 
       case RESP_TYPES.BOOLEAN:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeBoolean(chunk)
         );
 
       case RESP_TYPES.NUMBER:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeNumber(
-            this._config.getTypeMapping()[RESP_TYPES.NUMBER],
+            this.getTypeMapping()[RESP_TYPES.NUMBER],
             chunk
           )
         );
 
       case RESP_TYPES.BIG_NUMBER:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeBigNumber(
-            this._config.getTypeMapping()[RESP_TYPES.BIG_NUMBER],
+            this.getTypeMapping()[RESP_TYPES.BIG_NUMBER],
             chunk
           )
         );
       
       case RESP_TYPES.DOUBLE:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeDouble(
-            this._config.getTypeMapping()[RESP_TYPES.DOUBLE],
+            this.getTypeMapping()[RESP_TYPES.DOUBLE],
             chunk
           )
         );
       
       case RESP_TYPES.SIMPLE_STRING:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeSimpleString(
-            this._config.getTypeMapping()[RESP_TYPES.SIMPLE_STRING],
+            this.getTypeMapping()[RESP_TYPES.SIMPLE_STRING],
             chunk
           )
         );
       
       case RESP_TYPES.BLOB_STRING:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeBlobString(
-            this._config.getTypeMapping()[RESP_TYPES.BLOB_STRING],
+            this.getTypeMapping()[RESP_TYPES.BLOB_STRING],
             chunk
           )
         );
 
       case RESP_TYPES.VERBATIM_STRING:
         return this._handleDecodedValue(
-          this._config.onReply,
+          this.onReply,
           this._decodeVerbatimString(
-            this._config.getTypeMapping()[RESP_TYPES.VERBATIM_STRING],
+            this.getTypeMapping()[RESP_TYPES.VERBATIM_STRING],
             chunk
           )
         );
 
       case RESP_TYPES.SIMPLE_ERROR:
         return this._handleDecodedValue(
-          this._config.onErrorReply,
+          this.onErrorReply,
           this._decodeSimpleError(chunk)
         );
       
       case RESP_TYPES.BLOB_ERROR:
         return this._handleDecodedValue(
-          this._config.onErrorReply,
+          this.onErrorReply,
           this._decodeBlobError(chunk)
         );
 
       case RESP_TYPES.ARRAY:
         return this._handleDecodedValue(
-          this._config.onReply,
-          this._decodeArray(this._config.getTypeMapping(), chunk)
+          this.onReply,
+          this._decodeArray(this.getTypeMapping(), chunk)
         );
 
       case RESP_TYPES.SET:
         return this._handleDecodedValue(
-          this._config.onReply,
-          this._decodeSet(this._config.getTypeMapping(), chunk)
+          this.onReply,
+          this._decodeSet(this.getTypeMapping(), chunk)
         );
       
       case RESP_TYPES.MAP:
         return this._handleDecodedValue(
-          this._config.onReply,
-          this._decodeMap(this._config.getTypeMapping(), chunk)
+          this.onReply,
+          this._decodeMap(this.getTypeMapping(), chunk)
         );
 
       case RESP_TYPES.PUSH:
         return this._handleDecodedValue(
-          this._config.onPush,
+          this.onPush,
           this._decodeArray(PUSH_TYPE_MAPPING, chunk)
         );
 
