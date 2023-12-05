@@ -63,3 +63,14 @@ export class ErrorReply extends Error {
         this.stack = undefined;
     }
 }
+
+export class MultiErrorReply extends ErrorReply {
+    replies: Array<ErrorReply>;
+    errorIndexes: Array<number>;
+
+    constructor(replies: Array<ErrorReply>, errorIndexes: Array<number>) {
+        super(`${errorIndexes.length} commands failed, see .replies and .errorIndexes for more information`);
+        this.replies = replies;
+        this.errorIndexes = errorIndexes;
+    }
+}

@@ -1,6 +1,6 @@
 import { fCallArguments } from './commander';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunction, RedisScript } from './commands';
-import { WatchError } from './errors';
+import { ErrorReply, MultiErrorReply, WatchError } from './errors';
 
 export interface RedisMultiQueuedCommand {
     args: RedisCommandArguments;
@@ -79,9 +79,16 @@ export default class RedisMultiCommand {
     }
 
     transformReplies(rawReplies: Array<RedisCommandRawReply>): Array<RedisCommandRawReply> {
-        return rawReplies.map((reply, i) => {
-            const { transformReply, args } = this.queue[i];
-            return transformReply ? transformReply(reply, args.preserve) : reply;
-        });
+        const errorIndexes: Array<number> = [],
+            replies = rawReplies.map((reply, i) => {
+                if (reply instanceof ErrorReply) {
+                    errorIndexes.push(i);
+                }
+                const { transformReply, args } = this.queue[i];
+                return transformReply ? transformReply(reply, args.preserve) : reply;
+            });
+
+        if (errorIndexes.length) throw new MultiErrorReply(replies, errorIndexes);
+        return replies;
     }
 }
