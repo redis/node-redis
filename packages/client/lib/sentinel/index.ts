@@ -263,8 +263,8 @@ export default class RedisSentinel<
     return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
-  async connect() {
-    return await this.internal.connect();
+  connect() {
+    return this.internal.connect();
   }
 
   async _execute<T>(
@@ -680,16 +680,18 @@ class RedisSentinelInternal<
     }
   }
 
-  async #createPubSub() {
+  async #createPubSub(client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) {
     /* Whenever sentinels or slaves get added, or when slave configuration changes, reconfigure */
-    this.#sentinelClient!.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown', '+slave-reconf-done'], (message, channel) => {
+    client.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown', '+slave-reconf-done'], (message, channel) => {
       this.#debugLog("pubsub control channel message on " + channel);
       this.#doPubSubReset();
     }, true);
+
+    return client;
   }
 
   async #doPubSubReset() {
-    await this.#reset()
+    this.#reset()
   }
 
   #getClient(clientInfo?: clientInfo): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
@@ -861,9 +863,15 @@ class RedisSentinelInternal<
           .on('error', (err) => this.emit('error', `obseve client error: ${err}`));
         await client.connect();
 
-        const sentinelData = await client.sentinelSentinels(this.#name) as Array<any>;
-        const masterData = await client.sentinelMaster(this.#name) as any;
-        const replicaData = await client.sentinelReplicas(this.#name) as Array<any>;
+        const promises = [];
+        promises.push(client.sentinelSentinels(this.#name));
+        promises.push(client.sentinelMaster(this.#name));
+        promises.push(client.sentinelReplicas(this.#name));
+
+        const [sd, md, rd] = await Promise.all(promises);
+        const sentinelData = sd as Array<any>;
+        const masterData = md as any;
+        const replicaData = rd as Array<any>;
 
         const ret = {
           sentinelConnected: node,
@@ -958,6 +966,8 @@ class RedisSentinelInternal<
 
   async transform(analyzed: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["analyze"]>) {
     let changes = false;
+
+    let promises: Array<Promise<any>> = [];
     
     if (analyzed.sentinelToOpen) {
       changes = true;
@@ -972,16 +982,17 @@ class RedisSentinelInternal<
           this.#reset();
         });
 
-      await this.#sentinelClient.connect();
-      
-      this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
+      const promise = this.#sentinelClient.connect().then((client) => { return this.#createPubSub(client) });
+      promises.push(promise);
 
-      await this.#createPubSub();
+      this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
       this.emit('sentinel-change', analyzed.sentinelToOpen);
     }
 
     if (analyzed.masterToOpen) {
       changes = true;
+      const masterPromises = []
+
       for (const client of this.#masterClients) {
         if (client.isOpen) {
           client.destroy()
@@ -994,12 +1005,13 @@ class RedisSentinelInternal<
           .on('error', err => this.emit('error', `masterClient ${analyzed.masterToOpen!.port} error: ${err}`));
 
         this.#masterClients.push(client);
-        await client.connect();
+        masterPromises.push(client.connect());
 
         this.#debugLog(`created master client to ${analyzed.masterToOpen.host}:${analyzed.masterToOpen.port}`);
       }
 
-      await this.#pubSubProxy.changeNode(analyzed.masterToOpen);
+      masterPromises.push(this.#pubSubProxy.changeNode(analyzed.masterToOpen));
+      promises.push(...masterPromises);
       this.emit('master-change', analyzed.masterToOpen);
       this.#configEpoch++;
     }
@@ -1040,7 +1052,7 @@ class RedisSentinelInternal<
           .on('error', err => this.emit('error', `replicaClient ${node.port} error: ${err}`));
 
           this.#replicaClients.push(client);
-          await client.connect();
+          promises.push(client.connect());
 
           this.#debugLog(`created replica client to ${node.host}:${node.port}`);
         }
@@ -1052,6 +1064,8 @@ class RedisSentinelInternal<
       this.#sentinelRootNodes = analyzed.sentinelList;
       this.emit('sentinels-modified', analyzed.sentinelList.length);
     }
+
+    await Promise.all(promises);
 
     return changes;
   }
