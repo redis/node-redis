@@ -69,7 +69,7 @@ export default class RedisMultiCommand {
         return transformedArguments;
     }
 
-    handleExecReplies(rawReplies: Array<RedisCommandRawReply>): Array<RedisCommandRawReply> {
+    handleExecReplies(rawReplies: Array<RedisCommandRawReply | ErrorReply>): Array<RedisCommandRawReply> {
         const execReply = rawReplies[rawReplies.length - 1] as (null | Array<RedisCommandRawReply>);
         if (execReply === null) {
             throw new WatchError();
@@ -78,7 +78,7 @@ export default class RedisMultiCommand {
         return this.transformReplies(execReply);
     }
 
-    transformReplies(rawReplies: Array<RedisCommandRawReply>): Array<RedisCommandRawReply> {
+    transformReplies(rawReplies: Array<RedisCommandRawReply | ErrorReply>): Array<RedisCommandRawReply> {
         const errorIndexes: Array<number> = [],
             replies = rawReplies.map((reply, i) => {
                 if (reply instanceof ErrorReply) {
