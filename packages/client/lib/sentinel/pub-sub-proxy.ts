@@ -40,10 +40,10 @@ export class PubSubProxy<
 
   #createClient(): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
     if (this.#node === undefined) {
-        throw new Error("pubSubProxy: didn't define node to do pubsub against");
+      throw new Error("pubSubProxy: didn't define node to do pubsub against");
     }
-    
-    const options = { ...this.#clientOptions} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+
+    const options = { ...this.#clientOptions } as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
 
     if (this.#clientOptions.socket) {
       options.socket = { ...this.#clientOptions.socket };
@@ -64,7 +64,7 @@ export class PubSubProxy<
     if (this.#pubSubNode) {
       await this.close();
     }
-    
+
     if (this.#hasSavedListeners()) {
       await this.#initiatePubSubClient();
     }
@@ -110,9 +110,8 @@ export class PubSubProxy<
 
   async #initiatePubSubClient() {
     const client = this.#createClient()
-      .on('uncaughtException', err => this.emit('error', err))
       .on("error", err => this.emit('error', err));
-            
+
     this.#pubSubNode = {
       destroy: false,
       client: client,
@@ -140,7 +139,7 @@ export class PubSubProxy<
     return this.#pubSubNode.connectPromise!;
   }
 
-  #getPubSubClient()  {
+  #getPubSubClient() {
     if (!this.#pubSubNode) return this.#initiatePubSubClient();
 
     return this.#pubSubNode.connectPromise ?? this.#pubSubNode.client;
@@ -169,7 +168,7 @@ export class PubSubProxy<
       client.destroy();
       this.#pubSubNode = undefined;
     }
-        
+
     return resp;
   }
 
@@ -196,7 +195,7 @@ export class PubSubProxy<
       client.destroy();
       this.#pubSubNode = undefined;
     }
-        
+
     return resp;
   }
 

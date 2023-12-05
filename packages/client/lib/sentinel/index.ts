@@ -76,6 +76,7 @@ export default class RedisSentinel<
     this.internal.on('error', err => this.emit('error', err));
 
     /* pass through underling events */
+    /* TODO: perhaps make this a struct and one vent, instead of multiple events */
     this.internal.on('sentinel-change', node => {
       this.emit('sentinel-change', node);
     }).on('master-change', node => {
@@ -280,7 +281,7 @@ export default class RedisSentinel<
     }
 
     try {
-      return await this.internal.execute(fn, clientInfo, execType);
+      return await this.internal.execute(fn, clientInfo, execType, true);
     } finally {
       if (clientInfo !== undefined && this.clientInfo == undefined) {
         this.internal.releaseClientLease(clientInfo);
@@ -288,11 +289,11 @@ export default class RedisSentinel<
     }
   }
 
-  async use<T>(fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>) {
+  async use<T>(fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>, reselient?: boolean) {
     const clientInfo = await this.internal.getClientLease('MASTER');
 
     try {
-      return await this.internal.execute(fn, clientInfo, undefined);
+      return await this.internal.execute(fn, clientInfo, undefined, reselient);
     } finally {
       this.internal.releaseClientLease(clientInfo);
     }
@@ -513,7 +514,7 @@ class RedisSentinelInternal<
     }
 
     /* persistent object for life of sentinel object */
-    this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions).on('error', err => this.emit('error', err));
+    this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions).on('error', err => this.emit('error', `pubSubPoroxy error: ${err}`) );
   }
 
   #debugLog(msg: string) {
@@ -577,13 +578,8 @@ class RedisSentinelInternal<
       await this.#connectPromise;
     } finally {
       this.#connectPromise = undefined
-      if (this.#destroy) {
-        this.#debugLog("in connect and want to destroy");
-        this.destroy();
-      } else {
-        if (this.#scanInterval > 0) {
-          this.#scanTimer = setInterval(this.#reset.bind(this), this.#scanInterval);
-        }
+      if (this.#scanInterval > 0) {
+        this.#scanTimer = setInterval(this.#reset.bind(this), this.#scanInterval);
       }
     }
   }
@@ -619,6 +615,7 @@ class RedisSentinelInternal<
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>,
     clientInfo?: clientInfo,
     execType?: execType,
+    reselient?: boolean
   ): Promise<T> {
     let iter = 0;
 
@@ -664,7 +661,7 @@ class RedisSentinelInternal<
       try {
         return await fn(client);
       } catch (err) {
-        if (++iter > this.#maxCommandRediscovers || !(err instanceof Error)) {
+        if (++iter > this.#maxCommandRediscovers || !(err instanceof Error) || !reselient) {
           throw err;
         }
 
@@ -687,7 +684,7 @@ class RedisSentinelInternal<
 
   async #createPubSub() {
     /* Whenever sentinels or slaves get added, or when slave configuration changes, reconfigure */
-    this.#sentinelClient!.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown'], (message, channel) => {
+    this.#sentinelClient!.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown', '+slave-reconf-done'], (message, channel) => {
       this.#debugLog("pubsub control channel message on " + channel);
       this.#doPubSubReset();
     }, true);
@@ -715,7 +712,7 @@ class RedisSentinelInternal<
 
   async #reset() {
     /* closing / don't reset */
-    if (this.#isReady == false) {
+    if (this.#isReady == false || this.#destroy == true) {
       return;
     }
 
@@ -729,25 +726,22 @@ class RedisSentinelInternal<
       this.#connectPromise = this.#connect();
       return await this.#connectPromise;
     } finally {
-      this.#debugLog("finished the reset!");
+      this.#debugLog("finished reconfgure");
       this.#connectPromise = undefined;
-      if (this.#destroy) {
-        this.#debugLog("in #reset and want to destroy");
-        this.destroy();
-      }
     }
   }
 
   async close() {
     if (this.#connectPromise != undefined) {
       this.#destroy = true;
-      return;
+      await this.#connectPromise;
     }
 
     this.#isReady = false;
 
     if (this.#scanTimer) {
       clearInterval(this.#scanTimer);
+      this.#scanTimer = undefined;
     }
 
     const promises = [];
@@ -779,21 +773,24 @@ class RedisSentinelInternal<
 
     await Promise.all(promises);
 
-    this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions).on("error", err => this.emit('error', err));
+    this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions).on('error', err => this.emit('error', err));
 
     this.#isOpen = false;
   }
 
-  destroy() {
+  // destroy has to be async because its stopping others async events, timers and the like
+  // and shouldn't return until its finished.
+  async destroy() {
     if (this.#connectPromise != undefined) {
       this.#destroy = true;
-      return;
+      await this.#connectPromise;
     }
 
     this.#isReady = false;
 
     if (this.#scanTimer) {
       clearInterval(this.#scanTimer);
+      this.#scanTimer = undefined;
     }
 
     if (this.#sentinelClient !== undefined) {
@@ -829,9 +826,6 @@ class RedisSentinelInternal<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    if (this.#pubSubProxy === undefined) {
-      console.log("#pubSubProxy is undefined");
-    }
     return this.#pubSubProxy.subscribe(channels, listener, bufferMode);
   }
 
@@ -872,8 +866,7 @@ class RedisSentinelInternal<
       let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
       try {
         client = this.#createClient(node, this.#sentinelClientOptions)
-          .on('uncaughtException', err => this.emit('error', err))
-          .on('error', (err) => this.emit('error', err));
+          .on('error', (err) => this.emit('error', `obseve client error: ${err}`));
         await client.connect();
 
         const sentinelData = await client.sentinelSentinels(this.#name) as Array<any>;
@@ -981,14 +974,13 @@ class RedisSentinelInternal<
       }
 
       this.#sentinelClient = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions)
-        .on('uncaughtException', err => this.emit('error', err))
         .on('error', err => {
-          this.emit('error', err)
+          this.emit('error', `sentinelClient ${analyzed.sentinelToOpen!.port} error: ${err}`);
           this.#reset();
         });
 
       await this.#sentinelClient.connect();
-
+      
       this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
 
       await this.#createPubSub();
@@ -1006,12 +998,10 @@ class RedisSentinelInternal<
 
       for (let i = 0; i < this.#masterPoolSize; i++) {
         const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions)
-          .on('uncaughtException', err => this.emit('error', err))
-          .on('error', err => this.emit('error', err));
+          .on('error', err => this.emit('error', `masterClient ${analyzed.masterToOpen!.port} error: ${err}`));
 
         this.#masterClients.push(client);
         await client.connect();
-
 
         this.#debugLog(`created master client to ${analyzed.masterToOpen.host}:${analyzed.masterToOpen.port}`);
       }
@@ -1037,11 +1027,12 @@ class RedisSentinelInternal<
         const str = JSON.stringify(node);
         if (replicaCloseSet.has(str)) {
           if (replica.isOpen) {
+            this.#debugLog(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
             replica.destroy()
           }
           this.emit('replica-removed', node);
         } else {
-          if (replica.isReady) {
+          if (replica.isOpen) {
             newClientList.push(replica);
           }
         }
@@ -1054,8 +1045,7 @@ class RedisSentinelInternal<
       for (const [node, size] of analyzed.replicasToOpen) {
         for (let i = 0; i < size; i++) {
           const client = this.#createClient(node, this.#nodeClientOptions)
-            .on('uncaughtException', err => this.emit('error', err))
-            .on('error', err => this.emit('error', err));
+          .on('error', err => this.emit('error', `replicaClient ${node.port} error: ${err}`));
 
           this.#replicaClients.push(client);
           await client.connect();
@@ -1101,12 +1091,15 @@ class RedisSentinelInternal<
     const initialMap = new Map<string, number>();
 
     for (const replica of this.#replicaClients) {
+      const node = clientSocketToNode(replica.options!.socket!);
+      const hash = JSON.stringify(node);
+
       if (replica.isReady) {
-        const node = clientSocketToNode(replica.options!.socket!);
-
-        const hash = JSON.stringify(node);
-
         initialMap.set(hash, (initialMap.get(hash) ?? 0) + 1);
+      } else {
+        if (!initialMap.has(hash)) {
+          initialMap.set(hash, 0);
+        }
       }
     }
 
