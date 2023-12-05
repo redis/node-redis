@@ -12,13 +12,12 @@
     "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
   },
   "dependencies": {
-    "cluster-key-slot": "1.1.2",
-    "generic-pool": "3.9.0"
+    "cluster-key-slot": "1.1.2"
   },
   "devDependencies": {
     "@redis/test-utils": "*",
-    "@types/sinon": "^10.0.16",
-    "sinon": "^16.0.0"
+    "@types/sinon": "^17.0.2",
+    "sinon": "^17.0.1"
   },
   "engines": {
     "node": ">=14"

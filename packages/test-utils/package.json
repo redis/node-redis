@@ -7,7 +7,7 @@
     "@redis/client": "*"
   },
   "devDependencies": {
-    "@types/yargs": "^17.0.24",
+    "@types/yargs": "^17.0.32",
     "yargs": "^17.7.2"
   }
 }
