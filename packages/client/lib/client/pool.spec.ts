@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 
-describe.only('RedisClientPool', () => {
+describe('RedisClientPool', () => {
   testUtils.testWithClientPool('sendCommand', async pool => {
     assert.equal(
       await pool.sendCommand(['PING']),
