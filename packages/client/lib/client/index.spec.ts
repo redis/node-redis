@@ -610,7 +610,6 @@ describe('Client', () => {
                     .hGetAll('key')
                     .exec(),
                 err => {
-                    console.log(err);
                     assert.ok(err instanceof MultiErrorReply);
                     assert.equal(err.replies.length, 2);
                     assert.deepEqual(err.errorIndexes, [1]);
@@ -618,10 +617,7 @@ describe('Client', () => {
                     return true;
                 }
             );
-        }, {
-            ...GLOBAL.SERVERS.OPEN,
-            minimumDockerVersion: [6, 2] // CLIENT INFO
-        });
+        }, GLOBAL.SERVERS.OPEN);
     });
 
     testUtils.testWithClient('scripts', async client => {

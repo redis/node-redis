@@ -83,6 +83,7 @@ export default class RedisMultiCommand {
             replies = rawReplies.map((reply, i) => {
                 if (reply instanceof ErrorReply) {
                     errorIndexes.push(i);
+                    return reply;
                 }
                 const { transformReply, args } = this.queue[i];
                 return transformReply ? transformReply(reply, args.preserve) : reply;
