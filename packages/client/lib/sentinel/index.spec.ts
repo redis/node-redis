@@ -88,8 +88,6 @@ describe.only('Client', () => {
   it('test with a module?');
   it('test with a type mapping');
   it('test with a pipeline that is not a multi');
-  it('test p/unsubscribe');
-  it('test many readers, that it loops around correctly')
 
   it('basic bootstrap', async function () {   
     sentinel = frame.getSentinelClient();
@@ -116,6 +114,30 @@ describe.only('Client', () => {
     const connectPromise = sentinel.connect();
     assert.rejects(sentinel.connect());
     await connectPromise;
+  });
+
+  it('many readers', async function () {
+    sentinel = frame.getSentinelClient({useReplicas: true, replicaPoolSize: 8});
+    await sentinel.connect();
+
+    await sentinel.set("x", 1);
+    for (let i=0; i < 10; i++) {
+      if (await sentinel.get("x") == "1") {
+        break;
+      }
+      await setTimeout(1000);
+    }
+
+    const promises: Array<Promise<any>> = [];
+    for (let i=0; i < 500; i++) {
+      promises.push(sentinel.get("x"));
+    }
+
+    const resp = await Promise.all(promises);
+    assert.equal(resp.length, 500);
+    for (let i=0; i < 500; i++) {
+      assert.equal(resp[i], "1", `failed on match at ${i}`);
+    }
   });
 
   it('reselient use', async function () {
@@ -393,12 +415,23 @@ describe.only('Client', () => {
       pubSubResolve = res;
     })
 
+    let tester = false;
     await sentinel.subscribe('test', () => {
+      tester = true;
       pubSubResolve(1);
     })
 
     await sentinel.publish('test', 'hello world');
     await pubSubPromise;
+    assert.equal(tester, true);
+
+    /* now unsubscribe */
+    tester = false
+    await sentinel.unsubscribe('test')
+    await sentinel.publish('test', 'hello world');
+    await setTimeout(1000);
+
+    assert.equal(tester, false);  
   });
 
   it('plain pubsub - pattern', async function () {
@@ -412,12 +445,23 @@ describe.only('Client', () => {
       pubSubResolve = res;
     })
 
+    let tester = false;
     await sentinel.pSubscribe('test*', () => {
+      tester = true;
       pubSubResolve(1);
     })
 
     await sentinel.publish('testy', 'hello world');
     await pubSubPromise;
+    assert.equal(tester, true);
+
+    /* now unsubscribe */
+    tester = false
+    await sentinel.pUnsubscribe('test*');
+    await sentinel.publish('testy', 'hello world');
+    await setTimeout(1000);
+
+    assert.equal(tester, false);  
   });
 
   // pubsub continues to work, even with a master change
@@ -433,7 +477,9 @@ describe.only('Client', () => {
       pubSubResolve = res;
     })
 
+    let tester = false;
     await sentinel.subscribe('test', () => {
+      tester = true;
       pubSubResolve(1);
     })
 
@@ -456,6 +502,15 @@ describe.only('Client', () => {
 
     await sentinel.publish('test', 'hello world');
     await pubSubPromise;
+    assert.equal(tester, true);
+
+    /* now unsubscribe */
+    tester = false
+    await sentinel.unsubscribe('test')
+    await sentinel.publish('test', 'hello world');
+    await setTimeout(1000);
+
+    assert.equal(tester, false);  
   });
 
   it('pubsub - pattern - with master change', async function () {  
@@ -466,11 +521,13 @@ describe.only('Client', () => {
     await sentinel.connect();
 
     let pubSubResolve;
-    const pubSubPromise = new Promise((res) => {
+    const pubSubPromise = new Promise((res) => {  
       pubSubResolve = res;
     })
 
+    let tester = false;
     await sentinel.pSubscribe('test*', () => {
+      tester = true;
       pubSubResolve(1);
     })
 
@@ -493,6 +550,15 @@ describe.only('Client', () => {
 
     await sentinel.publish('testy', 'hello world');
     await pubSubPromise;
+    assert.equal(tester, true);
+
+    /* now unsubscribe */
+    tester = false
+    await sentinel.pUnsubscribe('test*');
+    await sentinel.publish('testy', 'hello world');
+    await setTimeout(1000);
+
+    assert.equal(tester, false);  
   });
 
   // if we stop a node, the comand should "retry" until we reconfigure topology and execute on new topology

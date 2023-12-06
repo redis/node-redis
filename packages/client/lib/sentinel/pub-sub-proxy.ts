@@ -53,7 +53,6 @@ export class PubSubProxy<
 
     options.socket.host = this.#node.host;
     options.socket.port = this.#node.port;
-    options.socket.reconnectStrategy = false;
 
     return RedisClient.create(options);
   }
@@ -71,21 +70,23 @@ export class PubSubProxy<
   }
 
   async close() {
-    if (this.#pubSubNode) {
-      if (this.#pubSubNode.connectPromise === undefined) {
-        const client = this.#pubSubNode.client;
+    while (true) {
+      if (this.#pubSubNode) {
+        if (this.#pubSubNode.connectPromise === undefined) {
+          const client = this.#pubSubNode.client;
 
-        /* probably less needed, as close() means we're probably also shutting down whoever holds this */
-        this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
-        this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
+          /* probably less needed, as close() means we're probably also shutting down whoever holds this */
+          this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
+          this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
+          this.#pubSubNode = undefined;
 
-        this.#pubSubNode = undefined;
-        if (client.isOpen) {
-          client.close();
+          if (client.isOpen) {
+            client.destroy();
+          }
+          return;
+        } else {
+          await this.#pubSubNode.connectPromise;
         }
-      } else {
-        this.#pubSubNode.destroy = true;
-        await this.#pubSubNode.connectPromise;
       }
     }
   }

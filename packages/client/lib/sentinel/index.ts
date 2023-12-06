@@ -77,35 +77,7 @@ export default class RedisSentinel<
 
     /* pass through underling events */
     /* TODO: perhaps make this a struct and one vent, instead of multiple events */
-    this.internal.on('sentinel-change', node => {
-      const event: RedisSentinelEvent = {
-        type: "SENTINEL_CHANGE",
-        node: node
-      }
-      this.emit('topology-change', event);
-    }).on('master-change', node => {
-      const event: RedisSentinelEvent = {
-        type: "MASTER_CHANGE",
-        node: node
-      }
-      this.emit('topology-change', event);
-    }).on('replica-removed', node => {
-      const event: RedisSentinelEvent = {
-        type: "REPLICA_REMOVE",
-        node: node
-      }
-      this.emit('topology-change', event);
-    }).on('replica-added', node => {
-      const event: RedisSentinelEvent = {
-        type: "REPLICA_ADD",
-        node: node
-      }
-      this.emit('topology-change', event);
-    }).on('sentinels-modified', (size) => {
-      const event: RedisSentinelEvent = {
-        type: "SENTINE_LIST_CHANGE",
-        size: size
-      }
+    this.internal.on('topology-change', event => {
       this.emit('topology-change', event);
     });
   }
@@ -115,9 +87,16 @@ export default class RedisSentinel<
     this.clientInfo = clientInfo;
   }
 
-  /* used to setup RedisSentinel objects with leases */
+  /* used to setup RedisSentinel objects with leases 
+   * leases should only get maste change events, as that's all they should care about.
+  */
   #setInternalObject(internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>) {
     this.internal = internal;
+    this.internal.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE") {
+        this.emit('topology-change', event);
+      }
+    });
   }
 
   private static _createCommand(command: Command, resp: RespVersions) {
@@ -1006,7 +985,11 @@ class RedisSentinelInternal<
       promises.push(promise);
 
       this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
-      this.emit('sentinel-change', analyzed.sentinelToOpen);
+      const event: RedisSentinelEvent = {
+        type: "SENTINEL_CHANGE",
+        node: analyzed.sentinelToOpen
+      }
+      this.emit('topology-change', event);
     }
 
     if (analyzed.masterToOpen) {
@@ -1032,7 +1015,11 @@ class RedisSentinelInternal<
 
       masterPromises.push(this.#pubSubProxy.changeNode(analyzed.masterToOpen));
       promises.push(...masterPromises);
-      this.emit('master-change', analyzed.masterToOpen);
+      const event: RedisSentinelEvent = {
+        type: "MASTER_CHANGE",
+        node: analyzed.masterToOpen
+      }
+      this.emit('topology-change', event);
       this.#configEpoch++;
     }
 
@@ -1055,7 +1042,11 @@ class RedisSentinelInternal<
           replica.destroy()
         }
         if (!removedSet.has(str)) {
-          this.emit('replica-removed', node);
+          const event: RedisSentinelEvent = {
+            type: "REPLICA_REMOVE",
+            node: node
+          }   
+          this.emit('topology-change', event);
           removedSet.add(str);
         }
       } else {
@@ -1076,13 +1067,21 @@ class RedisSentinelInternal<
 
           this.#debugLog(`created replica client to ${node.host}:${node.port}`);
         }
-        this.emit('replica-added', node);
+        const event: RedisSentinelEvent = {
+          type: "REPLICA_ADD",
+          node: node
+        }  
+        this.emit('topology-change', event);
       }
     }
 
     if (analyzed.sentinelList.length != this.#sentinelRootNodes.length) {
       this.#sentinelRootNodes = analyzed.sentinelList;
-      this.emit('sentinels-modified', analyzed.sentinelList.length);
+      const event: RedisSentinelEvent = {
+        type: "SENTINE_LIST_CHANGE",
+        size: analyzed.sentinelList.length
+      }
+      this.emit('topology-change', event);
     }
 
     await Promise.all(promises);
