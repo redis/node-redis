@@ -144,3 +144,15 @@ export type NodeInfo = {
   port: any,
   flags: any,
 };
+
+export type RedisSentinelEvent = NodeChangeEvent | SizeChangeEvent;
+ 
+export type NodeChangeEvent = {
+  type: "SENTINEL_CHANGE" | "MASTER_CHANGE" | "REPLICA_ADD" | "REPLICA_REMOVE";
+  node: RedisNode;
+}
+
+export type SizeChangeEvent = {
+  type: "SENTINE_LIST_CHANGE";
+  size: Number;
+}

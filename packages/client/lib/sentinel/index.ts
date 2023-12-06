@@ -4,7 +4,7 @@ import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import COMMANDS from '../commands';
-import { NamespaceProxySentinel, ProxySentinel, RedisNode, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
+import { NamespaceProxySentinel, ProxySentinel, RedisNode, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
 import { clientSocketToNode, createNodeList, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
@@ -45,7 +45,7 @@ export default class RedisSentinel<
   internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>;
 
-  static extractWatchUnwatchExec(redisArgs: Array<RedisArgument>): execType | undefined {
+  static extractWatchUnwatch(redisArgs: Array<RedisArgument>): execType | undefined {
     if (redisArgs[0] === "WATCH" || redisArgs[0] === "UNWATCH") {
       return redisArgs[0];
     } else {
@@ -78,15 +78,35 @@ export default class RedisSentinel<
     /* pass through underling events */
     /* TODO: perhaps make this a struct and one vent, instead of multiple events */
     this.internal.on('sentinel-change', node => {
-      this.emit('sentinel-change', node);
+      const event: RedisSentinelEvent = {
+        type: "SENTINEL_CHANGE",
+        node: node
+      }
+      this.emit('topology-change', event);
     }).on('master-change', node => {
-      this.emit('master-change', node);
+      const event: RedisSentinelEvent = {
+        type: "MASTER_CHANGE",
+        node: node
+      }
+      this.emit('topology-change', event);
     }).on('replica-removed', node => {
-      this.emit('replica-removed', node);
+      const event: RedisSentinelEvent = {
+        type: "REPLICA_REMOVE",
+        node: node
+      }
+      this.emit('topology-change', event);
     }).on('replica-added', node => {
-      this.emit('replica-added', node);
+      const event: RedisSentinelEvent = {
+        type: "REPLICA_ADD",
+        node: node
+      }
+      this.emit('topology-change', event);
     }).on('sentinels-modified', (size) => {
-      this.emit('sentinels-modified', size);
+      const event: RedisSentinelEvent = {
+        type: "SENTINE_LIST_CHANGE",
+        size: size
+      }
+      this.emit('topology-change', event);
     });
   }
 
@@ -104,7 +124,7 @@ export default class RedisSentinel<
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxySentinel, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
-        execType = RedisSentinel.extractWatchUnwatchExec(redisArgs),
+        execType = RedisSentinel.extractWatchUnwatch(redisArgs),
         reply = await this.sendCommand(
           execType,
           command.IS_READ_ONLY,

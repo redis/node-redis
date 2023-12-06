@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
-import { RedisNode, RedisSentinelType } from "./types";
+import { RedisNode, RedisSentinelEvent, RedisSentinelType } from "./types";
 
 /* used to ensure test environment resets to normal state
    i.e. 
@@ -22,15 +22,12 @@ async function steadyState(frame: SentinelFramework) {
   const seenNodes = new Set<number>();
 
   const sentinel = frame.getSentinelClient({ useReplicas: true })
-    .on('master-change', (node: RedisNode) => {
-      seenNodes.add(node.port);
-      if (seenNodes.size == frame.getAllNodesPort().length) {
-        nodeResolve();
-      }
-    }).on('replica-added', (node: RedisNode) => {
-      seenNodes.add(node.port);
-      if (seenNodes.size == frame.getAllNodesPort().length) {
-        nodeResolve();
+    .on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type == "MASTER_CHANGE" || event.type == "REPLICA_ADD") {
+        seenNodes.add(event.node.port);
+        if (seenNodes.size == frame.getAllNodesPort().length) {
+          nodeResolve();
+        }
       }
     }).on('error', err => { });
 
@@ -307,9 +304,9 @@ describe.only('Client', () => {
     })
 
     const masterPort = await frame.getMasterPort();
-    sentinel.on('master-change', (node: RedisNode) => {
-      if (node.port != masterPort) {
-        masterChangeResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+        masterChangeResolve(event.node);
       }
     });
 
@@ -336,8 +333,10 @@ describe.only('Client', () => {
       resolve = res;
     })
 
-    sentinel.once('master-change', (node) => {
-      resolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+        resolve(event.node);
+      }
     });
 
     const masterPort = await frame.getMasterPort();
@@ -366,8 +365,10 @@ describe.only('Client', () => {
       resolve = res;
     })
 
-    sentinel.once('master-change', (node) => {
-      resolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+        resolve(event.node);
+      }
     });
 
     const masterPort = await frame.getMasterPort();
@@ -441,8 +442,10 @@ describe.only('Client', () => {
       masterChangeResolve = res;
     })
 
-    sentinel.once('master-change', (node) => {
-      masterChangeResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+        masterChangeResolve(event.node);
+      }
     });
 
     const masterPort = await frame.getMasterPort();
@@ -477,9 +480,9 @@ describe.only('Client', () => {
     })
 
     const masterPort = await frame.getMasterPort();
-    sentinel.on('master-change', (node: RedisNode) => {
-      if (node.port != masterPort) {
-        masterChangeResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+        masterChangeResolve(event.node);
       }
     });
 
@@ -506,9 +509,9 @@ describe.only('Client', () => {
     })
 
     const masterPort = await frame.getMasterPort();
-    sentinel.on('master-change', (node: RedisNode) => {
-      if (node.port != masterPort) {
-        masterChangeResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+        masterChangeResolve(event.node);
       }
     });
 
@@ -533,8 +536,10 @@ describe.only('Client', () => {
       sentinelChangeResolve = res;
     })
 
-    sentinel.once('sentinel-change', node => {
-      sentinelChangeResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "SENTINEL_CHANGE") {
+        sentinelChangeResolve(event.node);
+      }
     });
 
     const sentinelPort = sentinel.options.sentinelRootNodes[0].port;
@@ -555,9 +560,9 @@ describe.only('Client', () => {
       sentinelChangeResolve = res;
     })
 
-    sentinel.once('sentinels-modified', size => {
-      if (size == 4) {
-        sentinelChangeResolve(size);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "SENTINE_LIST_CHANGE" && event.size == 4) {
+        sentinelChangeResolve(event.size);
       }
     });
 
@@ -579,8 +584,10 @@ describe.only('Client', () => {
       sentinelRemoveResolve = res;
     })
 
-    sentinel.once('replica-removed', (node: RedisNode) => {
-      sentinelRemoveResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "REPLICA_REMOVE") {
+        sentinelRemoveResolve(event.node);
+      }
     });
 
     const replicaPort = await frame.getRandonNonMasterNode();
@@ -594,10 +601,12 @@ describe.only('Client', () => {
       sentinelRestartedResolve = res;
     })
 
-    sentinel.once('replica-added', (node: RedisNode) => {
-      sentinelRestartedResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "REPLICA_ADD") {
+        sentinelRestartedResolve(event.node);
+      }
     });
-
+    
     await frame.restartNode(replicaPort);
 
     const restartedNode = await sentinelRestartedPromise as RedisNode;
@@ -623,9 +632,11 @@ describe.only('Client', () => {
     }
 
     // "on" and not "once" as due to connection timeouts, can happen multiple times, and want right one
-    sentinel.on('replica-added', (node: RedisNode) => {
-      if (!portSet.has(node.port)) {
-        nodeAddedResolve(node);
+    sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      if (event.type === "REPLICA_ADD") {
+        if (!portSet.has(event.node.port)) {
+          nodeAddedResolve(event.node);
+        }
       }
     });
 
