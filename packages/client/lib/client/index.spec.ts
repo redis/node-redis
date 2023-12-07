@@ -295,6 +295,7 @@ describe('Client', () => {
           assert.equal(err.replies.length, 2);
           assert.deepEqual(err.errorIndexes, [1]);
           assert.ok(err.replies[1] instanceof ErrorReply);
+          assert.deepEqual([...err.errors()], [err.replies[1]]);
           return true;
         }
       );

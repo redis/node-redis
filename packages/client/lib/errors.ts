@@ -79,4 +79,10 @@ export class MultiErrorReply extends ErrorReply {
     this.replies = replies;
     this.errorIndexes = errorIndexes;
   }
+
+  *errors() {
+    for (const index of this.errorIndexes) {
+        yield this.replies[index];
+    }
+  }
 }
