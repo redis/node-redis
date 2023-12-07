@@ -315,7 +315,7 @@ export default class RedisClient<
     }
 
     if (options?.database) {
-      this._selectedDB = options.database;
+      this.self._selectedDB = options.database;
     }
 
     if (options?.commandOptions) {
@@ -584,7 +584,7 @@ export default class RedisClient<
 
   async SELECT(db: number): Promise<void> {
     await this.sendCommand(['SELECT', db.toString()]);
-    this._selectedDB = db;
+    this.self._selectedDB = db;
   }
 
   select = this.SELECT;
@@ -742,7 +742,10 @@ export default class RedisClient<
   /**
    * @internal
    */
-  _executePipeline(commands: Array<RedisMultiQueuedCommand>) {
+  async _executePipeline(
+    commands: Array<RedisMultiQueuedCommand>,  
+    selectedDB?: number
+  ) {
     if (!this._socket.isOpen) {
       return Promise.reject(new ClientClosedError());
     }
@@ -753,7 +756,13 @@ export default class RedisClient<
       }))
     );
     this._scheduleWrite();
-    return promise;
+    const result = await promise;
+
+    if (selectedDB !== undefined) {
+      this.self._selectedDB = selectedDB;
+    }
+
+    return result;
   }
 
   /**
@@ -764,7 +773,7 @@ export default class RedisClient<
     selectedDB?: number
   ) {
     if (!this._socket.isOpen) {
-      return Promise.reject(new ClientClosedError());
+      throw new ClientClosedError();
     }
 
     const typeMapping = this._commandOptions?.typeMapping,
@@ -796,7 +805,7 @@ export default class RedisClient<
     }
 
     if (selectedDB !== undefined) {
-      this._selectedDB = selectedDB;
+      this.self._selectedDB = selectedDB;
     }
 
     return execResult as Array<unknown>;

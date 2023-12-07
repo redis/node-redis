@@ -1,17 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
-// import { RedisClientMultiCommandType } from './multi-command';
-// import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'node:events';
-// import { ClientKillFilters } from '../commands/CLIENT_KILL';
-// import { promisify } from 'node:util';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
-import { NumberReply } from '../RESP/types';
+import { BlobStringReply, NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
 
 export const SQUARE_SCRIPT = defineScript({
@@ -232,24 +228,26 @@ describe('Client', () => {
       }
     });
 
-    // testUtils.testWithClient('WatchError', async client => {
-    //   await client.watch('key');
+    testUtils.testWithClient('WatchError', async client => {
+      await client.watch('key');
 
-    //   await client.set(
-    //     RedisClient.commandOptions({
-    //       isolated: true
-    //     }),
-    //     'key',
-    //     '1'
-    //   );
+      const duplicate = await client.duplicate().connect();
+      try {
+        await client.set(
+          'key',
+          '1'
+        );
+      } finally {
+        duplicate.destroy();
+      }
 
-    //   await assert.rejects(
-    //     client.multi()
-    //       .decr('key')
-    //       .exec(),
-    //     WatchError
-    //   );
-    // }, GLOBAL.SERVERS.OPEN);
+      await assert.rejects(
+        client.multi()
+          .decr('key')
+          .exec(),
+        WatchError
+      );
+    }, GLOBAL.SERVERS.OPEN);
 
     describe('execAsPipeline', () => {
       testUtils.testWithClient('exec(true)', async client => {
@@ -269,20 +267,19 @@ describe('Client', () => {
       }, GLOBAL.SERVERS.OPEN);
     });
 
-    // testUtils.testWithClient('should remember selected db', async client => {
-    //   await client.multi()
-    //     .select(1)
-    //     .exec();
-    //   await killClient(client);
-    //   assert.equal(
-    //     (await client.clientInfo()).db,
-    //     1
-    //   );
-    // }, {
-    //   ...GLOBAL.SERVERS.OPEN,
-    //   minimumDockerVersion: [6, 2] // CLIENT INFO
-    // });
-
+    testUtils.testWithClient('should remember selected db', async client => {
+      await client.multi()
+        .select(1)
+        .exec();
+      await killClient(client);
+      assert.equal(
+        (await client.clientInfo()).db,
+        1
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
 
     testUtils.testWithClient('should handle error replies (#2665)', async client => {
       await assert.rejects(
@@ -320,12 +317,10 @@ describe('Client', () => {
 
   const module = {
     echo: {
-      transformArguments(message: string): Array<string> {
+      transformArguments(message: string) {
         return ['ECHO', message];
       },
-      transformReply(reply: string): string {
-        return reply;
-      }
+      transformReply: undefined as unknown as () => BlobStringReply
     }
   };
 
@@ -386,81 +381,34 @@ describe('Client', () => {
     disableClientSetup: true,
   });
 
-//   describe('isolationPool', () => {
-//     testUtils.testWithClient('executeIsolated', async client => {
-//       const id = await client.clientId(),
-//         isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
-//       assert.ok(id !== isolatedId);
-//     }, GLOBAL.SERVERS.OPEN);
+  async function killClient(
+    client: RedisClientType<any, any, any, any, any>,
+    errorClient: RedisClientType<any, any, any, any, any> = client
+  ): Promise<void> {
+    const onceErrorPromise = once(errorClient, 'error');
+    await client.sendCommand(['QUIT']);
+    await Promise.all([
+      onceErrorPromise,
+      assert.rejects(client.ping(), SocketClosedUnexpectedlyError)
+    ]);
+  }
 
-//     testUtils.testWithClient('should be able to use pool even before connect', async client => {
-//       await client.executeIsolated(() => Promise.resolve());
-//       // make sure to destroy isolation pool
-//       await client.connect();
-//       await client.disconnect();
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       disableClientSetup: true
-//     });
+  testUtils.testWithClient('should reconnect when socket disconnects', async client => {
+    await killClient(client);
+    await assert.doesNotReject(client.ping());
+  }, GLOBAL.SERVERS.OPEN);
 
-//     testUtils.testWithClient('should work after reconnect (#2406)', async client => {
-//       await client.disconnect();
-//       await client.connect();
-//       await client.executeIsolated(() => Promise.resolve());
-//     }, GLOBAL.SERVERS.OPEN);
-
-//     testUtils.testWithClient('should throw ClientClosedError after disconnect', async client => {
-//       await client.connect();
-//       await client.disconnect();
-//       await assert.rejects(
-//         client.executeIsolated(() => Promise.resolve()),
-//         ClientClosedError
-//       );
-//     }, {
-//       ...GLOBAL.SERVERS.OPEN,
-//       disableClientSetup: true
-//     });
-//   });
-
-//   async function killClient<
-//     M extends RedisModules,
-//     F extends RedisFunctions,
-//     S extends RedisScripts
-//   >(
-//     client: RedisClientType<M, F, S>,
-//     errorClient: RedisClientType<M, F, S> = client
-//   ): Promise<void> {
-//     const onceErrorPromise = once(errorClient, 'error');
-//     await client.sendCommand(['QUIT']);
-//     await Promise.all([
-//       onceErrorPromise,
-//       assert.rejects(client.ping(), SocketClosedUnexpectedlyError)
-//     ]);
-//   }
-
-//   testUtils.testWithClient('should reconnect when socket disconnects', async client => {
-//     await killClient(client);
-//     await assert.doesNotReject(client.ping());
-//   }, GLOBAL.SERVERS.OPEN);
-
-//   testUtils.testWithClient('should remember selected db', async client => {
-//     await client.select(1);
-//     await killClient(client);
-//     assert.equal(
-//       (await client.clientInfo()).db,
-//       1
-//     );
-//   }, {
-//     ...GLOBAL.SERVERS.OPEN,
-//     minimumDockerVersion: [6, 2] // CLIENT INFO
-//   });
-
-//   testUtils.testWithClient('should propagated errors from "isolated" clients', client => {
-//     client.on('error', () => {
-//       // ignore errors
-//     });
-//     return client.executeIsolated(isolated => killClient(isolated, client));
-//   }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('should remember selected db', async client => {
+    await client.select(1);
+    await killClient(client);
+    assert.equal(
+      (await client.clientInfo()).db,
+      1
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
 
   testUtils.testWithClient('scanIterator', async client => {
     const entries: Array<string> = [],

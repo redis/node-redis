@@ -85,8 +85,6 @@ export type RedisClientMultiCommandType<
 
 type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
 
-type ExecutePipeline = (commands: Array<RedisMultiQueuedCommand>) => Promise<Array<unknown>>;
-
 export default class RedisClientMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
@@ -153,13 +151,12 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
   private readonly _multi = new RedisMultiCommand();
   private readonly _executeMulti: ExecuteMulti;
-  private readonly _executePipeline: ExecutePipeline;
+  private readonly _executePipeline: ExecuteMulti;
   private _selectedDB?: number;
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecutePipeline) {
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti) {
     this._executeMulti = executeMulti;
     this._executePipeline = executePipeline;
-    // this._client = client;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {
@@ -193,7 +190,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (this._multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
     return this._multi.transformReplies(
-      await this._executePipeline(this._multi.queue)
+      await this._executePipeline(this._multi.queue, this._selectedDB)
     ) as MultiReplyType<T, REPLIES>;
   }
 
