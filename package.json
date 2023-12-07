@@ -12,17 +12,17 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@types/mocha": "^10.0.3",
-    "@types/node": "^20.8.10",
-    "@typescript-eslint/eslint-plugin": "^6.9.1",
-    "@typescript-eslint/parser": "^6.9.1",
-    "gh-pages": "^6.0.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.3",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
+    "gh-pages": "^6.1.0",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
-    "release-it": "^16.2.1",
-    "tsx": "^3.14.0",
-    "typedoc": "^0.25.3",
-    "typescript": "^5.2.2"
+    "release-it": "^17.0.0",
+    "tsx": "^4.6.2",
+    "typedoc": "^0.25.4",
+    "typescript": "^5.3.2"
   },
   "dependencies": {
     "wait-queue": "^1.1.4"
