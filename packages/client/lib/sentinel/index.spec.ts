@@ -1,8 +1,9 @@
-import { strict as assert } from 'node:assert';
+ import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisNode, RedisSentinelEvent, RedisSentinelType } from "./types";
+import { RedisSentinelFactory } from '.';
 
 /* used to ensure test environment resets to normal state
    i.e. 
@@ -42,6 +43,8 @@ describe.only('Client', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3 };
   const frame = new SentinelFramework(config);
   let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
+  let master: any;
+  let replica: any;
 
   before(async function () {
     this.timeout(15000);
@@ -77,9 +80,23 @@ describe.only('Client', () => {
   afterEach(async function () {
     if (sentinel !== undefined) {
       await sentinel.destroy();
+      sentinel = undefined;
     }
 
-    sentinel = undefined;
+    if (master !== undefined) {
+      if (master.isOpen) {
+        master.destroy();
+      }
+      master = undefined;
+    }
+
+    if (replica !== undefined) {
+      if (replica.isOpen) {
+        replica.destroy();
+      }
+
+      replica = undefined;
+    }
   })
 
   it('figure out how to automate validation against tls');
@@ -117,6 +134,8 @@ describe.only('Client', () => {
   });
 
   it('many readers', async function () {
+    this.timeout(10000);
+
     sentinel = frame.getSentinelClient({useReplicas: true, replicaPoolSize: 8});
     await sentinel.connect();
 
@@ -709,5 +728,38 @@ describe.only('Client', () => {
     await frame.addNode();
 
     await nodeAddedPromise;
+  })
+
+  it('sentinel factory - master', async function () {
+    const sentinelPorts = frame.getAllSentinelsPort();
+    const sentinels: Array<RedisNode> = [];
+    for (const port of sentinelPorts) {
+      sentinels.push({host: "localhost", port: port});
+    }
+
+    const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels})
+    await factory.updateSentinelRootNodes();
+
+    master = await factory.getMasterClient();
+    await master.connect();
+
+    assert.equal(await master.set("x", 1), 'OK');
+  })
+
+  it('sentinel factory - replica', async function () {
+    const sentinelPorts = frame.getAllSentinelsPort();
+    const sentinels: Array<RedisNode> = [];
+    for (const port of sentinelPorts) {
+      sentinels.push({host: "localhost", port: port});
+    }
+
+    const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels})
+    await factory.updateSentinelRootNodes();
+
+    replica = await factory.getReplicaClient();
+    await replica.connect();
+
+    await assert.rejects(async () => { await replica.set("x", 1) }, new Error("READONLY You can't write against a read only replica."));
+    assert.equal(await replica.get("x"), null);
   })
 });

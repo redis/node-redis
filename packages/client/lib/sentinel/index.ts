@@ -12,6 +12,8 @@ import { PubSubListener } from '../client/pub-sub';
 import { PubSubProxy } from './pub-sub-proxy';
 import WaitQueue from 'wait-queue';
 import { setTimeout } from 'node:timers/promises';
+import { RedisSentinelConfig } from './test-util';
+import { config } from 'node:process';
 
 // to transpile typescript to js - npm run build -- ./packages/client
 // js files will be in the 'dist' folder
@@ -1154,5 +1156,151 @@ class RedisSentinelInternal<
     console.log(`replicasToOpen: ${JSON.stringify([...analyzed.replicasToOpen.entries()])}`)
     console.log(`sentinelList: ${JSON.stringify(analyzed.sentinelList)}`);
     console.log(`sentinelToOpen: ${JSON.stringify(analyzed.replicasToOpen)}`);
+  }
+}
+
+export class RedisSentinelFactory {
+  options: RedisSentinelOptions;
+  #sentinelRootNodes: Array<RedisNode>;
+  #replicaIdx: number = -1;
+
+  constructor(options: RedisSentinelOptions) {
+    this.options = options;
+    this.#sentinelRootNodes = options.sentinelRootNodes;
+  }
+
+  async updateSentinelRootNodes() {
+    for (const node of this.#sentinelRootNodes) {
+      const options: RedisClientOptions = {...this.options.sentinelClientOptions};
+      if (options.socket === undefined) {
+        options.socket = {};
+      }
+      options.socket.host = node.host;
+      options.socket.port = node.port;
+
+      const client = RedisClient.create(options);
+      try {
+        await client.connect();
+
+        const sentinelData = await client.sentinelSentinels(this.options.name) as Array<any>;
+        this.#sentinelRootNodes = [node].concat(createNodeList(sentinelData));
+        return;
+      } catch {
+      } finally {
+        client.destroy();
+      }
+    }
+
+    throw new Error("Couldn't connect to any sentinel node");
+  }
+
+  async getMasterNode() {
+    let connected = false;
+
+    for (const node of this.#sentinelRootNodes) {
+      const options: RedisClientOptions = {...this.options.sentinelClientOptions};
+      if (options.socket === undefined) {
+        options.socket = {};
+      }
+      options.socket.host = node.host;
+      options.socket.port = node.port;
+
+      const client = RedisClient.create(options);
+
+      try {
+        await client.connect();
+
+        const masterData = await client.sentinelMaster(this.options.name) as any;
+        connected = true;
+        let master = parseNode(masterData);
+        if (master === undefined) {
+          continue;
+        }
+
+        return master;
+      } catch {
+
+      } finally {
+        client.destroy();
+      }
+    }
+
+    if (connected) {
+      throw new Error("Master Nde Not Enumerated");
+    }
+
+    throw new Error("couldn't connect to any sentinels");
+  }
+
+  async getMasterClient() {
+    const master = await this.getMasterNode();
+    const options: RedisClientOptions = {...this.options.nodeClientOptions};
+    if (options.socket === undefined) {
+      options.socket = {};
+    }
+    options.socket.host = master.host;
+    options.socket.port = master.port;
+
+    return RedisClient.create(options);;
+  }
+
+  async getReplicaNodes() {
+    let connected = false;
+
+    for (const node of this.#sentinelRootNodes) {
+      const options: RedisClientOptions = {...this.options.sentinelClientOptions};
+      if (options.socket === undefined) {
+        options.socket = {};
+      }
+      options.socket.host = node.host;
+      options.socket.port = node.port;
+
+      const client = RedisClient.create(options);
+
+      try {
+        await client.connect();
+
+        const replicaData = await client.sentinelReplicas(this.options.name) as Array<any>;
+        connected = true;
+
+        const replicas = createNodeList(replicaData);
+        if (replicas.length == 0) {
+          continue;
+        }
+
+        return replicas;
+      } catch {
+
+      } finally {
+        client.destroy();
+      }
+    }
+
+    if (connected) {
+      throw new Error("No Replicas Nodes Enumerated");
+    }
+
+    throw new Error("couldn't connect to any sentinels");
+  }
+
+  async getReplicaClient() {
+    const replicas = await this.getReplicaNodes();
+    if (replicas.length == 0) {
+      throw new Error("no available replicas");
+    }
+
+    this.#replicaIdx++;
+    if (this.#replicaIdx >= replicas.length) {
+      this.#replicaIdx = 0;
+    }
+
+    const options: RedisClientOptions = {...this.options.nodeClientOptions};
+    if (options.socket === undefined) {
+      options.socket = {};
+    }
+    options.socket.host = replicas[this.#replicaIdx].host;
+    options.socket.port = replicas[this.#replicaIdx].port;
+
+    return RedisClient.create(options);;   
   }
 }
