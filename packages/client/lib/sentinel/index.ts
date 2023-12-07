@@ -12,8 +12,6 @@ import { PubSubListener } from '../client/pub-sub';
 import { PubSubProxy } from './pub-sub-proxy';
 import WaitQueue from 'wait-queue';
 import { setTimeout } from 'node:timers/promises';
-import { RedisSentinelConfig } from './test-util';
-import { config } from 'node:process';
 
 // to transpile typescript to js - npm run build -- ./packages/client
 // js files will be in the 'dist' folder

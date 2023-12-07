@@ -749,6 +749,7 @@ describe.only('Client', () => {
   it('sentinel factory - replica', async function () {
     const sentinelPorts = frame.getAllSentinelsPort();
     const sentinels: Array<RedisNode> = [];
+
     for (const port of sentinelPorts) {
       sentinels.push({host: "localhost", port: port});
     }
@@ -762,4 +763,4 @@ describe.only('Client', () => {
     await assert.rejects(async () => { await replica.set("x", 1) }, new Error("READONLY You can't write against a read only replica."));
     assert.equal(await replica.get("x"), null);
   })
-});
+});\
