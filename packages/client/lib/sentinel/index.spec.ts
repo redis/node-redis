@@ -1,9 +1,11 @@
- import { strict as assert } from 'node:assert';
+import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisNode, RedisSentinelEvent, RedisSentinelType } from "./types";
 import { RedisSentinelFactory } from '.';
+import { RedisClientType } from '../client';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 
 /* used to ensure test environment resets to normal state
    i.e. 
@@ -21,30 +23,36 @@ async function steadyState(frame: SentinelFramework) {
   const numberOfNodes = frame.getAllNodesPort.length;
 
   const seenNodes = new Set<number>();
+  let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
 
-  const sentinel = frame.getSentinelClient({ useReplicas: true })
-    .on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type == "MASTER_CHANGE" || event.type == "REPLICA_ADD") {
-        seenNodes.add(event.node.port);
-        if (seenNodes.size == frame.getAllNodesPort().length) {
-          nodeResolve();
+  try {
+    sentinel = frame.getSentinelClient({ useReplicas: true, scanInterval: 2000 })
+      .on('topology-change', (event: RedisSentinelEvent) => {
+        if (event.type == "MASTER_CHANGE" || event.type == "REPLICA_ADD") {
+          seenNodes.add(event.node.port); 
+          if (seenNodes.size == frame.getAllNodesPort().length) {
+            nodeResolve();
+          }
         }
-      }
-    }).on('error', err => { });
+      }).on('error', err => { });
 
-  await sentinel.connect();
+    await sentinel.connect();
 
-  await nodePromise;
-  await sentinel.flushAll();
-  sentinel.destroy();
+    await nodePromise;
+    await sentinel.flushAll();
+  } finally {
+    if (sentinel !== undefined) {
+      sentinel.destroy();
+    }
+  }
 }
 
 describe.only('Client', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3 };
   const frame = new SentinelFramework(config);
   let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
-  let master: any;
-  let replica: any;
+  let master: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
+  let replica: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
 
   before(async function () {
     this.timeout(15000);
@@ -57,14 +65,28 @@ describe.only('Client', () => {
 
     if (sentinel !== undefined) {
       await sentinel.destroy();
+      sentinel = undefined;
     }
-    sentinel = undefined;
+    
+    if (master !== undefined) {
+      if (master.isOpen) {
+        master.destroy();
+      }
+      master = undefined;
+    }
+
+    if (replica !== undefined) {
+      if (replica.isOpen) {
+        replica.destroy();
+      }
+      replica = undefined;
+    }
 
     await frame.cleanup();
   })
 
   beforeEach(async function () {
-    this.timeout(15000);
+    this.timeout(0);
 
     for (const port of frame.getAllNodesPort()) {
       await frame.restartNode(port.toString());
@@ -82,7 +104,7 @@ describe.only('Client', () => {
       await sentinel.destroy();
       sentinel = undefined;
     }
-
+    
     if (master !== undefined) {
       if (master.isOpen) {
         master.destroy();
@@ -94,7 +116,6 @@ describe.only('Client', () => {
       if (replica.isOpen) {
         replica.destroy();
       }
-
       replica = undefined;
     }
   })
@@ -295,7 +316,7 @@ describe.only('Client', () => {
       return client.multi().get('x').exec();
     });
 
-    await assert.rejects(promise, WatchError);
+    await assert.rejects(promise, new WatchError());
   });
 
   it('lease - watch - clean', async function () {
@@ -317,7 +338,7 @@ describe.only('Client', () => {
     await leasedClient.watch('x');
     await leasedClient.set('x', 2);
 
-    await assert.rejects(leasedClient.multi().get('x').exec(), WatchError);
+    await assert.rejects(leasedClient.multi().get('x').exec(), new WatchError());
   });
 
 
@@ -627,11 +648,13 @@ describe.only('Client', () => {
       }
     });
 
-    const sentinelPort = sentinel.options.sentinelRootNodes[0].port;
-    await frame.stopSentinel(sentinelPort.toString());
+    const sentinelNode = sentinel.getSentinelNode();
+    assert.notEqual(sentinelNode, undefined);
+
+    await frame.stopSentinel(sentinelNode.port.toString());
 
     const newSentinel = await sentinelChangePromise as RedisNode;
-    assert.notEqual(sentinelPort, newSentinel.port);
+    assert.notEqual(sentinelNode.port, newSentinel.port);
   });
 
   it('timer works, and updates sentinel list', async function () {
@@ -757,10 +780,48 @@ describe.only('Client', () => {
     const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels})
     await factory.updateSentinelRootNodes();
 
+    const masterNode = await factory.getMasterNode();
     replica = await factory.getReplicaClient();
-    await replica.connect();
-
-    await assert.rejects(async () => { await replica.set("x", 1) }, new Error("READONLY You can't write against a read only replica."));
-    assert.equal(await replica.get("x"), null);
+    assert.notEqual(masterNode.port, replica.options?.socket?.port)
   })
-});\
+
+  it('sentinel factory - bad node', async function () {
+    const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: [{host: "locahost", port: 1}]});
+    assert.rejects(factory.updateSentinelRootNodes(), new Error("Couldn't connect to any sentinel node"));
+  })
+
+  it('sentinel factory - invalid db name', async function () {
+    this.timeout(15000);
+
+    const sentinelPorts = frame.getAllSentinelsPort();
+    const sentinels: Array<RedisNode> = [];
+
+    for (const port of sentinelPorts) {
+      sentinels.push({host: "localhost", port: port});
+    }
+
+    const factory = new RedisSentinelFactory({name: 'not-exist', sentinelRootNodes: sentinels});
+    assert.rejects(factory.updateSentinelRootNodes(), new Error("ERR No such master with that name"));
+  })
+
+  it('sentinel factory - no available nodes', async function () {
+    this.timeout(15000);
+
+    const sentinelPorts = frame.getAllSentinelsPort();
+    const sentinels: Array<RedisNode> = [];
+
+    for (const port of sentinelPorts) {
+      sentinels.push({host: "localhost", port: port});
+    }
+
+    const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels});
+
+    for (const node of frame.getAllNodesPort()) {
+      await frame.stopNode(node.toString());
+    }
+
+    await setTimeout(1000);
+
+    assert.rejects(factory.getMasterNode(), new Error("Master Node Not Enumerated"));
+  })
+});

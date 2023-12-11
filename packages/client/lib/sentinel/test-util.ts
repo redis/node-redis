@@ -4,8 +4,8 @@ import { once } from 'node:events';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { RedisSentinelOptions, RedisSentinelType } from './types';
-import RedisSentinel from '.';
 import RedisClient from '../client';
+import RedisSentinel from '.';
 const execAsync = promisify(exec);
 
 interface ErrorWithCode extends Error {
@@ -213,7 +213,9 @@ export class SentinelFramework extends DockerBase {
     return Promise.all(
       [...this.#nodeMap!.values(), ...this.#sentinelMap!.values()].map(
         async ({ docker, client }) => {
-          client.destroy();
+          if (client.isOpen) {
+            client.destroy();
+          }
           this.dockerRemove(docker.dockerId);
         }
       )
@@ -229,13 +231,11 @@ export class SentinelFramework extends DockerBase {
     let serverArguments: Array<string> = this.config.nodeServerArguments ?? ["/usr/local/bin/redis-server", "{port}"];
 
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
-    const client = RedisClient.create({
+    const client = await RedisClient.create({
       socket: {
         port: docker.port
       }
-    }).on("error", () => { });
-
-    await client.connect();
+    }).on("error", () => { }).connect();
 
     return {
       docker,
@@ -274,13 +274,11 @@ export class SentinelFramework extends DockerBase {
 
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
     /* TODO: future might need to be a sentinel specific client */
-    const client = RedisClient.create({
+    const client = await RedisClient.create({
       socket: {
         port: docker.port
       }
-    }).on("error", () => { });
-
-    await client.connect();
+    }).on("error", () => { }).connect();
 
     return {
       docker,
@@ -398,7 +396,9 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown node: " + id);
     }
 
-    node.client.destroy();
+    if (node.client.isOpen) {
+      node.client.destroy();
+    }
 
     return await this.dockerStop(node.docker.dockerId);
   }
@@ -410,14 +410,12 @@ export class SentinelFramework extends DockerBase {
     }
 
     await this.dockerStart(node.docker.dockerId);
-    const newClient = RedisClient.create({
-      socket: {
-        port: node.docker.port
-      }
-    }).on("error", () => { });
-
     if (!node.client.isOpen) {
-      node.client = await newClient.connect();
+      node.client = await RedisClient.create({
+        socket: {
+          port: node.docker.port
+        }
+      }).on("error", () => { }).connect();
     }
   }
 
@@ -427,7 +425,9 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown sentinel: " + id);
     }
 
-    sentinel.client.destroy();
+    if (sentinel.client.isOpen) {
+      sentinel.client.destroy();
+    }
 
     return await this.dockerStop(sentinel.docker.dockerId);
   }
@@ -439,14 +439,12 @@ export class SentinelFramework extends DockerBase {
     }
 
     await this.dockerStart(sentinel.docker.dockerId);
-    const newClient = RedisClient.create({
-      socket: {
-        port: sentinel.docker.port
-      }
-    }).on("error", () => { });
-
     if (!sentinel.client.isOpen) {
-      sentinel.client = await newClient.connect();
+      sentinel.client = await RedisClient.create({
+        socket: {
+          port: sentinel.docker.port
+        }
+      }).on("error", () => { }).connect();
     }
   }
 

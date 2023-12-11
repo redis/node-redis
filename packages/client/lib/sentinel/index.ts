@@ -434,6 +434,10 @@ export default class RedisSentinel<
   setDebug(val: boolean) {
     this.internal.debug = val;
   }
+
+  getSentinelNode(): RedisNode | undefined {
+    return this.internal.getSentinelNode();
+  }
 }
 
 class RedisSentinelInternal<
@@ -462,6 +466,7 @@ class RedisSentinelInternal<
   readonly #scanInterval: number;
 
   debug: boolean;
+  #anotherReset = false;
 
   #configEpoch: number = 0;
 
@@ -522,7 +527,7 @@ class RedisSentinelInternal<
     }
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
+  #createClient(node: RedisNode, clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, reconnectStrategy?: undefined | false): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
     const options = { ...clientOptions } as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
 
     if (clientOptions.socket) {
@@ -533,7 +538,7 @@ class RedisSentinelInternal<
 
     options.socket.host = node.host;
     options.socket.port = node.port;
-    options.socket.reconnectStrategy = false;
+    options.socket.reconnectStrategy = reconnectStrategy;
 
     return RedisClient.create(options);
   }
@@ -575,6 +580,7 @@ class RedisSentinelInternal<
 
       this.#connectPromise = this.#connect()
       await this.#connectPromise;
+      this.#isReady = true;
     } finally {
       this.#connectPromise = undefined
       if (this.#scanInterval > 0) {
@@ -591,12 +597,11 @@ class RedisSentinelInternal<
         return;
       }
       try {
-        const ret = await this.transform(this.analyze(await this.observe()));
-        if (ret) {
+        this.#anotherReset = false;
+        await this.transform(this.analyze(await this.observe()));
+        if (this.#anotherReset) {
           continue;
-        }
-
-        this.#isReady = true;
+        } 
 
         return;
       } catch (e: any) {
@@ -717,6 +722,7 @@ class RedisSentinelInternal<
 
     // already in #connect()
     if (this.#connectPromise !== undefined) {
+      this.#anotherReset = true;
       this.#debugLog("connectPromise already defined, waiting on it");
       return await this.#connectPromise;
     }
@@ -858,7 +864,7 @@ class RedisSentinelInternal<
     for (const node of this.#sentinelRootNodes) {
       let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
       try {
-        client = this.#createClient(node, this.#sentinelClientOptions)
+        client = this.#createClient(node, this.#sentinelClientOptions, false)
           .on('error', (err) => this.emit('error', `obseve client error: ${err}`));
         await client.connect();
 
@@ -879,7 +885,7 @@ class RedisSentinelInternal<
           replicaData: replicaData,
           currentMaster: this.#getMasterNode(),
           currentReplicas: this.#getReplicaNodes(),
-          currentSentinel: this.#getSentinelNode(),
+          currentSentinel: this.getSentinelNode(),
           replicaPoolSize: this.#replicaPoolSize,
           useReplicas: this.#useReplicas
         }
@@ -964,18 +970,17 @@ class RedisSentinelInternal<
   }
 
   async transform(analyzed: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["analyze"]>) {
-    let changes = false;
+    this.#debugLog("transform: enter");
 
     let promises: Array<Promise<any>> = [];
     
     if (analyzed.sentinelToOpen) {
-      changes = true;
       if (this.#sentinelClient !== undefined && this.#sentinelClient.isOpen) {
         this.#sentinelClient.destroy()
         this.#sentinelClient = undefined;
       }
 
-      this.#sentinelClient = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions)
+      this.#sentinelClient = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions, false)
         .on('error', err => {
           this.emit('error', `sentinelClient ${analyzed.sentinelToOpen!.port} error: ${err}`);
           this.#reset();
@@ -993,7 +998,6 @@ class RedisSentinelInternal<
     }
 
     if (analyzed.masterToOpen) {
-      changes = true;
       const masterPromises = []
 
       for (const client of this.#masterClients) {
@@ -1045,7 +1049,7 @@ class RedisSentinelInternal<
           const event: RedisSentinelEvent = {
             type: "REPLICA_REMOVE",
             node: node
-          }   
+          }
           this.emit('topology-change', event);
           removedSet.add(str);
         }
@@ -1056,7 +1060,6 @@ class RedisSentinelInternal<
     this.#replicaClients = newClientList;
 
     if (analyzed.replicasToOpen.size != 0) {
-      changes = true;
       for (const [node, size] of analyzed.replicasToOpen) {
         for (let i = 0; i < size; i++) {
           const client = this.#createClient(node, this.#nodeClientOptions)
@@ -1070,7 +1073,7 @@ class RedisSentinelInternal<
         const event: RedisSentinelEvent = {
           type: "REPLICA_ADD",
           node: node
-        }  
+        } 
         this.emit('topology-change', event);
       }
     }
@@ -1085,8 +1088,6 @@ class RedisSentinelInternal<
     }
 
     await Promise.all(promises);
-
-    return changes;
   }
 
   #getMasterNode(): RedisNode | undefined {
@@ -1103,7 +1104,7 @@ class RedisSentinelInternal<
     return undefined;
   }
 
-  #getSentinelNode(): RedisNode | undefined {
+  getSentinelNode(): RedisNode | undefined {
     if (this.#sentinelClient === undefined) {
       return undefined;
     }
@@ -1157,12 +1158,14 @@ class RedisSentinelInternal<
   }
 }
 
-export class RedisSentinelFactory {
+export class RedisSentinelFactory extends EventEmitter {
   options: RedisSentinelOptions;
   #sentinelRootNodes: Array<RedisNode>;
   #replicaIdx: number = -1;
 
   constructor(options: RedisSentinelOptions) {
+    super();
+
     this.options = options;
     this.#sentinelRootNodes = options.sentinelRootNodes;
   }
@@ -1175,15 +1178,22 @@ export class RedisSentinelFactory {
       }
       options.socket.host = node.host;
       options.socket.port = node.port;
+      options.socket.reconnectStrategy = false;
 
-      const client = RedisClient.create(options);
+      const client = RedisClient.create(options).on('error', err => this.emit(`updateSentinelRootNodes: ${err}`));
       try {
         await client.connect();
+      } catch {
+        if (client.isOpen) {
+          client.destroy();
+        }
+        continue;
+      }
 
+      try {
         const sentinelData = await client.sentinelSentinels(this.options.name) as Array<any>;
         this.#sentinelRootNodes = [node].concat(createNodeList(sentinelData));
         return;
-      } catch {
       } finally {
         client.destroy();
       }
@@ -1202,29 +1212,37 @@ export class RedisSentinelFactory {
       }
       options.socket.host = node.host;
       options.socket.port = node.port;
+      options.socket.reconnectStrategy = false;
 
-      const client = RedisClient.create(options);
+      const client = RedisClient.create(options).on('error', err => this.emit(`getMasterNode: ${err}`));
 
       try {
         await client.connect();
+      } catch {
+        if (client.isOpen) {
+          client.destroy();
+        }
+        continue;
+      }
 
+      connected = true;
+
+      try {
         const masterData = await client.sentinelMaster(this.options.name) as any;
-        connected = true;
+
         let master = parseNode(masterData);
         if (master === undefined) {
           continue;
         }
 
         return master;
-      } catch {
-
       } finally {
         client.destroy();
       }
     }
 
     if (connected) {
-      throw new Error("Master Nde Not Enumerated");
+      throw new Error("Master Node Not Enumerated");
     }
 
     throw new Error("couldn't connect to any sentinels");
@@ -1252,14 +1270,23 @@ export class RedisSentinelFactory {
       }
       options.socket.host = node.host;
       options.socket.port = node.port;
+      options.socket.reconnectStrategy = false;
 
-      const client = RedisClient.create(options);
+      const client = RedisClient.create(options).on('error', err => this.emit(`getReplicaNodes: ${err}`));
 
       try {
         await client.connect();
+      } catch {
+        if (client.isOpen) {
+          client.destroy();
+        }
+        continue;
+      }
 
+      connected = true;
+
+      try {
         const replicaData = await client.sentinelReplicas(this.options.name) as Array<any>;
-        connected = true;
 
         const replicas = createNodeList(replicaData);
         if (replicas.length == 0) {
@@ -1267,8 +1294,6 @@ export class RedisSentinelFactory {
         }
 
         return replicas;
-      } catch {
-
       } finally {
         client.destroy();
       }
