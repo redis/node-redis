@@ -4,7 +4,7 @@ import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import COMMANDS from '../commands';
-import { NamespaceProxySentinel, ProxySentinel, RedisNode, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
+import { NamespaceProxySentinel, NamespaceProxySentinelClient, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
 import { clientSocketToNode, createNodeList, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
@@ -33,7 +33,7 @@ interface clientInfo {
   watchEpoch?: number;
 }
 
-export default class RedisSentinel<
+export class RedisSentinelClient<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
@@ -41,9 +41,7 @@ export default class RedisSentinel<
   TYPE_MAPPING extends TypeMapping
 > extends EventEmitter {
   clientInfo?: clientInfo;
-
   internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
-  options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>;
 
   static extractWatchUnwatch(redisArgs: Array<RedisArgument>): execType | undefined {
     if (redisArgs[0] === "WATCH" || redisArgs[0] === "UNWATCH") {
@@ -52,6 +50,282 @@ export default class RedisSentinel<
       return undefined
     }
   }
+
+  get isOpen() {
+    return this.internal.isOpen;
+  }
+
+  get isReady() {
+    return this.internal.isReady;
+  }
+
+  _commandOptions?: CommandOptions<TYPE_MAPPING>;
+
+  constructor(
+    internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
+    clientInfo: clientInfo,
+    commandOptions?: CommandOptions<TYPE_MAPPING>
+  ) {
+    super();
+    
+    this.internal = internal;
+    this.internal.on('error', err => this.emit('error', err));
+
+    this.clientInfo = clientInfo;
+
+    this._commandOptions = commandOptions;
+  }
+
+  private static _createCommand(command: Command, resp: RespVersions) {
+    const transformReply = getTransformReply(command, resp);
+    return async function (this: ProxySentinelClient, ...args: Array<unknown>) {
+      const redisArgs = command.transformArguments(...args),
+        execType = RedisSentinelClient.extractWatchUnwatch(redisArgs),
+        reply = await this.sendCommand(
+          execType,
+          command.IS_READ_ONLY,
+          redisArgs,
+          this._commandOptions
+        );
+
+      return transformReply ?
+        transformReply(reply, redisArgs.preserve) :
+        reply;
+    };
+  }
+
+  private static _createModuleCommand(command: Command, resp: RespVersions) {
+    const transformReply = getTransformReply(command, resp);
+    return async function (this: NamespaceProxySentinelClient, ...args: Array<unknown>) {
+      const redisArgs = command.transformArguments(...args),
+        reply = await this.self.sendCommand(
+          undefined,
+          command.IS_READ_ONLY,
+          redisArgs,
+          this.self._commandOptions
+        );
+
+      return transformReply ?
+        transformReply(reply, redisArgs.preserve) :
+        reply;
+    };
+  }
+
+  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+    const prefix = functionArgumentsPrefix(name, fn),
+      transformReply = getTransformReply(fn, resp);
+    return async function (this: NamespaceProxySentinelClient, ...args: Array<unknown>) {
+      const fnArgs = fn.transformArguments(...args),
+        redisArgs = prefix.concat(fnArgs),
+        reply = await this.self.sendCommand(
+          undefined,
+          fn.IS_READ_ONLY,
+          redisArgs,
+          this.self._commandOptions
+        );
+
+      return transformReply ?
+        transformReply(reply, fnArgs.preserve) :
+        reply;
+    };
+  }
+
+  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
+    const prefix = scriptArgumentsPrefix(script),
+      transformReply = getTransformReply(script, resp);
+    return async function (this: ProxySentinelClient, ...args: Array<unknown>) {
+      const scriptArgs = script.transformArguments(...args),
+        redisArgs = prefix.concat(scriptArgs),
+        reply = await this.sendCommand(
+          undefined,
+          script.IS_READ_ONLY,
+          redisArgs,
+          this._commandOptions
+        );
+
+      return transformReply ?
+        transformReply(reply, scriptArgs.preserve) :
+        reply;
+    };
+  }
+
+  static factory<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(config?: SentinelCommander<M, F, S, RESP, TYPE_MAPPING>) {
+    const SentinelClient = attachConfig({
+      BaseClass: RedisSentinelClient,
+      commands: COMMANDS,
+      createCommand: RedisSentinelClient._createCommand,
+      createModuleCommand: RedisSentinelClient._createModuleCommand,
+      createFunctionCommand: RedisSentinelClient._createFunctionCommand,
+      createScriptCommand: RedisSentinelClient._createScriptCommand,
+      config
+    });
+
+    SentinelClient.prototype.Multi = RedisSentinelMultiCommand.extend(config);
+
+    return (
+      internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
+      clientInfo: clientInfo,
+      commandOptions?: CommandOptions<TYPE_MAPPING>
+    ) => {
+      // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
+      return Object.create(new SentinelClient(internal, clientInfo, commandOptions)) as RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>;
+    };
+  }
+
+  static create<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(
+    internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
+    clientInfo: clientInfo,
+    commandOptions?: CommandOptions<TYPE_MAPPING>,
+    options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>
+  ) {
+    return RedisSentinelClient.factory(options)(internal, clientInfo, commandOptions);
+  }
+
+  withCommandOptions<
+    OPTIONS extends CommandOptions<TYPE_MAPPING>,
+    TYPE_MAPPING extends TypeMapping,
+  >(options: OPTIONS) {
+    const proxy = Object.create(this);
+    proxy._commandOptions = options;
+    return proxy as RedisSentinelClientType<
+      M,
+      F,
+      S,
+      RESP,
+      TYPE_MAPPING extends TypeMapping ? TYPE_MAPPING : {}
+    >;
+  }
+
+  private _commandOptionsProxy<
+    K extends keyof CommandOptions,
+    V extends CommandOptions[K]
+  >(
+    key: K,
+    value: V
+  ) {
+    const proxy = Object.create(this);
+    proxy._commandOptions = Object.create(this._commandOptions ?? null);
+    proxy._commandOptions[key] = value;
+    return proxy as RedisSentinelClientType<
+      M,
+      F,
+      S,
+      RESP,
+      K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING
+    >;
+  }
+
+  /**
+   * Override the `typeMapping` command option
+   */
+  withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
+    return this._commandOptionsProxy('typeMapping', typeMapping);
+  }
+
+  async _execute<T>(
+    execType: execType | undefined,
+    isReadonly: boolean | undefined,
+    fn: (client: RedisClient<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
+  ): Promise<T> {
+    if (this.clientInfo === undefined) {
+      throw new Error("Attempted execution on released RedisSentinelClient lease");
+    }
+
+    return await this.internal.execute(fn, this.clientInfo, execType);
+  }
+
+  async sendCommand<T = ReplyUnion>(
+    execType: execType | undefined,
+    isReadonly: boolean | undefined,
+    args: CommandArguments,
+    options?: CommandOptions,
+  ): Promise<T> {
+    return this._execute(
+      execType,
+      isReadonly,
+      client => client.sendCommand(args, options)
+    );
+  }
+
+  executeScript(
+    script: RedisScript,
+    isReadonly: boolean | undefined,
+    args: Array<RedisArgument>,
+    options?: CommandOptions
+  ) {
+    return this._execute(
+      undefined,
+      isReadonly,
+      client => client.executeScript(script, args, options)
+    );
+  }
+
+  /**
+   * @internal
+   */
+  async _executePipeline(
+    isReadonly: boolean | undefined,
+    commands: Array<RedisMultiQueuedCommand>
+  ) {
+    return this._execute(
+      undefined,
+      isReadonly,
+      client => client._executePipeline(commands)
+    );
+  }
+
+  /**f
+    * @internal
+    */
+  async _executeMulti(
+    isReadonly: boolean | undefined,
+    commands: Array<RedisMultiQueuedCommand>
+  ) {
+    return this._execute(
+      "EXEC",
+      isReadonly,
+      client => client._executeMulti(commands)
+    );
+  }
+
+  MULTI(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
+    return new (this as any).Multi(this);
+  }
+
+  multi = this.MULTI;
+
+
+  release() {
+    if (this.clientInfo === undefined) {
+      throw new Error('RedisSentinelClient lease alredy released');
+    }
+
+    this.internal.releaseClientLease(this.clientInfo);
+    this.clientInfo = undefined;
+  }
+}
+
+export default class RedisSentinel<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends EventEmitter {
+  internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
+  options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>;
 
   get isOpen() {
     return this.internal.isOpen;
@@ -82,28 +356,11 @@ export default class RedisSentinel<
     });
   }
 
-  /* used to setup RedisSentinel objects with leases */
-  #setClientInfo(clientInfo?: clientInfo) {
-    this.clientInfo = clientInfo;
-  }
-
-  /* used to setup RedisSentinel objects with leases 
-   * leases should only get maste change events, as that's all they should care about.
-  */
-  #setInternalObject(internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>) {
-    this.internal = internal;
-    this.internal.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE") {
-        this.emit('topology-change', event);
-      }
-    });
-  }
-
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxySentinel, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
-        execType = RedisSentinel.extractWatchUnwatch(redisArgs),
+        execType = RedisSentinelClient.extractWatchUnwatch(redisArgs),
         reply = await this.sendCommand(
           execType,
           command.IS_READ_ONLY,
@@ -207,20 +464,6 @@ export default class RedisSentinel<
     return RedisSentinel.factory(options)(options);
   }
 
-  duplicate<
-    _M extends RedisModules = M,
-    _F extends RedisFunctions = F,
-    _S extends RedisScripts = S,
-    _RESP extends RespVersions = RESP,
-    _TYPE_MAPPING extends TypeMapping = TYPE_MAPPING
-  >(overrides?: Partial<RedisSentinelOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
-    return new (Object.getPrototypeOf(this).constructor)({
-      ...this.options,
-      commandOptions: this._commandOptions,
-      ...overrides
-    }) as RedisSentinelType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
-  }
-
   withCommandOptions<
     OPTIONS extends CommandOptions<TYPE_MAPPING>,
     TYPE_MAPPING extends TypeMapping,
@@ -271,28 +514,26 @@ export default class RedisSentinel<
     isReadonly: boolean | undefined,
     fn: (client: RedisClient<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
   ): Promise<T> {
-    let clientInfo = this.clientInfo;
-
-    if (clientInfo == undefined) {
-      if (!isReadonly || !this.options.useReplicas) {
-        clientInfo = await this.internal.getClientLease('MASTER');
-      }
+    let clientInfo: clientInfo | undefined;
+    if (!isReadonly || !this.options.useReplicas) {
+      clientInfo = await this.internal.getClientLease('MASTER');
     }
 
     try {
-      return await this.internal.execute(fn, clientInfo, execType, true);
+      return await this.internal.execute(fn, clientInfo, execType);
     } finally {
-      if (clientInfo !== undefined && this.clientInfo == undefined) {
+      if (clientInfo !== undefined) {
         this.internal.releaseClientLease(clientInfo);
       }
     }
   }
 
-  async use<T>(fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>, reselient?: boolean) {
+  async use<T>(fn: (sentinelClient: RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>) {
     const clientInfo = await this.internal.getClientLease('MASTER');
+    const sentinelClient = RedisSentinelClient.create(this.internal, clientInfo, this._commandOptions, this.options);
 
     try {
-      return await this.internal.execute(fn, clientInfo, undefined, reselient);
+      return await fn(sentinelClient);
     } finally {
       this.internal.releaseClientLease(clientInfo);
     }
@@ -359,20 +600,10 @@ export default class RedisSentinel<
   multi = this.MULTI;
 
   async close() {
-    /* calling close() on a leased version */
-    if (this.clientInfo !== undefined) {
-      return this.release();
-    }
-
     return this.internal.close();
   }
 
   destroy() {
-    /* calling destroy() on a leased version */
-    if (this.clientInfo !== undefined) {
-      return this.release();
-    }
-
     return this.internal.destroy();
   }
 
@@ -416,19 +647,9 @@ export default class RedisSentinel<
 
   pUnsubscribe = this.PUNSUBSCRIBE;
 
-  async getMasterClientLease(): Promise<RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>> {
-    const newSentinel = this.duplicate();
-    newSentinel.#setInternalObject(this.internal);
-    newSentinel.#setClientInfo(await this.internal.getClientLease('MASTER'));
-
-    return newSentinel;
-  }
-
-  release() {
-    if (this.clientInfo) {
-      this.internal.releaseClientLease(this.clientInfo);
-      this.clientInfo = undefined;
-    }
+  async aquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    const clientInfo = await this.internal.getClientLease('MASTER');
+    return RedisSentinelClient.create(this.internal, clientInfo, this._commandOptions, this.options);
   }
 
   setDebug(val: boolean) {
@@ -562,7 +783,8 @@ class RedisSentinelInternal<
     switch (clientInfo.type) {
       case 'MASTER':
         const client = this.#masterClients[clientInfo.id];
-        if (client.isReady && clientInfo.watchEpoch !== undefined) {
+        // client can be undefined if releasing in middle of a reconfigure
+        if (client !== undefined && client.isReady && clientInfo.watchEpoch !== undefined) {
           client.unwatch();
         }
         this.#masterClientQueue.push(clientInfo.id);
@@ -680,7 +902,7 @@ class RedisSentinelInternal<
         }
 
         throw err;
-      }
+      } 
     }
   }
 

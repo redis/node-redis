@@ -189,10 +189,10 @@ describe.only('Client', () => {
 
     const promise = sentinel.use(
       async (client) => {
+        client.on('error', err => {});
         await setTimeout(5000);
         return await client.get('x');
-      },
-      true
+      }
     );
 
     const masterPort = await frame.getMasterPort();
@@ -201,38 +201,18 @@ describe.only('Client', () => {
     assert.equal(await promise, null);
   });
 
-  it('non reselient use', async function () {
-    this.timeout(30000);
-
-    sentinel = frame.getSentinelClient({ useReplicas: true });
-    sentinel.on("error", () => { });
-    await sentinel.connect();
-
-    const promise = sentinel.use(
-      async (client) => {
-        await setTimeout(5000);
-        return await client.get('x');
-      },
-      false
-    );
-
-    const masterPort = await frame.getMasterPort();
-    await frame.stopNode(masterPort.toString());
-
-    assert.rejects(promise);
-  });
-
   it('block on pool', async function () {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ useReplicas: true });
     sentinel.on("error", () => { });
     await sentinel.connect();
+
     const promise = sentinel.use(
       async (client) => {
         await setTimeout(1000);
         return await client.get("x");
-      }, true
+      }
     )
     await sentinel.set("x", 1);
     assert.equal(await promise, null);
@@ -252,7 +232,7 @@ describe.only('Client', () => {
         await setTimeout(1000);
         await client.get("x");
         set = true;
-      }, true
+      }
     )
 
     await sentinel.set("x", 1);
@@ -269,7 +249,8 @@ describe.only('Client', () => {
     sentinel.on("error", () => { });
     await sentinel.connect();
 
-    const clientLease = await sentinel.getMasterClientLease();
+    const clientLease = await sentinel.aquire();
+    clientLease.on("error", () => { });
     clientLease.set('x', 456);
 
     let matched = false;
@@ -323,7 +304,7 @@ describe.only('Client', () => {
     sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
     await sentinel.connect();
 
-    const leasedClient = await sentinel.getMasterClientLease();
+    const leasedClient = await sentinel.aquire();
     await leasedClient.set('x', 1);
     await leasedClient.watch('x');
     assert.deepEqual(await leasedClient.multi().get('x').exec(), ['1'])
@@ -333,7 +314,7 @@ describe.only('Client', () => {
     sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
     await sentinel.connect();
 
-    const leasedClient = await sentinel.getMasterClientLease();
+    const leasedClient = await sentinel.aquire();
     await leasedClient.set('x', 1);
     await leasedClient.watch('x');
     await leasedClient.set('x', 2);
@@ -386,7 +367,8 @@ describe.only('Client', () => {
     sentinel.on("error", () => { });
     await sentinel.connect();
 
-    const client = await sentinel.getMasterClientLease();
+    const client = await sentinel.aquire();
+    client.on("error", () => { });
     await client.set("x", 1);
     await client.watch("x");
 
@@ -418,7 +400,8 @@ describe.only('Client', () => {
     sentinel.on("error", () => { });
     await sentinel.connect();
 
-    const client = await sentinel.getMasterClientLease();
+    const client = await sentinel.aquire();
+    client.on("error", () => { });
     await client.set("x", 1);
     await client.watch("x");
 
