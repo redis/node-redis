@@ -125,11 +125,11 @@ type GraphValue = null | string | number | boolean | Array<GraphValue> | {
   longitude: string;
 };
 
-type GraphReply<T> = {
+export type GraphReply<T> = {
   data?: Array<T>;
 };
 
-type GraphClientType = RedisClientType<{
+export type GraphClientType = RedisClientType<{
   graph: {
     query: typeof QUERY,
     roQuery: typeof import('./commands/RO_QUERY.js').default
