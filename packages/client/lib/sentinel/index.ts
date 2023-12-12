@@ -70,7 +70,7 @@ export class RedisSentinelClient<
     super();
     
     this.#internal = internal;
-    this.#internal.on('error', err => this.emit('error', err));
+//    this.#internal.on('error', err => this.emit('error', err));
 
     this.#clientInfo = clientInfo;
 
@@ -1448,7 +1448,7 @@ export class RedisSentinelFactory extends EventEmitter {
       options.socket.port = node.port;
       options.socket.reconnectStrategy = false;
 
-      const client = RedisClient.create(options).on('error', err => this.emit(`updateSentinelRootNodes: ${err}`));
+      const client = RedisClient.create(options).on('error', (err) => this.emit(`updateSentinelRootNodes: ${err}`));
       try {
         await client.connect();
       } catch {

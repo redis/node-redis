@@ -26,7 +26,7 @@ async function steadyState(frame: SentinelFramework) {
   let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
 
   try {
-    sentinel = frame.getSentinelClient({ useReplicas: true, scanInterval: 2000 })
+    sentinel = frame.getSentinelClient({ useReplicas: true, scanInterval: 2000 }, false)
       .on('topology-change', (event: RedisSentinelEvent) => {
         if (event.type == "MASTER_CHANGE" || event.type == "REPLICA_ADD") {
           seenNodes.add(event.node.port); 
@@ -209,7 +209,7 @@ describe.only('Client', () => {
     await sentinel.connect();
 
     const promise = sentinel.use(
-      async (client) => {
+      async (client: RedisSentinelClientType) => {
         await setTimeout(1000);
         return await client.get("x");
       }
@@ -228,7 +228,7 @@ describe.only('Client', () => {
     let set = false;
 
     const promise = sentinel.use(
-      async (client) => {
+      async (client: RedisSentinelClientType) => {
         await setTimeout(1000);
         await client.get("x");
         set = true;
