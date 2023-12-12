@@ -69,7 +69,7 @@ function assertSpyCalls(spy: SinonSpy, replies?: Array<unknown>) {
   }
 }
 
-describe.only('RESP Decoder', () => {
+describe('RESP Decoder', () => {
   test('Null', {
     toWrite: Buffer.from('_\r\n'),
     replies: [null]
