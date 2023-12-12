@@ -177,7 +177,8 @@ export class SentinelFramework extends DockerBase {
 
     const options: RedisSentinelOptions<{}, {}, {}, 2, {}> = {
       name: this.config.sentinelName,
-      sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } })
+      sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } }),
+      passthroughClientErrorEvents: true
     }
 
     if (opts) {

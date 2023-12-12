@@ -2,9 +2,9 @@ import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
-import { RedisNode, RedisSentinelEvent, RedisSentinelType } from "./types";
+import { RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelType } from "./types";
 import { RedisSentinelFactory } from '.';
-import { RedisClientType } from '../client';
+import client, { RedisClientType } from '../client';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 
 /* used to ensure test environment resets to normal state
@@ -180,7 +180,7 @@ describe.only('Client', () => {
     }
   });
 
-  it('reselient use', async function () {
+  it('use', async function () {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ useReplicas: true });
@@ -188,7 +188,7 @@ describe.only('Client', () => {
     await sentinel.connect();
 
     const promise = sentinel.use(
-      async (client) => {
+      async (client: RedisSentinelClientType) => {
         client.on('error', err => {});
         await setTimeout(5000);
         return await client.get('x');

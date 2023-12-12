@@ -57,6 +57,10 @@ export interface RedisSentinelOptions<
    * TODO
    */
   scanInterval?: number;
+  /**
+   * 
+   */
+  passthroughClientErrorEvents?: boolean;
 }
 
 export type PubSubToResubscribe = Record<
@@ -169,4 +173,10 @@ export type NodeChangeEvent = {
 export type SizeChangeEvent = {
   type: "SENTINE_LIST_CHANGE";
   size: Number;
+}
+
+export type ClientErrorEvent = {
+  type: 'MASTER' | 'REPLICA' | 'SENTINEL'
+  node: RedisNode,
+  error: any
 }
