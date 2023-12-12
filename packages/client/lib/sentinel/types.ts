@@ -176,7 +176,7 @@ export type SizeChangeEvent = {
 }
 
 export type ClientErrorEvent = {
-  type: 'MASTER' | 'REPLICA' | 'SENTINEL'
-  node: RedisNode,
-  error: any
+  type: 'MASTER' | 'REPLICA' | 'SENTINEL';
+  node: RedisNode;
+  error: any;
 }
