@@ -257,7 +257,7 @@ export class Decoder {
   private _maybeDecodeNumberValue(isNegative, chunk) {
     const cb = this._decodeUnsingedNumber.bind(this, 0);
     return ++this._cursor === chunk.length ?
-      this._decodeNumberValue.bind(isNegative, cb) :
+      this._decodeNumberValue.bind(this, isNegative, cb) :
       this._decodeNumberValue(isNegative, cb, chunk);
   }
 
@@ -306,8 +306,8 @@ export class Decoder {
 
   private _maybeDecodeBigNumberValue(isNegative, chunk) {
     const cb = this._decodeUnsingedBigNumber.bind(this, 0n);
-    return this._cursor === chunk.length ?
-      this._decodeBigNumberValue.bind(isNegative, cb) :
+    return ++this._cursor === chunk.length ?
+      this._decodeBigNumberValue.bind(this, isNegative, cb) :
       this._decodeBigNumberValue(isNegative, cb, chunk);
   }
 
@@ -357,7 +357,7 @@ export class Decoder {
   private _maybeDecodeDoubleInteger(isNegative, chunk) {
     return ++this._cursor === chunk.length ?
       this._decodeDoubleInteger.bind(this, isNegative, 0) :
-      this._decodeDoubleInteger(true, 0, chunk);
+      this._decodeDoubleInteger(isNegative, 0, chunk);
   }
 
   private _decodeDoubleInteger(isNegative, integer, chunk) {
@@ -376,14 +376,17 @@ export class Decoder {
       switch (byte) {
         case ASCII['.']:
           this._cursor = cursor + 1; // skip .
-          return cursor < chunk.length ?
+          return this._cursor < chunk.length ?
             this._decodeDoubleDecimal(isNegative, 0, integer, chunk) :
             this._decodeDoubleDecimal.bind(this, isNegative, 0, integer);
 
         case ASCII.E:
         case ASCII.e:
-          this._cursor = cursor + 1; // skip e
-          return this._decodeDoubleExponent(isNegative ? -integer : integer, chunk);
+          this._cursor = cursor + 1; // skip E/e
+          const i = isNegative ? -integer : integer;
+          return this._cursor < chunk.length ?
+            this._decodeDoubleExponent(i, chunk) :
+            this._decodeDoubleExponent.bind(this, i);
 
         case ASCII['\r']:
           this._cursor = cursor + 2; // skip \r\n
@@ -414,11 +417,11 @@ export class Decoder {
       switch (byte) {
         case ASCII.E:
         case ASCII.e:
-          this._cursor = cursor + 1; // skip e
+          this._cursor = cursor + 1; // skip E/e
           const d = isNegative ? -double : double;
           return this._cursor === chunk.length ?
-            this._decodeDoubleExponent.bind(this, d, false, 0) :
-            this._decodeDoubleExponent(d, false, 0, chunk);
+            this._decodeDoubleExponent.bind(this, d) :
+            this._decodeDoubleExponent(d, chunk);
         
         case ASCII['\r']:
           this._cursor = cursor + 2; // skip \r\n
