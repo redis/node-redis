@@ -598,7 +598,7 @@ export class Decoder {
 
   private _continueDecodeVerbatimStringLength(lengthCb, type, chunk) {
     const length = lengthCb(chunk);
-    return typeof length === 'function'?
+    return typeof length === 'function' ?
       this._continueDecodeVerbatimStringLength.bind(this, length, type) :
       this._decodeVerbatimStringWithLength(length, type, chunk);
   }
@@ -616,11 +616,10 @@ export class Decoder {
   }
 
   private _decodeVerbatimStringFormat(stringLength, chunk) {
-    return this._continueDecodeVerbatimStringFormat(
-      stringLength,
-      this._decodeStringWithLength.bind(this, 3, 1, String),
-      chunk
-    );
+    const formatCb = this._decodeStringWithLength.bind(this, 3, 1, String); 
+    return this._cursor >= chunk.length ?
+      this._continueDecodeVerbatimStringFormat.bind(this, stringLength, formatCb) :
+      this._continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk);
   }
 
   private _continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk) {

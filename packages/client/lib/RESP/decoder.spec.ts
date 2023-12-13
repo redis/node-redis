@@ -1,8 +1,9 @@
 import { strict as assert } from 'node:assert';
 import { SinonSpy, spy } from 'sinon';
 import { Decoder, RESP_TYPES } from './decoder';
-import { BlobError, ErrorReply, SimpleError } from '../errors';
+import { BlobError, SimpleError } from '../errors';
 import { TypeMapping } from './types';
+import { VerbatimString } from './verbatim-string';
 
 interface Test {
   toWrite: Buffer;
@@ -107,6 +108,14 @@ describe('RESP Decoder', () => {
       toWrite: Buffer.from(':-1\r\n'),
       replies: [-1]
     });
+
+    test('1 as string', {
+      typeMapping: {
+        [RESP_TYPES.NUMBER]: String
+      },
+      toWrite: Buffer.from(':1\r\n'),
+      replies: ['1']
+    });
   });
 
   describe('BigNumber', () => {
@@ -128,6 +137,14 @@ describe('RESP Decoder', () => {
     test('-1', {
       toWrite: Buffer.from('(-1\r\n'),
       replies: [-1n]
+    });
+
+    test('1 as string', {
+      typeMapping: {
+        [RESP_TYPES.BIG_NUMBER]: String
+      },
+      toWrite: Buffer.from('(1\r\n'),
+      replies: ['1']
     });
   });
 
@@ -182,15 +199,33 @@ describe('RESP Decoder', () => {
       replies: [1e1]
     });
 
-    test('-1.1E1', {
-      toWrite: Buffer.from(',-1.1E1\r\n'),
-      replies: [-1.1E1]
+    test('-1.1E+1', {
+      toWrite: Buffer.from(',-1.1E+1\r\n'),
+      replies: [-1.1E+1]
+    });
+
+    test('1 as string', {
+      typeMapping: {
+        [RESP_TYPES.DOUBLE]: String
+      },
+      toWrite: Buffer.from(',1\r\n'),
+      replies: ['1']
     });
   });
 
-  test('SimpleString', {
-    toWrite: Buffer.from('+OK\r\n'),
-    replies: ['OK']
+  describe('SimpleString', () => {
+    test("'OK'", {
+      toWrite: Buffer.from('+OK\r\n'),
+      replies: ['OK']
+    });
+
+    test("'OK' as Buffer", {
+      typeMapping: {
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      },
+      toWrite: Buffer.from('+OK\r\n'),
+      replies: [Buffer.from('OK')]
+    });
   });
 
   describe('BlobString', () => {
@@ -208,6 +243,14 @@ describe('RESP Decoder', () => {
       toWrite: Buffer.from('$-1\r\n'),
       replies: [null]
     });
+
+    test("'OK' as Buffer", {
+      typeMapping: {
+        [RESP_TYPES.BLOB_STRING]: Buffer
+      },
+      toWrite: Buffer.from('$2\r\nOK\r\n'),
+      replies: [Buffer.from('OK')]
+    });
   });
 
   describe('VerbatimString', () => {
@@ -219,6 +262,22 @@ describe('RESP Decoder', () => {
     test("'123456'", {
       toWrite: Buffer.from('=10\r\ntxt:123456\r\n'),
       replies: ['123456']
+    });
+
+    test("'OK' as VerbatimString", {
+      typeMapping: {
+        [RESP_TYPES.VERBATIM_STRING]: VerbatimString
+      },
+      toWrite: Buffer.from('=6\r\ntxt:OK\r\n'),
+      replies: [new VerbatimString('txt', 'OK')]
+    });
+
+    test("'OK' as Buffer", {
+      typeMapping: {
+        [RESP_TYPES.VERBATIM_STRING]: Buffer
+      },
+      toWrite: Buffer.from('=6\r\ntxt:OK\r\n'),
+      replies: [Buffer.from('OK')]
     });
   });
 
@@ -256,8 +315,16 @@ describe('RESP Decoder', () => {
     });
 
     test('of 0..9', {
-      toWrite: Buffer.from(`*10\r\n:0\r\n:1\r\n:2\r\n:3\r\n:4\r\n:5\r\n:6\r\n:7\r\n:8\r\n:9\r\n`),
+      toWrite: Buffer.from(`~10\r\n:0\r\n:1\r\n:2\r\n:3\r\n:4\r\n:5\r\n:6\r\n:7\r\n:8\r\n:9\r\n`),
       replies: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
+    });
+
+    test('0..9 as Set', {
+      typeMapping: {
+        [RESP_TYPES.SET]: Set
+      },
+      toWrite: Buffer.from(`~10\r\n:0\r\n:1\r\n:2\r\n:3\r\n:4\r\n:5\r\n:6\r\n:7\r\n:8\r\n:9\r\n`),
+      replies: [new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])]
     });
   });
 
@@ -281,6 +348,45 @@ describe('RESP Decoder', () => {
         8: { value: '8', enumerable: true },
         9: { value: '9', enumerable: true }
       })]
+    });
+
+    test("{ '0'..'9': <key> } as Map", {
+      typeMapping: {
+        [RESP_TYPES.MAP]: Map
+      },
+      toWrite: Buffer.from(`%10\r\n+0\r\n+0\r\n+1\r\n+1\r\n+2\r\n+2\r\n+3\r\n+3\r\n+4\r\n+4\r\n+5\r\n+5\r\n+6\r\n+6\r\n+7\r\n+7\r\n+8\r\n+8\r\n+9\r\n+9\r\n`),
+      replies: [new Map([
+        ['0', '0'],
+        ['1', '1'],
+        ['2', '2'],
+        ['3', '3'],
+        ['4', '4'],
+        ['5', '5'],
+        ['6', '6'],
+        ['7', '7'],
+        ['8', '8'],
+        ['9', '9']
+      ])]
+    });
+
+    test("{ '0'..'9': <key> } as Array", {
+      typeMapping: {
+        [RESP_TYPES.MAP]: Array
+      },
+      toWrite: Buffer.from(`%10\r\n+0\r\n+0\r\n+1\r\n+1\r\n+2\r\n+2\r\n+3\r\n+3\r\n+4\r\n+4\r\n+5\r\n+5\r\n+6\r\n+6\r\n+7\r\n+7\r\n+8\r\n+8\r\n+9\r\n+9\r\n`),
+      replies: [['0', '0', '1', '1', '2', '2', '3', '3', '4', '4', '5', '5', '6', '6', '7', '7', '8', '8', '9', '9']]
+    });
+  });
+
+  describe('Push', () => {
+    test('[]', {
+      toWrite: Buffer.from('>0\r\n'),
+      pushReplies: [[]]
+    });
+
+    test('[0..9]', {
+      toWrite: Buffer.from(`>10\r\n:0\r\n:1\r\n:2\r\n:3\r\n:4\r\n:5\r\n:6\r\n:7\r\n:8\r\n:9\r\n`),
+      pushReplies: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
     });
   });
 });
