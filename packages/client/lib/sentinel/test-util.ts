@@ -167,7 +167,7 @@ export class SentinelFramework extends DockerBase {
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
   }
 
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>, errors = true): RedisSentinelType<{}, {}, {}, 2, {}> {
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>, errors = false): RedisSentinelType<{}, {}, {}, 2, {}> {
     if (opts?.sentinelRootNodes !== undefined) {
       throw new Error("cannot specify sentinelRootNodes here");
     }
@@ -180,8 +180,6 @@ export class SentinelFramework extends DockerBase {
       sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } }),
       passthroughClientErrorEvents: errors
     }
-    
-
 
     if (opts) {
       Object.assign(options, opts);
@@ -342,7 +340,7 @@ export class SentinelFramework extends DockerBase {
     this.#nodeMap.set(newNode.docker.port.toString(), newNode);
   }
 
-  async getMaster(): Promise<string | undefined> {
+  async getMaster(tracer?: Array<string>): Promise<string | undefined> {
     for (const sentinel of this.#sentinelMap!.values()) {
       let info;
 
@@ -352,6 +350,10 @@ export class SentinelFramework extends DockerBase {
         }
 
         info = await sentinel.client.sentinelMaster(this.config.sentinelName) as any;
+        if (tracer) {
+          tracer.push('getMaster: master data returned from sentinel');
+          tracer.push(JSON.stringify(info, undefined, '\t'))
+        }
       } catch (err) {
         console.log("getMaster: sentinelMaster call failed: " + err);
         continue;
@@ -360,6 +362,10 @@ export class SentinelFramework extends DockerBase {
       const master = this.#nodeMap.get(info.port); 
       if (master === undefined) {
         throw new Error(`couldn't find master node for ${info.port}`);
+      }
+
+      if (tracer) {
+        tracer.push(`getMaster: master port is either ${info.port} or ${master.docker.port}`);
       }
 
       if (!master.client.isOpen) {
@@ -372,8 +378,8 @@ export class SentinelFramework extends DockerBase {
     throw new Error("Couldn't get master");
   }
 
-  async getMasterPort(): Promise<number> {
-    const data = await this.getMaster()
+  async getMasterPort(tracer?: Array<string>): Promise<number> {
+    const data = await this.getMaster(tracer)
 
     return this.#nodeMap.get(data!)!.docker.port;
   }
@@ -489,5 +495,17 @@ export class SentinelFramework extends DockerBase {
 
   getSetinel(i: number): string {
     return this.#sentinelList[i].docker.port.toString();
+  }
+
+  sentinelSentinels() {
+    return this.#sentinelList[0].client.sentinelSentinels(this.config.sentinelName);
+  }
+
+  sentinelMaster() {
+    return this.#sentinelList[0].client.sentinelMaster(this.config.sentinelName);
+  }
+
+  sentinelReplicas() {
+    return this.#sentinelList[0].client.sentinelReplicas(this.config.sentinelName);
   }
 }

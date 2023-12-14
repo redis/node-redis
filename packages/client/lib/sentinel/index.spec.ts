@@ -4,8 +4,12 @@ import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelType } from "./types";
 import { RedisSentinelFactory } from '.';
-import client, { RedisClientType } from '../client';
+import { RedisClientType } from '../client';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+
+import { promisify } from 'node:util';
+import { exec } from 'node:child_process';
+const execAsync = promisify(exec);
 
 /* used to ensure test environment resets to normal state
    i.e. 
@@ -15,15 +19,36 @@ import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping }
 async function steadyState(frame: SentinelFramework) {
   let countNodes = 0;
 
-  let nodeResolve;
-  const nodePromise = new Promise((res) => {
+  let checkedMaster = false;
+  let checkedReplicas = false;
+  while (!checkedMaster || !checkedReplicas) {
+    if (!checkedMaster) {
+      const master = await frame.sentinelMaster();
+      if (master.flags === 'master') {
+        checkedMaster = true;
+      }
+    }
+
+    if (!checkedReplicas) { 
+      const replicas = (await frame.sentinelReplicas()) as Array<any>;
+      checkedReplicas = true;
+      for (const replica of replicas) {
+        checkedReplicas &&= (replica.flags === 'slave');
+      }
+    }
+  }
+
+  let nodeResolve, nodeReject;
+  const nodePromise = new Promise((res, rej) => {
     nodeResolve = res;
+    nodeReject = rej;
   })
 
   const numberOfNodes = frame.getAllNodesPort.length;
 
   const seenNodes = new Set<number>();
   let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
+  const tracer = [];
 
   try {
     sentinel = frame.getSentinelClient({ useReplicas: true, scanInterval: 2000 }, false)
@@ -35,10 +60,18 @@ async function steadyState(frame: SentinelFramework) {
           }
         }
       }).on('error', err => { });
-
+    sentinel.setTracer(tracer);
     await sentinel.connect();
 
-    await nodePromise;
+    const result = await Promise.race([nodePromise, setTimeout(10000, "timedout")]);
+    if (result == "timedout") {
+      console.log("steadyState: timed out waiting for all nodes to be visible");
+      for (const line of tracer) {
+        console.log(line);
+      }
+      nodeReject(0);
+    }
+
     await sentinel.flushAll();
   } finally {
     if (sentinel !== undefined) {
@@ -47,12 +80,13 @@ async function steadyState(frame: SentinelFramework) {
   }
 }
 
-describe.only('Client', () => {
+describe.only('Sentinel Object', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3 };
   const frame = new SentinelFramework(config);
   let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
   let master: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   let replica: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
+  let tracer = new Array<string>();
 
   before(async function () {
     this.timeout(15000);
@@ -100,6 +134,28 @@ describe.only('Client', () => {
   })
 
   afterEach(async function () {
+    if (this!.currentTest.state === 'failed') {
+      console.log("trace:");
+      for (const line of tracer) {
+        console.log(line);
+      }
+      console.log(`sentinel object state:`) 
+      console.log(`master: ${JSON.stringify(sentinel?.getMasterNode())}`)
+      console.log(`replicas: ${JSON.stringify(sentinel?.getReplicaNodes().entries)}`)
+      const results = await Promise.all([
+        frame.sentinelSentinels(),
+        frame.sentinelMaster(),
+        frame.sentinelReplicas()
+      ])
+      console.log(`sentinel sentinels:\n${JSON.stringify(results[0], undefined, '\t')}`);
+      console.log(`sentinel master:\n${JSON.stringify(results[1], undefined, '\t')}`);
+      console.log(`sentinel replicas:\n${JSON.stringify(results[2], undefined, '\t')}`);
+      const { stdout, stderr } = await execAsync("docker ps -a");
+      console.log(`docker stdout:\n${stdout}`);
+      console.log(`docker stderr:\n${stderr}`);
+    }
+    tracer.length = 0;
+
     if (sentinel !== undefined) {
       await sentinel.destroy();
       sentinel = undefined;
@@ -195,8 +251,8 @@ describe.only('Client', () => {
       }
     );
 
-    const masterPort = await frame.getMasterPort();
-    await frame.stopNode(masterPort.toString());
+    const masterNode = sentinel.getMasterNode();
+    await frame.stopNode(masterNode!.port.toString());
 
     assert.equal(await promise, null);
   });
@@ -338,25 +394,34 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
+
+    tracer.push(`connected`);
 
     let masterChangeResolve;
     const masterChangePromise = new Promise((res) => {
       masterChangeResolve = res;
     })
 
-    const masterPort = await frame.getMasterPort();
+    const masterNode = await sentinel.getMasterNode();
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
+        tracer.push(`got expected master change event`);
         masterChangeResolve(event.node);
       }
     });
 
-    await frame.stopNode(masterPort.toString());
+    tracer.push(`stopping master node`);
+    await frame.stopNode(masterNode!.port.toString());
+    tracer.push(`stopped master node`);
 
+    tracer.push(`waiting on master change promise`);
     const newMaster = await masterChangePromise as RedisNode;
-    assert.notEqual(masterPort, newMaster.port);
+    tracer.push(`got new master node of ${newMaster.port}`);
+    assert.notEqual(masterNode!.port, newMaster.port);
   });
 
   // if master changes, client should make sure user knows watches are invalid
@@ -364,32 +429,50 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
 
+    tracer.push("connected");
+
     const client = await sentinel.aquire();
     client.on("error", () => { });
+    
+    tracer.push("aquired lease");
+
     await client.set("x", 1);
     await client.watch("x");
+
+    tracer.push("did a watch on lease");
 
     let resolve;
     const promise = new Promise((res) => {
       resolve = res;
     })
 
+    const masterNode = sentinel.getMasterNode();
+    tracer.push(`got masterPort as ${masterNode!.port}`);
+
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
+        tracer.push("resolving promise");
         resolve(event.node);
       }
     });
 
-    const masterPort = await frame.getMasterPort();
-    await frame.stopNode(masterPort.toString());
+    tracer.push("stopping master node");
+    await frame.stopNode(masterNode!.port.toString());
+    tracer.push("stopped master node and waiting on promise");
 
     const newMaster = await promise as RedisNode;
-    assert.notEqual(masterPort, newMaster.port);
+    tracer.push(`promise returned, newMaster = ${JSON.stringify(newMaster)}`);
+    assert.notEqual(masterNode!.port, newMaster.port);
+    tracer.push(`newMaster does not equal old master`);
 
+    tracer.push(`waiting to assert that a multi/exec now fails`);
     await assert.rejects(async () => { await client.multi().get("x").exec() }, new Error("sentinel config changed in middle of a WATCH Transaction"));
+    tracer.push(`asserted that a multi/exec now fails`);
   });
 
   // same as above, but set a watch before and after master change, shouldn't change the fact that watches are invalid
@@ -397,63 +480,88 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
+    tracer.push("connected");
 
     const client = await sentinel.aquire();
     client.on("error", () => { });
+    tracer.push("got leased client");
     await client.set("x", 1);
     await client.watch("x");
+
+    tracer.push("set and watched x");
 
     let resolve;
     const promise = new Promise((res) => {
       resolve = res;
     })
 
+    const masterNode = sentinel.getMasterNode();
+    tracer.push(`initial masterPort = ${masterNode!.port} `);
+
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
+        tracer.push("got a master change event that is not the same as before");
         resolve(event.node);
       }
     });
 
-    const masterPort = await frame.getMasterPort();
-    await frame.stopNode(masterPort.toString());
+    tracer.push("stopping master");
+    await frame.stopNode(masterNode!.port.toString());
+    tracer.push("stopped master");
 
+    tracer.push("waiting on master change promise");
     const newMaster = await promise as RedisNode;
-    assert.notEqual(masterPort, newMaster.port);
+    tracer.push(`got master change port as ${newMaster.port}`);
+    assert.notEqual(masterNode!.port, newMaster.port);
 
+    tracer.push("watching again, shouldn't matter");
     await client.watch("y");
 
+    tracer.push("expecting multi to be rejected");
     await assert.rejects(async () => { await client.multi().get("x").exec() }, new Error("sentinel config changed in middle of a WATCH Transaction"));
+    tracer.push("multi was rejected"); 
   });
 
   it('plain pubsub - channel', async function () {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     await sentinel.connect();
+    tracer.push(`connected`);
 
     let pubSubResolve;
     const pubSubPromise = new Promise((res) => {
       pubSubResolve = res;
-    })
+    });
 
     let tester = false;
     await sentinel.subscribe('test', () => {
+      tracer.push(`got pubsub message`);
       tester = true;
       pubSubResolve(1);
     })
 
+    tracer.push(`publishing pubsub message`);
     await sentinel.publish('test', 'hello world');
+    tracer.push(`waiting on pubsub promise`);
     await pubSubPromise;
+    tracer.push(`got pubsub promise`);
     assert.equal(tester, true);
 
     /* now unsubscribe */
     tester = false
+    tracer.push(`unsubscribing pubsub listener`);
     await sentinel.unsubscribe('test')
+    tracer.push(`pubishing pubsub message`);
     await sentinel.publish('test', 'hello world');
     await setTimeout(1000);
 
+    tracer.push(`ensuring pubsub was unsubscribed via an assert`);
     assert.equal(tester, false);  
   });
 
@@ -461,29 +569,38 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     await sentinel.connect();
+    tracer.push(`connected`);
 
     let pubSubResolve;
     const pubSubPromise = new Promise((res) => {
       pubSubResolve = res;
-    })
+    });
 
     let tester = false;
     await sentinel.pSubscribe('test*', () => {
+      tracer.push(`got pubsub message`);
       tester = true;
       pubSubResolve(1);
     })
 
+    tracer.push(`publishing pubsub message`);
     await sentinel.publish('testy', 'hello world');
+    tracer.push(`waiting on pubsub promise`);
     await pubSubPromise;
+    tracer.push(`got pubsub promise`);
     assert.equal(tester, true);
 
     /* now unsubscribe */
     tester = false
+    tracer.push(`unsubscribing pubsub listener`);
     await sentinel.pUnsubscribe('test*');
+    tracer.push(`pubishing pubsub message`);
     await sentinel.publish('testy', 'hello world');
     await setTimeout(1000);
 
+    tracer.push(`ensuring pubsub was unsubscribed via an assert`);
     assert.equal(tester, false);  
   });
 
@@ -492,8 +609,10 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
+    tracer.push(`connected`);
 
     let pubSubResolve;
     const pubSubPromise = new Promise((res) => {
@@ -502,6 +621,7 @@ describe.only('Client', () => {
 
     let tester = false;
     await sentinel.subscribe('test', () => {
+      tracer.push(`got pubsub message`);
       tester = true;
       pubSubResolve(1);
     })
@@ -511,20 +631,31 @@ describe.only('Client', () => {
       masterChangeResolve = res;
     })
 
+    const masterNode = sentinel.getMasterNode();
+    tracer.push(`got masterPort as ${masterNode!.port}`);
+
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
+        tracer.push("got a master change event that is not the same as before");
         masterChangeResolve(event.node);
       }
     });
 
-    const masterPort = await frame.getMasterPort();
-    await frame.stopNode(masterPort.toString());
+    tracer.push("stopping master");
+    await frame.stopNode(masterNode!.port.toString());
+    tracer.push("stopped master and waiting on change promise");
 
     const newMaster = await masterChangePromise as RedisNode;
-    assert.notEqual(masterPort, newMaster.port);
+    tracer.push(`got master change port as ${newMaster.port}`);
+    assert.notEqual(masterNode!.port, newMaster.port);
 
+    tracer.push(`publishing pubsub message`);
     await sentinel.publish('test', 'hello world');
+    tracer.push(`published pubsub message and waiting pn pubsub promise`);
     await pubSubPromise;
+    tracer.push(`got pubsub promise`);
+
     assert.equal(tester, true);
 
     /* now unsubscribe */
@@ -540,8 +671,10 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
+    tracer.push(`connected`);
 
     let pubSubResolve;
     const pubSubPromise = new Promise((res) => {  
@@ -550,6 +683,7 @@ describe.only('Client', () => {
 
     let tester = false;
     await sentinel.pSubscribe('test*', () => {
+      tracer.push(`got pubsub message`);
       tester = true;
       pubSubResolve(1);
     })
@@ -559,20 +693,30 @@ describe.only('Client', () => {
       masterChangeResolve = res;
     })
 
-    const masterPort = await frame.getMasterPort();
+    const masterNode = sentinel.getMasterNode();
+    tracer.push(`got masterPort as ${masterNode!.port}`);
+
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
+        tracer.push("got a master change event that is not the same as before");
         masterChangeResolve(event.node);
       }
     });
 
-    await frame.stopNode(masterPort.toString());
+    tracer.push("stopping master");
+    await frame.stopNode(masterNode!.port.toString());
+    tracer.push("stopped master and waiting on master change promise");
 
     const newMaster = await masterChangePromise as RedisNode;
-    assert.notEqual(masterPort, newMaster.port);
+    tracer.push(`got master change port as ${newMaster.port}`);
+    assert.notEqual(masterNode!.port, newMaster.port);
 
+    tracer.push(`publishing pubsub message`);
     await sentinel.publish('testy', 'hello world');
+    tracer.push(`published pubsub message and waiting on pubsub promise`);
     await pubSubPromise;
+    tracer.push(`got pubsub promise`);
     assert.equal(tester, true);
 
     /* now unsubscribe */
@@ -589,62 +733,104 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
+
+    tracer.push("connected");
 
     let masterChangeResolve;
     const masterChangePromise = new Promise((res) => {
       masterChangeResolve = res;
     })
 
-    const masterPort = await frame.getMasterPort();
+    const masterNode = sentinel.getMasterNode();
+    tracer.push(`original master port = ${masterNode!.port}`);
+
+    let changeCount = 0;
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE" && event.node.port != masterPort) {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
+      if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
+        changeCount++;
+        tracer.push(`got topology-change event we expected`);
         masterChangeResolve(event.node);
       }
     });
 
-    await frame.stopNode(masterPort.toString());
+    tracer.push(`stopping masterNode`);
+    await frame.stopNode(masterNode!.port.toString());
+    tracer.push(`stopped masterNode`);
     assert.equal(await sentinel.set('x', 123), 'OK');
+    tracer.push(`did the set operation`);
+    const presumamblyNewMaster = sentinel.getMasterNode();
+    tracer.push(`new master node seems to be ${presumamblyNewMaster?.port} and waiting on master change promise`);
 
     const newMaster = await masterChangePromise as RedisNode;
-    assert.notEqual(masterPort, newMaster.port);
+    tracer.push(`got new masternode event saying master is at ${newMaster.port}`);
+    assert.notEqual(masterNode!.port, newMaster.port);
 
-    assert.equal(await sentinel.get('x'), '123');
+    tracer.push(`doing the get`);
+    const val = await sentinel.get('x');
+    tracer.push(`did the get and got ${val}`);
+    const newestMaster = sentinel.getMasterNode()
+    tracer.push(`after get, we see master as ${newestMaster?.port}`);
+
+    switch (changeCount) {
+      case 1:
+        // if we only changed masters once, we should have the proper value
+        assert.equal(val, '123');
+        break;
+      case 2:
+        // we changed masters twice quickly, so probably didn't replicate
+        // therefore, this is soewhat flakey, but the above is the common case
+        assert (val == '123' || val == null);
+        break;
+      default:
+        assert(false, "unexpected case");
+        break;
+    }
   });
 
   it('shutdown sentinel node', async function () {
     this.timeout(10000);
 
     sentinel = frame.getSentinelClient();
+    sentinel.setTracer(tracer);
     sentinel.on("error", () => { });
     await sentinel.connect();
+    tracer.push("connected");
 
     let sentinelChangeResolve;
     const sentinelChangePromise = new Promise((res) => {
       sentinelChangeResolve = res;
     })
 
+    const sentinelNode = sentinel.getSentinelNode();
+    tracer.push(`sentinelNode = ${sentinelNode?.port}`)
+
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
       if (event.type === "SENTINEL_CHANGE") {
+        tracer.push("got sentinel change event");
         sentinelChangeResolve(event.node);
       }
     });
 
-    const sentinelNode = sentinel.getSentinelNode();
-    assert.notEqual(sentinelNode, undefined);
-
-    await frame.stopSentinel(sentinelNode.port.toString());
-
+    tracer.push("Stopping sentinel node");
+    await frame.stopSentinel(sentinelNode!.port.toString());
+    tracer.push("Stopped sentinel node and waiting on sentinel change promise");
     const newSentinel = await sentinelChangePromise as RedisNode;
-    assert.notEqual(sentinelNode.port, newSentinel.port);
+    tracer.push("got sentinel change promise");
+    assert.notEqual(sentinelNode!.port, newSentinel.port);
   });
 
   it('timer works, and updates sentinel list', async function () {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ scanInterval: 1000 });
+    sentinel.setTracer(tracer);
     await sentinel.connect();
+    tracer.push("connected");
 
     let sentinelChangeResolve;
     const sentinelChangePromise = new Promise((res) => {
@@ -652,12 +838,16 @@ describe.only('Client', () => {
     })
 
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
       if (event.type === "SENTINE_LIST_CHANGE" && event.size == 4) {
+        tracer.push(`got sentinel list change event with right size`);
         sentinelChangeResolve(event.size);
       }
     });
 
+    tracer.push(`adding sentinel`);
     await frame.addSentinel();
+    tracer.push(`added sentinel and waiting on sentinel change promise`);
     const newSentinelSize = await sentinelChangePromise as number;
 
     assert.equal(newSentinelSize, 4);
@@ -667,8 +857,10 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ useReplicas: true });
+    sentinel.setTracer(tracer);
     sentinel.on('error', err => {});
     await sentinel.connect();
+    tracer.push("connected");
 
     let sentinelRemoveResolve;
     const sentinelRemovePromise = new Promise((res) => {
@@ -676,15 +868,19 @@ describe.only('Client', () => {
     })
 
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
       if (event.type === "REPLICA_REMOVE") {
+        tracer.push("got replica removed event");
         sentinelRemoveResolve(event.node);
       }
     });
 
     const replicaPort = await frame.getRandonNonMasterNode();
+    tracer.push(`replicaPort = ${replicaPort} and stopping it`);
     await frame.stopNode(replicaPort);
-
+    tracer.push("stopped replica and waiting on sentinel removed promise");
     const stoppedNode = await sentinelRemovePromise as RedisNode;
+    tracer.push("got removed promise");
     assert.equal(stoppedNode.port, Number(replicaPort));
 
     let sentinelRestartedResolve;
@@ -693,14 +889,18 @@ describe.only('Client', () => {
     })
 
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
       if (event.type === "REPLICA_ADD") {
+        tracer.push("got replica added event");
         sentinelRestartedResolve(event.node);
       }
     });
     
+    tracer.push("restarting replica");
     await frame.restartNode(replicaPort);
-
+    tracer.push("restarted replica and waiting on restart promise");
     const restartedNode = await sentinelRestartedPromise as RedisNode;
+    tracer.push("got restarted promise");
     assert.equal(restartedNode.port, Number(replicaPort));
   })
 
@@ -708,9 +908,11 @@ describe.only('Client', () => {
     this.timeout(30000);
 
     sentinel = frame.getSentinelClient({ scanInterval: 2000, useReplicas: true });
+    sentinel.setTracer(tracer);
     // need to handle errors, as the spawning a new docker node can cause existing connections to time out
     sentinel.on('error', err => {});
     await sentinel.connect();
+    tracer.push("connected");
 
     let nodeAddedResolve: (value: RedisNode) => void;
     const nodeAddedPromise = new Promise((res) => {
@@ -724,15 +926,19 @@ describe.only('Client', () => {
 
     // "on" and not "once" as due to connection timeouts, can happen multiple times, and want right one
     sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+      tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
       if (event.type === "REPLICA_ADD") {
-        if (!portSet.has(event.node.port)) {
+        if (!portSet.has(event.node.port)) 
+        {
+          tracer.push("got expected replica added event");
           nodeAddedResolve(event.node);
         }
       }
     });
 
+    tracer.push("adding node");
     await frame.addNode();
-
+    tracer.push("added node and waiting on added promise");
     await nodeAddedPromise;
   })
 

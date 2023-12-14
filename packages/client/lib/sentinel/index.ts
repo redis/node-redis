@@ -342,6 +342,8 @@ export default class RedisSentinel<
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
 
+  #trace: (msg: string) => unknown = () => {};
+
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
 
@@ -358,8 +360,10 @@ export default class RedisSentinel<
 
     /* pass through underling events */
     /* TODO: perhaps make this a struct and one vent, instead of multiple events */
-    this.#internal.on('topology-change', event => {
-      this.emit('topology-change', event);
+    this.#internal.on('topology-change', (event: RedisSentinelEvent) => {
+      if (!this.emit('topology-change', event)) {
+        this.self.#trace(`RedisSentinel: re-emit for topology-change for ${event.type} event returned false`);
+      }
     });
   }
 
@@ -666,6 +670,24 @@ export default class RedisSentinel<
   getSentinelNode(): RedisNode | undefined {
     return this.self.#internal.getSentinelNode();
   }
+
+  getMasterNode(): RedisNode | undefined {
+    return this.self.#internal.getMasterNode();
+  }
+
+  getReplicaNodes(): Map<RedisNode, number> {
+    return this.self.#internal.getReplicaNodes();
+  }
+
+  setTracer(tracer?: Array<string>) {
+    if (tracer) {
+      this.self.#trace = (msg: string) => { tracer.push(msg) };
+    } else {
+      this.self.#trace = () => {};
+    }
+
+    this.self.#internal.setTracer(tracer);
+  }
 }
 
 class RedisSentinelInternal<
@@ -717,6 +739,8 @@ class RedisSentinelInternal<
   #scanTimer?: NodeJS.Timeout
 
   #destroy = false;
+
+  #trace: (msg: string) => unknown = () => {};
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
@@ -836,6 +860,7 @@ class RedisSentinelInternal<
 
         return;
       } catch (e: any) {
+        this.#trace(`#connect: exception ${e.message}`);
         if (e.message !== 'no valid master node') {
           console.log(e);
         }
@@ -1103,9 +1128,11 @@ class RedisSentinelInternal<
     for (const node of this.#sentinelRootNodes) {
       let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
       try {
+        this.#trace(`observe: trying to connect to sentinel: ${node.host}:${node.port}`)
         client = this.#createClient(node, this.#sentinelClientOptions, false)
           .on('error', (err) => this.emit('error', `obseve client error: ${err}`));
         await client.connect();
+        this.#trace(`observe: connected to sentinel`)
 
         const promises = [];
         promises.push(client.sentinelSentinels(this.#name));
@@ -1113,6 +1140,9 @@ class RedisSentinelInternal<
         promises.push(client.sentinelReplicas(this.#name));
 
         const [sd, md, rd] = await Promise.all(promises);
+
+        this.#trace("observe: got all sentinel data");
+
         const sentinelData = sd as Array<any>;
         const masterData = md as any;
         const replicaData = rd as Array<any>;
@@ -1122,8 +1152,8 @@ class RedisSentinelInternal<
           sentinelData: sentinelData,
           masterData: masterData,
           replicaData: replicaData,
-          currentMaster: this.#getMasterNode(),
-          currentReplicas: this.#getReplicaNodes(),
+          currentMaster: this.getMasterNode(),
+          currentReplicas: this.getReplicaNodes(),
           currentSentinel: this.getSentinelNode(),
           replicaPoolSize: this.#replicaPoolSize,
           useReplicas: this.#useReplicas
@@ -1134,30 +1164,40 @@ class RedisSentinelInternal<
         }
         return ret;
       } catch (err) {
+        this.#trace(`observe: error ${err}`);
         this.emit('error', err);
       } finally {
         if (client !== undefined && client.isOpen) {
+          this.#trace(`observe: destroying sentinel client`);
           client.destroy();
         }
       }
     }
 
-    throw new Error('None of the sentinels are available');
+    this.#trace(`observe: none of the sentinels are available`);
+    throw new Error('None of the sentinels are avftracailable');
   }
 
   analyze(observed: Awaited<ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["observe"]>>) {
     let master = parseNode(observed.masterData);
     if (master === undefined) {
+      this.#trace(`analyze: no valid master node because ${observed.masterData.flags}`);
       throw new Error("no valid master node");
     }
 
     if (master.host === observed.currentMaster?.host && master.port === observed.currentMaster?.port) {
+      this.#trace(`analyze: master node hasn't changed from ${observed.currentMaster?.host}:${observed.currentMaster?.port}`);
       master = undefined;
+    } else {
+      this.#trace(`analyze: master node has changed to ${master.host}:${master.port} from ${observed.currentMaster?.host}:${observed.currentMaster?.port}`);
     }
 
     let sentinel: RedisNode | undefined = observed.sentinelConnected;
     if (sentinel.host === observed.currentSentinel?.host && sentinel.port === observed.currentSentinel.port) {
+      this.#trace(`analyze: sentinel node hasn't changed`);
       sentinel = undefined;
+    } else {
+      this.#trace(`analyze: sentinel node has changed to ${sentinel.host}:${sentinel.port}`);
     }
 
     const replicasToClose: Array<RedisNode> = [];
@@ -1176,10 +1216,12 @@ class RedisSentinelInternal<
       for (const [node, value] of observed.currentReplicas) {
         if (!desiredSet.has(JSON.stringify(node))) {
           replicasToClose.push(node);
+          this.#trace(`analyze: adding ${node.host}:${node.port} to replicsToClose`);
         } else {
           seen.add(JSON.stringify(node));
           if (value != observed.replicaPoolSize) {
             replicasToOpen.set(node, observed.replicaPoolSize - value);
+            this.#trace(`analyze: adding ${node.host}:${node.port} to replicsToOpen`);
           }
         }
       }
@@ -1187,6 +1229,7 @@ class RedisSentinelInternal<
       for (const node of replicaList) {
         if (!seen.has(JSON.stringify(node))) {
           replicasToOpen.set(node, observed.replicaPoolSize);
+          this.#trace(`analyze: adding ${node.host}:${node.port} to replicsToOpen`);
         }
       }
     }
@@ -1209,156 +1252,176 @@ class RedisSentinelInternal<
   }
 
   async transform(analyzed: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["analyze"]>) {
-    this.#debugLog("transform: enter");
-
-    let promises: Array<Promise<any>> = [];
-    
-    if (analyzed.sentinelToOpen) {
-      if (this.#sentinelClient !== undefined && this.#sentinelClient.isOpen) {
-        this.#sentinelClient.destroy()
-        this.#sentinelClient = undefined;
-      }
-
-      const client = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions, false);
-      client.on('error', (err) => {
-        const event: ClientErrorEvent = {
-          type: 'SENTINEL',
-          node: clientSocketToNode(client.options!.socket!),
-          error: err
-        };
-        if (this.#passthroughClientErrorEvents) {
-          this.emit('error', event);
+    this.#trace("transfrm: enter");
+    try {
+      let promises: Array<Promise<any>> = [];
+      
+      if (analyzed.sentinelToOpen) {
+        this.#trace(`transform: opening a new sentinel`);
+        if (this.#sentinelClient !== undefined && this.#sentinelClient.isOpen) {
+          this.#trace(`transform: destroying old sentinel as open`);
+          this.#sentinelClient.destroy()
+          this.#sentinelClient = undefined;
+        } else {
+          this.#trace(`transform: not destroying old sentinel as not open`);
         }
-        this.emit('client-error', event);
-        this.#reset();
-      });
-      this.#sentinelClient = client;
 
-      const promise = this.#sentinelClient.connect().then((client) => { return this.#createPubSub(client) });
-      promises.push(promise);
-
-      this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
-      const event: RedisSentinelEvent = {
-        type: "SENTINEL_CHANGE",
-        node: analyzed.sentinelToOpen
-      }
-      this.emit('topology-change', event);
-    }
-
-    if (analyzed.masterToOpen) {
-      const masterPromises = []
-
-      for (const client of this.#masterClients) {
-        if (client.isOpen) {
-          client.destroy()
-        }
-      }
-      this.#masterClients = [];
-
-      for (let i = 0; i < this.#masterPoolSize; i++) {
-        const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions);
+        this.#trace(`transform: creating new sentinel to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
+        const client = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions, false);
         client.on('error', (err) => {
-            const event: ClientErrorEvent = {
-              type: "MASTER",
-              node: clientSocketToNode(client.options!.socket!),
-              error: err
-            };
-            if (this.#passthroughClientErrorEvents) {
-              this.emit('error', event);
-            }
-            this.emit('client-error', event);
-          });
-
-        this.#masterClients.push(client);
-        masterPromises.push(client.connect());
-
-        this.#debugLog(`created master client to ${analyzed.masterToOpen.host}:${analyzed.masterToOpen.port}`);
-      }
-
-      masterPromises.push(this.#pubSubProxy.changeNode(analyzed.masterToOpen));
-      promises.push(...masterPromises);
-      const event: RedisSentinelEvent = {
-        type: "MASTER_CHANGE",
-        node: analyzed.masterToOpen
-      }
-      this.emit('topology-change', event);
-      this.#configEpoch++;
-    }
-
-    const replicaCloseSet = new Set<string>();
-    for (const node of analyzed.replicasToClose) {
-      const str = JSON.stringify(node);
-      replicaCloseSet.add(str);
-    }
-
-    const newClientList: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
-    const removedSet = new Set<string>();
-
-    for (const replica of this.#replicaClients) {
-      const node = clientSocketToNode(replica.options!.socket!);
-      const str = JSON.stringify(node);
-    
-      if (replicaCloseSet.has(str) || !replica.isOpen) {
-        if (replica.isOpen) {
-          this.#debugLog(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
-          replica.destroy()
-        }
-        if (!removedSet.has(str)) {
-          const event: RedisSentinelEvent = {
-            type: "REPLICA_REMOVE",
-            node: node
+          const event: ClientErrorEvent = {
+            type: 'SENTINEL',
+            node: clientSocketToNode(client.options!.socket!),
+            error: err
+          };
+          if (this.#passthroughClientErrorEvents) {
+            this.emit('error', event);
           }
-          this.emit('topology-change', event);
-          removedSet.add(str);
-        }
-      } else {
-        newClientList.push(replica);
-      }
-    }
-    this.#replicaClients = newClientList;
+          this.emit('client-error', event);
+          this.#reset();
+        });
+        this.#sentinelClient = client;
 
-    if (analyzed.replicasToOpen.size != 0) {
-      for (const [node, size] of analyzed.replicasToOpen) {
-        for (let i = 0; i < size; i++) {
-          const client = this.#createClient(node, this.#nodeClientOptions);
-          client.on('error', (err) => {
-            const event: ClientErrorEvent = {
-              type: "REPLICA",
-              node: clientSocketToNode(client.options!.socket!),
-              error: err
-            };
-            if (this.#passthroughClientErrorEvents) {
-              this.emit('error', event);
-            }
-            this.emit('client-error', event);
-          });
+        this.#trace(`transform: adding sentinel client connect() to promise list`);
+        const promise = this.#sentinelClient.connect().then((client) => { return this.#createPubSub(client) });
+        promises.push(promise);
 
-          this.#replicaClients.push(client);
-          promises.push(client.connect());
-
-          this.#debugLog(`created replica client to ${node.host}:${node.port}`);
-        }
+        this.#debugLog(`created sentinel client to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
         const event: RedisSentinelEvent = {
-          type: "REPLICA_ADD",
-          node: node
-        } 
+          type: "SENTINEL_CHANGE",
+          node: analyzed.sentinelToOpen
+        }
+        this.#trace(`transform: emiting topology-change event for sentinel_change`);
+        if (!this.emit('topology-change', event)) {
+          this.#trace(`transform: emit for topology-change for sentinel_change returned false`);
+        }
+      }
+
+      if (analyzed.masterToOpen) {
+        this.#trace(`transform: opening a new master`);
+        const masterPromises = []
+
+        this.#trace(`transform: destroying old masters if open`);
+        for (const client of this.#masterClients) {
+          if (client.isOpen) {
+            client.destroy()
+          }
+        }
+        this.#masterClients = [];
+
+        this.#trace(`transform: creating all master clients and adding connect promises`);
+        for (let i = 0; i < this.#masterPoolSize; i++) {
+          const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions);
+          client.on('error', (err) => {
+              const event: ClientErrorEvent = {
+                type: "MASTER",
+                node: clientSocketToNode(client.options!.socket!),
+                error: err
+              };
+              if (this.#passthroughClientErrorEvents) {
+                this.emit('error', event);
+              }
+              this.emit('client-error', event);
+            });
+
+          this.#masterClients.push(client);
+          masterPromises.push(client.connect());
+
+          this.#debugLog(`created master client to ${analyzed.masterToOpen.host}:${analyzed.masterToOpen.port}`);
+        }
+
+        this.#trace(`transform: adding promise to change #pubSubProxy node`);
+        masterPromises.push(this.#pubSubProxy.changeNode(analyzed.masterToOpen));
+        promises.push(...masterPromises);
+        const event: RedisSentinelEvent = {
+          type: "MASTER_CHANGE",
+          node: analyzed.masterToOpen
+        }
+        this.#trace(`transform: emiting topology-change event for master_change`);
+        if (!this.emit('topology-change', event)) {
+          this.#trace(`transform: emit for topology-change for master_change returned false`);
+        }
+        this.#configEpoch++;
+      }
+
+      const replicaCloseSet = new Set<string>();
+      for (const node of analyzed.replicasToClose) {
+        const str = JSON.stringify(node);
+        replicaCloseSet.add(str);
+      }
+
+      const newClientList: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
+      const removedSet = new Set<string>();
+
+      for (const replica of this.#replicaClients) {
+        const node = clientSocketToNode(replica.options!.socket!);
+        const str = JSON.stringify(node);
+      
+        if (replicaCloseSet.has(str) || !replica.isOpen) {
+          if (replica.isOpen) {
+            this.#debugLog(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
+            replica.destroy()
+          }
+          if (!removedSet.has(str)) {
+            const event: RedisSentinelEvent = {
+              type: "REPLICA_REMOVE",
+              node: node
+            }
+            this.emit('topology-change', event);
+            removedSet.add(str);
+          }
+        } else {
+          newClientList.push(replica);
+        }
+      }
+      this.#replicaClients = newClientList;
+
+      if (analyzed.replicasToOpen.size != 0) {
+        for (const [node, size] of analyzed.replicasToOpen) {
+          for (let i = 0; i < size; i++) {
+            const client = this.#createClient(node, this.#nodeClientOptions);
+            client.on('error', (err) => {
+              const event: ClientErrorEvent = {
+                type: "REPLICA",
+                node: clientSocketToNode(client.options!.socket!),
+                error: err
+              };
+              if (this.#passthroughClientErrorEvents) {
+                this.emit('error', event);
+              }
+              this.emit('client-error', event);
+            });
+
+            this.#replicaClients.push(client);
+            promises.push(client.connect());
+
+            this.#debugLog(`created replica client to ${node.host}:${node.port}`);
+          }
+          const event: RedisSentinelEvent = {
+            type: "REPLICA_ADD",
+            node: node
+          } 
+          this.emit('topology-change', event);
+        }
+      }
+
+      if (analyzed.sentinelList.length != this.#sentinelRootNodes.length) {
+        this.#sentinelRootNodes = analyzed.sentinelList;
+        const event: RedisSentinelEvent = {
+          type: "SENTINE_LIST_CHANGE",
+          size: analyzed.sentinelList.length
+        }
         this.emit('topology-change', event);
       }
-    }
 
-    if (analyzed.sentinelList.length != this.#sentinelRootNodes.length) {
-      this.#sentinelRootNodes = analyzed.sentinelList;
-      const event: RedisSentinelEvent = {
-        type: "SENTINE_LIST_CHANGE",
-        size: analyzed.sentinelList.length
-      }
-      this.emit('topology-change', event);
+      await Promise.all(promises);
+    } catch (err) {
+      this.#trace(`transform: caught exception ${err}`);
+      throw err;
     }
-
-    await Promise.all(promises);
   }
 
-  #getMasterNode(): RedisNode | undefined {
+  getMasterNode(): RedisNode | undefined {
     if (this.#masterClients.length == 0) {
       return undefined;
     }
@@ -1380,7 +1443,7 @@ class RedisSentinelInternal<
     return clientSocketToNode(this.#sentinelClient.options!.socket!);
   }
 
-  #getReplicaNodes(): Map<RedisNode, number> {
+  getReplicaNodes(): Map<RedisNode, number> {
     const ret = new Map<RedisNode, number>();
     const initialMap = new Map<string, number>();
 
@@ -1402,6 +1465,14 @@ class RedisSentinelInternal<
     }
 
     return ret;
+  }
+
+  setTracer(tracer?: Array<string>) {
+    if (tracer) {
+      this.#trace = (msg: string) => { tracer.push(msg) };
+    } else {
+      this.#trace = () => {};
+    }
   }
 
   printObserved(observed: Awaited<ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["observe"]>>) {
