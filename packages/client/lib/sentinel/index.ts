@@ -1268,7 +1268,7 @@ class RedisSentinelInternal<
 
         this.#trace(`transform: creating new sentinel to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
         const client = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions, false);
-        client.on('error', (err) => {
+        client.on('error', (err: Error) => {
           const event: ClientErrorEvent = {
             type: 'SENTINEL',
             node: clientSocketToNode(client.options!.socket!),
@@ -1312,7 +1312,7 @@ class RedisSentinelInternal<
         this.#trace(`transform: creating all master clients and adding connect promises`);
         for (let i = 0; i < this.#masterPoolSize; i++) {
           const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions);
-          client.on('error', (err) => {
+          client.on('error', (err: Error) => {
               const event: ClientErrorEvent = {
                 type: "MASTER",
                 node: clientSocketToNode(client.options!.socket!),
@@ -1380,7 +1380,7 @@ class RedisSentinelInternal<
         for (const [node, size] of analyzed.replicasToOpen) {
           for (let i = 0; i < size; i++) {
             const client = this.#createClient(node, this.#nodeClientOptions);
-            client.on('error', (err) => {
+            client.on('error', (err: Error) => {
               const event: ClientErrorEvent = {
                 type: "REPLICA",
                 node: clientSocketToNode(client.options!.socket!),
