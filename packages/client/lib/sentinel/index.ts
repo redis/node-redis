@@ -772,7 +772,9 @@ class RedisSentinelInternal<
     }
 
     /* persistent object for life of sentinel object */
-    this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions).on('error', err => this.emit('error', `pubSubPoroxy error: ${err}`) );
+    this.#pubSubProxy = new PubSubProxy(this.#nodeClientOptions)
+      .on('error', err => this.emit('error', err))
+      .on('client-error', event => this.emit('client-error', event));
   }
 
   #debugLog(msg: string) {
@@ -1269,14 +1271,14 @@ class RedisSentinelInternal<
         this.#trace(`transform: creating new sentinel to ${analyzed.sentinelToOpen.host}:${analyzed.sentinelToOpen.port}`);
         const client = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions, false);
         client.on('error', (err: Error) => {
+          if (this.#passthroughClientErrorEvents) {
+            this.emit('error', err);
+          }
           const event: ClientErrorEvent = {
             type: 'SENTINEL',
             node: clientSocketToNode(client.options!.socket!),
             error: err
           };
-          if (this.#passthroughClientErrorEvents) {
-            this.emit('error', event);
-          }
           this.emit('client-error', event);
           this.#reset();
         });
@@ -1313,14 +1315,14 @@ class RedisSentinelInternal<
         for (let i = 0; i < this.#masterPoolSize; i++) {
           const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions);
           client.on('error', (err: Error) => {
+              if (this.#passthroughClientErrorEvents) {
+                this.emit('error', err);
+              }
               const event: ClientErrorEvent = {
                 type: "MASTER",
                 node: clientSocketToNode(client.options!.socket!),
                 error: err
               };
-              if (this.#passthroughClientErrorEvents) {
-                this.emit('error', event);
-              }
               this.emit('client-error', event);
             });
 
@@ -1381,14 +1383,14 @@ class RedisSentinelInternal<
           for (let i = 0; i < size; i++) {
             const client = this.#createClient(node, this.#nodeClientOptions);
             client.on('error', (err: Error) => {
+              if (this.#passthroughClientErrorEvents) {
+                this.emit('error', err);
+              }
               const event: ClientErrorEvent = {
                 type: "REPLICA",
                 node: clientSocketToNode(client.options!.socket!),
                 error: err
               };
-              if (this.#passthroughClientErrorEvents) {
-                this.emit('error', event);
-              }
               this.emit('client-error', event);
             });
 

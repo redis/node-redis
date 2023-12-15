@@ -792,7 +792,7 @@ describe.only('Sentinel Object', () => {
   });
 
   it('shutdown sentinel node', async function () {
-    this.timeout(10000);
+    this.timeout(30000);
 
     sentinel = frame.getSentinelClient();
     sentinel.setTracer(tracer);

@@ -498,14 +498,26 @@ export class SentinelFramework extends DockerBase {
   }
 
   sentinelSentinels() {
-    return this.#sentinelList[0].client.sentinelSentinels(this.config.sentinelName);
+    for (const sentinel of this.#sentinelList) {
+      if (sentinel.client.isReady) {
+        return sentinel.client.sentinelSentinels(this.config.sentinelName);
+      }
+    }
   }
 
   sentinelMaster() {
-    return this.#sentinelList[0].client.sentinelMaster(this.config.sentinelName);
+    for (const sentinel of this.#sentinelList) {
+      if (sentinel.client.isReady) {
+        return sentinel.client.sentinelMaster(this.config.sentinelName);
+      }
+    }
   }
 
   sentinelReplicas() {
-    return this.#sentinelList[0].client.sentinelReplicas(this.config.sentinelName);
+    for (const sentinel of this.#sentinelList) {
+      if (sentinel.client.isReady) {
+        return sentinel.client.sentinelReplicas(this.config.sentinelName);
+      }
+    }
   }
 }

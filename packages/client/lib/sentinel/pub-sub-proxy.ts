@@ -2,8 +2,9 @@ import EventEmitter from "events";
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from "../RESP/types";
 import { RedisClientOptions, RedisClientType } from "../client";
 import { PubSubListener, PubSubType, PubSubTypeListeners } from "../client/pub-sub";
-import { RedisNode } from "./types";
+import { ClientErrorEvent, RedisNode } from "./types";
 import RedisClient from "../client";
+import { clientSocketToNode } from "./utils";
 
 interface PubSubNode<
   M extends RedisModules,
@@ -24,6 +25,8 @@ export class PubSubProxy<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > extends EventEmitter {
+  readonly #passthroughClientErrorEvents: boolean;
+
   #channelsListeners?: PubSubTypeListeners;
   #patternsListeners?: PubSubTypeListeners;
 
@@ -32,10 +35,11 @@ export class PubSubProxy<
 
   #pubSubNode?: PubSubNode<M, F, S, RESP, TypeMapping>;
 
-  constructor(clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
+  constructor(clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, passthroughErrors = false) {
     super();
 
     this.#clientOptions = clientOptions;
+    this.#passthroughClientErrorEvents = passthroughErrors;
   }
 
   #createClient(): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
@@ -110,8 +114,18 @@ export class PubSubProxy<
   }
 
   async #initiatePubSubClient() {
-    const client = this.#createClient()
-      .on("error", err => this.emit('error', err));
+    const client = this.#createClient();
+    client.on("error", (err: Error) => {
+      if (this.#passthroughClientErrorEvents) {
+        this.emit('error', err);
+      }
+      const event: ClientErrorEvent = {
+        type: 'SENTINEL',
+        node: clientSocketToNode(client.options!.socket!),
+        error: err
+      };
+      this.emit('client-error', event);
+    });
 
     this.#pubSubNode = {
       destroy: false,
@@ -150,7 +164,7 @@ export class PubSubProxy<
     channels: string | Array<string>,
     listener: PubSubListener<T>,
     bufferMode?: T
-  ) {
+  ) {   
     const client = await this.#getPubSubClient();
     const resp = await client.SUBSCRIBE(channels, listener, bufferMode);
 
