@@ -109,7 +109,7 @@ export class PubSubProxy<
     const client = this.#createClient();
     client.on("error", (err: Error) => {
       if (this.#passthroughClientErrorEvents) {
-        this.emit('error', err);
+        this.emit('error', new Error(`PubSub Proxy Client (${this.#node!.host}:${this.#node!.port}): ${err.message}`, {cause: err}));
       }
       const event: ClientErrorEvent = {
         type: 'SENTINEL',

@@ -1272,7 +1272,7 @@ class RedisSentinelInternal<
         const client = this.#createClient(analyzed.sentinelToOpen, this.#sentinelClientOptions, false);
         client.on('error', (err: Error) => {
           if (this.#passthroughClientErrorEvents) {
-            this.emit('error', err);
+            this.emit('error', new Error(`Sentinel Client (${clientSocketToNode(client.options!.socket!)}): ${err.message}`, {cause: err}));
           }
           const event: ClientErrorEvent = {
             type: 'SENTINEL',
@@ -1316,7 +1316,7 @@ class RedisSentinelInternal<
           const client = this.#createClient(analyzed.masterToOpen, this.#nodeClientOptions);
           client.on('error', (err: Error) => {
               if (this.#passthroughClientErrorEvents) {
-                this.emit('error', err);
+                this.emit('error', new Error(`Master Client (${clientSocketToNode(client.options!.socket!)}): ${err.message}`, {cause: err}));
               }
               const event: ClientErrorEvent = {
                 type: "MASTER",
@@ -1384,7 +1384,7 @@ class RedisSentinelInternal<
             const client = this.#createClient(node, this.#nodeClientOptions);
             client.on('error', (err: Error) => {
               if (this.#passthroughClientErrorEvents) {
-                this.emit('error', err);
+                this.emit('error', new Error(`Replica Client (${clientSocketToNode(client.options!.socket!)}): ${err.message}`, {cause: err}));
               }
               const event: ClientErrorEvent = {
                 type: "REPLICA",
