@@ -65,7 +65,7 @@ export class PubSubProxy<
     this.#node = node;
 
     if (this.#pubSubNode) {
-      await this.close();
+      this.destroy();
     }
 
     if (this.#hasSavedListeners()) {
@@ -74,23 +74,18 @@ export class PubSubProxy<
   }
 
   async close() {
-    while (true) {
-      if (this.#pubSubNode) {
-        if (this.#pubSubNode.connectPromise === undefined) {
-          const client = this.#pubSubNode.client;
+    if (this.#pubSubNode) {
+      if (this.#pubSubNode.connectPromise === undefined) {
+        const client = this.#pubSubNode.client;
 
-          /* probably less needed, as close() means we're probably also shutting down whoever holds this */
-          this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
-          this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
-          this.#pubSubNode = undefined;
+        this.#pubSubNode = undefined;
 
-          if (client.isOpen) {
-            client.destroy();
-          }
-          return;
-        } else {
-          await this.#pubSubNode.connectPromise;
+        if (client.isOpen) {
+          await client.close();
         }
+      } else {
+        this.#pubSubNode.destroy = true;
+        await this.#pubSubNode.connectPromise;
       }
     }
   }
@@ -99,9 +94,6 @@ export class PubSubProxy<
     if (this.#pubSubNode) {
       if (this.#pubSubNode.connectPromise === undefined) {
         const client = this.#pubSubNode.client;
-
-        this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
-        this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
 
         this.#pubSubNode = undefined;
         if (client.isOpen) {
@@ -135,9 +127,13 @@ export class PubSubProxy<
           if (this.#channelsListeners && this.#channelsListeners.size > 0) {
             await client.extendPubSubListeners(PubSubType.CHANNELS, this.#channelsListeners)
           }
+          // get the new channelsListeners object
+          this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
           if (this.#patternsListeners && this.#patternsListeners.size > 0) {
             await client.extendPubSubListeners(PubSubType.PATTERNS, this.#patternsListeners);
           }
+          // get the new patternsListeners object
+          this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
 
           this.#pubSubNode!.connectPromise = undefined;
           if (this.#pubSubNode?.destroy) {

@@ -167,7 +167,7 @@ export class SentinelFramework extends DockerBase {
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
   }
 
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>, errors = false): RedisSentinelType<{}, {}, {}, 2, {}> {
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>, errors = true): RedisSentinelType<{}, {}, {}, 2, {}> {
     if (opts?.sentinelRootNodes !== undefined) {
       throw new Error("cannot specify sentinelRootNodes here");
     }

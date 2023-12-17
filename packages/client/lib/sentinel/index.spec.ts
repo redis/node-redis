@@ -87,15 +87,39 @@ describe.only('Sentinel Object', () => {
   let master: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   let replica: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   let tracer = new Array<string>();
+  let stopMeasuringBlocking = false;
+  let longestDelta = 0;
+  let longestTestDelta = 0;
+  let last: number;
 
   before(async function () {
     this.timeout(15000);
+
+    last = Date.now();
+
+    function deltaMeasurer() {
+      const delta = Date.now() - last;
+      if (delta > longestDelta) {
+        longestDelta = delta;
+      }
+      if (delta > longestTestDelta) {
+        longestTestDelta = delta;
+      }
+      if (!stopMeasuringBlocking) {
+        last = Date.now();
+        setImmediate(deltaMeasurer);
+      }
+    }
+
+    setImmediate(deltaMeasurer);
 
     await frame.spawnRedisSentinel();
   });
 
   after(async function () {
     this.timeout(15000);
+
+    stopMeasuringBlocking = true;
 
     if (sentinel !== undefined) {
       await sentinel.destroy();
@@ -131,10 +155,13 @@ describe.only('Sentinel Object', () => {
     }
 
     await steadyState(frame);
+    longestTestDelta = 0;
   })
 
   afterEach(async function () {
     if (this!.currentTest.state === 'failed') {
+      console.log(`longest event loop blocked delta: ${longestDelta}`);
+      console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
       console.log("trace:");
       for (const line of tracer) {
         console.log(line);
@@ -553,7 +580,7 @@ describe.only('Sentinel Object', () => {
     tracer.push(`got pubsub promise`);
     assert.equal(tester, true);
 
-    /* now unsubscribe */
+    // now unsubscribe
     tester = false
     tracer.push(`unsubscribing pubsub listener`);
     await sentinel.unsubscribe('test')
@@ -592,7 +619,7 @@ describe.only('Sentinel Object', () => {
     tracer.push(`got pubsub promise`);
     assert.equal(tester, true);
 
-    /* now unsubscribe */
+    // now unsubscribe
     tester = false
     tracer.push(`unsubscribing pubsub listener`);
     await sentinel.pUnsubscribe('test*');
@@ -601,7 +628,7 @@ describe.only('Sentinel Object', () => {
     await setTimeout(1000);
 
     tracer.push(`ensuring pubsub was unsubscribed via an assert`);
-    assert.equal(tester, false);  
+    assert.equal(tester, false);
   });
 
   // pubsub continues to work, even with a master change
@@ -658,7 +685,7 @@ describe.only('Sentinel Object', () => {
 
     assert.equal(tester, true);
 
-    /* now unsubscribe */
+    // now unsubscribe
     tester = false
     await sentinel.unsubscribe('test')
     await sentinel.publish('test', 'hello world');
@@ -667,6 +694,7 @@ describe.only('Sentinel Object', () => {
     assert.equal(tester, false);  
   });
 
+  //TODO: exposed bug.  If we "unsubscribe" while a master change is going on, it seems to get dropped, as it doesn't effect the saved state.
   it('pubsub - pattern - with master change', async function () {  
     this.timeout(30000);
 
@@ -719,7 +747,7 @@ describe.only('Sentinel Object', () => {
     tracer.push(`got pubsub promise`);
     assert.equal(tester, true);
 
-    /* now unsubscribe */
+    // now unsubscribe
     tester = false
     await sentinel.pUnsubscribe('test*');
     await sentinel.publish('testy', 'hello world');
