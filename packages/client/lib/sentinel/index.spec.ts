@@ -142,7 +142,7 @@ describe.only('Sentinel', () => {
       if (sentinel !== undefined) {
         sentinel.on('error', () => {});
       }
-      
+
       if (this!.currentTest.state === 'failed') {
         console.log(`longest event loop blocked delta: ${longestDelta}`);
         console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
@@ -178,7 +178,6 @@ describe.only('Sentinel', () => {
     it('test with a function');
     it('test with a module?');
     it('test with a type mapping');
-    it('test with a pipeline that is not a multi');
   
     it('basic bootstrap', async function () {   
       sentinel = frame.getSentinelClient();
@@ -321,6 +320,17 @@ describe.only('Sentinel', () => {
   
       assert.equal(matched, true);
     });
+
+    it('pipeline', async function () {
+      this.timeout(30000);
+  
+      sentinel = frame.getSentinelClient({ useReplicas: true });
+      await sentinel.connect();
+
+      const resp = await sentinel.multi().set('x', 1).get('x').execAsPipeline();
+
+      assert.deepEqual(resp, ['OK', '1']);
+    })
   
     it('use - watch - clean', async function () {
       this.timeout(30000);
