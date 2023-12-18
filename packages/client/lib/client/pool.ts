@@ -49,7 +49,7 @@ export type RedisClientPoolType<
 
 type ProxyPool = RedisClientPoolType<any, any, any, any, any>;
 
-type NamespaceProxyPool = { self: ProxyPool };
+type NamespaceProxyPool = { _self: ProxyPool };
 
 export class RedisClientPool<
   M extends RedisModules = {},
@@ -58,7 +58,7 @@ export class RedisClientPool<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 > extends EventEmitter {
-  private static _createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -69,25 +69,25 @@ export class RedisClientPool<
     };
   }
 
-  private static _createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
-        reply = await this.self.sendCommand(redisArgs, this.self._commandOptions);
+        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
     };
   }
 
-  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args),
-        reply = await this.self.sendCommand(
+        reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
-          this.self._commandOptions
+          this._self._commandOptions
         );
       return transformReply ?
         transformReply(reply, fnArgs.preserve) :
@@ -95,7 +95,7 @@ export class RedisClientPool<
     };
   }
 
-  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
@@ -115,23 +115,22 @@ export class RedisClientPool<
     RESP extends RespVersions,
     TYPE_MAPPING extends TypeMapping = {}
   >(
-    // clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
     options?: Partial<RedisPoolOptions>
   ) {
     const Pool = attachConfig({
       BaseClass: RedisClientPool,
       commands: COMMANDS,
-      createCommand: RedisClientPool._createCommand,
-      createModuleCommand: RedisClientPool._createModuleCommand,
-      createFunctionCommand: RedisClientPool._createFunctionCommand,
-      createScriptCommand: RedisClientPool._createScriptCommand,
+      createCommand: RedisClientPool.#createCommand,
+      createModuleCommand: RedisClientPool.#createModuleCommand,
+      createFunctionCommand: RedisClientPool.#createFunctionCommand,
+      createScriptCommand: RedisClientPool.#createScriptCommand,
       config: clientOptions
     });
 
     Pool.prototype.Multi = RedisClientMultiCommand.extend(clientOptions);
 
-    // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
+    // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
     return Object.create(
       new Pool(
         RedisClient.factory(clientOptions).bind(undefined, clientOptions),
@@ -141,51 +140,42 @@ export class RedisClientPool<
   }
 
   // TODO: defaults
-  private static _DEFAULTS = {
+  static #DEFAULTS = {
     minimum: 1,
     maximum: 100,
     acquireTimeout: 3000,
     cleanupDelay: 3000
   } satisfies RedisPoolOptions;
 
-  private readonly _clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
-  private readonly _options: RedisPoolOptions;
+  readonly #clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #options: RedisPoolOptions;
 
-  private readonly _idleClients = new SinglyLinkedList<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+  readonly #idleClients = new SinglyLinkedList<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
   /**
    * The number of idle clients.
    */
   get idleClients() {
-    return this._idleClients.length;
+    return this._self.#idleClients.length;
   }
 
-  private readonly _clientsInUse = new DoublyLinkedList<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+  readonly #clientsInUse = new DoublyLinkedList<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
   /**
    * The number of clients in use.
    */
   get clientsInUse() {
-    return this._clientsInUse.length;
-  }
-
-  private readonly _connectingClients = 0;
-
-  /**
-   * The number of clients that are currently connecting.
-   */
-  get connectingClients() {
-    return this._connectingClients;
+    return this._self.#clientsInUse.length;
   }
 
   /**
    * The total number of clients in the pool (including connecting, idle, and in use).
    */
   get totalClients() {
-    return this._idleClients.length + this._clientsInUse.length;
+    return this._self.#idleClients.length + this._self.#clientsInUse.length;
   }
 
-  private readonly _tasksQueue = new SinglyLinkedList<{
+  readonly #tasksQueue = new SinglyLinkedList<{
     timeout: NodeJS.Timeout | undefined;
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
@@ -196,25 +186,25 @@ export class RedisClientPool<
    * The number of tasks waiting for a client to become available.
    */
   get tasksQueueLength() {
-    return this._tasksQueue.length;
+    return this._self.#tasksQueue.length;
   }
 
-  private _isOpen = false;
+  #isOpen = false;
 
   /**
    * Whether the pool is open (either connecting or connected).
    */
   get isOpen() {
-    return this._isOpen;
+    return this._self.#isOpen;
   }
 
-  private _isClosing = false;
+  #isClosing = false;
 
   /**
    * Whether the pool is closing (*not* closed).
    */
   get isClosing() {
-    return this._isClosing;
+    return this._self.#isClosing;
   }
 
   /**
@@ -228,9 +218,9 @@ export class RedisClientPool<
   ) {
     super();
 
-    this._clientFactory = clientFactory;
-    this._options = {
-      ...RedisClientPool._DEFAULTS,
+    this.#clientFactory = clientFactory;
+    this.#options = {
+      ...RedisClientPool.#DEFAULTS,
       ...options
     };
   }
@@ -253,7 +243,7 @@ export class RedisClientPool<
     >;
   }
 
-  private _commandOptionsProxy<
+  #commandOptionsProxy<
     K extends keyof CommandOptions,
     V extends CommandOptions[K]
   >(
@@ -276,14 +266,14 @@ export class RedisClientPool<
    * Override the `typeMapping` command option
    */
   withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
-    return this._commandOptionsProxy('typeMapping', typeMapping);
+    return this._self.#commandOptionsProxy('typeMapping', typeMapping);
   }
 
   /**
    * Override the `abortSignal` command option
    */
   withAbortSignal(abortSignal: AbortSignal) {
-    return this._commandOptionsProxy('abortSignal', abortSignal);
+    return this._self.#commandOptionsProxy('abortSignal', abortSignal);
   }
 
   /**
@@ -291,17 +281,17 @@ export class RedisClientPool<
    * TODO: remove?
    */
   asap() {
-    return this._commandOptionsProxy('asap', true);
+    return this._self.#commandOptionsProxy('asap', true);
   }
 
   async connect() {
-    if (this._isOpen) return; // TODO: throw error?
+    if (this._self.#isOpen) return; // TODO: throw error?
 
-    this._isOpen = true;
+    this._self.#isOpen = true;
 
     const promises = [];
-    while (promises.length < this._options.minimum) {
-      promises.push(this._create());
+    while (promises.length < this._self.#options.minimum) {
+      promises.push(this._self.#create());
     }
 
     try {
@@ -313,39 +303,39 @@ export class RedisClientPool<
     }
   }
 
-  private async _create() {
-    const node = this._clientsInUse.push(
-      this._clientFactory()
+  async #create() {
+    const node = this._self.#clientsInUse.push(
+      this._self.#clientFactory()
         .on('error', (err: Error) => this.emit('error', err))
     );
 
     try {
       await node.value.connect();
     } catch (err) {
-      this._clientsInUse.remove(node);
+      this._self.#clientsInUse.remove(node);
       throw err;
     }
 
-    this._returnClient(node);
+    this._self.#returnClient(node);
   }
   
   execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>) {
     return new Promise<Awaited<T>>((resolve, reject) => {
-      const client = this._idleClients.shift(),
-        { tail } = this._tasksQueue;
+      const client = this._self.#idleClients.shift(),
+        { tail } = this._self.#tasksQueue;
       if (!client) {
         let timeout;
-        if (this._options.acquireTimeout > 0) {
+        if (this._self.#options.acquireTimeout > 0) {
           timeout = setTimeout(
             () => {
-              this._tasksQueue.remove(task, tail);
+              this._self.#tasksQueue.remove(task, tail);
               reject(new TimeoutError('Timeout waiting for a client')); // TODO: message
             },
-            this._options.acquireTimeout
+            this._self.#options.acquireTimeout
           );
         }
 
-        const task = this._tasksQueue.push({
+        const task = this._self.#tasksQueue.push({
           timeout,
           // @ts-ignore
           resolve,
@@ -353,20 +343,20 @@ export class RedisClientPool<
           fn
         });
 
-        if (this.totalClients < this._options.maximum) {
-          this._create();
+        if (this.totalClients < this._self.#options.maximum) {
+          this._self.#create();
         }
 
         return;
       }
 
-      const node = this._clientsInUse.push(client);
+      const node = this._self.#clientsInUse.push(client);
       // @ts-ignore
-      this._executeTask(node, resolve, reject, fn);
+      this._self.#executeTask(node, resolve, reject, fn);
     });
   }
 
-  private _executeTask(
+  #executeTask(
     node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>,
     resolve: <T>(value: T | PromiseLike<T>) => void,
     reject: (reason?: unknown) => void,
@@ -375,40 +365,40 @@ export class RedisClientPool<
     const result = fn(node.value);
     if (result instanceof Promise) {
       result.then(resolve, reject);
-      result.finally(() => this._returnClient(node))
+      result.finally(() => this.#returnClient(node))
     } else {
       resolve(result);
-      this._returnClient(node);
+      this.#returnClient(node);
     }
   }
 
-  private _returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
-    const task = this._tasksQueue.shift();
+  #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
+    const task = this.#tasksQueue.shift();
     if (task) {
-      this._executeTask(node, task.resolve, task.reject, task.fn);
+      this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
 
-    this._clientsInUse.remove(node);
-    this._idleClients.push(node.value);
+    this.#clientsInUse.remove(node);
+    this.#idleClients.push(node.value);
 
-    this._scheduleCleanup();
+    this.#scheduleCleanup();
   }
 
   cleanupTimeout?: NodeJS.Timeout;
 
-  private _scheduleCleanup() {
-    if (this.totalClients <= this._options.minimum) return;
+  #scheduleCleanup() {
+    if (this.totalClients <= this.#options.minimum) return;
 
     clearTimeout(this.cleanupTimeout);
-    this.cleanupTimeout = setTimeout(() => this._cleanup(), this._options.cleanupDelay);
+    this.cleanupTimeout = setTimeout(() => this.#cleanup(), this.#options.cleanupDelay);
   }
 
-  private _cleanup() {
-    const toDestroy = Math.min(this._idleClients.length, this.totalClients - this._options.minimum);
+  #cleanup() {
+    const toDestroy = Math.min(this.#idleClients.length, this.totalClients - this.#options.minimum);
     for (let i = 0; i < toDestroy; i++) {
       // TODO: shift vs pop
-      this._idleClients.shift()!.destroy();
+      this.#idleClients.shift()!.destroy();
     }
   }
 
@@ -438,44 +428,44 @@ export class RedisClientPool<
   multi = this.MULTI;
 
   async close() {
-    if (this._isClosing) return; // TODO: throw err?
-    if (!this._isOpen) return; // TODO: throw err?
+    if (this._self.#isClosing) return; // TODO: throw err?
+    if (!this._self.#isOpen) return; // TODO: throw err?
 
-    this._isClosing = true;
+    this._self.#isClosing = true;
     
     try {
       const promises = [];
 
-      for (const client of this._idleClients) {
+      for (const client of this._self.#idleClients) {
         promises.push(client.close());
       }
   
-      for (const client of this._clientsInUse) {
+      for (const client of this._self.#clientsInUse) {
         promises.push(client.close());
       }
   
       await Promise.all(promises);
   
-      this._idleClients.reset();
-      this._clientsInUse.reset();
+      this._self.#idleClients.reset();
+      this._self.#clientsInUse.reset();
     } catch (err) {
       
     } finally {
-      this._isClosing = false;
+      this._self.#isClosing = false;
     } 
   }
 
   destroy() {
-    for (const client of this._idleClients) {
+    for (const client of this._self.#idleClients) {
       client.destroy();
     }
-    this._idleClients.reset();
+    this._self.#idleClients.reset();
 
-    for (const client of this._clientsInUse) {
+    for (const client of this._self.#clientsInUse) {
       client.destroy();
     }
-    this._clientsInUse.reset();
+    this._self.#clientsInUse.reset();
 
-    this._isOpen = false;
+    this._self.#isOpen = false;
   }
 }

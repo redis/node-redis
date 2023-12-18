@@ -132,7 +132,7 @@ export type RedisClientType<
 
 type ProxyClient = RedisClient<any, any, any, any, any>;
 
-type NamespaceProxyClient = { self: ProxyClient };
+type NamespaceProxyClient = { _self: ProxyClient };
 
 interface ScanIteratorOptions {
   cursor?: RedisArgument;
@@ -147,7 +147,7 @@ export default class RedisClient<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > extends EventEmitter {
-  private static _createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -158,25 +158,25 @@ export default class RedisClient<
     };
   }
 
-  private static _createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
-        reply = await this.self.sendCommand(redisArgs, this.self._commandOptions);
+        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
     };
   }
 
-  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args),
-        reply = await this.self.sendCommand(
+        reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
-          this.self._commandOptions
+          this._self._commandOptions
         );
       return transformReply ?
         transformReply(reply, fnArgs.preserve) :
@@ -184,7 +184,7 @@ export default class RedisClient<
     };
   }
 
-  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
@@ -206,10 +206,10 @@ export default class RedisClient<
     const Client = attachConfig({
       BaseClass: RedisClient,
       commands: COMMANDS,
-      createCommand: RedisClient._createCommand,
-      createModuleCommand: RedisClient._createModuleCommand,
-      createFunctionCommand: RedisClient._createFunctionCommand,
-      createScriptCommand: RedisClient._createScriptCommand,
+      createCommand: RedisClient.#createCommand,
+      createModuleCommand: RedisClient.#createModuleCommand,
+      createFunctionCommand: RedisClient.#createFunctionCommand,
+      createScriptCommand: RedisClient.#createScriptCommand,
       config
     });
 
@@ -218,7 +218,7 @@ export default class RedisClient<
     return <TYPE_MAPPING extends TypeMapping = {}>(
       options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
     ) => {
-      // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
+      // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
       return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
     };
   }
@@ -272,39 +272,38 @@ export default class RedisClient<
     return parsed;
   }
 
-  self = this;
-
-  private readonly _options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-  private readonly _socket: RedisSocket;
-  private readonly _queue: RedisCommandsQueue;
-  private _selectedDB = 0;
-  private _monitorCallback?: MonitorCallback<TYPE_MAPPING>;
+  readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #socket: RedisSocket;
+  readonly #queue: RedisCommandsQueue;
+  #selectedDB = 0;
+  #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
+  private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
-    return this._options;
+    return this._self.#options;
   }
 
   get isOpen(): boolean {
-    return this._socket.isOpen;
+    return this._self.#socket.isOpen;
   }
 
   get isReady(): boolean {
-    return this._socket.isReady;
+    return this._self.#socket.isReady;
   }
 
   get isPubSubActive() {
-    return this._queue.isPubSubActive;
+    return this._self.#queue.isPubSubActive;
   }
 
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
-    this._options = this._initiateOptions(options);
-    this._queue = this._initiateQueue();
-    this._socket = this._initiateSocket();
+    this.#options = this.#initiateOptions(options);
+    this.#queue = this.#initiateQueue();
+    this.#socket = this.#initiateSocket();
   }
 
-  private _initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
+  #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
     if (options?.url) {
       const parsed = RedisClient.parseURL(options.url);
       if (options.socket) {
@@ -315,7 +314,7 @@ export default class RedisClient<
     }
 
     if (options?.database) {
-      this.self._selectedDB = options.database;
+      this._self.#selectedDB = options.database;
     }
 
     if (options?.commandOptions) {
@@ -325,82 +324,82 @@ export default class RedisClient<
     return options;
   }
 
-  private _initiateQueue(): RedisCommandsQueue {
+  #initiateQueue(): RedisCommandsQueue {
     return new RedisCommandsQueue(
-      this._options?.RESP,
-      this._options?.commandsQueueMaxLength,
+      this.#options?.RESP,
+      this.#options?.commandsQueueMaxLength,
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
     );
   }
 
-  private _initiateSocket(): RedisSocket {
+  #initiateSocket(): RedisSocket {
     const socketInitiator = async (): Promise<void> => {
-      const promises = [this._queue.resubscribe()];
+      const promises = [this.#queue.resubscribe()];
 
-      if (this._monitorCallback) {
+      if (this.#monitorCallback) {
         promises.push(
-          this._queue.monitor(
-            this._monitorCallback,
+          this.#queue.monitor(
+            this.#monitorCallback,
             this._commandOptions?.typeMapping,
             true
           )
         );
       }
 
-      if (this._selectedDB !== 0) {
+      if (this.#selectedDB !== 0) {
         promises.push(
-          this._queue.addCommand(
-            ['SELECT', this._selectedDB.toString()],
+          this.#queue.addCommand(
+            ['SELECT', this.#selectedDB.toString()],
             { asap: true }
           )
         );
       }
 
-      if (this._options?.readonly) {
+      if (this.#options?.readonly) {
         promises.push(
-          this._queue.addCommand(
+          this.#queue.addCommand(
             COMMANDS.READONLY.transformArguments(),
             { asap: true }
           )
         );
       }
 
-      if (this._options?.RESP) {
+      if (this.#options?.RESP) {
         const hello: HelloOptions = {};
 
-        if (this._options.password) {
+        if (this.#options.password) {
           hello.AUTH = {
-            username: this._options.username ?? 'default',
-            password: this._options.password
+            username: this.#options.username ?? 'default',
+            password: this.#options.password
           };
         }
 
-        if (this._options.name) {
-          hello.SETNAME = this._options.name;
+        if (this.#options.name) {
+          hello.SETNAME = this.#options.name;
         }
 
         promises.push(
-          this._queue.addCommand(
-            HELLO.transformArguments(this._options.RESP, hello),
+          this.#queue.addCommand(
+            HELLO.transformArguments(this.#options.RESP, hello),
             { asap: true }
           )
         );
       } else {
-        if (this._options?.name) {
+        if (this.#options?.name) {
           promises.push(
-            this._queue.addCommand(
-              COMMANDS.CLIENT_SETNAME.transformArguments(this._options.name),
+            this.#queue.addCommand(
+              COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
               { asap: true }
             )
           );
         }
 
-        if (this._options?.username || this._options?.password) {
+        if (this.#options?.username || this.#options?.password) {
           promises.push(
-            this._queue.addCommand(
+            this.#queue.addCommand(
               COMMANDS.AUTH.transformArguments({
-                username: this._options.username,
-                password: this._options.password ?? ''
+                username: this.#options.username,
+                password: this.#options.password ?? ''
               }),
               { asap: true }
             )
@@ -409,60 +408,60 @@ export default class RedisClient<
       }
 
       if (promises.length) {
-        this._write();
+        this.#write();
         await Promise.all(promises);
       }
     };
 
-    return new RedisSocket(socketInitiator, this._options?.socket)
+    return new RedisSocket(socketInitiator, this.#options?.socket)
       .on('data', chunk => {
         try {
-          this._queue.decoder.write(chunk);
+          this.#queue.decoder.write(chunk);
         } catch (err) {
-          this._queue.decoder.reset();
+          this.#queue.decoder.reset();
           this.emit('error', err);
         }
       })
       .on('error', err => {
         this.emit('error', err);
-        if (this._socket.isOpen && !this._options?.disableOfflineQueue) {
-          this._queue.flushWaitingForReply(err);
+        if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
+          this.#queue.flushWaitingForReply(err);
         } else {
-          this._queue.flushAll(err);
+          this.#queue.flushAll(err);
         }
       })
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
         this.emit('ready');
-        this._setPingTimer();
-        this._maybeScheduleWrite();
+        this.#setPingTimer();
+        this.#maybeScheduleWrite();
       })
       .on('reconnecting', () => this.emit('reconnecting'))
-      .on('drain', () => this._maybeScheduleWrite())
+      .on('drain', () => this.#maybeScheduleWrite())
       .on('end', () => this.emit('end'));
   }
 
-  private _pingTimer?: NodeJS.Timeout;
+  #pingTimer?: NodeJS.Timeout;
 
-  private _setPingTimer(): void {
-    if (!this._options?.pingInterval || !this._socket.isReady) return;
-    clearTimeout(this._pingTimer);
+  #setPingTimer(): void {
+    if (!this.#options?.pingInterval || !this.#socket.isReady) return;
+    clearTimeout(this.#pingTimer);
 
-    this._pingTimer = setTimeout(() => {
-      if (!this._socket.isReady) return;
+    this.#pingTimer = setTimeout(() => {
+      if (!this.#socket.isReady) return;
 
       this.sendCommand(['PING'])
         .then(reply => this.emit('ping-interval', reply))
         .catch(err => this.emit('error', err))
-        .finally(() => this._setPingTimer());
-    }, this._options.pingInterval);
+        .finally(() => this.#setPingTimer());
+    }, this.#options.pingInterval);
   }
 
   withCommandOptions<
     OPTIONS extends CommandOptions<TYPE_MAPPING>,
     TYPE_MAPPING extends TypeMapping
   >(options: OPTIONS) {
-    const proxy = Object.create(this.self);
+    const proxy = Object.create(this._self);
     proxy._commandOptions = options;
     return proxy as RedisClientType<
       M,
@@ -480,7 +479,7 @@ export default class RedisClient<
     key: K,
     value: V
   ) {
-    const proxy = Object.create(this.self);
+    const proxy = Object.create(this._self);
     proxy._commandOptions = Object.create(this._commandOptions ?? null);
     proxy._commandOptions[key] = value;
     return proxy as RedisClientType<
@@ -527,7 +526,7 @@ export default class RedisClient<
    */
   createPool(options?: Partial<RedisPoolOptions>) {
     return RedisClientPool.create(
-      this._options,
+      this._self.#options,
       options
     );
   }
@@ -540,14 +539,14 @@ export default class RedisClient<
     _TYPE_MAPPING extends TypeMapping = TYPE_MAPPING
   >(overrides?: Partial<RedisClientOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
-      ...this._options,
+      ...this._self.#options,
       commandOptions: this._commandOptions,
       ...overrides
     }) as RedisClientType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
 
   async connect() {
-    await this._socket.connect();
+    await this._self.#socket.connect();
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -555,14 +554,14 @@ export default class RedisClient<
     args: Array<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
-    if (!this._socket.isOpen) {
+    if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
-    } else if (!this._socket.isReady && this._options?.disableOfflineQueue) {
+    } else if (!this._self.#socket.isReady && this._self.#options?.disableOfflineQueue) {
       return Promise.reject(new ClientOfflineError());
     }
 
-    const promise = this._queue.addCommand<T>(args, options);
-    this._scheduleWrite();
+    const promise = this._self.#queue.addCommand<T>(args, options);
+    this._self.#scheduleWrite();
     return promise;
   }
 
@@ -584,15 +583,15 @@ export default class RedisClient<
 
   async SELECT(db: number): Promise<void> {
     await this.sendCommand(['SELECT', db.toString()]);
-    this.self._selectedDB = db;
+    this._self.#selectedDB = db;
   }
 
   select = this.SELECT;
 
-  private _pubSubCommand(promise: Promise<void> | undefined) {
+  #pubSubCommand(promise: Promise<void> | undefined) {
     if (promise === undefined) return Promise.resolve();
 
-    this._scheduleWrite();
+    this.#scheduleWrite();
     return promise;
   }
 
@@ -601,8 +600,8 @@ export default class RedisClient<
     listener: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    return this._pubSubCommand(
-      this._queue.subscribe(
+    return this._self.#pubSubCommand(
+      this._self.#queue.subscribe(
         PubSubType.CHANNELS,
         channels,
         listener,
@@ -618,8 +617,8 @@ export default class RedisClient<
     listener?: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    return this._pubSubCommand(
-      this._queue.unsubscribe(
+    return this._self.#pubSubCommand(
+      this._self.#queue.unsubscribe(
         PubSubType.CHANNELS,
         channels,
         listener,
@@ -635,8 +634,8 @@ export default class RedisClient<
     listener: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    return this._pubSubCommand(
-      this._queue.subscribe(
+    return this._self.#pubSubCommand(
+      this._self.#queue.subscribe(
         PubSubType.PATTERNS,
         patterns,
         listener,
@@ -652,8 +651,8 @@ export default class RedisClient<
     listener?: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    return this._pubSubCommand(
-      this._queue.unsubscribe(
+    return this._self.#pubSubCommand(
+      this._self.#queue.unsubscribe(
         PubSubType.PATTERNS,
         patterns,
         listener,
@@ -669,8 +668,8 @@ export default class RedisClient<
     listener: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    return this._pubSubCommand(
-      this._queue.subscribe(
+    return this._self.#pubSubCommand(
+      this._self.#queue.subscribe(
         PubSubType.SHARDED,
         channels,
         listener,
@@ -686,8 +685,8 @@ export default class RedisClient<
     listener?: PubSubListener<T>,
     bufferMode?: T
   ): Promise<void> {
-    return this._pubSubCommand(
-      this._queue.unsubscribe(
+    return this._self.#pubSubCommand(
+      this._self.#queue.unsubscribe(
         PubSubType.SHARDED,
         channels,
         listener,
@@ -699,7 +698,7 @@ export default class RedisClient<
   sUnsubscribe = this.SUNSUBSCRIBE;
 
   getPubSubListeners(type: PubSubType) {
-    return this._queue.getPubSubListeners(type);
+    return this._self.#queue.getPubSubListeners(type);
   }
 
   extendPubSubChannelListeners(
@@ -707,36 +706,36 @@ export default class RedisClient<
     channel: string,
     listeners: ChannelListeners
   ) {
-    return this._pubSubCommand(
-      this._queue.extendPubSubChannelListeners(type, channel, listeners)
+    return this._self.#pubSubCommand(
+      this._self.#queue.extendPubSubChannelListeners(type, channel, listeners)
     );
   }
 
   extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
-    return this._pubSubCommand(
-      this._queue.extendPubSubListeners(type, listeners)
+    return this._self.#pubSubCommand(
+      this._self.#queue.extendPubSubListeners(type, listeners)
     );
   }
 
-  private _write() {
-    this._socket.write(this._queue.commandsToWrite());
+  #write() {
+    this.#socket.write(this.#queue.commandsToWrite());
   }
 
-  private _scheduledWrite?: NodeJS.Immediate;
+  #scheduledWrite?: NodeJS.Immediate;
 
-  private _scheduleWrite() {
-    if (!this.isReady || this._scheduledWrite) return;
+  #scheduleWrite() {
+    if (!this.#socket.isReady || this.#scheduledWrite) return;
 
-    this._scheduledWrite = setImmediate(() => {
-      this._write();
-      this._scheduledWrite = undefined;
+    this.#scheduledWrite = setImmediate(() => {
+      this.#write();
+      this.#scheduledWrite = undefined;
     });
   }
 
-  private _maybeScheduleWrite() {
-    if (!this._queue.isWaitingToWrite()) return;
+  #maybeScheduleWrite() {
+    if (!this.#queue.isWaitingToWrite()) return;
 
-    this._scheduleWrite();
+    this.#scheduleWrite();
   }
 
   /**
@@ -746,20 +745,20 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,  
     selectedDB?: number
   ) {
-    if (!this._socket.isOpen) {
+    if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
     }
 
     const promise = Promise.all(
-      commands.map(({ args }) => this._queue.addCommand(args, {
+      commands.map(({ args }) => this._self.#queue.addCommand(args, {
         typeMapping: this._commandOptions?.typeMapping
       }))
     );
-    this._scheduleWrite();
+    this._self.#scheduleWrite();
     const result = await promise;
 
     if (selectedDB !== undefined) {
-      this.self._selectedDB = selectedDB;
+      this._self.#selectedDB = selectedDB;
     }
 
     return result;
@@ -772,19 +771,19 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
-    if (!this._socket.isOpen) {
+    if (!this._self.#socket.isOpen) {
       throw new ClientClosedError();
     }
 
     const typeMapping = this._commandOptions?.typeMapping,
       chainId = Symbol('MULTI Chain'),
       promises = [
-        this._queue.addCommand(['MULTI'], { chainId }),
+        this._self.#queue.addCommand(['MULTI'], { chainId }),
       ];
 
     for (const { args } of commands) {
       promises.push(
-        this._queue.addCommand(args, {
+        this._self.#queue.addCommand(args, {
           chainId,
           typeMapping
         })
@@ -792,10 +791,10 @@ export default class RedisClient<
     }
 
     promises.push(
-      this._queue.addCommand(['EXEC'], { chainId })
+      this._self.#queue.addCommand(['EXEC'], { chainId })
     );
 
-    this._scheduleWrite();
+    this._self.#scheduleWrite();
 
     const results = await Promise.all(promises),
       execResult = results[results.length - 1];
@@ -805,7 +804,7 @@ export default class RedisClient<
     }
 
     if (selectedDB !== undefined) {
-      this.self._selectedDB = selectedDB;
+      this._self.#selectedDB = selectedDB;
     }
 
     return execResult as Array<unknown>;
@@ -873,16 +872,16 @@ export default class RedisClient<
   }
 
   async MONITOR(callback: MonitorCallback<TYPE_MAPPING>) {
-    const promise = this._queue.monitor(callback, this._commandOptions?.typeMapping);
-    this._scheduleWrite();
+    const promise = this._self.#queue.monitor(callback, this._commandOptions?.typeMapping);
+    this._self.#scheduleWrite();
 
     const off = await promise;
-    this._monitorCallback = callback;
+    this._self.#monitorCallback = callback;
     return async () => {
       const promise = off();
-      this._scheduleWrite();
+      this._self.#scheduleWrite();
       await promise;
-      this._monitorCallback = undefined;
+      this._self.#monitorCallback = undefined;
     };
   }
 
@@ -892,10 +891,10 @@ export default class RedisClient<
    * @deprecated use .close instead
    */
   QUIT(): Promise<string> {
-    return this._socket.quit(async () => {
-      clearTimeout(this._pingTimer);
-      const quitPromise = this._queue.addCommand<string>(['QUIT']);
-      this._scheduleWrite();
+    return this._self.#socket.quit(async () => {
+      clearTimeout(this._self.#pingTimer);
+      const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
+      this._self.#scheduleWrite();
       return quitPromise;
     });
   }
@@ -914,22 +913,22 @@ export default class RedisClient<
    */
   close() {
     return new Promise<void>(resolve => {
-      clearTimeout(this._pingTimer);
-      this._socket.close();
+      clearTimeout(this._self.#pingTimer);
+      this._self.#socket.close();
 
-      if (this._queue.isEmpty()) {
-        this._socket.destroySocket();
+      if (this._self.#queue.isEmpty()) {
+        this._self.#socket.destroySocket();
         return resolve();
       }
 
       const maybeClose = () => {
-        if (!this._queue.isEmpty()) return;
+        if (!this._self.#queue.isEmpty()) return;
 
-        this._socket.off('data', maybeClose);
-        this._socket.destroySocket();
+        this._self.#socket.off('data', maybeClose);
+        this._self.#socket.destroySocket();
         resolve();
       };
-      this._socket.on('data', maybeClose);
+      this._self.#socket.on('data', maybeClose);
     });
   }
 
@@ -937,16 +936,16 @@ export default class RedisClient<
    * Destroy the client. Rejects all commands immediately.
    */
   destroy() {
-    clearTimeout(this._pingTimer);
-    this._queue.flushAll(new DisconnectsClientError());
-    this._socket.destroy();
+    clearTimeout(this._self.#pingTimer);
+    this._self.#queue.flushAll(new DisconnectsClientError());
+    this._self.#socket.destroy();
   }
 
   ref() {
-    this._socket.ref();
+    this._self.#socket.ref();
   }
 
   unref() {
-    this._socket.unref();
+    this._self.#socket.unref();
   }
 }
