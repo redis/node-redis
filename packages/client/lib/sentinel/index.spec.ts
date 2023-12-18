@@ -138,6 +138,11 @@ describe.only('Sentinel', () => {
     })
   
     afterEach(async function () {
+      // avoid errors in afterEach that end testing
+      if (sentinel !== undefined) {
+        sentinel.on('error', () => {});
+      }
+      
       if (this!.currentTest.state === 'failed') {
         console.log(`longest event loop blocked delta: ${longestDelta}`);
         console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
