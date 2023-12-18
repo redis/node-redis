@@ -167,7 +167,7 @@ export class SentinelFramework extends DockerBase {
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
   }
 
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>, errors = true): RedisSentinelType<{}, {}, {}, 2, {}> {
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<any, any, any, 2, any>>, errors = true) {
     if (opts?.sentinelRootNodes !== undefined) {
       throw new Error("cannot specify sentinelRootNodes here");
     }
@@ -175,7 +175,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("cannot specify sentinel db name here");
     }
 
-    const options: RedisSentinelOptions<{}, {}, {}, 2, {}> = {
+    const options: RedisSentinelOptions<any, any, any, 2, any> = {
       name: this.config.sentinelName,
       sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } }),
       passthroughClientErrorEvents: errors

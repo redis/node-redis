@@ -5,10 +5,13 @@ import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelType } from "./types";
 import { RedisSentinelFactory } from '.';
 import { RedisClientType } from '../client';
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
 
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
+import { RESP_TYPES } from '../RESP/decoder';
+import { defineScript } from '../lua-script';
+import { MATH_FUNCTION } from '../commands/FUNCTION_LOAD.spec';
 const execAsync = promisify(exec);
 
 /* used to ensure test environment resets to normal state
@@ -27,7 +30,7 @@ async function steadyState(frame: SentinelFramework) {
       }
     }
 
-    if (!checkedReplicas) { 
+    if (!checkedReplicas) {
       const replicas = (await frame.sentinelReplicas()) as Array<any>;
       checkedReplicas = true;
       for (const replica of replicas) {
@@ -45,14 +48,14 @@ async function steadyState(frame: SentinelFramework) {
   const numberOfNodes = frame.getAllNodesPort.length;
 
   const seenNodes = new Set<number>();
-  let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
+  let sentinel: RedisSentinelType<any, any, any, 2, any> | undefined;
   const tracer = [];
 
   try {
     sentinel = frame.getSentinelClient({ useReplicas: true, scanInterval: 2000 }, false)
       .on('topology-change', (event: RedisSentinelEvent) => {
         if (event.type == "MASTER_CHANGE" || event.type == "REPLICA_ADD") {
-          seenNodes.add(event.node.port); 
+          seenNodes.add(event.node.port);
           if (seenNodes.size == frame.getAllNodesPort().length) {
             nodeResolve();
           }
@@ -120,27 +123,27 @@ describe.only('Sentinel', () => {
   })
 
   describe('Sentinel Client', function () {
-    let sentinel: RedisSentinelType<{}, {}, {}, 2, {}> | undefined;
+    let sentinel: RedisSentinelType<any, any, any, 2, any> | undefined;
 
     beforeEach(async function () {
       this.timeout(0);
-  
+
       for (const port of frame.getAllNodesPort()) {
         await frame.restartNode(port.toString());
       }
-  
+
       for (const port of frame.getAllSentinelsPort()) {
         await frame.restartSentinel(port.toString());
       }
-  
+
       await steadyState(frame);
       longestTestDelta = 0;
     })
-  
+
     afterEach(async function () {
       // avoid errors in afterEach that end testing
       if (sentinel !== undefined) {
-        sentinel.on('error', () => {});
+        sentinel.on('error', () => { });
       }
 
       if (this!.currentTest.state === 'failed') {
@@ -150,7 +153,7 @@ describe.only('Sentinel', () => {
         for (const line of tracer) {
           console.log(line);
         }
-        console.log(`sentinel object state:`) 
+        console.log(`sentinel object state:`)
         console.log(`master: ${JSON.stringify(sentinel?.getMasterNode())}`)
         console.log(`replicas: ${JSON.stringify(sentinel?.getReplicaNodes().entries)}`)
         const results = await Promise.all([
@@ -166,100 +169,221 @@ describe.only('Sentinel', () => {
         console.log(`docker stderr:\n${stderr}`);
       }
       tracer.length = 0;
-  
+
       if (sentinel !== undefined) {
         await sentinel.destroy();
         sentinel = undefined;
-      }      
+      }
     })
-  
-    it('figure out how to automate validation against tls');
-    it('test with a script');
-    it('test with a function');
+
+    it('figure out how to automate validation against tls');;
+    // a little harder as requires a different bootstrap of nodes
     it('test with a module?');
-    it('test with a type mapping');
-  
-    it('basic bootstrap', async function () {   
+
+    it('basic bootstrap', async function () {
       sentinel = frame.getSentinelClient();
       await sentinel.connect();
-  
+
       assert.equal(await sentinel.set('x', 1), 'OK');
     });
-  
+
     it('basic teardown worked', async function () {
       const nodePorts = frame.getAllNodesPort();
       const sentinelPorts = frame.getAllSentinelsPort();
-  
+
       assert.notEqual(nodePorts.length, 0);
       assert.notEqual(sentinelPorts.length, 0);
-  
+
       sentinel = frame.getSentinelClient();
       await sentinel.connect();
-  
+
       assert.equal(await sentinel.get('x'), null);
     });
-  
+
     it('try to connect multiple times', async function () {
       sentinel = frame.getSentinelClient();
       const connectPromise = sentinel.connect();
       assert.rejects(sentinel.connect());
       await connectPromise;
     });
-  
+
+    it('with type mapping', async function () {
+      const commandOptions = {
+        typeMapping: {
+          [RESP_TYPES.SIMPLE_STRING]: Buffer
+        }
+      }
+      sentinel = frame.getSentinelClient({ commandOptions: commandOptions });
+      await sentinel.connect();
+
+      const resp = await sentinel.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'))
+    })
+
+    it('with a script', async function () {
+      // scripts (and presumambly functions / modules not hooked up correctly)
+      const SQUARE_SCRIPT = defineScript({
+        SCRIPT:
+          `local number = redis.call('GET', KEYS[1])
+          return number * number`,
+        NUMBER_OF_KEYS: 1,
+        FIRST_KEY_INDEX: 0,
+        transformArguments(key: string) {
+          return [key];
+        },
+        transformReply: undefined as unknown as () => NumberReply
+      });
+
+      const options = {
+        scripts: {
+          square: SQUARE_SCRIPT
+        }
+      }
+
+      sentinel = frame.getSentinelClient(options);
+      await sentinel.connect();
+
+      const [, reply] = await Promise.all([
+        sentinel.set('key', '2'),
+        sentinel.square('key')
+      ]);
+
+      assert.equal(reply, 4);
+    })
+
+    it('with a function', async function () {
+      const options = {
+        functions: {
+          math: MATH_FUNCTION.library
+        }
+      }
+      sentinel = frame.getSentinelClient(options);
+      await sentinel.connect();
+
+      await sentinel.functionLoad(
+        MATH_FUNCTION.code,
+        { REPLACE: true }
+      );
+
+      await sentinel.set('key', '2');
+      const resp = await sentinel.math.square('key');
+
+      assert.equal(resp, 4);
+    })
+
     it('many readers', async function () {
       this.timeout(10000);
-  
-      sentinel = frame.getSentinelClient({useReplicas: true, replicaPoolSize: 8});
+
+      sentinel = frame.getSentinelClient({ useReplicas: true, replicaPoolSize: 8 });
       await sentinel.connect();
-  
+
       await sentinel.set("x", 1);
-      for (let i=0; i < 10; i++) {
+      for (let i = 0; i < 10; i++) {
         if (await sentinel.get("x") == "1") {
           break;
         }
         await setTimeout(1000);
       }
-  
+
       const promises: Array<Promise<any>> = [];
-      for (let i=0; i < 500; i++) {
+      for (let i = 0; i < 500; i++) {
         promises.push(sentinel.get("x"));
       }
-  
+
       const resp = await Promise.all(promises);
       assert.equal(resp.length, 500);
-      for (let i=0; i < 500; i++) {
+      for (let i = 0; i < 500; i++) {
         assert.equal(resp[i], "1", `failed on match at ${i}`);
       }
     });
-  
+
     it('use', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ useReplicas: true });
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       const promise = sentinel.use(
         async (client: RedisSentinelClientType) => {
-          client.on('error', err => {});
+          client.on('error', err => { });
           await setTimeout(5000);
           return await client.get('x');
         }
       );
-  
+
       const masterNode = sentinel.getMasterNode();
       await frame.stopNode(masterNode!.port.toString());
-  
+
       assert.equal(await promise, null);
     });
-  
+
+    it('use with script', async function () {
+      this.timeout(10000);
+      const SQUARE_SCRIPT = defineScript({
+        SCRIPT:
+          `local number = redis.call('GET', KEYS[1])
+          return number * number`,
+        NUMBER_OF_KEYS: 1,
+        FIRST_KEY_INDEX: 0,
+        transformArguments(key: string) {
+          return [key];
+        },
+        transformReply: undefined as unknown as () => NumberReply
+      });
+
+      const options = {
+        scripts: {
+          square: SQUARE_SCRIPT
+        }
+      }
+
+      sentinel = frame.getSentinelClient(options);
+      await sentinel.connect();
+
+      const reply = await sentinel.use(
+        async (client: RedisSentinelClientType<any, any, any, any>) => {
+          await client.set('key', '2');
+          return client.square('key')
+        }
+      );
+
+      assert.equal(reply, 4);
+    })
+
+    it('use with a function', async function () {
+      this.timeout(10000);
+
+      const options = {
+        functions: {
+          math: MATH_FUNCTION.library
+        }
+      }
+      sentinel = frame.getSentinelClient(options);
+      await sentinel.connect();
+
+      await sentinel.functionLoad(
+        MATH_FUNCTION.code,
+        { REPLACE: true }
+      );
+
+      const reply = await sentinel.use(
+        async (client: RedisSentinelClientType<any, any, any, any>) => {
+          await client.set('key', '2');
+          return client.math.square('key');
+        }
+      );
+
+      assert.equal(reply, 4);
+    })
+
     it('block on pool', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ useReplicas: true });
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       const promise = sentinel.use(
         async (client: RedisSentinelClientType) => {
           await setTimeout(1000);
@@ -269,16 +393,16 @@ describe.only('Sentinel', () => {
       await sentinel.set("x", 1);
       assert.equal(await promise, null);
     });
-  
+
     it('multiple clients', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       let set = false;
-  
+
       const promise = sentinel.use(
         async (client: RedisSentinelClientType) => {
           await setTimeout(1000);
@@ -286,25 +410,25 @@ describe.only('Sentinel', () => {
           set = true;
         }
       )
-  
+
       await sentinel.set("x", 1);
       assert.equal(set, false);
       await promise;
       assert.equal(set, true);
     });
-  
+
     // by taking a lease, we know we will block on master as no clients are available, but as read occuring, means replica read occurs
     it('replica reads', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ useReplicas: true });
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       const clientLease = await sentinel.aquire();
       clientLease.on("error", () => { });
       clientLease.set('x', 456);
-  
+
       let matched = false;
       for (let i = 0; i < 15; i++) {
         try {
@@ -315,15 +439,15 @@ describe.only('Sentinel', () => {
           await setTimeout(1000);
         }
       }
-  
+
       clientLease.release();
-  
+
       assert.equal(matched, true);
     });
 
     it('pipeline', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ useReplicas: true });
       await sentinel.connect();
 
@@ -331,87 +455,87 @@ describe.only('Sentinel', () => {
 
       assert.deepEqual(resp, ['OK', '1']);
     })
-  
+
     it('use - watch - clean', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       await sentinel.connect();
-  
+
       let promise = sentinel.use(async (client) => {
         await client.set("x", 1);
         await client.watch("x");
         return client.multi().get("x").exec();
       });
-  
+
       assert.deepEqual(await promise, ['1']);
     });
-  
+
     it('use - watch - dirty', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       await sentinel.connect();
-  
+
       let promise = sentinel.use(async (client) => {
         await client.set('x', 1);
         await client.watch('x');
         await sentinel!.set('x', 2);
         return client.multi().get('x').exec();
       });
-  
+
       await assert.rejects(promise, new WatchError());
     });
-  
+
     it('lease - watch - clean', async function () {
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       await sentinel.connect();
-  
+
       const leasedClient = await sentinel.aquire();
       await leasedClient.set('x', 1);
       await leasedClient.watch('x');
       assert.deepEqual(await leasedClient.multi().get('x').exec(), ['1'])
     });
-  
+
     it('lease - watch - dirty', async function () {
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       await sentinel.connect();
-  
+
       const leasedClient = await sentinel.aquire();
       await leasedClient.set('x', 1);
       await leasedClient.watch('x');
       await leasedClient.set('x', 2);
-  
+
       await assert.rejects(leasedClient.multi().get('x').exec(), new WatchError());
     });
-  
-  
+
+
     it('watch does not carry through leases', async function () {
       sentinel = frame.getSentinelClient();
       await sentinel.connect();
-  
+
       // each of these commands is an independent lease
       assert.equal(await sentinel.watch("x"), 'OK')
       assert.equal(await sentinel.set('x', 1), 'OK');
       assert.deepEqual(await sentinel.multi().get('x').exec(), ['1']);
     });
-  
+
     // stops master to force sentinel to update 
     it('stop master', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       tracer.push(`connected`);
-  
+
       let masterChangeResolve;
       const masterChangePromise = new Promise((res) => {
         masterChangeResolve = res;
       })
-  
+
       const masterNode = await sentinel.getMasterNode();
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
@@ -420,46 +544,46 @@ describe.only('Sentinel', () => {
           masterChangeResolve(event.node);
         }
       });
-  
+
       tracer.push(`stopping master node`);
       await frame.stopNode(masterNode!.port.toString());
       tracer.push(`stopped master node`);
-  
+
       tracer.push(`waiting on master change promise`);
       const newMaster = await masterChangePromise as RedisNode;
       tracer.push(`got new master node of ${newMaster.port}`);
       assert.notEqual(masterNode!.port, newMaster.port);
     });
-  
+
     // if master changes, client should make sure user knows watches are invalid
     it('watch across master change', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       tracer.push("connected");
-  
+
       const client = await sentinel.aquire();
       client.on("error", () => { });
-      
+
       tracer.push("aquired lease");
-  
+
       await client.set("x", 1);
       await client.watch("x");
-  
+
       tracer.push("did a watch on lease");
-  
+
       let resolve;
       const promise = new Promise((res) => {
         resolve = res;
       })
-  
+
       const masterNode = sentinel.getMasterNode();
       tracer.push(`got masterPort as ${masterNode!.port}`);
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
@@ -467,47 +591,47 @@ describe.only('Sentinel', () => {
           resolve(event.node);
         }
       });
-  
+
       tracer.push("stopping master node");
       await frame.stopNode(masterNode!.port.toString());
       tracer.push("stopped master node and waiting on promise");
-  
+
       const newMaster = await promise as RedisNode;
       tracer.push(`promise returned, newMaster = ${JSON.stringify(newMaster)}`);
       assert.notEqual(masterNode!.port, newMaster.port);
       tracer.push(`newMaster does not equal old master`);
-  
+
       tracer.push(`waiting to assert that a multi/exec now fails`);
       await assert.rejects(async () => { await client.multi().get("x").exec() }, new Error("sentinel config changed in middle of a WATCH Transaction"));
       tracer.push(`asserted that a multi/exec now fails`);
     });
-  
+
     // same as above, but set a watch before and after master change, shouldn't change the fact that watches are invalid
     it('watch before and after master change', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
       tracer.push("connected");
-  
+
       const client = await sentinel.aquire();
       client.on("error", () => { });
       tracer.push("got leased client");
       await client.set("x", 1);
       await client.watch("x");
-  
+
       tracer.push("set and watched x");
-  
+
       let resolve;
       const promise = new Promise((res) => {
         resolve = res;
       })
-  
+
       const masterNode = sentinel.getMasterNode();
       tracer.push(`initial masterPort = ${masterNode!.port} `);
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
@@ -515,51 +639,51 @@ describe.only('Sentinel', () => {
           resolve(event.node);
         }
       });
-  
+
       tracer.push("stopping master");
       await frame.stopNode(masterNode!.port.toString());
       tracer.push("stopped master");
-  
+
       tracer.push("waiting on master change promise");
       const newMaster = await promise as RedisNode;
       tracer.push(`got master change port as ${newMaster.port}`);
       assert.notEqual(masterNode!.port, newMaster.port);
-  
+
       tracer.push("watching again, shouldn't matter");
       await client.watch("y");
-  
+
       tracer.push("expecting multi to be rejected");
       await assert.rejects(async () => { await client.multi().get("x").exec() }, new Error("sentinel config changed in middle of a WATCH Transaction"));
-      tracer.push("multi was rejected"); 
+      tracer.push("multi was rejected");
     });
-  
+
     it('plain pubsub - channel', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       await sentinel.connect();
       tracer.push(`connected`);
-  
+
       let pubSubResolve;
       const pubSubPromise = new Promise((res) => {
         pubSubResolve = res;
       });
-  
+
       let tester = false;
       await sentinel.subscribe('test', () => {
         tracer.push(`got pubsub message`);
         tester = true;
         pubSubResolve(1);
       })
-  
+
       tracer.push(`publishing pubsub message`);
       await sentinel.publish('test', 'hello world');
       tracer.push(`waiting on pubsub promise`);
       await pubSubPromise;
       tracer.push(`got pubsub promise`);
       assert.equal(tester, true);
-  
+
       // now unsubscribe
       tester = false
       tracer.push(`unsubscribing pubsub listener`);
@@ -567,38 +691,38 @@ describe.only('Sentinel', () => {
       tracer.push(`pubishing pubsub message`);
       await sentinel.publish('test', 'hello world');
       await setTimeout(1000);
-  
+
       tracer.push(`ensuring pubsub was unsubscribed via an assert`);
-      assert.equal(tester, false);  
+      assert.equal(tester, false);
     });
-  
+
     it('plain pubsub - pattern', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       await sentinel.connect();
       tracer.push(`connected`);
-  
+
       let pubSubResolve;
       const pubSubPromise = new Promise((res) => {
         pubSubResolve = res;
       });
-  
+
       let tester = false;
       await sentinel.pSubscribe('test*', () => {
         tracer.push(`got pubsub message`);
         tester = true;
         pubSubResolve(1);
       })
-  
+
       tracer.push(`publishing pubsub message`);
       await sentinel.publish('testy', 'hello world');
       tracer.push(`waiting on pubsub promise`);
       await pubSubPromise;
       tracer.push(`got pubsub promise`);
       assert.equal(tester, true);
-  
+
       // now unsubscribe
       tester = false
       tracer.push(`unsubscribing pubsub listener`);
@@ -606,41 +730,41 @@ describe.only('Sentinel', () => {
       tracer.push(`pubishing pubsub message`);
       await sentinel.publish('testy', 'hello world');
       await setTimeout(1000);
-  
+
       tracer.push(`ensuring pubsub was unsubscribed via an assert`);
       assert.equal(tester, false);
     });
-  
+
     // pubsub continues to work, even with a master change
     it('pubsub - channel - with master change', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
       tracer.push(`connected`);
-  
+
       let pubSubResolve;
       const pubSubPromise = new Promise((res) => {
         pubSubResolve = res;
       })
-  
+
       let tester = false;
       await sentinel.subscribe('test', () => {
         tracer.push(`got pubsub message`);
         tester = true;
         pubSubResolve(1);
       })
-  
+
       let masterChangeResolve;
       const masterChangePromise = new Promise((res) => {
         masterChangeResolve = res;
       })
-  
+
       const masterNode = sentinel.getMasterNode();
       tracer.push(`got masterPort as ${masterNode!.port}`);
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
@@ -648,61 +772,61 @@ describe.only('Sentinel', () => {
           masterChangeResolve(event.node);
         }
       });
-  
+
       tracer.push("stopping master");
       await frame.stopNode(masterNode!.port.toString());
       tracer.push("stopped master and waiting on change promise");
-  
+
       const newMaster = await masterChangePromise as RedisNode;
       tracer.push(`got master change port as ${newMaster.port}`);
       assert.notEqual(masterNode!.port, newMaster.port);
-  
+
       tracer.push(`publishing pubsub message`);
       await sentinel.publish('test', 'hello world');
       tracer.push(`published pubsub message and waiting pn pubsub promise`);
       await pubSubPromise;
       tracer.push(`got pubsub promise`);
-  
+
       assert.equal(tester, true);
-  
+
       // now unsubscribe
       tester = false
       await sentinel.unsubscribe('test')
       await sentinel.publish('test', 'hello world');
       await setTimeout(1000);
-  
-      assert.equal(tester, false);  
+
+      assert.equal(tester, false);
     });
-  
-    it('pubsub - pattern - with master change', async function () {  
+
+    it('pubsub - pattern - with master change', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
       tracer.push(`connected`);
-  
+
       let pubSubResolve;
-      const pubSubPromise = new Promise((res) => {  
+      const pubSubPromise = new Promise((res) => {
         pubSubResolve = res;
       })
-  
+
       let tester = false;
       await sentinel.pSubscribe('test*', () => {
         tracer.push(`got pubsub message`);
         tester = true;
         pubSubResolve(1);
       })
-  
+
       let masterChangeResolve;
       const masterChangePromise = new Promise((res) => {
         masterChangeResolve = res;
       })
-  
+
       const masterNode = sentinel.getMasterNode();
       tracer.push(`got masterPort as ${masterNode!.port}`);
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "MASTER_CHANGE" && event.node.port != masterNode!.port) {
@@ -710,50 +834,50 @@ describe.only('Sentinel', () => {
           masterChangeResolve(event.node);
         }
       });
-  
+
       tracer.push("stopping master");
       await frame.stopNode(masterNode!.port.toString());
       tracer.push("stopped master and waiting on master change promise");
-  
+
       const newMaster = await masterChangePromise as RedisNode;
       tracer.push(`got master change port as ${newMaster.port}`);
       assert.notEqual(masterNode!.port, newMaster.port);
-  
+
       tracer.push(`publishing pubsub message`);
       await sentinel.publish('testy', 'hello world');
       tracer.push(`published pubsub message and waiting on pubsub promise`);
       await pubSubPromise;
       tracer.push(`got pubsub promise`);
       assert.equal(tester, true);
-  
+
       // now unsubscribe
       tester = false
       await sentinel.pUnsubscribe('test*');
       await sentinel.publish('testy', 'hello world');
       await setTimeout(1000);
-  
-      assert.equal(tester, false);  
+
+      assert.equal(tester, false);
     });
-  
+
     // if we stop a node, the comand should "retry" until we reconfigure topology and execute on new topology
     it('command immeaditely after stopping master', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
-  
+
       tracer.push("connected");
-  
+
       let masterChangeResolve;
       const masterChangePromise = new Promise((res) => {
         masterChangeResolve = res;
       })
-  
+
       const masterNode = sentinel.getMasterNode();
       tracer.push(`original master port = ${masterNode!.port}`);
-  
+
       let changeCount = 0;
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
@@ -763,7 +887,7 @@ describe.only('Sentinel', () => {
           masterChangeResolve(event.node);
         }
       });
-  
+
       tracer.push(`stopping masterNode`);
       await frame.stopNode(masterNode!.port.toString());
       tracer.push(`stopped masterNode`);
@@ -771,17 +895,17 @@ describe.only('Sentinel', () => {
       tracer.push(`did the set operation`);
       const presumamblyNewMaster = sentinel.getMasterNode();
       tracer.push(`new master node seems to be ${presumamblyNewMaster?.port} and waiting on master change promise`);
-  
+
       const newMaster = await masterChangePromise as RedisNode;
       tracer.push(`got new masternode event saying master is at ${newMaster.port}`);
       assert.notEqual(masterNode!.port, newMaster.port);
-  
+
       tracer.push(`doing the get`);
       const val = await sentinel.get('x');
       tracer.push(`did the get and got ${val}`);
       const newestMaster = sentinel.getMasterNode()
       tracer.push(`after get, we see master as ${newestMaster?.port}`);
-  
+
       switch (changeCount) {
         case 1:
           // if we only changed masters once, we should have the proper value
@@ -790,31 +914,30 @@ describe.only('Sentinel', () => {
         case 2:
           // we changed masters twice quickly, so probably didn't replicate
           // therefore, this is soewhat flakey, but the above is the common case
-          assert (val == '123' || val == null);
+          assert(val == '123' || val == null);
           break;
         default:
           assert(false, "unexpected case");
-          break;
       }
     });
-  
+
     it('shutdown sentinel node', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
       await sentinel.connect();
       tracer.push("connected");
-  
+
       let sentinelChangeResolve;
       const sentinelChangePromise = new Promise((res) => {
         sentinelChangeResolve = res;
       })
-  
+
       const sentinelNode = sentinel.getSentinelNode();
       tracer.push(`sentinelNode = ${sentinelNode?.port}`)
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "SENTINEL_CHANGE") {
@@ -822,7 +945,7 @@ describe.only('Sentinel', () => {
           sentinelChangeResolve(event.node);
         }
       });
-  
+
       tracer.push("Stopping sentinel node");
       await frame.stopSentinel(sentinelNode!.port.toString());
       tracer.push("Stopped sentinel node and waiting on sentinel change promise");
@@ -830,20 +953,20 @@ describe.only('Sentinel', () => {
       tracer.push("got sentinel change promise");
       assert.notEqual(sentinelNode!.port, newSentinel.port);
     });
-  
+
     it('timer works, and updates sentinel list', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ scanInterval: 1000 });
       sentinel.setTracer(tracer);
       await sentinel.connect();
       tracer.push("connected");
-  
+
       let sentinelChangeResolve;
       const sentinelChangePromise = new Promise((res) => {
         sentinelChangeResolve = res;
       })
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "SENTINE_LIST_CHANGE" && event.size == 4) {
@@ -851,29 +974,29 @@ describe.only('Sentinel', () => {
           sentinelChangeResolve(event.size);
         }
       });
-  
+
       tracer.push(`adding sentinel`);
       await frame.addSentinel();
       tracer.push(`added sentinel and waiting on sentinel change promise`);
       const newSentinelSize = await sentinelChangePromise as number;
-  
+
       assert.equal(newSentinelSize, 4);
     });
-  
+
     it('stop replica, bring back replica', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ useReplicas: true });
       sentinel.setTracer(tracer);
-      sentinel.on('error', err => {});
+      sentinel.on('error', err => { });
       await sentinel.connect();
       tracer.push("connected");
-  
+
       let sentinelRemoveResolve;
       const sentinelRemovePromise = new Promise((res) => {
         sentinelRemoveResolve = res;
       })
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "REPLICA_REMOVE") {
@@ -881,7 +1004,7 @@ describe.only('Sentinel', () => {
           sentinelRemoveResolve(event.node);
         }
       });
-  
+
       const replicaPort = await frame.getRandonNonMasterNode();
       tracer.push(`replicaPort = ${replicaPort} and stopping it`);
       await frame.stopNode(replicaPort);
@@ -889,12 +1012,12 @@ describe.only('Sentinel', () => {
       const stoppedNode = await sentinelRemovePromise as RedisNode;
       tracer.push("got removed promise");
       assert.equal(stoppedNode.port, Number(replicaPort));
-  
+
       let sentinelRestartedResolve;
       const sentinelRestartedPromise = new Promise((res) => {
         sentinelRestartedResolve = res;
       })
-  
+
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "REPLICA_ADD") {
@@ -902,7 +1025,7 @@ describe.only('Sentinel', () => {
           sentinelRestartedResolve(event.node);
         }
       });
-      
+
       tracer.push("restarting replica");
       await frame.restartNode(replicaPort);
       tracer.push("restarted replica and waiting on restart promise");
@@ -910,65 +1033,64 @@ describe.only('Sentinel', () => {
       tracer.push("got restarted promise");
       assert.equal(restartedNode.port, Number(replicaPort));
     })
-  
+
     it('add a node / new replica', async function () {
       this.timeout(30000);
-  
+
       sentinel = frame.getSentinelClient({ scanInterval: 2000, useReplicas: true });
       sentinel.setTracer(tracer);
       // need to handle errors, as the spawning a new docker node can cause existing connections to time out
-      sentinel.on('error', err => {});
+      sentinel.on('error', err => { });
       await sentinel.connect();
       tracer.push("connected");
-  
+
       let nodeAddedResolve: (value: RedisNode) => void;
       const nodeAddedPromise = new Promise((res) => {
         nodeAddedResolve = res as (value: RedisNode) => void;
       });
-  
+
       const portSet = new Set<number>();
       for (const port of frame.getAllNodesPort()) {
         portSet.add(port);
       }
-  
+
       // "on" and not "once" as due to connection timeouts, can happen multiple times, and want right one
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
         tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
         if (event.type === "REPLICA_ADD") {
-          if (!portSet.has(event.node.port)) 
-          {
+          if (!portSet.has(event.node.port)) {
             tracer.push("got expected replica added event");
             nodeAddedResolve(event.node);
           }
         }
       });
-  
+
       tracer.push("adding node");
       await frame.addNode();
       tracer.push("added node and waiting on added promise");
       await nodeAddedPromise;
-    })  
+    })
   })
 
   describe('Sentinel Factory', function () {
     let master: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
     let replica: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
-  
+
     beforeEach(async function () {
       this.timeout(0);
-  
+
       for (const port of frame.getAllNodesPort()) {
         await frame.restartNode(port.toString());
       }
-  
+
       for (const port of frame.getAllSentinelsPort()) {
         await frame.restartSentinel(port.toString());
       }
-  
+
       await steadyState(frame);
       longestTestDelta = 0;
     })
-  
+
     afterEach(async function () {
       if (this!.currentTest.state === 'failed') {
         console.log(`longest event loop blocked delta: ${longestDelta}`);
@@ -990,14 +1112,14 @@ describe.only('Sentinel', () => {
         console.log(`docker stderr:\n${stderr}`);
       }
       tracer.length = 0;
-  
+
       if (master !== undefined) {
         if (master.isOpen) {
           master.destroy();
         }
         master = undefined;
       }
-  
+
       if (replica !== undefined) {
         if (replica.isOpen) {
           replica.destroy();
@@ -1010,72 +1132,72 @@ describe.only('Sentinel', () => {
       const sentinelPorts = frame.getAllSentinelsPort();
       const sentinels: Array<RedisNode> = [];
       for (const port of sentinelPorts) {
-        sentinels.push({host: "localhost", port: port});
+        sentinels.push({ host: "localhost", port: port });
       }
-  
-      const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels})
+
+      const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: sentinels })
       await factory.updateSentinelRootNodes();
-  
+
       master = await factory.getMasterClient();
       await master.connect();
-  
+
       assert.equal(await master.set("x", 1), 'OK');
     })
-  
+
     it('sentinel factory - replica', async function () {
       const sentinelPorts = frame.getAllSentinelsPort();
       const sentinels: Array<RedisNode> = [];
-  
+
       for (const port of sentinelPorts) {
-        sentinels.push({host: "localhost", port: port});
+        sentinels.push({ host: "localhost", port: port });
       }
-  
-      const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels})
+
+      const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: sentinels })
       await factory.updateSentinelRootNodes();
-  
+
       const masterNode = await factory.getMasterNode();
       replica = await factory.getReplicaClient();
       assert.notEqual(masterNode.port, replica.options?.socket?.port)
     })
-  
+
     it('sentinel factory - bad node', async function () {
-      const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: [{host: "locahost", port: 1}]});
+      const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: [{ host: "locahost", port: 1 }] });
       assert.rejects(factory.updateSentinelRootNodes(), new Error("Couldn't connect to any sentinel node"));
     })
-  
+
     it('sentinel factory - invalid db name', async function () {
       this.timeout(15000);
-  
+
       const sentinelPorts = frame.getAllSentinelsPort();
       const sentinels: Array<RedisNode> = [];
-  
+
       for (const port of sentinelPorts) {
-        sentinels.push({host: "localhost", port: port});
+        sentinels.push({ host: "localhost", port: port });
       }
-  
-      const factory = new RedisSentinelFactory({name: 'not-exist', sentinelRootNodes: sentinels});
+
+      const factory = new RedisSentinelFactory({ name: 'not-exist', sentinelRootNodes: sentinels });
       assert.rejects(factory.updateSentinelRootNodes(), new Error("ERR No such master with that name"));
     })
-  
+
     it('sentinel factory - no available nodes', async function () {
       this.timeout(15000);
-  
+
       const sentinelPorts = frame.getAllSentinelsPort();
       const sentinels: Array<RedisNode> = [];
-  
+
       for (const port of sentinelPorts) {
-        sentinels.push({host: "localhost", port: port});
+        sentinels.push({ host: "localhost", port: port });
       }
-  
-      const factory = new RedisSentinelFactory({name: frame.config.sentinelName, sentinelRootNodes: sentinels});
-  
+
+      const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: sentinels });
+
       for (const node of frame.getAllNodesPort()) {
         await frame.stopNode(node.toString());
       }
-  
+
       await setTimeout(1000);
-  
+
       assert.rejects(factory.getMasterNode(), new Error("Master Node Not Enumerated"));
-    })  
+    })
   })
 });
