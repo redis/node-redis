@@ -3,7 +3,7 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
 import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
@@ -602,6 +602,23 @@ describe('Client', () => {
             ...GLOBAL.SERVERS.OPEN,
             minimumDockerVersion: [6, 2] // CLIENT INFO
         });
+
+        testUtils.testWithClient('should handle error replies (#2665)', async client => {
+            await assert.rejects(
+                client.multi()
+                    .set('key', 'value')
+                    .hGetAll('key')
+                    .exec(),
+                err => {
+                    assert.ok(err instanceof MultiErrorReply);
+                    assert.equal(err.replies.length, 2);
+                    assert.deepEqual(err.errorIndexes, [1]);
+                    assert.ok(err.replies[1] instanceof ErrorReply);
+                    assert.deepEqual([...err.errors()], [err.replies[1]]);
+                    return true;
+                }
+            );
+        }, GLOBAL.SERVERS.OPEN);
     });
 
     testUtils.testWithClient('scripts', async client => {
