@@ -18,7 +18,7 @@ function test(name: string, config: Test) {
     it('single chunk', () => {
       const setup = setupTest(config);
       setup.decoder.write(config.toWrite);
-      assertCalls(config, setup);
+      assertSpiesCalls(config, setup);
     });
 
     it('byte by byte', () => {
@@ -26,7 +26,7 @@ function test(name: string, config: Test) {
       for (let i = 0; i < config.toWrite.length; i++) {
         setup.decoder.write(config.toWrite.subarray(i, i + 1));
       }
-      assertCalls(config, setup);
+      assertSpiesCalls(config, setup);
     });
   })
 }
@@ -49,7 +49,7 @@ function setupTest(config: Test) {
   };
 }
 
-function assertCalls(config: Test, spies: ReturnType<typeof setupTest>) {
+function assertSpiesCalls(config: Test, spies: ReturnType<typeof setupTest>) {
   assertSpyCalls(spies.onReplySpy, config.replies);
   assertSpyCalls(spies.onErrorReplySpy, config.errorReplies);
   assertSpyCalls(spies.onPushSpy, config.pushReplies);
@@ -300,6 +300,40 @@ describe('RESP Decoder', () => {
     test('[0..9]', {
       toWrite: Buffer.from(`*10\r\n:0\r\n:1\r\n:2\r\n:3\r\n:4\r\n:5\r\n:6\r\n:7\r\n:8\r\n:9\r\n`),
       replies: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
+    });
+
+    test('with all types', {
+      toWrite: Buffer.from([
+        '*13\r\n',
+        '_\r\n',
+        '#f\r\n',
+        ':0\r\n',
+        '(0\r\n',
+        ',0\r\n',
+        '+\r\n',
+        '$0\r\n\r\n',
+        '=4\r\ntxt:\r\n',
+        '-\r\n',
+        '!0\r\n\r\n',
+        '*0\r\n',
+        '~0\r\n',
+        '%0\r\n'
+      ].join('')),
+      replies: [[
+        null,
+        false,
+        0,
+        0n,
+        0,
+        '',
+        '',
+        '',
+        new SimpleError(''),
+        new BlobError(''),
+        [],
+        [],
+        Object.create(null)
+      ]]
     });
 
     test('null (RESP2 backwards compatibility)', {
