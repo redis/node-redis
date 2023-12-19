@@ -397,7 +397,7 @@ describe.only('Sentinel', () => {
 
       const reply = await sentinel.use(
         async (client: RedisSentinelClientType<any, any, any, any>) => {
-          const resp = await client.bf.add('key', 'item')
+          return client.bf.add('key', 'item');
         }
       );
 
