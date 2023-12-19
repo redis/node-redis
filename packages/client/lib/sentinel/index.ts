@@ -856,9 +856,11 @@ class RedisSentinelInternal<
         this.#anotherReset = false;
         await this.transform(this.analyze(await this.observe()));
         if (this.#anotherReset) {
+          this.#trace("#connect: anotherReset is true, so continuing");
           continue;
         }
 
+        this.#trace("#connect: returning");
         return;
       } catch (e: any) {
         this.#trace(`#connect: exception ${e.message}`);

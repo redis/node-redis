@@ -6,6 +6,7 @@ import { exec } from 'node:child_process';
 import { RedisSentinelOptions, RedisSentinelType } from './types';
 import RedisClient from '../client';
 import RedisSentinel from '.';
+import { RedisArgument } from '../RESP/types';
 const execAsync = promisify(exec);
 
 interface ErrorWithCode extends Error {
@@ -59,7 +60,7 @@ abstract class DockerBase {
     }
     cmdLine += `${image}:${version} ${serverArguments.join(' ')}`;
     cmdLine = cmdLine.replace('{port}', `--port ${port.toString()}`);
-    //    console.log("spawnRedisServerDocker: cmdLine = " + cmdLine);
+    // console.log("spawnRedisServerDocker: cmdLine = " + cmdLine);
     const { stdout, stderr } = await execAsync(cmdLine);
 
     if (!stdout) {
@@ -124,6 +125,8 @@ export interface RedisSentinelConfig {
 
   sentinelName: string;
   sentinelQuorum?: number;
+
+  password?: string;
 }
 
 type ArrayElement<ArrayType extends readonly unknown[]> =
@@ -185,6 +188,11 @@ export class SentinelFramework extends DockerBase {
       passthroughClientErrorEvents: errors
     }
 
+    if (this.config.password !== undefined) {
+      options.nodeClientOptions = {password: this.config.password};
+      options.sentinelClientOptions = {password: this.config.password};
+    }
+
     if (opts) {
       Object.assign(options, opts);
     }
@@ -232,14 +240,18 @@ export class SentinelFramework extends DockerBase {
   }
 
   protected async spawnRedisSentinelNodeDocker() {
-    //const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis", version: "latest" };
     const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis/redis-stack-server", version: "latest" };
-    //const serverArguments: Array<string> = this.config.nodeServerArguments ?? ["/usr/local/bin/redis-server", "{port}"];
     const serverArguments: Array<string> = this.config.nodeServerArguments ?? [];
-    const environment = 'REDIS_ARGS="{port}"'
-
+    let environment;
+    if (this.config.password !== undefined) {
+      environment = `REDIS_ARGS="{port} --requirepass ${this.config.password}"`;
+    } else {
+      environment = 'REDIS_ARGS="{port}"';
+    }
+  
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments, environment);
     const client = await RedisClient.create({
+      password: this.config.password,
       socket: {
         port: docker.port
       }
@@ -259,6 +271,9 @@ export class SentinelFramework extends DockerBase {
     for (let i = 0; i < (this.config.numberOfNodes ?? 0) - 1; i++) {
       promises.push(
         this.spawnRedisSentinelNodeDocker().then(async node => {
+          if (this.config.password !== undefined) {
+            await node.client.configSet({'masterauth': this.config.password})
+          }
           await node.client.replicaOf('127.0.0.1', master.docker.port);
           return node;
         })
@@ -272,17 +287,27 @@ export class SentinelFramework extends DockerBase {
   }
 
   protected async spawnRedisSentinelSentinelDocker() {
-    let imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis", version: "latest" }
-    let serverArguments: Array<string> = this.config.nodeServerArguments ??
-      [
-        "/bin/bash",
-        "-c",
-        "\"touch /tmp/sentinel.conf ; /usr/local/bin/redis-sentinel /tmp/sentinel.conf {port}\""
-      ];
-
+    const imageInfo: RedisServerDockerConfig = this.config.sentinelDockerConfig ?? { image: "redis", version: "latest" }
+    let serverArguments: Array<string>;
+    if (this.config.password === undefined) {
+      serverArguments = this.config.sentinelServerArgument ??
+        [
+          "/bin/bash",
+          "-c",
+          "\"touch /tmp/sentinel.conf ; /usr/local/bin/redis-sentinel /tmp/sentinel.conf {port} \""
+        ];
+    } else {
+      serverArguments = this.config.sentinelServerArgument ??
+        [
+          "/bin/bash",
+          "-c",
+          `"touch /tmp/sentinel.conf ; /usr/local/bin/redis-sentinel /tmp/sentinel.conf {port} --requirepass ${this.config.password}"`
+        ];
+    }
+    
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
-    /* TODO: future might need to be a sentinel specific client */
     const client = await RedisClient.create({
+      password: this.config.password,
       socket: {
         port: docker.port
       }
@@ -304,12 +329,13 @@ export class SentinelFramework extends DockerBase {
       promises.push(
         this.spawnRedisSentinelSentinelDocker().then(async sentinel => {
           await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
-          await sentinel.client.sentinelSet(this.config.sentinelName,
-            [
-              { option: "down-after-milliseconds", value: "100" },
-              { option: "failover-timeout", value: "5000" }
-            ]
-          );
+          const options: Array<{option: RedisArgument, value: RedisArgument}> = [];
+          options.push({ option: "down-after-milliseconds", value: "100" });
+          options.push({ option: "failover-timeout", value: "5000" });
+          if (this.config.password !== undefined) {
+            options.push({ option: "auth-pass", value: this.config.password });
+          }
+          await sentinel.client.sentinelSet(this.config.sentinelName, options)
           return sentinel;
         })
       );
@@ -326,12 +352,13 @@ export class SentinelFramework extends DockerBase {
     const sentinel = await this.spawnRedisSentinelSentinelDocker();
 
     await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
-    await sentinel.client.sentinelSet(this.config.sentinelName,
-      [
-        { option: "down-after-milliseconds", value: "100" },
-        { option: "failover-timeout", value: "5000" }
-      ]
-    );
+    const options: Array<{option: RedisArgument, value: RedisArgument}> = [];
+    options.push({ option: "down-after-milliseconds", value: "100" });
+    options.push({ option: "failover-timeout", value: "5000" });
+    if (this.config.password !== undefined) {
+      options.push({ option: "auth-pass", value: this.config.password });
+    }
+    await sentinel.client.sentinelSet(this.config.sentinelName, options);
 
     this.#sentinelList.push(sentinel);
     this.#sentinelMap.set(sentinel.docker.port.toString(), sentinel);
@@ -341,6 +368,9 @@ export class SentinelFramework extends DockerBase {
     const masterPort = await this.getMasterPort();
     const newNode = await this.spawnRedisSentinelNodeDocker();
 
+    if (this.config.password !== undefined) {
+      await newNode.client.configSet({'masterauth': this.config.password})
+    }
     await newNode.client.replicaOf('127.0.0.1', masterPort);
 
     this.#nodeList.push(newNode);
@@ -428,6 +458,7 @@ export class SentinelFramework extends DockerBase {
     await this.dockerStart(node.docker.dockerId);
     if (!node.client.isOpen) {
       node.client = await RedisClient.create({
+        password: this.config.password,
         socket: {
           port: node.docker.port
         }
@@ -457,6 +488,7 @@ export class SentinelFramework extends DockerBase {
     await this.dockerStart(sentinel.docker.dockerId);
     if (!sentinel.client.isOpen) {
       sentinel.client = await RedisClient.create({
+        password: this.config.password,
         socket: {
           port: sentinel.docker.port
         }
