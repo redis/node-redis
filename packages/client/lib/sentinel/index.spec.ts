@@ -388,7 +388,7 @@ describe.only('Sentinel', () => {
       assert.equal(reply, 4);
     })
 
-    it('with a module', async function () {
+    it('use with a module', async function () {
       const options = {
         modules: RedisBloomModules
       }
