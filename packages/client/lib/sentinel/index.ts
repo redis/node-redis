@@ -39,7 +39,7 @@ export class RedisSentinelClient<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> extends EventEmitter {
+> {
   #clientInfo?: clientInfo;
   #internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   readonly self: RedisSentinelClient<M, F, S, RESP, TYPE_MAPPING>;
@@ -67,11 +67,9 @@ export class RedisSentinelClient<
     clientInfo: clientInfo,
     commandOptions?: CommandOptions<TYPE_MAPPING>
   ) {
-    super();
     this.self = this;
 
     this.#internal = internal;
-    //    this.#internal.on('error', err => this.emit('error', err));
 
     this.#clientInfo = clientInfo;
 

@@ -368,8 +368,7 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const promise = sentinel.use(
-          async (client: RedisSentinelClientType) => {
-            client.on('error', err => { });
+          async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>, ) => {
             await setTimeout(5000);
             return await client.get('x');
           }
@@ -394,11 +393,7 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const reply = await sentinel.use(
-          async (client: RedisSentinelClientType<RedisModules, 
-            RedisFunctions,
-            RedisScripts,
-            RespVersions, 
-            TypeMapping>) => {
+          async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
             await client.set('key', '2');
             return client.square('key')
           }
@@ -424,11 +419,7 @@ async function steadyState(frame: SentinelFramework) {
         );
   
         const reply = await sentinel.use(
-          async (client: RedisSentinelClientType<    RedisModules, 
-            RedisFunctions,
-            RedisScripts,
-            RespVersions, 
-            TypeMapping>) => {
+          async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
             await client.set('key', '2');
             return client.math.square('key');
           }
@@ -445,11 +436,7 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const reply = await sentinel.use(
-          async (client: RedisSentinelClientType<RedisModules, 
-            RedisFunctions,
-            RedisScripts,
-            RespVersions, 
-            TypeMapping>) => {
+          async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
             return client.bf.add('key', 'item');
           }
         );
@@ -506,7 +493,6 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const clientLease = await sentinel.aquire();
-        clientLease.on("error", () => { });
         clientLease.set('x', 456);
   
         let matched = false;
@@ -647,8 +633,6 @@ async function steadyState(frame: SentinelFramework) {
         tracer.push("connected");
   
         const client = await sentinel.aquire();
-        client.on("error", () => { });
-  
         tracer.push("aquired lease");
   
         await client.set("x", 1);
@@ -697,7 +681,6 @@ async function steadyState(frame: SentinelFramework) {
         tracer.push("connected");
   
         const client = await sentinel.aquire();
-        client.on("error", () => { });
         tracer.push("got leased client");
         await client.set("x", 1);
         await client.watch("x");
