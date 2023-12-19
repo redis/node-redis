@@ -21,6 +21,19 @@ const execAsync = promisify(exec);
    - all redis nodes are active and are part of the topology
    before allowing things to continue.
 */
+
+const SQUARE_SCRIPT = defineScript({
+  SCRIPT:
+    `local number = redis.call('GET', KEYS[1])
+    return number * number`,
+  NUMBER_OF_KEYS: 1,
+  FIRST_KEY_INDEX: 0,
+  transformArguments(key: string) {
+    return [key];
+  },
+  transformReply: undefined as unknown as () => NumberReply
+});
+
 async function steadyState(frame: SentinelFramework) {
   let checkedMaster = false;
   let checkedReplicas = false;
@@ -228,19 +241,7 @@ async function steadyState(frame: SentinelFramework) {
         assert.deepEqual(resp, Buffer.from('PONG'))
       })
   
-      it('with a script', async function () {
-        const SQUARE_SCRIPT = defineScript({
-          SCRIPT:
-            `local number = redis.call('GET', KEYS[1])
-            return number * number`,
-          NUMBER_OF_KEYS: 1,
-          FIRST_KEY_INDEX: 0,
-          transformArguments(key: string) {
-            return [key];
-          },
-          transformReply: undefined as unknown as () => NumberReply
-        });
-  
+      it('with a script', async function () {  
         const options = {
           scripts: {
             square: SQUARE_SCRIPT
@@ -256,6 +257,21 @@ async function steadyState(frame: SentinelFramework) {
         ]);
   
         assert.equal(reply, 4);
+      })
+
+      it('multi with a script', async function () {
+        const options = {
+          scripts: {
+            square: SQUARE_SCRIPT
+          }
+        }
+  
+        sentinel = frame.getSentinelClient(options);
+        await sentinel.connect();
+
+        const reply = await sentinel.multi().set('key', 2).square('key').exec();
+
+        assert.deepEqual(reply, ['OK', 4]);
       })
   
       it('with a function', async function () {
@@ -277,6 +293,24 @@ async function steadyState(frame: SentinelFramework) {
   
         assert.equal(resp, 4);
       })
+
+      it('multi with a function', async function () {
+        const options = {
+          functions: {
+            math: MATH_FUNCTION.library
+          }
+        }
+        sentinel = frame.getSentinelClient(options);
+        await sentinel.connect();
+  
+        await sentinel.functionLoad(
+          MATH_FUNCTION.code,
+          { REPLACE: true }
+        );
+
+        const reply = await sentinel.multi().set('key', 2).math.square('key').exec();
+        assert.deepEqual(reply, ['OK', 4]);
+      })
   
       it('with a module', async function () {
         const options = {
@@ -287,6 +321,17 @@ async function steadyState(frame: SentinelFramework) {
   
         const resp = await sentinel.bf.add('key', 'item')
         assert.equal(resp, true);
+      })
+
+      it('multi with a module', async function () {
+        const options = {
+          modules: RedisBloomModules
+        }
+        sentinel = frame.getSentinelClient(options);
+        await sentinel.connect();
+  
+        const resp = await sentinel.multi().bf.add('key', 'item').exec();
+        assert.deepEqual(resp, [true]);
       })
   
       it('many readers', async function () {
@@ -338,17 +383,6 @@ async function steadyState(frame: SentinelFramework) {
   
       it('use with script', async function () {
         this.timeout(10000);
-        const SQUARE_SCRIPT = defineScript({
-          SCRIPT:
-            `local number = redis.call('GET', KEYS[1])
-            return number * number`,
-          NUMBER_OF_KEYS: 1,
-          FIRST_KEY_INDEX: 0,
-          transformArguments(key: string) {
-            return [key];
-          },
-          transformReply: undefined as unknown as () => NumberReply
-        });
   
         const options = {
           scripts: {
