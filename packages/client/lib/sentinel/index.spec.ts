@@ -50,7 +50,12 @@ async function steadyState(frame: SentinelFramework) {
   const numberOfNodes = frame.getAllNodesPort.length;
 
   const seenNodes = new Set<number>();
-  let sentinel: RedisSentinelType<any, any, any, 2, any> | undefined;
+  let sentinel: RedisSentinelType<
+    RedisModules, 
+    RedisFunctions,
+    RedisScripts,
+    RespVersions, 
+    TypeMapping> | undefined;
   const tracer = [];
 
   try {
@@ -126,7 +131,11 @@ async function steadyState(frame: SentinelFramework) {
     })
   
     describe('Sentinel Client', function () {
-      let sentinel: RedisSentinelType<any, any, any, 2, any> | undefined;
+      let sentinel: RedisSentinelType<    RedisModules, 
+      RedisFunctions,
+      RedisScripts,
+      RespVersions, 
+      TypeMapping> | undefined;
   
       beforeEach(async function () {
         this.timeout(0);
@@ -351,7 +360,11 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const reply = await sentinel.use(
-          async (client: RedisSentinelClientType<any, any, any, any>) => {
+          async (client: RedisSentinelClientType<RedisModules, 
+            RedisFunctions,
+            RedisScripts,
+            RespVersions, 
+            TypeMapping>) => {
             await client.set('key', '2');
             return client.square('key')
           }
@@ -377,7 +390,11 @@ async function steadyState(frame: SentinelFramework) {
         );
   
         const reply = await sentinel.use(
-          async (client: RedisSentinelClientType<any, any, any, any>) => {
+          async (client: RedisSentinelClientType<    RedisModules, 
+            RedisFunctions,
+            RedisScripts,
+            RespVersions, 
+            TypeMapping>) => {
             await client.set('key', '2');
             return client.math.square('key');
           }
@@ -394,7 +411,11 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const reply = await sentinel.use(
-          async (client: RedisSentinelClientType<any, any, any, any>) => {
+          async (client: RedisSentinelClientType<RedisModules, 
+            RedisFunctions,
+            RedisScripts,
+            RespVersions, 
+            TypeMapping>) => {
             return client.bf.add('key', 'item');
           }
         );

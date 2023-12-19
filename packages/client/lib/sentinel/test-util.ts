@@ -6,7 +6,7 @@ import { exec } from 'node:child_process';
 import { RedisSentinelOptions, RedisSentinelType } from './types';
 import RedisClient from '../client';
 import RedisSentinel from '.';
-import { RedisArgument } from '../RESP/types';
+import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 const execAsync = promisify(exec);
 
 interface ErrorWithCode extends Error {
@@ -174,7 +174,11 @@ export class SentinelFramework extends DockerBase {
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
   }
 
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<any, any, any, 2, any>>, errors = true) {
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<RedisModules, 
+    RedisFunctions,
+    RedisScripts,
+    RespVersions, 
+    TypeMapping>>, errors = true) {
     if (opts?.sentinelRootNodes !== undefined) {
       throw new Error("cannot specify sentinelRootNodes here");
     }
