@@ -12,6 +12,8 @@ import { exec } from 'node:child_process';
 import { RESP_TYPES } from '../RESP/decoder';
 import { defineScript } from '../lua-script';
 import { MATH_FUNCTION } from '../commands/FUNCTION_LOAD.spec';
+import RedisBloomModules from '@redis/bloom';
+
 const execAsync = promisify(exec);
 
 /* used to ensure test environment resets to normal state
@@ -177,8 +179,6 @@ describe.only('Sentinel', () => {
     })
 
     it('figure out how to automate validation against tls');;
-    // a little harder as requires a different bootstrap of nodes
-    it('test with a module?');
 
     it('basic bootstrap', async function () {
       sentinel = frame.getSentinelClient();
@@ -269,6 +269,17 @@ describe.only('Sentinel', () => {
       const resp = await sentinel.math.square('key');
 
       assert.equal(resp, 4);
+    })
+
+    it('with a module', async function () {
+      const options = {
+        modules: RedisBloomModules
+      }
+      sentinel = frame.getSentinelClient(options);
+      await sentinel.connect();
+
+      const resp = await sentinel.bf.add('key', 'item')
+      assert.equal(resp, true);
     })
 
     it('many readers', async function () {
@@ -375,6 +386,22 @@ describe.only('Sentinel', () => {
       );
 
       assert.equal(reply, 4);
+    })
+
+    it('with a module', async function () {
+      const options = {
+        modules: RedisBloomModules
+      }
+      sentinel = frame.getSentinelClient(options);
+      await sentinel.connect();
+
+      const reply = await sentinel.use(
+        async (client: RedisSentinelClientType<any, any, any, any>) => {
+          const resp = await client.bf.add('key', 'item')
+        }
+      );
+
+      assert.equal(reply, true);
     })
 
     it('block on pool', async function () {

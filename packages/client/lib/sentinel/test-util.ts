@@ -51,9 +51,13 @@ export interface RedisServerDocker {
 }
 
 abstract class DockerBase {
-  async spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
+  async spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>, environment?: string): Promise<RedisServerDocker> {
     const port = (await portIterator.next()).value;
-    let cmdLine = `docker run --stop-timeout 2 --init -d --network host ${image}:${version} ${serverArguments.join(' ')}`;
+    let cmdLine = `docker run --init -d --network host `;
+    if (environment !== undefined) {
+      cmdLine += `-e ${environment} `;
+    }
+    cmdLine += `${image}:${version} ${serverArguments.join(' ')}`;
     cmdLine = cmdLine.replace('{port}', `--port ${port.toString()}`);
     //    console.log("spawnRedisServerDocker: cmdLine = " + cmdLine);
     const { stdout, stderr } = await execAsync(cmdLine);
@@ -228,10 +232,13 @@ export class SentinelFramework extends DockerBase {
   }
 
   protected async spawnRedisSentinelNodeDocker() {
-    let imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis", version: "latest" };
-    let serverArguments: Array<string> = this.config.nodeServerArguments ?? ["/usr/local/bin/redis-server", "{port}"];
+    //const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis", version: "latest" };
+    const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis/redis-stack-server", version: "latest" };
+    //const serverArguments: Array<string> = this.config.nodeServerArguments ?? ["/usr/local/bin/redis-server", "{port}"];
+    const serverArguments: Array<string> = this.config.nodeServerArguments ?? [];
+    const environment = 'REDIS_ARGS="{port}"'
 
-    const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
+    const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments, environment);
     const client = await RedisClient.create({
       socket: {
         port: docker.port
