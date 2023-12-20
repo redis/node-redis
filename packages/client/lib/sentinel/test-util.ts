@@ -186,7 +186,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("cannot specify sentinel db name here");
     }
 
-    const options: RedisSentinelOptions<any, any, any, 2, any> = {
+    const options: RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> = {
       name: this.config.sentinelName,
       sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } }),
       passthroughClientErrorEvents: errors
@@ -516,6 +516,15 @@ export class SentinelFramework extends DockerBase {
     }
 
     return ports
+  }
+
+  getAllDockerIds() {
+    let ids = new Map<string, number>();
+    for (const node of this.#nodeList) {
+      ids.set(node.docker.dockerId, node.docker.port);
+    }
+
+    return ids;
   }
 
   getSentinelPort(id: string) {

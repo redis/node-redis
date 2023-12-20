@@ -191,7 +191,15 @@ async function steadyState(frame: SentinelFramework) {
           console.log(`sentinel replicas:\n${JSON.stringify(results[2], undefined, '\t')}`);
           const { stdout, stderr } = await execAsync("docker ps -a");
           console.log(`docker stdout:\n${stdout}`);
-          console.log(`docker stderr:\n${stderr}`);
+
+          const ids = frame.getAllDockerIds();
+          console.log("docker logs");
+
+          for (const [id, port] of ids) {
+            console.log(`${id}/${port}\n`);
+            const { stdout, stderr } = await execAsync(`docker logs ${id}`);
+            console.log(stdout);
+          }
         }
         tracer.length = 0;
   
@@ -394,7 +402,8 @@ async function steadyState(frame: SentinelFramework) {
   
         const reply = await sentinel.use(
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
-            await client.set('key', '2');
+            assert.equal(await client.set('key', '2'), 'OK');
+            assert.equal(await client.get('key'), '2');
             return client.square('key')
           }
         );
