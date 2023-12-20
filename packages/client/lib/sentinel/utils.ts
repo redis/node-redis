@@ -5,7 +5,6 @@ import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeInfo, ProxySe
 
 /* TODO: should use map interface, would need a transform reply probably? as resp2 is list form, which this depends on */
 export function parseNode(node: NodeInfo): RedisNode | undefined{
-//  console.log(`node: ${node.port}, flags: ${node.flags} `)
   if (node.flags.includes("s_down") || node.flags.includes("disconnected") || node.flags.includes("failover_in_progress")) {
     return undefined;
   }
