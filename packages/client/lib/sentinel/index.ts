@@ -24,10 +24,7 @@ import { execType } from './types';
    5) `testWithSentinel`
 */
 
-type clientType = "MASTER" | "REPLICA";
-
 interface clientInfo {
-  type: clientType;
   id: number;
   watchEpoch?: number;
 }
@@ -377,7 +374,7 @@ export default class RedisSentinel<
   ): Promise<T> {
     let clientInfo: clientInfo | undefined;
     if (!isReadonly || !this.self.#options.useReplicas) {
-      clientInfo = await this.self.#internal.getClientLease('MASTER');
+      clientInfo = await this.self.#internal.getClientLease();
     }
 
     try {
@@ -390,7 +387,7 @@ export default class RedisSentinel<
   }
 
   async use<T>(fn: (sentinelClient: RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>) {
-    const clientInfo = await this.self.#internal.getClientLease('MASTER');
+    const clientInfo = await this.self.#internal.getClientLease();
     const sentinelClient = RedisSentinelClient.create(this.self.#internal, clientInfo, this.self.#commandOptions, this.self.#options);
 
     try {
@@ -509,7 +506,7 @@ export default class RedisSentinel<
   pUnsubscribe = this.PUNSUBSCRIBE;
 
   async aquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
-    const clientInfo = await this.self.#internal.getClientLease('MASTER');
+    const clientInfo = await this.self.#internal.getClientLease();
     return RedisSentinelClient.create(this.self.#internal, clientInfo, this.self.#commandOptions, this.self.#options);
   }
 
@@ -637,32 +634,21 @@ class RedisSentinelInternal<
     return RedisClient.create(options);
   }
 
-  async getClientLease(type: 'MASTER') {
+  async getClientLease() {
     const clientInfo: clientInfo = {
-      type: type,
-      id: -1,
-    }
-
-    switch (type) {
-      case 'MASTER':
-        clientInfo.id = await this.#masterClientQueue.shift();
-        break;
+      id: await this.#masterClientQueue.shift()
     }
 
     return clientInfo;
   }
 
   releaseClientLease(clientInfo: clientInfo) {
-    switch (clientInfo.type) {
-      case 'MASTER':
-        const client = this.#masterClients[clientInfo.id];
-        // client can be undefined if releasing in middle of a reconfigure
-        if (client !== undefined && client.isReady && clientInfo.watchEpoch !== undefined) {
-          client.unwatch();
-        }
-        this.#masterClientQueue.push(clientInfo.id);
-        break;
+    const client = this.#masterClients[clientInfo.id];
+    // client can be undefined if releasing in middle of a reconfigure
+    if (client !== undefined && client.isReady && clientInfo.watchEpoch !== undefined) {
+      client.unwatch();
     }
+    this.#masterClientQueue.push(clientInfo.id);
   }
 
   async connect() {
@@ -778,9 +764,7 @@ class RedisSentinelInternal<
           a) READONLY error (topology has changed) but we haven't been notified yet via pubsub
           b) client is "not ready" (disconnected), which means topology might have changed, but sentinel might not see it yet
         */
-        if (clientInfo?.type == 'MASTER' &&
-          (err.message.startsWith('READONLY') || !client.isReady)
-        ) {
+        if (clientInfo !== undefined && (err.message.startsWith('READONLY') || !client.isReady)) {
           await this.#reset();
           continue;
         }
@@ -1015,7 +999,7 @@ class RedisSentinelInternal<
     }
 
     this.#trace(`observe: none of the sentinels are available`);
-    throw new Error('None of the sentinels are avftracailable');
+    throw new Error('None of the sentinels are available');
   }
 
   analyze(observed: Awaited<ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["observe"]>>) {

@@ -129,9 +129,10 @@ async function steadyState(frame: SentinelFramework) {
           setImmediate(deltaMeasurer);
         }
       }
-  
+
       setImmediate(deltaMeasurer);
-  
+
+      console.log("spawning redis and sentinel nodes");
       await frame.spawnRedisSentinel();
     });
   
@@ -144,11 +145,7 @@ async function steadyState(frame: SentinelFramework) {
     })
   
     describe('Sentinel Client', function () {
-      let sentinel: RedisSentinelType<    RedisModules, 
-      RedisFunctions,
-      RedisScripts,
-      RespVersions, 
-      TypeMapping> | undefined;
+      let sentinel: RedisSentinelType<    RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   
       beforeEach(async function () {
         this.timeout(0);
