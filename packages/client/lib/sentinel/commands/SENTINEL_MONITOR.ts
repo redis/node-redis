@@ -1,4 +1,4 @@
-import { SimpleStringReply, Command, RedisArgument } from "../RESP/types";
+import { SimpleStringReply, Command, RedisArgument } from "../../RESP/types";
 
 export default {
   transformArguments(dbname: RedisArgument, host: RedisArgument, port: RedisArgument, quorum: RedisArgument) {

@@ -13,6 +13,7 @@ import { PubSubProxy } from './pub-sub-proxy';
 import WaitQueue from 'wait-queue';
 import { setTimeout } from 'node:timers/promises';
 import { execType } from './types';
+import RedisSentinelModule from './module'
 
 // to transpile typescript to js - npm run build -- ./packages/client
 // js files will be in the 'dist' folder
@@ -156,7 +157,7 @@ export class RedisSentinelClient<
   async _execute<T>(
     execType: execType | undefined,
     isReadonly: boolean | undefined,
-    fn: (client: RedisClient<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
+    fn: (client: RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>
   ): Promise<T> {
     if (this.self.#clientInfo === undefined) {
       throw new Error("Attempted execution on released RedisSentinelClient lease");
@@ -179,7 +180,7 @@ export class RedisSentinelClient<
   }
 
   executeScript(
-    script: RedisScript,
+    script: RedisScript,  
     isReadonly: boolean | undefined,
     args: Array<RedisArgument>,
     options?: CommandOptions
@@ -370,7 +371,7 @@ export default class RedisSentinel<
   async _execute<T>(
     execType: execType | undefined,
     isReadonly: boolean | undefined,
-    fn: (client: RedisClient<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
+    fn: (client: RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>
   ): Promise<T> {
     let clientInfo: clientInfo | undefined;
     if (!isReadonly || !this.self.#options.useReplicas) {
@@ -554,7 +555,7 @@ class RedisSentinelInternal<
 
   readonly #name: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-  readonly #sentinelClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING>;
   readonly #useReplicas: boolean;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
@@ -564,13 +565,13 @@ class RedisSentinelInternal<
   #configEpoch: number = 0;
 
   #sentinelRootNodes: Array<RedisNode>;
-  #sentinelClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+  #sentinelClient?: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
-  #masterClients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
+  #masterClients: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
   #masterClientQueue: WaitQueue<number>;
   readonly #masterPoolSize: number;
 
-  #replicaClients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
+  #replicaClients: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
   #replicaClientsIdx: number = 0;
   readonly #replicaPoolSize: number;
 
@@ -602,7 +603,9 @@ class RedisSentinelInternal<
       throw new Error("invalid nodeClientOptions for Sentinel");
     }
 
-    this.#sentinelClientOptions = options.sentinelClientOptions ? Object.assign({} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, options.sentinelClientOptions) : {};
+    this.#sentinelClientOptions = options.sentinelClientOptions ? Object.assign({} as RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING>, options.sentinelClientOptions) : {};
+    this.#sentinelClientOptions.modules = RedisSentinelModule;
+
     if (this.#sentinelClientOptions.url !== undefined) {
       throw new Error("invalid sentinelClientOptions for Sentinel");
     }
@@ -618,8 +621,8 @@ class RedisSentinelInternal<
       .on('client-error', event => this.emit('client-error', event));
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, reconnectStrategy?: undefined | false): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
-    const options = { ...clientOptions } as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: undefined | false) {
+    const options = { ...clientOptions } as RedisClientOptions;
 
     if (clientOptions.socket) {
       options.socket = { ...clientOptions.socket };
@@ -700,7 +703,7 @@ class RedisSentinelInternal<
   }
 
   async execute<T>(
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>,
+    fn: (client: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>,
     clientInfo?: clientInfo,
     execType?: execType,
   ): Promise<T> {
@@ -774,7 +777,7 @@ class RedisSentinelInternal<
     }
   }
 
-  async #createPubSub(client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) {
+  async #createPubSub(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) {
     /* Whenever sentinels or slaves get added, or when slave configuration changes, reconfigure */
     client.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown', '+slave-reconf-done'], (message, channel) => {
       this.#handlePubSubControlChannel(channel, message);
@@ -789,7 +792,7 @@ class RedisSentinelInternal<
   }
 
   // if clientInfo is defined, it corresponds to a master client in the #masterClients array, otherwise loop around replicaClients
-  #getClient(clientInfo?: clientInfo): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
+  #getClient(clientInfo?: clientInfo): RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> {
     if (clientInfo !== undefined) {
       return this.#masterClients[clientInfo.id];
     }
@@ -953,7 +956,7 @@ class RedisSentinelInternal<
   // observe/analyze/transform remediation functions
   async observe() {
     for (const node of this.#sentinelRootNodes) {
-      let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
+      let client: RedisClientType<RedisModules, {}, {}, RespVersions, {}> | undefined;
       try {
         this.#trace(`observe: trying to connect to sentinel: ${node.host}:${node.port}`)
         client = this.#createClient(node, this.#sentinelClientOptions, false)
@@ -962,9 +965,9 @@ class RedisSentinelInternal<
         this.#trace(`observe: connected to sentinel`)
 
         const promises = [];
-        promises.push(client.sentinelSentinels(this.#name));
-        promises.push(client.sentinelMaster(this.#name));
-        promises.push(client.sentinelReplicas(this.#name));
+        promises.push(client.sentinel.sentinelSentinels(this.#name));
+        promises.push(client.sentinel.sentinelMaster(this.#name));
+        promises.push(client.sentinel.sentinelReplicas(this.#name));
 
         const [sd, md, rd] = await Promise.all(promises);
 
@@ -1172,7 +1175,7 @@ class RedisSentinelInternal<
       replicaCloseSet.add(str);
     }
 
-    const newClientList: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const newClientList: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
     const removedSet = new Set<string>();
 
     for (const replica of this.#replicaClients) {
@@ -1339,6 +1342,7 @@ export class RedisSentinelFactory extends EventEmitter {
       options.socket.host = node.host;
       options.socket.port = node.port;
       options.socket.reconnectStrategy = false;
+      options.modules = RedisSentinelModule;
 
       const client = RedisClient.create(options).on('error', (err) => this.emit(`updateSentinelRootNodes: ${err}`));
       try {
@@ -1351,7 +1355,7 @@ export class RedisSentinelFactory extends EventEmitter {
       }
 
       try {
-        const sentinelData = await client.sentinelSentinels(this.options.name) as Array<any>;
+        const sentinelData = await client.sentinel.sentinelSentinels(this.options.name) as Array<any>;
         this.#sentinelRootNodes = [node].concat(createNodeList(sentinelData));
         return;
       } finally {
@@ -1388,7 +1392,7 @@ export class RedisSentinelFactory extends EventEmitter {
       connected = true;
 
       try {
-        const masterData = await client.sentinelMaster(this.options.name) as any;
+        const masterData = await client.sentinel.sentinelMaster(this.options.name) as any;
 
         let master = parseNode(masterData);
         if (master === undefined) {
@@ -1446,7 +1450,7 @@ export class RedisSentinelFactory extends EventEmitter {
       connected = true;
 
       try {
-        const replicaData = await client.sentinelReplicas(this.options.name) as Array<any>;
+        const replicaData = await client.sentinel.sentinelReplicas(this.options.name) as Array<any>;
 
         const replicas = createNodeList(replicaData);
         if (replicas.length == 0) {

@@ -8,6 +8,7 @@ import RedisClient from '../client';
 import RedisSentinel from '.';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 const execAsync = promisify(exec);
+import RedisSentinelModule from './module'
 
 interface ErrorWithCode extends Error {
   code: string;
@@ -311,6 +312,7 @@ export class SentinelFramework extends DockerBase {
     
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
     const client = await RedisClient.create({
+      modules: RedisSentinelModule,
       password: this.config.password,
       socket: {
         port: docker.port
@@ -332,14 +334,14 @@ export class SentinelFramework extends DockerBase {
     for (let i = 0; i < (this.config.numberOfSentinels ?? 3); i++) {
       promises.push(
         this.spawnRedisSentinelSentinelDocker().then(async sentinel => {
-          await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
+          await sentinel.client.sentinel.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
           const options: Array<{option: RedisArgument, value: RedisArgument}> = [];
           options.push({ option: "down-after-milliseconds", value: "100" });
           options.push({ option: "failover-timeout", value: "5000" });
           if (this.config.password !== undefined) {
             options.push({ option: "auth-pass", value: this.config.password });
           }
-          await sentinel.client.sentinelSet(this.config.sentinelName, options)
+          await sentinel.client.sentinel.sentinelSet(this.config.sentinelName, options)
           return sentinel;
         })
       );
@@ -355,14 +357,14 @@ export class SentinelFramework extends DockerBase {
     const node = this.#nodeList[0];
     const sentinel = await this.spawnRedisSentinelSentinelDocker();
 
-    await sentinel.client.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
+    await sentinel.client.sentinel.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
     const options: Array<{option: RedisArgument, value: RedisArgument}> = [];
     options.push({ option: "down-after-milliseconds", value: "100" });
     options.push({ option: "failover-timeout", value: "5000" });
     if (this.config.password !== undefined) {
       options.push({ option: "auth-pass", value: this.config.password });
     }
-    await sentinel.client.sentinelSet(this.config.sentinelName, options);
+    await sentinel.client.sentinel.sentinelSet(this.config.sentinelName, options);
 
     this.#sentinelList.push(sentinel);
     this.#sentinelMap.set(sentinel.docker.port.toString(), sentinel);
@@ -390,7 +392,7 @@ export class SentinelFramework extends DockerBase {
           continue;
         }
 
-        info = await sentinel.client.sentinelMaster(this.config.sentinelName) as any;
+        info = await sentinel.client.sentinel.sentinelMaster(this.config.sentinelName) as any;
         if (tracer) {
           tracer.push('getMaster: master data returned from sentinel');
           tracer.push(JSON.stringify(info, undefined, '\t'))
@@ -492,6 +494,7 @@ export class SentinelFramework extends DockerBase {
     await this.dockerStart(sentinel.docker.dockerId);
     if (!sentinel.client.isOpen) {
       sentinel.client = await RedisClient.create({
+        modules: RedisSentinelModule,
         password: this.config.password,
         socket: {
           port: sentinel.docker.port
@@ -552,7 +555,7 @@ export class SentinelFramework extends DockerBase {
   sentinelSentinels() {
     for (const sentinel of this.#sentinelList) {
       if (sentinel.client.isReady) {
-        return sentinel.client.sentinelSentinels(this.config.sentinelName);
+        return sentinel.client.sentinel.sentinelSentinels(this.config.sentinelName);
       }
     }
   }
@@ -560,7 +563,7 @@ export class SentinelFramework extends DockerBase {
   sentinelMaster() {
     for (const sentinel of this.#sentinelList) {
       if (sentinel.client.isReady) {
-        return sentinel.client.sentinelMaster(this.config.sentinelName);
+        return sentinel.client.sentinel.sentinelMaster(this.config.sentinelName);
       }
     }
   }
@@ -568,7 +571,7 @@ export class SentinelFramework extends DockerBase {
   sentinelReplicas() {
     for (const sentinel of this.#sentinelList) {
       if (sentinel.client.isReady) {
-        return sentinel.client.sentinelReplicas(this.config.sentinelName);
+        return sentinel.client.sentinel.sentinelReplicas(this.config.sentinelName);
       }
     }
   }
