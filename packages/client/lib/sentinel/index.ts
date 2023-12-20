@@ -1377,6 +1377,7 @@ export class RedisSentinelFactory extends EventEmitter {
       options.socket.host = node.host;
       options.socket.port = node.port;
       options.socket.reconnectStrategy = false;
+      options.modules = RedisSentinelModule;
 
       const client = RedisClient.create(options).on('error', err => this.emit(`getMasterNode: ${err}`));
 
@@ -1435,7 +1436,8 @@ export class RedisSentinelFactory extends EventEmitter {
       options.socket.host = node.host;
       options.socket.port = node.port;
       options.socket.reconnectStrategy = false;
-
+      options.modules = RedisSentinelModule;
+      
       const client = RedisClient.create(options).on('error', err => this.emit(`getReplicaNodes: ${err}`));
 
       try {
