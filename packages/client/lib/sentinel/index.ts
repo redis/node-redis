@@ -1,17 +1,18 @@
 import { EventEmitter } from 'node:events';
-import { Command, CommandArguments, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
+import { attachConfig } from '../commander';
 import COMMANDS from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
-import { clientSocketToNode, createNodeList, parseNode } from './utils';
+import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
 import { PubSubListener } from '../client/pub-sub';
 import { PubSubProxy } from './pub-sub-proxy';
 import WaitQueue from 'wait-queue';
 import { setTimeout } from 'node:timers/promises';
+import { execType } from './types';
 
 // to transpile typescript to js - npm run build -- ./packages/client
 // js files will be in the 'dist' folder
@@ -22,8 +23,6 @@ import { setTimeout } from 'node:timers/promises';
    4) support command optionsu(type mapping, abort signals)
    5) `testWithSentinel`
 */
-
-type execType = "WATCH" | "UNWATCH" | "EXEC";
 
 type clientType = "MASTER" | "REPLICA";
 
@@ -44,20 +43,16 @@ export class RedisSentinelClient<
   #internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   readonly self: RedisSentinelClient<M, F, S, RESP, TYPE_MAPPING>;
 
-  static extractWatchUnwatch(redisArgs: Array<RedisArgument>): execType | undefined {
-    if (redisArgs[0] === "WATCH" || redisArgs[0] === "UNWATCH") {
-      return redisArgs[0];
-    } else {
-      return undefined
-    }
-  }
-
   get isOpen() {
     return this.self.#internal.isOpen;
   }
 
   get isReady() {
     return this.self.#internal.isReady;
+  }
+
+  get commandOptions() {
+    return this.self.#commandOptions;
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
@@ -76,79 +71,6 @@ export class RedisSentinelClient<
     this.#commandOptions = commandOptions;
   }
 
-  private static _createCommand(command: Command, resp: RespVersions) {
-    const transformReply = getTransformReply(command, resp);
-    return async function (this: ProxySentinelClient, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        execType = RedisSentinelClient.extractWatchUnwatch(redisArgs),
-        reply = await this.sendCommand(
-          execType,
-          command.IS_READ_ONLY,
-          redisArgs,
-          this.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
-    };
-  }
-
-  private static _createModuleCommand(command: Command, resp: RespVersions) {
-    const transformReply = getTransformReply(command, resp);
-    return async function (this: NamespaceProxySentinelClient, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.self.sendCommand(
-          undefined,
-          command.IS_READ_ONLY,
-          redisArgs,
-          this.self.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
-    };
-  }
-
-  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
-    return async function (this: NamespaceProxySentinelClient, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        redisArgs = prefix.concat(fnArgs),
-        reply = await this.self.sendCommand(
-          undefined,
-          fn.IS_READ_ONLY,
-          redisArgs,
-          this.self.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
-        reply;
-    };
-  }
-
-  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
-    return async function (this: ProxySentinelClient, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(
-          script,
-          script.IS_READ_ONLY,
-          redisArgs,
-          this.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
-        reply;
-    };
-  }
-
   static factory<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
@@ -159,10 +81,10 @@ export class RedisSentinelClient<
     const SentinelClient = attachConfig({
       BaseClass: RedisSentinelClient,
       commands: COMMANDS,
-      createCommand: RedisSentinelClient._createCommand,
-      createModuleCommand: RedisSentinelClient._createModuleCommand,
-      createFunctionCommand: RedisSentinelClient._createFunctionCommand,
-      createScriptCommand: RedisSentinelClient._createScriptCommand,
+      createCommand: createCommand<ProxySentinelClient>,
+      createModuleCommand: createModuleCommand<NamespaceProxySentinelClient>,
+      createFunctionCommand: createFunctionCommand<NamespaceProxySentinelClient>,
+      createScriptCommand: createScriptCommand<ProxySentinelClient>,
       config
     });
 
@@ -337,6 +259,10 @@ export default class RedisSentinel<
     return this.self.#internal.isReady;
   }
 
+  get commandOptions() {
+    return this.self.#commandOptions;
+  }
+
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   #trace: (msg: string) => unknown = () => { };
@@ -364,79 +290,6 @@ export default class RedisSentinel<
     });
   }
 
-  private static _createCommand(command: Command, resp: RespVersions) {
-    const transformReply = getTransformReply(command, resp);
-    return async function (this: ProxySentinel, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        execType = RedisSentinelClient.extractWatchUnwatch(redisArgs),
-        reply = await this.sendCommand(
-          execType,
-          command.IS_READ_ONLY,
-          redisArgs,
-          this.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
-    };
-  }
-
-  private static _createModuleCommand(command: Command, resp: RespVersions) {
-    const transformReply = getTransformReply(command, resp);
-    return async function (this: NamespaceProxySentinel, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.self.sendCommand(
-          undefined,
-          command.IS_READ_ONLY,
-          redisArgs,
-          this.self.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
-    };
-  }
-
-  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
-    return async function (this: NamespaceProxySentinel, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        redisArgs = prefix.concat(fnArgs),
-        reply = await this.self.sendCommand(
-          undefined,
-          fn.IS_READ_ONLY,
-          redisArgs,
-          this.self.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
-        reply;
-    };
-  }
-
-  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
-    return async function (this: ProxySentinel, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(
-          script,
-          script.IS_READ_ONLY,
-          redisArgs,
-          this.self.#commandOptions
-        );
-
-      return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
-        reply;
-    };
-  }
-
   static factory<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
@@ -447,10 +300,10 @@ export default class RedisSentinel<
     const Sentinel = attachConfig({
       BaseClass: RedisSentinel,
       commands: COMMANDS,
-      createCommand: RedisSentinel._createCommand,
-      createModuleCommand: RedisSentinel._createModuleCommand,
-      createFunctionCommand: RedisSentinel._createFunctionCommand,
-      createScriptCommand: RedisSentinel._createScriptCommand,
+      createCommand: createCommand<ProxySentinel>,
+      createModuleCommand: createModuleCommand<NamespaceProxySentinel>,
+      createFunctionCommand: createFunctionCommand<NamespaceProxySentinel>,
+      createScriptCommand: createScriptCommand<ProxySentinel>,
       config
     });
 

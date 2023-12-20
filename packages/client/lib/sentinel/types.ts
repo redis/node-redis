@@ -180,3 +180,5 @@ export type ClientErrorEvent = {
   node: RedisNode;
   error: Error;
 }
+
+export type execType = "WATCH" | "UNWATCH" | "EXEC";
