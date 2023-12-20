@@ -63,12 +63,7 @@ async function steadyState(frame: SentinelFramework) {
   const numberOfNodes = frame.getAllNodesPort.length;
 
   const seenNodes = new Set<number>();
-  let sentinel: RedisSentinelType<
-    RedisModules, 
-    RedisFunctions,
-    RedisScripts,
-    RespVersions, 
-    TypeMapping> | undefined;
+  let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   const tracer = [];
 
   try {
