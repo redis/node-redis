@@ -1061,15 +1061,20 @@ async function steadyState(frame: SentinelFramework) {
           sentinelRemoveResolve = res;
         })
   
+        const replicaPort = await frame.getRandonNonMasterNode();
+
         sentinel.on('topology-change', (event: RedisSentinelEvent) => {
           tracer.push(`got topology-change event: ${JSON.stringify(event)}`);
           if (event.type === "REPLICA_REMOVE") {
-            tracer.push("got replica removed event");
-            sentinelRemoveResolve(event.node);
+            if (event.node.port.toString() == replicaPort) {
+              tracer.push("got expected replica removed event");
+              sentinelRemoveResolve(event.node);
+            } else {
+              tracer.push(`got replica removed event for a different node ${event.node.port}`);
+            }
           }
         });
   
-        const replicaPort = await frame.getRandonNonMasterNode();
         tracer.push(`replicaPort = ${replicaPort} and stopping it`);
         await frame.stopNode(replicaPort);
         tracer.push("stopped replica and waiting on sentinel removed promise");

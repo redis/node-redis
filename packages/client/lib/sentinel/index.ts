@@ -674,8 +674,10 @@ class RedisSentinelInternal<
   }
 
   async #connect() {
+    let count = 0;
     while (true) {
       this.#trace("starting connect loop");
+
       if (this.#destroy) {
         this.#trace("in #connect and want to destroy")
         return;
@@ -692,6 +694,10 @@ class RedisSentinelInternal<
         return;
       } catch (e: any) {
         this.#trace(`#connect: exception ${e.message}`);
+        if (!this.#isReady && count > this.#maxCommandRediscovers) {
+          throw e;
+        }
+
         if (e.message !== 'no valid master node') {
           console.log(e);
         }
