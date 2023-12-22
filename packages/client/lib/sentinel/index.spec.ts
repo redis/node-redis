@@ -158,6 +158,8 @@ async function steadyState(frame: SentinelFramework) {
       })
   
       afterEach(async function () {
+        this.timeout(30000);
+
         // avoid errors in afterEach that end testing
         if (sentinel !== undefined) {
           sentinel.on('error', () => { });
@@ -189,7 +191,7 @@ async function steadyState(frame: SentinelFramework) {
 
           for (const [id, port] of ids) {
             console.log(`${id}/${port}\n`);
-            const { stdout, stderr } = await execAsync(`docker logs ${id}`);
+            const { stdout, stderr } = await execAsync(`docker logs ${id}`, {maxBuffer: 8192 * 8192 * 4});
             console.log(stdout);
           }
         }
@@ -1070,7 +1072,7 @@ async function steadyState(frame: SentinelFramework) {
               tracer.push("got expected replica removed event");
               sentinelRemoveResolve(event.node);
             } else {
-              tracer.push(`got replica removed event for a different node ${event.node.port}`);
+              tracer.push(`got replica removed event for a different node: ${event.node.port}`);
             }
           }
         });
