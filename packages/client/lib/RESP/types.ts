@@ -263,6 +263,11 @@ export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 //   response?: ResponsePolicies | null;
 // };
 
+export interface CacheInfo {
+  cacheKey: string;
+  redisKeys: Array<string>
+}
+
 export type Command = {
   FIRST_KEY_INDEX?: number | ((this: void, ...args: Array<any>) => RedisArgument | undefined);
   IS_READ_ONLY?: boolean;
@@ -275,6 +280,7 @@ export type Command = {
   transformArguments(this: void, ...args: Array<any>): CommandArguments;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
+  getCacheInfo?: (...args: Array<any>) => CacheInfo | undefined;
 };
 
 export type RedisCommands = Record<string, Command>;

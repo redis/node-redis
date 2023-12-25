@@ -6,5 +6,11 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['GET', key];
   },
+  getCacheInfo(key: RedisArgument) {
+    return {
+      cacheKey: `get_${key.toString()}`,
+      redisKeys: [key.toString()]
+    }
+  },
   transformReply: undefined as unknown as () => BlobStringReply | NullReply
 } as const satisfies Command;
