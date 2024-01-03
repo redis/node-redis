@@ -279,6 +279,9 @@ export default class RedisClient<
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
+  #dirtyWatch?: string
+  #epoch: number;
+  #watchEpoch?: number; 
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -294,6 +297,14 @@ export default class RedisClient<
 
   get isPubSubActive() {
     return this._self.#queue.isPubSubActive;
+  }
+
+  get isWatching() {
+    return this._self.#watchEpoch !== undefined;
+  }
+
+  setDirtyWatch(msg: string) {
+    this._self.#dirtyWatch = msg;
   }
 
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -432,6 +443,7 @@ export default class RedisClient<
       })
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
+        this.#epoch++;
         this.emit('ready');
         this.#setPingTimer();
         this.#maybeScheduleWrite();
@@ -697,6 +709,26 @@ export default class RedisClient<
 
   sUnsubscribe = this.SUNSUBSCRIBE;
 
+  async WATCH<T extends boolean = false>(key: string) {
+    const promise = this._self.sendCommand(["WATCH", key])
+    promise.then(() => {
+      if (!this._self.#watchEpoch) this._self.#watchEpoch = this._self.#epoch;
+    })
+
+    return promise;
+  }
+
+  watch = this.WATCH;
+
+  UNWATCH<T extends boolean = false>() {
+    const promise = this._self.sendCommand(["UNWATCH"])
+    promise.then(() => this._self.#watchEpoch = undefined);
+
+    return promise;
+  }
+
+  unwatch = this.UNWATCH;
+
   getPubSubListeners(type: PubSubType) {
     return this._self.#queue.getPubSubListeners(type);
   }
@@ -771,8 +803,21 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    const dirtyWatch = this._self.#dirtyWatch;
+    this._self.#dirtyWatch = undefined;
+    const watchEpoch = this._self.#watchEpoch;
+    this._self.#watchEpoch = undefined;
+
     if (!this._self.#socket.isOpen) {
       throw new ClientClosedError();
+    }
+
+    if (dirtyWatch) {
+      throw new Error(dirtyWatch);
+    }
+
+    if (watchEpoch && watchEpoch !== this._self.#epoch) {
+      throw new Error('client reconnected after watch')
     }
 
     const typeMapping = this._commandOptions?.typeMapping,
