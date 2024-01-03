@@ -24,6 +24,6 @@ await multi.execTyped(); // [string]
 
 ## [`WATCH`](https://redis.io/commands/watch/)
 
-You can also [watch](https://redis.io/docs/interact/transactions/#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change.
+You can also [watch](https://redis.io/docs/interact/transactions/#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change or if the client reconnected between the `watch` and `exec` calls.
 
 The `WATCH` state is stored on the connection (by the server). In case you need to run multiple `WATCH` & `MULTI` in parallel you'll need to use a [pool](./pool.md).
