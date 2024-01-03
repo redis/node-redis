@@ -279,7 +279,7 @@ export default class RedisClient<
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
-  #dirtyWatch?: string
+  #dirtyWatch?: string;
   #epoch: number;
   #watchEpoch?: number; 
 
@@ -709,22 +709,20 @@ export default class RedisClient<
 
   sUnsubscribe = this.SUNSUBSCRIBE;
 
-  async WATCH<T extends boolean = false>(key: string) {
-    const promise = this._self.sendCommand(["WATCH", key])
-    promise.then(() => {
-      if (!this._self.#watchEpoch) this._self.#watchEpoch = this._self.#epoch;
-    })
-
-    return promise;
+  async WATCH(key: RedisVariadicArgument) {
+    const reply = await this._self.sendCommand(
+      pushVariadicArguments(['WATCH'], key)
+    );
+    this._self.#watchEpoch ??= this._self.#epoch;
+    return reply as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
   }
 
   watch = this.WATCH;
 
-  UNWATCH<T extends boolean = false>() {
-    const promise = this._self.sendCommand(["UNWATCH"])
-    promise.then(() => this._self.#watchEpoch = undefined);
-
-    return promise;
+  async UNWATCH() {
+    const reply = await this._self.sendCommand(['UNWATCH']);
+    this._self.#watchEpoch = undefined;
+    return reply as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
   }
 
   unwatch = this.UNWATCH;
@@ -813,11 +811,11 @@ export default class RedisClient<
     }
 
     if (dirtyWatch) {
-      throw new Error(dirtyWatch);
+      throw new WatchError(dirtyWatch);
     }
 
     if (watchEpoch && watchEpoch !== this._self.#epoch) {
-      throw new Error('client reconnected after watch')
+      throw new WatchError('Client reconnected after WATCH');
     }
 
     const typeMapping = this._commandOptions?.typeMapping,
