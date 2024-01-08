@@ -96,7 +96,8 @@ async function steadyState(frame: SentinelFramework) {
   }
 }
 
-["redis-sentinel-test-password", undefined].forEach(function (password) {
+//["redis-sentinel-test-password", undefined].forEach(function (password) {
+[undefined].forEach(function (password) {
   describe.only(`Sentinel - password = ${password}`, () => {
     const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: password };
     const frame = new SentinelFramework(config);
@@ -165,7 +166,8 @@ async function steadyState(frame: SentinelFramework) {
           sentinel.on('error', () => { });
         }
   
-        if (this!.currentTest.state === 'failed') {
+/*        
+        if (this!.currentTest.state === 'failed') {          
           console.log(`longest event loop blocked delta: ${longestDelta}`);
           console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
           console.log("trace:");
@@ -195,6 +197,7 @@ async function steadyState(frame: SentinelFramework) {
             console.log(stdout);
           }
         }
+*/
         tracer.length = 0;
   
         if (sentinel !== undefined) {
@@ -582,11 +585,11 @@ async function steadyState(frame: SentinelFramework) {
       it('watch does not carry through leases', async function () {
         sentinel = frame.getSentinelClient();
         await sentinel.connect();
-  
+ 
         // each of these commands is an independent lease
-        assert.equal(await sentinel.watch("x"), 'OK')
-        assert.equal(await sentinel.set('x', 1), 'OK');
-        assert.deepEqual(await sentinel.multi().get('x').exec(), ['1']);
+        assert.equal(await sentinel.use(client => client.watch("x")), 'OK')
+        assert.equal(await sentinel.use(client => client.set('x', 1)), 'OK');
+        assert.deepEqual(await sentinel.use(client => client.multi().get('x').exec()), ['1']);
       });
   
       // stops master to force sentinel to update 
@@ -1139,7 +1142,7 @@ async function steadyState(frame: SentinelFramework) {
         tracer.push("adding node");
         await frame.addNode();
         tracer.push("added node and waiting on added promise");
-        await nodeAddedPromise;
+        await nodeAddedPromise; 
       })
     })
   

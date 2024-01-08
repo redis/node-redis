@@ -12,8 +12,8 @@ import { PubSubListener } from '../client/pub-sub';
 import { PubSubProxy } from './pub-sub-proxy';
 import WaitQueue from 'wait-queue';
 import { setTimeout } from 'node:timers/promises';
-import { execType } from './types';
 import RedisSentinelModule from './module'
+import { RedisVariadicArgument } from '../commands/generic-transformers';
 
 // to transpile typescript to js - npm run build -- ./packages/client
 // js files will be in the 'dist' folder
@@ -27,7 +27,6 @@ import RedisSentinelModule from './module'
 
 interface clientInfo {
   id: number;
-  watchEpoch?: number;
 }
 
 export class RedisSentinelClient<
@@ -155,7 +154,6 @@ export class RedisSentinelClient<
   }
 
   async _execute<T>(
-    execType: execType | undefined,
     isReadonly: boolean | undefined,
     fn: (client: RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>
   ): Promise<T> {
@@ -163,17 +161,15 @@ export class RedisSentinelClient<
       throw new Error("Attempted execution on released RedisSentinelClient lease");
     }
 
-    return await this.self.#internal.execute(fn, this.self.#clientInfo, execType);
+    return await this.self.#internal.execute(fn, this.self.#clientInfo);
   }
 
   async sendCommand<T = ReplyUnion>(
-    execType: execType | undefined,
     isReadonly: boolean | undefined,
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
     return this._execute(
-      execType,
       isReadonly,
       client => client.sendCommand(args, options)
     );
@@ -186,7 +182,6 @@ export class RedisSentinelClient<
     options?: CommandOptions
   ) {
     return this._execute(
-      undefined,
       isReadonly,
       client => client.executeScript(script, args, options)
     );
@@ -200,7 +195,6 @@ export class RedisSentinelClient<
     commands: Array<RedisMultiQueuedCommand>
   ) {
     return this._execute(
-      undefined,
       isReadonly,
       client => client._executePipeline(commands)
     );
@@ -214,7 +208,6 @@ export class RedisSentinelClient<
     commands: Array<RedisMultiQueuedCommand>
   ) {
     return this._execute(
-      "EXEC",
       isReadonly,
       client => client._executeMulti(commands)
     );
@@ -226,6 +219,31 @@ export class RedisSentinelClient<
 
   multi = this.MULTI;
 
+  WATCH(key: RedisVariadicArgument) {
+    if (this.self.#clientInfo === undefined) {
+      throw new Error("Attempted execution on released RedisSentinelClient lease");
+    }
+
+    return this._execute(
+      false,
+      client => client.watch(key)
+    )
+  }
+
+  watch = this.WATCH;
+
+  UNWATCH() {
+    if (this.self.#clientInfo === undefined) {
+      throw new Error("Attempted execution on released RedisSentinelClient lease");
+    }
+
+    return this._execute(
+      false,
+      client => client.unwatch()
+    )
+  }
+
+  unwatch = this.UNWATCH;
 
   release() {
     if (this.self.#clientInfo === undefined) {
@@ -369,7 +387,6 @@ export default class RedisSentinel<
   }
 
   async _execute<T>(
-    execType: execType | undefined,
     isReadonly: boolean | undefined,
     fn: (client: RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>
   ): Promise<T> {
@@ -379,7 +396,7 @@ export default class RedisSentinel<
     }
 
     try {
-      return await this.self.#internal.execute(fn, clientInfo, execType);
+      return await this.self.#internal.execute(fn, clientInfo);
     } finally {
       if (clientInfo !== undefined) {
         this.self.#internal.releaseClientLease(clientInfo);
@@ -399,13 +416,11 @@ export default class RedisSentinel<
   }
 
   async sendCommand<T = ReplyUnion>(
-    execType: execType | undefined,
     isReadonly: boolean | undefined,
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
     return this._execute(
-      execType,
       isReadonly,
       client => client.sendCommand(args, options)
     );
@@ -418,7 +433,6 @@ export default class RedisSentinel<
     options?: CommandOptions
   ) {
     return this._execute(
-      undefined,
       isReadonly,
       client => client.executeScript(script, args, options)
     );
@@ -432,7 +446,6 @@ export default class RedisSentinel<
     commands: Array<RedisMultiQueuedCommand>
   ) {
     return this._execute(
-      undefined,
       isReadonly,
       client => client._executePipeline(commands)
     );
@@ -446,7 +459,6 @@ export default class RedisSentinel<
     commands: Array<RedisMultiQueuedCommand>
   ) {
     return this._execute(
-      "EXEC",
       isReadonly,
       client => client._executeMulti(commands)
     );
@@ -648,7 +660,7 @@ class RedisSentinelInternal<
   releaseClientLease(clientInfo: clientInfo) {
     const client = this.#masterClients[clientInfo.id];
     // client can be undefined if releasing in middle of a reconfigure
-    if (client !== undefined && client.isReady && clientInfo.watchEpoch !== undefined) {
+    if (client !== undefined && client.isWatching) {
       client.unwatch();
     }
     this.#masterClientQueue.push(clientInfo.id);
@@ -711,37 +723,12 @@ class RedisSentinelInternal<
   async execute<T>(
     fn: (client: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>,
     clientInfo?: clientInfo,
-    execType?: execType,
   ): Promise<T> {
     let iter = 0;
-
-    const watchEpoch = clientInfo?.watchEpoch;
 
     while (true) {
       if (this.#connectPromise !== undefined) {
         await this.#connectPromise;
-      }
-
-      if (execType === "WATCH") {
-        if (clientInfo === undefined) {
-          throw new Error("WATCH only works on a client with a lease");
-        } else if (clientInfo.watchEpoch === undefined) {
-          clientInfo.watchEpoch = this.#configEpoch;
-        }
-      } else if (execType === "UNWATCH") {
-        if (clientInfo === undefined) {
-          throw new Error("UNWATCH only works on a client with a lease");
-        } else {
-          clientInfo.watchEpoch = undefined;
-        }
-      } if (execType === "EXEC") {
-        /* need to unset on exec, if success or not */
-        if (clientInfo !== undefined) {
-          clientInfo.watchEpoch = undefined;
-        }
-        if (watchEpoch !== undefined && watchEpoch !== this.#configEpoch) {
-          throw new Error("sentinel config changed in middle of a WATCH Transaction");
-        }
       }
 
       const client = this.#getClient(clientInfo);
@@ -1129,14 +1116,18 @@ class RedisSentinelInternal<
 
     if (analyzed.masterToOpen) {
       this.#trace(`transform: opening a new master`);
-      const masterPromises = []
+      const masterPromises = [];
+      const masterWatches: Array<boolean> = [];
 
       this.#trace(`transform: destroying old masters if open`);
       for (const client of this.#masterClients) {
+        masterWatches.push(client.isWatching);
+
         if (client.isOpen) {
           client.destroy()
         }
       }
+      
       this.#masterClients = [];
 
       this.#trace(`transform: creating all master clients and adding connect promises`);
@@ -1155,6 +1146,9 @@ class RedisSentinelInternal<
           this.emit('client-error', event);
         });
 
+        if (masterWatches[i]) {
+          client.setDirtyWatch("sentinel config changed in middle of a WATCH Transaction");
+        }
         this.#masterClients.push(client);
         masterPromises.push(client.connect());
 

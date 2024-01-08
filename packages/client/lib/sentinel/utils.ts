@@ -1,7 +1,7 @@
-import { Command, RedisArgument, RedisFunction, RedisScript, RespVersions } from '../RESP/types';
+import { Command, RedisFunction, RedisScript, RespVersions } from '../RESP/types';
 import { RedisSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeInfo, ProxySentinel, ProxySentinelClient, RedisNode, execType } from './types';
+import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeInfo, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
 
 /* TODO: should use map interface, would need a transform reply probably? as resp2 is list form, which this depends on */
 export function parseNode(node: NodeInfo): RedisNode | undefined{
@@ -33,21 +33,11 @@ export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
   }
 }
 
-function extractWatchUnwatch(redisArgs: Array<RedisArgument>): execType | undefined {
-  if (redisArgs[0] === "WATCH" || redisArgs[0] === "UNWATCH") {
-    return redisArgs[0];
-  } else {
-    return undefined
-  }
-} 
-
 export function createCommand<T extends ProxySentinel | ProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args),
-      execType = extractWatchUnwatch(redisArgs),
       reply = await this.sendCommand(
-        execType,
         command.IS_READ_ONLY,
         redisArgs,
         this.self.commandOptions
@@ -66,7 +56,6 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
     const fnArgs = fn.transformArguments(...args),
       redisArgs = prefix.concat(fnArgs),
       reply = await this.self.sendCommand(
-        undefined,
         fn.IS_READ_ONLY,
         redisArgs,
         this.self.self.commandOptions
@@ -83,7 +72,6 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args),
       reply = await this.self.sendCommand(
-        undefined,
         command.IS_READ_ONLY,
         redisArgs,
         this.self.self.commandOptions
