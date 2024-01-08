@@ -99,9 +99,9 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
 
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    return function (this: { self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
+    return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
-      return this.self.addCommand(
+      return this._self.addCommand(
         command.IS_READ_ONLY,
         redisArgs,
         transformReply
@@ -112,11 +112,11 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
-    return function (this: { self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
+    return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args);
       const redisArgs: CommandArguments = prefix.concat(fnArgs);
       redisArgs.preserve = fnArgs.preserve;
-      return this.self.addCommand(
+      return this._self.addCommand(
         fn.IS_READ_ONLY,
         redisArgs,
         transformReply

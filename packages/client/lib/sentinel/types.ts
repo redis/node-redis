@@ -154,8 +154,8 @@ export interface SentinelCommandOptions<
 
 export type ProxySentinel = RedisSentinel<any, any, any, any, any>;
 export type ProxySentinelClient = RedisSentinelClient<any, any, any, any, any>;
-export type NamespaceProxySentinel = { self: ProxySentinel };
-export type NamespaceProxySentinelClient = { self: ProxySentinelClient };
+export type NamespaceProxySentinel = { _self: ProxySentinel };
+export type NamespaceProxySentinelClient = { _self: ProxySentinelClient };
 
 export type NodeInfo = {
   ip: any,

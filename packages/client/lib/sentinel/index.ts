@@ -1127,7 +1127,7 @@ class RedisSentinelInternal<
           client.destroy()
         }
       }
-      
+
       this.#masterClients = [];
 
       this.#trace(`transform: creating all master clients and adding connect promises`);

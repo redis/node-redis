@@ -37,7 +37,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args),
-      reply = await this.sendCommand(
+      reply = await this.self.sendCommand(
         command.IS_READ_ONLY,
         redisArgs,
         this.self.commandOptions
@@ -55,10 +55,10 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   return async function (this: T, ...args: Array<unknown>) {
     const fnArgs = fn.transformArguments(...args),
       redisArgs = prefix.concat(fnArgs),
-      reply = await this.self.sendCommand(
+      reply = await this._self.self.sendCommand(
         fn.IS_READ_ONLY,
         redisArgs,
-        this.self.self.commandOptions
+        this._self.self.commandOptions
       );
 
     return transformReply ?
@@ -71,10 +71,10 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args),
-      reply = await this.self.sendCommand(
+      reply = await this._self.self.sendCommand(
         command.IS_READ_ONLY,
         redisArgs,
-        this.self.self.commandOptions
+        this._self.self.commandOptions
       );
 
     return transformReply ?
@@ -89,7 +89,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   return async function (this: T, ...args: Array<unknown>) {
     const scriptArgs = script.transformArguments(...args),
       redisArgs = prefix.concat(scriptArgs),
-      reply = await this.executeScript(
+      reply = await this.self.executeScript(
         script,
         script.IS_READ_ONLY,
         redisArgs,

@@ -96,8 +96,7 @@ async function steadyState(frame: SentinelFramework) {
   }
 }
 
-//["redis-sentinel-test-password", undefined].forEach(function (password) {
-[undefined].forEach(function (password) {
+["redis-sentinel-test-password", undefined].forEach(function (password) {
   describe.only(`Sentinel - password = ${password}`, () => {
     const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: password };
     const frame = new SentinelFramework(config);
@@ -166,7 +165,6 @@ async function steadyState(frame: SentinelFramework) {
           sentinel.on('error', () => { });
         }
   
-/*        
         if (this!.currentTest.state === 'failed') {          
           console.log(`longest event loop blocked delta: ${longestDelta}`);
           console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
@@ -197,7 +195,6 @@ async function steadyState(frame: SentinelFramework) {
             console.log(stdout);
           }
         }
-*/
         tracer.length = 0;
   
         if (sentinel !== undefined) {
