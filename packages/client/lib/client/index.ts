@@ -14,6 +14,7 @@ import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
+import { RedisVariadicArgument, pushVariadicArguments } from '../commands/generic-transformers';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -312,6 +313,7 @@ export default class RedisClient<
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket();
+    this.#epoch = 0;
   }
 
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
@@ -714,7 +716,7 @@ export default class RedisClient<
       pushVariadicArguments(['WATCH'], key)
     );
     this._self.#watchEpoch ??= this._self.#epoch;
-    return reply as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
+    return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
   }
 
   watch = this.WATCH;
@@ -722,7 +724,7 @@ export default class RedisClient<
   async UNWATCH() {
     const reply = await this._self.sendCommand(['UNWATCH']);
     this._self.#watchEpoch = undefined;
-    return reply as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
+    return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
   }
 
   unwatch = this.UNWATCH;
