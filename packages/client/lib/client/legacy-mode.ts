@@ -23,7 +23,7 @@ type WithCommands = {
 export type RedisLegacyClientType = RedisLegacyClient & WithCommands;
 
 export class RedisLegacyClient {
-  private static _transformArguments(redisArgs: CommandArguments, args: LegacyCommandArguments) {
+  static #transformArguments(redisArgs: CommandArguments, args: LegacyCommandArguments) {
     let callback: LegacyCallback | undefined;
     if (typeof args[args.length - 1] === 'function') {
       callback = args.pop() as LegacyCallback;
@@ -55,15 +55,15 @@ export class RedisLegacyClient {
       undefined;
   }
 
-  private static _createCommand(name: string, command: Command, resp: RespVersions) {
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = RedisLegacyClient.getTransformReply(command, resp);
     return async function (this: RedisLegacyClient, ...args: LegacyCommandArguments) {
       const redisArgs = [name],
-        callback = RedisLegacyClient._transformArguments(redisArgs, args),
-        promise = this._client.sendCommand(redisArgs);
+        callback = RedisLegacyClient.#transformArguments(redisArgs, args),
+        promise = this.#client.sendCommand(redisArgs);
 
       if (!callback) {
-        promise.catch(err => this._client.emit('error', err));
+        promise.catch(err => this.#client.emit('error', err));
         return;
       }
 
@@ -73,31 +73,34 @@ export class RedisLegacyClient {
     };
   }
 
-  private _Multi: ReturnType<typeof LegacyMultiCommand['factory']>;
+  #client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
+  #Multi: ReturnType<typeof LegacyMultiCommand['factory']>;
 
   constructor(
-    private _client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>
+    client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>
   ) {
-    const RESP = _client.options?.RESP ?? 2;
+    this.#client = client;
+
+    const RESP = client.options?.RESP ?? 2;
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
-      (this as any)[name] = RedisLegacyClient._createCommand(
+      (this as any)[name] = RedisLegacyClient.#createCommand(
         name,
         command,
         RESP
       );
     }
 
-    this._Multi = LegacyMultiCommand.factory(RESP);
+    this.#Multi = LegacyMultiCommand.factory(RESP);
   }
 
   sendCommand(...args: LegacyCommandArguments) {
     const redisArgs: CommandArguments = [],
-      callback = RedisLegacyClient._transformArguments(redisArgs, args),
-      promise = this._client.sendCommand(redisArgs);
+      callback = RedisLegacyClient.#transformArguments(redisArgs, args),
+      promise = this.#client.sendCommand(redisArgs);
 
     if (!callback) {
-      promise.catch(err => this._client.emit('error', err));
+      promise.catch(err => this.#client.emit('error', err));
       return;
     }
   
@@ -107,7 +110,7 @@ export class RedisLegacyClient {
   }
 
   multi() {
-    return this._Multi(this._client);
+    return this.#Multi(this.#client);
   }
 }
 
@@ -118,12 +121,12 @@ type MultiWithCommands = {
 export type RedisLegacyMultiType = LegacyMultiCommand & MultiWithCommands;
 
 class LegacyMultiCommand {
-  private static _createCommand(name: string, command: Command, resp: RespVersions) {
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = RedisLegacyClient.getTransformReply(command, resp);
     return function (this: LegacyMultiCommand, ...args: LegacyArguments) {
       const redisArgs = [name];
       RedisLegacyClient.pushArguments(redisArgs, args);
-      this._multi.addCommand(redisArgs, transformReply);
+      this.#multi.addCommand(redisArgs, transformReply);
       return this;
     };
   }
@@ -133,7 +136,7 @@ class LegacyMultiCommand {
 
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
-      (Multi as any).prototype[name] = LegacyMultiCommand._createCommand(
+      (Multi as any).prototype[name] = LegacyMultiCommand.#createCommand(
         name,
         command,
         resp
@@ -145,30 +148,30 @@ class LegacyMultiCommand {
     };
   }
 
-  private readonly _multi = new RedisMultiCommand();
-  private readonly _client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
+  readonly #multi = new RedisMultiCommand();
+  readonly #client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
   constructor(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>) {
-    this._client = client;
+    this.#client = client;
   }
 
   sendCommand(...args: LegacyArguments) {
     const redisArgs: CommandArguments = [];
     RedisLegacyClient.pushArguments(redisArgs, args);
-    this._multi.addCommand(redisArgs);
+    this.#multi.addCommand(redisArgs);
     return this;
   }
 
   exec(cb?: (err: ErrorReply | null, replies?: Array<unknown>) => unknown) {
-    const promise = this._client._executeMulti(this._multi.queue);
+    const promise = this.#client._executeMulti(this.#multi.queue);
 
     if (!cb) {
-      promise.catch(err => this._client.emit('error', err));
+      promise.catch(err => this.#client.emit('error', err));
       return;
     }
 
     promise
-      .then(results => cb(null, this._multi.transformReplies(results)))
+      .then(results => cb(null, this.#multi.transformReplies(results)))
       .catch(err => cb?.(err));
   }
 }

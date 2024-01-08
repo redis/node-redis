@@ -39,7 +39,6 @@ export const PUSH_TYPE_MAPPING = {
 };
 
 // this was written with performance in mind, so it's not very readable... sorry :(
-// using `private _` instead of `#` to boost performance
 
 interface DecoderOptions {
   onReply(reply: any): unknown;
@@ -53,8 +52,8 @@ export class Decoder {
   onErrorReply;
   onPush;
   getTypeMapping;
-  private _cursor = 0;
-  private _next;
+  #cursor = 0;
+  #next;
 
   constructor(config: DecoderOptions) {
     this.onReply = config.onReply;
@@ -64,142 +63,142 @@ export class Decoder {
   }
 
   reset() {
-    this._cursor = 0;
-    this._next = undefined;
+    this.#cursor = 0;
+    this.#next = undefined;
   }
 
   write(chunk) {
-    if (this._cursor >= chunk.length) {
-      this._cursor -= chunk.length;
+    if (this.#cursor >= chunk.length) {
+      this.#cursor -= chunk.length;
       return;
     }
 
-    if (this._next) {
-      if (this._next(chunk) || this._cursor >= chunk.length) {
-        this._cursor -= chunk.length;
+    if (this.#next) {
+      if (this.#next(chunk) || this.#cursor >= chunk.length) {
+        this.#cursor -= chunk.length;
         return;
       }
     }
 
     do {
-      const type = chunk[this._cursor];
-      if (++this._cursor === chunk.length) {
-        this._next = this._continueDecodeTypeValue.bind(this, type);
+      const type = chunk[this.#cursor];
+      if (++this.#cursor === chunk.length) {
+        this.#next = this.#continueDecodeTypeValue.bind(this, type);
         break;
       }
 
-      if (this._decodeTypeValue(type, chunk)) {
+      if (this.#decodeTypeValue(type, chunk)) {
         break;
       }
-    } while (this._cursor < chunk.length);
-    this._cursor -= chunk.length;
+    } while (this.#cursor < chunk.length);
+    this.#cursor -= chunk.length;
   }
 
-  private _continueDecodeTypeValue(type, chunk) {
-    this._next = undefined;
-    return this._decodeTypeValue(type, chunk);
+  #continueDecodeTypeValue(type, chunk) {
+    this.#next = undefined;
+    return this.#decodeTypeValue(type, chunk);
   }
     
-  private _decodeTypeValue(type, chunk) {
+  #decodeTypeValue(type, chunk) {
     switch (type) {
       case RESP_TYPES.NULL:
-        this.onReply(this._decodeNull());
+        this.onReply(this.#decodeNull());
         return false;
 
       case RESP_TYPES.BOOLEAN:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeBoolean(chunk)
+          this.#decodeBoolean(chunk)
         );
 
       case RESP_TYPES.NUMBER:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeNumber(
+          this.#decodeNumber(
             this.getTypeMapping()[RESP_TYPES.NUMBER],
             chunk
           )
         );
 
       case RESP_TYPES.BIG_NUMBER:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeBigNumber(
+          this.#decodeBigNumber(
             this.getTypeMapping()[RESP_TYPES.BIG_NUMBER],
             chunk
           )
         );
       
       case RESP_TYPES.DOUBLE:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeDouble(
+          this.#decodeDouble(
             this.getTypeMapping()[RESP_TYPES.DOUBLE],
             chunk
           )
         );
       
       case RESP_TYPES.SIMPLE_STRING:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeSimpleString(
+          this.#decodeSimpleString(
             this.getTypeMapping()[RESP_TYPES.SIMPLE_STRING],
             chunk
           )
         );
       
       case RESP_TYPES.BLOB_STRING:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeBlobString(
+          this.#decodeBlobString(
             this.getTypeMapping()[RESP_TYPES.BLOB_STRING],
             chunk
           )
         );
 
       case RESP_TYPES.VERBATIM_STRING:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeVerbatimString(
+          this.#decodeVerbatimString(
             this.getTypeMapping()[RESP_TYPES.VERBATIM_STRING],
             chunk
           )
         );
 
       case RESP_TYPES.SIMPLE_ERROR:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onErrorReply,
-          this._decodeSimpleError(chunk)
+          this.#decodeSimpleError(chunk)
         );
       
       case RESP_TYPES.BLOB_ERROR:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onErrorReply,
-          this._decodeBlobError(chunk)
+          this.#decodeBlobError(chunk)
         );
 
       case RESP_TYPES.ARRAY:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeArray(this.getTypeMapping(), chunk)
+          this.#decodeArray(this.getTypeMapping(), chunk)
         );
 
       case RESP_TYPES.SET:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeSet(this.getTypeMapping(), chunk)
+          this.#decodeSet(this.getTypeMapping(), chunk)
         );
       
       case RESP_TYPES.MAP:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onReply,
-          this._decodeMap(this.getTypeMapping(), chunk)
+          this.#decodeMap(this.getTypeMapping(), chunk)
         );
 
       case RESP_TYPES.PUSH:
-        return this._handleDecodedValue(
+        return this.#handleDecodedValue(
           this.onPush,
-          this._decodeArray(PUSH_TYPE_MAPPING, chunk)
+          this.#decodeArray(PUSH_TYPE_MAPPING, chunk)
         );
 
       default:
@@ -207,9 +206,9 @@ export class Decoder {
     }
   }
 
-  private _handleDecodedValue(cb, value) {
+  #handleDecodedValue(cb, value) {
     if (typeof value === 'function') {
-      this._next = this._continueDecodeValue.bind(this, cb, value);
+      this.#next = this.#continueDecodeValue.bind(this, cb, value);
       return true;
     }
 
@@ -217,176 +216,179 @@ export class Decoder {
     return false;
   }
 
-  private _continueDecodeValue(cb, next, chunk) {
-    this._next = undefined;
-    return this._handleDecodedValue(cb, next(chunk));
+  #continueDecodeValue(cb, next, chunk) {
+    this.#next = undefined;
+    return this.#handleDecodedValue(cb, next(chunk));
   }
 
-  private _decodeNull() {
-    this._cursor += 2; // skip \r\n
+  #decodeNull() {
+    this.#cursor += 2; // skip \r\n
     return null;
   }
 
-  private _decodeBoolean(chunk) {
-    const boolean = chunk[this._cursor] === ASCII.t;
-    this._cursor += 3; // skip {t | f}\r\n
+  #decodeBoolean(chunk) {
+    const boolean = chunk[this.#cursor] === ASCII.t;
+    this.#cursor += 3; // skip {t | f}\r\n
     return boolean;
   }
 
-  private _decodeNumber(type, chunk) {
+  #decodeNumber(type, chunk) {
     if (type === String) {
-      return this._decodeSimpleString(String, chunk);
+      return this.#decodeSimpleString(String, chunk);
     }
 
-    switch (chunk[this._cursor]) {
+    switch (chunk[this.#cursor]) {
       case ASCII['+']:
-        return this._maybeDecodeNumberValue(false, chunk);
+        return this.#maybeDecodeNumberValue(false, chunk);
 
       case ASCII['-']:
-        return this._maybeDecodeNumberValue(true, chunk);
+        return this.#maybeDecodeNumberValue(true, chunk);
 
       default:
-        return this._decodeNumberValue(
+        return this.#decodeNumberValue(
           false,
-          this._decodeUnsingedNumber.bind(this, 0),
+          this.#decodeUnsingedNumber.bind(this, 0),
           chunk
         );
     }
   }
 
-  private _maybeDecodeNumberValue(isNegative, chunk) {
-    const cb = this._decodeUnsingedNumber.bind(this, 0);
-    return ++this._cursor === chunk.length ?
-      this._decodeNumberValue.bind(isNegative, cb) :
-      this._decodeNumberValue(isNegative, cb, chunk);
+  #maybeDecodeNumberValue(isNegative, chunk) {
+    const cb = this.#decodeUnsingedNumber.bind(this, 0);
+    return ++this.#cursor === chunk.length ?
+      this.#decodeNumberValue.bind(this, isNegative, cb) :
+      this.#decodeNumberValue(isNegative, cb, chunk);
   }
 
-  private _decodeNumberValue(isNegative, numberCb, chunk) {
+  #decodeNumberValue(isNegative, numberCb, chunk) {
     const number = numberCb(chunk);
     return typeof number === 'function' ?
-      this._decodeNumberValue.bind(this, isNegative, number) :
+      this.#decodeNumberValue.bind(this, isNegative, number) :
       isNegative ? -number : number;
   }
 
-  private _decodeUnsingedNumber(number, chunk) {
-    let cursor = this._cursor;
+  #decodeUnsingedNumber(number, chunk) {
+    let cursor = this.#cursor;
     do {
       const byte = chunk[cursor];
       if (byte === ASCII['\r']) {
-        this._cursor = cursor + 2; // skip \r\n
+        this.#cursor = cursor + 2; // skip \r\n
         return number;
       }
       number = number * 10 + byte - ASCII['0'];
     } while (++cursor < chunk.length);
 
-    this._cursor = cursor;
-    return this._decodeUnsingedNumber.bind(this, number);
+    this.#cursor = cursor;
+    return this.#decodeUnsingedNumber.bind(this, number);
   }
 
-  private _decodeBigNumber(type, chunk) {
+  #decodeBigNumber(type, chunk) {
     if (type === String) {
-      return this._decodeSimpleString(String, chunk);
+      return this.#decodeSimpleString(String, chunk);
     }
 
-    switch (chunk[this._cursor]) {
+    switch (chunk[this.#cursor]) {
       case ASCII['+']:
-        return this._maybeDecodeBigNumberValue(false, chunk);
+        return this.#maybeDecodeBigNumberValue(false, chunk);
 
       case ASCII['-']:
-        return this._maybeDecodeBigNumberValue(true, chunk);
+        return this.#maybeDecodeBigNumberValue(true, chunk);
 
       default:
-        return this._decodeBigNumberValue(
+        return this.#decodeBigNumberValue(
           false,
-          this._decodeUnsingedBigNumber.bind(this, 0n),
+          this.#decodeUnsingedBigNumber.bind(this, 0n),
           chunk
         );
     }
   }
 
-  private _maybeDecodeBigNumberValue(isNegative, chunk) {
-    const cb = this._decodeUnsingedBigNumber.bind(this, 0n);
-    return this._cursor === chunk.length ?
-      this._decodeBigNumberValue.bind(isNegative, cb) :
-      this._decodeBigNumberValue(isNegative, cb, chunk);
+  #maybeDecodeBigNumberValue(isNegative, chunk) {
+    const cb = this.#decodeUnsingedBigNumber.bind(this, 0n);
+    return ++this.#cursor === chunk.length ?
+      this.#decodeBigNumberValue.bind(this, isNegative, cb) :
+      this.#decodeBigNumberValue(isNegative, cb, chunk);
   }
 
-  private _decodeBigNumberValue(isNegative, bigNumberCb, chunk) {
+  #decodeBigNumberValue(isNegative, bigNumberCb, chunk) {
     const bigNumber = bigNumberCb(chunk);
     return typeof bigNumber === 'function' ?
-      this._decodeBigNumberValue.bind(this, isNegative, bigNumber) :
+      this.#decodeBigNumberValue.bind(this, isNegative, bigNumber) :
       isNegative ? -bigNumber : bigNumber;
   }
 
-  private _decodeUnsingedBigNumber(bigNumber, chunk) {
-    let cursor = this._cursor;
+  #decodeUnsingedBigNumber(bigNumber, chunk) {
+    let cursor = this.#cursor;
     do {
       const byte = chunk[cursor];
       if (byte === ASCII['\r']) {
-        this._cursor = cursor + 2; // skip \r\n
+        this.#cursor = cursor + 2; // skip \r\n
         return bigNumber;
       }
       bigNumber = bigNumber * 10n + BigInt(byte - ASCII['0']);
     } while (++cursor < chunk.length);
 
-    this._cursor = cursor;
-    return this._decodeUnsingedBigNumber.bind(this, bigNumber);
+    this.#cursor = cursor;
+    return this.#decodeUnsingedBigNumber.bind(this, bigNumber);
   }
 
-  private _decodeDouble(type, chunk) {
+  #decodeDouble(type, chunk) {
     if (type === String) {
-      return this._decodeSimpleString(String, chunk);
+      return this.#decodeSimpleString(String, chunk);
     }
 
-    switch (chunk[this._cursor]) {
+    switch (chunk[this.#cursor]) {
       case ASCII.n:
-        this._cursor += 5; // skip nan\r\n
+        this.#cursor += 5; // skip nan\r\n
         return NaN;
 
       case ASCII['+']:
-        return this._maybeDecodeDoubleInteger(false, chunk);
+        return this.#maybeDecodeDoubleInteger(false, chunk);
 
       case ASCII['-']:
-        return this._maybeDecodeDoubleInteger(true, chunk);
+        return this.#maybeDecodeDoubleInteger(true, chunk);
 
       default:
-        return this._decodeDoubleInteger(false, 0, chunk);
+        return this.#decodeDoubleInteger(false, 0, chunk);
     }
   }
 
-  private _maybeDecodeDoubleInteger(isNegative, chunk) {
-    return ++this._cursor === chunk.length ?
-      this._decodeDoubleInteger.bind(this, isNegative, 0) :
-      this._decodeDoubleInteger(true, 0, chunk);
+  #maybeDecodeDoubleInteger(isNegative, chunk) {
+    return ++this.#cursor === chunk.length ?
+      this.#decodeDoubleInteger.bind(this, isNegative, 0) :
+      this.#decodeDoubleInteger(isNegative, 0, chunk);
   }
 
-  private _decodeDoubleInteger(isNegative, integer, chunk) {
-    if (chunk[this._cursor] === ASCII.i) {
-      this._cursor += 5; // skip inf\r\n
+  #decodeDoubleInteger(isNegative, integer, chunk) {
+    if (chunk[this.#cursor] === ASCII.i) {
+      this.#cursor += 5; // skip inf\r\n
       return isNegative ? -Infinity : Infinity;
     }
 
-    return this._continueDecodeDoubleInteger(isNegative, integer, chunk);
+    return this.#continueDecodeDoubleInteger(isNegative, integer, chunk);
   }
 
-  private _continueDecodeDoubleInteger(isNegative, integer, chunk) {
-    let cursor = this._cursor;
+  #continueDecodeDoubleInteger(isNegative, integer, chunk) {
+    let cursor = this.#cursor;
     do {
       const byte = chunk[cursor];
       switch (byte) {
         case ASCII['.']:
-          this._cursor = cursor + 1; // skip .
-          return cursor < chunk.length ?
-            this._decodeDoubleDecimal(isNegative, 0, integer, chunk) :
-            this._decodeDoubleDecimal.bind(this, isNegative, 0, integer);
+          this.#cursor = cursor + 1; // skip .
+          return this.#cursor < chunk.length ?
+            this.#decodeDoubleDecimal(isNegative, 0, integer, chunk) :
+            this.#decodeDoubleDecimal.bind(this, isNegative, 0, integer);
 
         case ASCII.E:
         case ASCII.e:
-          this._cursor = cursor + 1; // skip e
-          return this._decodeDoubleExponent(isNegative ? -integer : integer, chunk);
+          this.#cursor = cursor + 1; // skip E/e
+          const i = isNegative ? -integer : integer;
+          return this.#cursor < chunk.length ?
+            this.#decodeDoubleExponent(i, chunk) :
+            this.#decodeDoubleExponent.bind(this, i);
 
         case ASCII['\r']:
-          this._cursor = cursor + 2; // skip \r\n
+          this.#cursor = cursor + 2; // skip \r\n
           return isNegative ? -integer : integer;
 
         default:
@@ -394,95 +396,95 @@ export class Decoder {
       }
     } while (++cursor < chunk.length);
 
-    this._cursor = cursor;
-    return this._continueDecodeDoubleInteger.bind(this, isNegative, integer);
+    this.#cursor = cursor;
+    return this.#continueDecodeDoubleInteger.bind(this, isNegative, integer);
   }
 
   // Precalculated multipliers for decimal points to improve performance
   // "... about 15 to 17 decimal places ..."
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number#:~:text=about%2015%20to%2017%20decimal%20places
-  static _DOUBLE_DECIMAL_MULTIPLIERS = [
+  static #DOUBLE_DECIMAL_MULTIPLIERS = [
     1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6,
     1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12,
     1e-13, 1e-14, 1e-15, 1e-16, 1e-17
   ];
 
-  private _decodeDoubleDecimal(isNegative, decimalIndex, double, chunk) {
-    let cursor = this._cursor;
+  #decodeDoubleDecimal(isNegative, decimalIndex, double, chunk) {
+    let cursor = this.#cursor;
     do {
       const byte = chunk[cursor];
       switch (byte) {
         case ASCII.E:
         case ASCII.e:
-          this._cursor = cursor + 1; // skip e
+          this.#cursor = cursor + 1; // skip E/e
           const d = isNegative ? -double : double;
-          return this._cursor === chunk.length ?
-            this._decodeDoubleExponent.bind(this, d, false, 0) :
-            this._decodeDoubleExponent(d, false, 0, chunk);
+          return this.#cursor === chunk.length ?
+            this.#decodeDoubleExponent.bind(this, d) :
+            this.#decodeDoubleExponent(d, chunk);
         
         case ASCII['\r']:
-          this._cursor = cursor + 2; // skip \r\n
+          this.#cursor = cursor + 2; // skip \r\n
           return isNegative ? -double : double;
       }
       
-      if (decimalIndex < Decoder._DOUBLE_DECIMAL_MULTIPLIERS.length) {
-        double += (byte - ASCII['0']) * Decoder._DOUBLE_DECIMAL_MULTIPLIERS[decimalIndex++];
+      if (decimalIndex < Decoder.#DOUBLE_DECIMAL_MULTIPLIERS.length) {
+        double += (byte - ASCII['0']) * Decoder.#DOUBLE_DECIMAL_MULTIPLIERS[decimalIndex++];
       }
     } while (++cursor < chunk.length);
     
-    this._cursor = cursor;
-    return this._decodeDoubleDecimal.bind(this, isNegative, decimalIndex, double);
+    this.#cursor = cursor;
+    return this.#decodeDoubleDecimal.bind(this, isNegative, decimalIndex, double);
   }
 
-  private _decodeDoubleExponent(double, chunk) {
-    switch (chunk[this._cursor]) {
+  #decodeDoubleExponent(double, chunk) {
+    switch (chunk[this.#cursor]) {
       case ASCII['+']:
-        return ++this._cursor === chunk.length ?
-          this._continueDecodeDoubleExponent.bind(this, false, double, 0) :
-          this._continueDecodeDoubleExponent(false, double, 0, chunk);
+        return ++this.#cursor === chunk.length ?
+          this.#continueDecodeDoubleExponent.bind(this, false, double, 0) :
+          this.#continueDecodeDoubleExponent(false, double, 0, chunk);
 
       case ASCII['-']:
-        return ++this._cursor === chunk.length ?
-          this._continueDecodeDoubleExponent.bind(this, true, double, 0) :
-          this._continueDecodeDoubleExponent(true, double, 0, chunk);
+        return ++this.#cursor === chunk.length ?
+          this.#continueDecodeDoubleExponent.bind(this, true, double, 0) :
+          this.#continueDecodeDoubleExponent(true, double, 0, chunk);
     }
 
-    return this._continueDecodeDoubleExponent(false, double, 0, chunk);
+    return this.#continueDecodeDoubleExponent(false, double, 0, chunk);
   }
 
-  private _continueDecodeDoubleExponent(isNegative, double, exponent, chunk) {
-    let cursor = this._cursor;
+  #continueDecodeDoubleExponent(isNegative, double, exponent, chunk) {
+    let cursor = this.#cursor;
     do {
       const byte = chunk[cursor];
       if (byte === ASCII['\r']) {
-        this._cursor = cursor + 2; // skip \r\n
+        this.#cursor = cursor + 2; // skip \r\n
         return double * 10 ** (isNegative ? -exponent : exponent);
       }
 
       exponent = exponent * 10 + byte - ASCII['0'];
     } while (++cursor < chunk.length);
 
-    this._cursor = cursor;
-    return this._continueDecodeDoubleExponent.bind(this, isNegative, double, exponent);
+    this.#cursor = cursor;
+    return this.#continueDecodeDoubleExponent.bind(this, isNegative, double, exponent);
   }
 
-  private _findCRLF(chunk, cursor) {
+  #findCRLF(chunk, cursor) {
     while (chunk[cursor] !== ASCII['\r']) {
       if (++cursor === chunk.length) {
-        this._cursor = chunk.length;
+        this.#cursor = chunk.length;
         return -1;
       }
     }
 
-    this._cursor = cursor + 2; // skip \r\n
+    this.#cursor = cursor + 2; // skip \r\n
     return cursor;
   }
 
-  private _decodeSimpleString(type, chunk) {
-    const start = this._cursor,
-      crlfIndex = this._findCRLF(chunk, start);
+  #decodeSimpleString(type, chunk) {
+    const start = this.#cursor,
+      crlfIndex = this.#findCRLF(chunk, start);
     if (crlfIndex === -1) {
-      return this._continueDecodeSimpleString.bind(
+      return this.#continueDecodeSimpleString.bind(
         this,
         [chunk.subarray(start)],
         type
@@ -495,12 +497,12 @@ export class Decoder {
       slice.toString();
   }
 
-  private _continueDecodeSimpleString(chunks, type, chunk) {
-    const start = this._cursor,
-      crlfIndex = this._findCRLF(chunk, start);
+  #continueDecodeSimpleString(chunks, type, chunk) {
+    const start = this.#cursor,
+      crlfIndex = this.#findCRLF(chunk, start);
     if (crlfIndex === -1) {
       chunks.push(chunk.subarray(start));
-      return this._continueDecodeSimpleString.bind(this, chunks, type);
+      return this.#continueDecodeSimpleString.bind(this, chunks, type);
     }
 
     chunks.push(chunk.subarray(start, crlfIndex));
@@ -509,41 +511,41 @@ export class Decoder {
       chunks.join('');
   }
 
-  private _decodeBlobString(type, chunk) {
+  #decodeBlobString(type, chunk) {
     // RESP 2 bulk string null
     // https://github.com/redis/redis-specifications/blob/master/protocol/RESP2.md#resp-bulk-strings
-    if (chunk[this._cursor] === ASCII['-']) {
-      this._cursor += 4; // skip -1\r\n
+    if (chunk[this.#cursor] === ASCII['-']) {
+      this.#cursor += 4; // skip -1\r\n
       return null;
     }
 
-    const length = this._decodeUnsingedNumber(0, chunk);
+    const length = this.#decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeBlobStringLength.bind(this, length, type);
-    } else if (this._cursor >= chunk.length) {
-      return this._decodeBlobStringWithLength.bind(this, length, type);
+      return this.#continueDecodeBlobStringLength.bind(this, length, type);
+    } else if (this.#cursor >= chunk.length) {
+      return this.#decodeBlobStringWithLength.bind(this, length, type);
     }
 
-    return this._decodeBlobStringWithLength(length, type, chunk);
+    return this.#decodeBlobStringWithLength(length, type, chunk);
   }
 
-  private _continueDecodeBlobStringLength(lengthCb, type, chunk) {
+  #continueDecodeBlobStringLength(lengthCb, type, chunk) {
     const length = lengthCb(chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeBlobStringLength.bind(this, length, type);
-    } else if (this._cursor >= chunk.length) {
-      return this._decodeBlobStringWithLength.bind(this, length, type);
+      return this.#continueDecodeBlobStringLength.bind(this, length, type);
+    } else if (this.#cursor >= chunk.length) {
+      return this.#decodeBlobStringWithLength.bind(this, length, type);
     }
 
-    return this._decodeBlobStringWithLength(length, type, chunk);
+    return this.#decodeBlobStringWithLength(length, type, chunk);
   }
 
-  private _decodeStringWithLength(length, skip, type, chunk) {
-    const end = this._cursor + length;
+  #decodeStringWithLength(length, skip, type, chunk) {
+    const end = this.#cursor + length;
     if (end >= chunk.length) {
-      const slice = chunk.subarray(this._cursor);
-      this._cursor = chunk.length;
-      return this._continueDecodeStringWithLength.bind(
+      const slice = chunk.subarray(this.#cursor);
+      this.#cursor = chunk.length;
+      return this.#continueDecodeStringWithLength.bind(
         this,
         length - slice.length,
         [slice],
@@ -552,20 +554,20 @@ export class Decoder {
       );
     }
 
-    const slice = chunk.subarray(this._cursor, end);
-    this._cursor = end + skip;
+    const slice = chunk.subarray(this.#cursor, end);
+    this.#cursor = end + skip;
     return type === Buffer ?
       slice :
       slice.toString();
   }
 
-  private _continueDecodeStringWithLength(length, chunks, skip, type, chunk) {
-    const end = this._cursor + length;
+  #continueDecodeStringWithLength(length, chunks, skip, type, chunk) {
+    const end = this.#cursor + length;
     if (end >= chunk.length) {
-      const slice = chunk.subarray(this._cursor);
+      const slice = chunk.subarray(this.#cursor);
       chunks.push(slice);
-      this._cursor = chunk.length;
-      return this._continueDecodeStringWithLength.bind(
+      this.#cursor = chunk.length;
+      return this.#continueDecodeStringWithLength.bind(
         this,
         length - slice.length,
         chunks,
@@ -574,174 +576,173 @@ export class Decoder {
       );
     }
 
-    chunks.push(chunk.subarray(this._cursor, end));
-    this._cursor = end + skip;
+    chunks.push(chunk.subarray(this.#cursor, end));
+    this.#cursor = end + skip;
     return type === Buffer ?
       Buffer.concat(chunks) :
       chunks.join('');
   }
 
-  private _decodeBlobStringWithLength(length, type, chunk) {
-    return this._decodeStringWithLength(length, 2, type, chunk);
+  #decodeBlobStringWithLength(length, type, chunk) {
+    return this.#decodeStringWithLength(length, 2, type, chunk);
   }
 
-  private _decodeVerbatimString(type, chunk) {
-    return this._continueDecodeVerbatimStringLength(
-      this._decodeUnsingedNumber.bind(this, 0),
+  #decodeVerbatimString(type, chunk) {
+    return this.#continueDecodeVerbatimStringLength(
+      this.#decodeUnsingedNumber.bind(this, 0),
       type,
       chunk
     );
   }
 
-  private _continueDecodeVerbatimStringLength(lengthCb, type, chunk) {
+  #continueDecodeVerbatimStringLength(lengthCb, type, chunk) {
     const length = lengthCb(chunk);
-    return typeof length === 'function'?
-      this._continueDecodeVerbatimStringLength.bind(this, length, type) :
-      this._decodeVerbatimStringWithLength(length, type, chunk);
+    return typeof length === 'function' ?
+      this.#continueDecodeVerbatimStringLength.bind(this, length, type) :
+      this.#decodeVerbatimStringWithLength(length, type, chunk);
   }
 
-  private _decodeVerbatimStringWithLength(length, type, chunk) {
+  #decodeVerbatimStringWithLength(length, type, chunk) {
     const stringLength = length - 4; // skip <format>:
     if (type === VerbatimString) {
-      return this._decodeVerbatimStringFormat(stringLength, chunk);
+      return this.#decodeVerbatimStringFormat(stringLength, chunk);
     }
 
-    this._cursor += 4; // skip <format>:
-    return this._cursor >= chunk.length ?
-      this._decodeBlobStringWithLength.bind(this, stringLength, type) :
-      this._decodeBlobStringWithLength(stringLength, type, chunk);
+    this.#cursor += 4; // skip <format>:
+    return this.#cursor >= chunk.length ?
+      this.#decodeBlobStringWithLength.bind(this, stringLength, type) :
+      this.#decodeBlobStringWithLength(stringLength, type, chunk);
   }
 
-  private _decodeVerbatimStringFormat(stringLength, chunk) {
-    return this._continueDecodeVerbatimStringFormat(
-      stringLength,
-      this._decodeStringWithLength.bind(this, 3, 1, String),
-      chunk
-    );
+  #decodeVerbatimStringFormat(stringLength, chunk) {
+    const formatCb = this.#decodeStringWithLength.bind(this, 3, 1, String); 
+    return this.#cursor >= chunk.length ?
+      this.#continueDecodeVerbatimStringFormat.bind(this, stringLength, formatCb) :
+      this.#continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk);
   }
 
-  private _continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk) {
+  #continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk) {
     const format = formatCb(chunk);
     return typeof format === 'function' ?
-      this._continueDecodeVerbatimStringFormat.bind(this, stringLength, format) :
-      this._decodeVerbatimStringWithFormat(stringLength, format, chunk);
+      this.#continueDecodeVerbatimStringFormat.bind(this, stringLength, format) :
+      this.#decodeVerbatimStringWithFormat(stringLength, format, chunk);
   }
 
-  private _decodeVerbatimStringWithFormat(stringLength, format, chunk) {
-    return this._continueDecodeVerbatimStringWithFormat(
+  #decodeVerbatimStringWithFormat(stringLength, format, chunk) {
+    return this.#continueDecodeVerbatimStringWithFormat(
       format,
-      this._decodeBlobStringWithLength.bind(this, stringLength, String),
+      this.#decodeBlobStringWithLength.bind(this, stringLength, String),
       chunk
     );
   }
 
-  private _continueDecodeVerbatimStringWithFormat(format, stringCb, chunk) {
+  #continueDecodeVerbatimStringWithFormat(format, stringCb, chunk) {
     const string = stringCb(chunk);
     return typeof string === 'function' ?
-      this._continueDecodeVerbatimStringWithFormat.bind(this, format, string) :
+      this.#continueDecodeVerbatimStringWithFormat.bind(this, format, string) :
       new VerbatimString(format, string);
   }
 
-  private _decodeSimpleError(chunk) {
-    const string = this._decodeSimpleString(String, chunk);
+  #decodeSimpleError(chunk) {
+    const string = this.#decodeSimpleString(String, chunk);
     return typeof string === 'function' ?
-      this._continueDecodeSimpleError.bind(this, string) :
+      this.#continueDecodeSimpleError.bind(this, string) :
       new SimpleError(string);
   }
 
-  private _continueDecodeSimpleError(stringCb, chunk) {
+  #continueDecodeSimpleError(stringCb, chunk) {
     const string = stringCb(chunk);
     return typeof string === 'function' ?
-      this._continueDecodeSimpleError.bind(this, string) :
+      this.#continueDecodeSimpleError.bind(this, string) :
       new SimpleError(string);
   }
 
-  private _decodeBlobError(chunk) {
-    const string = this._decodeBlobString(String, chunk);
+  #decodeBlobError(chunk) {
+    const string = this.#decodeBlobString(String, chunk);
     return typeof string === 'function' ?
-      this._continueDecodeBlobError.bind(this, string) :
+      this.#continueDecodeBlobError.bind(this, string) :
       new BlobError(string);
   }
 
-  private _continueDecodeBlobError(stringCb, chunk) {
+  #continueDecodeBlobError(stringCb, chunk) {
     const string = stringCb(chunk);
     return typeof string === 'function' ?
-      this._continueDecodeBlobError.bind(this, string) :
+      this.#continueDecodeBlobError.bind(this, string) :
       new BlobError(string);
   }
 
-  private _decodeNestedType(typeMapping, chunk) {
-    const type = chunk[this._cursor];
-    return ++this._cursor === chunk.length ?
-      this._decodeNestedTypeValue.bind(this, type, typeMapping) :
-      this._decodeNestedTypeValue(type, typeMapping, chunk);
+  #decodeNestedType(typeMapping, chunk) {
+    const type = chunk[this.#cursor];
+    return ++this.#cursor === chunk.length ?
+      this.#decodeNestedTypeValue.bind(this, type, typeMapping) :
+      this.#decodeNestedTypeValue(type, typeMapping, chunk);
   }
 
-  private _decodeNestedTypeValue(type, typeMapping, chunk) {
+  #decodeNestedTypeValue(type, typeMapping, chunk) {
     switch (type) {
       case RESP_TYPES.NULL:
-        return this._decodeNull();
+        return this.#decodeNull();
 
       case RESP_TYPES.BOOLEAN:
-        return this._decodeBoolean(chunk);
+        return this.#decodeBoolean(chunk);
 
       case RESP_TYPES.NUMBER:
-        return this._decodeNumber(typeMapping[RESP_TYPES.NUMBER], chunk);
+        return this.#decodeNumber(typeMapping[RESP_TYPES.NUMBER], chunk);
 
       case RESP_TYPES.BIG_NUMBER:
-        return this._decodeBigNumber(typeMapping[RESP_TYPES.BIG_NUMBER], chunk);
+        return this.#decodeBigNumber(typeMapping[RESP_TYPES.BIG_NUMBER], chunk);
       
       case RESP_TYPES.DOUBLE:
-        return this._decodeDouble(typeMapping[RESP_TYPES.DOUBLE], chunk);
+        return this.#decodeDouble(typeMapping[RESP_TYPES.DOUBLE], chunk);
       
       case RESP_TYPES.SIMPLE_STRING:
-        return this._decodeSimpleString(typeMapping[RESP_TYPES.SIMPLE_STRING], chunk);
+        return this.#decodeSimpleString(typeMapping[RESP_TYPES.SIMPLE_STRING], chunk);
       
       case RESP_TYPES.BLOB_STRING:
-        return this._decodeBlobString(typeMapping[RESP_TYPES.BLOB_STRING], chunk);
+        return this.#decodeBlobString(typeMapping[RESP_TYPES.BLOB_STRING], chunk);
 
       case RESP_TYPES.VERBATIM_STRING:
-        return this._decodeVerbatimString(typeMapping[RESP_TYPES.VERBATIM_STRING], chunk);
+        return this.#decodeVerbatimString(typeMapping[RESP_TYPES.VERBATIM_STRING], chunk);
 
       case RESP_TYPES.SIMPLE_ERROR:
-        return this._decodeSimpleError(chunk);
+        return this.#decodeSimpleError(chunk);
       
       case RESP_TYPES.BLOB_ERROR:
-        return this._decodeBlobError(chunk);
+        return this.#decodeBlobError(chunk);
 
       case RESP_TYPES.ARRAY:
-        return this._decodeArray(typeMapping, chunk);
+        return this.#decodeArray(typeMapping, chunk);
 
       case RESP_TYPES.SET:
-        return this._decodeSet(typeMapping, chunk);
+        return this.#decodeSet(typeMapping, chunk);
       
       case RESP_TYPES.MAP:
-        return this._decodeMap(typeMapping, chunk);
+        return this.#decodeMap(typeMapping, chunk);
 
       default:
         throw new Error(`Unknown RESP type ${type} "${String.fromCharCode(type)}"`);
     }
   }
 
-  private _decodeArray(typeMapping, chunk) {
+  #decodeArray(typeMapping, chunk) {
     // RESP 2 null
     // https://github.com/redis/redis-specifications/blob/master/protocol/RESP2.md#resp-arrays
-    if (chunk[this._cursor] === ASCII['-']) {
-      this._cursor += 4; // skip -1\r\n
+    if (chunk[this.#cursor] === ASCII['-']) {
+      this.#cursor += 4; // skip -1\r\n
       return null;
     }
 
-    return this._decodeArrayWithLength(
-      this._decodeUnsingedNumber(0, chunk),
+    return this.#decodeArrayWithLength(
+      this.#decodeUnsingedNumber(0, chunk),
       typeMapping,
       chunk
     );
   }
 
-  private _decodeArrayWithLength(length, typeMapping, chunk) {
+  #decodeArrayWithLength(length, typeMapping, chunk) {
     return typeof length === 'function' ?
-      this._continueDecodeArrayLength.bind(this, length, typeMapping) :
-      this._decodeArrayItems(
+      this.#continueDecodeArrayLength.bind(this, length, typeMapping) :
+      this.#decodeArrayItems(
         new Array(length),
         0,
         typeMapping,
@@ -749,18 +750,18 @@ export class Decoder {
       );
   }
 
-  private _continueDecodeArrayLength(lengthCb, typeMapping, chunk) {
-    return this._decodeArrayWithLength(
+  #continueDecodeArrayLength(lengthCb, typeMapping, chunk) {
+    return this.#decodeArrayWithLength(
       lengthCb(chunk),
       typeMapping,
       chunk
     );
   }
 
-  private _decodeArrayItems(array, filled, typeMapping, chunk) {
+  #decodeArrayItems(array, filled, typeMapping, chunk) {
     for (let i = filled; i < array.length; i++) {
-      if (this._cursor >= chunk.length) {
-        return this._decodeArrayItems.bind(
+      if (this.#cursor >= chunk.length) {
+        return this.#decodeArrayItems.bind(
           this,
           array,
           i,
@@ -768,9 +769,9 @@ export class Decoder {
         );
       }
 
-      const item = this._decodeNestedType(typeMapping, chunk);
+      const item = this.#decodeNestedType(typeMapping, chunk);
       if (typeof item === 'function') {
-        return this._continueDecodeArrayItems.bind(
+        return this.#continueDecodeArrayItems.bind(
           this,
           array,
           i,
@@ -785,10 +786,10 @@ export class Decoder {
     return array;
   }
 
-  private _continueDecodeArrayItems(array, filled, itemCb, typeMapping, chunk) {
+  #continueDecodeArrayItems(array, filled, itemCb, typeMapping, chunk) {
     const item = itemCb(chunk);
     if (typeof item === 'function') {
-      return this._continueDecodeArrayItems.bind(
+      return this.#continueDecodeArrayItems.bind(
         this,
         array,
         filled,
@@ -799,38 +800,38 @@ export class Decoder {
 
     array[filled++] = item;
 
-    return this._decodeArrayItems(array, filled, typeMapping, chunk);
+    return this.#decodeArrayItems(array, filled, typeMapping, chunk);
   }
 
-  private _decodeSet(typeMapping, chunk) {
-    const length = this._decodeUnsingedNumber(0, chunk);
+  #decodeSet(typeMapping, chunk) {
+    const length = this.#decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeSetLength.bind(this, length, typeMapping);
+      return this.#continueDecodeSetLength.bind(this, length, typeMapping);
     }
 
-    return this._decodeSetItems(
+    return this.#decodeSetItems(
       length,
       typeMapping,
       chunk
     );
   }
 
-  private _continueDecodeSetLength(lengthCb, typeMapping, chunk) {
+  #continueDecodeSetLength(lengthCb, typeMapping, chunk) {
     const length = lengthCb(chunk);
     return typeof length === 'function' ?
-      this._continueDecodeSetLength.bind(this, length, typeMapping) :
-      this._decodeSetItems(length, typeMapping, chunk);
+      this.#continueDecodeSetLength.bind(this, length, typeMapping) :
+      this.#decodeSetItems(length, typeMapping, chunk);
   }
 
-  private _decodeSetItems(length, typeMapping, chunk) {
+  #decodeSetItems(length, typeMapping, chunk) {
     return typeMapping[RESP_TYPES.SET] === Set ?
-      this._decodeSetAsSet(
+      this.#decodeSetAsSet(
         new Set(),
         length,
         typeMapping,
         chunk
       ) :
-      this._decodeArrayItems(
+      this.#decodeArrayItems(
         new Array(length),
         0,
         typeMapping,
@@ -838,11 +839,11 @@ export class Decoder {
       );
   }
 
-  private _decodeSetAsSet(set, remaining, typeMapping, chunk) {
+  #decodeSetAsSet(set, remaining, typeMapping, chunk) {
     // using `remaining` instead of `length` & `set.size` to make it work even if the set contains duplicates
     while (remaining > 0) {
-      if (this._cursor >= chunk.length) {
-        return this._decodeSetAsSet.bind(
+      if (this.#cursor >= chunk.length) {
+        return this.#decodeSetAsSet.bind(
           this,
           set,
           remaining,
@@ -850,9 +851,9 @@ export class Decoder {
         );
       }
 
-      const item = this._decodeNestedType(typeMapping, chunk);
+      const item = this.#decodeNestedType(typeMapping, chunk);
       if (typeof item === 'function') {
-        return this._continueDecodeSetAsSet.bind(
+        return this.#continueDecodeSetAsSet.bind(
           this,
           set,
           remaining,
@@ -868,10 +869,10 @@ export class Decoder {
     return set;
   }
 
-  private _continueDecodeSetAsSet(set, remaining, itemCb, typeMapping, chunk) {
+  #continueDecodeSetAsSet(set, remaining, itemCb, typeMapping, chunk) {
     const item = itemCb(chunk);
     if (typeof item === 'function') {
-      return this._continueDecodeSetAsSet.bind(
+      return this.#continueDecodeSetAsSet.bind(
         this,
         set,
         remaining,
@@ -882,33 +883,33 @@ export class Decoder {
 
     set.add(item);
 
-    return this._decodeSetAsSet(set, remaining - 1, typeMapping, chunk);
+    return this.#decodeSetAsSet(set, remaining - 1, typeMapping, chunk);
   }
 
-  private _decodeMap(typeMapping, chunk) {
-    const length = this._decodeUnsingedNumber(0, chunk);
+  #decodeMap(typeMapping, chunk) {
+    const length = this.#decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this._continueDecodeMapLength.bind(this, length, typeMapping);
+      return this.#continueDecodeMapLength.bind(this, length, typeMapping);
     }
 
-    return this._decodeMapItems(
+    return this.#decodeMapItems(
       length,
       typeMapping,
       chunk
     );
   }
 
-  private _continueDecodeMapLength(lengthCb, typeMapping, chunk) {
+  #continueDecodeMapLength(lengthCb, typeMapping, chunk) {
     const length = lengthCb(chunk);
     return typeof length === 'function' ?
-      this._continueDecodeMapLength.bind(this, length, typeMapping) :
-      this._decodeMapItems(length, typeMapping, chunk);
+      this.#continueDecodeMapLength.bind(this, length, typeMapping) :
+      this.#decodeMapItems(length, typeMapping, chunk);
   }
 
-  private _decodeMapItems(length, typeMapping, chunk) {
+  #decodeMapItems(length, typeMapping, chunk) {
     switch (typeMapping[RESP_TYPES.MAP]) {
       case Map:
-        return this._decodeMapAsMap(
+        return this.#decodeMapAsMap(
           new Map(),
           length,
           typeMapping,
@@ -916,7 +917,7 @@ export class Decoder {
         );
 
       case Array:
-        return this._decodeArrayItems(
+        return this.#decodeArrayItems(
           new Array(length * 2),
           0,
           typeMapping,
@@ -924,7 +925,7 @@ export class Decoder {
         );
 
       default:
-        return this._decodeMapAsObject(
+        return this.#decodeMapAsObject(
           Object.create(null),
           length,
           typeMapping,
@@ -933,11 +934,11 @@ export class Decoder {
     }
   }
 
-  private _decodeMapAsMap(map, remaining, typeMapping, chunk) {
+  #decodeMapAsMap(map, remaining, typeMapping, chunk) {
     // using `remaining` instead of `length` & `map.size` to make it work even if the map contains duplicate keys
     while (remaining > 0) {
-      if (this._cursor >= chunk.length) {
-        return this._decodeMapAsMap.bind(
+      if (this.#cursor >= chunk.length) {
+        return this.#decodeMapAsMap.bind(
           this,
           map,
           remaining,
@@ -945,9 +946,9 @@ export class Decoder {
         );
       }
 
-      const key = this._decodeMapKey(typeMapping, chunk);
+      const key = this.#decodeMapKey(typeMapping, chunk);
       if (typeof key === 'function') {
-        return this._continueDecodeMapKey.bind(
+        return this.#continueDecodeMapKey.bind(
           this,
           map,
           remaining,
@@ -956,20 +957,20 @@ export class Decoder {
         );
       }
 
-      if (this._cursor >= chunk.length) {
-        return this._continueDecodeMapValue.bind(
+      if (this.#cursor >= chunk.length) {
+        return this.#continueDecodeMapValue.bind(
           this,
           map,
           remaining,
           key,
-          this._decodeNestedType.bind(this, typeMapping),
+          this.#decodeNestedType.bind(this, typeMapping),
           typeMapping
         );
       }
 
-      const value = this._decodeNestedType(typeMapping, chunk);
+      const value = this.#decodeNestedType(typeMapping, chunk);
       if (typeof value === 'function') {
-        return this._continueDecodeMapValue.bind(
+        return this.#continueDecodeMapValue.bind(
           this,
           map,
           remaining,
@@ -986,32 +987,32 @@ export class Decoder {
     return map;
   }
 
-  private _decodeMapKey(typeMapping, chunk) {
-    const type = chunk[this._cursor];
-    return ++this._cursor === chunk.length ?
-      this._decodeMapKeyValue.bind(this, type, typeMapping) :
-      this._decodeMapKeyValue(type, typeMapping, chunk);
+  #decodeMapKey(typeMapping, chunk) {
+    const type = chunk[this.#cursor];
+    return ++this.#cursor === chunk.length ?
+      this.#decodeMapKeyValue.bind(this, type, typeMapping) :
+      this.#decodeMapKeyValue(type, typeMapping, chunk);
   }
 
-  private _decodeMapKeyValue(type, typeMapping, chunk) {
+  #decodeMapKeyValue(type, typeMapping, chunk) {
     switch (type) {
       // decode simple string map key as string (and not as buffer)
       case RESP_TYPES.SIMPLE_STRING:
-        return this._decodeSimpleString(String, chunk);
+        return this.#decodeSimpleString(String, chunk);
       
       // decode blob string map key as string (and not as buffer)
       case RESP_TYPES.BLOB_STRING:
-        return this._decodeBlobString(String, chunk);
+        return this.#decodeBlobString(String, chunk);
 
       default:
-        return this._decodeNestedTypeValue(type, typeMapping, chunk);
+        return this.#decodeNestedTypeValue(type, typeMapping, chunk);
     }
   }
 
-  private _continueDecodeMapKey(map, remaining, keyCb, typeMapping, chunk) {
+  #continueDecodeMapKey(map, remaining, keyCb, typeMapping, chunk) {
     const key = keyCb(chunk);
     if (typeof key === 'function') {
-      return this._continueDecodeMapKey.bind(
+      return this.#continueDecodeMapKey.bind(
         this,
         map,
         remaining,
@@ -1020,20 +1021,20 @@ export class Decoder {
       );
     }
 
-    if (this._cursor >= chunk.length) {
-      return this._continueDecodeMapValue.bind(
+    if (this.#cursor >= chunk.length) {
+      return this.#continueDecodeMapValue.bind(
         this,
         map,
         remaining,
         key,
-        this._decodeNestedType.bind(this, typeMapping),
+        this.#decodeNestedType.bind(this, typeMapping),
         typeMapping
       );
     }      
 
-    const value = this._decodeNestedType(typeMapping, chunk);
+    const value = this.#decodeNestedType(typeMapping, chunk);
     if (typeof value === 'function') {
-      return this._continueDecodeMapValue.bind(
+      return this.#continueDecodeMapValue.bind(
         this,
         map,
         remaining,
@@ -1044,13 +1045,13 @@ export class Decoder {
     }
 
     map.set(key, value);
-    return this._decodeMapAsMap(map, remaining - 1, typeMapping, chunk);
+    return this.#decodeMapAsMap(map, remaining - 1, typeMapping, chunk);
   }
 
-  private _continueDecodeMapValue(map, remaining, key, valueCb, typeMapping, chunk) {
+  #continueDecodeMapValue(map, remaining, key, valueCb, typeMapping, chunk) {
     const value = valueCb(chunk);
     if (typeof value === 'function') {
-      return this._continueDecodeMapValue.bind(
+      return this.#continueDecodeMapValue.bind(
         this,
         map,
         remaining,
@@ -1062,13 +1063,13 @@ export class Decoder {
 
     map.set(key, value);
 
-    return this._decodeMapAsMap(map, remaining - 1, typeMapping, chunk);
+    return this.#decodeMapAsMap(map, remaining - 1, typeMapping, chunk);
   }
 
-  private _decodeMapAsObject(object, remaining, typeMapping, chunk) {
+  #decodeMapAsObject(object, remaining, typeMapping, chunk) {
     while (remaining > 0) {
-      if (this._cursor >= chunk.length) {
-        return this._decodeMapAsObject.bind(
+      if (this.#cursor >= chunk.length) {
+        return this.#decodeMapAsObject.bind(
           this,
           object,
           remaining,
@@ -1076,9 +1077,9 @@ export class Decoder {
         );
       }
 
-      const key = this._decodeMapKey(typeMapping, chunk);
+      const key = this.#decodeMapKey(typeMapping, chunk);
       if (typeof key === 'function') {
-        return this._continueDecodeMapAsObjectKey.bind(
+        return this.#continueDecodeMapAsObjectKey.bind(
           this,
           object,
           remaining,
@@ -1087,20 +1088,20 @@ export class Decoder {
         );
       }
 
-      if (this._cursor >= chunk.length) {
-        return this._continueDecodeMapAsObjectValue.bind(
+      if (this.#cursor >= chunk.length) {
+        return this.#continueDecodeMapAsObjectValue.bind(
           this,
           object,
           remaining,
           key,
-          this._decodeNestedType.bind(this, typeMapping),
+          this.#decodeNestedType.bind(this, typeMapping),
           typeMapping
         );
       }
 
-      const value = this._decodeNestedType(typeMapping, chunk);
+      const value = this.#decodeNestedType(typeMapping, chunk);
       if (typeof value === 'function') {
-        return this._continueDecodeMapAsObjectValue.bind(
+        return this.#continueDecodeMapAsObjectValue.bind(
           this,
           object,
           remaining,
@@ -1117,10 +1118,10 @@ export class Decoder {
     return object;
   }
 
-  private _continueDecodeMapAsObjectKey(object, remaining, keyCb, typeMapping, chunk) {
+  #continueDecodeMapAsObjectKey(object, remaining, keyCb, typeMapping, chunk) {
     const key = keyCb(chunk);
     if (typeof key === 'function') {
-      return this._continueDecodeMapAsObjectKey.bind(
+      return this.#continueDecodeMapAsObjectKey.bind(
         this,
         object,
         remaining,
@@ -1129,20 +1130,20 @@ export class Decoder {
       );
     }
 
-    if (this._cursor >= chunk.length) {
-      return this._continueDecodeMapAsObjectValue.bind(
+    if (this.#cursor >= chunk.length) {
+      return this.#continueDecodeMapAsObjectValue.bind(
         this,
         object,
         remaining,
         key,
-        this._decodeNestedType.bind(this, typeMapping),
+        this.#decodeNestedType.bind(this, typeMapping),
         typeMapping
       );
     }
 
-    const value = this._decodeNestedType(typeMapping, chunk);
+    const value = this.#decodeNestedType(typeMapping, chunk);
     if (typeof value === 'function') {
-      return this._continueDecodeMapAsObjectValue.bind(
+      return this.#continueDecodeMapAsObjectValue.bind(
         this,
         object,
         remaining,
@@ -1154,13 +1155,13 @@ export class Decoder {
 
     object[key] = value;
 
-    return this._decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
+    return this.#decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
   }
 
-  private _continueDecodeMapAsObjectValue(object, remaining, key, valueCb, typeMapping, chunk) {
+  #continueDecodeMapAsObjectValue(object, remaining, key, valueCb, typeMapping, chunk) {
     const value = valueCb(chunk);
     if (typeof value === 'function') {
-      return this._continueDecodeMapAsObjectValue.bind(
+      return this.#continueDecodeMapAsObjectValue.bind(
         this,
         object,
         remaining,
@@ -1172,6 +1173,6 @@ export class Decoder {
 
     object[key] = value;
 
-    return this._decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
+    return this.#decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
   }
 }

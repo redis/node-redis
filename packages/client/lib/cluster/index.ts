@@ -132,7 +132,7 @@ export interface ClusterCommandOptions<
 
 type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
 
-type NamespaceProxyCluster = { self: ProxyCluster };
+type NamespaceProxyCluster = { _self: ProxyCluster };
 
 export default class RedisCluster<
   M extends RedisModules,
@@ -166,7 +166,7 @@ export default class RedisCluster<
     return key;
   }
 
-  private static _createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -189,7 +189,7 @@ export default class RedisCluster<
     };
   }
 
-  private static _createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -198,11 +198,11 @@ export default class RedisCluster<
           args,
           redisArgs
         ),
-        reply = await this.self.sendCommand(
+        reply = await this._self.sendCommand(
           firstKey,
           command.IS_READ_ONLY,
           redisArgs,
-          this.self._commandOptions,
+          this._self._commandOptions,
           // command.POLICIES
         );
 
@@ -212,7 +212,7 @@ export default class RedisCluster<
     };
   }
 
-  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
@@ -223,11 +223,11 @@ export default class RedisCluster<
           fnArgs
         ),
         redisArgs = prefix.concat(fnArgs),
-        reply = await this.self.sendCommand(
+        reply = await this._self.sendCommand(
           firstKey,
           fn.IS_READ_ONLY,
           redisArgs,
-          this.self._commandOptions,
+          this._self._commandOptions,
           // fn.POLICIES
         );
 
@@ -237,7 +237,7 @@ export default class RedisCluster<
     };
   }
 
-  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
@@ -274,17 +274,17 @@ export default class RedisCluster<
     const Cluster = attachConfig({
       BaseClass: RedisCluster,
       commands: COMMANDS,
-      createCommand: RedisCluster._createCommand,
-      createModuleCommand: RedisCluster._createModuleCommand,
-      createFunctionCommand: RedisCluster._createFunctionCommand,
-      createScriptCommand: RedisCluster._createScriptCommand,
+      createCommand: RedisCluster.#createCommand,
+      createModuleCommand: RedisCluster.#createModuleCommand,
+      createFunctionCommand: RedisCluster.#createFunctionCommand,
+      createScriptCommand: RedisCluster.#createScriptCommand,
       config
     });
 
     Cluster.prototype.Multi = RedisClusterMultiCommand.extend(config);
 
     return (options?: Omit<RedisClusterOptions, keyof Exclude<typeof config, undefined>>) => {
-      // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
+      // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
       return Object.create(new Cluster(options)) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
     };
   }
@@ -300,10 +300,11 @@ export default class RedisCluster<
     return RedisCluster.factory(options)(options);
   }
 
-  private readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
+  readonly #options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
 
-  private readonly _slots: RedisClusterSlots<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #slots: RedisClusterSlots<M, F, S, RESP, TYPE_MAPPING>;
 
+  private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 
   /**
@@ -311,7 +312,7 @@ export default class RedisCluster<
    * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific node (master or replica).
    */
   get slots() {
-    return this._slots.slots;
+    return this._self.#slots.slots;
   }
 
   /**
@@ -319,7 +320,7 @@ export default class RedisCluster<
    * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific master node.
    */
   get masters() {
-    return this._slots.masters;
+    return this._self.#slots.masters;
   }
 
   /**
@@ -327,7 +328,7 @@ export default class RedisCluster<
    * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific replica node.
    */
   get replicas() {
-    return this._slots.replicas;
+    return this._self.#slots.replicas;
   }
 
   /**
@@ -335,25 +336,25 @@ export default class RedisCluster<
    * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific node (master or replica).
    */
   get nodeByAddress() {
-    return this._slots.nodeByAddress;
+    return this._self.#slots.nodeByAddress;
   }
 
   /**
    * The current pub/sub node.
    */
   get pubSubNode() {
-    return this._slots.pubSubNode;
+    return this._self.#slots.pubSubNode;
   }
 
   get isOpen() {
-    return this._slots.isOpen;
+    return this._self.#slots.isOpen;
   }
 
   constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     super();
 
-    this._options = options;
-    this._slots = new RedisClusterSlots(options, this.emit.bind(this));
+    this.#options = options;
+    this.#slots = new RedisClusterSlots(options, this.emit.bind(this));
 
     if (options?.commandOptions) {
       this._commandOptions = options.commandOptions;
@@ -368,14 +369,14 @@ export default class RedisCluster<
     _TYPE_MAPPING extends TypeMapping = TYPE_MAPPING
   >(overrides?: Partial<RedisClusterOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
-      ...this._options,
+      ...this._self.#options,
       commandOptions: this._commandOptions,
       ...overrides
     }) as RedisClusterType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
 
   connect() {
-    return this._slots.connect();
+    return this._self.#slots.connect();
   }
 
   withCommandOptions<
@@ -430,13 +431,13 @@ export default class RedisCluster<
   //   return this._commandOptionsProxy('policies', policies);
   // }
 
-  private async _execute<T>(
+  async #execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
   ): Promise<T> {
-    const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    let client = await this._slots.getClient(firstKey, isReadonly),
+    const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
+    let client = await this.#slots.getClient(firstKey, isReadonly),
       i = 0;
     while (true) {
       try {
@@ -449,10 +450,10 @@ export default class RedisCluster<
 
         if (err.message.startsWith('ASK')) {
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
-          let redirectTo = await this._slots.getMasterByAddress(address);
+          let redirectTo = await this.#slots.getMasterByAddress(address);
           if (!redirectTo) {
-            await this._slots.rediscover(client);
-            redirectTo = await this._slots.getMasterByAddress(address);
+            await this.#slots.rediscover(client);
+            redirectTo = await this.#slots.getMasterByAddress(address);
           }
 
           if (!redirectTo) {
@@ -465,8 +466,8 @@ export default class RedisCluster<
         }
         
         if (err.message.startsWith('MOVED')) {
-          await this._slots.rediscover(client);
-          client = await this._slots.getClient(firstKey, isReadonly);
+          await this.#slots.rediscover(client);
+          client = await this.#slots.getClient(firstKey, isReadonly);
           continue;
         }
 
@@ -482,7 +483,7 @@ export default class RedisCluster<
     options?: ClusterCommandOptions,
     // defaultPolicies?: CommandPolicies
   ): Promise<T> {
-    return this._execute(
+    return this._self.#execute(
       firstKey,
       isReadonly,
       client => client.sendCommand(args, options)
@@ -496,7 +497,7 @@ export default class RedisCluster<
     args: Array<RedisArgument>,
     options?: CommandOptions
   ) {
-    return this._execute(
+    return this._self.#execute(
       firstKey,
       isReadonly,
       client => client.executeScript(script, args, options)
@@ -507,11 +508,11 @@ export default class RedisCluster<
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       async (firstKey, isReadonly, commands) => {
-        const client = await this._slots.getClient(firstKey, isReadonly);
+        const client = await this._self.#slots.getClient(firstKey, isReadonly);
         return client._executeMulti(commands);
       },
       async (firstKey, isReadonly, commands) => {
-        const client = await this._slots.getClient(firstKey, isReadonly);
+        const client = await this._self.#slots.getClient(firstKey, isReadonly);
         return client._executePipeline(commands);
       },
       routing
@@ -525,7 +526,7 @@ export default class RedisCluster<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return (await this._slots.getPubSubClient())
+    return (await this._self.#slots.getPubSubClient())
       .SUBSCRIBE(channels, listener, bufferMode);
   }
 
@@ -536,7 +537,7 @@ export default class RedisCluster<
     listener?: PubSubListener<boolean>,
     bufferMode?: T
   ) {
-    return this._slots.executeUnsubscribeCommand(client =>
+    return this._self.#slots.executeUnsubscribeCommand(client =>
       client.UNSUBSCRIBE(channels, listener, bufferMode)
     );
   }
@@ -548,7 +549,7 @@ export default class RedisCluster<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return (await this._slots.getPubSubClient())
+    return (await this._self.#slots.getPubSubClient())
       .PSUBSCRIBE(patterns, listener, bufferMode);
   }
 
@@ -559,7 +560,7 @@ export default class RedisCluster<
     listener?: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this._slots.executeUnsubscribeCommand(client =>
+    return this._self.#slots.executeUnsubscribeCommand(client =>
       client.PUNSUBSCRIBE(patterns, listener, bufferMode)
     );
   }
@@ -571,9 +572,9 @@ export default class RedisCluster<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    const maxCommandRedirections = this._options.maxCommandRedirections ?? 16,
+    const maxCommandRedirections = this._self.#options.maxCommandRedirections ?? 16,
       firstChannel = Array.isArray(channels) ? channels[0] : channels;
-    let client = await this._slots.getShardedPubSubClient(firstChannel);
+    let client = await this._self.#slots.getShardedPubSubClient(firstChannel);
     for (let i = 0; ; i++) {
       try {
         return await client.SSUBSCRIBE(channels, listener, bufferMode);
@@ -583,8 +584,8 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
-          await this._slots.rediscover(client);
-          client = await this._slots.getShardedPubSubClient(firstChannel);
+          await this._self.#slots.rediscover(client);
+          client = await this._self.#slots.getShardedPubSubClient(firstChannel);
           continue;
         }
 
@@ -600,7 +601,7 @@ export default class RedisCluster<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this._slots.executeShardedUnsubscribeCommand(
+    return this._self.#slots.executeShardedUnsubscribeCommand(
       Array.isArray(channels) ? channels[0] : channels,
       client => client.SUNSUBSCRIBE(channels, listener, bufferMode)
     );
@@ -612,26 +613,26 @@ export default class RedisCluster<
    * @deprecated Use `close` instead.
    */
   quit() {
-    return this._slots.quit();
+    return this._self.#slots.quit();
   }
 
   /**
    * @deprecated Use `destroy` instead.
    */
   disconnect() {
-    return this._slots.disconnect();
+    return this._self.#slots.disconnect();
   }
 
   close() {
-    return this._slots.close();
+    return this._self.#slots.close();
   }
 
   destroy() {
-    return this._slots.destroy();
+    return this._self.#slots.destroy();
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
-    return this._slots.nodeClient(node);
+    return this._self.#slots.nodeClient(node);
   }
 
   /**
@@ -639,7 +640,7 @@ export default class RedisCluster<
    * Userful for running "forward" commands (like PUBLISH) on a random node.
    */
   getRandomNode() {
-    return this._slots.getRandomNode();
+    return this._self.#slots.getRandomNode();
   }
 
   /**
@@ -647,7 +648,7 @@ export default class RedisCluster<
    * Useful for running readonly commands on a slot.
    */
   getSlotRandomNode(slot: number) {
-    return this._slots.getSlotRandomNode(slot);
+    return this._self.#slots.getSlotRandomNode(slot);
   }
 
   /**

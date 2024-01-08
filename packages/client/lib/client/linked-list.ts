@@ -5,56 +5,56 @@ export interface DoublyLinkedNode<T> {
 }
 
 export class DoublyLinkedList<T> {
-  private _length = 0;
+  #length = 0;
 
   get length() {
-    return this._length;
+    return this.#length;
   }
 
-  private _head?: DoublyLinkedNode<T>;
+  #head?: DoublyLinkedNode<T>;
 
   get head() {
-    return this._head;
+    return this.#head;
   }
 
-  private _tail?: DoublyLinkedNode<T>;
+  #tail?: DoublyLinkedNode<T>;
 
   get tail() {
-    return this._tail;
+    return this.#tail;
   }
 
   push(value: T) {
-    ++this._length;
+    ++this.#length;
 
-    if (this._tail === undefined) {
-      return this._tail = this._head = {
-        previous: this._head,
+    if (this.#tail === undefined) {
+      return this.#tail = this.#head = {
+        previous: this.#head,
         next: undefined,
         value
       };
     } 
 
-    return this._tail = this._tail.next = {
-      previous: this._tail,
+    return this.#tail = this.#tail.next = {
+      previous: this.#tail,
       next: undefined,
       value
     };
   }
 
   unshift(value: T) {
-    ++this._length;
+    ++this.#length;
 
-    if (this._head === undefined) {
-      return this._head = this._tail = {
+    if (this.#head === undefined) {
+      return this.#head = this.#tail = {
         previous: undefined,
         next: undefined,
         value
       };
     }
 
-    return this._head = this._head.previous = {
+    return this.#head = this.#head.previous = {
       previous: undefined,
-      next: this._head,
+      next: this.#head,
       value
     };
   }
@@ -66,29 +66,29 @@ export class DoublyLinkedList<T> {
   }
 
   shift() {
-    if (this._head === undefined) return undefined;
+    if (this.#head === undefined) return undefined;
 
-    --this._length;
-    const node = this._head;
+    --this.#length;
+    const node = this.#head;
     if (node.next) {
       node.next.previous = node.previous;
-      this._head = node.next;
+      this.#head = node.next;
       node.next = undefined;
     } else {
-      this._head = this._tail = undefined;
+      this.#head = this.#tail = undefined;
     }
     return node.value;
   }
 
   remove(node: DoublyLinkedNode<T>) {
-    --this._length;
+    --this.#length;
 
-    if (this._tail === node) {
-      this._tail = node.previous;
+    if (this.#tail === node) {
+      this.#tail = node.previous;
     }
 
-    if (this._head === node) {
-      this._head = node.next;
+    if (this.#head === node) {
+      this.#head = node.next;
     } else {
       node.previous!.next = node.next;
       node.previous = undefined;
@@ -98,12 +98,12 @@ export class DoublyLinkedList<T> {
   }
 
   reset() {
-    this._length = 0;
-    this._head = this._tail = undefined;
+    this.#length = 0;
+    this.#head = this.#tail = undefined;
   }
 
   *[Symbol.iterator]() {
-    let node = this._head;
+    let node = this.#head;
     while (node !== undefined) {
       yield node.value;
       node = node.next;
@@ -117,50 +117,50 @@ export interface SinglyLinkedNode<T> {
 }
 
 export class SinglyLinkedList<T> {
-  private _length = 0;
+  #length = 0;
 
   get length() {
-    return this._length;
+    return this.#length;
   }
 
-  private _head?: SinglyLinkedNode<T>;
+  #head?: SinglyLinkedNode<T>;
 
   get head() {
-    return this._head;
+    return this.#head;
   }
 
-  private _tail?: SinglyLinkedNode<T>;
+  #tail?: SinglyLinkedNode<T>;
 
   get tail() {
-    return this._tail;
+    return this.#tail;
   }
 
   push(value: T) {
-    ++this._length;
+    ++this.#length;
 
     const node = {
       value,
       next: undefined
     };
 
-    if (this._head === undefined) {
-      return this._head = this._tail = node;
+    if (this.#head === undefined) {
+      return this.#head = this.#tail = node;
     }
 
-    return this._tail!.next = this._tail = node;
+    return this.#tail!.next = this.#tail = node;
   }
 
   remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined) {
-    --this._length;
+    --this.#length;
 
-    if (this._head === node) {
-      if (this._tail === node) {
-        this._head = this._tail = undefined;
+    if (this.#head === node) {
+      if (this.#tail === node) {
+        this.#head = this.#tail = undefined;
       } else {
-        this._head = node.next;
+        this.#head = node.next;
       }
-    } else if (this._tail === node) {
-      this._tail = parent;
+    } else if (this.#tail === node) {
+      this.#tail = parent;
       parent!.next = undefined;
     } else {
       parent!.next = node.next;
@@ -168,25 +168,25 @@ export class SinglyLinkedList<T> {
   }
 
   shift() {
-    if (this._head === undefined) return undefined;
+    if (this.#head === undefined) return undefined;
 
-    const node = this._head;
-    if (--this._length === 0) {
-      this._head = this._tail = undefined;
+    const node = this.#head;
+    if (--this.#length === 0) {
+      this.#head = this.#tail = undefined;
     } else {
-      this._head = node.next;
+      this.#head = node.next;
     }
 
     return node.value;
   }
 
   reset() {
-    this._length = 0;
-    this._head = this._tail = undefined;
+    this.#length = 0;
+    this.#head = this.#tail = undefined;
   }
 
   *[Symbol.iterator]() {
-    let node = this._head;
+    let node = this.#head;
     while (node !== undefined) {
       yield node.value;
       node = node.next;

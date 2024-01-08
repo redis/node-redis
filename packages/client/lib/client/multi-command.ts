@@ -85,10 +85,8 @@ export type RedisClientMultiCommandType<
 
 type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
 
-type ExecutePipeline = (commands: Array<RedisMultiQueuedCommand>) => Promise<Array<unknown>>;
-
 export default class RedisClientMultiCommand<REPLIES = []> {
-  private static _createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
       return this.addCommand(
@@ -98,34 +96,34 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     };
   }
 
-  private static _createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    return function (this: { self: RedisClientMultiCommand }, ...args: Array<unknown>) {
-      return this.self.addCommand(
+    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
+      return this._self.addCommand(
         command.transformArguments(...args),
         transformReply
       );
     };
   }
 
-  private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
-    return function (this: { self: RedisClientMultiCommand }, ...args: Array<unknown>) {
+    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args),
         redisArgs: CommandArguments = prefix.concat(fnArgs);
       redisArgs.preserve = fnArgs.preserve;
-      return this.self.addCommand(
+      return this._self.addCommand(
         redisArgs,
         transformReply
       );
     };
   }
 
-  private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
     const transformReply = getTransformReply(script, resp);
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
-      this._multi.addScript(
+      this.#multi.addScript(
         script,
         script.transformArguments(...args),
         transformReply
@@ -143,43 +141,42 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     return attachConfig({
       BaseClass: RedisClientMultiCommand,
       commands: COMMANDS,
-      createCommand: RedisClientMultiCommand._createCommand,
-      createModuleCommand: RedisClientMultiCommand._createModuleCommand,
-      createFunctionCommand: RedisClientMultiCommand._createFunctionCommand,
-      createScriptCommand: RedisClientMultiCommand._createScriptCommand,
+      createCommand: RedisClientMultiCommand.#createCommand,
+      createModuleCommand: RedisClientMultiCommand.#createModuleCommand,
+      createFunctionCommand: RedisClientMultiCommand.#createFunctionCommand,
+      createScriptCommand: RedisClientMultiCommand.#createScriptCommand,
       config
     });
   }
 
-  private readonly _multi = new RedisMultiCommand();
-  private readonly _executeMulti: ExecuteMulti;
-  private readonly _executePipeline: ExecutePipeline;
-  private _selectedDB?: number;
+  readonly #multi = new RedisMultiCommand();
+  readonly #executeMulti: ExecuteMulti;
+  readonly #executePipeline: ExecuteMulti;
+  #selectedDB?: number;
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecutePipeline) {
-    this._executeMulti = executeMulti;
-    this._executePipeline = executePipeline;
-    // this._client = client;
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti) {
+    this.#executeMulti = executeMulti;
+    this.#executePipeline = executePipeline;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {
-    this._selectedDB = db;
-    this._multi.addCommand(['SELECT', db.toString()], transformReply);
+    this.#selectedDB = db;
+    this.#multi.addCommand(['SELECT', db.toString()], transformReply);
     return this;
   }
 
   select = this.SELECT;
 
   addCommand(args: CommandArguments, transformReply?: TransformReply) {
-    this._multi.addCommand(args, transformReply);
+    this.#multi.addCommand(args, transformReply);
     return this;
   }
 
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
-    return this._multi.transformReplies(
-      await this._executeMulti(this._multi.queue, this._selectedDB)
+    return this.#multi.transformReplies(
+      await this.#executeMulti(this.#multi.queue, this.#selectedDB)
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -190,10 +187,10 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   }
 
   async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<MultiReplyType<T, REPLIES>> {
-    if (this._multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
+    if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
-    return this._multi.transformReplies(
-      await this._executePipeline(this._multi.queue)
+    return this.#multi.transformReplies(
+      await this.#executePipeline(this.#multi.queue, this.#selectedDB)
     ) as MultiReplyType<T, REPLIES>;
   }
 

@@ -5,8 +5,8 @@ export class AbortError extends Error {
 }
 
 export class WatchError extends Error {
-  constructor() {
-    super('One (or more) of the watched keys has been changed');
+  constructor(message = 'One (or more) of the watched keys has been changed') {
+    super(message);
   }
 }
 
@@ -78,5 +78,11 @@ export class MultiErrorReply extends ErrorReply {
     super(`${errorIndexes.length} commands failed, see .replies and .errorIndexes for more information`);
     this.replies = replies;
     this.errorIndexes = errorIndexes;
+  }
+
+  *errors() {
+    for (const index of this.errorIndexes) {
+        yield this.replies[index];
+    }
   }
 }

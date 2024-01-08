@@ -71,7 +71,7 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   Object.defineProperty(prototype, name, {
     get() {
       const value = Object.create(fns);
-      value.self = this;
+      value._self = this;
       Object.defineProperty(this, name, { value });
       return value;
     }
