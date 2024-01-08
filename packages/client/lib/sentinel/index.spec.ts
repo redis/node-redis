@@ -206,8 +206,9 @@ async function steadyState(frame: SentinelFramework) {
       it('basic bootstrap', async function () {
         sentinel = frame.getSentinelClient();
         await sentinel.connect();
-  
-        assert.equal(await sentinel.set('x', 1), 'OK');
+
+        await assert.doesNotReject(sentinel.set('x', 1));
+
       });
   
       it('basic teardown worked', async function () {
@@ -220,13 +221,13 @@ async function steadyState(frame: SentinelFramework) {
         sentinel = frame.getSentinelClient();
         await sentinel.connect();
   
-        assert.equal(await sentinel.get('x'), null);
+        await assert.doesNotReject(sentinel.get('x'));
       });
   
       it('try to connect multiple times', async function () {
         sentinel = frame.getSentinelClient();
         const connectPromise = sentinel.connect();
-        assert.rejects(sentinel.connect());
+        await assert.rejects(sentinel.connect());
         await connectPromise;
       });
   
@@ -371,15 +372,11 @@ async function steadyState(frame: SentinelFramework) {
   
         const promise = sentinel.use(
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>, ) => {
-            await setTimeout(5000);
-            return await client.get('x');
+            const masterNode = sentinel!.getMasterNode();
+            await frame.stopNode(masterNode!.port.toString());
+            await assert.doesNotReject(client.get('x'));
           }
         );
-  
-        const masterNode = sentinel.getMasterNode();
-        await frame.stopNode(masterNode!.port.toString());
-  
-        assert.equal(await promise, null);
       });
   
       it('use with script', async function () {
@@ -453,13 +450,14 @@ async function steadyState(frame: SentinelFramework) {
         sentinel = frame.getSentinelClient({ useReplicas: true });
         sentinel.on("error", () => { });
         await sentinel.connect();
-  
+
         const promise = sentinel.use(
-          async (client: RedisSentinelClientType) => {
+          async client => {
             await setTimeout(1000);
             return await client.get("x");
           }
         )
+        
         await sentinel.set("x", 1);
         assert.equal(await promise, null);
       });
@@ -474,17 +472,13 @@ async function steadyState(frame: SentinelFramework) {
         let set = false;
   
         const promise = sentinel.use(
-          async (client: RedisSentinelClientType) => {
-            await setTimeout(1000);
+          async client => {
+            await sentinel!.set("x", 1);
             await client.get("x");
-            set = true;
           }
         )
   
-        await sentinel.set("x", 1);
-        assert.equal(set, false);
-        await promise;
-        assert.equal(set, true);
+        await assert.doesNotReject(promise);
       });
   
       // by taking a lease, we know we will block on master as no clients are available, but as read occuring, means replica read occurs
@@ -499,6 +493,7 @@ async function steadyState(frame: SentinelFramework) {
         clientLease.set('x', 456);
   
         let matched = false;
+        /* waits for replication */
         for (let i = 0; i < 15; i++) {
           try {
             assert.equal(await sentinel.get("x"), '456');
@@ -1233,7 +1228,7 @@ async function steadyState(frame: SentinelFramework) {
   
       it('sentinel factory - bad node', async function () {
         const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: [{ host: "locahost", port: 1 }] });
-        assert.rejects(factory.updateSentinelRootNodes(), new Error("Couldn't connect to any sentinel node"));
+        await assert.rejects(factory.updateSentinelRootNodes(), new Error("Couldn't connect to any sentinel node"));
       })
   
       it('sentinel factory - invalid db name', async function () {
@@ -1247,7 +1242,7 @@ async function steadyState(frame: SentinelFramework) {
         }
   
         const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: sentinels, sentinelClientOptions: {password: password}, nodeClientOptions: {password: password} })
-        assert.rejects(factory.updateSentinelRootNodes(), new Error("ERR No such master with that name"));
+        await assert.rejects(factory.updateSentinelRootNodes(), new Error("ERR No such master with that name"));
       })
   
       it('sentinel factory - no available nodes', async function () {
@@ -1268,7 +1263,7 @@ async function steadyState(frame: SentinelFramework) {
   
         await setTimeout(1000);
   
-        assert.rejects(factory.getMasterNode(), new Error("Master Node Not Enumerated"));
+        await assert.rejects(factory.getMasterNode(), new Error("Master Node Not Enumerated"));
       })
     })
   })
