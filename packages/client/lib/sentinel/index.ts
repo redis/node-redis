@@ -283,6 +283,10 @@ export default class RedisSentinel<
 
   #trace: (msg: string) => unknown = () => { };
 
+  // used to store clientInfo for when users pipeline commands
+  #tmpClientInfo?: clientInfo
+  #tmpClientInfoCount = 0;
+
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
 
@@ -391,15 +395,23 @@ export default class RedisSentinel<
     fn: (client: RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>
   ): Promise<T> {
     let clientInfo: clientInfo | undefined;
-    if (!isReadonly || !this.self.#options.useReplicas) {
-      clientInfo = await this.self.#internal.getClientLease();
+    if (!isReadonly || !this.self.#options.useReplicas || this.self.#tmpClientInfo) {
+      if (!this.self.#tmpClientInfo) {
+        this.self.#tmpClientInfo = await this.self.#internal.getClientLease();
+      }
+      clientInfo = this.self.#tmpClientInfo;
+      this.self.#tmpClientInfoCount++;
     }
 
     try {
       return await this.self.#internal.execute(fn, clientInfo);
     } finally {
-      if (clientInfo !== undefined) {
-        this.self.#internal.releaseClientLease(clientInfo);
+      if (this.self.#tmpClientInfo) {
+        this.self.#tmpClientInfoCount--;
+        if (this.self.#tmpClientInfoCount == 0) {
+          this.self.#internal.releaseClientLease(this.self.#tmpClientInfo);
+          this.self.#tmpClientInfo = undefined;
+        }
       }
     }
   }
