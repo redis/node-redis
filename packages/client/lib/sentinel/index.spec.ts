@@ -16,12 +16,6 @@ import RedisBloomModules from '@redis/bloom';
 
 const execAsync = promisify(exec);
 
-/* used to ensure test environment resets to normal state
-   i.e. 
-   - all redis nodes are active and are part of the topology
-   before allowing things to continue.
-*/
-
 const SQUARE_SCRIPT = defineScript({
   SCRIPT:
     `local number = redis.call('GET', KEYS[1])
@@ -33,6 +27,12 @@ const SQUARE_SCRIPT = defineScript({
   },
   transformReply: undefined as unknown as () => NumberReply
 });
+
+/* used to ensure test environment resets to normal state
+   i.e. 
+   - all redis nodes are active and are part of the topology
+   before allowing things to continue.
+*/
 
 async function steadyState(frame: SentinelFramework) {
   let checkedMaster = false;
@@ -164,8 +164,8 @@ async function steadyState(frame: SentinelFramework) {
         if (sentinel !== undefined) {
           sentinel.on('error', () => { });
         }
-  
-        if (this!.currentTest.state === 'failed') {          
+ 
+        if (this!.currentTest!.state === 'failed') {          
           console.log(`longest event loop blocked delta: ${longestDelta}`);
           console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
           console.log("trace:");
