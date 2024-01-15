@@ -11,6 +11,7 @@ import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction,
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
+import CLIENT_ID from '../commands/CLIENT_ID';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
@@ -280,6 +281,8 @@ export default class RedisClient<
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
+  #clientId = 0;
+
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
   }
@@ -382,9 +385,25 @@ export default class RedisClient<
           this.#queue.addCommand(
             HELLO.transformArguments(this.#options.RESP, hello),
             { asap: true }
+          ).then(reply => {
+              const transformReply = getTransformReply(HELLO, this.#options!.RESP!);
+              const val = transformReply ? transformReply(reply) : reply;
+              this._self.#clientId = val.id;
+            }
           )
         );
       } else {
+        promises.push(
+          this.#queue.addCommand(
+            CLIENT_ID.transformArguments(),
+            { asap: true }
+          ).then(reply => {
+            const transformReply = getTransformReply(CLIENT_ID, 2);
+            const val = transformReply ? transformReply(reply) : reply;
+            this._self.#clientId = val;
+          })
+        );
+
         if (this.#options?.name) {
           promises.push(
             this.#queue.addCommand(
@@ -901,6 +920,12 @@ export default class RedisClient<
 
   quit = this.QUIT;
 
+  CLIENT_ID(): number {
+    return this._self.#clientId;
+  }
+
+  clientId = this.CLIENT_ID;
+    
   /**
    * @deprecated use .destroy instead
    */
