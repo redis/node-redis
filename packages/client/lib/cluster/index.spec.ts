@@ -238,12 +238,10 @@ describe('Cluster', () => {
         
         testUtils.testWithCluster('concurrent UNSUBSCRIBE does not throw an error (#2685)', async cluster => {
             const listener = spy();
-
             await Promise.all([
                 cluster.subscribe('1', listener),
                 cluster.subscribe('2', listener)
             ]);
-
             await Promise.all([
                 cluster.unsubscribe('1', listener),
                 cluster.unsubscribe('2', listener)
@@ -340,12 +338,12 @@ describe('Cluster', () => {
         testUtils.testWithCluster('concurrent SUNSUBCRIBE does not throw an error (#2685)', async cluster => {
             const listener = spy();
             await Promise.all([
-                await cluster.sSubscribe('channel', listener),
-                await cluster.sSubscribe('channel2', listener)
+                await cluster.sSubscribe('1', listener),
+                await cluster.sSubscribe('2', listener)
             ]);
             await Promise.all([
-                cluster.sUnsubscribe('channel', listener),
-                cluster.sUnsubscribe('channel2', listener)
+                cluster.sUnsubscribe('1', listener),
+                cluster.sUnsubscribe('2', listener)
             ]);
         }, {
             ...GLOBAL.CLUSTERS.OPEN,
