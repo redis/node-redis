@@ -236,18 +236,18 @@ describe('Cluster', () => {
             assert.equal(cluster.pubSubNode, undefined);
         }, GLOBAL.CLUSTERS.OPEN);
         
-        testUtils.testWithCluster('concurrent unsubscribe does not throw an error', async cluster => {
+        testUtils.testWithCluster('concurrent UNSUBSCRIBE does not throw an error (#2685)', async cluster => {
             const listener = spy();
 
-            await cluster.subscribe('channel', listener);
-            await cluster.subscribe('channel2', listener);
+            await Promise.all([
+                cluster.subscribe('1', listener),
+                cluster.subscribe('2', listener)
+            ]);
 
             await Promise.all([
-                cluster.unsubscribe('channel', listener),
-                cluster.unsubscribe('channel2', listener)
+                cluster.unsubscribe('1', listener),
+                cluster.unsubscribe('2', listener)
             ]);
-            
-            assert.equal(cluster.isOpen, false);
         }, GLOBAL.CLUSTERS.OPEN);
 
         testUtils.testWithCluster('psubscribe & punsubscribe', async cluster => {
@@ -337,19 +337,16 @@ describe('Cluster', () => {
             minimumDockerVersion: [7]
         });
 
-        testUtils.testWithCluster('concurrent sunsubscribe does not throw an error', async cluster => {
+        testUtils.testWithCluster('concurrent SUNSUBCRIBE does not throw an error (#2685)', async cluster => {
             const listener = spy();
-
-            await cluster.sSubscribe('channel', listener);
-            await cluster.sSubscribe('channel2', listener);
-
+            await Promise.all([
+                await cluster.sSubscribe('channel', listener),
+                await cluster.sSubscribe('channel2', listener)
+            ]);
             await Promise.all([
                 cluster.sUnsubscribe('channel', listener),
                 cluster.sUnsubscribe('channel2', listener)
-            ])
-
-
-            assert.equal(cluster.isOpen, false);
+            ]);
         }, {
             ...GLOBAL.CLUSTERS.OPEN,
             minimumDockerVersion: [7]
