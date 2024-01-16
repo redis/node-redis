@@ -375,8 +375,9 @@ export default class RedisCluster<
     }) as RedisClusterType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
 
-  connect() {
-    return this._self.#slots.connect();
+  async connect() {
+    await this._self.#slots.connect();
+    return this as unknown as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
   withCommandOptions<
