@@ -2,6 +2,7 @@ export interface DoublyLinkedNode<T> {
   value: T;
   previous: DoublyLinkedNode<T> | undefined;
   next: DoublyLinkedNode<T> | undefined;
+  removed?: boolean;
 }
 
 export class DoublyLinkedList<T> {
@@ -77,10 +78,17 @@ export class DoublyLinkedList<T> {
     } else {
       this.#head = this.#tail = undefined;
     }
+
+    node.removed = true;
     return node.value;
   }
 
   remove(node: DoublyLinkedNode<T>) {
+    if (node.removed) {
+      throw new Error("removing an already removed node");
+    }
+    node.removed = true;
+
     --this.#length;
 
     if (this.#tail === node) {
@@ -114,6 +122,7 @@ export class DoublyLinkedList<T> {
 export interface SinglyLinkedNode<T> {
   value: T;
   next: SinglyLinkedNode<T> | undefined;
+  removed?: boolean;
 }
 
 export class SinglyLinkedList<T> {
@@ -151,6 +160,11 @@ export class SinglyLinkedList<T> {
   }
 
   remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined) {
+    if (node.removed) {
+      throw new Error("removing an already removed node");
+    }
+    node.removed = true;
+
     --this.#length;
 
     if (this.#head === node) {
@@ -177,6 +191,7 @@ export class SinglyLinkedList<T> {
       this.#head = node.next;
     }
 
+    node.removed = true;
     return node.value;
   }
 
