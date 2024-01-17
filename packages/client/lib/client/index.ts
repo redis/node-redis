@@ -281,7 +281,7 @@ export default class RedisClient<
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
   #dirtyWatch?: string;
-  #watchEpoch?: symbol;
+  #watchEpoch?: number;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
