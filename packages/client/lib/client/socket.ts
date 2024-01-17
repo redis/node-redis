@@ -82,6 +82,12 @@ export default class RedisSocket extends EventEmitter {
     return this.#isReady;
   }
 
+  #epoch?: symbol;
+
+  get epoch() {
+    return this.#epoch;
+  }
+
   #isSocketUnrefed = false;
 
   constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
@@ -141,6 +147,7 @@ export default class RedisSocket extends EventEmitter {
     do {
       try {
         this.#socket = await this.#createSocket();
+        this.#epoch = Symbol('RedisSocket epoch');
         this.emit('connect');
 
         try {
