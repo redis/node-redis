@@ -749,11 +749,13 @@ export default class RedisClient<
       return Promise.reject(new ClientClosedError());
     }
 
-    const promise = Promise.all(
-      commands.map(({ args }) => this._self.#queue.addCommand(args, {
-        typeMapping: this._commandOptions?.typeMapping
-      }))
-    );
+    const chainId = Symbol('Pipeline Chain'),
+      promise = Promise.all(
+        commands.map(({ args }) => this._self.#queue.addCommand(args, {
+          chainId,
+          typeMapping: this._commandOptions?.typeMapping
+        }))
+      );
     this._self.#scheduleWrite();
     const result = await promise;
 
