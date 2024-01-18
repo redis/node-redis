@@ -461,6 +461,31 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.set("x", 1);
         assert.equal(await promise, null);
       });
+
+      it('reserve client, takes a client out of pool', async function () {
+        this.timeout(30000);
+  
+        sentinel = frame.getSentinelClient({ masterPoolSize: 2, reserveClient: true });
+        await sentinel.connect();
+
+        const promise1 = sentinel.use(
+          async client => {
+            await setTimeout(1000);
+            return await client.get("x");
+          }
+        )
+
+        const promise2 = sentinel.use(
+          async client => {
+            await setTimeout(1000);
+            return await client.get("x");
+          }
+        )
+
+        await sentinel.set("x", 1);
+        assert.equal(await promise1, 1);
+        assert.equal(await promise2, null);
+      })
   
       it('multiple clients', async function () {
         this.timeout(30000);

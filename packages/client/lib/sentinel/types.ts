@@ -61,6 +61,10 @@ export interface RedisSentinelOptions<
    * 
    */
   passthroughClientErrorEvents?: boolean;
+  /**
+   * TODO
+   */
+  reserveClient?: boolean;
 }
 
 export type PubSubToResubscribe = Record<
