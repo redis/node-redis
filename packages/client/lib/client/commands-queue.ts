@@ -1,10 +1,9 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
+import { CommandArguments, TypeMapping, ReplyUnion, RespVersions, SimpleStringReply, ReplyWithTypeMapping } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
-import { EventEmitter } from 'node:stream';
 import { MonitorCallback } from '.';
 
 export interface CommandOptions<T = TypeMapping> {
@@ -19,24 +18,24 @@ export interface CommandOptions<T = TypeMapping> {
 
 export interface CommandToWrite extends CommandWaitingForReply {
   args: CommandArguments;
-  chainId?: symbol;
-  abort?: {
+  chainId: symbol | undefined;
+  abort: {
     signal: AbortSignal;
     listener: () => unknown;
-  };
-  resolveOnWrite?: boolean;
+  } | undefined;
 }
 
 interface CommandWaitingForReply {
   resolve(reply?: unknown): void;
   reject(err: unknown): void;
-  channelsCounter?: number;
-  typeMapping?: TypeMapping;
+  channelsCounter: number | undefined;
+  typeMapping: TypeMapping | undefined;
 }
 
 export type OnShardedChannelMoved = (channel: string, listeners: ChannelListeners) => void;
 
-const PONG = Buffer.from('pong');
+const PONG = Buffer.from('pong'),
+  RESET = Buffer.from('RESET');
 
 const RESP2_PUSH_TYPE_MAPPING = {
   ...PUSH_TYPE_MAPPING,
@@ -44,35 +43,28 @@ const RESP2_PUSH_TYPE_MAPPING = {
 };
 
 export default class RedisCommandsQueue {
-  readonly #maxLength: number | null | undefined;
+  readonly #respVersion;
+  readonly #maxLength;
   readonly #toWrite = new DoublyLinkedList<CommandToWrite>();
   readonly #waitingForReply = new SinglyLinkedList<CommandWaitingForReply>();
-  readonly #onShardedChannelMoved: OnShardedChannelMoved;
-
+  readonly #onShardedChannelMoved;
+  #chainInExecution: symbol | undefined;
+  readonly decoder;
   readonly #pubSub = new PubSub();
 
   get isPubSubActive() {
     return this.#pubSub.isActive;
   }
 
-  #chainInExecution: symbol | undefined;
-
-  decoder: Decoder;
-
   constructor(
-    respVersion: RespVersions | null | undefined,
+    respVersion: RespVersions,
     maxLength: number | null | undefined,
-    onShardedChannelMoved: EventEmitter['emit']
+    onShardedChannelMoved: OnShardedChannelMoved
   ) {
-    this.decoder = this.#initiateDecoder(respVersion);
+    this.#respVersion = respVersion;
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
-  }
-
-  #initiateDecoder(respVersion: RespVersions | null | undefined) {
-    return respVersion === 3 ?
-      this.#initiateResp3Decoder() :
-      this.#initiateResp2Decoder();
+    this.decoder = this.#initiateDecoder();
   }
 
   #onReply(reply: ReplyUnion) {
@@ -111,7 +103,7 @@ export default class RedisCommandsQueue {
     return this.#waitingForReply.head!.value.typeMapping ?? {};
   }
 
-  #initiateResp3Decoder() {
+  #initiateDecoder() {
     return new Decoder({
       onReply: reply => this.#onReply(reply),
       onErrorReply: err => this.#onErrorReply(err),
@@ -124,61 +116,9 @@ export default class RedisCommandsQueue {
     });
   }
 
-  #initiateResp2Decoder() {
-    return new Decoder({
-      onReply: reply => {
-        if (this.#pubSub.isActive && Array.isArray(reply)) {
-          if (this.#onPush(reply)) return;
-          
-          if (PONG.equals(reply[0] as Buffer)) {
-            const { resolve, typeMapping } = this.#waitingForReply.shift()!,
-              buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
-            resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
-            return;
-          }
-        }
-
-        this.#onReply(reply);
-      },
-      onErrorReply: err => this.#onErrorReply(err),
-      // PUSH type does not exist in RESP2
-      // PubSub is handled in onReply  
-      // @ts-expect-error
-      onPush: undefined,
-      getTypeMapping: () => {
-        // PubSub push is an Array in RESP2
-        return this.#pubSub.isActive ?
-          RESP2_PUSH_TYPE_MAPPING :
-          this.#getTypeMapping();
-      }
-    });
-  }
-  
-  async monitor(callback: MonitorCallback, typeMapping: TypeMapping = {}, asap = false) {
-    await this.addCommand(
-      ['MONITOR'],
-      { asap },
-      true
-    );
-
-    const { onReply, getTypeMapping } = this.decoder;
-    this.decoder.onReply = callback;
-    this.decoder.getTypeMapping = () => typeMapping;
-    return () => new Promise<void>(async resolve => {
-      await this.addCommand(['RESET'], undefined, true);
-      this.decoder.onReply = (reply: string) => {
-        if (reply !== 'RESET') return callback(reply);
-        this.decoder.onReply = onReply;
-        this.decoder.getTypeMapping = getTypeMapping;
-        resolve();
-      };
-    });
-  }
-
   addCommand<T>(
     args: CommandArguments,
-    options?: CommandOptions,
-    resolveOnWrite?: boolean
+    options?: CommandOptions
   ): Promise<T> {
     if (this.#maxLength && this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength) {
       return Promise.reject(new Error('The queue is full'));
@@ -192,7 +132,6 @@ export default class RedisCommandsQueue {
         args,
         chainId: options?.chainId,
         abort: undefined,
-        resolveOnWrite,
         resolve,
         reject,
         channelsCounter: undefined,
@@ -215,66 +154,12 @@ export default class RedisCommandsQueue {
     });
   }
 
-  subscribe<T extends boolean>(
-    type: PubSubType,
-    channels: string | Array<string>,
-    listener: PubSubListener<T>,
-    returnBuffers?: T
-  ) {
-    return this.#addPubSubCommand(
-      this.#pubSub.subscribe(type, channels, listener, returnBuffers)
-    );
-  }
-
-  unsubscribe<T extends boolean>(
-    type: PubSubType,
-    channels?: string | Array<string>,
-    listener?: PubSubListener<T>,
-    returnBuffers?: T
-  ) {
-    return this.#addPubSubCommand(
-      this.#pubSub.unsubscribe(type, channels, listener, returnBuffers)
-    );
-  }
-
-  resubscribe(): Promise<any> | undefined {
-    const commands = this.#pubSub.resubscribe();
-    if (!commands.length) return;
-
-    return Promise.all(
-      commands.map(command => this.#addPubSubCommand(command, true))
-    );
-  }
-
-  extendPubSubChannelListeners(
-    type: PubSubType,
-    channel: string,
-    listeners: ChannelListeners
-  ) {
-    return this.#addPubSubCommand(
-      this.#pubSub.extendChannelListeners(type, channel, listeners)
-    );
-  }
-
-  extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
-    return this.#addPubSubCommand(
-      this.#pubSub.extendTypeListeners(type, listeners)
-    );
-  }
-
-  getPubSubListeners(type: PubSubType) {
-    return this.#pubSub.getTypeListeners(type);
-  }
-
   #addPubSubCommand(command: PubSubCommand, asap = false) {
-    if (command === undefined) return;
-
     return new Promise<void>((resolve, reject) => {
       this.#toWrite.add({
         args: command.args,
         chainId: undefined,
         abort: undefined,
-        resolveOnWrite: false,
         resolve() {
           command.resolve();
           resolve();
@@ -286,6 +171,171 @@ export default class RedisCommandsQueue {
         channelsCounter: command.channelsCounter,
         typeMapping: PUSH_TYPE_MAPPING
       }, asap);
+    });
+  }
+
+  #setupPubSubHandler(command: Exclude<PubSubCommand, undefined>) {
+    // RESP3 uses `onPush` to handle PubSub, so no need to modify `onReply`
+    if (this.#respVersion !== 2) return;
+
+    // overriding `resolve` instead of using `.then` to make sure it'll be called before processing the next reply
+    const { resolve } = command;
+    command.resolve = () => {
+      this.decoder.onReply = (reply => {
+        if (Array.isArray(reply)) {
+          if (this.#onPush(reply)) return;
+          
+          if (PONG.equals(reply[0] as Buffer)) {
+            const { resolve, typeMapping } = this.#waitingForReply.shift()!,
+              buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
+            resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
+            return;
+          }
+        }
+  
+        return this.#onReply(reply);
+      }) as Decoder['onReply'];
+      this.decoder.getTypeMapping = () => RESP2_PUSH_TYPE_MAPPING;
+      resolve();
+    };
+  }
+
+  subscribe<T extends boolean>(
+    type: PubSubType,
+    channels: string | Array<string>,
+    listener: PubSubListener<T>,
+    returnBuffers?: T
+  ) {
+    const command = this.#pubSub.subscribe(type, channels, listener, returnBuffers);
+    if (!command) return;
+
+    this.#setupPubSubHandler(command);
+    return this.#addPubSubCommand(command);
+  }
+
+  #resetDecoderCallbacks() {
+    this.decoder.onReply = (reply => this.#onReply(reply)) as Decoder['onReply'];
+    this.decoder.getTypeMapping = () => this.#getTypeMapping();
+  }
+
+  unsubscribe<T extends boolean>(
+    type: PubSubType,
+    channels?: string | Array<string>,
+    listener?: PubSubListener<T>,
+    returnBuffers?: T
+  ) {
+    const command = this.#pubSub.unsubscribe(type, channels, listener, returnBuffers);
+    if (!command) return;
+
+    if (command && this.#respVersion === 2) {
+      // RESP2 modifies `onReply` to handle PubSub (see #setupPubSubHandler)
+      const { resolve } = command;
+      command.resolve = () => {
+        if (!this.#pubSub.isActive) {
+          this.#resetDecoderCallbacks();
+        }
+        
+        resolve();
+      };
+    }
+
+    return this.#addPubSubCommand(command);
+  }
+
+  resubscribe() {
+    const commands = this.#pubSub.resubscribe();
+    if (!commands.length) return;
+
+    // using last command becasue of asap
+    this.#setupPubSubHandler(commands[commands.length - 1]);
+    return Promise.all(
+      commands.map(command => this.#addPubSubCommand(command, true))
+    );
+  }
+
+  extendPubSubChannelListeners(
+    type: PubSubType,
+    channel: string,
+    listeners: ChannelListeners
+  ) {
+    const command = this.#pubSub.extendChannelListeners(type, channel, listeners);
+    if (!command) return;
+
+    this.#setupPubSubHandler(command);
+    return this.#addPubSubCommand(command);
+  }
+
+  extendPubSubListeners(type: PubSubType, listeners: PubSubTypeListeners) {
+    const command = this.#pubSub.extendTypeListeners(type, listeners);
+    if (!command) return;
+
+    this.#setupPubSubHandler(command);
+    return this.#addPubSubCommand(command);
+  }
+
+  getPubSubListeners(type: PubSubType) {
+    return this.#pubSub.getTypeListeners(type);
+  }
+
+  monitor(callback: MonitorCallback, typeMapping: TypeMapping = {}, asap = false) {
+    return new Promise<void>((resolve, reject) => {
+      this.#toWrite.add({
+        args: ['MONITOR'],
+        chainId: undefined,
+        abort: undefined,
+        // using `resolve` instead of using `.then`/`await` to make sure it'll be called before processing the next reply
+        resolve: () => {
+          // after running `MONITOR` only `MONITOR` and `RESET` replies are expected
+          // any other command should cause an error
+
+          // if `RESET` already overrides `onReply`, set monitor as it's fallback
+          if (this.#resetFallbackOnReply) {
+            this.#resetFallbackOnReply = callback;
+          } else {
+            this.decoder.onReply = callback;
+          }
+
+          this.decoder.getTypeMapping = () => typeMapping;
+          resolve();
+        },
+        reject,
+        channelsCounter: undefined,
+        typeMapping
+      }, asap);
+    });
+  }
+
+  #resetFallbackOnReply?: Decoder['onReply'];
+
+  async reset<T extends TypeMapping>(typeMapping?: T) {
+    return new Promise((resolve, reject) => {
+      // overriding onReply to handle `RESET` while in `MONITOR` or PubSub mode
+      this.#resetFallbackOnReply = this.decoder.onReply;
+      this.decoder.onReply = (reply => {
+        if (
+          (typeof reply === 'string' && reply === 'RESET') ||
+          (reply instanceof Buffer && RESET.equals(reply))
+        ) {
+          this.#resetDecoderCallbacks();
+          this.#resetFallbackOnReply = undefined;
+          this.#pubSub.reset();
+          
+          this.#waitingForReply.shift()!.resolve(reply);
+          return;
+        }
+        
+        this.#resetFallbackOnReply!(reply);
+      }) as Decoder['onReply'];
+
+      this.#toWrite.push({
+        args: ['RESET'],
+        chainId: undefined,
+        abort: undefined,
+        resolve,
+        reject,
+        channelsCounter: undefined,
+        typeMapping
+      });
     });
   }
 
@@ -305,22 +355,15 @@ export default class RedisCommandsQueue {
         continue;
       }
 
+      // TODO reuse `toSend` or create new object? 
+      (toSend as any).args = undefined;
       if (toSend.abort) {
         RedisCommandsQueue.#removeAbortListener(toSend);
         toSend.abort = undefined;
       }
-
-      if (toSend.resolveOnWrite) {
-        toSend.resolve();
-      } else {
-        // TODO reuse `toSend` or create new object? 
-        (toSend as any).args = undefined;
-
-        this.#chainInExecution = toSend.chainId;
-        toSend.chainId = undefined;
-
-        this.#waitingForReply.push(toSend);
-      }
+      this.#chainInExecution = toSend.chainId;
+      toSend.chainId = undefined;
+      this.#waitingForReply.push(toSend);
       
       yield encoded;
       toSend = this.#toWrite.shift();

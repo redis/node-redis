@@ -1,4 +1,5 @@
 import { RedisArgument } from '../RESP/types';
+import { CommandToWrite } from './commands-queue';
 
 export enum PubSubType {
   CHANNELS = 'CHANNELS',
@@ -26,7 +27,7 @@ const COMMANDS = {
 
 export type PubSubListener<
   RETURN_BUFFERS extends boolean = false
-> = <T = RETURN_BUFFERS extends true ? Buffer : string>(message: T, channel: T) => unknown;
+> = <T extends RETURN_BUFFERS extends true ? Buffer : string>(message: T, channel: T) => unknown;
 
 export interface ChannelListeners {
   unsubscribing: boolean;
@@ -38,11 +39,11 @@ export type PubSubTypeListeners = Map<string, ChannelListeners>;
 
 type Listeners = Record<PubSubType, PubSubTypeListeners>;
 
-export type PubSubCommand = ReturnType<
-  typeof PubSub.prototype.subscribe |
-  typeof PubSub.prototype.unsubscribe |
-  typeof PubSub.prototype.extendTypeListeners
->;
+export type PubSubCommand = (
+  Required<Pick<CommandToWrite, 'args' | 'channelsCounter' | 'resolve'>> & {
+    reject: undefined | (() => unknown);
+  }
+);
 
 export class PubSub {
   static isStatusReply(reply: Array<Buffer>): boolean {
@@ -135,7 +136,7 @@ export class PubSub {
         this.#subscribing--;
         this.#updateIsActive();
       }
-    };
+    } satisfies PubSubCommand;
   }
 
   extendChannelListeners(
@@ -158,7 +159,7 @@ export class PubSub {
         this.#subscribing--;
         this.#updateIsActive();
       }
-    };
+    } satisfies PubSubCommand;
   }
 
   #extendChannelListeners(
@@ -203,7 +204,7 @@ export class PubSub {
         this.#subscribing--;
         this.#updateIsActive();
       }
-    };
+    } satisfies PubSubCommand;
   }
 
   unsubscribe<T extends boolean>(
@@ -299,8 +300,8 @@ export class PubSub {
         removeListeners();
         this.#updateIsActive();
       },
-      reject: undefined // use the same structure as `subscribe`
-    };
+      reject: undefined
+    } satisfies PubSubCommand;
   }
 
   #updateIsActive() {
@@ -317,7 +318,7 @@ export class PubSub {
     this.#subscribing = 0;
   }
 
-  resubscribe(): Array<PubSubCommand> {
+  resubscribe() {
     const commands = [];
     for (const [type, listeners] of Object.entries(this.#listeners)) {
       if (!listeners.size) continue;
@@ -333,7 +334,7 @@ export class PubSub {
         channelsCounter: listeners.size,
         resolve: callback,
         reject: callback
-      });
+      } satisfies PubSubCommand);
     }
 
     return commands;
