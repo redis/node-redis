@@ -33,7 +33,6 @@ import BZPOPMIN from './BZPOPMIN';
 import CLIENT_CACHING from './CLIENT_CACHING';
 import CLIENT_GETNAME from './CLIENT_GETNAME';
 import CLIENT_GETREDIR from './CLIENT_GETREDIR';
-import CLIENT_ID from './CLIENT_ID';
 import CLIENT_INFO from './CLIENT_INFO';
 import CLIENT_KILL from './CLIENT_KILL';
 import CLIENT_LIST from './CLIENT_LIST';
@@ -403,8 +402,6 @@ export default {
   clientGetName: CLIENT_GETNAME,
   CLIENT_GETREDIR,
   clientGetRedir: CLIENT_GETREDIR,
-  CLIENT_ID,
-  clientId: CLIENT_ID,
   CLIENT_INFO,
   clientInfo: CLIENT_INFO,
   CLIENT_KILL,
