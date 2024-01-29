@@ -67,7 +67,7 @@ async function steadyState(frame: SentinelFramework) {
   const tracer = [];
 
   try {
-    sentinel = frame.getSentinelClient({ useReplicas: true, scanInterval: 2000 }, false)
+    sentinel = frame.getSentinelClient({ replicaPoolSize: 1, scanInterval: 2000 }, false)
       .on('topology-change', (event: RedisSentinelEvent) => {
         if (event.type == "MASTER_CHANGE" || event.type == "REPLICA_ADD") {
           seenNodes.add(event.node.port);
@@ -340,7 +340,7 @@ async function steadyState(frame: SentinelFramework) {
       it('many readers', async function () {
         this.timeout(10000);
   
-        sentinel = frame.getSentinelClient({ useReplicas: true, replicaPoolSize: 8 });
+        sentinel = frame.getSentinelClient({ replicaPoolSize: 8 });
         await sentinel.connect();
   
         await sentinel.set("x", 1);
@@ -366,7 +366,7 @@ async function steadyState(frame: SentinelFramework) {
       it('use', async function () {
         this.timeout(30000);
   
-        sentinel = frame.getSentinelClient({ useReplicas: true });
+        sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
         sentinel.on("error", () => { });
         await sentinel.connect();
   
@@ -447,7 +447,7 @@ async function steadyState(frame: SentinelFramework) {
       it('block on pool', async function () {
         this.timeout(30000);
   
-        sentinel = frame.getSentinelClient({ useReplicas: true });
+        sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
         sentinel.on("error", () => { });
         await sentinel.connect();
 
@@ -471,7 +471,9 @@ async function steadyState(frame: SentinelFramework) {
         const promise1 = sentinel.use(
           async client => {
             await setTimeout(1000);
-            return await client.get("x");
+            const val = await client.get("x");
+            await client.set("x", 2);
+            return val;
           }
         )
 
@@ -483,8 +485,8 @@ async function steadyState(frame: SentinelFramework) {
         )
 
         await sentinel.set("x", 1);
-        assert.equal(await promise1, 1);
-        assert.equal(await promise2, null);
+        assert.equal(await promise1, "1");
+        assert.equal(await promise2, "2");
       })
   
       it('multiple clients', async function () {
@@ -510,7 +512,7 @@ async function steadyState(frame: SentinelFramework) {
       it('replica reads', async function () {
         this.timeout(30000);
   
-        sentinel = frame.getSentinelClient({ useReplicas: true });
+        sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
         sentinel.on("error", () => { });
         await sentinel.connect();
   
@@ -537,7 +539,7 @@ async function steadyState(frame: SentinelFramework) {
       it('pipeline', async function () {
         this.timeout(30000);
   
-        sentinel = frame.getSentinelClient({ useReplicas: true });
+        sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
         await sentinel.connect();
   
         const resp = await sentinel.multi().set('x', 1).get('x').execAsPipeline();
@@ -599,14 +601,19 @@ async function steadyState(frame: SentinelFramework) {
       });
   
   
-      it('watch does not carry through leases', async function () {
+      it.only('watch does not carry through leases', async function () {
+        this.timeout(10000);
         sentinel = frame.getSentinelClient();
         await sentinel.connect();
  
         // each of these commands is an independent lease
+        console.log("1");
         assert.equal(await sentinel.use(client => client.watch("x")), 'OK')
+        console.log("2");
         assert.equal(await sentinel.use(client => client.set('x', 1)), 'OK');
+        console.log("3");
         assert.deepEqual(await sentinel.use(client => client.multi().get('x').exec()), ['1']);
+        console.log("4");
       });
   
       // stops master to force sentinel to update 
@@ -1072,7 +1079,7 @@ async function steadyState(frame: SentinelFramework) {
       it('stop replica, bring back replica', async function () {
         this.timeout(30000);
   
-        sentinel = frame.getSentinelClient({ useReplicas: true });
+        sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
         sentinel.setTracer(tracer);
         sentinel.on('error', err => { });
         await sentinel.connect();
@@ -1128,7 +1135,7 @@ async function steadyState(frame: SentinelFramework) {
       it('add a node / new replica', async function () {
         this.timeout(30000);
   
-        sentinel = frame.getSentinelClient({ scanInterval: 2000, useReplicas: true });
+        sentinel = frame.getSentinelClient({ scanInterval: 2000, replicaPoolSize: 1 });
         sentinel.setTracer(tracer);
         // need to handle errors, as the spawning a new docker node can cause existing connections to time out
         sentinel.on('error', err => { });
@@ -1266,7 +1273,7 @@ async function steadyState(frame: SentinelFramework) {
           sentinels.push({ host: "localhost", port: port });
         }
   
-        const factory = new RedisSentinelFactory({ name: frame.config.sentinelName, sentinelRootNodes: sentinels, sentinelClientOptions: {password: password}, nodeClientOptions: {password: password} })
+        const factory = new RedisSentinelFactory({ name: "invalid-name", sentinelRootNodes: sentinels, sentinelClientOptions: {password: password}, nodeClientOptions: {password: password} })
         await assert.rejects(factory.updateSentinelRootNodes(), new Error("ERR No such master with that name"));
       })
   

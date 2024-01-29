@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, TypeMapping, ReplyUnion, RespVersions, SimpleStringReply, ReplyWithTypeMapping } from '../RESP/types';
+import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { MonitorCallback } from '.';
@@ -268,7 +268,7 @@ export default class RedisCommandsQueue {
   }
 
   getPubSubListeners(type: PubSubType) {
-    return this.#pubSub.getTypeListeners(type);
+    return this.#pubSub.listeners[type];
   }
 
   monitor(callback: MonitorCallback, typeMapping: TypeMapping = {}, asap = false) {
