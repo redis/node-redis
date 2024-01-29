@@ -174,30 +174,25 @@ export default class RedisCommandsQueue {
     });
   }
 
-  #setupPubSubHandler(command: Exclude<PubSubCommand, undefined>) {
+  #setupPubSubHandler() {
     // RESP3 uses `onPush` to handle PubSub, so no need to modify `onReply`
     if (this.#respVersion !== 2) return;
 
-    // overriding `resolve` instead of using `.then` to make sure it'll be called before processing the next reply
-    const { resolve } = command;
-    command.resolve = () => {
-      this.decoder.onReply = (reply => {
-        if (Array.isArray(reply)) {
-          if (this.#onPush(reply)) return;
-          
-          if (PONG.equals(reply[0] as Buffer)) {
-            const { resolve, typeMapping } = this.#waitingForReply.shift()!,
-              buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
-            resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
-            return;
-          }
+    this.decoder.onReply = (reply => {
+      if (Array.isArray(reply)) {
+        if (this.#onPush(reply)) return;
+        
+        if (PONG.equals(reply[0] as Buffer)) {
+          const { resolve, typeMapping } = this.#waitingForReply.shift()!,
+            buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
+          resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
+          return;
         }
-  
-        return this.#onReply(reply);
-      }) as Decoder['onReply'];
-      this.decoder.getTypeMapping = () => RESP2_PUSH_TYPE_MAPPING;
-      resolve();
-    };
+      }
+
+      return this.#onReply(reply);
+    }) as Decoder['onReply'];
+    this.decoder.getTypeMapping = () => RESP2_PUSH_TYPE_MAPPING;
   }
 
   subscribe<T extends boolean>(
@@ -209,7 +204,7 @@ export default class RedisCommandsQueue {
     const command = this.#pubSub.subscribe(type, channels, listener, returnBuffers);
     if (!command) return;
 
-    this.#setupPubSubHandler(command);
+    this.#setupPubSubHandler();
     return this.#addPubSubCommand(command);
   }
 
@@ -246,8 +241,7 @@ export default class RedisCommandsQueue {
     const commands = this.#pubSub.resubscribe();
     if (!commands.length) return;
 
-    // using last command becasue of asap
-    this.#setupPubSubHandler(commands[commands.length - 1]);
+    this.#setupPubSubHandler();
     return Promise.all(
       commands.map(command => this.#addPubSubCommand(command, true))
     );
@@ -261,7 +255,7 @@ export default class RedisCommandsQueue {
     const command = this.#pubSub.extendChannelListeners(type, channel, listeners);
     if (!command) return;
 
-    this.#setupPubSubHandler(command);
+    this.#setupPubSubHandler();
     return this.#addPubSubCommand(command);
   }
 
@@ -269,7 +263,7 @@ export default class RedisCommandsQueue {
     const command = this.#pubSub.extendTypeListeners(type, listeners);
     if (!command) return;
 
-    this.#setupPubSubHandler(command);
+    this.#setupPubSubHandler();
     return this.#addPubSubCommand(command);
   }
 
