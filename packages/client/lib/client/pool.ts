@@ -63,7 +63,11 @@ export class RedisClientPool<
     return async function (this: ProxyPool, ...args: Array<unknown>) {
         //const redisArgs = command.transformArguments(...args),
         //reply = await this.sendCommand(redisArgs, this._commandOptions);
-      return this.execute(client => client.withCommandOptions(this._commandOptions)[name](...args));
+      if (this._commandOptions) {
+        return this.execute(client => client.withCommandOptions(this._commandOptions)[name](...args));
+      } else {
+        return this.execute(client => client[name](...args));
+      }
       //return transformReply ?
         //transformReply(reply, redisArgs.preserve) :
         //reply;
@@ -75,7 +79,11 @@ export class RedisClientPool<
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
 //      const redisArgs = command.transformArguments(...args),
 //        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
-      return this._self.execute(client => client.withCommandOptions(this._self._commandOptions)[moduleName][name](...args));
+      if (this._self._commandOptions) {
+        return this._self.execute(client => client.withCommandOptions(this._self._commandOptions)[moduleName][name](...args));
+      } else {
+        return this._self.execute(client => client[moduleName][name](...args));
+      }
 //      return transformReply ?
 //        transformReply(reply, redisArgs.preserve) :
 //        reply;
@@ -91,7 +99,11 @@ export class RedisClientPool<
 //          prefix.concat(fnArgs),
 //          this._self._commandOptions
 //        );
-      return this._self.execute(client => client.withCommandOptions(this._self._commandOptions)[libName][name](...args));
+      if (this._self._commandOptions) {
+        return this._self.execute(client => client.withCommandOptions(this._self._commandOptions)[libName][name](...args));
+      } else {
+        return this._self.execute(client => client[libName][name](...args));
+      }
 //      return transformReply ?
 //        transformReply(reply, fnArgs.preserve) :
 //        reply;
@@ -105,7 +117,11 @@ export class RedisClientPool<
 //      const scriptArgs = script.transformArguments(...args),
 //        redisArgs = prefix.concat(scriptArgs),
 //        reply = await this.executeScript(script, redisArgs, this._commandOptions);
-      return this.execute(client => client.withCommandOptions(this._commandOptions)[name](...args));
+      if (this._self._commandOptions) {
+        return this.execute(client => client.withCommandOptions(this._commandOptions)[name](...args));
+      } else {
+        return this._self.execute(client => client[name](...args));
+      }
 //      return transformReply ?
 //        transformReply(reply, scriptArgs.preserve) :
 //        reply;
