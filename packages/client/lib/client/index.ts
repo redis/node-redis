@@ -954,7 +954,7 @@ export default class RedisClient<
    */
   resetIfDirty() {
     let shouldReset = false;
-    if (this._self.#selectedDB !== this._self.#options?.database ?? 0) {
+    if (this._self.#selectedDB !== (this._self.#options?.database ?? 0)) {
       console.warn('Returning a client with a different selected DB');
       shouldReset = true;
     }
