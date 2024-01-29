@@ -43,7 +43,7 @@ interface CreateSocketReturn<T> {
   socket: T;
 }
 
-export type RedisSocketInitiator = () => Promise<void>;
+export type RedisSocketInitiator = () => void | Promise<unknown>;
 
 export default class RedisSocket extends EventEmitter {
   static #initiateOptions(options?: RedisSocketOptions): RedisSocketOptions {

@@ -742,8 +742,10 @@ describe('Client', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('should be able to go back to "normal mode"', async client => {
-      const off = await client.monitor(() => {});
-      await off();
+      await Promise.all([
+        client.monitor(() => {}),
+        client.reset()
+      ]);
       await assert.doesNotReject(client.ping());
     }, GLOBAL.SERVERS.OPEN);
 

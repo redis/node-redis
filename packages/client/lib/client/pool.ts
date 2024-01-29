@@ -375,6 +375,7 @@ export class RedisClientPool<
   #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
     const task = this.#tasksQueue.shift();
     if (task) {
+      clearTimeout(task.timeout);
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }

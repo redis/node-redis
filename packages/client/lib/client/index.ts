@@ -339,15 +339,85 @@ export default class RedisClient<
 
   #initiateQueue(): RedisCommandsQueue {
     return new RedisCommandsQueue(
-      this.#options?.RESP,
+      this.#options?.RESP ?? 2,
       this.#options?.commandsQueueMaxLength,
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
     );
   }
 
+  #handshake(asap = false, promises: Array<Promise<unknown>> = []) {
+    if (this.#selectedDB !== 0) {
+      promises.push(
+        this.#queue.addCommand(
+          ['SELECT', this.#selectedDB.toString()],
+          { asap }
+        )
+      );
+    }
+
+    if (this.#options?.readonly) {
+      promises.push(
+        this.#queue.addCommand(
+          COMMANDS.READONLY.transformArguments(),
+          { asap }
+        )
+      );
+    }
+
+    if (this.#options?.RESP) {
+      const hello: HelloOptions = {};
+
+      if (this.#options.password) {
+        hello.AUTH = {
+          username: this.#options.username ?? 'default',
+          password: this.#options.password
+        };
+      }
+
+      if (this.#options.name) {
+        hello.SETNAME = this.#options.name;
+      }
+
+      promises.push(
+        this.#queue.addCommand(
+          HELLO.transformArguments(this.#options.RESP, hello),
+          { asap }
+        )
+      );
+    } else {
+      if (this.#options?.name) {
+        promises.push(
+          this.#queue.addCommand(
+            COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
+            { asap }
+          )
+        );
+      }
+
+      if (this.#options?.username || this.#options?.password) {
+        promises.push(
+          this.#queue.addCommand(
+            COMMANDS.AUTH.transformArguments({
+              username: this.#options.username,
+              password: this.#options.password ?? ''
+            }),
+            { asap }
+          )
+        );
+      }
+    }
+
+    return promises;
+  }
+
   #initiateSocket(): RedisSocket {
-    const socketInitiator = async (): Promise<void> => {
-      const promises = [this.#queue.resubscribe()];
+    const socketInitiator = () => {
+      const promises: Array<Promise<unknown>> = [];
+
+      const resubscribePromise = this.#queue.resubscribe();
+      if (resubscribePromise) {
+        promises.push(resubscribePromise);
+      }
 
       if (this.#monitorCallback) {
         promises.push(
@@ -359,70 +429,11 @@ export default class RedisClient<
         );
       }
 
-      if (this.#selectedDB !== 0) {
-        promises.push(
-          this.#queue.addCommand(
-            ['SELECT', this.#selectedDB.toString()],
-            { asap: true }
-          )
-        );
-      }
-
-      if (this.#options?.readonly) {
-        promises.push(
-          this.#queue.addCommand(
-            COMMANDS.READONLY.transformArguments(),
-            { asap: true }
-          )
-        );
-      }
-
-      if (this.#options?.RESP) {
-        const hello: HelloOptions = {};
-
-        if (this.#options.password) {
-          hello.AUTH = {
-            username: this.#options.username ?? 'default',
-            password: this.#options.password
-          };
-        }
-
-        if (this.#options.name) {
-          hello.SETNAME = this.#options.name;
-        }
-
-        promises.push(
-          this.#queue.addCommand(
-            HELLO.transformArguments(this.#options.RESP, hello),
-            { asap: true }
-          )
-        );
-      } else {
-        if (this.#options?.name) {
-          promises.push(
-            this.#queue.addCommand(
-              COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
-              { asap: true }
-            )
-          );
-        }
-
-        if (this.#options?.username || this.#options?.password) {
-          promises.push(
-            this.#queue.addCommand(
-              COMMANDS.AUTH.transformArguments({
-                username: this.#options.username,
-                password: this.#options.password ?? ''
-              }),
-              { asap: true }
-            )
-          );
-        }
-      }
+      this.#handshake(true, promises);
 
       if (promises.length) {
         this.#write();
-        await Promise.all(promises);
+        return Promise.all(promises);
       }
     };
 
@@ -921,18 +932,47 @@ export default class RedisClient<
   async MONITOR(callback: MonitorCallback<TYPE_MAPPING>) {
     const promise = this._self.#queue.monitor(callback, this._commandOptions?.typeMapping);
     this._self.#scheduleWrite();
-
-    const off = await promise;
+    await promise;
     this._self.#monitorCallback = callback;
-    return async () => {
-      const promise = off();
-      this._self.#scheduleWrite();
-      await promise;
-      this._self.#monitorCallback = undefined;
-    };
   }
 
   monitor = this.MONITOR;
+
+  /**
+   * Reset the client to its default state (i.e. stop PubSub, stop monitoring, select default DB, etc.)
+   */
+  async reset() {
+    const promises = [this._self.#queue.reset()];
+    this._self.#handshake(false, promises);
+    await Promise.all(promises);
+  }
+
+  /**
+   * If the client has state, reset it.
+   * An internal function to be used by wrapper class such as `RedisClientPool`.
+   * @internal
+   */
+  resetIfDirty() {
+    let shouldReset = false;
+    if (this._self.#selectedDB !== this._self.#options?.database ?? 0) {
+      console.warn('Returning a client with a different selected DB');
+      shouldReset = true;
+    }
+
+    if (this._self.#monitorCallback) {
+      console.warn('Returning a client with active MONITOR');
+      shouldReset = true;
+    }
+
+    if (this._self.#queue.isPubSubActive) {
+      console.warn('Returning a client with active PubSub');
+      shouldReset = true;
+    }
+
+    if (shouldReset) {
+      return this.reset();
+    }
+  }
 
   /**
    * @deprecated use .close instead
