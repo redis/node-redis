@@ -235,6 +235,18 @@ describe('Cluster', () => {
 
             assert.equal(cluster.pubSubNode, undefined);
         }, GLOBAL.CLUSTERS.OPEN);
+        
+        testUtils.testWithCluster('concurrent UNSUBSCRIBE does not throw an error (#2685)', async cluster => {
+            const listener = spy();
+            await Promise.all([
+                cluster.subscribe('1', listener),
+                cluster.subscribe('2', listener)
+            ]);
+            await Promise.all([
+                cluster.unsubscribe('1', listener),
+                cluster.unsubscribe('2', listener)
+            ]);
+        }, GLOBAL.CLUSTERS.OPEN);
 
         testUtils.testWithCluster('psubscribe & punsubscribe', async cluster => {
             const listener = spy();
@@ -318,6 +330,21 @@ describe('Cluster', () => {
 
             // 10328 is the slot of `channel`
             assert.equal(cluster.slots[10328].master.pubSubClient, undefined);
+        }, {
+            ...GLOBAL.CLUSTERS.OPEN,
+            minimumDockerVersion: [7]
+        });
+
+        testUtils.testWithCluster('concurrent SUNSUBCRIBE does not throw an error (#2685)', async cluster => {
+            const listener = spy();
+            await Promise.all([
+                await cluster.sSubscribe('1', listener),
+                await cluster.sSubscribe('2', listener)
+            ]);
+            await Promise.all([
+                cluster.sUnsubscribe('1', listener),
+                cluster.sUnsubscribe('2', listener)
+            ]);
         }, {
             ...GLOBAL.CLUSTERS.OPEN,
             minimumDockerVersion: [7]

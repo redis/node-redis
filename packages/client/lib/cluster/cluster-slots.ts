@@ -562,7 +562,7 @@ export default class RedisClusterSlots<
         const client = await this.getPubSubClient();
         await unsubscribe(client);
 
-        if (!client.isPubSubActive) {
+        if (!client.isPubSubActive && client.isOpen) {
             await client.disconnect();
             this.pubSubNode = undefined;
         }
@@ -613,7 +613,7 @@ export default class RedisClusterSlots<
         const client = await master.pubSubClient;
         await unsubscribe(client);
 
-        if (!client.isPubSubActive) {
+        if (!client.isPubSubActive && client.isOpen) {
             await client.disconnect();
             master.pubSubClient = undefined;
         }
