@@ -1,9 +1,9 @@
-import { RedisCommands } from "../../RESP/types";
-import SENTINEL_MASTER from "./SENTINEL_MASTER";
-import SENTINEL_MONITOR from "./SENTINEL_MONITOR";
-import SENTINEL_REPLICAS from "./SENTINEL_REPLICAS";
-import SENTINEL_SENTINELS from "./SENTINEL_SENTINELS";
-import SENTINEL_SET from "./SENTINEL_SET";
+import { RedisCommands } from '../../RESP/types';
+import SENTINEL_MASTER from './SENTINEL_MASTER';
+import SENTINEL_MONITOR from './SENTINEL_MONITOR';
+import SENTINEL_REPLICAS from './SENTINEL_REPLICAS';
+import SENTINEL_SENTINELS from './SENTINEL_SENTINELS';
+import SENTINEL_SET from './SENTINEL_SET';
 
 export default {
   SENTINEL_SENTINELS,

@@ -1,53 +1,51 @@
-import EventEmitter from "events";
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from "../RESP/types";
-import { RedisClientOptions, RedisClientType } from "../client";
-import { PubSubListener, PubSubType, PubSubTypeListeners } from "../client/pub-sub";
-import { ClientErrorEvent, RedisNode } from "./types";
-import RedisClient from "../client";
-import { clientSocketToNode } from "./utils";
+import EventEmitter from 'node:events';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisClientOptions } from '../client';
+import { PUBSUB_TYPE, PubSubListener, PubSubTypeListeners } from '../client/pub-sub';
+import { RedisNode } from './types';
+import RedisClient from '../client';
 
-interface PubSubNode<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> {
-  destroy: boolean;
-  client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
-  connectPromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
-}
+type Client = RedisClient<
+  RedisModules,
+  RedisFunctions,
+  RedisScripts,
+  RespVersions,
+  TypeMapping
+>;
 
-export class PubSubProxy<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> extends EventEmitter {
-  readonly #passthroughClientErrorEvents: boolean;
+type Subscriptions = Record<
+  PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'],
+  PubSubTypeListeners
+>;
 
-  #channelsListeners?: PubSubTypeListeners;
-  #patternsListeners?: PubSubTypeListeners;
+type PubSubState = {
+  client: Client;
+  connectPromise: Promise<Client | undefined> | undefined;
+};
+
+type OnError = (err: unknown) => unknown;
+
+export class PubSubProxy extends EventEmitter {
+  #clientOptions;
+  #onError;
 
   #node?: RedisNode;
-  #clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  #state?: PubSubState;
+  #subscriptions?: Subscriptions;
 
-  #pubSubNode?: PubSubNode<M, F, S, RESP, TypeMapping>;
-
-  constructor(clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, passthroughErrors = false) {
+  constructor(clientOptions: RedisClientOptions, onError: OnError) {
     super();
 
     this.#clientOptions = clientOptions;
-    this.#passthroughClientErrorEvents = passthroughErrors;
+    this.#onError = onError;
   }
 
-  #createClient(): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
+  #createClient() {
     if (this.#node === undefined) {
       throw new Error("pubSubProxy: didn't define node to do pubsub against");
     }
 
-    const options = { ...this.#clientOptions } as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+    const options = { ...this.#clientOptions };
 
     if (this.#clientOptions.socket) {
       options.socket = { ...this.#clientOptions.socket };
@@ -58,113 +56,118 @@ export class PubSubProxy<
     options.socket.host = this.#node.host;
     options.socket.port = this.#node.port;
 
-    return RedisClient.create(options);
+    return new RedisClient(options);
+  }
+
+  async #initiatePubSubClient(withSubscriptions = false) {
+    const client = this.#createClient()
+      .on('error', this.#onError);
+
+    const connectPromise = client.connect()
+      .then(async client => {
+        if (this.#state?.client !== client) {
+          // if pubsub was deactivated while connecting (`this.#pubSubClient === undefined`)
+          // or if the node changed (`this.#pubSubClient.client !== client`)
+          client.destroy();
+          return this.#state?.connectPromise;
+        }
+
+        if (withSubscriptions && this.#subscriptions) {
+          await Promise.all([
+            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, this.#subscriptions[PUBSUB_TYPE.CHANNELS]),
+            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, this.#subscriptions[PUBSUB_TYPE.PATTERNS])
+          ]);
+        }
+
+        if (this.#state.client !== client) {
+          // if the node changed (`this.#pubSubClient.client !== client`)
+          client.destroy();
+          return this.#state?.connectPromise;
+        }
+
+        this.#state!.connectPromise = undefined;
+        return client;
+      })
+      .catch(err => {
+        this.#state = undefined;
+        throw err;
+      });
+
+    this.#state = {
+      client,
+      connectPromise
+    };
+
+    return connectPromise;
+  }
+
+  #getPubSubClient() {
+    if (!this.#state) return this.#initiatePubSubClient();
+
+    return (
+      this.#state.connectPromise ??
+      this.#state.client  
+    );
   }
 
   async changeNode(node: RedisNode) {
     this.#node = node;
 
-    if (this.#pubSubNode) {
-      this.destroy();
-    }
+    if (!this.#state) return;
 
-    if (this.#hasSavedListeners()) {
-      await this.#initiatePubSubClient();
-    }
-  }
-
-  async close() {
-    if (this.#pubSubNode) {
-      if (this.#pubSubNode.connectPromise === undefined) {
-        const client = this.#pubSubNode.client;
-
-        this.#pubSubNode = undefined;
-
-        if (client.isOpen) {
-          await client.close();
-        }
-      } else {
-        this.#pubSubNode.destroy = true;
-        await this.#pubSubNode.connectPromise;
-      }
-    }
-  }
-
-  destroy() {
-    if (this.#pubSubNode) {
-      if (this.#pubSubNode.connectPromise === undefined) {
-        const client = this.#pubSubNode.client;
-
-        this.#pubSubNode = undefined;
-        if (client.isOpen) {
-          client.destroy();
-        }
-      } else {
-        this.#pubSubNode.destroy = true;
-      }
-    }
-  }
-
-  async #initiatePubSubClient() {
-    const client = this.#createClient();
-    client.on("error", (err: Error) => {
-      if (this.#passthroughClientErrorEvents) {
-        this.emit('error', new Error(`PubSub Proxy Client (${this.#node!.host}:${this.#node!.port}): ${err.message}`, {cause: err}));
-      }
-      const event: ClientErrorEvent = {
-        type: 'SENTINEL',
-        node: clientSocketToNode(client.options!.socket!),
-        error: err
+    if (this.#state instanceof RedisClient) {
+      this.#subscriptions = {
+        [PUBSUB_TYPE.CHANNELS]: this.#state.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+        [PUBSUB_TYPE.PATTERNS]: this.#state.getPubSubListeners(PUBSUB_TYPE.PATTERNS)
       };
-      this.emit('client-error', event);
+      this.#state.destroy();
+    }
+
+    await this.#initiatePubSubClient(true);
+  }
+
+  #executeCommand<T>(fn: (client: Client) => T) {
+    const client = this.#getPubSubClient();
+    if (client instanceof RedisClient) {
+      return fn(client);
+    }
+
+    return client.then(client => {
+      // if pubsub was deactivated while connecting
+      if (client === undefined) return;
+
+      return fn(client);
+    }).catch(err => {
+      if (this.#state?.client.isPubSubActive) {
+        this.#state.client.destroy();
+        this.#state = undefined;
+      }
+
+      throw err;
     });
-
-    this.#pubSubNode = {
-      destroy: false,
-      client: client,
-      connectPromise: client.connect()
-        .then(async client => {
-          if (this.#channelsListeners && this.#channelsListeners.size > 0) {
-            await client.extendPubSubListeners(PubSubType.CHANNELS, this.#channelsListeners)
-          }
-          // get the new channelsListeners object
-          this.#channelsListeners = client.getPubSubListeners(PubSubType.CHANNELS);
-          if (this.#patternsListeners && this.#patternsListeners.size > 0) {
-            await client.extendPubSubListeners(PubSubType.PATTERNS, this.#patternsListeners);
-          }
-          // get the new patternsListeners object
-          this.#patternsListeners = client.getPubSubListeners(PubSubType.PATTERNS);
-
-          this.#pubSubNode!.connectPromise = undefined;
-          if (this.#pubSubNode?.destroy) {
-            this.destroy()
-          }
-          return client;
-        })
-        .catch(err => {
-          this.#pubSubNode = undefined;
-          throw err;
-        })
-    };
-
-    return this.#pubSubNode.connectPromise!;
   }
 
-  #getPubSubClient() {
-    if (!this.#pubSubNode) return this.#initiatePubSubClient();
-
-    return this.#pubSubNode.connectPromise ?? this.#pubSubNode.client;
-  }
-
-  async subscribe<T extends boolean = false>(
+  subscribe<T extends boolean = false>(
     channels: string | Array<string>,
     listener: PubSubListener<T>,
     bufferMode?: T
-  ) {   
-    const client = await this.#getPubSubClient();
-    const resp = await client.SUBSCRIBE(channels, listener, bufferMode);
+  ) {
+    return this.#executeCommand(
+      client => client.SUBSCRIBE(channels, listener, bufferMode)
+    );
+  }
 
-    return resp;
+  #unsubscribe<T>(fn: (client: Client) => Promise<T>) {
+    return this.#executeCommand(async client => {
+      const reply = await fn(client);
+
+      if (!client.isPubSubActive) {
+        client.destroy();
+        this.#state = undefined;
+      }
+  
+      return reply;
+    });
   }
 
   async unsubscribe<T extends boolean = false>(
@@ -172,15 +175,7 @@ export class PubSubProxy<
     listener?: PubSubListener<boolean>,
     bufferMode?: T
   ) {
-    const client = await this.#getPubSubClient();
-    const resp = await client.UNSUBSCRIBE(channels, listener, bufferMode);
-
-    if (!client.isPubSubActive) {
-      client.destroy();
-      this.#pubSubNode = undefined;
-    }
-
-    return resp;
+    return this.#unsubscribe(client => client.UNSUBSCRIBE(channels, listener, bufferMode));
   }
 
   async pSubscribe<T extends boolean = false>(
@@ -188,10 +183,9 @@ export class PubSubProxy<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    const client = await this.#getPubSubClient();
-    const resp = await client.PSUBSCRIBE(patterns, listener, bufferMode);
-
-    return resp;
+    return this.#executeCommand(
+      client => client.PSUBSCRIBE(patterns, listener, bufferMode)
+    );
   }
 
   async pUnsubscribe<T extends boolean = false>(
@@ -199,21 +193,18 @@ export class PubSubProxy<
     listener?: PubSubListener<T>,
     bufferMode?: T
   ) {
-    const client = await this.#getPubSubClient();
-    const resp = await client.PUNSUBSCRIBE(patterns, listener, bufferMode);
-
-    if (!client.isPubSubActive) {
-      client.destroy();
-      this.#pubSubNode = undefined;
-    }
-
-    return resp;
+    return this.#unsubscribe(client => client.PUNSUBSCRIBE(patterns, listener, bufferMode));
   }
 
-  #hasSavedListeners(): boolean {
-    var channels = this.#channelsListeners !== undefined && this.#channelsListeners.size > 0;
-    var patterns = this.#patternsListeners !== undefined && this.#patternsListeners.size > 0;
-
-    return channels || patterns;
+  destroy() {
+    this.#subscriptions = undefined;
+    if (this.#state === undefined) return;
+    
+    // `connectPromise` already handles the case of `this.#pubSubState = undefined`
+    if (!this.#state.connectPromise) {
+      this.#state.client.destroy();
+    }
+    
+    this.#state = undefined;
   }
 }

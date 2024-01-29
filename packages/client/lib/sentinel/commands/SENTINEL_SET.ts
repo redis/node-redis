@@ -1,19 +1,19 @@
-import { SimpleStringReply, Command, RedisArgument } from "../../RESP/types";
+import { RedisArgument, SimpleStringReply, Command } from '../../RESP/types';
+
+export type SentinelSetOptions = Array<{
+  option: RedisArgument;
+  value: RedisArgument;
+}>;
 
 export default {
-  transformArguments(dbname: RedisArgument, options: Array<{option: RedisArgument, value: RedisArgument}>) {
-    if (options.length == 0) {
-      throw new Error("must provide options")
-    }
-
-    const args: Array<RedisArgument> = ['SENTINEL', 'SET', dbname]
+  transformArguments(dbname: RedisArgument, options: SentinelSetOptions) {
+    const args = ['SENTINEL', 'SET', dbname];
 
     for (const option of options) {
-        args.push(option.option, option.value);
+      args.push(option.option, option.value);
     }
 
     return args;
   },
-  
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'> 
 } as const satisfies Command;

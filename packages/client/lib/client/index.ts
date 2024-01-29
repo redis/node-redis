@@ -6,7 +6,7 @@ import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumen
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
-import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
+import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
@@ -613,7 +613,7 @@ export default class RedisClient<
 
   select = this.SELECT;
 
-  #pubSubCommand(promise: Promise<void> | undefined) {
+  #pubSubCommand<T>(promise: Promise<T> | undefined) {
     if (promise === undefined) return Promise.resolve();
 
     this.#scheduleWrite();
@@ -627,7 +627,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.subscribe(
-        PubSubType.CHANNELS,
+        PUBSUB_TYPE.CHANNELS,
         channels,
         listener,
         bufferMode
@@ -644,7 +644,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.unsubscribe(
-        PubSubType.CHANNELS,
+        PUBSUB_TYPE.CHANNELS,
         channels,
         listener,
         bufferMode
@@ -652,7 +652,7 @@ export default class RedisClient<
     );
   }
 
-  unsubscribe = this.UNSUBSCRIBE
+  unsubscribe = this.UNSUBSCRIBE;
 
   PSUBSCRIBE<T extends boolean = false>(
     patterns: string | Array<string>,
@@ -661,7 +661,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.subscribe(
-        PubSubType.PATTERNS,
+        PUBSUB_TYPE.PATTERNS,
         patterns,
         listener,
         bufferMode
@@ -678,7 +678,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.unsubscribe(
-        PubSubType.PATTERNS,
+        PUBSUB_TYPE.PATTERNS,
         patterns,
         listener,
         bufferMode
@@ -695,7 +695,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.subscribe(
-        PubSubType.SHARDED,
+        PUBSUB_TYPE.SHARDED,
         channels,
         listener,
         bufferMode
@@ -712,7 +712,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.unsubscribe(
-        PubSubType.SHARDED,
+        PUBSUB_TYPE.SHARDED,
         channels,
         listener,
         bufferMode

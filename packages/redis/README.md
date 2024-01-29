@@ -199,6 +199,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 - [Command Options](../../docs/command-options.md).
 - [Pool](../../docs/pool.md).
 - [Clustering](../../docs/clustering.md).
+- [Sentinel](../../docs/sentinel.md).
 
 ## Supported Redis versions
 

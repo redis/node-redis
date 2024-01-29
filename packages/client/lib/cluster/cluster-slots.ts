@@ -2,7 +2,7 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
-import { ChannelListeners, PubSubType, PubSubTypeListeners } from '../client/pub-sub';
+import { ChannelListeners, PUBSUB_TYPE, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
 
@@ -83,7 +83,7 @@ type PubSubNode<
 );
 
 type PubSubToResubscribe = Record<
-  PubSubType.CHANNELS | PubSubType.PATTERNS,
+  PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'],
   PubSubTypeListeners
 >;
 
@@ -186,16 +186,16 @@ export default class RedisClusterSlots<
       }
 
       if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PubSubType.CHANNELS),
-          patternsListeners = this.pubSubNode.client.getPubSubListeners(PubSubType.PATTERNS);
+        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+          patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
 
         this.pubSubNode.client.destroy();
 
         if (channelsListeners.size || patternsListeners.size) {
           promises.push(
             this.#initiatePubSubClient({
-              [PubSubType.CHANNELS]: channelsListeners,
-              [PubSubType.PATTERNS]: patternsListeners
+              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+              [PUBSUB_TYPE.PATTERNS]: patternsListeners
             })
           );
         }
@@ -526,8 +526,8 @@ export default class RedisClusterSlots<
         .then(async client => {
           if (toResubscribe) {
             await Promise.all([
-              client.extendPubSubListeners(PubSubType.CHANNELS, toResubscribe[PubSubType.CHANNELS]),
-              client.extendPubSubListeners(PubSubType.PATTERNS, toResubscribe[PubSubType.PATTERNS])
+              client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
+              client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
             ]);
           }
 
@@ -568,7 +568,7 @@ export default class RedisClusterSlots<
           await this.rediscover(client);
           const redirectTo = await this.getShardedPubSubClient(channel);
           await redirectTo.extendPubSubChannelListeners(
-            PubSubType.SHARDED,
+            PUBSUB_TYPE.SHARDED,
             channel,
             listeners
           );

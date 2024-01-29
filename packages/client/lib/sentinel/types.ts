@@ -2,7 +2,6 @@ import { RedisClientOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { CommandSignature, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import COMMANDS from '../commands';
-import { PubSubType, PubSubTypeListeners } from '../client/pub-sub';
 import RedisSentinel, { RedisSentinelClient } from '.';
 
 export interface RedisNode {
@@ -18,59 +17,48 @@ export interface RedisSentinelOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > extends SentinelCommander<M, F, S, RESP, TYPE_MAPPING> {
   /**
-   * TODO
+   * The sentinel identifier for a particular database cluster
    */
   name: string;
   /**
-   * TODO
-   */
-  useReplicas?: boolean;
-  /**
-   * TODO
+   * An array of root nodes that are part of the sentinel cluster, which will be used to get the topology. Each element in the array is a client configuration object. There is no need to specify every node in the cluster: 3 should be enough to reliably connect and obtain the sentinel configuration from the server
    */
   sentinelRootNodes: Array<RedisNode>;
   /**
-   * TODO
+   * The maximum number of times a command will retry due to topology changes.
    */
   maxCommandRediscovers?: number;
   /**
-   * TODO
+   * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with
    */
   nodeClientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   /**
-   * TODO
+   * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with
    */
   sentinelClientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   /**
-   * TODO
+   * The number of clients connected to the master node
    */
   masterPoolSize?: number;
   /**
-   * TODO
+   * The number of clients connected to each replica node.
+   * When greater than 0, the client will distribute the load by executing read-only commands (such as `GET`, `GEOSEARCH`, etc.) across all the cluster nodes.
    */
   replicaPoolSize?: number;
   /**
    * TODO
    */
-  debug?: boolean;
-  /**
-   * TODO
-   */
   scanInterval?: number;
   /**
-   * 
+   * TODO
    */
   passthroughClientErrorEvents?: boolean;
   /**
-   * TODO
+   * When `true`, one client will be reserved for the sentinel object.
+   * When `false`, the sentinel object will wait for the first available client from the pool.
    */
   reserveClient?: boolean;
 }
-
-export type PubSubToResubscribe = Record<
-  PubSubType.CHANNELS | PubSubType.PATTERNS,
-  PubSubTypeListeners
->;
 
 export interface SentinelCommander<
   M extends RedisModules,

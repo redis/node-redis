@@ -3,4 +3,4 @@ import sentinel from './commands';
 
 export default {
   sentinel
-} as const satisfies RedisModules
+} as const satisfies RedisModules;

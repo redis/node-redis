@@ -1,5 +1,5 @@
-import { ArrayReply, BlobStringReply, Command, MapReply, RedisArgument } from "../../RESP/types";
-import { transformTuplesReply } from "../../commands/generic-transformers";
+import { RedisArgument, ArrayReply, BlobStringReply, MapReply, Command } from '../../RESP/types';
+import { transformTuplesReply } from '../../commands/generic-transformers';
 
 export default {
   transformArguments(dbname: RedisArgument) {
