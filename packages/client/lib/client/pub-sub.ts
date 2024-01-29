@@ -26,7 +26,7 @@ const COMMANDS = {
 
 export type PubSubListener<
   RETURN_BUFFERS extends boolean = false
-> = <T extends RETURN_BUFFERS extends true ? Buffer : string>(message: T, channel: T) => unknown;
+> = <T = RETURN_BUFFERS extends true ? Buffer : string>(message: T, channel: T) => unknown;
 
 export interface ChannelListeners {
   unsubscribing: boolean;

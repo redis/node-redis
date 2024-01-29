@@ -85,6 +85,8 @@ await client.set('key', 'value', {
 });
 ```
 
+> NOTE: command modifiers that change the reply type (e.g. `WITHSCORES` for `ZDIFF`) are exposed as separate commands (e.g. `ZDIFF_WITHSCORES`/`zDiffWithScores`).
+
 Replies will be mapped to useful data structures:
 
 ```javascript

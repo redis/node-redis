@@ -125,6 +125,19 @@ await cluster.multi()
   .exec();
 ```
 
+## `MULTI.execAsPipeline()`
+
+```javascript
+await client.multi()
+  .set('a', 'a')
+  .set('b', 'b')
+  .execAsPipeline();
+```
+
+In older versions, if the socket disconnects during the pipeline execution, i.e. after writing `SET a a` and before `SET b b`, the returned promise is rejected, but `SET b b` will still be executed on the server.
+
+In v5, any unwritten commands (in the same pipeline) will be discarded.
+
 ## Commands
 
 ### Redis
