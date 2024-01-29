@@ -86,7 +86,7 @@ export type RedisClientMultiCommandType<
 type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
 
 export default class RedisClientMultiCommand<REPLIES = []> {
-  static #createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
       return this.addCommand(
@@ -96,7 +96,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     };
   }
 
-  static #createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(moduleName: string, name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
       return this._self.addCommand(
@@ -106,7 +106,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     };
   }
 
-  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(libName: string, name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
@@ -120,7 +120,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     };
   }
 
-  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(name: string, script: RedisScript, resp: RespVersions) {
     const transformReply = getTransformReply(script, resp);
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
       this.#multi.addScript(

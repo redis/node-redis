@@ -4,7 +4,7 @@ import RedisClient, { RedisClientType, RedisClientOptions, RedisClientExtensions
 import { EventEmitter } from 'node:events';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { TimeoutError } from '../errors';
-import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
+import { attachConfig } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 
@@ -58,53 +58,57 @@ export class RedisClientPool<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 > extends EventEmitter {
-  static #createCommand(command: Command, resp: RespVersions) {
-    const transformReply = getTransformReply(command, resp);
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
+    //const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.sendCommand(redisArgs, this._commandOptions);
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
+        //const redisArgs = command.transformArguments(...args),
+        //reply = await this.sendCommand(redisArgs, this._commandOptions);
+      return this.execute(client => client.withCommandOptions(this._commandOptions)[name](...args));
+      //return transformReply ?
+        //transformReply(reply, redisArgs.preserve) :
+        //reply;
     };
   }
 
-  static #createModuleCommand(command: Command, resp: RespVersions) {
-    const transformReply = getTransformReply(command, resp);
+  static #createModuleCommand(moduleName: string, name: string, command: Command, resp: RespVersions) {
+    //const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
+//      const redisArgs = command.transformArguments(...args),
+//        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+      return this._self.execute(client => client.withCommandOptions(this._self._commandOptions)[moduleName][name](...args));
+//      return transformReply ?
+//        transformReply(reply, redisArgs.preserve) :
+//        reply;
     };
   }
 
-  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
+  static #createFunctionCommand(libName: string, name: string, fn: RedisFunction, resp: RespVersions) {
+//    const prefix = functionArgumentsPrefix(name, fn),
+//      transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        reply = await this._self.sendCommand(
-          prefix.concat(fnArgs),
-          this._self._commandOptions
-        );
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
-        reply;
+//      const fnArgs = fn.transformArguments(...args),
+//        reply = await this._self.sendCommand(
+//          prefix.concat(fnArgs),
+//          this._self._commandOptions
+//        );
+      return this._self.execute(client => client.withCommandOptions(this._self._commandOptions)[libName][name](...args));
+//      return transformReply ?
+//        transformReply(reply, fnArgs.preserve) :
+//        reply;
     };
   }
 
-  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
+  static #createScriptCommand(name: string, script: RedisScript, resp: RespVersions) {
+//    const prefix = scriptArgumentsPrefix(script),
+//      transformReply = getTransformReply(script, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(script, redisArgs, this._commandOptions);
-      return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
-        reply;
+//      const scriptArgs = script.transformArguments(...args),
+//        redisArgs = prefix.concat(scriptArgs),
+//        reply = await this.executeScript(script, redisArgs, this._commandOptions);
+      return this.execute(client => client.withCommandOptions(this._commandOptions)[name](...args));
+//      return transformReply ?
+//        transformReply(reply, scriptArgs.preserve) :
+//        reply;
     };
   }
 

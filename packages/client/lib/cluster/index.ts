@@ -166,7 +166,7 @@ export default class RedisCluster<
     return key;
   }
 
-  static #createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -189,7 +189,7 @@ export default class RedisCluster<
     };
   }
 
-  static #createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(moduleName: string, name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -212,7 +212,7 @@ export default class RedisCluster<
     };
   }
 
-  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(libName: string, name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
@@ -237,7 +237,7 @@ export default class RedisCluster<
     };
   }
 
-  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(name: string, script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {

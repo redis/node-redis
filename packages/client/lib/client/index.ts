@@ -147,7 +147,7 @@ export default class RedisClient<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > extends EventEmitter {
-  static #createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -158,7 +158,7 @@ export default class RedisClient<
     };
   }
 
-  static #createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(moduleName: string, name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -169,7 +169,7 @@ export default class RedisClient<
     };
   }
 
-  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(libName: string, name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
@@ -184,7 +184,7 @@ export default class RedisClient<
     };
   }
 
-  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(name: string, script: RedisScript, resp: RespVersions) {
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
@@ -460,7 +460,7 @@ export default class RedisClient<
   withCommandOptions<
     OPTIONS extends CommandOptions<TYPE_MAPPING>,
     TYPE_MAPPING extends TypeMapping
-  >(options: OPTIONS) {
+  >(options?: OPTIONS) {
     const proxy = Object.create(this._self);
     proxy._commandOptions = options;
     return proxy as RedisClientType<
