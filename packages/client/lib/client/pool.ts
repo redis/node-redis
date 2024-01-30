@@ -63,13 +63,19 @@ export class RedisClientPool<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 > extends EventEmitter {
-  // TODO: for CSC will have to be modified, to directly call function on underlying chosen client
   static #createCommand(command: Command, resp: RespVersions) {
+    // TODO: for CSC will have to be modified, to directly call function on underlying chosen client
+    //       this is .name() is just a hack for now.
+    const name = command.name?.();
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
+      if (name) {
+        return this.execute((client => { return client[name](...args)}))
+      }
+
       const redisArgs = command.transformArguments(...args),
         reply = await this.sendCommand(redisArgs, this._commandOptions);
-        return transformReply ?
+      return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
     };

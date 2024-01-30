@@ -269,6 +269,7 @@ export interface CacheInfo {
 }
 
 export type Command = {
+  name?: () => string;
   FIRST_KEY_INDEX?: number | ((this: void, ...args: Array<any>) => RedisArgument | undefined);
   IS_READ_ONLY?: boolean;
   /**
