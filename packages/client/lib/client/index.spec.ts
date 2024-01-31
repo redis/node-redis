@@ -732,6 +732,9 @@ describe('Client', () => {
             skipMe: true
           })
         ]);
+
+        await once(duplicate, 'ready');
+
         await Promise.all([
           waitTillBeenCalled(listener),
           client.ping()
