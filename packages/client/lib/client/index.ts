@@ -955,6 +955,8 @@ export default class RedisClient<
     await Promise.all(promises);
     this._self.#selectedDB = selectedDB;
     this._self.#monitorCallback = undefined;
+    this._self.#dirtyWatch = undefined;
+    this._self.#watchEpoch = undefined;
   }
 
   /**
@@ -976,6 +978,11 @@ export default class RedisClient<
 
     if (this._self.#queue.isPubSubActive) {
       console.warn('Returning a client with active PubSub');
+      shouldReset = true;
+    }
+
+    if (this._self.#dirtyWatch || this._self.#watchEpoch) {
+      console.warn('Returning a client with active WATCH');
       shouldReset = true;
     }
 
