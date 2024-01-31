@@ -332,24 +332,8 @@ export default class RedisClient<
     );
   }
 
-  #handshake(asap = false, promises: Array<Promise<unknown>> = []) {
-    if (this.#selectedDB !== 0) {
-      promises.push(
-        this.#queue.addCommand(
-          ['SELECT', this.#selectedDB.toString()],
-          { asap }
-        )
-      );
-    }
-
-    if (this.#options?.readonly) {
-      promises.push(
-        this.#queue.addCommand(
-          COMMANDS.READONLY.transformArguments(),
-          { asap }
-        )
-      );
-    }
+  #handshake(selectedDB: number) {
+    const commands = [];
 
     if (this.#options?.RESP) {
       const hello: HelloOptions = {};
@@ -365,43 +349,45 @@ export default class RedisClient<
         hello.SETNAME = this.#options.name;
       }
 
-      promises.push(
-        this.#queue.addCommand(
-          HELLO.transformArguments(this.#options.RESP, hello),
-          { asap }
-        )
+      commands.push(
+        HELLO.transformArguments(this.#options.RESP, hello)
       );
     } else {
-      if (this.#options?.name) {
-        promises.push(
-          this.#queue.addCommand(
-            COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name),
-            { asap }
-          )
+      if (this.#options?.username || this.#options?.password) {
+        commands.push(
+          COMMANDS.AUTH.transformArguments({
+            username: this.#options.username,
+            password: this.#options.password ?? ''
+          })
         );
       }
 
-      if (this.#options?.username || this.#options?.password) {
-        promises.push(
-          this.#queue.addCommand(
-            COMMANDS.AUTH.transformArguments({
-              username: this.#options.username,
-              password: this.#options.password ?? ''
-            }),
-            { asap }
-          )
+      if (this.#options?.name) {
+        commands.push(
+          COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name)
         );
       }
     }
 
-    return promises;
+    if (selectedDB !== 0) {
+      commands.push(['SELECT', this.#selectedDB.toString()]);
+    }
+
+    if (this.#options?.readonly) {
+      commands.push(
+        COMMANDS.READONLY.transformArguments()
+      );
+    }
+
+    return commands;
   }
 
   #initiateSocket(): RedisSocket {
     const socketInitiator = () => {
-      const promises: Array<Promise<unknown>> = [];
+      const promises = [],
+        chainId = Symbol('Socket Initiator');
 
-      const resubscribePromise = this.#queue.resubscribe();
+      const resubscribePromise = this.#queue.resubscribe(chainId);
       if (resubscribePromise) {
         promises.push(resubscribePromise);
       }
@@ -410,13 +396,24 @@ export default class RedisClient<
         promises.push(
           this.#queue.monitor(
             this.#monitorCallback,
-            this._commandOptions?.typeMapping,
-            true
+            {
+              typeMapping: this._commandOptions?.typeMapping,
+              chainId,
+              asap: true
+            }
           )
         );
       }
 
-      this.#handshake(true, promises);
+      const commands = this.#handshake(this.#selectedDB);
+      for (let i = commands.length - 1; i >= 0; --i) {
+        promises.push(
+          this.#queue.addCommand(commands[i], {
+            chainId,
+            asap: true
+          })
+        );
+      }
 
       if (promises.length) {
         this.#write();
@@ -885,7 +882,9 @@ export default class RedisClient<
   }
 
   async MONITOR(callback: MonitorCallback<TYPE_MAPPING>) {
-    const promise = this._self.#queue.monitor(callback, this._commandOptions?.typeMapping);
+    const promise = this._self.#queue.monitor(callback, {
+      typeMapping: this._commandOptions?.typeMapping
+    });
     this._self.#scheduleWrite();
     await promise;
     this._self.#monitorCallback = callback;
@@ -897,10 +896,20 @@ export default class RedisClient<
    * Reset the client to its default state (i.e. stop PubSub, stop monitoring, select default DB, etc.)
    */
   async reset() {
-    const promises = [this._self.#queue.reset()];
-    this._self.#handshake(false, promises);
+    const chainId = Symbol('Reset Chain'),
+      promises = [this._self.#queue.reset(chainId)],
+      selectedDB = this._self.#options?.database ?? 0;
+    for (const command of this._self.#handshake(selectedDB)) {
+      promises.push(
+        this._self.#queue.addCommand(command, {
+          chainId
+        })
+      );
+    }
     this._self.#scheduleWrite();
     await Promise.all(promises);
+    this._self.#selectedDB = selectedDB;
+    this._self.#monitorCallback = undefined;
   }
 
   /**

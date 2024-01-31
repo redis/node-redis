@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, TypeMapping, ReplyUnion, RespVersions, SimpleStringReply, ReplyWithTypeMapping } from '../RESP/types';
+import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { MonitorCallback } from '.';
@@ -154,11 +154,11 @@ export default class RedisCommandsQueue {
     });
   }
 
-  #addPubSubCommand(command: PubSubCommand, asap = false) {
+  #addPubSubCommand(command: PubSubCommand, asap = false, chainId?: symbol) {
     return new Promise<void>((resolve, reject) => {
       this.#toWrite.add({
         args: command.args,
-        chainId: undefined,
+        chainId,
         abort: undefined,
         resolve() {
           command.resolve();
@@ -237,13 +237,13 @@ export default class RedisCommandsQueue {
     return this.#addPubSubCommand(command);
   }
 
-  resubscribe() {
+  resubscribe(chainId?: symbol) {
     const commands = this.#pubSub.resubscribe();
     if (!commands.length) return;
 
     this.#setupPubSubHandler();
     return Promise.all(
-      commands.map(command => this.#addPubSubCommand(command, true))
+      commands.map(command => this.#addPubSubCommand(command, true, chainId))
     );
   }
 
@@ -271,11 +271,12 @@ export default class RedisCommandsQueue {
     return this.#pubSub.getTypeListeners(type);
   }
 
-  monitor(callback: MonitorCallback, typeMapping: TypeMapping = {}, asap = false) {
+  monitor(callback: MonitorCallback, options?: CommandOptions) {
     return new Promise<void>((resolve, reject) => {
+      const typeMapping = options?.typeMapping ?? {};
       this.#toWrite.add({
         args: ['MONITOR'],
-        chainId: undefined,
+        chainId: options?.chainId,
         abort: undefined,
         // using `resolve` instead of using `.then`/`await` to make sure it'll be called before processing the next reply
         resolve: () => {
@@ -295,7 +296,7 @@ export default class RedisCommandsQueue {
         reject,
         channelsCounter: undefined,
         typeMapping
-      }, asap);
+      }, options?.asap);  
     });
   }
 
@@ -306,7 +307,7 @@ export default class RedisCommandsQueue {
 
   #resetFallbackOnReply?: Decoder['onReply'];
 
-  async reset<T extends TypeMapping>(typeMapping?: T) {
+  async reset<T extends TypeMapping>(chainId: symbol, typeMapping?: T) {
     return new Promise((resolve, reject) => {
       // overriding onReply to handle `RESET` while in `MONITOR` or PubSub mode
       this.#resetFallbackOnReply = this.decoder.onReply;
@@ -328,7 +329,7 @@ export default class RedisCommandsQueue {
 
       this.#toWrite.push({
         args: ['RESET'],
-        chainId: undefined,
+        chainId,
         abort: undefined,
         resolve,
         reject,
