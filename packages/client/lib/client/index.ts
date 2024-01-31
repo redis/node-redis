@@ -429,7 +429,7 @@ export default class RedisClient<
         try {
           this.#queue.decoder.write(chunk);
         } catch (err) {
-          this.#queue.decoder.reset();
+          this.#queue.resetDecoder();
           this.emit('error', err);
         }
       })
@@ -899,6 +899,7 @@ export default class RedisClient<
   async reset() {
     const promises = [this._self.#queue.reset()];
     this._self.#handshake(false, promises);
+    this._self.#scheduleWrite();
     await Promise.all(promises);
   }
 
