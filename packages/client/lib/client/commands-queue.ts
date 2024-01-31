@@ -299,6 +299,11 @@ export default class RedisCommandsQueue {
     });
   }
 
+  resetDecoder() {
+    this.#resetDecoderCallbacks();
+    this.decoder.reset();
+  }
+
   #resetFallbackOnReply?: Decoder['onReply'];
 
   async reset<T extends TypeMapping>(typeMapping?: T) {
@@ -384,7 +389,7 @@ export default class RedisCommandsQueue {
   }
 
   flushWaitingForReply(err: Error): void {
-    this.decoder.reset();
+    this.resetDecoder();
     this.#pubSub.reset();
 
     this.#flushWaitingForReply(err);
@@ -402,7 +407,7 @@ export default class RedisCommandsQueue {
   }
 
   flushAll(err: Error): void {
-    this.decoder.reset();
+    this.resetDecoder();
     this.#pubSub.reset();
     this.#flushWaitingForReply(err);
     for (const node of this.#toWrite) {
