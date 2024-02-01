@@ -115,12 +115,13 @@ export class PubSubProxy extends EventEmitter {
 
     if (!this.#state) return;
 
-    if (this.#state instanceof RedisClient) {
+    // TODO: this needs to be fixed, I think if undefined, we maybe should return without destroying anything?
+    if (this.#state.connectPromise === undefined) {
       this.#subscriptions = {
-        [PUBSUB_TYPE.CHANNELS]: this.#state.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-        [PUBSUB_TYPE.PATTERNS]: this.#state.getPubSubListeners(PUBSUB_TYPE.PATTERNS)
+        [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+        [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS)
       };
-      this.#state.destroy();
+      this.#state.client.destroy();
     }
 
     await this.#initiatePubSubClient(true);

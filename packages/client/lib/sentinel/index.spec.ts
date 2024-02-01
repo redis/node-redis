@@ -601,19 +601,15 @@ async function steadyState(frame: SentinelFramework) {
       });
   
   
-      it.only('watch does not carry through leases', async function () {
+      it('watch does not carry through leases', async function () {
         this.timeout(10000);
         sentinel = frame.getSentinelClient();
         await sentinel.connect();
  
         // each of these commands is an independent lease
-        console.log("1");
         assert.equal(await sentinel.use(client => client.watch("x")), 'OK')
-        console.log("2");
         assert.equal(await sentinel.use(client => client.set('x', 1)), 'OK');
-        console.log("3");
         assert.deepEqual(await sentinel.use(client => client.multi().get('x').exec()), ['1']);
-        console.log("4");
       });
   
       // stops master to force sentinel to update 
