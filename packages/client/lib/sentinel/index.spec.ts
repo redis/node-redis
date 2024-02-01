@@ -79,15 +79,8 @@ async function steadyState(frame: SentinelFramework) {
     sentinel.setTracer(tracer);
     await sentinel.connect();
 
-    const result = await Promise.race([nodePromise, setTimeout(10000, "timedout")]);
-    if (result == "timedout") {
-      console.log("steadyState: timed out waiting for all nodes to be visible");
-      for (const line of tracer) {
-        console.log(line);
-      }
-      nodeReject(0);
-    }
-
+    await nodePromise;
+    
     await sentinel.flushAll();
   } finally {
     if (sentinel !== undefined) {
