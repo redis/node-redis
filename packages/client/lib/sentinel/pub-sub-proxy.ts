@@ -122,6 +122,8 @@ export class PubSubProxy extends EventEmitter {
         [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
         [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS)
       };
+
+      this.#state.client.destroy();
     }
 
     await this.#initiatePubSubClient(true);

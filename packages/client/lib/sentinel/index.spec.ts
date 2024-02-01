@@ -118,7 +118,6 @@ async function steadyState(frame: SentinelFramework) {
 
       setImmediate(deltaMeasurer);
 
-      console.log("spawning redis and sentinel nodes");
       await frame.spawnRedisSentinel();
     });
   
@@ -136,8 +135,8 @@ async function steadyState(frame: SentinelFramework) {
       beforeEach(async function () {
         this.timeout(0);
   
-        frame.getAllRunning();
-        
+        await frame.getAllRunning();
+
         await steadyState(frame);
         longestTestDelta = 0;
       })
@@ -355,7 +354,7 @@ async function steadyState(frame: SentinelFramework) {
         sentinel.on("error", () => { });
         await sentinel.connect();
   
-        const promise = sentinel.use(
+        await sentinel.use(
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>, ) => {
             const masterNode = sentinel!.getMasterNode();
             await frame.stopNode(masterNode!.port.toString());
