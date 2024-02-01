@@ -352,6 +352,33 @@ export class SentinelFramework extends DockerBase {
     ]
   }
 
+  async getAllRunning() {
+    for (const port of this.getAllNodesPort()) {
+      let first = true;
+      while (await isPortAvailable(port)) {        
+        if (!first) {
+          console.log(`problematic restart ${port}`);
+          await setTimeout(500);
+        } else {
+          first = false;
+        }
+        await this.restartNode(port.toString());
+      }
+    }
+
+    for (const port of this.getAllSentinelsPort()) {
+      let first = true;
+      while (await isPortAvailable(port)) {        
+        if (!first) {
+          await setTimeout(500);
+        } else {
+          first = false;
+        }
+        await this.restartSentinel(port.toString());
+      }
+    }
+  }
+
   async addSentinel() {
     const quorum = this.config.sentinelQuorum?.toString() ?? "2";
     const node = this.#nodeList[0];

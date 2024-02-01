@@ -60,8 +60,6 @@ async function steadyState(frame: SentinelFramework) {
     nodeReject = rej;
   })
 
-  const numberOfNodes = frame.getAllNodesPort.length;
-
   const seenNodes = new Set<number>();
   let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   const tracer = [];
@@ -138,14 +136,8 @@ async function steadyState(frame: SentinelFramework) {
       beforeEach(async function () {
         this.timeout(0);
   
-        for (const port of frame.getAllNodesPort()) {
-          await frame.restartNode(port.toString());
-        }
-  
-        for (const port of frame.getAllSentinelsPort()) {
-          await frame.restartSentinel(port.toString());
-        }
-  
+        frame.getAllRunning();
+        
         await steadyState(frame);
         longestTestDelta = 0;
       })
@@ -463,7 +455,6 @@ async function steadyState(frame: SentinelFramework) {
 
         const promise1 = sentinel.use(
           async client => {
-            await setTimeout(1000);
             const val = await client.get("x");
             await client.set("x", 2);
             return val;
@@ -472,8 +463,7 @@ async function steadyState(frame: SentinelFramework) {
 
         const promise2 = sentinel.use(
           async client => {
-            await setTimeout(1000);
-            return await client.get("x");
+            return client.get("x");
           }
         )
 
@@ -1165,15 +1155,9 @@ async function steadyState(frame: SentinelFramework) {
   
       beforeEach(async function () {
         this.timeout(0);
-  
-        for (const port of frame.getAllNodesPort()) {
-          await frame.restartNode(port.toString());
-        }
-  
-        for (const port of frame.getAllSentinelsPort()) {
-          await frame.restartSentinel(port.toString());
-        }
-  
+
+        await frame.getAllRunning();
+    
         await steadyState(frame);
         longestTestDelta = 0;
       })
