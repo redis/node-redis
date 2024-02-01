@@ -115,13 +115,13 @@ export class PubSubProxy extends EventEmitter {
 
     if (!this.#state) return;
 
-    // TODO: this needs to be fixed, I think if undefined, we maybe should return without destroying anything?
+    // if `connectPromise` is undefined, `this.#subscriptions` is already set
+    // and `this.#state.client` might not have the listeners set yet
     if (this.#state.connectPromise === undefined) {
       this.#subscriptions = {
         [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
         [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS)
       };
-      this.#state.client.destroy();
     }
 
     await this.#initiatePubSubClient(true);
