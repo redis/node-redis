@@ -265,9 +265,7 @@ import TOUCH from './TOUCH';
 import TTL from './TTL';
 import TYPE from './TYPE';
 import UNLINK from './UNLINK';
-import UNWATCH from './UNWATCH';
 import WAIT from './WAIT';
-import WATCH from './WATCH';
 import XACK from './XACK';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
@@ -869,12 +867,8 @@ export default {
   type: TYPE,
   UNLINK,
   unlink: UNLINK,
-  UNWATCH,
-  unwatch: UNWATCH,
   WAIT,
   wait: WAIT,
-  WATCH,
-  watch: WATCH,
   XACK,
   xAck: XACK,
   XADD_NOMKSTREAM,

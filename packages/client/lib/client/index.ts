@@ -14,6 +14,7 @@ import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
+import { RedisVariadicArgument, pushVariadicArguments } from '../commands/generic-transformers';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -279,6 +280,8 @@ export default class RedisClient<
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
+  #dirtyWatch?: string;
+  #watchEpoch?: number;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -294,6 +297,14 @@ export default class RedisClient<
 
   get isPubSubActive() {
     return this._self.#queue.isPubSubActive;
+  }
+
+  get isWatching() {
+    return this._self.#watchEpoch !== undefined;
+  }
+
+  setDirtyWatch(msg: string) {
+    this._self.#dirtyWatch = msg;
   }
 
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -705,6 +716,24 @@ export default class RedisClient<
 
   sUnsubscribe = this.SUNSUBSCRIBE;
 
+  async WATCH(key: RedisVariadicArgument) {
+    const reply = await this._self.sendCommand(
+      pushVariadicArguments(['WATCH'], key)
+    );
+    this._self.#watchEpoch ??= this._self.#socket.epoch;
+    return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
+  }
+
+  watch = this.WATCH;
+
+  async UNWATCH() {
+    const reply = await this._self.sendCommand(['UNWATCH']);
+    this._self.#watchEpoch = undefined;
+    return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
+  }
+
+  unwatch = this.UNWATCH;
+
   getPubSubListeners(type: PubSubType) {
     return this._self.#queue.getPubSubListeners(type);
   }
@@ -781,8 +810,21 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    const dirtyWatch = this._self.#dirtyWatch;
+    this._self.#dirtyWatch = undefined;
+    const watchEpoch = this._self.#watchEpoch;
+    this._self.#watchEpoch = undefined;
+
     if (!this._self.#socket.isOpen) {
       throw new ClientClosedError();
+    }
+
+    if (dirtyWatch) {
+      throw new WatchError(dirtyWatch);
+    }
+
+    if (watchEpoch && watchEpoch !== this._self.#socket.epoch) {
+      throw new WatchError('Client reconnected after WATCH');
     }
 
     const typeMapping = this._commandOptions?.typeMapping,

@@ -5,8 +5,8 @@ export class AbortError extends Error {
 }
 
 export class WatchError extends Error {
-  constructor() {
-    super('One (or more) of the watched keys has been changed');
+  constructor(message = 'One (or more) of the watched keys has been changed') {
+    super(message);
   }
 }
 
