@@ -268,7 +268,7 @@ export default class RedisCommandsQueue {
   }
 
   getPubSubListeners(type: PubSubType) {
-    return this.#pubSub.getTypeListeners(type);
+    return this.#pubSub.listeners[type];
   }
 
   monitor(callback: MonitorCallback, options?: CommandOptions) {

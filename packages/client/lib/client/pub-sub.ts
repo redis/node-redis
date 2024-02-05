@@ -1,24 +1,28 @@
 import { RedisArgument } from '../RESP/types';
 import { CommandToWrite } from './commands-queue';
 
-export enum PubSubType {
-  CHANNELS = 'CHANNELS',
-  PATTERNS = 'PATTERNS',
-  SHARDED = 'SHARDED'
-}
+export const PUBSUB_TYPE = {
+  CHANNELS: 'CHANNELS',
+  PATTERNS: 'PATTERNS',
+  SHARDED: 'SHARDED'
+} as const;
+
+export type PUBSUB_TYPE = typeof PUBSUB_TYPE;
+
+export type PubSubType = PUBSUB_TYPE[keyof PUBSUB_TYPE];
 
 const COMMANDS = {
-  [PubSubType.CHANNELS]: {
+  [PUBSUB_TYPE.CHANNELS]: {
     subscribe: Buffer.from('subscribe'),
     unsubscribe: Buffer.from('unsubscribe'),
     message: Buffer.from('message')
   },
-  [PubSubType.PATTERNS]: {
+  [PUBSUB_TYPE.PATTERNS]: {
     subscribe: Buffer.from('psubscribe'),
     unsubscribe: Buffer.from('punsubscribe'),
     message: Buffer.from('pmessage')
   },
-  [PubSubType.SHARDED]: {
+  [PUBSUB_TYPE.SHARDED]: {
     subscribe: Buffer.from('ssubscribe'),
     unsubscribe: Buffer.from('sunsubscribe'),
     message: Buffer.from('smessage')
@@ -37,7 +41,7 @@ export interface ChannelListeners {
 
 export type PubSubTypeListeners = Map<string, ChannelListeners>;
 
-type Listeners = Record<PubSubType, PubSubTypeListeners>;
+export type PubSubListeners = Record<PubSubType, PubSubTypeListeners>;
 
 export type PubSubCommand = (
   Required<Pick<CommandToWrite, 'args' | 'channelsCounter' | 'resolve'>> & {
@@ -48,16 +52,16 @@ export type PubSubCommand = (
 export class PubSub {
   static isStatusReply(reply: Array<Buffer>): boolean {
     return (
-      COMMANDS[PubSubType.CHANNELS].subscribe.equals(reply[0]) ||
-      COMMANDS[PubSubType.CHANNELS].unsubscribe.equals(reply[0]) ||
-      COMMANDS[PubSubType.PATTERNS].subscribe.equals(reply[0]) ||
-      COMMANDS[PubSubType.PATTERNS].unsubscribe.equals(reply[0]) ||
-      COMMANDS[PubSubType.SHARDED].subscribe.equals(reply[0])
+      COMMANDS[PUBSUB_TYPE.CHANNELS].subscribe.equals(reply[0]) ||
+      COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.equals(reply[0]) ||
+      COMMANDS[PUBSUB_TYPE.PATTERNS].subscribe.equals(reply[0]) ||
+      COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.equals(reply[0]) ||
+      COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.equals(reply[0])
     );
   }
 
   static isShardedUnsubscribe(reply: Array<Buffer>): boolean {
-    return COMMANDS[PubSubType.SHARDED].unsubscribe.equals(reply[0]);
+    return COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.equals(reply[0]);
   }
 
   static #channelsArray(channels: string | Array<string>) {
@@ -79,10 +83,10 @@ export class PubSub {
     return this.#isActive;
   }
 
-  #listeners: Listeners = {
-    [PubSubType.CHANNELS]: new Map(),
-    [PubSubType.PATTERNS]: new Map(),
-    [PubSubType.SHARDED]: new Map()
+  readonly listeners: PubSubListeners = {
+    [PUBSUB_TYPE.CHANNELS]: new Map(),
+    [PUBSUB_TYPE.PATTERNS]: new Map(),
+    [PUBSUB_TYPE.SHARDED]: new Map()
   };
 
   subscribe<T extends boolean>(
@@ -94,7 +98,7 @@ export class PubSub {
     const args: Array<RedisArgument> = [COMMANDS[type].subscribe],
       channelsArray = PubSub.#channelsArray(channels);
     for (const channel of channelsArray) {
-      let channelListeners = this.#listeners[type].get(channel);
+      let channelListeners = this.listeners[type].get(channel);
       if (!channelListeners || channelListeners.unsubscribing) {
         args.push(channel);
       }
@@ -104,7 +108,7 @@ export class PubSub {
       // all channels are already subscribed, add listeners without issuing a command
       for (const channel of channelsArray) {
         PubSub.#listenersSet(
-          this.#listeners[type].get(channel)!,
+          this.listeners[type].get(channel)!,
           returnBuffers
         ).add(listener);
       }
@@ -119,14 +123,14 @@ export class PubSub {
       resolve: () => {
         this.#subscribing--;
         for (const channel of channelsArray) {
-          let listeners = this.#listeners[type].get(channel);
+          let listeners = this.listeners[type].get(channel);
           if (!listeners) {
             listeners = {
               unsubscribing: false,
               buffers: new Set(),
               strings: new Set()
             };
-            this.#listeners[type].set(channel, listeners);
+            this.listeners[type].set(channel, listeners);
           }
 
           PubSub.#listenersSet(listeners, returnBuffers).add(listener);
@@ -167,9 +171,9 @@ export class PubSub {
     channel: string,
     listeners: ChannelListeners
   ) {
-    const existingListeners = this.#listeners[type].get(channel);
+    const existingListeners = this.listeners[type].get(channel);
     if (!existingListeners) {
-      this.#listeners[type].set(channel, listeners);
+      this.listeners[type].set(channel, listeners);
       return true;
     }
 
@@ -213,7 +217,7 @@ export class PubSub {
     listener?: PubSubListener<T>,
     returnBuffers?: T
   ) {
-    const listeners = this.#listeners[type];
+    const listeners = this.listeners[type];
     if (!channels) {
       return this.#unsubscribeCommand(
         [COMMANDS[type].unsubscribe],
@@ -306,9 +310,9 @@ export class PubSub {
 
   #updateIsActive() {
     this.#isActive = (
-      this.#listeners[PubSubType.CHANNELS].size !== 0 ||
-      this.#listeners[PubSubType.PATTERNS].size !== 0 ||
-      this.#listeners[PubSubType.SHARDED].size !== 0 ||
+      this.listeners[PUBSUB_TYPE.CHANNELS].size !== 0 ||
+      this.listeners[PUBSUB_TYPE.PATTERNS].size !== 0 ||
+      this.listeners[PUBSUB_TYPE.SHARDED].size !== 0 ||
       this.#subscribing !== 0
     );
   }
@@ -320,7 +324,7 @@ export class PubSub {
 
   resubscribe() {
     const commands = [];
-    for (const [type, listeners] of Object.entries(this.#listeners)) {
+    for (const [type, listeners] of Object.entries(this.listeners)) {
       if (!listeners.size) continue;
 
       this.#isActive = true;
@@ -341,24 +345,24 @@ export class PubSub {
   }
 
   handleMessageReply(reply: Array<Buffer>): boolean {
-    if (COMMANDS[PubSubType.CHANNELS].message.equals(reply[0])) {
+    if (COMMANDS[PUBSUB_TYPE.CHANNELS].message.equals(reply[0])) {
       this.#emitPubSubMessage(
-        PubSubType.CHANNELS,
+        PUBSUB_TYPE.CHANNELS,
         reply[2],
         reply[1]
       );
       return true;
-    } else if (COMMANDS[PubSubType.PATTERNS].message.equals(reply[0])) {
+    } else if (COMMANDS[PUBSUB_TYPE.PATTERNS].message.equals(reply[0])) {
       this.#emitPubSubMessage(
-        PubSubType.PATTERNS,
+        PUBSUB_TYPE.PATTERNS,
         reply[3],
         reply[2],
         reply[1]
       );
       return true;
-    } else if (COMMANDS[PubSubType.SHARDED].message.equals(reply[0])) {
+    } else if (COMMANDS[PUBSUB_TYPE.SHARDED].message.equals(reply[0])) {
       this.#emitPubSubMessage(
-        PubSubType.SHARDED,
+        PUBSUB_TYPE.SHARDED,
         reply[2],
         reply[1]
       );
@@ -369,8 +373,8 @@ export class PubSub {
   }
 
   removeShardedListeners(channel: string): ChannelListeners {
-    const listeners = this.#listeners[PubSubType.SHARDED].get(channel)!;
-    this.#listeners[PubSubType.SHARDED].delete(channel);
+    const listeners = this.listeners[PUBSUB_TYPE.SHARDED].get(channel)!;
+    this.listeners[PUBSUB_TYPE.SHARDED].delete(channel);
     this.#updateIsActive();
     return listeners;
   }
@@ -382,7 +386,7 @@ export class PubSub {
     pattern?: Buffer
   ): void {
     const keyString = (pattern ?? channel).toString(),
-      listeners = this.#listeners[type].get(keyString);
+      listeners = this.listeners[type].get(keyString);
 
     if (!listeners) return;
 
@@ -401,9 +405,5 @@ export class PubSub {
     for (const listener of listeners.strings) {
       listener(messageString, channelString);
     }
-  }
-
-  getTypeListeners(type: PubSubType): PubSubTypeListeners {
-    return this.#listeners[type];
   }
 }

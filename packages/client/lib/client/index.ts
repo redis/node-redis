@@ -6,7 +6,7 @@ import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumen
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
-import { PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
+import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
@@ -14,6 +14,7 @@ import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
+import { RedisVariadicArgument, pushVariadicArguments } from '../commands/generic-transformers';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -279,6 +280,9 @@ export default class RedisClient<
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
+  #dirtyWatch?: string;
+  #epoch: number;
+  #watchEpoch?: number; 
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -296,11 +300,20 @@ export default class RedisClient<
     return this._self.#queue.isPubSubActive;
   }
 
+  get isWatching() {
+    return this._self.#watchEpoch !== undefined;
+  }
+
+  setDirtyWatch(msg: string) {
+    this._self.#dirtyWatch = msg;
+  }
+
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket();
+    this.#epoch = 0;
   }
 
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
@@ -440,6 +453,7 @@ export default class RedisClient<
       })
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
+        this.#epoch++;
         this.emit('ready');
         this.#setPingTimer();
         this.#maybeScheduleWrite();
@@ -596,7 +610,7 @@ export default class RedisClient<
 
   select = this.SELECT;
 
-  #pubSubCommand(promise: Promise<void> | undefined) {
+  #pubSubCommand<T>(promise: Promise<T> | undefined) {
     if (promise === undefined) return Promise.resolve();
 
     this.#scheduleWrite();
@@ -610,7 +624,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.subscribe(
-        PubSubType.CHANNELS,
+        PUBSUB_TYPE.CHANNELS,
         channels,
         listener,
         bufferMode
@@ -627,7 +641,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.unsubscribe(
-        PubSubType.CHANNELS,
+        PUBSUB_TYPE.CHANNELS,
         channels,
         listener,
         bufferMode
@@ -635,7 +649,7 @@ export default class RedisClient<
     );
   }
 
-  unsubscribe = this.UNSUBSCRIBE
+  unsubscribe = this.UNSUBSCRIBE;
 
   PSUBSCRIBE<T extends boolean = false>(
     patterns: string | Array<string>,
@@ -644,7 +658,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.subscribe(
-        PubSubType.PATTERNS,
+        PUBSUB_TYPE.PATTERNS,
         patterns,
         listener,
         bufferMode
@@ -661,7 +675,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.unsubscribe(
-        PubSubType.PATTERNS,
+        PUBSUB_TYPE.PATTERNS,
         patterns,
         listener,
         bufferMode
@@ -678,7 +692,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.subscribe(
-        PubSubType.SHARDED,
+        PUBSUB_TYPE.SHARDED,
         channels,
         listener,
         bufferMode
@@ -695,7 +709,7 @@ export default class RedisClient<
   ): Promise<void> {
     return this._self.#pubSubCommand(
       this._self.#queue.unsubscribe(
-        PubSubType.SHARDED,
+        PUBSUB_TYPE.SHARDED,
         channels,
         listener,
         bufferMode
@@ -704,6 +718,24 @@ export default class RedisClient<
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;
+
+  async WATCH(key: RedisVariadicArgument) {
+    const reply = await this._self.sendCommand(
+      pushVariadicArguments(['WATCH'], key)
+    );
+    this._self.#watchEpoch ??= this._self.#epoch;
+    return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
+  }
+
+  watch = this.WATCH;
+
+  async UNWATCH() {
+    const reply = await this._self.sendCommand(['UNWATCH']);
+    this._self.#watchEpoch = undefined;
+    return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
+  }
+
+  unwatch = this.UNWATCH;
 
   getPubSubListeners(type: PubSubType) {
     return this._self.#queue.getPubSubListeners(type);
@@ -781,8 +813,21 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    const dirtyWatch = this._self.#dirtyWatch;
+    this._self.#dirtyWatch = undefined;
+    const watchEpoch = this._self.#watchEpoch;
+    this._self.#watchEpoch = undefined;
+
     if (!this._self.#socket.isOpen) {
       throw new ClientClosedError();
+    }
+
+    if (dirtyWatch) {
+      throw new WatchError(dirtyWatch);
+    }
+
+    if (watchEpoch && watchEpoch !== this._self.#epoch) {
+      throw new WatchError('Client reconnected after WATCH');
     }
 
     const typeMapping = this._commandOptions?.typeMapping,
@@ -910,6 +955,8 @@ export default class RedisClient<
     await Promise.all(promises);
     this._self.#selectedDB = selectedDB;
     this._self.#monitorCallback = undefined;
+    this._self.#dirtyWatch = undefined;
+    this._self.#watchEpoch = undefined;
   }
 
   /**
@@ -931,6 +978,11 @@ export default class RedisClient<
 
     if (this._self.#queue.isPubSubActive) {
       console.warn('Returning a client with active PubSub');
+      shouldReset = true;
+    }
+
+    if (this._self.#dirtyWatch || this._self.#watchEpoch) {
+      console.warn('Returning a client with active WATCH');
       shouldReset = true;
     }
 
