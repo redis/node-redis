@@ -1,26 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './GETSET';
+import GETSET from './GETSET';
 
 describe('GETSET', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'value'),
-            ['GETSET', 'key', 'value']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      GETSET.transformArguments('key', 'value'),
+      ['GETSET', 'key', 'value']
+    );
+  });
 
-    testUtils.testWithClient('client.getSet', async client => {
-        assert.equal(
-            await client.getSet('key', 'value'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.getSet', async cluster => {
-        assert.equal(
-            await cluster.getSet('key', 'value'),
-            null
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('getSet', async client => {
+    assert.equal(
+      await client.getSet('key', 'value'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

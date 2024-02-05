@@ -1,26 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SETRANGE';
+import SETRANGE from './SETRANGE';
 
 describe('SETRANGE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 0, 'value'),
-            ['SETRANGE', 'key', '0', 'value']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      SETRANGE.transformArguments('key', 0, 'value'),
+      ['SETRANGE', 'key', '0', 'value']
+    );
+  });
 
-    testUtils.testWithClient('client.setRange', async client => {
-        assert.equal(
-            await client.setRange('key', 0, 'value'),
-            5
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.setRange', async cluster => {
-        assert.equal(
-            await cluster.setRange('key', 0, 'value'),
-            5
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('setRange', async client => {
+    assert.equal(
+      await client.setRange('key', 0, 'value'),
+      5
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

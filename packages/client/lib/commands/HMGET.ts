@@ -1,15 +1,14 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    fields: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return pushVerdictArguments(['HMGET', key], fields);
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    fields: RedisVariadicArgument
+  ) {
+    return pushVariadicArguments(['HMGET', key], fields);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply | NullReply>
+} as const satisfies Command;

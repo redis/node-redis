@@ -1,7 +1,9 @@
-import { evalFirstKeyIndex, EvalOptions, pushEvalArguments } from './generic-transformers';
+import { Command } from '../RESP/types';
+import EVAL, { transformEvalArguments } from './EVAL';
 
-export const FIRST_KEY_INDEX = evalFirstKeyIndex;
-
-export function transformArguments(fn: string, options?: EvalOptions): Array<string> {
-    return pushEvalArguments(['FCALL', fn], options);
-}
+export default {
+  FIRST_KEY_INDEX: EVAL.FIRST_KEY_INDEX,
+  IS_READ_ONLY: false,
+  transformArguments: transformEvalArguments.bind(undefined, 'FCALL'),
+  transformReply: EVAL.transformReply
+} as const satisfies Command;

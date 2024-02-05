@@ -1,13 +1,18 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    field: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(
+    key: RedisArgument,
+    field: RedisArgument,
     increment: number
-): RedisCommandArguments {
-    return ['HINCRBYFLOAT', key, field, increment.toString()];
-}
-
-export declare function transformReply(): number;
+  ) {
+    return [
+      'HINCRBYFLOAT',
+      key,
+      field,
+      increment.toString()
+    ];
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

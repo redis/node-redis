@@ -1,30 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './STRLEN';
+import STRLEN from './STRLEN';
 
-describe('STRLEN', () => {
-    describe('transformArguments', () => {
-        it('without path', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['JSON.STRLEN', 'key']
-            );
-        });
-
-        it('with path', () => {
-            assert.deepEqual(
-                transformArguments('key', '$'),
-                ['JSON.STRLEN', 'key', '$']
-            );
-        });
+describe('JSON.STRLEN', () => {
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        STRLEN.transformArguments('key'),
+        ['JSON.STRLEN', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.json.strLen', async client => {
-        await client.json.set('key', '$', '');
+    it('with path', () => {
+      assert.deepEqual(
+        STRLEN.transformArguments('key', {
+          path: '$'
+        }),
+        ['JSON.STRLEN', 'key', '$']
+      );
+    });
+  });
 
-        assert.deepEqual(
-            await client.json.strLen('key', '$'),
-            [0]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.json.strLen', async client => {
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', ''),
+      client.json.strLen('key')
+    ]);
+
+    assert.deepEqual(reply, 0);
+  }, GLOBAL.SERVERS.OPEN);
 });

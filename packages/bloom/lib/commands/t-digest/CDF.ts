@@ -1,19 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformDoubleArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    values: Array<number>
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, values: Array<number>) {
     const args = ['TDIGEST.CDF', key];
+
     for (const item of values) {
-        args.push(item.toString());
+      args.push(item.toString());
     }
 
     return args;
-}
-
-export { transformDoublesReply as transformReply } from '.';
+  },
+  transformReply: transformDoubleArrayReply
+} as const satisfies Command;

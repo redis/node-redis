@@ -1,11 +1,11 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './READONLY';
+import { strict as assert } from 'node:assert';
+import READONLY from './READONLY';
 
 describe('READONLY', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['READONLY']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      READONLY.transformArguments(),
+      ['READONLY']
+    );
+  });
 });

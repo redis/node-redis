@@ -1,21 +1,21 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './DEL';
+import DEL from './DEL';
 
-describe('CF DEL', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'item'),
-            ['CF.DEL', 'key', 'item']
-        );
-    });
+describe('CF.DEL', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      DEL.transformArguments('key', 'item'),
+      ['CF.DEL', 'key', 'item']
+    );
+  });
 
-    testUtils.testWithClient('client.cf.del', async client => {
-        await client.cf.reserve('key', 4);
+  testUtils.testWithClient('client.cf.del', async client => {
+    const [, reply] = await Promise.all([
+      client.cf.reserve('key', 4),
+      client.cf.del('key', 'item')
+    ]);
 
-        assert.equal(
-            await client.cf.del('key', 'item'),
-            false
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, false);
+  }, GLOBAL.SERVERS.OPEN);
 });

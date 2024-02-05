@@ -1,21 +1,24 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HRANDFIELD';
+import HRANDFIELD from './HRANDFIELD';
 
 describe('HRANDFIELD', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['HRANDFIELD', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      HRANDFIELD.transformArguments('key'),
+      ['HRANDFIELD', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.hRandField', async client => {
-        assert.equal(
-            await client.hRandField('key'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('hRandField', async client => {
+    assert.equal(
+      await client.hRandField('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

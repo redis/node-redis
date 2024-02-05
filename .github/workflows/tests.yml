@@ -31,10 +31,10 @@ jobs:
         if: ${{ matrix.node-version <= 14 }}
       - name: Install Packages
         run: npm ci
-      - name: Build tests tools
-        run: npm run build:tests-tools
+      - name: Build
+        run: npm run build -- ./packages/client ./packages/test-utils
       - name: Run Tests
-        run: npm run test -- -- --forbid-only --redis-version=${{ matrix.redis-version }}
+        run: npm run test -ws --if-present -- --forbid-only --redis-version=${{ matrix.redis-version }}
       - name: Upload to Codecov
         run: |
           curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import

@@ -23,4 +23,4 @@ try {
   console.log(`GET command failed: ${e.message}`);
 }
 
-await client.quit();
+client.destroy();

@@ -1,14 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return pushVerdictArguments(['SDIFF'], keys);
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(keys: RedisVariadicArgument) {
+    return pushVariadicArguments(['SDIFF'], keys);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

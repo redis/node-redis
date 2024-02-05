@@ -1,28 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HMGET';
+import HMGET from './HMGET';
 
 describe('HMGET', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', 'field'),
-                ['HMGET', 'key', 'field']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['field1', 'field2']),
-                ['HMGET', 'key', 'field1', 'field2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        HMGET.transformArguments('key', 'field'),
+        ['HMGET', 'key', 'field']
+      );
     });
 
-    testUtils.testWithClient('client.hmGet', async client => {
-        assert.deepEqual(
-            await client.hmGet('key', 'field'),
-            [null]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        HMGET.transformArguments('key', ['field1', 'field2']),
+        ['HMGET', 'key', 'field1', 'field2']
+      );
+    });
+  });
+
+  testUtils.testAll('hmGet', async client => {
+    assert.deepEqual(
+      await client.hmGet('key', 'field'),
+      [null]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

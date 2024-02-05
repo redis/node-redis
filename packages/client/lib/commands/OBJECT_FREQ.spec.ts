@@ -1,19 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './OBJECT_FREQ';
+import OBJECT_FREQ from './OBJECT_FREQ';
 
 describe('OBJECT FREQ', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['OBJECT', 'FREQ', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      OBJECT_FREQ.transformArguments('key'),
+      ['OBJECT', 'FREQ', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.objectFreq', async client => {
-        assert.equal(
-            await client.objectFreq('key'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('client.objectFreq', async client => {
+    assert.equal(
+      await client.objectFreq('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

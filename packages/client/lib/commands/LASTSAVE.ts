@@ -1,9 +1,10 @@
-export const IS_READ_ONLY = true;
+import { NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(): Array<string> {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['LASTSAVE'];
-}
-
-export function transformReply(reply: number): Date {
-    return new Date(reply);
-}
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

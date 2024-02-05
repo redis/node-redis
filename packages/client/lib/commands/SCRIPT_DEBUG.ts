@@ -1,5 +1,10 @@
-export function transformArguments(mode: 'YES' | 'SYNC' | 'NO'): Array<string> {
-    return ['SCRIPT', 'DEBUG', mode];
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(mode: 'YES' | 'SYNC' | 'NO') {
+    return ['SCRIPT', 'DEBUG', mode];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

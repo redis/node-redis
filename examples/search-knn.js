@@ -88,4 +88,4 @@ console.log(JSON.stringify(results, null, 2));
 //     }
 //   ]
 // }
-await client.quit();
+client.destroy();

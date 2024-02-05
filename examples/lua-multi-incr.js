@@ -24,4 +24,4 @@ await client.connect();
 await client.set('mykey', '5');
 console.log(await client.mincr('mykey', 'myotherkey', 10)); // [ 15, 10 ]
 
-await client.quit();
+client.destroy();

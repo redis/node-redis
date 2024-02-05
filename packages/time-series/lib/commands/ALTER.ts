@@ -1,15 +1,13 @@
-import { pushRetentionArgument, Labels, pushLabelsArgument, TimeSeriesDuplicatePolicies, pushChunkSizeArgument, pushDuplicatePolicy } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { TsCreateOptions } from './CREATE';
+import { pushRetentionArgument, pushChunkSizeArgument, pushDuplicatePolicy, pushLabelsArgument } from '.';
 
-export const FIRST_KEY_INDEX = 1;
+export type TsAlterOptions = Pick<TsCreateOptions, 'RETENTION' | 'CHUNK_SIZE' | 'DUPLICATE_POLICY' | 'LABELS'>;
 
-interface AlterOptions {
-    RETENTION?: number;
-    CHUNK_SIZE?: number;
-    DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
-    LABELS?: Labels;
-}
-
-export function transformArguments(key: string, options?: AlterOptions): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, options?: TsAlterOptions) {
     const args = ['TS.ALTER', key];
 
     pushRetentionArgument(args, options?.RETENTION);
@@ -21,6 +19,6 @@ export function transformArguments(key: string, options?: AlterOptions): Array<s
     pushLabelsArgument(args, options?.LABELS);
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

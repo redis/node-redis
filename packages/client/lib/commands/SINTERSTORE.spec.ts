@@ -1,28 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SINTERSTORE';
+import SINTERSTORE from './SINTERSTORE';
 
 describe('SINTERSTORE', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('destination', 'key'),
-                ['SINTERSTORE', 'destination', 'key']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('destination', ['1', '2']),
-                ['SINTERSTORE', 'destination', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        SINTERSTORE.transformArguments('destination', 'key'),
+        ['SINTERSTORE', 'destination', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.sInterStore', async client => {
-        assert.equal(
-            await client.sInterStore('destination', 'key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        SINTERSTORE.transformArguments('destination', ['1', '2']),
+        ['SINTERSTORE', 'destination', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('sInterStore', async client => {
+    assert.equal(
+      await client.sInterStore('{tag}destination', '{tag}key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

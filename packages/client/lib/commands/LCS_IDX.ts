@@ -1,42 +1,50 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { RangeReply, RawRangeReply, transformRangeReply } from './generic-transformers';
-import { transformArguments as transformLcsArguments } from './LCS';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NumberReply, UnwrapReply, Resp2Reply, Command, TuplesReply } from '../RESP/types';
+import LCS from './LCS';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './LCS';
+export interface LcsIdxOptions {
+  MINMATCHLEN?: number;
+}
 
-export function transformArguments(
-    key1: RedisCommandArgument,
-    key2: RedisCommandArgument
-): RedisCommandArguments {
-    const args = transformLcsArguments(key1, key2);
+export type LcsIdxRange = TuplesReply<[
+  start: NumberReply,
+  end: NumberReply
+]>;
+
+export type LcsIdxMatches = ArrayReply<
+  TuplesReply<[
+    key1: LcsIdxRange,
+    key2: LcsIdxRange
+  ]>
+>;
+
+export type LcsIdxReply = TuplesToMapReply<[
+  [BlobStringReply<'matches'>, LcsIdxMatches],
+  [BlobStringReply<'len'>, NumberReply]
+]>;
+
+export default {
+  FIRST_KEY_INDEX: LCS.FIRST_KEY_INDEX,
+  IS_READ_ONLY: LCS.IS_READ_ONLY,
+  transformArguments(
+    key1: RedisArgument,
+    key2: RedisArgument,
+    options?: LcsIdxOptions
+  ) {
+    const args = LCS.transformArguments(key1, key2);
+
     args.push('IDX');
+
+    if (options?.MINMATCHLEN) {
+      args.push('MINMATCHLEN', options.MINMATCHLEN.toString());
+    }
+
     return args;
-}
-
-type RawReply = [
-    'matches',
-    Array<[
-        key1: RawRangeReply,
-        key2: RawRangeReply
-    ]>,
-    'len',
-    number
-];
-
-interface Reply {
-    matches: Array<{
-        key1: RangeReply;
-        key2: RangeReply;
-    }>;
-    length: number;
-}
-
-export function transformReply(reply: RawReply): Reply {
-    return {
-        matches: reply[1].map(([key1, key2]) => ({
-            key1: transformRangeReply(key1),
-            key2: transformRangeReply(key2)
-        })),
-        length: reply[3]
-    };
-}
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<LcsIdxReply>>) => ({
+      matches: reply[1],
+      len: reply[3]
+    }),
+    3: undefined as unknown as () => LcsIdxReply
+  }
+} as const satisfies Command;

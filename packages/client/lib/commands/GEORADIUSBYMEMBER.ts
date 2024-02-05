@@ -1,25 +1,30 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoSearchOptions, pushGeoRadiusArguments, GeoUnits } from './generic-transformers';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { GeoUnits, GeoSearchOptions, pushGeoSearchOptions } from './GEOSEARCH';
 
-export const FIRST_KEY_INDEX = 1;
+export function transformGeoRadiusByMemberArguments(
+  command: RedisArgument,
+  key: RedisArgument,
+  from: RedisArgument,
+  radius: number,
+  unit: GeoUnits,
+  options?: GeoSearchOptions
+) {
+  const args = [
+    command,
+    key,
+    from,
+    radius.toString(),
+    unit
+  ];
 
-export const IS_READ_ONLY = true;
+  pushGeoSearchOptions(args, options);
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    member: string,
-    radius: number,
-    unit: GeoUnits,
-    options?: GeoSearchOptions
-): RedisCommandArguments {
-    return pushGeoRadiusArguments(
-        ['GEORADIUSBYMEMBER'],
-        key,
-        member,
-        radius,
-        unit,
-        options
-    );
+  return args;
 }
 
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments: transformGeoRadiusByMemberArguments.bind(undefined, 'GEORADIUSBYMEMBER'),
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

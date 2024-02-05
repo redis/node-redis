@@ -1,5 +1,10 @@
-export function transformArguments(): Array<string> {
-    return  ['CLUSTER', 'MYID'];
-}
+import { BlobStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
+    return ['CLUSTER', 'MYID'];
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

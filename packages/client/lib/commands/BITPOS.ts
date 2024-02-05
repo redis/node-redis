@@ -1,32 +1,31 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { BitValue } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     bit: BitValue,
     start?: number,
     end?: number,
     mode?: 'BYTE' | 'BIT'
-): RedisCommandArguments {
+  ) {
     const args = ['BITPOS', key, bit.toString()];
 
-    if (typeof start === 'number') {
-        args.push(start.toString());
+    if (start !== undefined) {
+      args.push(start.toString());
     }
 
-    if (typeof end === 'number') {
-        args.push(end.toString());
+    if (end !== undefined) {
+      args.push(end.toString());
     }
 
     if (mode) {
-        args.push(mode);
+      args.push(mode);
     }
 
     return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

@@ -1,23 +1,26 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XGROUP_DELCONSUMER';
+import XGROUP_DELCONSUMER from './XGROUP_DELCONSUMER';
 
 describe('XGROUP DELCONSUMER', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'group', 'consumer'),
-            ['XGROUP', 'DELCONSUMER', 'key', 'group', 'consumer']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      XGROUP_DELCONSUMER.transformArguments('key', 'group', 'consumer'),
+      ['XGROUP', 'DELCONSUMER', 'key', 'group', 'consumer']
+    );
+  });
 
-    testUtils.testWithClient('client.xGroupDelConsumer', async client => {
-        await client.xGroupCreate('key', 'group', '$', {
-            MKSTREAM: true
-        });
+  testUtils.testAll('xGroupDelConsumer', async client => {
+    const [, reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xGroupDelConsumer('key', 'group', 'consumer')
+    ]);
 
-        assert.equal(
-            await client.xGroupDelConsumer('key', 'group', 'consumer'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, 0);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

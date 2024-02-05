@@ -1,26 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './STRLEN';
+import STRLEN from './STRLEN';
 
 describe('STRLEN', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['STRLEN', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      STRLEN.transformArguments('key'),
+      ['STRLEN', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.strLen', async client => {
-        assert.equal(
-            await client.strLen('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.strLen', async cluster => {
-        assert.equal(
-            await cluster.strLen('key'),
-            0
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('strLen', async client => {
+    assert.equal(
+      await client.strLen('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

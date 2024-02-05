@@ -1,28 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SADD';
+import SADD from './SADD';
 
 describe('SADD', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', 'member'),
-                ['SADD', 'key', 'member']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['1', '2']),
-                ['SADD', 'key', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        SADD.transformArguments('key', 'member'),
+        ['SADD', 'key', 'member']
+      );
     });
 
-    testUtils.testWithClient('client.sAdd', async client => {
-        assert.equal(
-            await client.sAdd('key', 'member'),
-            1
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        SADD.transformArguments('key', ['1', '2']),
+        ['SADD', 'key', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('sAdd', async client => {
+    assert.equal(
+      await client.sAdd('key', 'member'),
+      1
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

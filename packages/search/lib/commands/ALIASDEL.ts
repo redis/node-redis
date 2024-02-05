@@ -1,5 +1,10 @@
-export function transformArguments(name: string, index: string): Array<string> {
-    return ['FT.ALIASDEL', name, index];
-}
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(alias: RedisArgument) {
+    return ['FT.ALIASDEL', alias];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

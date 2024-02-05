@@ -77,4 +77,4 @@ console.log('Count-Min Sketch info:');
 // }
 console.log(info);
 
-await client.quit();
+client.destroy();

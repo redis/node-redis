@@ -1,19 +1,19 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './CLIENT_ID';
+import CLIENT_ID from './CLIENT_ID';
 
 describe('CLIENT ID', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['CLIENT', 'ID']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      CLIENT_ID.transformArguments(),
+      ['CLIENT', 'ID']
+    );
+  });
 
-    testUtils.testWithClient('client.clientId', async client => {
-        assert.equal(
-            typeof (await client.clientId()),
-            'number'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.clientId', async client => {
+    assert.equal(
+      typeof (await client.clientId()),
+      'number'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

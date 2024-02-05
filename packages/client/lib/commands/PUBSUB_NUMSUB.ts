@@ -1,24 +1,23 @@
-import { pushVerdictArguments } from './generic-transformers';
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    channels?: Array<RedisCommandArgument> | RedisCommandArgument
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(channels?: RedisVariadicArgument) {
     const args = ['PUBSUB', 'NUMSUB'];
 
-    if (channels) return pushVerdictArguments(args, channels);
+    if (channels) return pushVariadicArguments(args, channels);
 
     return args;
-}
-
-export function transformReply(rawReply: Array<string | number>): Record<string, number> {
-    const transformedReply = Object.create(null);
-
-    for (let i = 0; i < rawReply.length; i +=2) {
-        transformedReply[rawReply[i]] = rawReply[i + 1];
+  },
+  transformReply(rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) {
+    const reply = Object.create(null);
+    let i = 0;
+    while (i < rawReply.length) {
+      reply[rawReply[i++].toString()] = rawReply[i++].toString();
     }
 
-    return transformedReply;
-}
+    return reply as Record<string, NumberReply>;
+  }
+} as const satisfies Command;

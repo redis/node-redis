@@ -1,13 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
     start: number,
-    stop: number
-): RedisCommandArguments {
+    stop: number) {
     return ['ZREMRANGEBYRANK', key, start.toString(), stop.toString()];
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

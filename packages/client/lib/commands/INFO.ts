@@ -1,13 +1,16 @@
-export const IS_READ_ONLY = true;
+import { RedisArgument, VerbatimStringReply, Command } from '../RESP/types';
 
-export function transformArguments(section?: string): Array<string> {
-    const args = ['INFO'];
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(section?: RedisArgument) {
+    const args: Array<RedisArgument> = ['INFO'];
 
     if (section) {
-        args.push(section);
+      args.push(section);
     }
 
     return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => VerbatimStringReply
+} as const satisfies Command;

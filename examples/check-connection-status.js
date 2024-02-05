@@ -25,4 +25,4 @@ console.log('Afer connectPromise has resolved...');
 // isReady will return True here, client is ready to use.
 console.log(`client.isOpen: ${client.isOpen}, client.isReady: ${client.isReady}`);
 
-await client.quit();
+client.destroy();

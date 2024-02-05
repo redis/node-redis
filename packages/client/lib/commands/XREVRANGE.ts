@@ -1,26 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { Command } from '../RESP/types';
+import XRANGE, { transformXRangeArguments } from './XRANGE';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-interface XRangeRevOptions {
-    COUNT?: number;
+export interface XRevRangeOptions {
+  COUNT?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    start: RedisCommandArgument,
-    end: RedisCommandArgument,
-    options?: XRangeRevOptions
-): RedisCommandArguments {
-    const args = ['XREVRANGE', key, start, end];
-
-    if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
-    }
-
-    return args;
-}
-
-export { transformStreamMessagesReply as transformReply } from './generic-transformers';
+export default {
+  FIRST_KEY_INDEX: XRANGE.FIRST_KEY_INDEX,
+  IS_READ_ONLY: XRANGE.IS_READ_ONLY,
+  transformArguments: transformXRangeArguments.bind(undefined, 'XREVRANGE'),
+  transformReply: XRANGE.transformReply
+} as const satisfies Command;

@@ -1,25 +1,27 @@
 import { Timestamp, transformTimestampArgument } from '.';
+import { ArrayReply, NumberReply, SimpleErrorReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface MAddSample {
-    key: string;
-    timestamp: Timestamp;
-    value: number;
+export interface TsMAddSample {
+  key: string;
+  timestamp: Timestamp;
+  value: number;
 }
 
-export function transformArguments(toAdd: Array<MAddSample>): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(toAdd: Array<TsMAddSample>) {
     const args = ['TS.MADD'];
 
     for (const { key, timestamp, value } of toAdd) {
-        args.push(
-            key,
-            transformTimestampArgument(timestamp),
-            value.toString()
-        );
+      args.push(
+        key,
+        transformTimestampArgument(timestamp),
+        value.toString()
+      );
     }
 
     return args;
-}
-
-export declare function transformReply(): Array<number>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply | SimpleErrorReply>
+} as const satisfies Command;

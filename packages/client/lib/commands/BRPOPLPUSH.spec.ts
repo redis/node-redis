@@ -1,47 +1,42 @@
-import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './BRPOPLPUSH';
-import { commandOptions } from '../../index';
+import { strict as assert } from 'node:assert';
+import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
+import BRPOPLPUSH from './BRPOPLPUSH';
 
 describe('BRPOPLPUSH', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('source', 'destination', 0),
-            ['BRPOPLPUSH', 'source', 'destination', '0']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      BRPOPLPUSH.transformArguments('source', 'destination', 0),
+      ['BRPOPLPUSH', 'source', 'destination', '0']
+    );
+  });
 
-    testUtils.testWithClient('client.brPopLPush', async client => {
-        const [ popReply ] = await Promise.all([
-            client.brPopLPush(
-                commandOptions({ isolated: true }),
-                'source',
-                'destination',
-                0
-            ),
-            client.lPush('source', 'element')
-        ]);
+  testUtils.testAll('brPopLPush - null', async client => {
+    assert.equal(
+      await client.brPopLPush(
+        '{tag}source',
+        '{tag}destination',
+        BLOCKING_MIN_VALUE
+      ),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 
-        assert.equal(
-            popReply,
-            'element'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('brPopLPush - with member', async client => {
+    const [, reply] = await Promise.all([
+      client.lPush('{tag}source', 'element'),
+      client.brPopLPush(
+        '{tag}source',
+        '{tag}destination',
+        0
+      )
+    ]);
 
-    testUtils.testWithCluster('cluster.brPopLPush', async cluster => {
-        const [ popReply ] = await Promise.all([
-            cluster.brPopLPush(
-                commandOptions({ isolated: true }),
-                '{tag}source',
-                '{tag}destination',
-                0
-            ),
-            cluster.lPush('{tag}source', 'element')
-        ]);
-
-        assert.equal(
-            popReply,
-            'element'
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+    assert.equal(reply, 'element');
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

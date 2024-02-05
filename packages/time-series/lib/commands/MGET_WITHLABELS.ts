@@ -1,37 +1,20 @@
-import {
-    SelectedLabels,
-    pushWithLabelsArgument,
-    Labels,
-    transformLablesReply,
-    transformSampleReply,
-    Filter,
-    pushFilterArgument
-} from '.';
-import { MGetOptions, MGetRawReply, MGetReply } from './MGET';
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { TsMGetOptions, pushLatestArgument, pushFilterArgument } from './MGET';
+import { pushWithLabelsArgument } from '.';
 
-export const IS_READ_ONLY = true;
-
-interface MGetWithLabelsOptions extends MGetOptions {
-    SELECTED_LABELS?: SelectedLabels;
+export interface TsMGetWithLabelsOptions extends TsMGetOptions {
+  SELECTED_LABELS?: RedisVariadicArgument;
 }
 
-export function transformArguments(
-    filter: Filter,
-    options?: MGetWithLabelsOptions
-): RedisCommandArguments {
-    const args = pushWithLabelsArgument(['TS.MGET'], options?.SELECTED_LABELS);
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(filter: RedisVariadicArgument, options?: TsMGetWithLabelsOptions) {
+    let args = pushLatestArgument(['TS.MGET'], options?.LATEST);
+    args = pushWithLabelsArgument(args, options?.SELECTED_LABELS);
     return pushFilterArgument(args, filter);
-}
-
-export interface MGetWithLabelsReply extends MGetReply {
-    labels: Labels;
-};
-
-export function transformReply(reply: MGetRawReply): Array<MGetWithLabelsReply> {
-    return reply.map(([key, labels, sample]) => ({
-        key,
-        labels: transformLablesReply(labels),
-        sample: transformSampleReply(sample)
-    }));
-}
+  },
+  // TODO
+  transformReply: undefined as unknown as () => any
+} as const satisfies Command;

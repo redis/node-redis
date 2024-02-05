@@ -1,19 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HKEYS';
+import HKEYS from './HKEYS';
 
 describe('HKEYS', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['HKEYS', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      HKEYS.transformArguments('key'),
+      ['HKEYS', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.hKeys', async client => {
-        assert.deepEqual(
-            await client.hKeys('key'),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('hKeys', async client => {
+    assert.deepEqual(
+      await client.hKeys('key'),
+      []
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

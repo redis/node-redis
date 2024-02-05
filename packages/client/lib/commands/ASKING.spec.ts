@@ -1,11 +1,11 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './ASKING';
+import { strict as assert } from 'node:assert';
+import ASKING from './ASKING';
 
 describe('ASKING', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['ASKING']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      ASKING.transformArguments(),
+      ['ASKING']
+    );
+  });
 });
