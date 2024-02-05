@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "lib": ["ES2023"],
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "ES2022",
 
     "strict": true,
@@ -12,7 +12,9 @@
     "skipLibCheck": true,
     
     "composite": true,
+    "sourceMap": true,
     "declaration": true,
+    "declarationMap": true,
     "allowJs": true
   }
 }

@@ -17,6 +17,9 @@
     "@redis/search": "2.0.0-next.2",
     "@redis/time-series": "2.0.0-next.2"
   },
+  "engines": {
+    "node": ">= 18"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/redis/node-redis.git"

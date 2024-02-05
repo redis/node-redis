@@ -17,8 +17,7 @@ export { RedisClusterType, RedisClusterOptions };
 export const createCluster = RedisCluster.create;
 
 import RedisSentinel from './lib/sentinel';
-import { RedisSentinelOptions, RedisSentinelType } from './lib/sentinel/types';
-export { RedisSentinelType, RedisSentinelOptions };
+export { RedisSentinelOptions, RedisSentinelType } from './lib/sentinel/types';
 export const createSentinel = RedisSentinel.create;
 
 // export { GeoReplyWith } from './lib/commands/generic-transformers';

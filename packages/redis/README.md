@@ -1,32 +1,5 @@
 # Node-Redis
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/redis/node-redis/tests.yml?branch=master)](https://github.com/redis/node-redis/actions/workflows/tests.yml)
-[![Coverage](https://codecov.io/gh/redis/node-redis/branch/master/graph/badge.svg?token=xcfqHhJC37)](https://codecov.io/gh/redis/node-redis)
-[![License](https://img.shields.io/github/license/redis/node-redis.svg)](https://github.com/redis/node-redis/blob/master/LICENSE)
-
-[![Discord](https://img.shields.io/discord/697882427875393627.svg?style=social&logo=discord)](https://discord.gg/redis)
-[![Twitch](https://img.shields.io/twitch/status/redisinc?style=social)](https://www.twitch.tv/redisinc)
-[![YouTube](https://img.shields.io/youtube/channel/views/UCD78lHSwYqMlyetR0_P4Vig?style=social)](https://www.youtube.com/redisinc)
-[![Twitter](https://img.shields.io/twitter/follow/redisinc?style=social)](https://twitter.com/redisinc)
-
-node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
-
-## Installation
-
-Start a redis via docker:
-
-``` bash
-docker run -p 6379:6379 -it redis/redis-stack-server:latest
-```
-
-To install node-redis, simply:
-
-```bash
-npm install redis
-```
-
-Looking for a high-level library to handle object mapping? See [redis-om-node](https://github.com/redis/redis-om-node)!
-
 ## Usage
 
 ### Basic Example
@@ -43,7 +16,7 @@ const value = await client.get('key');
 await client.close();
 ```
 
-> :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
+> :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#error-events) for more details.
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in the format `redis[s]://[[username][:password]@][host][:port][/db-number]`:
 
@@ -54,6 +27,8 @@ createClient({
 ```
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](../../docs/client-configuration.md).
+
+### Connection State
 
 To client exposes 2 `boolean`s that track the client state:
 1. `isOpen` - the client is either connecting or connected.
@@ -175,7 +150,7 @@ await Promise.all([
 
 ### Events
 
-The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
+The client extends `EventEmitter` and emits the following events:
 
 | Name                    | When                                                                               | Listener arguments                                         |
 |-------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------|
@@ -186,11 +161,9 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 | `reconnecting`          | Client is trying to reconnect to the server                                        | *No arguments*                                             |
 | `sharded-channel-moved` | See [here](../../docs/pub-sub.md#sharded-channel-moved-event)                          | See  [here](../../docs/pub-sub.md#sharded-channel-moved-event) |
 
-> :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
+> :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#error-events) for more details.
 
-> The client will not emit [any other events](../../docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
-
-### Links
+### Read more
 
 - [Transactions (`MULTI`/`EXEC`)](../../docs/transactions.md).
 - [Pub/Sub](../../docs/pub-sub.md).
@@ -200,6 +173,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 - [Pool](../../docs/pool.md).
 - [Clustering](../../docs/clustering.md).
 - [Sentinel](../../docs/sentinel.md).
+- [FAQ](../../docs/FAQ.md).
 
 ## Supported Redis versions
 

@@ -16,11 +16,11 @@
   },
   "devDependencies": {
     "@redis/test-utils": "*",
-    "@types/sinon": "^17.0.2",
+    "@types/sinon": "^17.0.3",
     "sinon": "^17.0.1"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">= 18"
   },
   "repository": {
     "type": "git",

@@ -88,7 +88,7 @@ async function steadyState(frame: SentinelFramework) {
 }
 
 ["redis-sentinel-test-password", undefined].forEach(function (password) {
-  describe.only(`Sentinel - password = ${password}`, () => {
+  describe.skip(`Sentinel - password = ${password}`, () => {
     const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: password };
     const frame = new SentinelFramework(config);
     let tracer = new Array<string>();

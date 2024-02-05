@@ -17,6 +17,9 @@
   "devDependencies": {
     "@redis/test-utils": "*"
   },
+  "engines": {
+    "node": ">= 18"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/redis/node-redis.git"

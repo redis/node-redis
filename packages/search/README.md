@@ -1,18 +1,20 @@
 # @redis/search
 
-This package provides support for the [RediSearch](https://redisearch.io) module, which adds indexing and querying support for data stored in Redis Hashes or as JSON documents with the RedisJSON module.  It extends the [Node Redis client](https://github.com/redis/node-redis) to include functions for each of the RediSearch commands.
+This package provides support for the [RediSearch](https://redis.io/docs/interact/search-and-query/) module, which adds indexing and querying support for data stored in Redis Hashes or as JSON documents with the [RedisJSON](https://redis.io/docs/data-types/json/) module.
 
-To use these extra commands, your Redis server must have the RediSearch module installed.  To index and query JSON documents, you'll also need to add the RedisJSON module.
+Should be used with [`redis`/`@redis/client`](https://github.com/redis/node-redis).
+
+:warning: To use these extra commands, your Redis server must have the RediSearch module installed. To index and query JSON documents, you'll also need to add the RedisJSON module.
 
 ## Usage
 
-For complete examples, see [`search-hashes.js`](https://github.com/redis/node-redis/blob/master/examples/search-hashes.js) and [`search-json.js`](https://github.com/redis/node-redis/blob/master/examples/search-json.js) in the Node Redis examples folder.
+For complete examples, see [`search-hashes.js`](https://github.com/redis/node-redis/blob/master/examples/search-hashes.js) and [`search-json.js`](https://github.com/redis/node-redis/blob/master/examples/search-json.js) in the [examples folder](https://github.com/redis/node-redis/tree/master/examples).
 
 ### Indexing and Querying Data in Redis Hashes
 
 #### Creating an Index
 
-Before we can perform any searches, we need to tell RediSearch how to index our data, and which Redis keys to find that data in.  The [FT.CREATE](https://redis.io/commands/ft.create) command creates a RediSearch index.  Here's how to use it to create an index we'll call `idx:animals` where we want to index hashes containing `name`, `species` and `age` fields, and whose key names in Redis begin with the prefix `noderedis:animals`:
+Before we can perform any searches, we need to tell RediSearch how to index our data, and which Redis keys to find that data in.  The [FT.CREATE](https://redis.io/commands/ft.create) command creates a RediSearch index. Here's how to use it to create an index we'll call `idx:animals` where we want to index hashes containing `name`, `species` and `age` fields, and whose key names in Redis begin with the prefix `noderedis:animals`:
 
 ```javascript
 await client.ft.create('idx:animals', {

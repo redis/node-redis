@@ -11,17 +11,35 @@
 
 node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
 
+## Installation
+
+Start a redis-server via docker (or any other method you prefer):
+
+```bash
+docker run -p 6379:6379 -it redis/redis-stack-server:latest
+```
+
+To install node-redis, simply:
+
+```bash
+npm install redis
+```
+
+> "redis" is the "whole in one" package that includes all the other packages. If you only need a subset of the commands, you can install the individual packages. See the list below.
+
 ## Packages
 
-| Name                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                    |
-|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [redis](./packages/redis)                    | [![Downloads](https://img.shields.io/npm/dm/redis.svg)](https://www.npmjs.com/package/redis) [![Version](https://img.shields.io/npm/v/redis.svg)](https://www.npmjs.com/package/redis)                                                                                                                                                                                                                                         |
-| [@redis/client](./packages/client)           | [![Downloads](https://img.shields.io/npm/dm/@redis/client.svg)](https://www.npmjs.com/package/@redis/client) [![Version](https://img.shields.io/npm/v/@redis/client.svg)](https://www.npmjs.com/package/@redis/client) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/client/)                                                                                               |
-| [@redis/bloom](./packages/bloom)             | [![Downloads](https://img.shields.io/npm/dm/@redis/bloom.svg)](https://www.npmjs.com/package/@redis/bloom) [![Version](https://img.shields.io/npm/v/@redis/bloom.svg)](https://www.npmjs.com/package/@redis/bloom) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/bloom/) [Redis Bloom](https://oss.redis.com/redisbloom/) commands                                          |
-| [@redis/graph](./packages/graph)             | [![Downloads](https://img.shields.io/npm/dm/@redis/graph.svg)](https://www.npmjs.com/package/@redis/graph) [![Version](https://img.shields.io/npm/v/@redis/graph.svg)](https://www.npmjs.com/package/@redis/graph) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/graph/) [Redis Graph](https://oss.redis.com/redisgraph/) commands                                          |
-| [@redis/json](./packages/json)               | [![Downloads](https://img.shields.io/npm/dm/@redis/json.svg)](https://www.npmjs.com/package/@redis/json) [![Version](https://img.shields.io/npm/v/@redis/json.svg)](https://www.npmjs.com/package/@redis/json) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/json/) [Redis JSON](https://oss.redis.com/redisjson/) commands                                                 |
-| [@redis/search](./packages/search)           | [![Downloads](https://img.shields.io/npm/dm/@redis/search.svg)](https://www.npmjs.com/package/@redis/search) [![Version](https://img.shields.io/npm/v/@redis/search.svg)](https://www.npmjs.com/package/@redis/search) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/search/) [RediSearch](https://oss.redis.com/redisearch/) commands                                      |
-| [@redis/time-series](./packages/time-series) | [![Downloads](https://img.shields.io/npm/dm/@redis/time-series.svg)](https://www.npmjs.com/package/@redis/time-series) [![Version](https://img.shields.io/npm/v/@redis/time-series.svg)](https://www.npmjs.com/package/@redis/time-series) [![Docs](https://img.shields.io/badge/-documentation-dc382c)](https://redis.js.org/documentation/time-series/) [Redis Time-Series](https://oss.redis.com/redistimeseries/) commands |
+| Name                                           | Description                                                                                 |
+|------------------------------------------------|---------------------------------------------------------------------------------------------|
+| [`redis`](./packages/redis)                    | The client with all the ["redis-stack"](https://github.com/redis-stack/redis-stack) modules |
+| [`@redis/client`](./packages/client)           | The base clients (i.e `RedisClient`, `RedisCluster`, etc.)                                  |
+| [`@redis/bloom`](./packages/bloom)             | [Redis Bloom](https://redis.io/docs/data-types/probabilistic/) commands                     |
+| [`redis/graph`](./packages/graph)              | [Redis Graph](https://redis.io/docs/data-types/probabilistic/) commands                     |
+| [`@redis/json`](./packages/json)               | [Redis JSON](https://redis.io/docs/data-types/json/) commands                               |
+| [`@redis/search`](./packages/search)           | [RediSearch](https://redis.io/docs/interact/search-and-query/) commands                     |
+| [`@redis/time-series`](./packages/time-series) | [Redis Time-Series](https://redis.io/docs/data-types/timeseries/) commands                  |
+
+> Looking for a high-level library to handle object mapping? See [redis-om-node](https://github.com/redis/redis-om-node)!
 
 ## Contributing
 

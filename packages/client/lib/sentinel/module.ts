@@ -1,4 +1,5 @@
-import { RedisModules } from '@redis/client';
+
+import { RedisModules } from '../RESP/types';
 import sentinel from './commands';
 
 export default {
