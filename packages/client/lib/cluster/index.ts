@@ -7,7 +7,7 @@ import { EventEmitter } from 'events';
 import RedisClusterMultiCommand, { InstantiableRedisClusterMultiCommandType, RedisClusterMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import { PubSubListener } from '../client/pub-sub';
-import { ErrorReply } from '../errors';
+import { ErrorReply, ClientClosedError } from '../errors';
 
 export type RedisClusterClientOptions = Omit<
     RedisClientOptions,
@@ -249,6 +249,13 @@ export default class RedisCluster<
             try {
                 return await executor(client);
             } catch (err) {
+                if (err instanceof ClientClosedError) {
+                    // client was closed, try again with a random client
+                    client = await this.#slots.getClient(undefined, isReadonly);
+                    i-- // don't count this attempt as a redirection
+                    continue;
+                }
+
                 if (++i > maxCommandRedirections || !(err instanceof ErrorReply)) {
                     throw err;
                 }
