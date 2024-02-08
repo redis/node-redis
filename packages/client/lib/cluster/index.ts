@@ -100,19 +100,19 @@ export default class RedisCluster<
     readonly #slots: RedisClusterSlots<M, F, S>;
 
     get slots() {
-        return this.#slots.data.slots;
+        return this.#slots.state.slots;
     }
 
     get shards() {
-        return this.#slots.data.shards;
+        return this.#slots.state.shards;
     }
 
     get masters() {
-        return this.#slots.data.masters;
+        return this.#slots.state.masters;
     }
 
     get replicas() {
-        return this.#slots.data.replicas;
+        return this.#slots.state.replicas;
     }
 
     get nodeByAddress() {
