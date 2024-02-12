@@ -1,5 +1,27 @@
 # v4 to v5 migration guide
 
+## Client Configuration
+
+### Keep Alive
+
+To better align with Node.js build-in [`net`](https://nodejs.org/api/net.html) and [`tls`](https://nodejs.org/api/tls.html) modules, the `keepAlive` option has been split into 2 options: `keepAlive` (`boolean`) and `keepAliveInitialDelay` (`number`). The defaults remain `true` and `5000`.
+
+### Legacy Mode
+
+In the previous version, you could access "legacy" mode by creating a client and passing in `{ legacyMode: true }`. Now, you can create one off of an existing client by calling the `.legacy()` function. This allows easier access to both APIs and enables better TypeScript support.
+
+```javascript
+// use `client` for the current API
+const client = createClient();
+await client.set('key', 'value');
+
+// use `legacyClient` for the "legacy" API
+const legacyClient = client.legacy();
+legacyClient.set('key', 'value', (err, reply) => {
+  // ...
+});
+```
+
 ## Command Options
 
 In v4, command options are passed as a first optional argument:
@@ -58,22 +80,6 @@ for await (const keys of client.scanIterator()) {
 ```
 
 for more information, see the [Scan Iterators guide](./scan-iterators.md).
-
-## Legacy Mode
-
-In the previous version, you could access "legacy" mode by creating a client and passing in `{ legacyMode: true }`. Now, you can create one off of an existing client by calling the `.legacy()` function. This allows easier access to both APIs and enables better TypeScript support.
-
-```javascript
-// use `client` for the current API
-const client = createClient();
-await client.set('key', 'value');
-
-// use `legacyClient` for the "legacy" API
-const legacyClient = client.legacy();
-legacyClient.set('key', 'value', (err, reply) => {
-  // ...
-});
-```
 
 ## Isolation Pool
 

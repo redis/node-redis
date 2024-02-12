@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -244,7 +244,7 @@ export default class RedisClient<
       };
 
     if (protocol === 'rediss:') {
-      (parsed.socket as RedisTlsSocketOptions).tls = true;
+      parsed!.socket!.tls = true;
     } else if (protocol !== 'redis:') {
       throw new TypeError('Invalid protocol');
     }
