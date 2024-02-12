@@ -57,7 +57,7 @@ export class RedisLegacyClient {
 
   static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = RedisLegacyClient.getTransformReply(command, resp);
-    return async function (this: RedisLegacyClient, ...args: LegacyCommandArguments) {
+    return function (this: RedisLegacyClient, ...args: LegacyCommandArguments) {
       const redisArgs = [name],
         callback = RedisLegacyClient.#transformArguments(redisArgs, args),
         promise = this.#client.sendCommand(redisArgs);
