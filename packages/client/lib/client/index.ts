@@ -460,9 +460,7 @@ export default class RedisClient<
       })
       .on('reconnecting', () => this.emit('reconnecting'))
       .on('drain', () => this.#maybeScheduleWrite())
-      .on('end', () => {
-        console.log('socket on end, emitting end', this.emit('end'));
-      });
+      .on('end', () => this.emit('end'));
   }
 
   #pingTimer?: NodeJS.Timeout;
