@@ -1,4 +1,102 @@
-import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions } from './RESP/types';
+import { RedisArgument } from '..';
+import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply } from './RESP/types';
+
+export interface CommandParser {
+  redisArgs: Array<RedisArgument>;
+  transformReply: TransformReply;
+
+  resp: RespVersions;  
+  push: (arg: RedisArgument) => unknown;
+  pushKey: (key: RedisArgument) => unknown;
+  setTransformReply: (transformReply: TransformReply) => unknown;
+  setCachable: () => unknown;
+}
+
+abstract class AbstractCommandParser implements CommandParser {
+  #resp: RespVersions;
+  #redisArgs: Array<RedisArgument> = [];
+  #transformReply: TransformReply = (reply) => { return reply }
+
+  get redisArgs() {
+    return this.#redisArgs;
+  }
+
+  get transformReply() {
+    return this.#transformReply;
+  }
+
+  get resp() {
+    return this.#resp;
+  }
+
+  constructor(resp: RespVersions) {
+    this.#resp = resp;
+  }
+
+  push(arg: RedisArgument) {
+    this.#redisArgs.push(arg);
+
+  };
+  
+  pushKey(key: RedisArgument) {
+    this.#redisArgs.push(key);
+  };
+
+  setTransformReply(transformReply: TransformReply) {
+    this.#transformReply = transformReply;
+  }
+
+  setCachable() {};
+}
+
+export class BasicCommandParser extends AbstractCommandParser {
+  constructor(resp: RespVersions) {
+    super(resp);
+  }
+};
+
+export class CachedCommandParser extends AbstractCommandParser {
+  keys: Array<RedisArgument> = [];
+  #cachable = false;
+  get cachable() {
+    return this.#cachable;
+  }
+
+  constructor(resp: RespVersions) {
+    super(resp);
+  }
+
+  override pushKey(key: RedisArgument) {
+    this.keys.push(key)
+    super.pushKey(key);
+  }
+
+  override setCachable() {
+    this.#cachable = true;
+  }
+}
+
+export class ClusterCommandParser extends BasicCommandParser {
+  firstKey?: RedisArgument;
+
+  override pushKey(key: RedisArgument): void {
+    if (!this.firstKey) {
+      this.firstKey = key;
+    }
+    super.pushKey(key);
+  }
+}
+
+export class ClusterCachedCommandParser extends CachedCommandParser {
+  firstKey?: RedisArgument;
+
+  override pushKey(key: RedisArgument): void {
+    if (!this.firstKey) {
+      this.firstKey = key;
+    }
+    super.pushKey(key);
+  }
+}
 
 interface AttachConfigOptions<
   M extends RedisModules,

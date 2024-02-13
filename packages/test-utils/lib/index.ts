@@ -229,7 +229,7 @@ export default class TestUtils {
     it(title, async function () {
       if (!dockerPromise) return this.skip();
 
-      const pool = createClientPool({
+      const pool = u({
         ...options.clientOptions,
         socket: {
           ...options.clientOptions?.socket,

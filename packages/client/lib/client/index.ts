@@ -2,7 +2,7 @@ import COMMANDS from '../commands';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
-import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
+import { BasicCommandParser, CachedCommandParser, CommandParser, attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
@@ -150,23 +150,39 @@ export default class RedisClient<
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+    
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.sendCommand(redisArgs, this._commandOptions);
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
-    };
+      if (command.parseCommand) {
+        const parser = this._self.#newCommandParser(resp);
+        command.parseCommand(parser, ...args);
+
+        return this.executeCommand(undefined, parser, this._self._commandOptions);
+      } else {
+        const redisArgs = command.transformArguments(...args),
+          reply = await this.sendCommand(redisArgs, this._commandOptions);
+        return transformReply ?
+          transformReply(reply, redisArgs.preserve) :
+          reply;
+      };
+    }
   }
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+    
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
+      if (command.parseCommand) {
+        const parser = this._self.#newCommandParser(resp);
+        command.parseCommand(parser, ...args);
+
+        return this._self.executeCommand(undefined, parser, this._self._commandOptions);
+      } else {
+        const redisArgs = command.transformArguments(...args),
+          reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+        return transformReply ?
+          transformReply(reply, redisArgs.preserve) :
+          reply;
+      }
     };
   }
 
@@ -174,14 +190,21 @@ export default class RedisClient<
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        reply = await this._self.sendCommand(
-          prefix.concat(fnArgs),
-          this._self._commandOptions
-        );
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
-        reply;
+      if (fn.parseCommand) {
+        const parser = this._self.#newCommandParser(resp);
+        fn.parseCommand(parser, ...args);
+
+        return this._self.executeCommand(prefix, parser, this._self._commandOptions);
+      } else {
+        const fnArgs = fn.transformArguments(...args),
+          reply = await this._self.sendCommand(
+            prefix.concat(fnArgs),
+            this._self._commandOptions
+          );
+        return transformReply ?
+          transformReply(reply, fnArgs.preserve) :
+          reply;
+      }
     };
   }
 
@@ -189,13 +212,20 @@ export default class RedisClient<
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(script, redisArgs, this._commandOptions);
-      return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
-        reply;
-    };
+      if (script.parseCommand) {
+        const parser = this._self.#newCommandParser(resp);
+        script.parseCommand(parser, ...args);
+
+        return this.executeCommand(prefix, parser, this._self._commandOptions);
+      } else {
+        const scriptArgs = script.transformArguments(...args),
+          redisArgs = prefix.concat(scriptArgs),
+          reply = await this.executeScript(script, redisArgs, this._commandOptions);
+        return transformReply ?
+          transformReply(reply, scriptArgs.preserve) :
+          reply;
+      };
+    }
   }
 
   static factory<
@@ -306,6 +336,10 @@ export default class RedisClient<
 
   setDirtyWatch(msg: string) {
     this._self.#dirtyWatch = msg;
+  }
+
+  #newCommandParser(resp: RespVersions): CommandParser {
+    return new BasicCommandParser(resp);
   }
 
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -570,6 +604,23 @@ export default class RedisClient<
   async connect() {
     await this._self.#socket.connect();
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+  }
+
+  async executeCommand<T = ReplyUnion>(
+    prefix: Array<string | Buffer> | undefined,
+    parser: CommandParser,
+    commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
+  ) {
+    const redisArgs = prefix ? prefix.concat(parser.redisArgs) : parser.redisArgs;
+    const fn = () => { return this.sendCommand(redisArgs, commandOptions) };
+
+    const defaultTypeMapping = this._self.#options?.commandOptions === commandOptions;
+    if (parser instanceof CachedCommandParser && parser.cachable && defaultTypeMapping) {
+      // TODO: caching goes here.
+    } else {
+      const reply = await fn();
+      return parser.transformReply(reply);
+    }
   }
 
   sendCommand<T = ReplyUnion>(
