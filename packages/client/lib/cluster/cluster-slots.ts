@@ -5,6 +5,7 @@ import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PUBSUB_TYPE, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
+import { RedisSocketOptions } from '../client/socket';
 
 interface NodeAddress {
   host: string;
@@ -102,8 +103,8 @@ export default class RedisClusterSlots<
 > {
   static #SLOTS = 16384;
 
-  readonly #options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>;
-  readonly #clientFactory: ReturnType<typeof RedisClient.factory<M, F, S, RESP>>;
+  readonly #options;
+  readonly #clientFactory;
   readonly #emit: EventEmitter['emit'];
   slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
   masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
@@ -271,7 +272,7 @@ export default class RedisClusterSlots<
     return {
       ...this.#options.defaults,
       ...options,
-      socket
+      socket: socket as RedisSocketOptions
     };
   }
 
@@ -316,8 +317,7 @@ export default class RedisClusterSlots<
           host: node.host,
           port: node.port
         },
-        readonly,
-        RESP: this.#options.RESP
+        readonly
       })
     ).on('error', err => console.error(err));
   }

@@ -649,19 +649,15 @@ class RedisSentinelInternal<
   }
 
   #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: undefined | false) {
-    const options = { ...clientOptions } as RedisClientOptions;
-
-    if (clientOptions.socket) {
-      options.socket = { ...clientOptions.socket };
-    } else {
-      options.socket = {};
-    }
-
-    options.socket.host = node.host;
-    options.socket.port = node.port;
-    options.socket.reconnectStrategy = reconnectStrategy;
-
-    return RedisClient.create(options);
+    return RedisClient.create({
+      ...clientOptions,
+      socket: {
+        ...clientOptions.socket,
+        host: node.host,
+        port: node.port,
+        reconnectStrategy
+      }
+    });
   }
 
   getClientLease(): ClientInfo | Promise<ClientInfo> {
@@ -1332,16 +1328,16 @@ export class RedisSentinelFactory extends EventEmitter {
 
   async updateSentinelRootNodes() {
     for (const node of this.#sentinelRootNodes) {
-      const options: RedisClientOptions = { ...this.options.sentinelClientOptions };
-      if (options.socket === undefined) {
-        options.socket = {};
-      }
-      options.socket.host = node.host;
-      options.socket.port = node.port;
-      options.socket.reconnectStrategy = false;
-      options.modules = RedisSentinelModule;
-
-      const client = RedisClient.create(options).on('error', (err) => this.emit(`updateSentinelRootNodes: ${err}`));
+      const client = RedisClient.create({
+        ...this.options.sentinelClientOptions,
+        socket: {
+          ...this.options.sentinelClientOptions?.socket,
+          host: node.host,
+          port: node.port,
+          reconnectStrategy: false
+        },
+        modules: RedisSentinelModule
+      }).on('error', (err) => this.emit(`updateSentinelRootNodes: ${err}`));
       try {
         await client.connect();
       } catch {
@@ -1367,16 +1363,16 @@ export class RedisSentinelFactory extends EventEmitter {
     let connected = false;
 
     for (const node of this.#sentinelRootNodes) {
-      const options: RedisClientOptions = { ...this.options.sentinelClientOptions };
-      if (options.socket === undefined) {
-        options.socket = {};
-      }
-      options.socket.host = node.host;
-      options.socket.port = node.port;
-      options.socket.reconnectStrategy = false;
-      options.modules = RedisSentinelModule;
-
-      const client = RedisClient.create(options).on('error', err => this.emit(`getMasterNode: ${err}`));
+      const client = RedisClient.create({
+        ...this.options.sentinelClientOptions,
+        socket: {
+          ...this.options.sentinelClientOptions?.socket,
+          host: node.host,
+          port: node.port,
+          reconnectStrategy: false
+        },
+        modules: RedisSentinelModule
+      }).on('error', err => this.emit(`getMasterNode: ${err}`));
 
       try {
         await client.connect();
@@ -1412,30 +1408,30 @@ export class RedisSentinelFactory extends EventEmitter {
 
   async getMasterClient() {
     const master = await this.getMasterNode();
-    const options: RedisClientOptions = { ...this.options.nodeClientOptions };
-    if (options.socket === undefined) {
-      options.socket = {};
-    }
-    options.socket.host = master.host;
-    options.socket.port = master.port;
-
-    return RedisClient.create(options);;
+    return RedisClient.create({
+      ...this.options.nodeClientOptions,
+      socket: {
+        ...this.options.nodeClientOptions?.socket,
+        host: master.host,
+        port: master.port
+      }
+    });
   }
 
   async getReplicaNodes() {
     let connected = false;
 
     for (const node of this.#sentinelRootNodes) {
-      const options: RedisClientOptions = { ...this.options.sentinelClientOptions };
-      if (options.socket === undefined) {
-        options.socket = {};
-      }
-      options.socket.host = node.host;
-      options.socket.port = node.port;
-      options.socket.reconnectStrategy = false;
-      options.modules = RedisSentinelModule;
-      
-      const client = RedisClient.create(options).on('error', err => this.emit(`getReplicaNodes: ${err}`));
+      const client = RedisClient.create({
+        ...this.options.sentinelClientOptions,
+        socket: {
+          ...this.options.sentinelClientOptions?.socket,
+          host: node.host,
+          port: node.port,
+          reconnectStrategy: false
+        },
+        modules: RedisSentinelModule
+      }).on('error', err => this.emit(`getReplicaNodes: ${err}`));
 
       try {
         await client.connect();
@@ -1480,13 +1476,13 @@ export class RedisSentinelFactory extends EventEmitter {
       this.#replicaIdx = 0;
     }
 
-    const options: RedisClientOptions = { ...this.options.nodeClientOptions };
-    if (options.socket === undefined) {
-      options.socket = {};
-    }
-    options.socket.host = replicas[this.#replicaIdx].host;
-    options.socket.port = replicas[this.#replicaIdx].port;
-
-    return RedisClient.create(options);
+    return RedisClient.create({
+      ...this.options.nodeClientOptions,
+      socket: {
+        ...this.options.nodeClientOptions?.socket,
+        host: replicas[this.#replicaIdx].host,
+        port: replicas[this.#replicaIdx].port
+      }
+    });
   }
 }

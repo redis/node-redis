@@ -45,18 +45,14 @@ export class PubSubProxy extends EventEmitter {
       throw new Error("pubSubProxy: didn't define node to do pubsub against");
     }
 
-    const options = { ...this.#clientOptions };
-
-    if (this.#clientOptions.socket) {
-      options.socket = { ...this.#clientOptions.socket };
-    } else {
-      options.socket = {};
-    }
-
-    options.socket.host = this.#node.host;
-    options.socket.port = this.#node.port;
-
-    return new RedisClient(options);
+    return new RedisClient({
+      ...this.#clientOptions,
+      socket: {
+        ...this.#clientOptions.socket,
+        host: this.#node.host,
+        port: this.#node.port
+      }
+    });
   }
 
   async #initiatePubSubClient(withSubscriptions = false) {
