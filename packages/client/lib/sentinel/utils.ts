@@ -1,3 +1,4 @@
+import { TcpNetConnectOpts } from 'node:net';
 import { Command, RedisFunction, RedisScript, RespVersions } from '../RESP/types';
 import { RedisSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -27,9 +28,10 @@ export function createNodeList(nodes: Array<NodeInfo>) {
 }
 
 export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
+  const s = socket as TcpNetConnectOpts;
   return {
-    host: socket.host!,
-    port: socket.port!
+    host: s.host!,
+    port: s.port!
   }
 }
 

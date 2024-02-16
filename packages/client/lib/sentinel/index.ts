@@ -14,6 +14,7 @@ import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
+import { TcpNetConnectOpts } from 'node:net';
 
 interface ClientInfo {
   id: number;
@@ -754,7 +755,8 @@ class RedisSentinelInternal<
         await this.#reset();
         continue;
       }
-      this.#trace("attemping to send command to " + client.options?.socket?.host + ":" + client.options?.socket?.port)
+      const sockOpts = client.options?.socket as TcpNetConnectOpts | undefined;
+      this.#trace("attemping to send command to " + sockOpts?.host + ":" + sockOpts?.port)
 
       try {
         /*
@@ -1198,7 +1200,8 @@ class RedisSentinelInternal<
 
       if (replicaCloseSet.has(str) || !replica.isOpen) {
         if (replica.isOpen) {
-          this.#trace(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
+          const sockOpts = replica.options?.socket as TcpNetConnectOpts | undefined;
+          this.#trace(`destroying replica client to ${sockOpts?.host}:${sockOpts?.port}`);
           replica.destroy()
         }
         if (!removedSet.has(str)) {
