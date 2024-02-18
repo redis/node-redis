@@ -21,7 +21,8 @@ export interface RedisClientOptions<
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
   RESP extends RespVersions = RespVersions,
-  TYPE_MAPPING extends TypeMapping = TypeMapping
+  TYPE_MAPPING extends TypeMapping = TypeMapping,
+  SocketOptions extends RedisSocketOptions = RedisSocketOptions
 > extends CommanderConfig<M, F, S, RESP> {
   /**
    * `redis[s]://[[username][:password]@][host][:port][/db-number]`
@@ -31,7 +32,7 @@ export interface RedisClientOptions<
   /**
    * Socket connection properties
    */
-  socket?: RedisSocketOptions;
+  socket?: SocketOptions;
   /**
    * ACL username ([see ACL guide](https://redis.io/topics/acl))
    */
