@@ -1,6 +1,6 @@
 # Pub/Sub
 
-The Pub/Sub API is implemented by `RedisClient` and `RedisCluster`.
+The Pub/Sub API is implemented by `RedisClient`, `RedisCluster`, and `RedisSentinel`.
 
 ## Pub/Sub with `RedisClient`
 
