@@ -19,7 +19,7 @@ abstract class AbstractCommandParser implements CommandParser {
   constructor(respVersion: RespVersions = 2) {
     this.#respVersion = respVersion;
   }
- 
+
   get redisArgs() {
     return this.#redisArgs;
   }
@@ -31,7 +31,6 @@ abstract class AbstractCommandParser implements CommandParser {
   get preserve() {
     return this.#preserve;
   }
-
 
   push(arg: RedisArgument) {
     this.#redisArgs.push(arg);
@@ -64,15 +63,17 @@ export class CachedCommandParser extends AbstractCommandParser {
     for (const arg of this.redisArgs) {
       if (!first) {
         cacheKey += '_';
+      } else {
+        first = false;
       }
-      
+
       if (arg instanceof Buffer) {
         cacheKey += arg.toString('hex')
       } else {
         cacheKey += arg;
       }
     }
-    
+
     return cacheKey;
   }
 
@@ -81,7 +82,7 @@ export class CachedCommandParser extends AbstractCommandParser {
   }
 
   override pushKey(key: RedisArgument) {
-    this.keys.push(key)
+    this.keys.push(key);
     super.pushKey(key);
   }
 
