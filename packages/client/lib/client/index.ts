@@ -7,7 +7,7 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchErr
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply } from '../RESP/types';
+import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
@@ -156,7 +156,7 @@ export default class RedisClient<
         const parser = this._self.#newCommandParser(resp);
         command.parseCommand(parser, ...args);
 
-        return this.executeCommand(undefined, parser, this._self._commandOptions);
+        return this.executeCommand(undefined, parser, this._self._commandOptions, transformReply);
       } else {
         const redisArgs = command.transformArguments(...args),
           reply = await this.sendCommand(redisArgs, this._commandOptions);
@@ -175,7 +175,7 @@ export default class RedisClient<
         const parser = this._self.#newCommandParser(resp);
         command.parseCommand(parser, ...args);
 
-        return this._self.executeCommand(undefined, parser, this._self._commandOptions);
+        return this._self.executeCommand(undefined, parser, this._self._commandOptions, transformReply);
       } else {
         const redisArgs = command.transformArguments(...args),
           reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
@@ -187,14 +187,15 @@ export default class RedisClient<
   }
 
   static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
+    const prefix = functionArgumentsPrefix(name, fn);
+    const transformReply = getTransformReply(fn, resp);
+
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       if (fn.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
         fn.parseCommand(parser, ...args);
 
-        return this._self.executeCommand(prefix, parser, this._self._commandOptions);
+        return this._self.executeCommand(prefix, parser, this._self._commandOptions, transformReply);
       } else {
         const fnArgs = fn.transformArguments(...args),
           reply = await this._self.sendCommand(
@@ -209,14 +210,15 @@ export default class RedisClient<
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
+    const prefix = scriptArgumentsPrefix(script);
+    const transformReply = getTransformReply(script, resp);
+
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       if (script.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
         script.parseCommand(parser, ...args);
 
-        return this.executeCommand(prefix, parser, this._self._commandOptions);
+        return this.executeCommand(prefix, parser, this._self._commandOptions, transformReply);
       } else {
         const scriptArgs = script.transformArguments(...args),
           redisArgs = prefix.concat(scriptArgs),
@@ -610,6 +612,7 @@ export default class RedisClient<
     prefix: Array<string | Buffer> | undefined,
     parser: CommandParser,
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
+    transformReply: TransformReply | undefined
   ) {
     const redisArgs = prefix ? prefix.concat(parser.redisArgs) : parser.redisArgs;
     const fn = () => { return this.sendCommand(redisArgs, commandOptions) };
@@ -619,7 +622,11 @@ export default class RedisClient<
       // TODO: caching goes here.
     } else {
       const reply = await fn();
-      return parser.transformReply(reply);
+
+      if (transformReply) {
+        return transformReply(reply, parser.preserve);
+      }
+      return reply;
     }
   }
 

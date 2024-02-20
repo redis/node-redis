@@ -6,15 +6,9 @@ export default {
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.setCachable();
-    switch (parser.resp) {
-      case 2:
-      case 3:
-        parser.setTransformReply((reply) => { return reply} );
-        break;
-    }
     parser.push('GET');
     parser.pushKey(key);
   },
-  transformArguments: () => { return [] },
+  transformArguments: (key: RedisArgument) => { return [] },
   transformReply: undefined as unknown as () => BlobStringReply | NullReply
 } as const satisfies Command;

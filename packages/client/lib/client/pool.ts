@@ -60,12 +60,13 @@ export class RedisClientPool<
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       if (command.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
         command.parseCommand(parser, ...args);
 
-        return this.execute(client => client.executeCommand(undefined, parser, this._commandOptions))
+        return this.execute(client => client.executeCommand(undefined, parser, this._commandOptions, transformReply))
       } else {
         const redisArgs = command.transformArguments(...args),
           reply = await this.sendCommand(redisArgs, this._commandOptions);
@@ -78,12 +79,13 @@ export class RedisClientPool<
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       if (command.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
         command.parseCommand(parser, ...args);
 
-        return this._self.execute(client => client.executeCommand(undefined, parser, this._self._commandOptions))
+        return this._self.execute(client => client.executeCommand(undefined, parser, this._self._commandOptions, transformReply))
       } else {
         const redisArgs = command.transformArguments(...args),
           reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
@@ -95,14 +97,15 @@ export class RedisClientPool<
   }
 
   static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
+    const prefix = functionArgumentsPrefix(name, fn);
+    const transformReply = getTransformReply(fn, resp);
+
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       if (fn.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
         fn.parseCommand(parser, ...args);
 
-        return this._self.execute(client => client.executeCommand(prefix, parser, this._self._commandOptions))
+        return this._self.execute(client => client.executeCommand(prefix, parser, this._self._commandOptions, transformReply))
       } else {
         const fnArgs = fn.transformArguments(...args),
           reply = await this._self.sendCommand(
@@ -117,14 +120,15 @@ export class RedisClientPool<
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
+    const prefix = scriptArgumentsPrefix(script);
+    const transformReply = getTransformReply(script, resp);
+
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       if (script.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
         script.parseCommand(parser, ...args);
 
-        return this.execute(client => client.executeCommand(prefix, parser, this._commandOptions))
+        return this.execute(client => client.executeCommand(prefix, parser, this._commandOptions, transformReply))
       } else {
         const scriptArgs = script.transformArguments(...args),
           redisArgs = prefix.concat(scriptArgs),

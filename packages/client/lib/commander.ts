@@ -3,35 +3,35 @@ import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions,
 
 export interface CommandParser {
   redisArgs: Array<RedisArgument>;
-  transformReply: TransformReply;
+  respVersion: RespVersions;
+  preserve: unknown;
 
-  resp: RespVersions;  
   push: (arg: RedisArgument) => unknown;
   pushKey: (key: RedisArgument) => unknown;
-  setTransformReply: (transformReply: TransformReply) => unknown;
   setCachable: () => unknown;
 }
 
 abstract class AbstractCommandParser implements CommandParser {
-  #resp: RespVersions;
   #redisArgs: Array<RedisArgument> = [];
-  #transformReply: TransformReply = (reply) => { return reply }
+  #respVersion: RespVersions;
+  #preserve: unknown;
 
+  constructor(respVersion: RespVersions = 2) {
+    this.#respVersion = respVersion;
+  }
+ 
   get redisArgs() {
     return this.#redisArgs;
   }
 
-  get transformReply() {
-    return this.#transformReply;
+  get respVersion() {
+    return this.#respVersion;
   }
 
-  get resp() {
-    return this.#resp;
+  get preserve() {
+    return this.#preserve;
   }
 
-  constructor(resp: RespVersions) {
-    this.#resp = resp;
-  }
 
   push(arg: RedisArgument) {
     this.#redisArgs.push(arg);
@@ -42,24 +42,38 @@ abstract class AbstractCommandParser implements CommandParser {
     this.#redisArgs.push(key);
   };
 
-  setTransformReply(transformReply: TransformReply) {
-    this.#transformReply = transformReply;
+  setPreserve(val: unknown) {
+    this.#preserve = val;
   }
 
   setCachable() {};
 }
 
-export class BasicCommandParser extends AbstractCommandParser {
-  constructor(resp: RespVersions) {
-    super(resp);
-  }
-};
+export class BasicCommandParser extends AbstractCommandParser {};
 
 export class CachedCommandParser extends AbstractCommandParser {
   keys: Array<RedisArgument> = [];
   #cachable = false;
   get cachable() {
     return this.#cachable;
+  }
+
+  get cacheKey() {
+    let cacheKey = "";
+    let first = true;
+    for (const arg of this.redisArgs) {
+      if (!first) {
+        cacheKey += '_';
+      }
+      
+      if (arg instanceof Buffer) {
+        cacheKey += arg.toString('hex')
+      } else {
+        cacheKey += arg;
+      }
+    }
+    
+    return cacheKey;
   }
 
   constructor(resp: RespVersions) {
@@ -176,7 +190,7 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   });
 }
 
-export function getTransformReply(command: Command, resp: RespVersions) {
+export function getTransformReply(command: Command, resp: RespVersions): TransformReply | undefined {
   switch (typeof command.transformReply) {
     case 'function':
       return command.transformReply;
