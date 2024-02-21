@@ -36,7 +36,7 @@ abstract class AbstractCommandParser implements CommandParser {
     this.#redisArgs.push(arg);
 
   };
-  
+
   pushKey(key: RedisArgument) {
     this.#redisArgs.push(key);
   };

@@ -151,7 +151,7 @@ export default class RedisClient<
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    
+
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       if (command.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
@@ -170,7 +170,7 @@ export default class RedisClient<
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
-    
+
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       if (command.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
