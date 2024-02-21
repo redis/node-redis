@@ -14,6 +14,8 @@ import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
+import { TcpNetConnectOpts } from 'node:net';
+import { RedisTcpSocketOptions } from '../client/socket';
 
 interface ClientInfo {
   id: number;
@@ -578,8 +580,8 @@ class RedisSentinelInternal<
   }
 
   readonly #name: string;
-  readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING>;
+  readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
 
@@ -624,12 +626,12 @@ class RedisSentinelInternal<
     this.#scanInterval = options.scanInterval ?? 0;
     this.#passthroughClientErrorEvents = options.passthroughClientErrorEvents ?? false;
 
-    this.#nodeClientOptions = options.nodeClientOptions ? Object.assign({} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, options.nodeClientOptions) : {};
+    this.#nodeClientOptions = options.nodeClientOptions ? Object.assign({} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, options.nodeClientOptions) : {};
     if (this.#nodeClientOptions.url !== undefined) {
       throw new Error("invalid nodeClientOptions for Sentinel");
     }
 
-    this.#sentinelClientOptions = options.sentinelClientOptions ? Object.assign({} as RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING>, options.sentinelClientOptions) : {};
+    this.#sentinelClientOptions = options.sentinelClientOptions ? Object.assign({} as RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, options.sentinelClientOptions) : {};
     this.#sentinelClientOptions.modules = RedisSentinelModule;
 
     if (this.#sentinelClientOptions.url !== undefined) {
@@ -754,7 +756,8 @@ class RedisSentinelInternal<
         await this.#reset();
         continue;
       }
-      this.#trace("attemping to send command to " + client.options?.socket?.host + ":" + client.options?.socket?.port)
+      const sockOpts = client.options?.socket as TcpNetConnectOpts | undefined;
+      this.#trace("attemping to send command to " + sockOpts?.host + ":" + sockOpts?.port)
 
       try {
         /*
@@ -1198,7 +1201,8 @@ class RedisSentinelInternal<
 
       if (replicaCloseSet.has(str) || !replica.isOpen) {
         if (replica.isOpen) {
-          this.#trace(`destroying replica client to ${replica.options?.socket?.host}:${replica.options?.socket?.port}`);
+          const sockOpts = replica.options?.socket as TcpNetConnectOpts | undefined;
+          this.#trace(`destroying replica client to ${sockOpts?.host}:${sockOpts?.port}`);
           replica.destroy()
         }
         if (!removedSet.has(str)) {
