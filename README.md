@@ -11,6 +11,20 @@
 
 node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
 
+## How do I Redis?
+
+[Learn for free at Redis University](https://university.redis.com/)
+
+[Build faster with the Redis Launchpad](https://launchpad.redis.com/)
+
+[Try the Redis Cloud](https://redis.com/try-free/)
+
+[Dive in developer tutorials](https://developer.redis.com/)
+
+[Join the Redis community](https://redis.com/community/)
+
+[Work at Redis](https://redis.com/company/careers/jobs/)
+
 ## Installation
 
 Start a redis-server via docker (or any other method you prefer):
@@ -34,7 +48,7 @@ npm install redis
 | [`redis`](./packages/redis)                    | The client with all the ["redis-stack"](https://github.com/redis-stack/redis-stack) modules |
 | [`@redis/client`](./packages/client)           | The base clients (i.e `RedisClient`, `RedisCluster`, etc.)                                  |
 | [`@redis/bloom`](./packages/bloom)             | [Redis Bloom](https://redis.io/docs/data-types/probabilistic/) commands                     |
-| [`redis/graph`](./packages/graph)              | [Redis Graph](https://redis.io/docs/data-types/probabilistic/) commands                     |
+| [`@redis/graph`](./packages/graph)             | [Redis Graph](https://redis.io/docs/data-types/probabilistic/) commands                     |
 | [`@redis/json`](./packages/json)               | [Redis JSON](https://redis.io/docs/data-types/json/) commands                               |
 | [`@redis/search`](./packages/search)           | [RediSearch](https://redis.io/docs/interact/search-and-query/) commands                     |
 | [`@redis/time-series`](./packages/time-series) | [Redis Time-Series](https://redis.io/docs/data-types/timeseries/) commands                  |

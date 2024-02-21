@@ -9,25 +9,9 @@ type NetOptions = {
   tls?: false;
 };
 
-type TcpOptions = NetOptions & Omit<
-  net.TcpNetConnectOpts,
-  'timeout' | 'onread' | 'readable' | 'writable' | 'port'
-> & {
-  port?: number;
-};
-
-type IpcOptions = NetOptions & Omit<
-  net.IpcNetConnectOpts,
-  'timeout' | 'onread' | 'readable' | 'writable'
->;
-
-type TlsOptions = {
-  tls: true;
-} & tls.ConnectionOptions;
-
 type ReconnectStrategyFunction = (retries: number, cause: Error) => false | Error | number;
 
-export type RedisSocketOptions = {
+type RedisSocketOptionsCommon = {
   /**
    * Connection timeout (in milliseconds)
    */
@@ -39,7 +23,30 @@ export type RedisSocketOptions = {
    * 3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
    */
   reconnectStrategy?: false | number | ReconnectStrategyFunction;
-} & (TcpOptions | IpcOptions | TlsOptions);
+}
+
+type RedisTcpOptions = RedisSocketOptionsCommon & NetOptions & Omit<
+  net.TcpNetConnectOpts,
+  'timeout' | 'onread' | 'readable' | 'writable' | 'port'
+> & {
+  port?: number;
+};
+
+type RedisTlsOptions = RedisSocketOptionsCommon & tls.ConnectionOptions & {
+  tls: true;
+  host: string;
+}
+
+type RedisIpcOptions = RedisSocketOptionsCommon & Omit<
+  net.IpcNetConnectOpts,
+  'timeout' | 'onread' | 'readable' | 'writable'
+> & {
+  tls: false;
+}
+
+export type RedisTcpSocketOptions = RedisTcpOptions | RedisTlsOptions;
+
+export type RedisSocketOptions = RedisTcpSocketOptions | RedisIpcOptions;
 
 export type RedisSocketInitiator = () => void | Promise<unknown>;
 

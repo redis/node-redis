@@ -8,6 +8,7 @@ import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
+import { RedisTcpSocketOptions } from '../client/socket';
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -21,7 +22,7 @@ interface ClusterCommander<
 }
 
 export type RedisClusterClientOptions = Omit<
-  RedisClientOptions,
+  RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>,
   keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
 >;
 
