@@ -83,31 +83,28 @@ for more information, see the [Scan Iterators guide](./scan-iterators.md).
 
 ## Isolation Pool
 
-[TODO](./blocking-commands.md).
-
+In v4, `RedisClient` had the ability to create a pool of connections using an "Isolation Pool" on top of the "main" connection. However, there was no way to use the pool without a "main" connection:
 ```javascript
-await client.get(client.commandOptions({ isolated: true }), 'key');
+const client = await createClient()
+  .on('error', err => console.error(err))
+  .connect();
+
+await client.ping(
+  client.commandOptions({ isolated: true })
+);
 ```
 
-```javascript
-await client.sendCommand(['GET', 'key']);
-const pool = client.createPool({
-  min: 0,
-  max: Infinity
-});
-await pool.blPop('key');
-await pool.sendCommand(['GET', 'key']);
-await pool.use(client => client.blPop());
+In v5 we've extracted this pool logic into its own class—`RedisClientPool`:
 
-await cluster.sendCommand('key', true, ['GET', 'key']);
-const clusterPool = cluster.createPool({
-  min: 0,
-  max: Infinity
-});
-await clusterPool.blPop('key');
-await clusterPool.sendCommand('key', true, ['GET', 'key']);
-await clusterPool.use(client => client.blPop());
+```javascript
+const pool = await createClientPool()
+  .on('error', err => console.error(err))
+  .connect();
+
+await pool.ping();
 ```
+
+See the [pool guide](./pool.md) for more information.
 
 ## Cluster `MULTI`
 

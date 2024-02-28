@@ -28,12 +28,6 @@ createClient({
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in the [client configuration guide](../../docs/client-configuration.md).
 
-### Connection State
-
-To client exposes 2 `boolean`s that track the client state:
-1. `isOpen` - the client is either connecting or connected.
-2. `isReady` - the client is connected and ready to send 
-
 ### Redis Commands
 
 There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) and a friendlier camel-cased version (`hSet`, `hGetAll`, etc.):
@@ -147,6 +141,12 @@ await Promise.all([
   client.sAdd('users:1:tokens', 'Tm9kZSBSZWRpcw==')
 ]);
 ```
+
+### Connection State
+
+To client exposes 2 `boolean`s that track the client state:
+1. `isOpen` - the client is either connecting or connected.
+2. `isReady` - the client is connected and ready to send 
 
 ### Events
 
