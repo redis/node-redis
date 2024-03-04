@@ -1,5 +1,5 @@
 import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
+import { RedisCommand, RedisCommandArgument, RedisCommandArguments, RedisCommandRawReply, RedisCommandReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, RedisCommandSignature, ConvertArgumentType, RedisFunction, ExcludeMappedString, RedisCommands } from '../commands';
 import RedisSocket, { RedisSocketOptions, RedisTlsSocketOptions } from './socket';
 import RedisCommandsQueue, { QueueCommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -816,6 +816,17 @@ export default class RedisClient<
             cursor = reply.cursor;
             for (const tuple of reply.tuples) {
                 yield tuple;
+            }
+        } while (cursor !== 0);
+    }
+
+    async* hScanNoValuesIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<RedisCommandArgument, string>> {
+        let cursor = 0;
+        do {
+            const reply = await (this as any).hScanNoValues(key, cursor, options);
+            cursor = reply.cursor;
+            for (const k of reply.keys) {
+                yield k;
             }
         } while (cursor !== 0);
     }
