@@ -9,6 +9,7 @@ import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-
 import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
+import ASKING from '../commands/ASKING';
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -433,18 +434,43 @@ export default class RedisCluster<
   //   return this._commandOptionsProxy('policies', policies);
   // }
 
+  #handleAsk<T>(
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
+  ) {
+    return async (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, options?: ClusterCommandOptions) => {
+      const chainId = Symbol("asking chain");
+      const opts = options ? {...options} : {};
+      opts.chainId = chainId;
+
+      const ret = await Promise.all(
+        [
+          client.sendCommand(ASKING.transformArguments(), {chainId: chainId}),
+          fn(client, opts)
+        ]
+      );
+
+      return ret[1];
+    };
+  }
+
   async #execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
+    options: ClusterCommandOptions | undefined,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
     const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
-    let client = await this.#slots.getClient(firstKey, isReadonly),
-      i = 0;
+    let client = await this.#slots.getClient(firstKey, isReadonly);
+    let i = 0;
+
+    let myFn = fn;
+
     while (true) {
       try {
-        return await fn(client);
+        return await myFn(client, options);
       } catch (err) {
+        myFn = fn;
+
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
           throw err;
@@ -462,7 +488,8 @@ export default class RedisCluster<
             throw new Error(`Cannot find node ${address}`);
           }
 
-          await redirectTo.asking();
+          myFn = this.#handleAsk(fn);
+
           client = redirectTo;
           continue;
         }
@@ -488,7 +515,8 @@ export default class RedisCluster<
     return this._self.#execute(
       firstKey,
       isReadonly,
-      client => client.sendCommand(args, options)
+      options,
+      (client, opts) => client.sendCommand(args, opts)
     );
   }
 
@@ -502,7 +530,8 @@ export default class RedisCluster<
     return this._self.#execute(
       firstKey,
       isReadonly,
-      client => client.executeScript(script, args, options)
+      options,
+      (client, opts) => client.executeScript(script, args, opts)
     );
   }
 
