@@ -812,7 +812,8 @@ export default class RedisClient<
    */
   async _executeMulti(
     commands: Array<RedisMultiQueuedCommand>,
-    selectedDB?: number
+    selectedDB?: number,
+    options?: CommandOptions
   ) {
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
@@ -831,9 +832,10 @@ export default class RedisClient<
       throw new WatchError('Client reconnected after WATCH');
     }
 
-    const typeMapping = this._commandOptions?.typeMapping,
-      chainId = Symbol('MULTI Chain'),
-      promises = [
+    const chainId = options?.chainId ? options.chainId : Symbol('MULTI Chain');
+    const typeMapping = options?.typeMapping ? options.typeMapping : this._commandOptions?.typeMapping;
+
+    const promises = [
         this._self.#queue.addCommand(['MULTI'], { chainId }),
       ];
 
