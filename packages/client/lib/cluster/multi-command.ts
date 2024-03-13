@@ -102,6 +102,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       if (command.parseCommand) {
         const parser = new BasicClusterCommandParser(resp);
         command.parseCommand(parser, ...args);
+        redisArgs = parser.redisArgs;
+        redisArgs.preserve = parser.preserve;
         firstKey = parser.firstKey;
       } else {
         redisArgs = command.transformArguments(...args);
@@ -131,6 +133,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       if (command.parseCommand) {
         const parser = new BasicClusterCommandParser(resp);
         command.parseCommand(parser, ...args);
+        redisArgs = parser.redisArgs;
+        redisArgs.preserve = parser.preserve;
         firstKey = parser.firstKey;
       } else {
         redisArgs = command.transformArguments(...args);
@@ -160,6 +164,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       if (fn.parseCommand) {
         const parser = new BasicClusterCommandParser(resp);
         fn.parseCommand(parser, ...args);
+        fnArgs = parser.redisArgs;
+        fnArgs.preserve = parser.preserve;
         firstKey = parser.firstKey;
       } else {
         fnArgs = fn.transformArguments(...args);
@@ -192,6 +198,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       if (script.parseCommand) {
         const parser = new BasicClusterCommandParser(resp);
         script.parseCommand(parser, ...args);
+        scriptArgs = parser.redisArgs;
+        scriptArgs.preserve = parser.preserve;
         firstKey = parser.firstKey;
       } else {
         scriptArgs = script.transformArguments(...args);

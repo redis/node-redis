@@ -97,6 +97,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
         const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
         redisArgs = parser.redisArgs;
+        redisArgs.preserve = parser.preserve;
       } else {
         redisArgs = command.transformArguments(...args);
       }
@@ -118,6 +119,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
         const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
         redisArgs = parser.redisArgs;
+        redisArgs.preserve = parser.preserve;
       } else {
         redisArgs = command.transformArguments(...args);
       }
@@ -140,6 +142,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
         const parser = new BasicCommandParser(resp);
         fn.parseCommand(parser, ...args);
         fnArgs = parser.redisArgs;
+        fnArgs.preserve = parser.preserve;
       } else {
         fnArgs = fn.transformArguments(...args);
       }
@@ -164,6 +167,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
         const parser = new BasicCommandParser(resp);
         script.parseCommand(parser, ...args);
         redisArgs = parser.redisArgs;
+        redisArgs.preserve = parser.preserve;
       } else {
         redisArgs = script.transformArguments(...args);
       }
