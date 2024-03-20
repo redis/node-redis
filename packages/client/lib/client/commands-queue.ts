@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
+import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { MonitorCallback } from '.';
@@ -56,7 +56,7 @@ export default class RedisCommandsQueue {
     return this.#pubSub.isActive;
   }
 
-  #invalidateCallback?: (key: RedisArgument | null) => unknown;
+  #pushHandlers: Map<string, (push: any[]) => unknown>;
 
   constructor(
     respVersion: RespVersions,
@@ -67,6 +67,7 @@ export default class RedisCommandsQueue {
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
     this.decoder = this.#initiateDecoder();
+    this.#pushHandlers = new Map<string, () => unknown>();
   }
 
   #onReply(reply: ReplyUnion) {
@@ -111,31 +112,24 @@ export default class RedisCommandsQueue {
       onErrorReply: err => this.#onErrorReply(err),
       onPush: push => {
         if (!this.#onPush(push)) {
-          switch (push[0].toString()) {
-            case "invalidate": {
-              console.log("invalidate push message");
-              if (this.#invalidateCallback) {
-                if (push[1] !== null) {
-                  for (const key of push[1]) {
-                    console.log(`invalidating key ${key}`);
-                    this.#invalidateCallback(key);
-                  }
-                } else {
-                  console.log(`invalidating all keys`);
-                  this.#invalidateCallback(null);
-                }
-              }
-              break;
-            }
+          const handler = this.#pushHandlers.get(push[0].toString());
+          if (handler === undefined) {
+            return;
           }
+          handler(push)
         }
       },
       getTypeMapping: () => this.#getTypeMapping()
     });
   }
 
-  setInvalidateCallback(callback?: (key: RedisArgument | null) => unknown) {
-    this.#invalidateCallback = callback;
+  setPushCallback(type: string, callback?: (push: any[]) => unknown) {
+    if (callback === undefined) {
+      this.#pushHandlers.delete(type);
+      return;
+    }
+
+    this.#pushHandlers.set(type, callback);
   }
 
   addCommand<T>(
