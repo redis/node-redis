@@ -1,7 +1,7 @@
 import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
-import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
+import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { BasicCommandParser } from './parser';
 
 type CommandSignature<
@@ -96,6 +96,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
       if (command.parseCommand) {
         const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
+
         redisArgs = parser.redisArgs;
         redisArgs.preserve = parser.preserve;
       } else {
@@ -118,6 +119,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
       if (command.parseCommand) {
         const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
+
         redisArgs = parser.redisArgs;
         redisArgs.preserve = parser.preserve;
       } else {
@@ -140,7 +142,9 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
       if (fn.parseCommand) {
         const parser = new BasicCommandParser(resp);
+        parser.pushVariadic(prefix);
         fn.parseCommand(parser, ...args);
+
         fnArgs = parser.redisArgs;
         fnArgs.preserve = parser.preserve;
       } else {
@@ -158,6 +162,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
+    const prefix = scriptArgumentsPrefix(script);
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
@@ -165,20 +170,19 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
       if (script.parseCommand) {
         const parser = new BasicCommandParser(resp);
+        parser.pushVariadic(prefix);
         script.parseCommand(parser, ...args);
+
         redisArgs = parser.redisArgs;
         redisArgs.preserve = parser.preserve;
       } else {
         redisArgs = script.transformArguments(...args);
       }
 
-      this.#multi.addScript(
-        script,
+      return this.addCommand(
         redisArgs,
         transformReply
       );
-      
-      return this;
     };
   }
 

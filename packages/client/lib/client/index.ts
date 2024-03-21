@@ -158,7 +158,7 @@ export default class RedisClient<
         const parser = this._self.#newCommandParser(resp);
         command.parseCommand(parser, ...args);
 
-        return this.executeCommand(undefined, parser, this._commandOptions, transformReply);
+        return this.executeCommand(parser, this._commandOptions, transformReply);
       } else {
         const redisArgs = command.transformArguments(...args),
           reply = await this.sendCommand(redisArgs, this._commandOptions);
@@ -177,7 +177,7 @@ export default class RedisClient<
         const parser = this._self._self.#newCommandParser(resp);
         command.parseCommand(parser, ...args);
 
-        return this._self.executeCommand(undefined, parser, this._self._commandOptions, transformReply);
+        return this._self.executeCommand(parser, this._self._commandOptions, transformReply);
       } else {
         const redisArgs = command.transformArguments(...args),
           reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
@@ -195,9 +195,10 @@ export default class RedisClient<
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       if (fn.parseCommand) {
         const parser = this._self._self.#newCommandParser(resp);
+        parser.pushVariadic(prefix);
         fn.parseCommand(parser, ...args);
 
-        return this._self.executeCommand(prefix, parser, this._self._commandOptions, transformReply);
+        return this._self.executeCommand(parser, this._self._commandOptions, transformReply);
       } else {
         const fnArgs = fn.transformArguments(...args),
           reply = await this._self.sendCommand(
@@ -218,9 +219,10 @@ export default class RedisClient<
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       if (script.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
+        parser.pushVariadic(prefix);
         script.parseCommand(parser, ...args);
 
-        return this.executeCommand(prefix, parser, this._commandOptions, transformReply);
+        return this.executeCommand(parser, this._commandOptions, transformReply);
       } else {
         const scriptArgs = script.transformArguments(...args),
           redisArgs = prefix.concat(scriptArgs),
@@ -611,15 +613,11 @@ export default class RedisClient<
   }
 
   async executeCommand<T = ReplyUnion>(
-    prefix: Array<string | Buffer> | undefined,
     parser: CommandParser,
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
     transformReply: TransformReply | undefined
   ) {
-    const redisArgs = prefix ? prefix.concat(parser.redisArgs) : parser.redisArgs;
-    const fn = () => { return this.sendCommand(redisArgs, commandOptions) };
-
-    const reply = await fn();
+    const reply = await this.sendCommand(parser.redisArgs, commandOptions);
       
     if (transformReply) {
       return transformReply(reply, parser.preserve);

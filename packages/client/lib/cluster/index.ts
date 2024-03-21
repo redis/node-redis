@@ -181,7 +181,7 @@ export default class RedisCluster<
           parser.firstKey,
           command.IS_READ_ONLY,
           this._commandOptions,
-          (client, opts) => client.executeCommand(undefined, parser, opts, transformReply)
+          (client, opts) => client.executeCommand(parser, opts, transformReply)
         );
       } else {
         const redisArgs = command.transformArguments(...args);
@@ -218,7 +218,7 @@ export default class RedisCluster<
           parser.firstKey,
           command.IS_READ_ONLY,
           this._self._commandOptions,
-          (client, opts) => client.executeCommand(undefined, parser, opts, transformReply)
+          (client, opts) => client.executeCommand(parser, opts, transformReply)
         );
       } else {
         const redisArgs = command.transformArguments(...args);
@@ -249,13 +249,14 @@ export default class RedisCluster<
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       if (fn.parseCommand) {
         const parser = this._self._self.#newCommandParser(resp);
+        parser.pushVariadic(prefix);
         fn.parseCommand(parser, ...args);
 
         return this._self.#execute(
           parser.firstKey,
           fn.IS_READ_ONLY,
           this._self._commandOptions,
-          (client, opts) => client.executeCommand(prefix, parser, opts, transformReply)
+          (client, opts) => client.executeCommand(parser, opts, transformReply)
         );
       } else {
         const fnArgs = fn.transformArguments(...args);
@@ -287,13 +288,14 @@ export default class RedisCluster<
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       if (script.parseCommand) {
         const parser = this._self.#newCommandParser(resp);
+        parser.pushVariadic(prefix);
         script.parseCommand(parser, ...args);
 
         return this._self.#execute(
           parser.firstKey,
           script.IS_READ_ONLY,
           this._commandOptions,
-          (client, opts) => client.executeCommand(prefix, parser, opts, transformReply)
+          (client, opts) => client.executeCommand(parser, opts, transformReply)
         );
       } else {
         const scriptArgs = script.transformArguments(...args),

@@ -45,7 +45,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
 
       return this._self._execute(
         command.IS_READ_ONLY,
-        client => client.executeCommand(undefined, parser, this.commandOptions, transformReply)
+        client => client.executeCommand(parser, this.commandOptions, transformReply)
       );
     } else {
       const redisArgs = command.transformArguments(...args);
@@ -69,11 +69,12 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   return async function (this: T, ...args: Array<unknown>) {
     if (fn.parseCommand) {
       const parser = this._self._self.newCommandParser(resp);
+      parser.pushVariadic(prefix);
       fn.parseCommand(parser, ...args);
 
       return this._self._execute(
         fn.IS_READ_ONLY,
-        client => client.executeCommand(prefix, parser, this._self.commandOptions, transformReply)
+        client => client.executeCommand(parser, this._self.commandOptions, transformReply)
       );
     } else {
       const fnArgs = fn.transformArguments(...args),
@@ -101,7 +102,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
 
       return this._self._execute(
         command.IS_READ_ONLY,
-        client => client.executeCommand(undefined, parser, this._self.commandOptions, transformReply)
+        client => client.executeCommand(parser, this._self.commandOptions, transformReply)
       );
     } else {
       const redisArgs = command.transformArguments(...args),
@@ -125,11 +126,12 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   return async function (this: T, ...args: Array<unknown>) {
     if (script.parseCommand) {
       const parser = this._self.newCommandParser(resp);
+      parser.pushVariadic(prefix);
       script.parseCommand(parser, ...args);
 
       return this._self._execute(
         script.IS_READ_ONLY,
-        client => client.executeCommand(prefix, parser, this.commandOptions, transformReply)
+        client => client.executeCommand(parser, this.commandOptions, transformReply)
       );
     } else {
       const scriptArgs = script.transformArguments(...args),
