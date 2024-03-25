@@ -627,7 +627,7 @@ export default class RedisClient<
   }
     
   sendCommand<T = ReplyUnion>(
-    args: Array<RedisArgument>,
+    args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
     if (!this._self.#socket.isOpen) {
