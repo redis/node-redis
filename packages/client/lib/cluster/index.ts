@@ -10,7 +10,8 @@ import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import ASKING from '../commands/ASKING';
-import { BasicClusterCommandParser, ClusterCommandParser } from '../client/parser';
+import { BasicCommandParser, CommandParser } from '../client/parser';
+;
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -408,8 +409,8 @@ export default class RedisCluster<
     return this._self.#slots.isOpen;
   }
 
-  #newCommandParser(resp: RespVersions): ClusterCommandParser {
-    return new BasicClusterCommandParser(resp);
+  #newCommandParser(resp: RespVersions): CommandParser {
+    return new BasicCommandParser(resp);
   }
 
   constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
