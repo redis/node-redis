@@ -3,7 +3,7 @@ import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQ
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import RedisCluster from '.';
-import { BasicClusterCommandParser } from '../client/parser';
+import { BasicCommandParser } from '../client/parser';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -100,7 +100,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       let firstKey: RedisArgument | undefined;
 
       if (command.parseCommand) {
-        const parser = new BasicClusterCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
         redisArgs = parser.redisArgs;
         redisArgs.preserve = parser.preserve;
@@ -131,7 +131,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       let firstKey: RedisArgument | undefined;
 
       if (command.parseCommand) {
-        const parser = new BasicClusterCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
         redisArgs = parser.redisArgs;
         redisArgs.preserve = parser.preserve;
@@ -162,7 +162,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       let firstKey: RedisArgument | undefined;
 
       if (fn.parseCommand) {
-        const parser = new BasicClusterCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         fn.parseCommand(parser, ...args);
         fnArgs = parser.redisArgs;
         fnArgs.preserve = parser.preserve;
@@ -196,7 +196,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       let firstKey: RedisArgument | undefined;
 
       if (script.parseCommand) {
-        const parser = new BasicClusterCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         script.parseCommand(parser, ...args);
         scriptArgs = parser.redisArgs;
         scriptArgs.preserve = parser.preserve;
