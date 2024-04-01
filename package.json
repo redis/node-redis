@@ -1,6 +1,6 @@
 {
   "name": "node-valkey",
-  "description": "A modern, high performance Redis client",
+  "description": "A modern, high performance valkey client",
   "version": "1.0.1",
   "license": "MIT",
   "main": "./dist/index.js",
