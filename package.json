@@ -1,7 +1,7 @@
 {
-  "name": "redis",
+  "name": "node-valkey",
   "description": "A modern, high performance Redis client",
-  "version": "4.6.13",
+  "version": "1.0.1",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -38,12 +38,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/redis/node-redis.git"
+    "url": "git://github.com/ntedgi/node-valkey.git"
   },
   "bugs": {
-    "url": "https://github.com/redis/node-redis/issues"
+    "url": "https://github.com/ntedgi/node-valkey/issues"
   },
-  "homepage": "https://github.com/redis/node-redis",
+  "homepage": "https://github.com/ntedgi/node-valkey",
   "keywords": [
     "redis"
   ]
