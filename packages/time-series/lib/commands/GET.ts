@@ -1,20 +1,28 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushLatestArgument, SampleRawReply, SampleReply, transformSampleReply } from '.';
+import { ValkeyCommandArguments } from "@valkey/client/dist/lib/commands";
+import {
+  pushLatestArgument,
+  SampleRawReply,
+  SampleReply,
+  transformSampleReply,
+} from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
 interface GetOptions {
-    LATEST?: boolean;
+  LATEST?: boolean;
 }
 
-export function transformArguments(key: string, options?: GetOptions): RedisCommandArguments {
-    return pushLatestArgument(['TS.GET', key], options?.LATEST);
+export function transformArguments(
+  key: string,
+  options?: GetOptions
+): ValkeyCommandArguments {
+  return pushLatestArgument(["TS.GET", key], options?.LATEST);
 }
 
 export function transformReply(reply: [] | SampleRawReply): null | SampleReply {
-    if (reply.length === 0) return null;
+  if (reply.length === 0) return null;
 
-    return transformSampleReply(reply);
+  return transformSampleReply(reply);
 }

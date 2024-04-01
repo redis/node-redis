@@ -1,24 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformEXAT } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { transformEXAT } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    timestamp: number | Date,
-    mode?: 'NX' | 'XX' | 'GT' | 'LT'
-): RedisCommandArguments {
-    const args = [
-        'EXPIREAT',
-        key,
-        transformEXAT(timestamp)
-    ];
+  key: ValkeyCommandArgument,
+  timestamp: number | Date,
+  mode?: "NX" | "XX" | "GT" | "LT"
+): ValkeyCommandArguments {
+  const args = ["EXPIREAT", key, transformEXAT(timestamp)];
 
-    if (mode) {
-        args.push(mode);
-    }
+  if (mode) {
+    args.push(mode);
+  }
 
-    return args;
+  return args;
 }
 
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from "./generic-transformers";

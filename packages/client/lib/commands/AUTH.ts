@@ -1,16 +1,19 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export interface AuthOptions {
-    username?: RedisCommandArgument;
-    password: RedisCommandArgument;
+  username?: ValkeyCommandArgument;
+  password: ValkeyCommandArgument;
 }
 
-export function transformArguments({ username, password }: AuthOptions): RedisCommandArguments {
-    if (!username) {
-        return ['AUTH', password];
-    }
+export function transformArguments({
+  username,
+  password,
+}: AuthOptions): ValkeyCommandArguments {
+  if (!username) {
+    return ["AUTH", password];
+  }
 
-    return ['AUTH', username, password];
+  return ["AUTH", username, password];
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

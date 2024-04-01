@@ -1,13 +1,10 @@
-import { RedisCommandArguments } from '.';
-import { pushSlotRangesArguments, SlotRange } from './generic-transformers';
+import { ValkeyCommandArguments } from ".";
+import { pushSlotRangesArguments, SlotRange } from "./generic-transformers";
 
 export function transformArguments(
-    ranges: SlotRange | Array<SlotRange>
-): RedisCommandArguments {
-    return pushSlotRangesArguments(
-        ['CLUSTER', 'DELSLOTSRANGE'],
-        ranges
-    );
+  ranges: SlotRange | Array<SlotRange>
+): ValkeyCommandArguments {
+  return pushSlotRangesArguments(["CLUSTER", "DELSLOTSRANGE"], ranges);
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): "OK";

@@ -1,28 +1,28 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 interface CopyCommandOptions {
-    destinationDb?: number;
-    replace?: boolean;
+  destinationDb?: number;
+  replace?: boolean;
 }
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    source: RedisCommandArgument,
-    destination: RedisCommandArgument,
-    options?: CopyCommandOptions
-): RedisCommandArguments {
-    const args = ['COPY', source, destination];
+  source: ValkeyCommandArgument,
+  destination: ValkeyCommandArgument,
+  options?: CopyCommandOptions
+): ValkeyCommandArguments {
+  const args = ["COPY", source, destination];
 
-    if (options?.destinationDb) {
-        args.push('DB', options.destinationDb.toString());
-    }
+  if (options?.destinationDb) {
+    args.push("DB", options.destinationDb.toString());
+  }
 
-    if (options?.replace) {
-        args.push('REPLACE');
-    }
+  if (options?.replace) {
+    args.push("REPLACE");
+  }
 
-    return args;
+  return args;
 }
 
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export { transformBooleanReply as transformReply } from "./generic-transformers";

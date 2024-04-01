@@ -1,13 +1,13 @@
-import { RedisFlushModes } from './FLUSHALL';
+import { ValkeyFlushModes } from "./FLUSHALL";
 
-export function transformArguments(mode?: RedisFlushModes): Array<string> {
-    const args = ['FLUSHDB'];
+export function transformArguments(mode?: ValkeyFlushModes): Array<string> {
+  const args = ["FLUSHDB"];
 
-    if (mode) {
-        args.push(mode);
-    }
+  if (mode) {
+    args.push(mode);
+  }
 
-    return args;
+  return args;
 }
 
 export declare function transformReply(): string;

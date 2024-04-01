@@ -1,9 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
-export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
-    return ['LPOP', key];
+export function transformArguments(
+  key: ValkeyCommandArgument
+): ValkeyCommandArguments {
+  return ["LPOP", key];
 }
 
-export declare function transformReply(): RedisCommandArgument | null;
+export declare function transformReply(): ValkeyCommandArgument | null;

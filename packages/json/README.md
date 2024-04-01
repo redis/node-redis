@@ -1,6 +1,6 @@
-# @redis/json
+# @valkey/json
 
-This package provides support for the [RedisJSON](https://redis.io/docs/stack/json/) module, which adds JSON as a native data type to Redis.  It extends the [Node Redis client](https://github.com/redis/node-redis) to include functions for each of the RedisJSON commands.
+This package provides support for the [RedisJSON](https://redis.io/docs/stack/json/) module, which adds JSON as a native data type to Redis. It extends the [Node Redis client](https://github.com/redis/node-redis) to include functions for each of the RedisJSON commands.
 
 To use these extra commands, your Redis server must have the RedisJSON module installed.
 
@@ -41,14 +41,11 @@ For more information about RedisJSON's path syntax, [check out the documentation
 
 ### Retrieving JSON Documents from Redis
 
-With RedisJSON, we can retrieve all or part(s) of a JSON document using the [`JSON.GET`](https://redis.io/commands/json.get/) command and one or more JSON Paths.  Let's get the name and age of one of the pets:
+With RedisJSON, we can retrieve all or part(s) of a JSON document using the [`JSON.GET`](https://redis.io/commands/json.get/) command and one or more JSON Paths. Let's get the name and age of one of the pets:
 
 ```javascript
-const results = await client.json.get('noderedis:jsondata', {
-  path: [
-    '.pets[1].name',
-    '.pets[1].age'
-  ]
+const results = await client.json.get("noderedis:jsondata", {
+  path: [".pets[1].name", ".pets[1].age"],
 });
 ```
 
@@ -65,16 +62,16 @@ RedisJSON includes commands that can atomically update values in a JSON document
 Using the [`JSON.NUMINCRBY`](https://redis.io/commands/json.numincrby/) command, we can update the age of one of the pets like this:
 
 ```javascript
-await client.json.numIncrBy('noderedis:jsondata', '.pets[1].age', 1);
+await client.json.numIncrBy("noderedis:jsondata", ".pets[1].age", 1);
 ```
 
 And we can add a new object to the pets array with the [`JSON.ARRAPPEND`](https://redis.io/commands/json.arrappend/) command:
 
 ```javascript
-await client.json.arrAppend('noderedis:jsondata', '.pets', {
-  name: 'Robin',
-  species: 'bird',
+await client.json.arrAppend("noderedis:jsondata", ".pets", {
+  name: "Robin",
+  species: "bird",
   age: 1,
-  isMammal: false
+  isMammal: false,
 });
 ```

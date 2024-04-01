@@ -1,12 +1,11 @@
 {
-  "name": "node-redis-examples",
+  "name": "node-valkey-examples",
   "version": "1.0.0",
-  "description": "node-redis 4 example script",
+  "description": "node-valkey 4 example script",
   "main": "index.js",
   "private": true,
   "type": "module",
   "dependencies": {
-    "redis": "../"
+    "valkey": "../"
   }
 }
-

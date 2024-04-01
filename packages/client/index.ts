@@ -1,24 +1,24 @@
-import RedisClient from './lib/client';
-import RedisCluster from './lib/cluster';
+import ValkeyClient from "./lib/client";
+import ValkeyCluster from "./lib/cluster";
 
-export { RedisClientType, RedisClientOptions } from './lib/client';
+export { ValkeyClientType, ValkeyClientOptions } from "./lib/client";
 
-export { RedisModules, RedisFunctions, RedisScripts } from './lib/commands';
+export { ValkeyModules, ValkeyFunctions, ValkeyScripts } from "./lib/commands";
 
-export const createClient = RedisClient.create;
+export const createClient = ValkeyClient.create;
 
-export const commandOptions = RedisClient.commandOptions;
+export const commandOptions = ValkeyClient.commandOptions;
 
-export { RedisClusterType, RedisClusterOptions } from './lib/cluster';
+export { ValkeyClusterType, ValkeyClusterOptions } from "./lib/cluster";
 
-export const createCluster = RedisCluster.create;
+export const createCluster = ValkeyCluster.create;
 
-export { defineScript } from './lib/lua-script';
+export { defineScript } from "./lib/lua-script";
 
-export * from './lib/errors';
+export * from "./lib/errors";
 
-export { GeoReplyWith } from './lib/commands/generic-transformers';
+export { GeoReplyWith } from "./lib/commands/generic-transformers";
 
-export { SetOptions } from './lib/commands/SET';
+export { SetOptions } from "./lib/commands/SET";
 
-export { RedisFlushModes } from './lib/commands/FLUSHALL';
+export { ValkeyFlushModes } from "./lib/commands/FLUSHALL";

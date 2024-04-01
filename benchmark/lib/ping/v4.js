@@ -1,20 +1,20 @@
-import { createClient } from '@redis/client';
+import { createClient } from "@valkey/client";
 
 export default async (host) => {
-    const client = createClient({
-        socket: {
-            host
-        }
-    });
+  const client = createClient({
+    socket: {
+      host,
+    },
+  });
 
-    await client.connect();
+  await client.connect();
 
-    return {
-        benchmark() {
-            return client.ping();
-        },
-        teardown() {
-            return client.disconnect();
-        }
-    };
+  return {
+    benchmark() {
+      return client.ping();
+    },
+    teardown() {
+      return client.disconnect();
+    },
+  };
 };

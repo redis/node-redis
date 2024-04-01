@@ -1,19 +1,18 @@
-import { RedisCommandArgument } from '.';
+import { ValkeyCommandArgument } from ".";
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(version?: number, ...optionalArguments: Array<number>): Array<string> {
-    const args = ['LOLWUT'];
+export function transformArguments(
+  version?: number,
+  ...optionalArguments: Array<number>
+): Array<string> {
+  const args = ["LOLWUT"];
 
-    if (version) {
-        args.push(
-            'VERSION',
-            version.toString(),
-            ...optionalArguments.map(String),
-        );
-    }
+  if (version) {
+    args.push("VERSION", version.toString(), ...optionalArguments.map(String));
+  }
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

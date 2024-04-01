@@ -1,7 +1,7 @@
-import { RedisCommandArguments } from '.';
+import { ValkeyCommandArguments } from ".";
 
-export function transformArguments(library: string): RedisCommandArguments {
-    return ['FUNCTION', 'DELETE', library];
+export function transformArguments(library: string): ValkeyCommandArguments {
+  return ["FUNCTION", "DELETE", library];
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): "OK";

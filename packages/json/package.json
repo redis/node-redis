@@ -1,5 +1,5 @@
 {
-  "name": "@redis/json",
+  "name": "@valkey/json",
   "version": "1.0.6",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -13,11 +13,11 @@
     "documentation": "typedoc"
   },
   "peerDependencies": {
-    "@redis/client": "^1.0.0"
+    "@valkey/client": "^1.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@redis/test-utils": "*",
+    "@valkey/test-utils": "*",
     "@types/node": "^20.6.2",
     "nyc": "^15.1.0",
     "release-it": "^16.1.5",
@@ -28,14 +28,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/redis/node-redis.git"
+    "url": "git://github.com/mat-sz/node-valkey.git"
   },
   "bugs": {
-    "url": "https://github.com/redis/node-redis/issues"
+    "url": "https://github.com/mat-sz/node-valkey/issues"
   },
-  "homepage": "https://github.com/redis/node-redis/tree/master/packages/json",
+  "homepage": "https://github.com/mat-sz/node-valkey",
   "keywords": [
-    "redis",
-    "RedisJSON"
+    "valkey"
   ]
 }

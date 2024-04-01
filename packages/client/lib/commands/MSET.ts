@@ -1,24 +1,26 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export type MSetArguments =
-    Array<[RedisCommandArgument, RedisCommandArgument]> |
-    Array<RedisCommandArgument> |
-    Record<string, RedisCommandArgument>;
+  | Array<[ValkeyCommandArgument, ValkeyCommandArgument]>
+  | Array<ValkeyCommandArgument>
+  | Record<string, ValkeyCommandArgument>;
 
-export function transformArguments(toSet: MSetArguments): RedisCommandArguments {
-    const args: RedisCommandArguments = ['MSET'];
+export function transformArguments(
+  toSet: MSetArguments
+): ValkeyCommandArguments {
+  const args: ValkeyCommandArguments = ["MSET"];
 
-    if (Array.isArray(toSet)) {
-        args.push(...toSet.flat());
-    } else {
-        for (const key of Object.keys(toSet)) {
-            args.push(key, toSet[key]);
-        }
+  if (Array.isArray(toSet)) {
+    args.push(...toSet.flat());
+  } else {
+    for (const key of Object.keys(toSet)) {
+      args.push(key, toSet[key]);
     }
+  }
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

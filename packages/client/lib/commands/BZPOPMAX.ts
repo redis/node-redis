@@ -1,29 +1,39 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformNumberInfinityReply, ZMember } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import {
+  pushVerdictArguments,
+  transformNumberInfinityReply,
+  ZMember,
+} from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    key: RedisCommandArgument | Array<RedisCommandArgument>,
-    timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BZPOPMAX'], key);
+  key: ValkeyCommandArgument | Array<ValkeyCommandArgument>,
+  timeout: number
+): ValkeyCommandArguments {
+  const args = pushVerdictArguments(["BZPOPMAX"], key);
 
-    args.push(timeout.toString());
+  args.push(timeout.toString());
 
-    return args;
+  return args;
 }
 
-type ZMemberRawReply = [key: RedisCommandArgument, value: RedisCommandArgument, score: RedisCommandArgument] | null;
+type ZMemberRawReply =
+  | [
+      key: ValkeyCommandArgument,
+      value: ValkeyCommandArgument,
+      score: ValkeyCommandArgument
+    ]
+  | null;
 
-type BZPopMaxReply = (ZMember & { key: RedisCommandArgument }) | null;
+type BZPopMaxReply = (ZMember & { key: ValkeyCommandArgument }) | null;
 
 export function transformReply(reply: ZMemberRawReply): BZPopMaxReply | null {
-    if (!reply) return null;
+  if (!reply) return null;
 
-    return {
-        key: reply[0],
-        value: reply[1],
-        score: transformNumberInfinityReply(reply[2])
-    };
+  return {
+    key: reply[0],
+    value: reply[1],
+    score: transformNumberInfinityReply(reply[2]),
+  };
 }

@@ -1,27 +1,31 @@
 // Add data to a Redis TimeSeries and query it.
 // Requires the RedisTimeSeries module: https://redis.io/docs/stack/timeseries/
 
-import { createClient } from 'redis';
-import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationType } from '@redis/time-series';
+import { createClient } from "redis";
+import {
+  TimeSeriesDuplicatePolicies,
+  TimeSeriesEncoding,
+  TimeSeriesAggregationType,
+} from "@valkey/time-series";
 
 const client = createClient();
 
 await client.connect();
-await client.del('mytimeseries');
+await client.del("mytimeseries");
 
 try {
   // Create a timeseries
   // https://redis.io/commands/ts.create/
-  const created = await client.ts.create('mytimeseries', {
+  const created = await client.ts.create("mytimeseries", {
     RETENTION: 86400000, // 1 day in milliseconds
     ENCODING: TimeSeriesEncoding.UNCOMPRESSED, // No compression
-    DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK // No duplicates
+    DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK, // No duplicates
   });
 
-  if (created === 'OK') {
-    console.log('Created timeseries.');
+  if (created === "OK") {
+    console.log("Created timeseries.");
   } else {
-    console.log('Error creating timeseries :(');
+    console.log("Error creating timeseries :(");
     process.exit(1);
   }
 
@@ -32,7 +36,7 @@ try {
   while (num < 10000) {
     // Add a new value to the timeseries, providing our own timestamp:
     // https://redis.io/commands/ts.add/
-    await client.ts.add('mytimeseries', currentTimestamp, value);
+    await client.ts.add("mytimeseries", currentTimestamp, value);
     console.log(`Added timestamp ${currentTimestamp}, value ${value}.`);
 
     num += 1;
@@ -42,44 +46,52 @@ try {
 
   // Add multiple values to the timeseries in round trip to the server:
   // https://redis.io/commands/ts.madd/
-  const response = await client.ts.mAdd([{
-    key: 'mytimeseries',
-    timestamp: currentTimestamp + 60000,
-    value: Math.floor(Math.random() * 1000) + 1
-  }, {
-    key: 'mytimeseries',
-    timestamp: currentTimestamp + 120000,
-    value: Math.floor(Math.random() * 1000) + 1
-  }]);
+  const response = await client.ts.mAdd([
+    {
+      key: "mytimeseries",
+      timestamp: currentTimestamp + 60000,
+      value: Math.floor(Math.random() * 1000) + 1,
+    },
+    {
+      key: "mytimeseries",
+      timestamp: currentTimestamp + 120000,
+      value: Math.floor(Math.random() * 1000) + 1,
+    },
+  ]);
 
   // response = array of timestamps added by TS.MADD command.
   if (response.length === 2) {
-    console.log('Added 2 entries to timeseries with TS.MADD.');
+    console.log("Added 2 entries to timeseries with TS.MADD.");
   }
 
   // Update timeseries retention with TS.ALTER:
   // https://redis.io/commands/ts.alter/
-  const alterResponse = await client.ts.alter('mytimeseries', {
-    RETENTION: 0 // Keep the entries forever
+  const alterResponse = await client.ts.alter("mytimeseries", {
+    RETENTION: 0, // Keep the entries forever
   });
 
-  if (alterResponse === 'OK') {
-    console.log('Timeseries retention settings altered successfully.');
+  if (alterResponse === "OK") {
+    console.log("Timeseries retention settings altered successfully.");
   }
 
   // Query the timeseries with TS.RANGE:
   // https://redis.io/commands/ts.range/
   const fromTimestamp = 1640995200000; // Jan 1 2022 00:00:00
   const toTimestamp = 1640995260000; // Jan 1 2022 00:01:00
-  const rangeResponse = await client.ts.range('mytimeseries', fromTimestamp, toTimestamp, {
-    // Group into 10 second averages.
-    AGGREGATION: {
-      type: TimeSeriesAggregationType.AVERAGE,
-      timeBucket: 10000
+  const rangeResponse = await client.ts.range(
+    "mytimeseries",
+    fromTimestamp,
+    toTimestamp,
+    {
+      // Group into 10 second averages.
+      AGGREGATION: {
+        type: TimeSeriesAggregationType.AVERAGE,
+        timeBucket: 10000,
+      },
     }
-  });
+  );
 
-  console.log('RANGE RESPONSE:');
+  console.log("RANGE RESPONSE:");
   // rangeResponse looks like:
   // [
   //   { timestamp: 1640995200000, value: 356.8 },
@@ -95,7 +107,7 @@ try {
 
   // Get some information about the state of the timeseries.
   // https://redis.io/commands/ts.info/
-  const tsInfo = await client.ts.info('mytimeseries');
+  const tsInfo = await client.ts.info("mytimeseries");
 
   // tsInfo looks like this:
   // {
@@ -113,7 +125,7 @@ try {
   //   rules: []
   // }
 
-  console.log('Timeseries info:');
+  console.log("Timeseries info:");
   console.log(tsInfo);
 } catch (e) {
   console.error(e);

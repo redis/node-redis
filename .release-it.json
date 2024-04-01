@@ -1,6 +1,6 @@
 {
   "git": {
-    "tagName": "redis@${version}",
+    "tagName": "valkey@${version}",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}"
   }

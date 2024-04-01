@@ -1,25 +1,27 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoUnits } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { GeoUnits } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    member1: RedisCommandArgument,
-    member2: RedisCommandArgument,
-    unit?: GeoUnits
-): RedisCommandArguments {
-    const args = ['GEODIST', key, member1, member2];
+  key: ValkeyCommandArgument,
+  member1: ValkeyCommandArgument,
+  member2: ValkeyCommandArgument,
+  unit?: GeoUnits
+): ValkeyCommandArguments {
+  const args = ["GEODIST", key, member1, member2];
 
-    if (unit) {
-        args.push(unit);
-    }
+  if (unit) {
+    args.push(unit);
+  }
 
-    return args;
+  return args;
 }
 
-export function transformReply(reply: RedisCommandArgument | null): number | null {
-    return reply === null ? null : Number(reply);
+export function transformReply(
+  reply: ValkeyCommandArgument | null
+): number | null {
+  return reply === null ? null : Number(reply);
 }

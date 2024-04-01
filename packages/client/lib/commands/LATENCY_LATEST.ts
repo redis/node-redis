@@ -1,12 +1,14 @@
-import { RedisCommandArguments } from '.';
+import { ValkeyCommandArguments } from ".";
 
-export function transformArguments(): RedisCommandArguments {
-    return ['LATENCY', 'LATEST'];
+export function transformArguments(): ValkeyCommandArguments {
+  return ["LATENCY", "LATEST"];
 }
 
-export declare function transformReply(): Array<[
+export declare function transformReply(): Array<
+  [
     name: string,
     timestamp: number,
     latestLatency: number,
     allTimeLatency: number
-]>;
+  ]
+>;

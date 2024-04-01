@@ -1,24 +1,24 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 2;
 
 interface XGroupCreateOptions {
-    MKSTREAM?: true;
+  MKSTREAM?: true;
 }
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    id: RedisCommandArgument,
-    options?: XGroupCreateOptions
-): RedisCommandArguments {
-    const args = ['XGROUP', 'CREATE', key, group, id];
+  key: ValkeyCommandArgument,
+  group: ValkeyCommandArgument,
+  id: ValkeyCommandArgument,
+  options?: XGroupCreateOptions
+): ValkeyCommandArguments {
+  const args = ["XGROUP", "CREATE", key, group, id];
 
-    if (options?.MKSTREAM) {
-        args.push('MKSTREAM');
-    }
+  if (options?.MKSTREAM) {
+    args.push("MKSTREAM");
+  }
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

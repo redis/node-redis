@@ -1,6 +1,6 @@
 {
-  "name": "@redis/client",
-  "version": "1.5.14",
+  "name": "@valkey/client",
+  "version": "1.0.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@redis/test-utils": "*",
+    "@valkey/test-utils": "*",
     "@types/node": "^20.6.2",
     "@types/sinon": "^10.0.16",
     "@types/yallist": "^4.0.1",
@@ -40,13 +40,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/redis/node-redis.git"
+    "url": "git://github.com/mat-sz/node-valkey.git"
   },
   "bugs": {
-    "url": "https://github.com/redis/node-redis/issues"
+    "url": "https://github.com/mat-sz/node-valkey/issues"
   },
-  "homepage": "https://github.com/redis/node-redis/tree/master/packages/client",
+  "homepage": "https://github.com/mat-sz/node-valkey",
   "keywords": [
-    "redis"
+    "valkey"
   ]
 }

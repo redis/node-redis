@@ -1,11 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
-    return ['TYPE', key];
+export function transformArguments(
+  key: ValkeyCommandArgument
+): ValkeyCommandArguments {
+  return ["TYPE", key];
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

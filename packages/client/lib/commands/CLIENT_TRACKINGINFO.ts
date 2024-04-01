@@ -1,28 +1,28 @@
-import { RedisCommandArguments } from '.';
+import { ValkeyCommandArguments } from ".";
 
-export function transformArguments(): RedisCommandArguments {
-    return ['CLIENT', 'TRACKINGINFO'];
+export function transformArguments(): ValkeyCommandArguments {
+  return ["CLIENT", "TRACKINGINFO"];
 }
 
 type RawReply = [
-    'flags',
-    Array<string>,
-    'redirect',
-    number,
-    'prefixes',
-    Array<string>
+  "flags",
+  Array<string>,
+  "redirect",
+  number,
+  "prefixes",
+  Array<string>
 ];
 
 interface Reply {
-    flags: Set<string>;
-    redirect: number;
-    prefixes: Array<string>;
+  flags: Set<string>;
+  redirect: number;
+  prefixes: Array<string>;
 }
 
 export function transformReply(reply: RawReply): Reply {
-    return {
-        flags: new Set(reply[1]),
-        redirect: reply[3],
-        prefixes: reply[5]
-    };
+  return {
+    flags: new Set(reply[1]),
+    redirect: reply[3],
+    prefixes: reply[5],
+  };
 }

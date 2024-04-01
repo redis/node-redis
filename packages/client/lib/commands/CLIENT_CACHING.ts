@@ -1,11 +1,7 @@
-import { RedisCommandArguments } from '.';
+import { ValkeyCommandArguments } from ".";
 
-export function transformArguments(value: boolean): RedisCommandArguments {
-    return [
-        'CLIENT',
-        'CACHING',
-        value ? 'YES' : 'NO'
-    ];
+export function transformArguments(value: boolean): ValkeyCommandArguments {
+  return ["CLIENT", "CACHING", value ? "YES" : "NO"];
 }
 
-export declare function transformReply(): 'OK' | Buffer;
+export declare function transformReply(): "OK" | Buffer;

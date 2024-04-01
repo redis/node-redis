@@ -1,15 +1,15 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { pushVerdictArguments } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    member: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return pushVerdictArguments(['GEOHASH', key], member);
+  key: ValkeyCommandArgument,
+  member: ValkeyCommandArgument | Array<ValkeyCommandArgument>
+): ValkeyCommandArguments {
+  return pushVerdictArguments(["GEOHASH", key], member);
 }
 
-export declare function transformReply(): Array<RedisCommandArgument>;
+export declare function transformReply(): Array<ValkeyCommandArgument>;

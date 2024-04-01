@@ -1,33 +1,30 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export const IS_READ_ONLY = true;
 
 interface BitCountRange {
-    start: number;
-    end: number;
-    mode?: 'BYTE' | 'BIT';
+  start: number;
+  end: number;
+  mode?: "BYTE" | "BIT";
 }
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    range?: BitCountRange
-): RedisCommandArguments {
-    const args = ['BITCOUNT', key];
+  key: ValkeyCommandArgument,
+  range?: BitCountRange
+): ValkeyCommandArguments {
+  const args = ["BITCOUNT", key];
 
-    if (range) {
-        args.push(
-            range.start.toString(),
-            range.end.toString()
-        );
+  if (range) {
+    args.push(range.start.toString(), range.end.toString());
 
-        if (range.mode) {
-            args.push(range.mode);
-        }
+    if (range.mode) {
+      args.push(range.mode);
     }
+  }
 
-    return args;
+  return args;
 }
 
 export declare function transformReply(): number;

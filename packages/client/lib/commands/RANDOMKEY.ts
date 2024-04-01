@@ -1,9 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const IS_READ_ONLY = true;
 
-export function transformArguments(): RedisCommandArguments {
-    return ['RANDOMKEY'];
+export function transformArguments(): ValkeyCommandArguments {
+  return ["RANDOMKEY"];
 }
 
-export declare function transformReply(): RedisCommandArgument | null;
+export declare function transformReply(): ValkeyCommandArgument | null;

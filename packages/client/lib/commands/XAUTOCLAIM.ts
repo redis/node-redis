@@ -1,39 +1,49 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { StreamMessagesNullReply, transformStreamMessagesNullReply } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import {
+  StreamMessagesNullReply,
+  transformStreamMessagesNullReply,
+} from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export interface XAutoClaimOptions {
-    COUNT?: number;
+  COUNT?: number;
 }
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    consumer: RedisCommandArgument,
-    minIdleTime: number,
-    start: string,
-    options?: XAutoClaimOptions
-): RedisCommandArguments {
-    const args = ['XAUTOCLAIM', key, group, consumer, minIdleTime.toString(), start];
+  key: ValkeyCommandArgument,
+  group: ValkeyCommandArgument,
+  consumer: ValkeyCommandArgument,
+  minIdleTime: number,
+  start: string,
+  options?: XAutoClaimOptions
+): ValkeyCommandArguments {
+  const args = [
+    "XAUTOCLAIM",
+    key,
+    group,
+    consumer,
+    minIdleTime.toString(),
+    start,
+  ];
 
-    if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
-    }
+  if (options?.COUNT) {
+    args.push("COUNT", options.COUNT.toString());
+  }
 
-    return args;
+  return args;
 }
 
-type XAutoClaimRawReply = [RedisCommandArgument, Array<any>];
+type XAutoClaimRawReply = [ValkeyCommandArgument, Array<any>];
 
 interface XAutoClaimReply {
-    nextId: RedisCommandArgument;
-    messages: StreamMessagesNullReply;
+  nextId: ValkeyCommandArgument;
+  messages: StreamMessagesNullReply;
 }
 
 export function transformReply(reply: XAutoClaimRawReply): XAutoClaimReply {
-    return {
-        nextId: reply[0],
-        messages: transformStreamMessagesNullReply(reply[1])
-    };
+  return {
+    nextId: reply[0],
+    messages: transformStreamMessagesNullReply(reply[1]),
+  };
 }

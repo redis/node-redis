@@ -1,13 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    source: RedisCommandArgument,
-    destination: RedisCommandArgument,
-    timeout: number
-): RedisCommandArguments {
-    return ['BRPOPLPUSH', source, destination, timeout.toString()];
+  source: ValkeyCommandArgument,
+  destination: ValkeyCommandArgument,
+  timeout: number
+): ValkeyCommandArguments {
+  return ["BRPOPLPUSH", source, destination, timeout.toString()];
 }
 
-export declare function transformReply(): RedisCommandArgument | null;
+export declare function transformReply(): ValkeyCommandArgument | null;

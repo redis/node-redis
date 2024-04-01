@@ -1,25 +1,29 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformXAutoClaimArguments } from './XAUTOCLAIM';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { transformArguments as transformXAutoClaimArguments } from "./XAUTOCLAIM";
 
-export { FIRST_KEY_INDEX } from './XAUTOCLAIM';
+export { FIRST_KEY_INDEX } from "./XAUTOCLAIM";
 
-export function transformArguments(...args: Parameters<typeof transformXAutoClaimArguments>): RedisCommandArguments {
-    return [
-        ...transformXAutoClaimArguments(...args),
-        'JUSTID'
-    ];
+export function transformArguments(
+  ...args: Parameters<typeof transformXAutoClaimArguments>
+): ValkeyCommandArguments {
+  return [...transformXAutoClaimArguments(...args), "JUSTID"];
 }
 
-type XAutoClaimJustIdRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
+type XAutoClaimJustIdRawReply = [
+  ValkeyCommandArgument,
+  Array<ValkeyCommandArgument>
+];
 
 interface XAutoClaimJustIdReply {
-    nextId: RedisCommandArgument;
-    messages: Array<RedisCommandArgument>;
+  nextId: ValkeyCommandArgument;
+  messages: Array<ValkeyCommandArgument>;
 }
 
-export function transformReply(reply: XAutoClaimJustIdRawReply): XAutoClaimJustIdReply {
-    return {
-        nextId: reply[0],
-        messages: reply[1]
-    };
+export function transformReply(
+  reply: XAutoClaimJustIdRawReply
+): XAutoClaimJustIdReply {
+  return {
+    nextId: reply[0],
+    messages: reply[1],
+  };
 }

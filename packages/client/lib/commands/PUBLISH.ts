@@ -1,12 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const IS_READ_ONLY = true;
 
 export function transformArguments(
-    channel: RedisCommandArgument,
-    message: RedisCommandArgument
-): RedisCommandArguments {
-    return ['PUBLISH', channel, message];
+  channel: ValkeyCommandArgument,
+  message: ValkeyCommandArgument
+): ValkeyCommandArguments {
+  return ["PUBLISH", channel, message];
 }
 
 export declare function transformReply(): number;

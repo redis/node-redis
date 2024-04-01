@@ -1,13 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 2;
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    id: RedisCommandArgument
-): RedisCommandArguments {
-    return ['XGROUP', 'SETID', key, group, id];
+  key: ValkeyCommandArgument,
+  group: ValkeyCommandArgument,
+  id: ValkeyCommandArgument
+): ValkeyCommandArguments {
+  return ["XGROUP", "SETID", key, group, id];
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

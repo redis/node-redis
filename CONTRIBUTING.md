@@ -1,6 +1,6 @@
 # Introduction
 
-First, thank you for considering contributing to Node Redis! It's people like you that make the open source community such a great community! 😊
+First, thank you for considering contributing to Node Valkey! It's people like you that make the open source community such a great community! 😊
 
 We welcome any type of contribution, not just code. You can help with:
 
@@ -30,9 +30,6 @@ We keep all project discussion inside GitHub issues. This ensures that valuable 
 
 You shouldn't feel bad for not contributing to open source. We want contributors like yourself to provide ideas, keep the ship shipping and to take some of the load from others. It is non-obligatory; we’re here to get things done in an enjoyable way. :trophy:
 
-We only ask that you follow the conduct guidelines set out in our [Code of Conduct](https://redis.com/community/community-guidelines-code-of-conduct/) throughout your contribution journey.
-
-
 #### Special Thanks
 
 A huge thank you to the original author of Node Redis, [Matthew Ranney](https://github.com/mranney).
@@ -43,7 +40,7 @@ A huge thank you to the original author of Node Redis, [Matthew Ranney](https://
 
 ### Testing Code
 
-Node Redis has a full test suite with coverage setup.
+Node Valkey has a full test suite with coverage setup.
 
 To run the tests, run `npm install` to install dependencies, then run `npm run build:tests-tools && npm test`.
 

@@ -1,30 +1,30 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { CompressionOption, pushCompressionArgument } from '.';
+import {
+  ValkeyCommandArgument,
+  ValkeyCommandArguments,
+} from "@valkey/client/dist/lib/commands";
+import { pushVerdictArgument } from "@valkey/client/dist/lib/commands/generic-transformers";
+import { CompressionOption, pushCompressionArgument } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 interface MergeOptions extends CompressionOption {
-    OVERRIDE?: boolean;
+  OVERRIDE?: boolean;
 }
 
 export function transformArguments(
-    destKey: RedisCommandArgument,
-    srcKeys: RedisCommandArgument | Array<RedisCommandArgument>,
-    options?: MergeOptions
-): RedisCommandArguments {
-    const args = pushVerdictArgument(
-        ['TDIGEST.MERGE', destKey],
-        srcKeys
-    );
+  destKey: ValkeyCommandArgument,
+  srcKeys: ValkeyCommandArgument | Array<ValkeyCommandArgument>,
+  options?: MergeOptions
+): ValkeyCommandArguments {
+  const args = pushVerdictArgument(["TDIGEST.MERGE", destKey], srcKeys);
 
-    pushCompressionArgument(args, options);
+  pushCompressionArgument(args, options);
 
-    if (options?.OVERRIDE) {
-        args.push('OVERRIDE');
-    }
+  if (options?.OVERRIDE) {
+    args.push("OVERRIDE");
+  }
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): "OK";

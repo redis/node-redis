@@ -1,16 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformZPopMinArguments } from './ZPOPMIN';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { transformArguments as transformZPopMinArguments } from "./ZPOPMIN";
 
-export { FIRST_KEY_INDEX } from './ZPOPMIN';
+export { FIRST_KEY_INDEX } from "./ZPOPMIN";
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
-    return [
-        ...transformZPopMinArguments(key),
-        count.toString()
-    ];
+  key: ValkeyCommandArgument,
+  count: number
+): ValkeyCommandArguments {
+  return [...transformZPopMinArguments(key), count.toString()];
 }
 
-export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';
+export { transformSortedSetWithScoresReply as transformReply } from "./generic-transformers";

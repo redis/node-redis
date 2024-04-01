@@ -1,7 +1,7 @@
-import { RedisCommandArgument } from '.';
+import { ValkeyCommandArgument } from ".";
 
 export function transformArguments(): Array<string> {
-    return ['DISCARD'];
+  return ["DISCARD"];
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

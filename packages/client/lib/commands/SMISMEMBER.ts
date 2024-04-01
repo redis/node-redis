@@ -1,12 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    members: Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return ['SMISMEMBER', key, ...members];
+  key: ValkeyCommandArgument,
+  members: Array<ValkeyCommandArgument>
+): ValkeyCommandArguments {
+  return ["SMISMEMBER", key, ...members];
 }
 
-export { transformBooleanArrayReply as transformReply } from './generic-transformers';
+export { transformBooleanArrayReply as transformReply } from "./generic-transformers";

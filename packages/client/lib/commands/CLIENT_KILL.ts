@@ -1,95 +1,103 @@
-import { RedisCommandArguments } from '.';
+import { ValkeyCommandArguments } from ".";
 
 export enum ClientKillFilters {
-    ADDRESS = 'ADDR',
-    LOCAL_ADDRESS = 'LADDR',
-    ID = 'ID',
-    TYPE = 'TYPE',
-    USER = 'USER',
-    SKIP_ME = 'SKIPME'
+  ADDRESS = "ADDR",
+  LOCAL_ADDRESS = "LADDR",
+  ID = "ID",
+  TYPE = "TYPE",
+  USER = "USER",
+  SKIP_ME = "SKIPME",
 }
 
 interface KillFilter<T extends ClientKillFilters> {
-    filter: T;
+  filter: T;
 }
 
 interface KillAddress extends KillFilter<ClientKillFilters.ADDRESS> {
-    address: `${string}:${number}`;
+  address: `${string}:${number}`;
 }
 
 interface KillLocalAddress extends KillFilter<ClientKillFilters.LOCAL_ADDRESS> {
-    localAddress: `${string}:${number}`;
+  localAddress: `${string}:${number}`;
 }
 
 interface KillId extends KillFilter<ClientKillFilters.ID> {
-    id: number | `${number}`;
+  id: number | `${number}`;
 }
 
 interface KillType extends KillFilter<ClientKillFilters.TYPE> {
-    type: 'normal' | 'master' | 'replica' | 'pubsub';
+  type: "normal" | "master" | "replica" | "pubsub";
 }
 
 interface KillUser extends KillFilter<ClientKillFilters.USER> {
-    username: string;
+  username: string;
 }
 
-type KillSkipMe = ClientKillFilters.SKIP_ME | (KillFilter<ClientKillFilters.SKIP_ME> & {
-    skipMe: boolean;
-});
+type KillSkipMe =
+  | ClientKillFilters.SKIP_ME
+  | (KillFilter<ClientKillFilters.SKIP_ME> & {
+      skipMe: boolean;
+    });
 
-type KillFilters = KillAddress | KillLocalAddress | KillId | KillType | KillUser | KillSkipMe;
+type KillFilters =
+  | KillAddress
+  | KillLocalAddress
+  | KillId
+  | KillType
+  | KillUser
+  | KillSkipMe;
 
-export function transformArguments(filters: KillFilters | Array<KillFilters>): RedisCommandArguments {
-    const args = ['CLIENT', 'KILL'];
+export function transformArguments(
+  filters: KillFilters | Array<KillFilters>
+): ValkeyCommandArguments {
+  const args = ["CLIENT", "KILL"];
 
-    if (Array.isArray(filters)) {
-        for (const filter of filters) {
-            pushFilter(args, filter);
-        }
-    } else {
-        pushFilter(args, filters);
+  if (Array.isArray(filters)) {
+    for (const filter of filters) {
+      pushFilter(args, filter);
     }
+  } else {
+    pushFilter(args, filters);
+  }
 
-    return args;
+  return args;
 }
 
-function pushFilter(args: RedisCommandArguments, filter: KillFilters): void {
-    if (filter === ClientKillFilters.SKIP_ME) {
-        args.push('SKIPME');
-        return;
-    }
+function pushFilter(args: ValkeyCommandArguments, filter: KillFilters): void {
+  if (filter === ClientKillFilters.SKIP_ME) {
+    args.push("SKIPME");
+    return;
+  }
 
-    args.push(filter.filter);
+  args.push(filter.filter);
 
-    switch(filter.filter) {
-        case ClientKillFilters.ADDRESS:
-            args.push(filter.address);
-            break;
+  switch (filter.filter) {
+    case ClientKillFilters.ADDRESS:
+      args.push(filter.address);
+      break;
 
-        case ClientKillFilters.LOCAL_ADDRESS:
-            args.push(filter.localAddress);
-            break;
+    case ClientKillFilters.LOCAL_ADDRESS:
+      args.push(filter.localAddress);
+      break;
 
-        case ClientKillFilters.ID:
-            args.push(
-                typeof filter.id === 'number' ?
-                    filter.id.toString() :
-                    filter.id
-            );
-            break;
+    case ClientKillFilters.ID:
+      args.push(
+        typeof filter.id === "number" ? filter.id.toString() : filter.id
+      );
+      break;
 
-        case ClientKillFilters.TYPE:
-            args.push(filter.type);
-            break;
+    case ClientKillFilters.TYPE:
+      args.push(filter.type);
+      break;
 
-        case ClientKillFilters.USER:
-                args.push(filter.username);
-                break;
+    case ClientKillFilters.USER:
+      args.push(filter.username);
+      break;
 
-        case ClientKillFilters.SKIP_ME:
-            args.push(filter.skipMe ? 'yes' : 'no');
-            break;
-    }
+    case ClientKillFilters.SKIP_ME:
+      args.push(filter.skipMe ? "yes" : "no");
+      break;
+  }
 }
 
 export declare function transformReply(): number;

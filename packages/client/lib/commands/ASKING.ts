@@ -1,7 +1,7 @@
-import { RedisCommandArguments, RedisCommandArgument } from '.';
+import { ValkeyCommandArguments, ValkeyCommandArgument } from ".";
 
-export function transformArguments(): RedisCommandArguments {
-    return ['ASKING'];
+export function transformArguments(): ValkeyCommandArguments {
+  return ["ASKING"];
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

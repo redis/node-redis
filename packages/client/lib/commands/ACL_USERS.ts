@@ -1,7 +1,7 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
-export function transformArguments(): RedisCommandArguments {
-    return ['ACL', 'USERS'];
+export function transformArguments(): ValkeyCommandArguments {
+  return ["ACL", "USERS"];
 }
 
-export declare function transformReply(): Array<RedisCommandArgument>;
+export declare function transformReply(): Array<ValkeyCommandArgument>;

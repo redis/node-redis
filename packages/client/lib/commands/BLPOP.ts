@@ -1,31 +1,31 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { pushVerdictArguments } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
-    timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BLPOP'], keys);
+  keys: ValkeyCommandArgument | Array<ValkeyCommandArgument>,
+  timeout: number
+): ValkeyCommandArguments {
+  const args = pushVerdictArguments(["BLPOP"], keys);
 
-    args.push(timeout.toString());
+  args.push(timeout.toString());
 
-    return args;
+  return args;
 }
 
-type BLPopRawReply = null | [RedisCommandArgument, RedisCommandArgument];
+type BLPopRawReply = null | [ValkeyCommandArgument, ValkeyCommandArgument];
 
 type BLPopReply = null | {
-    key: RedisCommandArgument;
-    element: RedisCommandArgument;
+  key: ValkeyCommandArgument;
+  element: ValkeyCommandArgument;
 };
 
 export function transformReply(reply: BLPopRawReply): BLPopReply {
-    if (reply === null) return null;
+  if (reply === null) return null;
 
-    return {
-        key: reply[0],
-        element: reply[1]
-    };
+  return {
+    key: reply[0],
+    element: reply[1],
+  };
 }

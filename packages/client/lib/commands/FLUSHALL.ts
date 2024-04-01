@@ -1,16 +1,16 @@
-export enum RedisFlushModes {
-    ASYNC = 'ASYNC',
-    SYNC = 'SYNC'
+export enum ValkeyFlushModes {
+  ASYNC = "ASYNC",
+  SYNC = "SYNC",
 }
 
-export function transformArguments(mode?: RedisFlushModes): Array<string> {
-    const args = ['FLUSHALL'];
+export function transformArguments(mode?: ValkeyFlushModes): Array<string> {
+  const args = ["FLUSHALL"];
 
-    if (mode) {
-        args.push(mode);
-    }
+  if (mode) {
+    args.push(mode);
+  }
 
-    return args;
+  return args;
 }
 
 export declare function transformReply(): string;

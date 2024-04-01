@@ -1,17 +1,19 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
 
 interface BgSaveOptions {
-    SCHEDULE?: true;
+  SCHEDULE?: true;
 }
 
-export function transformArguments(options?: BgSaveOptions): RedisCommandArguments {
-    const args = ['BGSAVE'];
+export function transformArguments(
+  options?: BgSaveOptions
+): ValkeyCommandArguments {
+  const args = ["BGSAVE"];
 
-    if (options?.SCHEDULE) {
-        args.push('SCHEDULE');
-    }
+  if (options?.SCHEDULE) {
+    args.push("SCHEDULE");
+  }
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export declare function transformReply(): ValkeyCommandArgument;

@@ -1,7 +1,7 @@
 {
-  "name": "redis",
-  "description": "A modern, high performance Redis client",
-  "version": "4.6.13",
+  "name": "valkey",
+  "description": "A modern, high performance Valkey client",
+  "version": "1.0.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,12 +23,12 @@
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "dependencies": {
-    "@redis/bloom": "1.2.0",
-    "@redis/client": "1.5.14",
-    "@redis/graph": "1.1.1",
-    "@redis/json": "1.0.6",
-    "@redis/search": "1.1.6",
-    "@redis/time-series": "1.0.5"
+    "@valkey/bloom": "1.0.0",
+    "@valkey/client": "1.0.0",
+    "@valkey/graph": "1.0.0",
+    "@valkey/json": "1.0.0",
+    "@valkey/search": "1.0.0",
+    "@valkey/time-series": "1.0.0"
   },
   "devDependencies": {
     "@tsconfig/node14": "^14.1.0",
@@ -38,13 +38,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/redis/node-redis.git"
+    "url": "git://github.com/mat-sz/node-valkey.git"
   },
   "bugs": {
-    "url": "https://github.com/redis/node-redis/issues"
+    "url": "https://github.com/mat-sz/node-valkey/issues"
   },
-  "homepage": "https://github.com/redis/node-redis",
+  "homepage": "https://github.com/mat-sz/node-valkey",
   "keywords": [
-    "redis"
+    "valkey"
   ]
 }

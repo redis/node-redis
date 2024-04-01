@@ -1,10 +1,13 @@
-import { RediSearchSchema, pushSchema } from '.';
+import { ValkeySearchSchema, pushSchema } from ".";
 
-export function transformArguments(index: string, schema: RediSearchSchema): Array<string> {
-    const args = ['FT.ALTER', index, 'SCHEMA', 'ADD'];
-    pushSchema(args, schema);
+export function transformArguments(
+  index: string,
+  schema: ValkeySearchSchema
+): Array<string> {
+  const args = ["FT.ALTER", index, "SCHEMA", "ADD"];
+  pushSchema(args, schema);
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): 'OK';
+export declare function transformReply(): "OK";

@@ -1,6 +1,6 @@
 # F.A.Q.
 
-Nobody has *actually* asked these questions. But, we needed somewhere to put all the important bits and bobs that didn't fit anywhere else. So, here you go!
+Nobody has _actually_ asked these questions. But, we needed somewhere to put all the important bits and bobs that didn't fit anywhere else. So, here you go!
 
 ## What happens when the network goes down?
 
@@ -19,7 +19,7 @@ If `socket.write()` returns `false`—meaning that ["all or part of the data was
 Redis has support for [modules](https://redis.io/modules) and running [Lua scripts](../README.md#lua-scripts) within the Redis context. To take advantage of typing within these scenarios, `RedisClient` and `RedisCluster` should be used with [typeof](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html), rather than the base types `RedisClientType` and `RedisClusterType`.
 
 ```typescript
-import { createClient } from '@redis/client';
+import { createClient } from "@valkey/client";
 
 export const client = createClient();
 

@@ -1,19 +1,19 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformStringNumberInfinityArgument } from './generic-transformers';
+import { ValkeyCommandArgument, ValkeyCommandArguments } from ".";
+import { transformStringNumberInfinityArgument } from "./generic-transformers";
 
 export const FIRST_KEY_INDEX = 1;
 
 export function transformArguments(
-    key: RedisCommandArgument,
-    min: RedisCommandArgument | number,
-    max: RedisCommandArgument | number,
-): RedisCommandArguments {
-    return [
-        'ZREMRANGEBYSCORE',
-        key,
-        transformStringNumberInfinityArgument(min),
-        transformStringNumberInfinityArgument(max)
-    ];
+  key: ValkeyCommandArgument,
+  min: ValkeyCommandArgument | number,
+  max: ValkeyCommandArgument | number
+): ValkeyCommandArguments {
+  return [
+    "ZREMRANGEBYSCORE",
+    key,
+    transformStringNumberInfinityArgument(min),
+    transformStringNumberInfinityArgument(max),
+  ];
 }
 
 export declare function transformReply(): number;
