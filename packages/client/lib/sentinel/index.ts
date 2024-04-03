@@ -16,7 +16,6 @@ import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
-import { CommandParser, BasicCommandParser } from '../client/parser';
 
 interface ClientInfo {
   id: number;
@@ -46,10 +45,6 @@ export class RedisSentinelClient<
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
-
-  newCommandParser(resp: RespVersions): CommandParser {
-    return new BasicCommandParser(resp);
-  }
 
   constructor(
     internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
@@ -281,10 +276,6 @@ export default class RedisSentinel<
   #reservedClientInfo?: ClientInfo;
   #masterClientCount = 0;
   #masterClientInfo?: ClientInfo;
-
-  newCommandParser(resp: RespVersions): CommandParser {
-    return new BasicCommandParser(resp);
-  }
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();

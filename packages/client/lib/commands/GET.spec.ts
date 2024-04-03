@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
-import testUtils, { GLOBAL, parseArgs } from '../test-utils';
+import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 import GET from './GET';
 
 describe('GET', () => {

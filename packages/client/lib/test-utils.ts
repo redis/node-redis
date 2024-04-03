@@ -1,8 +1,6 @@
 import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
 import { setTimeout } from 'node:timers/promises';
-import { Command, CommandArguments } from './RESP/types';
-import { BasicCommandParser } from './client/parser';
 
 const utils = new TestUtils({
   dockerImageName: 'redis',
@@ -69,20 +67,3 @@ export const BLOCKING_MIN_VALUE = (
   utils.isVersionGreaterThan([6]) ? 0.01 :
   1
 );
-
-export function parseArgs(command: Command, ...args: Array<any>) {
-  const parser = new BasicCommandParser();
-  command.parseCommand!(parser, ...args);
-
-  const redisArgs: CommandArguments = parser.redisArgs;
-  if (parser.preserve) {
-    redisArgs.preserve = parser.preserve;
-  }
-  return redisArgs;
-}
-
-export function parseArgsWith(command: Command, ...args: Array<any>) {
-  const parser = new BasicCommandParser();
-  command.parseCommand!(parser, ...args);
-  return parser.preserve;
-}

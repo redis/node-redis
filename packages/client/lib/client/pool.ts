@@ -7,7 +7,7 @@ import { TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
-import { CommandParser, BasicCommandParser } from './parser';
+import { BasicCommandParser } from './parser';
 
 export interface RedisPoolOptions {
   /**
@@ -64,7 +64,7 @@ export class RedisClientPool<
 
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       if (command.parseCommand) {
-        const parser = this._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
 
         return this.execute(client => client.executeCommand(parser, this._commandOptions, transformReply))
@@ -83,7 +83,7 @@ export class RedisClientPool<
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       if (command.parseCommand) {
-        const parser = this._self._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
 
         return this._self.execute(client => client.executeCommand(parser, this._self._commandOptions, transformReply))
@@ -103,7 +103,7 @@ export class RedisClientPool<
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       if (fn.parseCommand) {
-        const parser = this._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         parser.pushVariadic(prefix);
         fn.parseCommand(parser, ...args);
 
@@ -127,7 +127,7 @@ export class RedisClientPool<
 
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       if (script.parseCommand) {
-        const parser = this._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         parser.pushVariadic(prefix);
         script.parseCommand(parser, ...args);
 
@@ -242,9 +242,6 @@ export class RedisClientPool<
     return this._self.#isClosing;
   }
 
-  #newCommandParser(resp: RespVersions): CommandParser {
-    return new BasicCommandParser(resp);
-  }
 
   /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},

@@ -10,7 +10,8 @@ import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import ASKING from '../commands/ASKING';
-import { BasicCommandParser, CommandParser } from '../client/parser';
+import { BasicCommandParser } from '../client/parser';
+import { parseArgs } from '../commands/generic-transformers';
 ;
 
 interface ClusterCommander<
@@ -175,7 +176,7 @@ export default class RedisCluster<
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       if (command.parseCommand) {
-        const parser = this._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
 
         return this._self.#execute(
@@ -212,7 +213,7 @@ export default class RedisCluster<
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       if (command.parseCommand) {
-        const parser = this._self._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         command.parseCommand(parser, ...args);
 
         return this._self.#execute(
@@ -249,7 +250,7 @@ export default class RedisCluster<
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       if (fn.parseCommand) {
-        const parser = this._self._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         parser.pushVariadic(prefix);
         fn.parseCommand(parser, ...args);
 
@@ -288,7 +289,7 @@ export default class RedisCluster<
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       if (script.parseCommand) {
-        const parser = this._self.#newCommandParser(resp);
+        const parser = new BasicCommandParser(resp);
         parser.pushVariadic(prefix);
         script.parseCommand(parser, ...args);
 
@@ -409,10 +410,6 @@ export default class RedisCluster<
     return this._self.#slots.isOpen;
   }
 
-  #newCommandParser(resp: RespVersions): CommandParser {
-    return new BasicCommandParser(resp);
-  }
-
   constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     super();
 
@@ -495,25 +492,6 @@ export default class RedisCluster<
   //   return this._commandOptionsProxy('policies', policies);
   // }
 
-  #handleAsk<T>(
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
-  ) {
-    return async (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, options?: ClusterCommandOptions) => {
-      const chainId = Symbol("asking chain");
-      const opts = options ? {...options} : {};
-      opts.chainId = chainId;
-
-      const ret = await Promise.all(
-        [
-          client.sendCommand(ASKING.transformArguments(), {chainId: chainId}),
-          fn(client, opts)
-        ]
-      );
-
-      return ret[1];
-    };
-  }
-
   async #execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
@@ -523,13 +501,14 @@ export default class RedisCluster<
     const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
     let client = await this.#slots.getClient(firstKey, isReadonly);
     let i = 0;
-    let myFn = fn;
+    let myOpts = options;
 
     while (true) {
       try {
-        return await myFn(client, options);
+        return await fn(client, myOpts);
       } catch (err) {
-        myFn = fn;
+        // reset to passed in options, if changed by an ask request 
+        myOpts = options;
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
           throw err;
@@ -547,8 +526,14 @@ export default class RedisCluster<
             throw new Error(`Cannot find node ${address}`);
           }
 
-          myFn = this.#handleAsk(fn);
           client = redirectTo;
+
+          const chainId = Symbol('Asking Chain');
+          const myOpts = options ? {...options} : {};
+          myOpts.chainId = chainId;
+
+          client.sendCommand(parseArgs(ASKING), {chainId: chainId}).catch(err => { console.log(`Asking Failed: ${err}`) } );
+
           continue;
         }
         

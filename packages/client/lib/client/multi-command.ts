@@ -176,7 +176,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
         redisArgs = parser.redisArgs;
         redisArgs.preserve = parser.preserve;
       } else {
-        redisArgs = script.transformArguments(...args);
+        redisArgs = prefix;
+        redisArgs.push(...script.transformArguments(...args));
       }
 
       return this.addCommand(

@@ -1,4 +1,5 @@
 import { Command, RedisFunction, RedisScript, RespVersions } from '../RESP/types';
+import { BasicCommandParser } from '../client/parser';
 import { RedisSocketOptions, RedisTcpSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeInfo, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
@@ -40,7 +41,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
 
   return async function (this: T, ...args: Array<unknown>) {
     if (command.parseCommand) {
-      const parser = this._self.newCommandParser(resp);
+      const parser = new BasicCommandParser(resp);
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
@@ -68,7 +69,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
 
   return async function (this: T, ...args: Array<unknown>) {
     if (fn.parseCommand) {
-      const parser = this._self._self.newCommandParser(resp);
+      const parser = new BasicCommandParser(resp);
       parser.pushVariadic(prefix);
       fn.parseCommand(parser, ...args);
 
@@ -97,7 +98,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
 
   return async function (this: T, ...args: Array<unknown>) {
     if (command.parseCommand) {
-      const parser = this._self._self.newCommandParser(resp);
+      const parser = new BasicCommandParser(resp);
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
@@ -125,7 +126,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
 
   return async function (this: T, ...args: Array<unknown>) {
     if (script.parseCommand) {
-      const parser = this._self.newCommandParser(resp);
+      const parser = new BasicCommandParser(resp);
       parser.pushVariadic(prefix);
       script.parseCommand(parser, ...args);
 
