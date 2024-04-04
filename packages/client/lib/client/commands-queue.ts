@@ -1,8 +1,8 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
-import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
+import { TypeMapping, ReplyUnion, RespVersions, CommandArguments } from '../RESP/types';
+import { COMMANDS, ChannelListeners, PUBSUB_TYPE, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { MonitorCallback } from '.';
 
@@ -51,6 +51,8 @@ export default class RedisCommandsQueue {
   #chainInExecution: symbol | undefined;
   readonly decoder;
   readonly #pubSub = new PubSub();
+  readonly #pushHandlers: Map<string, (pushMsg: Array<any>) => unknown> = new Map();
+  readonly #builtInSet = new Set<string>;
 
   get isPubSubActive() {
     return this.#pubSub.isActive;
@@ -64,6 +66,21 @@ export default class RedisCommandsQueue {
     this.#respVersion = respVersion;
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
+
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.CHANNELS].message.toString(), this.#pubSub.handleMessageReplyChannel.bind(this.#pubSub));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.CHANNELS].subscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.PATTERNS].message.toString(), this.#pubSub.handleMessageReplyPattern.bind(this.#pubSub));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.PATTERNS].subscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].message.toString(), this.#pubSub.handleMessageReplySharded.bind(this.#pubSub));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.toString(), this.#handleShardedUnsubscribe.bind(this));
+
+    for (const str in this.#pushHandlers.keys) {
+      this.#builtInSet.add(str);
+    }
+
     this.decoder = this.#initiateDecoder();
   }
 
@@ -75,28 +92,44 @@ export default class RedisCommandsQueue {
     this.#waitingForReply.shift()!.reject(err);
   }
 
-  #onPush(push: Array<any>) {
-    // TODO: type
-    if (this.#pubSub.handleMessageReply(push)) return true;
-  
-    const isShardedUnsubscribe = PubSub.isShardedUnsubscribe(push);
-    if (isShardedUnsubscribe && !this.#waitingForReply.length) {
+  #handleStatusReply(push: Array<any>) {
+    const head = this.#waitingForReply.head!.value;
+    if (
+      (Number.isNaN(head.channelsCounter!) && push[2] === 0) ||
+      --head.channelsCounter! === 0
+    ) {
+      this.#waitingForReply.shift()!.resolve();
+    }
+  }
+
+  #handleShardedUnsubscribe(push: Array<any>) {
+    if (!this.#waitingForReply.length) {
       const channel = push[1].toString();
       this.#onShardedChannelMoved(
         channel,
         this.#pubSub.removeShardedListeners(channel)
       );
-      return true;
-    } else if (isShardedUnsubscribe || PubSub.isStatusReply(push)) {
-      const head = this.#waitingForReply.head!.value;
-      if (
-        (Number.isNaN(head.channelsCounter!) && push[2] === 0) ||
-        --head.channelsCounter! === 0
-      ) {
-        this.#waitingForReply.shift()!.resolve();
-      }
+    } else {
+      this.#handleStatusReply(push);
+    }
+  }
+
+  addPushHandler(messageType: string, handler: (pushMsg: Array<any>) => unknown) {
+    if (this.#builtInSet.has(messageType)) {
+      throw new Error("Cannot override built in push message handler");
+    }
+
+    this.#pushHandlers.set(messageType, handler);
+  }
+
+  #onPush(push: Array<any>) {
+    const handler = this.#pushHandlers.get(push[0].toString());
+    if (handler) {
+      handler(push);
       return true;
     }
+
+    return false;
   }
 
   #getTypeMapping() {
