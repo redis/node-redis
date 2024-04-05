@@ -23,7 +23,7 @@ export interface RedisSocketCommonOptions {
      * 1. `false` -> do not reconnect, close the client and flush the command queue.
      * 2. `number` -> wait for `X` milliseconds before reconnecting.
      * 3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
-     * Defaults to `retries => Math.min(retries * 50, 500)`
+     * Defaults to `((retries^2) * 50 ms) + 0-200 ms jitter`
      */
     reconnectStrategy?: false | number | ((retries: number, cause: Error) => false | Error | number);
 }
@@ -117,7 +117,12 @@ export default class RedisSocket extends EventEmitter {
             }
         }
 
-        return Math.min(retries * 50, 500);
+        // Generate a random jitter between 0 – 200 ms:
+        const jitter = Math.floor(Math.random() * 200);
+        // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
+        const delay = Math.min(Math.pow(2, retries) * 50, 2000);
+
+        return delay + jitter;
     }
 
     #shouldReconnect(retries: number, cause: Error) {
