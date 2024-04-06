@@ -42,6 +42,8 @@ const RESP2_PUSH_TYPE_MAPPING = {
   [RESP_TYPES.SIMPLE_STRING]: Buffer
 };
 
+export const pushHandlerError = 'Cannot override built in push message handler';
+
 export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
@@ -79,7 +81,7 @@ export default class RedisCommandsQueue {
  
     const s = new Set<string>();
     this.#builtInSet = s;
-    for (const str in this.#pushHandlers.keys) {
+    for (const str of this.#pushHandlers.keys()) {
       s.add(str);
     }
 
@@ -118,7 +120,7 @@ export default class RedisCommandsQueue {
 
   addPushHandler(messageType: string, handler: (pushMsg: Array<any>) => unknown) {
     if (this.#builtInSet.has(messageType)) {
-      throw new Error("Cannot override built in push message handler");
+      throw new Error(pushHandlerError);
     }
 
     this.#pushHandlers.set(messageType, handler);
@@ -126,7 +128,7 @@ export default class RedisCommandsQueue {
 
   removePushHandler(messageType: string) {
     if (this.#builtInSet.has(messageType)) {
-      throw new Error("Cannot override built in push message handler");
+      throw new Error(pushHandlerError);
     }
 
     this.#pushHandlers.delete(messageType);

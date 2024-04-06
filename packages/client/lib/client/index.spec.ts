@@ -9,7 +9,8 @@ import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec'
 import { RESP_TYPES } from '../RESP/decoder';
 import { BlobStringReply, NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
-import { createClient } from '../..';
+import { COMMANDS, PUBSUB_TYPE } from './pub-sub';
+import { pushHandlerError } from './commands-queue';
 
 export const SQUARE_SCRIPT = defineScript({
   SCRIPT:
@@ -771,7 +772,14 @@ describe('Client', () => {
     }, GLOBAL.SERVERS.OPEN);
   });
 
-  describe('Push Handlers', () => {
+  describe.only('Push Handlers', () => {
+    testUtils.testWithClient('prevent overriding a built in handler', async client => {
+      assert.throws(() => {client.addPushHandler(COMMANDS[PUBSUB_TYPE.CHANNELS].message.toString(), (push: Array<any>) => {})}, new Error(pushHandlerError));
+      assert.throws(() => {client.removePushHandler(COMMANDS[PUBSUB_TYPE.CHANNELS].message.toString())}, new Error(pushHandlerError));
+    }, {
+      ...GLOBAL.SERVERS.OPEN
+    });
+
     testUtils.testWithClient('RESP2: add/remove invalidate handler, and validate its called', async client => {
       const key = 'x'
 
