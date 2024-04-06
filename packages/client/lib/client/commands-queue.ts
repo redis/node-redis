@@ -52,7 +52,7 @@ export default class RedisCommandsQueue {
   readonly decoder;
   readonly #pubSub = new PubSub();
   readonly #pushHandlers: Map<string, (pushMsg: Array<any>) => unknown> = new Map();
-  readonly #builtInSet = new Set<string>;
+  readonly #builtInSet: ReadonlySet<string>;
 
   get isPubSubActive() {
     return this.#pubSub.isActive;
@@ -76,9 +76,11 @@ export default class RedisCommandsQueue {
     this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].message.toString(), this.#pubSub.handleMessageReplySharded.bind(this.#pubSub));
     this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.toString(), this.#handleStatusReply.bind(this));
     this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.toString(), this.#handleShardedUnsubscribe.bind(this));
-
+ 
+    const s = new Set<string>();
+    this.#builtInSet = s;
     for (const str in this.#pushHandlers.keys) {
-      this.#builtInSet.add(str);
+      s.add(str);
     }
 
     this.decoder = this.#initiateDecoder();
@@ -122,6 +124,14 @@ export default class RedisCommandsQueue {
     this.#pushHandlers.set(messageType, handler);
   }
 
+  removePushHandler(messageType: string) {
+    if (this.#builtInSet.has(messageType)) {
+      throw new Error("Cannot override built in push message handler");
+    }
+
+    this.#pushHandlers.delete(messageType);
+  }
+
   #onPush(push: Array<any>) {
     const handler = this.#pushHandlers.get(push[0].toString());
     if (handler) {
@@ -141,9 +151,7 @@ export default class RedisCommandsQueue {
       onReply: reply => this.#onReply(reply),
       onErrorReply: err => this.#onErrorReply(err),
       onPush: push => {
-        if (!this.#onPush(push)) {
-
-        }
+        return this.#onPush(push);
       },
       getTypeMapping: () => this.#getTypeMapping()
     });
