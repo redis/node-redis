@@ -12,6 +12,7 @@ import { RedisTcpSocketOptions } from '../client/socket';
 import ASKING from '../commands/ASKING';
 import { BasicCommandParser } from '../client/parser';
 import { parseArgs } from '../commands/generic-transformers';
+import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
 ;
 
 interface ClusterCommander<
@@ -26,8 +27,10 @@ interface ClusterCommander<
 }
 
 export type RedisClusterClientOptions = Omit<
-  RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>,
-  keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
+  Omit<
+    RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>,
+    keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
+  >,  "clientSideCache"
 >;
 
 export interface RedisClusterOptions<
@@ -67,6 +70,10 @@ export interface RedisClusterOptions<
    * Useful when the cluster is running on another network
    */
   nodeAddressMap?: NodeAddressMap;
+  /**
+   * TODO
+   */
+  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 // remove once request & response policies are ready

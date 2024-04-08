@@ -14,8 +14,9 @@ import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
-import { RedisVariadicArgument, pushVariadicArguments } from '../commands/generic-transformers';
+import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
 import { BasicCommandParser, CommandParser } from './parser';
+import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -72,6 +73,10 @@ export interface RedisClientOptions<
    * TODO
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
+  /**
+  * TODO
+  */
+  clientSideCache?: ClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 type WithCommands<
@@ -319,7 +324,17 @@ export default class RedisClient<
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
   #dirtyWatch?: string;
   #epoch: number;
-  #watchEpoch?: number; 
+  #watchEpoch?: number;
+
+  readonly #clientSideCache?: ClientSideCacheProvider;
+
+  /* TO REMOVE */
+  get socketEpoch() {
+    return this.#epoch;
+  }
+
+  /* TO REMOVE */
+  addPushHandler(messageType: string, handler: (push: Array<any>) => undefined) {}
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -351,6 +366,25 @@ export default class RedisClient<
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket();
     this.#epoch = 0;
+
+    if (options?.clientSideCache) {
+      if (options.clientSideCache instanceof ClientSideCacheProvider) {
+        this.#clientSideCache = options.clientSideCache;
+      } else {
+        const cscConfig = options.clientSideCache;
+        this.#clientSideCache = new BasicClientSideCache(cscConfig);
+      }
+      const csc = this.#clientSideCache;
+      this.addPushHandler("invalidate", (push: Array<any>) => {
+        if (push[1] === null) {
+          csc.invalidate(null);
+        } else {
+          for (const key of push[1]) {
+            csc.invalidate(key.toString());
+          }
+        }
+      });
+    }
   }
 
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
@@ -400,12 +434,12 @@ export default class RedisClient<
       }
 
       commands.push(
-        HELLO.transformArguments(this.#options.RESP, hello)
+        parseArgs(HELLO, this.#options.RESP, hello)
       );
     } else {
       if (this.#options?.username || this.#options?.password) {
         commands.push(
-          COMMANDS.AUTH.transformArguments({
+          parseArgs(COMMANDS.AUTH, {
             username: this.#options.username,
             password: this.#options.password ?? ''
           })
@@ -414,7 +448,7 @@ export default class RedisClient<
 
       if (this.#options?.name) {
         commands.push(
-          COMMANDS.CLIENT_SETNAME.transformArguments(this.#options.name)
+          parseArgs(COMMANDS.CLIENT_SETNAME, this.#options.name)
         );
       }
     }
@@ -425,8 +459,15 @@ export default class RedisClient<
 
     if (this.#options?.readonly) {
       commands.push(
-        COMMANDS.READONLY.transformArguments()
+        parseArgs(COMMANDS.READONLY)
       );
+    }
+
+    if (this.#clientSideCache) {
+      const tracking = this.#clientSideCache.trackingOn();
+      if (tracking) {
+        commands.push(tracking);
+      }
     }
 
     return commands;
@@ -482,6 +523,7 @@ export default class RedisClient<
       })
       .on('error', err => {
         this.emit('error', err);
+        this.#clientSideCache?.onError();
         if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
           this.#queue.flushWaitingForReply(err);
         } else {
@@ -614,13 +656,20 @@ export default class RedisClient<
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
     transformReply: TransformReply | undefined
   ) {
-    const reply = await this.sendCommand(parser.redisArgs, commandOptions);
-      
-    if (transformReply) {
-      return transformReply(reply, parser.preserve);
-    }
+    const defaultTypeMapping = this._self.#options?.commandOptions === commandOptions;
+    const csc = this._self.#clientSideCache;
+    const fn = this.sendCommand.bind(this, parser.redisArgs, commandOptions) as () => Promise<ReplyUnion>
 
-    return reply;
+    if (csc && parser.cachable && defaultTypeMapping) {
+      return await csc.handleCache(this._self, parser, fn, transformReply);
+    } else {
+      const reply = await fn();
+      
+      if (transformReply) {
+        return transformReply(reply, parser.preserve);
+      }
+      return reply;
+    }
   }
     
   sendCommand<T = ReplyUnion>(
