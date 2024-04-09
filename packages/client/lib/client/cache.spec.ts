@@ -25,10 +25,11 @@ describe("Client Side Cache", () => {
 
         testUtils.testWithClient('Basic Cache Hit', async client => {
             csc.clear();
+            const val = '1'
 
-            await client.set("x", 1);
+            await client.set("x", val);
             await client.get("x");
-            await client.get("x");
+            assert.equal(await client.get("x"), val); 
 
             assert.equal(1, csc.cacheMisses(), "Cache Misses");
             assert.equal(1, csc.cacheHits(), "Cache Hits");
@@ -58,6 +59,7 @@ describe("Client Side Cache", () => {
             }
         });
 
+        /* tests the csc object */
         testUtils.testWithClient('Null Invalidate acts as clear', async client => {
             csc.clear();
 
@@ -76,6 +78,7 @@ describe("Client Side Cache", () => {
             }
         });
 
+        /* tests the injected push handler with null */
         testUtils.testWithClient('flushdb causes an invalidate null', async client => {
             csc.clear();
 
@@ -94,6 +97,7 @@ describe("Client Side Cache", () => {
             }
         });
 
+        /* tests the push handler with a key */
         testUtils.testWithClient('Basic Cache Invalidate', async client => {
             csc.clear();
 
@@ -137,11 +141,12 @@ describe("Client Side Cache", () => {
 
         testUtils.testWithClientPool('Basic Cache Hit', async client => {
             csc.clear();
+            const val = '1';
 
-            await client.set("x", 1);
+            await client.set("x", val);
             await client.get("x");
-            await client.get("x");
-            await client.get("x");
+            assert.equal(await client.get("x"), val);
+            assert.equal(await client.get("x"), val);
 
             assert.equal(1, csc.cacheMisses(), "Cache Misses");
             assert.equal(2, csc.cacheHits(), "Cache Hits");
