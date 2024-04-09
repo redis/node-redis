@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { TypeMapping, ReplyUnion, RespVersions, CommandArguments } from '../RESP/types';
+import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { COMMANDS, ChannelListeners, PUBSUB_TYPE, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { MonitorCallback } from '.';
@@ -17,7 +17,7 @@ export interface CommandOptions<T = TypeMapping> {
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
-  args: CommandArguments;
+  args: ReadonlyArray<RedisArgument>;
   chainId: symbol | undefined;
   abort: {
     signal: AbortSignal;
@@ -42,8 +42,6 @@ const RESP2_PUSH_TYPE_MAPPING = {
   [RESP_TYPES.SIMPLE_STRING]: Buffer
 };
 
-export const pushHandlerError = 'Cannot override built in push message handler';
-
 export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
@@ -53,8 +51,7 @@ export default class RedisCommandsQueue {
   #chainInExecution: symbol | undefined;
   readonly decoder;
   readonly #pubSub = new PubSub();
-  readonly #pushHandlers: Map<string, (pushMsg: Array<any>) => unknown> = new Map();
-  readonly #builtInSet: ReadonlySet<string>;
+  readonly #pushHandlers: Map<string, Map<Symbol, (pushMsg: ReadonlyArray<any>) => unknown>> = new Map();
 
   get isPubSubActive() {
     return this.#pubSub.isActive;
@@ -69,22 +66,16 @@ export default class RedisCommandsQueue {
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
 
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.CHANNELS].message.toString(), this.#pubSub.handleMessageReplyChannel.bind(this.#pubSub));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.CHANNELS].subscribe.toString(), this.#handleStatusReply.bind(this));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.toString(), this.#handleStatusReply.bind(this));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.PATTERNS].message.toString(), this.#pubSub.handleMessageReplyPattern.bind(this.#pubSub));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.PATTERNS].subscribe.toString(), this.#handleStatusReply.bind(this));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.toString(), this.#handleStatusReply.bind(this));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].message.toString(), this.#pubSub.handleMessageReplySharded.bind(this.#pubSub));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.toString(), this.#handleStatusReply.bind(this));
-    this.#pushHandlers.set(COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.toString(), this.#handleShardedUnsubscribe.bind(this));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.CHANNELS].message.toString(), this.#pubSub.handleMessageReplyChannel.bind(this.#pubSub));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.CHANNELS].subscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.PATTERNS].message.toString(), this.#pubSub.handleMessageReplyPattern.bind(this.#pubSub));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.PATTERNS].subscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.SHARDED].message.toString(), this.#pubSub.handleMessageReplySharded.bind(this.#pubSub));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.toString(), this.#handleStatusReply.bind(this));
+    this.#addPushHandler(COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.toString(), this.#handleShardedUnsubscribe.bind(this));
  
-    const s = new Set<string>();
-    this.#builtInSet = s;
-    for (const str of this.#pushHandlers.keys()) {
-      s.add(str);
-    }
-
     this.decoder = this.#initiateDecoder();
   }
 
@@ -96,7 +87,7 @@ export default class RedisCommandsQueue {
     this.#waitingForReply.shift()!.reject(err);
   }
 
-  #handleStatusReply(push: Array<any>) {
+  #handleStatusReply(push: ReadonlyArray<any>) {
     const head = this.#waitingForReply.head!.value;
     if (
       (Number.isNaN(head.channelsCounter!) && push[2] === 0) ||
@@ -106,7 +97,7 @@ export default class RedisCommandsQueue {
     }
   }
 
-  #handleShardedUnsubscribe(push: Array<any>) {
+  #handleShardedUnsubscribe(push: ReadonlyArray<any>) {
     if (!this.#waitingForReply.length) {
       const channel = push[1].toString();
       this.#onShardedChannelMoved(
@@ -118,26 +109,42 @@ export default class RedisCommandsQueue {
     }
   }
 
-  addPushHandler(messageType: string, handler: (pushMsg: Array<any>) => unknown) {
-    if (this.#builtInSet.has(messageType)) {
-      throw new Error(pushHandlerError);
+  #addPushHandler(messageType: string, handler: (pushMsg: ReadonlyArray<any>) => unknown) {
+    let handlerMap = this.#pushHandlers.get(messageType);
+    if (handlerMap === undefined) {
+      handlerMap = new Map();
+      this.#pushHandlers.set(messageType, handlerMap);
     }
 
-    this.#pushHandlers.set(messageType, handler);
+    const symbol = Symbol(messageType);
+    handlerMap.set(symbol, handler);
+
+    return symbol;
   }
 
-  removePushHandler(messageType: string) {
-    if (this.#builtInSet.has(messageType)) {
-      throw new Error(pushHandlerError);
-    }
+  addPushHandler(messageType: string, handler: (pushMsg: ReadonlyArray<any>) => unknown) {
+    if (this.#respVersion !== 3) throw new Error("cannot add push handlers to resp2 clients")
 
-    this.#pushHandlers.delete(messageType);
+    return this.#addPushHandler(messageType, handler);
+  }
+
+  removePushHandler(symbol: Symbol) {
+    const handlers = this.#pushHandlers.get(symbol.description!);
+    if (handlers) {
+      handlers.delete(symbol);
+      if (handlers.size === 0) {
+        this.#pushHandlers.delete(symbol.description!);
+      }
+    }
   }
 
   #onPush(push: Array<any>) {
-    const handler = this.#pushHandlers.get(push[0].toString());
-    if (handler) {
-      handler(push);
+    const handlers = this.#pushHandlers.get(push[0].toString());
+    if (handlers) {
+      for (const handler of handlers.values()) {
+        handler(push);
+      }
+
       return true;
     }
 
@@ -160,7 +167,7 @@ export default class RedisCommandsQueue {
   }
 
   addCommand<T>(
-    args: CommandArguments,
+    args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
     if (this.#maxLength && this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength) {
@@ -389,7 +396,7 @@ export default class RedisCommandsQueue {
   *commandsToWrite() {
     let toSend = this.#toWrite.shift();
     while (toSend) {
-      let encoded: CommandArguments;
+      let encoded: ReadonlyArray<RedisArgument>
       try {
         encoded = encodeCommand(toSend.args);
       } catch (err) {

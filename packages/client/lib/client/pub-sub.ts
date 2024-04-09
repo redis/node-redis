@@ -344,7 +344,7 @@ export class PubSub {
     return commands;
   }
 
-  handleMessageReplyChannel(push: Array<Buffer>) {
+  handleMessageReplyChannel(push: ReadonlyArray<Buffer>) {
     this.#emitPubSubMessage(
       PUBSUB_TYPE.CHANNELS,
       push[2],
@@ -352,7 +352,7 @@ export class PubSub {
     );
   }
 
-  handleMessageReplyPattern(push: Array<Buffer>) {
+  handleMessageReplyPattern(push: ReadonlyArray<Buffer>) {
     this.#emitPubSubMessage(
       PUBSUB_TYPE.PATTERNS,
       push[3],
@@ -361,12 +361,24 @@ export class PubSub {
     );
   }
 
-  handleMessageReplySharded(push: Array<Buffer>) {
+  handleMessageReplySharded(push: ReadonlyArray<Buffer>) {
     this.#emitPubSubMessage(
       PUBSUB_TYPE.SHARDED,
       push[2],
       push[1]
     );
+  }
+
+  handleMessageReply(reply: Array<Buffer>): boolean {
+    if (COMMANDS[PUBSUB_TYPE.CHANNELS].message.equals(reply[0])) {
+      return true;
+    } else if (COMMANDS[PUBSUB_TYPE.PATTERNS].message.equals(reply[0])) {
+      return true;
+    } else if (COMMANDS[PUBSUB_TYPE.SHARDED].message.equals(reply[0])) {
+      return true;
+    }
+
+    return false;
   }
 
   removeShardedListeners(channel: string): ChannelListeners {
