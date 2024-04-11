@@ -1,19 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HEXISTS';
+import HEXISTS from './HEXISTS';
 
 describe('HEXISTS', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'field'),
-            ['HEXISTS', 'key', 'field']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      HEXISTS.transformArguments('key', 'field'),
+      ['HEXISTS', 'key', 'field']
+    );
+  });
 
-    testUtils.testWithClient('client.hExists', async client => {
-        assert.equal(
-            await client.hExists('key', 'field'),
-            false
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('hExists', async client => {
+    assert.equal(
+      await client.hExists('key', 'field'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

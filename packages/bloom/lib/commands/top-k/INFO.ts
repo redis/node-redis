@@ -1,34 +1,25 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string): Array<string> {
+export type TopKInfoReply = TuplesToMapReply<[
+  [BlobStringReply<'k'>, NumberReply],
+  [BlobStringReply<'width'>, NumberReply],
+  [BlobStringReply<'depth'>, NumberReply],
+  [BlobStringReply<'decay'>, DoubleReply]
+]>;
+ 
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
     return ['TOPK.INFO', key];
-}
-
-export type InfoRawReply = [
-    _: string,
-    k: number,
-    _: string,
-    width: number,
-    _: string,
-    depth: number,
-    _: string,
-    decay: string
-];
-
-export interface InfoReply {
-    k: number,
-    width: number;
-    depth: number;
-    decay: number;
-}
-
-export function transformReply(reply: InfoRawReply): InfoReply {
-    return {
-        k: reply[1],
-        width: reply[3],
-        depth: reply[5],
-        decay: Number(reply[7])
-    };
-}
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReply>>) => ({
+      k: reply[1],
+      width: reply[3],
+      depth: reply[5],
+      decay: Number(reply[7])
+    }),
+    3: undefined as unknown as () => TopKInfoReply
+  }
+} as const satisfies Command;

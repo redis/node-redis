@@ -1,56 +1,55 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-interface XPendingRangeOptions {
-    IDLE?: number;
-    consumer?: RedisCommandArgument;
+export interface XPendingRangeOptions {
+  IDLE?: number;
+  consumer?: RedisArgument;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    start: string,
-    end: string,
+type XPendingRangeRawReply = ArrayReply<TuplesReply<[
+  id: BlobStringReply,
+  consumer: BlobStringReply,
+  millisecondsSinceLastDelivery: NumberReply,
+  deliveriesCounter: NumberReply
+]>>;
+
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    group: RedisArgument,
+    start: RedisArgument,
+    end: RedisArgument,
     count: number,
     options?: XPendingRangeOptions
-): RedisCommandArguments {
+  ) {
     const args = ['XPENDING', key, group];
 
-    if (options?.IDLE) {
-        args.push('IDLE', options.IDLE.toString());
+    if (options?.IDLE !== undefined) {
+      args.push('IDLE', options.IDLE.toString());
     }
 
-    args.push(start, end, count.toString());
+    args.push(
+      start,
+      end,
+      count.toString()
+    );
 
     if (options?.consumer) {
-        args.push(options.consumer);
+      args.push(options.consumer);
     }
 
     return args;
-}
-
-type XPendingRangeRawReply = Array<[
-    id: RedisCommandArgument,
-    consumer: RedisCommandArgument,
-    millisecondsSinceLastDelivery: number,
-    deliveriesCounter: number
-]>;
-
-type XPendingRangeReply = Array<{
-    id: RedisCommandArgument;
-    owner: RedisCommandArgument;
-    millisecondsSinceLastDelivery: number;
-    deliveriesCounter: number;
-}>;
-
-export function transformReply(reply: XPendingRangeRawReply): XPendingRangeReply {
-    return reply.map(([id, owner, millisecondsSinceLastDelivery, deliveriesCounter]) => ({
-        id,
-        owner,
-        millisecondsSinceLastDelivery,
-        deliveriesCounter
-    }));
-}
+  },
+  transformReply(reply: UnwrapReply<XPendingRangeRawReply>) {
+    return reply.map(pending => {
+      const unwrapped = pending as unknown as UnwrapReply<typeof pending>;
+      return {
+        id: unwrapped[0],
+        consumer: unwrapped[1],
+        millisecondsSinceLastDelivery: unwrapped[2],
+        deliveriesCounter: unwrapped[3]
+      };
+    });
+  }
+} as const satisfies Command;

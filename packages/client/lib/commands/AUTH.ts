@@ -1,16 +1,23 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export interface AuthOptions {
-    username?: RedisCommandArgument;
-    password: RedisCommandArgument;
+  username?: RedisArgument;
+  password: RedisArgument;
 }
 
-export function transformArguments({ username, password }: AuthOptions): RedisCommandArguments {
-    if (!username) {
-        return ['AUTH', password];
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments({ username, password }: AuthOptions) {
+    const args: Array<RedisArgument> = ['AUTH'];
+
+    if (username !== undefined) {
+      args.push(username);
     }
 
-    return ['AUTH', username, password];
-}
+    args.push(password);
 
-export declare function transformReply(): RedisCommandArgument;
+    return args;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

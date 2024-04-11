@@ -119,4 +119,4 @@ try {
   console.error(e);
 }
 
-await client.quit();
+client.destroy();

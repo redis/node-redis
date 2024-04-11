@@ -1,19 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZREMRANGEBYSCORE';
+import ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
 
 describe('ZREMRANGEBYSCORE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 0, 1),
-            ['ZREMRANGEBYSCORE', 'key', '0', '1']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      ZREMRANGEBYSCORE.transformArguments('key', 0, 1),
+      ['ZREMRANGEBYSCORE', 'key', '0', '1']
+    );
+  });
 
-    testUtils.testWithClient('client.zRemRangeByScore', async client => {
-        assert.equal(
-            await client.zRemRangeByScore('key', 0, 1),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zRemRangeByScore', async client => {
+    assert.equal(
+      await client.zRemRangeByScore('key', 0, 1),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

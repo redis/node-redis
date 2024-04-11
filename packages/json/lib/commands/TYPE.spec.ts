@@ -1,28 +1,30 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './TYPE';
+import TYPE from './TYPE';
 
-describe('TYPE', () => {
-    describe('transformArguments', () => {
-        it('without path', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['JSON.TYPE', 'key']
-            );
-        });
-
-        it('with path', () => {
-            assert.deepEqual(
-                transformArguments('key', '$'),
-                ['JSON.TYPE', 'key', '$']
-            );
-        });
+describe('JSON.TYPE', () => {
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        TYPE.transformArguments('key'),
+        ['JSON.TYPE', 'key']
+      );
     });
 
-    // testUtils.testWithClient('client.json.type', async client => {
-    //     assert.deepEqual(
-    //         await client.json.type('key', '$'),
-    //         [null]
-    //     );
-    // }, GLOBAL.SERVERS.OPEN);
+    it('with path', () => {
+      assert.deepEqual(
+        TYPE.transformArguments('key', {
+          path: '$'
+        }),
+        ['JSON.TYPE', 'key', '$']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.json.type', async client => {
+    assert.equal(
+      await client.json.type('key'),
+      null
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,38 +1,11 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
     return ['BF.INFO', key];
-}
-
-export type InfoRawReply = [
-    _: string,
-    capacity: number,
-    _: string,
-    size: number,
-    _: string,
-    numberOfFilters: number,
-    _: string,
-    numberOfInsertedItems: number,
-    _: string,
-    expansionRate: number,
-];
-
-export interface InfoReply {
-    capacity: number;
-    size: number;
-    numberOfFilters: number;
-    numberOfInsertedItems: number;
-    expansionRate: number;
-}
-
-export function transformReply(reply: InfoRawReply): InfoReply {
-    return {
-        capacity: reply[1],
-        size: reply[3],
-        numberOfFilters: reply[5],
-        numberOfInsertedItems: reply[7],
-        expansionRate: reply[9]
-    };
-}
+  },
+  // TODO
+  transformReply: undefined as unknown as () => any
+} as const satisfies Command;

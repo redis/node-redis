@@ -1,36 +1,39 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PEXPIREAT';
+import PEXPIREAT from './PEXPIREAT';
 
 describe('PEXPIREAT', () => {
-    describe('transformArguments', () => {
-        it('number', () => {
-            assert.deepEqual(
-                transformArguments('key', 1),
-                ['PEXPIREAT', 'key', '1']
-            );
-        });
-
-        it('date', () => {
-            const d = new Date();
-            assert.deepEqual(
-                transformArguments('key', d),
-                ['PEXPIREAT', 'key', d.getTime().toString()]
-            );
-        });
-
-        it('with set option', () => {
-            assert.deepEqual(
-                transformArguments('key', 1, 'XX'),
-                ['PEXPIREAT', 'key', '1', 'XX']
-            );
-        });
+  describe('transformArguments', () => {
+    it('number', () => {
+      assert.deepEqual(
+        PEXPIREAT.transformArguments('key', 1),
+        ['PEXPIREAT', 'key', '1']
+      );
     });
 
-    testUtils.testWithClient('client.pExpireAt', async client => {
-        assert.equal(
-            await client.pExpireAt('key', 1),
-            false
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('date', () => {
+      const d = new Date();
+      assert.deepEqual(
+        PEXPIREAT.transformArguments('key', d),
+        ['PEXPIREAT', 'key', d.getTime().toString()]
+      );
+    });
+
+    it('with set option', () => {
+      assert.deepEqual(
+        PEXPIREAT.transformArguments('key', 1, 'XX'),
+        ['PEXPIREAT', 'key', '1', 'XX']
+      );
+    });
+  });
+
+  testUtils.testAll('pExpireAt', async client => {
+    assert.equal(
+      await client.pExpireAt('key', 1),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

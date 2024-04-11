@@ -1,67 +1,54 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments, transformReply } from './COPY';
+import COPY from './COPY';
 
 describe('COPY', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('source', 'destination'),
-                ['COPY', 'source', 'destination']
-            );
-        });
-
-        it('with destination DB flag', () => {
-            assert.deepEqual(
-                transformArguments('source', 'destination', {
-                    destinationDb: 1
-                }),
-                ['COPY', 'source', 'destination', 'DB', '1']
-            );
-        });
-
-        it('with replace flag', () => {
-            assert.deepEqual(
-                transformArguments('source', 'destination', {
-                    replace: true
-                }),
-                ['COPY', 'source', 'destination', 'REPLACE']
-            );
-        });
-
-        it('with both flags', () => {
-            assert.deepEqual(
-                transformArguments('source', 'destination', {
-                    destinationDb: 1,
-                    replace: true
-                }),
-                ['COPY', 'source', 'destination', 'DB', '1', 'REPLACE']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        COPY.transformArguments('source', 'destination'),
+        ['COPY', 'source', 'destination']
+      );
     });
 
-    describe('transformReply', () => {
-        it('0', () => {
-            assert.equal(
-                transformReply(0),
-                false
-            );
-        });
-
-        it('1', () => {
-            assert.equal(
-                transformReply(1),
-                true
-            );
-        });
+    it('with destination DB flag', () => {
+      assert.deepEqual(
+        COPY.transformArguments('source', 'destination', {
+          DB: 1
+        }),
+        ['COPY', 'source', 'destination', 'DB', '1']
+      );
     });
 
-    testUtils.testWithClient('client.copy', async client => {
-        assert.equal(
-            await client.copy('source', 'destination'),
-            false
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with replace flag', () => {
+      assert.deepEqual(
+        COPY.transformArguments('source', 'destination', {
+          REPLACE: true
+        }),
+        ['COPY', 'source', 'destination', 'REPLACE']
+      );
+    });
+
+    it('with both flags', () => {
+      assert.deepEqual(
+        COPY.transformArguments('source', 'destination', {
+          DB: 1,
+          REPLACE: true
+        }),
+        ['COPY', 'source', 'destination', 'DB', '1', 'REPLACE']
+      );
+    });
+  });
+
+  testUtils.testAll('copy', async client => {
+    assert.equal(
+      await client.copy('{tag}source', '{tag}destination'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

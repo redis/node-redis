@@ -76,4 +76,4 @@ const info = await client.cf.info('mycuckoo');
 // }
 console.log(info);
 
-await client.quit();
+client.destroy();

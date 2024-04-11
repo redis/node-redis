@@ -1,21 +1,19 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MERGE';
+import MERGE from './MERGE';
 
-describe('MERGE', () => {
-    testUtils.isVersionGreaterThanHook([2, 6]);
+describe('JSON.MERGE', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      MERGE.transformArguments('key', '$', 'value'),
+      ['JSON.MERGE', 'key', '$', '"value"']
+    );
+  });
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', '$', 1),
-            ['JSON.MERGE', 'key', '$', '1']
-        );
-    });
-
-    testUtils.testWithClient('client.json.merge', async client => {
-        assert.equal(
-            await client.json.merge('key', '$', 'json'),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.json.merge', async client => {
+    assert.equal(
+      await client.json.merge('key', '$', 'value'),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

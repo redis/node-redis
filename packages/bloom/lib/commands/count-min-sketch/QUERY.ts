@@ -1,15 +1,11 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { ArrayReply, NumberReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: string,
-    items: string | Array<string>
-): RedisCommandArguments {
-    return pushVerdictArguments(['CMS.QUERY', key], items);
-}
-
-export declare function transformReply(): Array<number>;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, items: RedisVariadicArgument) {
+    return pushVariadicArguments(['CMS.QUERY', key], items);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
+} as const satisfies Command;

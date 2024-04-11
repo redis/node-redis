@@ -1,13 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments(bits?: number): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(bits?: number) {
     const args = ['ACL', 'GENPASS'];
 
     if (bits) {
-        args.push(bits.toString());
+      args.push(bits.toString());
     }
 
     return args;
-}
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;
 
-export declare function transformReply(): RedisCommandArgument;

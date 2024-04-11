@@ -1,15 +1,23 @@
-interface DropIndexOptions {
-    DD?: true;
+import { RedisArgument, SimpleStringReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+
+export interface FtDropIndexOptions {
+  DD?: true;
 }
 
-export function transformArguments(index: string, options?: DropIndexOptions): Array<string> {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(index: RedisArgument, options?: FtDropIndexOptions) {
     const args = ['FT.DROPINDEX', index];
 
     if (options?.DD) {
-        args.push('DD');
+      args.push('DD');
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: {
+    2: undefined as unknown as () => SimpleStringReply<'OK'>,
+    3: undefined as unknown as () => NumberReply
+  }
+} as const satisfies Command;

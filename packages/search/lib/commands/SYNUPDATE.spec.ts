@@ -1,40 +1,42 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SYNUPDATE';
-import { SchemaFieldTypes } from '.';
+import SYNUPDATE from './SYNUPDATE';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
 
-describe('SYNUPDATE', () => {
-    describe('transformArguments', () => {
-        it('single term', () => {
-            assert.deepEqual(
-                transformArguments('index', 'groupId', 'term'),
-                ['FT.SYNUPDATE', 'index', 'groupId', 'term']
-            );
-        });
-
-        it('multiple terms', () => {
-            assert.deepEqual(
-                transformArguments('index', 'groupId', ['1', '2']),
-                ['FT.SYNUPDATE', 'index', 'groupId', '1', '2']
-            );
-        });
-
-        it('with SKIPINITIALSCAN', () => {
-            assert.deepEqual(
-                transformArguments('index', 'groupId', 'term', { SKIPINITIALSCAN: true }),
-                ['FT.SYNUPDATE', 'index', 'groupId', 'SKIPINITIALSCAN', 'term']
-            );
-        });
+describe('FT.SYNUPDATE', () => {
+  describe('transformArguments', () => {
+    it('single term', () => {
+      assert.deepEqual(
+        SYNUPDATE.transformArguments('index', 'groupId', 'term'),
+        ['FT.SYNUPDATE', 'index', 'groupId', 'term']
+      );
     });
 
-    testUtils.testWithClient('client.ft.synUpdate', async client => {
-        await client.ft.create('index', {
-            field: SchemaFieldTypes.TEXT
-        });
+    it('multiple terms', () => {
+      assert.deepEqual(
+        SYNUPDATE.transformArguments('index', 'groupId', ['1', '2']),
+        ['FT.SYNUPDATE', 'index', 'groupId', '1', '2']
+      );
+    });
 
-        assert.equal(
-            await client.ft.synUpdate('index', 'groupId', 'term'),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with SKIPINITIALSCAN', () => {
+      assert.deepEqual(
+        SYNUPDATE.transformArguments('index', 'groupId', 'term', {
+          SKIPINITIALSCAN: true
+        }),
+        ['FT.SYNUPDATE', 'index', 'groupId', 'SKIPINITIALSCAN', 'term']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.ft.synUpdate', async client => {
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.synUpdate('index', 'groupId', 'term')
+    ]);
+
+    assert.equal(reply, 'OK');
+  }, GLOBAL.SERVERS.OPEN);
 });

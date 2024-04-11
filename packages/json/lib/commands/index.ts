@@ -1,96 +1,100 @@
-import * as ARRAPPEND from './ARRAPPEND';
-import * as ARRINDEX from './ARRINDEX';
-import * as ARRINSERT from './ARRINSERT';
-import * as ARRLEN from './ARRLEN';
-import * as ARRPOP from './ARRPOP';
-import * as ARRTRIM from './ARRTRIM';
-import * as DEBUG_MEMORY from './DEBUG_MEMORY';
-import * as DEL from './DEL';
-import * as FORGET from './FORGET';
-import * as GET from './GET';
-import * as MERGE from './MERGE';
-import * as MGET from './MGET';
-import * as MSET from './MSET';
-import * as NUMINCRBY from './NUMINCRBY';
-import * as NUMMULTBY from './NUMMULTBY';
-import * as OBJKEYS from './OBJKEYS';
-import * as OBJLEN from './OBJLEN';
-import * as RESP from './RESP';
-import * as SET from './SET';
-import * as STRAPPEND from './STRAPPEND';
-import * as STRLEN from './STRLEN';
-import * as TYPE from './TYPE';
+import { BlobStringReply, NullReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import ARRAPPEND from './ARRAPPEND';
+import ARRINDEX from './ARRINDEX';
+import ARRINSERT from './ARRINSERT';
+import ARRLEN from './ARRLEN';
+import ARRPOP from './ARRPOP';
+import ARRTRIM from './ARRTRIM';
+import CLEAR from './CLEAR';
+import DEBUG_MEMORY from './DEBUG_MEMORY';
+import DEL from './DEL';
+import FORGET from './FORGET';
+import GET from './GET';
+import MERGE from './MERGE';
+import MGET from './MGET';
+import MSET from './MSET';
+import NUMINCRBY from './NUMINCRBY';
+import NUMMULTBY from './NUMMULTBY';
+import OBJKEYS from './OBJKEYS';
+import OBJLEN from './OBJLEN';
+// import RESP from './RESP';
+import SET from './SET';
+import STRAPPEND from './STRAPPEND';
+import STRLEN from './STRLEN';
+import TOGGLE from './TOGGLE';
+import TYPE from './TYPE';
+import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-    ARRAPPEND,
-    arrAppend: ARRAPPEND,
-    ARRINDEX,
-    arrIndex: ARRINDEX,
-    ARRINSERT,
-    arrInsert: ARRINSERT,
-    ARRLEN,
-    arrLen: ARRLEN,
-    ARRPOP,
-    arrPop: ARRPOP,
-    ARRTRIM,
-    arrTrim: ARRTRIM,
-    DEBUG_MEMORY,
-    debugMemory: DEBUG_MEMORY,
-    DEL,
-    del: DEL,
-    FORGET,
-    forget: FORGET,
-    GET,
-    get: GET,
-    MERGE,
-    merge: MERGE,
-    MGET,
-    mGet: MGET,
-    MSET,
-    mSet: MSET,
-    NUMINCRBY,
-    numIncrBy: NUMINCRBY,
-    NUMMULTBY,
-    numMultBy: NUMMULTBY,
-    OBJKEYS,
-    objKeys: OBJKEYS,
-    OBJLEN,
-    objLen: OBJLEN,
-    RESP,
-    resp: RESP,
-    SET,
-    set: SET,
-    STRAPPEND,
-    strAppend: STRAPPEND,
-    STRLEN,
-    strLen: STRLEN,
-    TYPE,
-    type: TYPE
+  ARRAPPEND,
+  arrAppend: ARRAPPEND,
+  ARRINDEX,
+  arrIndex: ARRINDEX,
+  ARRINSERT,
+  arrInsert: ARRINSERT,
+  ARRLEN,
+  arrLen: ARRLEN,
+  ARRPOP,
+  arrPop: ARRPOP,
+  ARRTRIM,
+  arrTrim: ARRTRIM,
+  CLEAR,
+  clear: CLEAR,
+  DEBUG_MEMORY,
+  debugMemory: DEBUG_MEMORY,
+  DEL,
+  del: DEL,
+  FORGET,
+  forget: FORGET,
+  GET,
+  get: GET,
+  MERGE,
+  merge: MERGE,
+  MGET,
+  mGet: MGET,
+  MSET,
+  mSet: MSET,
+  NUMINCRBY,
+  numIncrBy: NUMINCRBY,
+  /**
+   * @deprecated since JSON version 2.0
+   */
+  NUMMULTBY,
+  /**
+   * @deprecated since JSON version 2.0
+   */
+  numMultBy: NUMMULTBY,
+  OBJKEYS,
+  objKeys: OBJKEYS,
+  OBJLEN,
+  objLen: OBJLEN,
+  // RESP,
+  // resp: RESP,
+  SET,
+  set: SET,
+  STRAPPEND,
+  strAppend: STRAPPEND,
+  STRLEN,
+  strLen: STRLEN,
+  TOGGLE,
+  toggle: TOGGLE,
+  TYPE,
+  type: TYPE
 };
 
-// https://github.com/Microsoft/TypeScript/issues/3496#issuecomment-128553540
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-interface RedisJSONArray extends Array<RedisJSON> {}
-interface RedisJSONObject {
-    [key: string]: RedisJSON;
-    [key: number]: RedisJSON;
-}
-export type RedisJSON = null | boolean | number | string | Date | RedisJSONArray | RedisJSONObject;
+export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | {
+  [key: string]: RedisJSON;
+  [key: number]: RedisJSON;
+};
 
 export function transformRedisJsonArgument(json: RedisJSON): string {
-    return JSON.stringify(json);
+  return JSON.stringify(json);
 }
 
-export function transformRedisJsonReply(json: string): RedisJSON {
-    return JSON.parse(json);
+export function transformRedisJsonReply(json: BlobStringReply): RedisJSON {
+  return JSON.parse((json as unknown as UnwrapReply<typeof json>).toString());
 }
 
-export function transformRedisJsonNullReply(json: string | null): RedisJSON | null {
-    if (json === null) return null;
-
-    return transformRedisJsonReply(json);
-}
-
-export function transformNumbersReply(reply: string): number | Array<number> {
-    return JSON.parse(reply);
+export function transformRedisJsonNullReply(json: NullReply | BlobStringReply): NullReply | RedisJSON {
+  return isNullReply(json) ? json : transformRedisJsonReply(json);
 }

@@ -1,20 +1,20 @@
-import { RedisCommandArguments } from '.';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(
-    timeout: number,
-    mode?: 'WRITE' | 'ALL'
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(timeout: number, mode?: 'WRITE' | 'ALL') {
     const args = [
-        'CLIENT',
-        'PAUSE',
-        timeout.toString()
+      'CLIENT',
+      'PAUSE',
+      timeout.toString()
     ];
 
     if (mode) {
-        args.push(mode);
+      args.push(mode);
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK' | Buffer;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

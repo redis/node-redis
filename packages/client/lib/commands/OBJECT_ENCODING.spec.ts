@@ -1,19 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './OBJECT_ENCODING';
+import OBJECT_ENCODING from './OBJECT_ENCODING';
 
 describe('OBJECT ENCODING', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['OBJECT', 'ENCODING', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      OBJECT_ENCODING.transformArguments('key'),
+      ['OBJECT', 'ENCODING', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.objectEncoding', async client => {
-        assert.equal(
-            await client.objectEncoding('key'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('objectEncoding', async client => {
+    assert.equal(
+      await client.objectEncoding('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

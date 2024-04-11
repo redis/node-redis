@@ -1,12 +1,10 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    field: RedisCommandArgument
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, field: RedisArgument) {
     return ['HSTRLEN', key, field];
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

@@ -1,5 +1,10 @@
-export function transformArguments(slot: number, count: number): Array<string> {
-    return ['CLUSTER', 'GETKEYSINSLOT', slot.toString(), count.toString()];
-}
+import { ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): Array<string>;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(slot: number, count: number) {
+    return ['CLUSTER', 'GETKEYSINSLOT', slot.toString(), count.toString()];
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

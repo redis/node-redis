@@ -1,28 +1,30 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './FORGET';
+import FORGET from './FORGET';
 
-describe('FORGET', () => {
-    describe('transformArguments', () => {
-        it('key', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['JSON.FORGET', 'key']
-            );
-        });
-
-        it('key, path', () => {
-            assert.deepEqual(
-                transformArguments('key', '$.path'),
-                ['JSON.FORGET', 'key', '$.path']
-            );
-        });
+describe('JSON.FORGET', () => {
+  describe('transformArguments', () => {
+    it('key', () => {
+      assert.deepEqual(
+        FORGET.transformArguments('key'),
+        ['JSON.FORGET', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.json.forget', async client => {
-        assert.deepEqual(
-            await client.json.forget('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('key, path', () => {
+      assert.deepEqual(
+        FORGET.transformArguments('key', {
+          path: '$.path'
+        }),
+        ['JSON.FORGET', 'key', '$.path']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.json.forget', async client => {
+    assert.equal(
+      await client.json.forget('key'),
+      0
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

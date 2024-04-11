@@ -1,5 +1,11 @@
-export function transformArguments(index1: number, index2: number): Array<string> {
-    return ['SWAPDB', index1.toString(), index2.toString()];
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: false,
+  transformArguments(index1: number, index2: number) {
+    return ['SWAPDB', index1.toString(), index2.toString()];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
+

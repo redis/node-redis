@@ -28,4 +28,4 @@ for await (const memberWithScore of client.zScanIterator('mysortedset')) {
   console.log(memberWithScore);
 }
 
-await client.quit();
+client.destroy();

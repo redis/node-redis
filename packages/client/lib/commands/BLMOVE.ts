@@ -1,23 +1,24 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 import { ListSide } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    source: RedisCommandArgument,
-    destination: RedisCommandArgument,
-    sourceDirection: ListSide,
-    destinationDirection: ListSide,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    source: RedisArgument,
+    destination: RedisArgument,
+    sourceSide: ListSide,
+    destinationSide: ListSide,
     timeout: number
-): RedisCommandArguments {
+  ) {
     return [
-        'BLMOVE',
-        source,
-        destination,
-        sourceDirection,
-        destinationDirection,
-        timeout.toString()
+      'BLMOVE',
+      source,
+      destination,
+      sourceSide,
+      destinationSide,
+      timeout.toString()
     ];
-}
-
-export declare function transformReply(): RedisCommandArgument | null;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+} as const satisfies Command;

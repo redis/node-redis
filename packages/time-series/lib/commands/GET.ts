@@ -1,20 +1,35 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushLatestArgument, SampleRawReply, SampleReply, transformSampleReply } from '.';
+import { RedisArgument, TuplesReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-interface GetOptions {
-    LATEST?: boolean;
+export interface TsGetOptions {
+  LATEST?: boolean;
 }
 
-export function transformArguments(key: string, options?: GetOptions): RedisCommandArguments {
-    return pushLatestArgument(['TS.GET', key], options?.LATEST);
-}
+export type TsGetReply = TuplesReply<[]> | TuplesReply<[NumberReply, DoubleReply]>;
 
-export function transformReply(reply: [] | SampleRawReply): null | SampleReply {
-    if (reply.length === 0) return null;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, options?: TsGetOptions) {
+    const args = ['TS.GET', key];
+    
+    if (options?.LATEST) {
+      args.push('LATEST');
+    }
 
-    return transformSampleReply(reply);
-}
+    return args;
+  },
+  transformReply: {
+    2(reply: UnwrapReply<Resp2Reply<TsGetReply>>) {
+      return reply.length === 0 ? null : {
+        timestamp: reply[0],
+        value: Number(reply[1])
+      };
+    },
+    3(reply: UnwrapReply<TsGetReply>) {
+      return reply.length === 0 ? null : {
+        timestamp: reply[0],
+        value: reply[1]
+      };
+    }
+  }
+} as const satisfies Command;

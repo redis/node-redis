@@ -1,14 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return pushVerdictArguments(['EXISTS'], keys);
-}
-
-export declare function transformReply(): number;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(keys: RedisVariadicArgument) {
+    return pushVariadicArguments(['EXISTS'], keys);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;
