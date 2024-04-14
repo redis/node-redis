@@ -351,7 +351,7 @@ export class RedisClientPool<
      * An example would be for redirect support, currently a noop for in use use-cases.
      */
     try {
-      this._self.#clientSideCache?.onConnect(this._self.#clientFactory);
+      this._self.#clientSideCache?.onPoolConnect(this._self.#clientFactory);
     } catch (err) {
       this.destroy();
       throw err;

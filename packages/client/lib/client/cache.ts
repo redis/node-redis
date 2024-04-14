@@ -70,88 +70,6 @@ export class ClientSideCacheEntryPromise extends ClientSideCacheEntryBase {
   }
 }
 
-/*
-The reason for using abstract class vs interface, is that interfaces aren't part of the type hierarchy, abstract classes are
-Therefore, one can restrict union types with a `instanceof abstract class` that one can't do with union types.
-This allows us to easily have a clientSideCache config option that takes a ClientSideCacheProvider object or a config statement and
-easily distinguish them in code.
-i.e.
-  clientSideCache?: ClientSideCacheProvider | ClientSideCacheConfig;
-and
-  if (clientSideCache) {
-    if (clientSideCache instance of ClientSideCacheProvider) {
-      ...
-    } else {
-      // it's a ClientSideCacheConfig object
-    }
-*/
-export abstract class ClientSideCacheProviderFactory {
-  config?: ClientSideCacheConfig;
-  cscSet: Set<ClientSideCacheProvider> = new Set<ClientSideCacheProvider>();
-
-  get size() {
-    return this.cscSet.size;
-  }
-
-  constructor(config?: ClientSideCacheConfig) {
-    this.config = config;
-  }
-
-  abstract generate(): ClientSideCacheProvider;
-
-  remove(csc: ClientSideCacheProvider) {
-    this.cscSet.delete(csc);
-  }
-
-  invalidate(key: RedisArgument | null) {
-    for (const csc of this.cscSet) {
-      csc.invalidate(key);
-    }
-  }
-
-  clear() {
-    for (const csc of this.cscSet) {
-      csc.clear();
-    }
-  }
-
-  cacheHits() {
-    let val = 0;
-    for (const csc of this.cscSet) {
-      val += csc.cacheHits();
-    }
-    return val;
-  }
-
-  cacheMisses(): number {
-    let val = 0;
-    for (const csc of this.cscSet) {
-      val += csc.cacheMisses();
-    }
-    return val;
-  }
-}
-
-export class BasicClientSideCacheFactory extends ClientSideCacheProviderFactory {
-  generate(): ClientSideCacheProvider {
-    const csc = new BasicClientSideCache(this.config);
-    csc.generated(this);
-    this.cscSet.add(csc);
-
-    return csc;
-  }
-}
-
-export class BasicPooledClientSideCacheFactory extends ClientSideCacheProviderFactory {
-  generate(): ClientSideCacheProvider {
-    const csc = new BasicPooledClientSideCache(this.config);
-    csc.generated(this);
-    this.cscSet.add(csc);
-
-    return csc;
-  }
-}
-
 export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract handleCache(client: CachingClient, parser: CommandParser, fn: CmdFunc, transformReply: TransformReply | undefined): Promise<any>;
   abstract trackingOn(): Array<string> | undefined;
@@ -162,7 +80,6 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract onError(): void;
   abstract onClose(): void;
   abstract onDestroy(): void;
-  abstract generated(generator: ClientSideCacheProviderFactory): void;
 }
 
 export class BasicClientSideCache extends ClientSideCacheProvider {
@@ -173,7 +90,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   readonly #lru: boolean;
   #cacheHits = 0;
   #cacheMisses = 0;
-  #generator?: ClientSideCacheProviderFactory;
 
   constructor(config?: ClientSideCacheConfig) {
     super();
@@ -377,21 +293,9 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.clear();
   }
 
-  override onClose() {
-    if (this.#generator) {
-      this.#generator.remove(this);
-    }
-  }
+  override onClose() { }
 
-  override onDestroy() {
-    if (this.#generator) {
-      this.#generator.remove(this);
-    }
-  }
-
-  override generated(generator: ClientSideCacheProviderFactory) {
-    this.#generator = generator;
-  }
+  override onDestroy() { }
 
   /**
    * @internal
@@ -450,7 +354,7 @@ export abstract class PooledClientSideCacheProvider extends BasicClientSideCache
     return super.has(cacheKey);
   }
 
-  onConnect(factory: () => CachingClientType) {};
+  onPoolConnect(factory: () => CachingClientType) {};
 }
 
 // doesn't do anything special in pooling, clears cache on every client disconnect
@@ -566,7 +470,7 @@ export class PooledRedirectClientSideCache extends PooledClientSideCacheProvider
 
   override onError(): void {};
 
-  override async onConnect(factory: () => CachingClientType) {
+  override async onPoolConnect(factory: () => CachingClientType) {
     const client = factory();
     this.#redirectClient = client;
 

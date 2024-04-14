@@ -1,9 +1,9 @@
 import assert from "assert";
 import testUtils, { GLOBAL } from "../test-utils"
-import { BasicClientSideCache, BasicClientSideCacheFactory, BasicPooledClientSideCache, ClientSideCacheProviderFactory } from "./cache"
+import { BasicClientSideCache, BasicPooledClientSideCache } from "./cache"
 import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 
-describe("Client Side Cache", () => {
+describe.only("Client Side Cache", () => {
     describe('Basic Cache', () => {
         const csc = new BasicClientSideCache();
 
