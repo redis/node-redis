@@ -57,16 +57,44 @@ describe('CREATE', () => {
             );
         });
 
-        it('with RETENTION, ENCODING, CHUNK_SIZE, DUPLICATE_POLICY, LABELS', () => {
+        it('with IGNORE no values', () => {
+          assert.deepEqual(
+            transformArguments('key', {
+              IGNORE: { }
+            }),
+            ['TS.CREATE', 'key', 'IGNORE', '0', '0']
+          )
+        });
+    
+        it('with IGNORE with MAX_TIME_DIFF', () => {
+          assert.deepEqual(
+            transformArguments('key', {
+              IGNORE: { MAX_TIME_DIFF: 1}
+            }),
+            ['TS.CREATE', 'IGNORE', '1', '0']
+          )
+        });
+    
+        it('with IGNORE with MAX_VAL_DIFF', () => {
+          assert.deepEqual(
+            transformArguments('key', {
+              IGNORE: { MAX_VAL_DIFF: 1}
+            }),
+            ['TS.CREATE', 'IGNORE', '0', '1']
+          )
+        }); 
+
+        it('with RETENTION, ENCODING, CHUNK_SIZE, DUPLICATE_POLICY, LABELS, IGNORE', () => {
             assert.deepEqual(
                 transformArguments('key', {
                     RETENTION: 1,
                     ENCODING: TimeSeriesEncoding.UNCOMPRESSED,
                     CHUNK_SIZE: 1,
                     DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK,
-                    LABELS: { label: 'value' }
+                    LABELS: { label: 'value' },
+                    IGNORE: { MAX_TIME_DIFF: 1, MAX_VAL_DIFF: 1}
                 }),
-                ['TS.CREATE', 'key', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value']
+                ['TS.CREATE', 'key', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
             );
         });
     });

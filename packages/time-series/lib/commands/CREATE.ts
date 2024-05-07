@@ -6,8 +6,10 @@ import {
     TimeSeriesDuplicatePolicies,
     Labels,
     pushLabelsArgument,
-    pushDuplicatePolicy
+    pushDuplicatePolicy,
+    pushIgnoreArgument
 } from '.';
+import { TsIgnoreOptions } from './ADD';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -17,6 +19,7 @@ interface CreateOptions {
     CHUNK_SIZE?: number;
     DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
     LABELS?: Labels;
+    IGNORE?: TsIgnoreOptions;
 }
 
 export function transformArguments(key: string, options?: CreateOptions): Array<string> {
@@ -31,6 +34,8 @@ export function transformArguments(key: string, options?: CreateOptions): Array<
     pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
 }
