@@ -1,4 +1,5 @@
-import { pushRetentionArgument, Labels, pushLabelsArgument, TimeSeriesDuplicatePolicies, pushChunkSizeArgument, pushDuplicatePolicy } from '.';
+import { pushRetentionArgument, Labels, pushLabelsArgument, TimeSeriesDuplicatePolicies, pushChunkSizeArgument, pushDuplicatePolicy, pushIgnoreArgument } from '.';
+import { TsIgnoreOptions } from './ADD';
 
 export const FIRST_KEY_INDEX = 1;
 
@@ -7,6 +8,7 @@ interface AlterOptions {
     CHUNK_SIZE?: number;
     DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
     LABELS?: Labels;
+    IGNORE?: TsIgnoreOptions;
 }
 
 export function transformArguments(key: string, options?: AlterOptions): Array<string> {
@@ -19,6 +21,8 @@ export function transformArguments(key: string, options?: AlterOptions): Array<s
     pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
 }
