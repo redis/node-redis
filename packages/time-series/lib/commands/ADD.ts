@@ -11,12 +11,18 @@ import {
   Timestamp
 } from '.';
 
+export interface TsIgnoreOptions {
+  MAX_TIME_DIFF: number;
+  MAX_VAL_DIFF: number;
+}
+
 export interface TsAddOptions {
   RETENTION?: number;
   ENCODING?: TimeSeriesEncoding;
   CHUNK_SIZE?: number;
   ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
   LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
 }
 
 export default {
