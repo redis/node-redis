@@ -23,7 +23,7 @@ describe('HEXPIRETIME', () => {
 
   testUtils.testAll('hExpireTime', async client => {
     assert.equal(
-      await client.hExpireTime('key', 'field1'),
+      await client.hExpireTime('key', 'field'),
       null
     );
   }, {

@@ -9,21 +9,21 @@ describe('HPTTL', () => {
     it('string', () => {
       assert.deepEqual(
         HPTTL.transformArguments('key', 'field'),
-        ['PTTL', 'key', '1', 'field']
+        ['HPTTL', 'key', '1', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
         HPTTL.transformArguments('key', ['field1', 'field2']),
-        ['PTTL', 'key', '2', 'field1', 'field2']
+        ['HPTTL', 'key', '2', 'field1', 'field2']
       );
     });
   });
 
   testUtils.testAll('hpTTL', async client => {
     assert.equal(
-      await client.hpTTL('key', 'field1'),
+      await client.hpTTL('key', 'field'),
       null
     );
   }, {

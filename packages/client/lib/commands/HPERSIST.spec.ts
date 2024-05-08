@@ -2,21 +2,21 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HPERSIST from './HPERSIST';
 
-describe('PERSIST', () => {
+describe('HPERSIST', () => {
   testUtils.isVersionGreaterThanHook([7, 4]);
   
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
         HPERSIST.transformArguments('key', 'field'),
-        ['PERSIST', 'key', '1', 'field']
+        ['HPERSIST', 'key', '1', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
         HPERSIST.transformArguments('key', ['field1', 'field2']),
-        ['PERSIST', 'key', '2', 'field1', 'field2']
+        ['HPERSIST', 'key', '2', 'field1', 'field2']
       );
     });
   })

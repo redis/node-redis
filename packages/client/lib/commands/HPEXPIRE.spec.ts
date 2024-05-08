@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HPEXPIRE from './HPEXPIRE';
 
-describe('HEXPIRE', () => {
+describe('HPEXPIRE', () => {
   testUtils.isVersionGreaterThanHook([7, 4]);
   
   describe('transformArguments', () => {
@@ -28,10 +28,10 @@ describe('HEXPIRE', () => {
     });
   });
 
-  testUtils.testAll('hexpire', async client => {
+  testUtils.testAll('hpRxpire', async client => {
     assert.equal(
-      await client.hpExpire('key', ['field1'], 0),
-      null,
+      await client.hpExpire('key', ['field'], 0),
+      null
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

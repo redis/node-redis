@@ -4,7 +4,7 @@ import { RedisVariadicArgument, pushVariadicArgument } from './generic-transform
 export default {
   FIRST_KEY_INDEX: 1,
   transformArguments(key: RedisArgument, fields: RedisVariadicArgument) {
-    return pushVariadicArgument(['PERSIST', key], fields);
+    return pushVariadicArgument(['HPERSIST', key], fields);
   },
   transformReply: undefined as unknown as () => NullReply | ArrayReply<NumberReply>
 } as const satisfies Command;
