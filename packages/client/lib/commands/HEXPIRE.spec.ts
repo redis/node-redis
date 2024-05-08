@@ -28,10 +28,10 @@ describe('HEXPIRE', () => {
     });
   });
 
-  testUtils.testAll('hexpire', async client => {
+  testUtils.testAll('hExpire', async client => {
     assert.equal(
       await client.hExpire('key', ['field1'], 0),
-      null,
+      null
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,
