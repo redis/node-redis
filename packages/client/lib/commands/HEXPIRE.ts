@@ -1,23 +1,15 @@
 import { Command, NullReply, RedisArgument } from "../RESP/types";
 import { RedisVariadicArgument, pushVariadicArgument } from "./generic-transformers";
 
-/**
- * @readonly
- * @enum {number}
- */
 export const HASH_EXPIRATION = {
-  /** @property {number} */
   /** The field does not exist */
-  FieldNotExists: -2,
-  /** @property {number} */
+  FIELD_NOT_EXISTS: -2,
   /** Specified NX | XX | GT | LT condition not met */
-  ConditionNotMet: 0,
-  /** @property {number} */
+  CONDITION_NOT_MET: 0,
   /** Expiration time was set or updated */
-  Updated: 1,
-  /** @property {number} */
+  UPDATED: 1,
   /** Field deleted because the specified expiration time is in the past */
-  Deleted: 2
+  DELETED: 2
 } as const;
   
 export type HashExpiration = typeof HASH_EXPIRATION[keyof typeof HASH_EXPIRATION];
