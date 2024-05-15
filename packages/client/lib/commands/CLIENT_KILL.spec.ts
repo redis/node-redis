@@ -65,6 +65,16 @@ describe('CLIENT KILL', () => {
       );
     });
 
+    it('MANAGE', () => {
+      assert.deepEqual(
+        CLIENT_KILL.transformArguments({
+          filter: CLIENT_KILL_FILTERS.MANAGE,
+          maxAge: 10
+        }),
+        ['CLIENT', 'KILL', 'USER', 'MANAGE', '10']
+      );
+    });
+
     describe('SKIP_ME', () => {
       it('undefined', () => {
         assert.deepEqual(
