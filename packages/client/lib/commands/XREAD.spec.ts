@@ -52,6 +52,29 @@ describe('XREAD', () => {
       );
     });
 
+    it('single stream last entry', () => {
+      assert.deepEqual(
+        XREAD.transformArguments({
+          key: 'key',
+          id: '+'
+        }),
+        ['XREAD', 'STREAMS', 'key', '+']
+      );
+    });
+
+    it('multiple streams last entry', () => {
+      assert.deepEqual(
+        XREAD.transformArguments([{
+          key: '1',
+          id: '+'
+        }, {
+          key: '2',
+          id: '+'
+        }]),
+        ['XREAD', 'STREAMS', '1', '2', '+', '+']
+      );
+    });    
+
     it('with COUNT', () => {
       assert.deepEqual(
         XREAD.transformArguments({
