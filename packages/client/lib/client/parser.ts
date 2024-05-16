@@ -19,6 +19,7 @@ export interface CommandParser {
   setPreserve: (val: unknown) => unknown;
 }
 
+// TODO: make multiple parsers to improve performance?
 export class BasicCommandParser implements CommandParser {
   #redisArgs: Array<RedisArgument> = [];
   #keys: Array<RedisArgument> = []; 
