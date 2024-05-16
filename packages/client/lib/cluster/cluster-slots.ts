@@ -158,13 +158,13 @@ export default class RedisClusterSlots<
     }
 
     async #discover(rootNode?: RedisClusterClientOptions) {
-        this.#resetSlots();
         const addressesInUse = new Set<string>();
 
         try {
             const shards = await this.#getShards(rootNode),
                 promises: Array<Promise<unknown>> = [],
                 eagerConnect = this.#options.minimizeConnections !== true;
+            this.#resetSlots();
             for (const { from, to, master, replicas } of shards) {
                 const shard: Shard<M, F, S> = {
                     master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
