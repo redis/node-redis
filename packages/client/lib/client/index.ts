@@ -258,7 +258,8 @@ export default class RedisClient<
     #initiateQueue(): RedisCommandsQueue {
         return new RedisCommandsQueue(
             this.#options?.commandsQueueMaxLength,
-            (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
+            (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners),
+            (err: Error) => this.emit('error', err)
         );
     }
 
