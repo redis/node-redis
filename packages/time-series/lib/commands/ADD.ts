@@ -8,12 +8,13 @@ import {
   TimeSeriesDuplicatePolicies,
   Labels,
   pushLabelsArgument,
-  Timestamp
+  Timestamp,
+  pushIgnoreArgument
 } from '.';
 
 export interface TsIgnoreOptions {
-  MAX_TIME_DIFF: number;
-  MAX_VAL_DIFF: number;
+  MAX_TIME_DIFF?: number;
+  MAX_VAL_DIFF?: number;
 }
 
 export interface TsAddOptions {
@@ -52,6 +53,8 @@ export default {
     }
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
   },
