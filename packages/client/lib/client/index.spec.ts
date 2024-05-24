@@ -788,6 +788,28 @@ describe('Client', () => {
         assert.deepEqual(hash, results);
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('hScanNoValuesIterator', async client => {
+        const hash: Record<string, string> = {};
+        const expectedKeys: Array<string> = [];
+        for (let i = 0; i < 100; i++) {
+            hash[i.toString()] = i.toString();
+            expectedKeys.push(i.toString());
+        }
+
+        await client.hSet('key', hash);
+
+        const keys: Array<string> = [];
+        for await (const key of client.hScanNoValuesIterator('key')) {
+            keys.push(key);
+        }
+
+        function sort(a: string, b: string) {
+            return Number(a) - Number(b);
+        }
+
+        assert.deepEqual(keys.sort(sort), expectedKeys);
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('sScanIterator', async client => {
         const members = new Set<string>();
         for (let i = 0; i < 100; i++) {
