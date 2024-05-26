@@ -275,6 +275,7 @@ export type Command = {
   transformArguments(this: void, ...args: Array<any>): CommandArguments;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
+  unstableResp3Module?: boolean;
 };
 
 export type RedisCommands = Record<string, Command>;

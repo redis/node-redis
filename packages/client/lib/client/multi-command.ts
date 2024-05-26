@@ -2,6 +2,7 @@ import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
+import { RedisClientOptions } from '.';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -99,6 +100,9 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
+      if (command.unstableResp3Module && resp == 3 && !this._self.#options?.unstableResp3Modules) {
+        throw new Error("unstable resp3 module, client not configured with proper flag");
+      }
       return this._self.addCommand(
         command.transformArguments(...args),
         transformReply
@@ -153,10 +157,12 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   readonly #executeMulti: ExecuteMulti;
   readonly #executePipeline: ExecuteMulti;
   #selectedDB?: number;
+  readonly #options?: RedisClientOptions
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti) {
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, options?: RedisClientOptions) {
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
+    this.#options = options;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {

@@ -25,6 +25,10 @@ export interface RedisPoolOptions {
    * TODO
    */
   cleanupDelay: number;
+  /**
+   * TODO
+   */
+  unstableResp3Modules?: boolean;
 }
 
 export type PoolTask<
@@ -72,6 +76,9 @@ export class RedisClientPool<
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
+      if (command.unstableResp3Module && resp == 3 && !this._self.#options.unstableResp3Modules) {
+        throw new Error("unstable resp3 module, client not configured with proper flag");
+      }
       const redisArgs = command.transformArguments(...args),
         reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
@@ -422,7 +429,8 @@ export class RedisClientPool<
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
-      commands => this.execute(client => client._executePipeline(commands))
+      commands => this.execute(client => client._executePipeline(commands)),
+      this._self.#options
     );
   }
 

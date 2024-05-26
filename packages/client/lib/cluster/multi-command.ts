@@ -2,7 +2,7 @@ import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import RedisCluster from '.';
+import RedisCluster, { RedisClusterOptions } from '.';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -112,6 +112,9 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
+      if (command.unstableResp3Module && resp == 3 && !this._self.#options?.unstableResp3Modules) {
+        throw new Error("unstable resp3 module, client not configured with proper flag");
+      }
       const redisArgs = command.transformArguments(...args),
         firstKey = RedisCluster.extractFirstKey(
           command,
@@ -191,15 +194,18 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   readonly #executePipeline: ClusterMultiExecute;
   #firstKey: RedisArgument | undefined;
   #isReadonly: boolean | undefined = true;
+  readonly #options?: RedisClusterOptions;
 
   constructor(
     executeMulti: ClusterMultiExecute,
     executePipeline: ClusterMultiExecute,
-    routing: RedisArgument | undefined
+    routing: RedisArgument | undefined,
+    options?: RedisClusterOptions
   ) {
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
     this.#firstKey = routing;
+    this.#options = options;
   }
 
   #setState(
