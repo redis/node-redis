@@ -19,6 +19,6 @@ describe('FT.SYNDUMP', () => {
       client.ft.synDump('index')
     ]);
 
-    assert.deepEqual(reply, []);
+    assert.deepEqual(reply, {});
   }, GLOBAL.SERVERS.OPEN);
 });

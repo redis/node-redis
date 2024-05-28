@@ -6,14 +6,14 @@ describe('FT.CURSOR READ', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        CURSOR_READ.transformArguments('index', '0'),
+        CURSOR_READ.transformArguments('index', 0),
         ['FT.CURSOR', 'READ', 'index', '0']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        CURSOR_READ.transformArguments('index', '0', {
+        CURSOR_READ.transformArguments('index', 0, {
           COUNT: 1
         }),
         ['FT.CURSOR', 'READ', 'index', '0', 'COUNT', '1']
@@ -37,7 +37,7 @@ describe('FT.CURSOR READ', () => {
       {
         total: 0,
         results: [],
-        cursor: '0'
+        cursor: 0
       }
     );
   }, GLOBAL.SERVERS.OPEN);

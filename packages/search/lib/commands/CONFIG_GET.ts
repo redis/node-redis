@@ -14,5 +14,6 @@ export default {
     }
 
     return transformedReply;
-  }
+  },
+  unstableResp3Module: true
 } as const satisfies Command;

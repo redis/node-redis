@@ -1,19 +1,19 @@
 import { strict as assert } from 'node:assert';
-import { SchemaFieldTypes } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './INFO';
+import INFO from './INFO';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
 
 describe('INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('index'),
+            INFO.transformArguments('index'),
             ['FT.INFO', 'index']
         );
     });
 
     testUtils.testWithClient('client.ft.info', async client => {
         await client.ft.create('index', {
-            field: SchemaFieldTypes.TEXT
+            field: SCHEMA_FIELD_TYPE.TEXT
         });
         assert.deepEqual(
             await client.ft.info('index'),

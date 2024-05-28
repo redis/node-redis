@@ -14,7 +14,7 @@ export default {
     return transformedArguments;
   },
   transformReply: {
-    2(reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>) {
+    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>) => {
       if (isNullReply(reply)) return null;
 
       const transformedReply: Array<{
@@ -34,7 +34,7 @@ export default {
 
       return transformedReply;
     },
-    3(reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply | DoubleReply>>) {
+    3: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply | DoubleReply>>) => {
       if (isNullReply(reply)) return null;
 
       const transformedReply: Array<{
@@ -54,5 +54,6 @@ export default {
 
       return transformedReply;
     }
-  }
+  },
+  unstableResp3Module: true
 } as const satisfies Command;

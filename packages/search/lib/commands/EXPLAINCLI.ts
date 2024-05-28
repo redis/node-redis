@@ -6,5 +6,6 @@ export default {
   transformArguments(index: RedisArgument, query: RedisArgument) {
     return ['FT.EXPLAINCLI', index, query];
   },
-  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>,
+  unstableResp3Module: true
 } as const satisfies Command;

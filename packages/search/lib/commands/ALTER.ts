@@ -9,5 +9,6 @@ export default {
     pushSchema(args, schema);
     return args;
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>,
+  unstableResp3Module: true
 } as const satisfies Command;

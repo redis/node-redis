@@ -22,5 +22,6 @@ export default {
 
     return pushVariadicArguments(args, terms);
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>,
+  unstableResp3Module: true
 } as const satisfies Command;

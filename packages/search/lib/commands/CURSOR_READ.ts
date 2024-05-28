@@ -8,8 +8,8 @@ export interface FtCursorReadOptions {
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, cursor: RedisArgument, options?: FtCursorReadOptions) {
-    const args = ['FT.CURSOR', 'READ', index, cursor];
+  transformArguments(index: RedisArgument, cursor: number, options?: FtCursorReadOptions) {
+    const args = ['FT.CURSOR', 'READ', index, cursor.toString()];
 
     if (options?.COUNT !== undefined) {
       args.push('COUNT', options.COUNT.toString());
@@ -17,5 +17,6 @@ export default {
 
     return args;
   },
-  transformReply: AGGREGATE_WITHCURSOR.transformReply
+  transformReply: AGGREGATE_WITHCURSOR.transformReply,
+  unstableResp3Module: true
 } as const satisfies Command;

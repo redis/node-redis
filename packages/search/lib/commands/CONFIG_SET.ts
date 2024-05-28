@@ -10,5 +10,6 @@ export default {
   transformArguments(property: FtConfigProperties, value: RedisArgument) {
     return ['FT.CONFIG', 'SET', property, value];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>,
+  unstableResp3Module: true
 } as const satisfies Command;
