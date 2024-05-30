@@ -306,6 +306,10 @@ export interface CommanderConfig<
    * TODO
    */
   RESP?: RESP;
+  /**
+   * TODO
+   */
+  unstableResp3Modules?: boolean;
 }
 
 type Resp2Array<T> = (

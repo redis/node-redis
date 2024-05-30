@@ -71,10 +71,6 @@ export interface RedisClientOptions<
    * TODO
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
-  /**
-   * TODO
-   */
-  unstableResp3Modules?: boolean;
 }
 
 type WithCommands<
@@ -167,9 +163,6 @@ export default class RedisClient<
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      if (command.unstableResp3Module && resp == 3 && !this._self._self.#options?.unstableResp3Modules) {
-        throw new Error("unstable resp3 module, client not configured with proper flag");
-      }
       const redisArgs = command.transformArguments(...args),
         reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?

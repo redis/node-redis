@@ -15,6 +15,11 @@ interface AttachConfigOptions<
   config?: CommanderConfig<M, F, S, RESP>;
 }
 
+/* FIXME: better error message / link */
+function throwResp3ModuleUnstableError() {
+  throw new Error("unstable resp3 module, client not configured with proper flag");
+}
+
 export function attachConfig<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -40,7 +45,11 @@ export function attachConfig<
     for (const [moduleName, module] of Object.entries(config.modules)) {
       const fns = Object.create(null);
       for (const [name, command] of Object.entries(module)) {
-        fns[name] = createModuleCommand(command, RESP);
+        if (config.RESP == 3 && command.unstableResp3Module && !config.unstableResp3Modules) {
+          fns[name] = throwResp3ModuleUnstableError;
+        } else {
+          fns[name] = createModuleCommand(command, RESP);
+        }
       }
 
       attachNamespace(Class.prototype, moduleName, fns);

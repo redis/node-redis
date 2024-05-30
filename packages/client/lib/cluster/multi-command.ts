@@ -112,9 +112,6 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      if (command.unstableResp3Module && resp == 3 && !this._self.#options?.unstableResp3Modules) {
-        throw new Error("unstable resp3 module, client not configured with proper flag");
-      }
       const redisArgs = command.transformArguments(...args),
         firstKey = RedisCluster.extractFirstKey(
           command,
