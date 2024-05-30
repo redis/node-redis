@@ -2,7 +2,6 @@ import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import { RedisClientOptions } from '.';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -154,12 +153,10 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   readonly #executeMulti: ExecuteMulti;
   readonly #executePipeline: ExecuteMulti;
   #selectedDB?: number;
-  readonly #options?: RedisClientOptions
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, options?: RedisClientOptions) {
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti) {
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
-    this.#options = options;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {

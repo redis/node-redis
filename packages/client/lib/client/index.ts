@@ -870,8 +870,7 @@ export default class RedisClient<
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       this._executeMulti.bind(this),
-      this._executePipeline.bind(this),
-      this._self.#options
+      this._executePipeline.bind(this)
     );
   }
 

@@ -521,8 +521,7 @@ export default class RedisCluster<
         const client = await this._self.#slots.getClient(firstKey, isReadonly);
         return client._executePipeline(commands);
       },
-      routing,
-      this._self.#options
+      routing
     );
   }
 

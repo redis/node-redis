@@ -426,8 +426,7 @@ export class RedisClientPool<
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
-      commands => this.execute(client => client._executePipeline(commands)),
-      this._self.#options
+      commands => this.execute(client => client._executePipeline(commands))
     );
   }
 

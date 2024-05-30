@@ -2,7 +2,7 @@ import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import RedisCluster, { RedisClusterOptions } from '.';
+import RedisCluster from '.';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -191,18 +191,15 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   readonly #executePipeline: ClusterMultiExecute;
   #firstKey: RedisArgument | undefined;
   #isReadonly: boolean | undefined = true;
-  readonly #options?: RedisClusterOptions;
 
   constructor(
     executeMulti: ClusterMultiExecute,
     executePipeline: ClusterMultiExecute,
-    routing: RedisArgument | undefined,
-    options?: RedisClusterOptions
+    routing: RedisArgument | undefined
   ) {
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
     this.#firstKey = routing;
-    this.#options = options;
   }
 
   #setState(
