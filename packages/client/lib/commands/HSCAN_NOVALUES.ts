@@ -10,9 +10,14 @@ export default {
     options?: ScanCommonOptions
   ) {
     const args = pushScanArguments(['HSCAN', key], cursor, options);
-    args.push('VALUES');
+    args.push('NOVALUES');
 
     return args;
   },
-  transformReply: undefined as unknown as () => [BlobStringReply, Array<BlobStringReply>]
+  transformReply([cursor, fields]: [BlobStringReply, Array<BlobStringReply>]) {
+    return {
+      cursor,
+      fields
+    }
+  }
 } as const satisfies Command;

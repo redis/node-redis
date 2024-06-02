@@ -1,41 +1,41 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import HSCAN_VALUES from './HSCAN_VALUES';
+import HSCAN_NOVALUES from './HSCAN_NOVALUES';
 
 describe('HSCAN_VALUES', () => {
   describe('transformArguments', () => {
     it('cusror only', () => {
       assert.deepEqual(
-        HSCAN_VALUES.transformArguments('key', '0'),
-        ['HSCAN', 'key', '0', 'VALUES']
+        HSCAN_NOVALUES.transformArguments('key', '0'),
+        ['HSCAN', 'key', '0', 'NOVALUES']
       );
     });
 
     it('with MATCH', () => {
       assert.deepEqual(
-        HSCAN_VALUES.transformArguments('key', '0', {
+        HSCAN_NOVALUES.transformArguments('key', '0', {
           MATCH: 'pattern'
         }),
-        ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'VALUES']
+        ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'NOVALUES']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        HSCAN_VALUES.transformArguments('key', '0', {
+        HSCAN_NOVALUES.transformArguments('key', '0', {
           COUNT: 1
         }),
-        ['HSCAN', 'key', '0', 'COUNT', '1', 'VALUES']
+        ['HSCAN', 'key', '0', 'COUNT', '1', 'NOVALUES']
       );
     });
 
     it('with MATCH & COUNT', () => {
       assert.deepEqual(
-        HSCAN_VALUES.transformArguments('key', '0', {
+        HSCAN_NOVALUES.transformArguments('key', '0', {
           MATCH: 'pattern',
           COUNT: 1
         }),
-        ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1', 'VALUES']
+        ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1', 'NOVALUES']
       );
     });
   });
@@ -43,12 +43,12 @@ describe('HSCAN_VALUES', () => {
   testUtils.testWithClient('client.hScanValues', async client => {
     const [, reply] = await Promise.all([
       client.hSet('key', 'field', 'value'),
-      client.hScanValues('key', '0')
+      client.hScanNoValues('key', '0')
     ]);
 
     assert.deepEqual(reply, {
       cursor: '0',
-      entries: [
+      fields: [
         'field',
       ]
     });

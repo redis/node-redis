@@ -144,7 +144,7 @@ import HRANDFIELD_COUNT_WITHVALUES from './HRANDFIELD_COUNT_WITHVALUES';
 import HRANDFIELD_COUNT from './HRANDFIELD_COUNT';
 import HRANDFIELD from './HRANDFIELD';
 import HSCAN from './HSCAN';
-import HSCAN_VALUES from './HSCAN_VALUES';
+import HSCAN_NOVALUES from './HSCAN_NOVALUES';
 import HSET from './HSET';
 import HSETNX from './HSETNX';
 import HSTRLEN from './HSTRLEN';
@@ -624,8 +624,8 @@ export default {
   hRandField: HRANDFIELD,
   HSCAN,
   hScan: HSCAN,
-  HSCAN_VALUES,
-  hScanValues: HSCAN_VALUES,
+  HSCAN_NOVALUES,
+  hScanNoValues: HSCAN_NOVALUES,
   HSET,
   hSet: HSET,
   HSETNX,
