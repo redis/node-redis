@@ -94,16 +94,17 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        firstKey = RedisCluster.extractFirstKey(
-          command,
-          args,
-          redisArgs
-        );
+      const redisArgs = command.transformArguments(...args);
+      const firstKey = RedisCluster.extractFirstKey(
+        command,
+        args,
+        redisArgs
+      );
       return this.addCommand(
         firstKey,
         command.IS_READ_ONLY,
         redisArgs,
+        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -122,6 +123,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         command.IS_READ_ONLY,
         redisArgs,
+        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -131,18 +133,19 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        redisArgs: CommandArguments = prefix.concat(fnArgs),
-        firstKey = RedisCluster.extractFirstKey(
-          fn,
-          args,
-          fnArgs
-        );
+      const fnArgs = fn.transformArguments(...args);
+      const redisArgs: CommandArguments = prefix.concat(fnArgs);
+      const firstKey = RedisCluster.extractFirstKey(
+        fn,
+        args,
+        fnArgs
+      );
       redisArgs.preserve = fnArgs.preserve;
       return this._self.addCommand(
         firstKey,
         fn.IS_READ_ONLY,
         redisArgs,
+        fn.ignoreTypeMapping,
         transformReply
       );
     };
@@ -163,6 +166,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       this.#multi.addScript(
         script,
         scriptArgs,
+        script.ignoreTypeMapping,
         transformReply
       );
       return this;
@@ -214,10 +218,11 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     args: CommandArguments,
+    ignoreTypeMapping?: boolean,
     transformReply?: TransformReply
   ) {
     this.#setState(firstKey, isReadonly);
-    this.#multi.addCommand(args, transformReply);
+    this.#multi.addCommand(args, ignoreTypeMapping, transformReply);
     return this;
   }
 

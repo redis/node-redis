@@ -140,6 +140,18 @@ export interface TuplesToMapReply<T extends MapTuples> extends RespType<
   Map<T[number][0], T[number][1]> | FlattenTuples<T>
 > {}
 
+type SimpleMapKeyValue = [key: SimpleStringReply, value: unknown];
+
+type SimpleMapTuples = Array<SimpleMapKeyValue>;
+
+export interface SimpleTuplesToMapReply<T extends SimpleMapTuples> extends RespType<
+  RESP_TYPES['MAP'],
+  {
+    [P in T[number] as P[0] extends SimpleStringReply<infer S> ? S : never]: P[1];
+  },
+  Map<T[number][0], T[number][1]> | FlattenTuples<T>
+> {}
+
 type FlattenTuples<T> = (
   T extends [] ? [] :
   T extends [MapKeyValue] ? T[0] :
@@ -276,6 +288,7 @@ export type Command = {
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
   unstableResp3Module?: boolean;
+  ignoreTypeMapping?: boolean;
 };
 
 export type RedisCommands = Record<string, Command>;

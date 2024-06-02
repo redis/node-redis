@@ -1,11 +1,15 @@
-import { Command } from '@redis/client/dist/lib/RESP/types';
+import { Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { TsMGetOptions, pushLatestArgument, pushFilterArgument } from './MGET';
-import { pushWithLabelsArgument } from '.';
+import { TsMGetOptions, pushLatestArgument, pushFilterArgument, MGetReply2, MGetRawReply2 } from './MGET';
+import { Labels, pushWithLabelsArgument, transformLablesReply, transformSampleReply } from '.';
 
 export interface TsMGetWithLabelsOptions extends TsMGetOptions {
   SELECTED_LABELS?: RedisVariadicArgument;
 }
+
+export interface MGetWithLabelsReply2 extends MGetReply2 {
+  labels: Labels;
+};
 
 export default {
   FIRST_KEY_INDEX: undefined,
@@ -15,6 +19,15 @@ export default {
     args = pushWithLabelsArgument(args, options?.SELECTED_LABELS);
     return pushFilterArgument(args, filter);
   },
-  // TODO
-  transformReply: undefined as unknown as () => any
+  transformReply: {
+    2: (reply: MGetRawReply2): Array<MGetWithLabelsReply2> => {
+      return reply.map(([key, labels, sample]) => ({
+          key,
+          labels: transformLablesReply(labels),
+          sample: transformSampleReply[2](sample)
+      }));
+    },
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3Module: true
 } as const satisfies Command;

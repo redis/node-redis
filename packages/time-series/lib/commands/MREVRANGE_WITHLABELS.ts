@@ -5,5 +5,6 @@ export default {
   FIRST_KEY_INDEX: MRANGE_WITHLABELS.FIRST_KEY_INDEX,
   IS_READ_ONLY: MRANGE_WITHLABELS.IS_READ_ONLY,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MREVRANGE'),
-  transformReply: MRANGE_WITHLABELS.transformReply
+  transformReply: MRANGE_WITHLABELS.transformReply,
+  unstableResp3Module: MRANGE_WITHLABELS.unstableResp3Module
 } as const satisfies Command;

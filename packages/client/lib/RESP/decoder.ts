@@ -35,7 +35,7 @@ const ASCII = {
 } as const;
 
 export const PUSH_TYPE_MAPPING = {
-  [RESP_TYPES.BLOB_STRING]: Buffer
+  [RESP_TYPES.SIMPLE_STRING]: Buffer
 };
 
 // this was written with performance in mind, so it's not very readable... sorry :(

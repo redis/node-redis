@@ -183,9 +183,9 @@ export default class RedisCommandsQueue {
         if (this.#onPush(reply)) return;
         
         if (PONG.equals(reply[0] as Buffer)) {
-          const { resolve, typeMapping } = this.#waitingForReply.shift()!,
+          const { resolve } = this.#waitingForReply.shift()!,
             buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
-          resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
+          resolve(buffer.toString());
           return;
         }
       }

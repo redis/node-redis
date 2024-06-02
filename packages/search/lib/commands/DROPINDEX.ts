@@ -19,6 +19,5 @@ export default {
   transformReply: {
     2: undefined as unknown as () => SimpleStringReply<'OK'>,
     3: undefined as unknown as () => NumberReply
-  },
-  unstableResp3Module: true
+  }
 } as const satisfies Command;

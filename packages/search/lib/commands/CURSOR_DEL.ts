@@ -6,6 +6,5 @@ export default {
   transformArguments(index: RedisArgument, cursorId: number) {
     return ['FT.CURSOR', 'DEL', index, cursorId.toString()];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>,
-  unstableResp3Module: true
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

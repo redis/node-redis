@@ -6,6 +6,5 @@ export default {
   transformArguments(alias: RedisArgument) {
     return ['FT.ALIASDEL', alias];
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>,
-  unstableResp3Module: true,
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

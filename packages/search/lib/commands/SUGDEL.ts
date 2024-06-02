@@ -6,6 +6,5 @@ export default {
   transformArguments(key: RedisArgument, string: RedisArgument) {
     return ['FT.SUGDEL', key, string];
   },
-  transformReply: undefined as unknown as () => NumberReply<0 | 1>,
-  unstableResp3Module: true
+  transformReply: undefined as unknown as () => NumberReply<0 | 1>
 } as const satisfies Command;

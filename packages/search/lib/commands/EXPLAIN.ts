@@ -24,6 +24,5 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => SimpleStringReply,
-  unstableResp3Module: true
+  transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

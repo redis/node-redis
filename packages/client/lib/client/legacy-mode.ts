@@ -126,7 +126,7 @@ class LegacyMultiCommand {
     return function (this: LegacyMultiCommand, ...args: LegacyArguments) {
       const redisArgs = [name];
       RedisLegacyClient.pushArguments(redisArgs, args);
-      this.#multi.addCommand(redisArgs, transformReply);
+      this.#multi.addCommand(redisArgs, undefined, transformReply);
       return this;
     };
   }

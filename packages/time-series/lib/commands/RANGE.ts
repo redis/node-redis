@@ -1,5 +1,5 @@
 import { CommandArguments, RedisArgument, ArrayReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { Timestamp, transformTimestampArgument, SampleRawReply, transformSampleReply } from '.';
+import { Timestamp, transformTimestampArgument, transformSampleReply, SampleRawReply2, SampleRawReply3 } from '.';
 import { TimeSeriesAggregationType } from './CREATERULE';
 
 export const TIME_SERIES_BUCKET_TIMESTAMP = {
@@ -108,10 +108,10 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformRangeArguments.bind(undefined, 'TS.RANGE'),
   transformReply: {
-    2(reply: UnwrapReply<ArrayReply<SampleRawReply[2]>>) {
+    2(reply: UnwrapReply<ArrayReply<SampleRawReply2>>) {
       return reply.map(sample => transformSampleReply['2'](sample));
     },
-    3(reply: UnwrapReply<ArrayReply<SampleRawReply[3]>>) {
+    3(reply: UnwrapReply<ArrayReply<SampleRawReply3>>) {
       return reply.map(sample => transformSampleReply['3'](sample));
     }
   }

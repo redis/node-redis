@@ -1,4 +1,4 @@
-import type { BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import type { BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -121,6 +121,8 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
+export type RawLabels = Array<[label: string, value: string]>;
+
 export type Labels = {
   [label: string]: string;
 };
@@ -137,27 +139,50 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
   return args;
 }
 
-export type SampleRawReply = {
-  2: TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>;
-  3: TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
+export interface SampleRawReply2 {
+  timestamp: NumberReply;
+  value: BlobStringReply;
 };
 
+export interface SampleRawReply3 {
+  timestamp: NumberReply
+  value: DoubleReply
+}
+
+export interface SampleReply2 {
+  timestamp: NumberReply;
+  value: number;
+}
+
+export interface SampleReply3 {
+  timestamp: NumberReply;
+  value: DoubleReply;
+}
+
 export const transformSampleReply = {
-  2(reply: SampleRawReply[2]) {
-    const [timestamp, value] = reply as unknown as UnwrapReply<typeof reply>;
+  2(reply: SampleRawReply2): SampleReply2 {
     return {
-      timestamp,
-      value: Number(value)
+      timestamp: reply.timestamp,
+      value: Number(reply.value)
     };
   },
-  3(reply: SampleRawReply[3]) {
-    const [timestamp, value] = reply as unknown as UnwrapReply<typeof reply>;
+  3(reply: SampleRawReply3): SampleReply3 {
     return {
-      timestamp,
-      value
+      timestamp: reply.timestamp,
+      value: reply.value
     };
   }
 };
+
+export function transformLablesReply(reply: RawLabels): Labels {
+  const labels: Labels = {};
+
+  for (const [key, value] of reply) {
+      labels[key] = value;
+  }
+
+  return labels
+}
 
 export function pushWithLabelsArgument(args: CommandArguments, selectedLabels?: RedisVariadicArgument) {
   if (!selectedLabels) {

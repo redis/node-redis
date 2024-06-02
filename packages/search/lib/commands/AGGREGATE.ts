@@ -1,4 +1,4 @@
-import { ArrayReply, BlobStringReply, Command, RedisArgument, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, BlobStringReply, Command, NumberReply, RedisArgument, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, pushParamsArgument } from './SEARCH';
 import { pushVariadicArgument, transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
@@ -126,7 +126,7 @@ export interface FtAggregateOptions {
 }
 
 export type AggregateRawReply = [
-  total: number,
+  total: UnwrapReply<NumberReply>,
   ...results: UnwrapReply<ArrayReply<ArrayReply<BlobStringReply>>>
 ];
 
@@ -153,12 +153,13 @@ export default {
       }
   
       return {
-          total: rawReply[0],
+          total: Number(rawReply[0]),
           results
       };
     },
     3: undefined as unknown as () => ReplyUnion
-  }
+  },
+  unstableResp3Module: true
 } as const satisfies Command;
 
 export function pushAggregateOptions(args: Array<RedisArgument>, options?: FtAggregateOptions) {

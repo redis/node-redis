@@ -7,6 +7,5 @@ export default {
   transformArguments(dictionary: RedisArgument, term: RedisVariadicArgument) {
     return pushVariadicArguments(['FT.DICTADD', dictionary], term);
   },
-  transformReply: undefined as unknown as () => NumberReply,
-  unstableResp3Module: true
+  transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

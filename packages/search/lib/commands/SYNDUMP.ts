@@ -18,6 +18,5 @@ export default {
       return result;
     },
     3: undefined as unknown as () => MapReply<BlobStringReply, ArrayReply<BlobStringReply>>
-  },
-  unstableResp3Module: true
+  }
 } as const satisfies Command;
