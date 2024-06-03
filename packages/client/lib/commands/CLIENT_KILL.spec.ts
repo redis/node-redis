@@ -71,7 +71,7 @@ describe('CLIENT KILL', () => {
           filter: CLIENT_KILL_FILTERS.MAXAGE,
           maxAge: 10
         }),
-        ['CLIENT', 'KILL', 'USER', 'MAXAGE', '10']
+        ['CLIENT', 'KILL', 'MAXAGE', '10']
       );
     });
 
