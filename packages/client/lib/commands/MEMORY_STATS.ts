@@ -1,35 +1,35 @@
-import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command } from '../RESP/types'; 
+import { TuplesToMapReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command, SimpleStringReply } from '../RESP/types'; 
 
 export type MemoryStatsReply = TuplesToMapReply<[
-  [BlobStringReply<'peak.allocated'>, NumberReply],
-  [BlobStringReply<'total.allocated'>, NumberReply],
-  [BlobStringReply<'startup.allocated'>, NumberReply],
-  [BlobStringReply<'replication.backlog'>, NumberReply],
-  [BlobStringReply<'clients.slaves'>, NumberReply],
-  [BlobStringReply<'clients.normal'>, NumberReply],
+  [SimpleStringReply<'peak.allocated'>, NumberReply],
+  [SimpleStringReply<'total.allocated'>, NumberReply],
+  [SimpleStringReply<'startup.allocated'>, NumberReply],
+  [SimpleStringReply<'replication.backlog'>, NumberReply],
+  [SimpleStringReply<'clients.slaves'>, NumberReply],
+  [SimpleStringReply<'clients.normal'>, NumberReply],
   /** added in 7.0 */
-  [BlobStringReply<'cluster.links'>, NumberReply],
-  [BlobStringReply<'aof.buffer'>, NumberReply],
-  [BlobStringReply<'lua.caches'>, NumberReply],
+  [SimpleStringReply<'cluster.links'>, NumberReply],
+  [SimpleStringReply<'aof.buffer'>, NumberReply],
+  [SimpleStringReply<'lua.caches'>, NumberReply],
   /** added in 7.0 */
-  [BlobStringReply<'functions.caches'>, NumberReply],
-  [BlobStringReply<'overhead.total'>, NumberReply],
-  [BlobStringReply<'keys.count'>, NumberReply],
-  [BlobStringReply<'keys.bytes-per-key'>, NumberReply],
-  [BlobStringReply<'dataset.bytes'>, NumberReply],
-  [BlobStringReply<'dataset.percentage'>, DoubleReply],
-  [BlobStringReply<'peak.percentage'>, DoubleReply],
-  [BlobStringReply<'allocator.allocated'>, NumberReply],
-  [BlobStringReply<'allocator.active'>, NumberReply],
-  [BlobStringReply<'allocator.resident'>, NumberReply],
-  [BlobStringReply<'allocator-fragmentation.ratio'>, DoubleReply],
-  [BlobStringReply<'allocator-fragmentation.bytes'>, NumberReply],
-  [BlobStringReply<'allocator-rss.ratio'>, DoubleReply],
-  [BlobStringReply<'allocator-rss.bytes'>, NumberReply],
-  [BlobStringReply<'rss-overhead.ratio'>, DoubleReply],
-  [BlobStringReply<'rss-overhead.bytes'>, NumberReply],
-  [BlobStringReply<'fragmentation'>, DoubleReply],
-  [BlobStringReply<'fragmentation.bytes'>, NumberReply]
+  [SimpleStringReply<'functions.caches'>, NumberReply],
+  [SimpleStringReply<'overhead.total'>, NumberReply],
+  [SimpleStringReply<'keys.count'>, NumberReply],
+  [SimpleStringReply<'keys.bytes-per-key'>, NumberReply],
+  [SimpleStringReply<'dataset.bytes'>, NumberReply],
+  [SimpleStringReply<'dataset.percentage'>, DoubleReply],
+  [SimpleStringReply<'peak.percentage'>, DoubleReply],
+  [SimpleStringReply<'allocator.allocated'>, NumberReply],
+  [SimpleStringReply<'allocator.active'>, NumberReply],
+  [SimpleStringReply<'allocator.resident'>, NumberReply],
+  [SimpleStringReply<'allocator-fragmentation.ratio'>, DoubleReply],
+  [SimpleStringReply<'allocator-fragmentation.bytes'>, NumberReply],
+  [SimpleStringReply<'allocator-rss.ratio'>, DoubleReply],
+  [SimpleStringReply<'allocator-rss.bytes'>, NumberReply],
+  [SimpleStringReply<'rss-overhead.ratio'>, DoubleReply],
+  [SimpleStringReply<'rss-overhead.bytes'>, NumberReply],
+  [SimpleStringReply<'fragmentation'>, DoubleReply],
+  [SimpleStringReply<'fragmentation.bytes'>, NumberReply]
 ]>;
 
 export default {
@@ -39,7 +39,7 @@ export default {
     return ['MEMORY', 'STATS'];
   },
   transformReply: {
-    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) => {
+    2: (rawReply: UnwrapReply<ArrayReply<SimpleStringReply | NumberReply>>) => {
       const reply: any = {};
 
       let i = 0;

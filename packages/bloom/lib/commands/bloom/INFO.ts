@@ -1,11 +1,11 @@
-import { RedisArgument, Command, UnwrapReply, NullReply, BlobStringReply, NumberReply, TuplesToMapReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
 
 export type BfInfoReplyMap = TuplesToMapReply<[
-  [BlobStringReply<'Capacity'>, NumberReply],
-  [BlobStringReply<'Size'>, NumberReply],
-  [BlobStringReply<'Number of filters'>, NumberReply],
-  [BlobStringReply<'Number of items inserted'>, NumberReply],
-  [BlobStringReply<'Expansion rate'>, NullReply | NumberReply] 
+  [SimpleStringReply<'Capacity'>, NumberReply],
+  [SimpleStringReply<'Size'>, NumberReply],
+  [SimpleStringReply<'Number of filters'>, NumberReply],
+  [SimpleStringReply<'Number of items inserted'>, NumberReply],
+  [SimpleStringReply<'Expansion rate'>, NullReply | NumberReply] 
 ]>;
 
 export interface BfInfoReply {

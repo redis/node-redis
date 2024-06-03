@@ -1,14 +1,14 @@
-import { RedisArgument, Command, NumberReply, BlobStringReply, TuplesToMapReply, UnwrapReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
 
 export type CfInfoReplyMap = TuplesToMapReply<[
-  [BlobStringReply<'Size'>, NumberReply],
-  [BlobStringReply<'Number of buckets'>, NumberReply],
-  [BlobStringReply<'Number of filters'>, NumberReply],
-  [BlobStringReply<'Number of items inserted'>, NumberReply],
-  [BlobStringReply<'Number of items deleted'>, NumberReply],
-  [BlobStringReply<'Bucket size'>, NumberReply],
-  [BlobStringReply<'Expansion rate'>, NumberReply],
-  [BlobStringReply<'Max iterations'>, NumberReply]
+  [SimpleStringReply<'Size'>, NumberReply],
+  [SimpleStringReply<'Number of buckets'>, NumberReply],
+  [SimpleStringReply<'Number of filters'>, NumberReply],
+  [SimpleStringReply<'Number of items inserted'>, NumberReply],
+  [SimpleStringReply<'Number of items deleted'>, NumberReply],
+  [SimpleStringReply<'Bucket size'>, NumberReply],
+  [SimpleStringReply<'Expansion rate'>, NumberReply],
+  [SimpleStringReply<'Max iterations'>, NumberReply]
 ]>;
 
 export interface CfInfoReply {

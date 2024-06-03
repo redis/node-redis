@@ -1,9 +1,9 @@
-import { TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 import FUNCTION_LIST, { FunctionListReplyItem } from './FUNCTION_LIST';
 
 export type FunctionListWithCodeReply = ArrayReply<TuplesToMapReply<[
   ...FunctionListReplyItem,
-  [BlobStringReply<'library_code'>, BlobStringReply],
+  [SimpleStringReply<'library_code'>, BlobStringReply],
 ]>>;
 
 export default {

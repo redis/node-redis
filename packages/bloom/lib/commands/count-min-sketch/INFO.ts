@@ -1,9 +1,9 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesToMapReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
 
 export type CmsInfoReplyMap = TuplesToMapReply<[
-  [BlobStringReply<'width'>, NumberReply],
-  [BlobStringReply<'depth'>, NumberReply],
-  [BlobStringReply<'count'>, NumberReply]
+  [SimpleStringReply<'width'>, NumberReply],
+  [SimpleStringReply<'depth'>, NumberReply],
+  [SimpleStringReply<'count'>, NumberReply]
 ]>;
 
 export interface CmsInfoReply {

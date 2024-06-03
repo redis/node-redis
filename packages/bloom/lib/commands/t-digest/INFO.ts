@@ -1,15 +1,15 @@
-import { RedisArgument, Command, BlobStringReply, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
 
 export type TdInfoReplyMap = TuplesToMapReply<[
-  [BlobStringReply<'Compression'>, NumberReply],
-  [BlobStringReply<'Capacity'>, NumberReply],
-  [BlobStringReply<'Merged nodes'>, NumberReply],
-  [BlobStringReply<'Unmerged nodes'>, NumberReply],
-  [BlobStringReply<'Merged weight'>, NumberReply],
-  [BlobStringReply<'Unmerged weight'>, NumberReply],
-  [BlobStringReply<'Observations'>, NumberReply],
-  [BlobStringReply<'Total compressions'>, NumberReply],
-  [BlobStringReply<'Memory usage'>, NumberReply]
+  [SimpleStringReply<'Compression'>, NumberReply],
+  [SimpleStringReply<'Capacity'>, NumberReply],
+  [SimpleStringReply<'Merged nodes'>, NumberReply],
+  [SimpleStringReply<'Unmerged nodes'>, NumberReply],
+  [SimpleStringReply<'Merged weight'>, NumberReply],
+  [SimpleStringReply<'Unmerged weight'>, NumberReply],
+  [SimpleStringReply<'Observations'>, NumberReply],
+  [SimpleStringReply<'Total compressions'>, NumberReply],
+  [SimpleStringReply<'Memory usage'>, NumberReply]
 ]>;
 
 export interface TdInfoReply {
