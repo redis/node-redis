@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HSCAN_NOVALUES from './HSCAN_NOVALUES';
 
-describe('HSCAN_VALUES', () => {
+describe('HSCAN_NOVALUES', () => {
   describe('transformArguments', () => {
     it('cusror only', () => {
       assert.deepEqual(
@@ -40,7 +40,7 @@ describe('HSCAN_VALUES', () => {
     });
   });
 
-  testUtils.testWithClient('client.hScanValues', async client => {
+  testUtils.testWithClient('client.hScanNoValues', async client => {
     const [, reply] = await Promise.all([
       client.hSet('key', 'field', 'value'),
       client.hScanNoValues('key', '0')

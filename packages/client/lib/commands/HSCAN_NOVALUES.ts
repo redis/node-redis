@@ -11,13 +11,12 @@ export default {
   ) {
     const args = pushScanArguments(['HSCAN', key], cursor, options);
     args.push('NOVALUES');
-
     return args;
   },
   transformReply([cursor, fields]: [BlobStringReply, Array<BlobStringReply>]) {
     return {
       cursor,
       fields
-    }
+    };
   }
 } as const satisfies Command;
