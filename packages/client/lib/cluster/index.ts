@@ -181,13 +181,7 @@ export default class RedisCluster<
         redisArgs
       );
 
-      let commandOptions: typeof this._commandOptions;
-      if (this._commandOptions) {
-        commandOptions = {...this._commandOptions};
-        if (command.ignoreTypeMapping) {
-          commandOptions.typeMapping = undefined
-        }
-      } 
+      const commandOptions = this._commandOptions && command.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
   
       const reply = await this.sendCommand(
         firstKey,
@@ -213,13 +207,7 @@ export default class RedisCluster<
         redisArgs
       );
 
-      let commandOptions: typeof this._self._commandOptions;
-      if (this._self._commandOptions) {
-        commandOptions = {...this._self._commandOptions};
-        if (command.ignoreTypeMapping) {
-          commandOptions.typeMapping = undefined
-        }
-      } 
+      const commandOptions = this._self._commandOptions && command.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
 
       const reply = await this._self.sendCommand(
         firstKey,
@@ -247,13 +235,7 @@ export default class RedisCluster<
       );
       const redisArgs = prefix.concat(fnArgs);
 
-      let commandOptions: typeof this._self._commandOptions;
-      if (this._self._commandOptions) {
-        commandOptions = {...this._self._commandOptions};
-        if (fn.ignoreTypeMapping) {
-          commandOptions.typeMapping = undefined
-        }
-      } 
+      const commandOptions = this._self._commandOptions && fn.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
 
       const reply = await this._self.sendCommand(
         firstKey,
@@ -281,14 +263,8 @@ export default class RedisCluster<
       );
       const redisArgs = prefix.concat(scriptArgs);
 
-      let commandOptions: typeof this._commandOptions;
-      if (this._commandOptions) {
-        commandOptions = {...this._commandOptions};
-        if (script.ignoreTypeMapping) {
-          commandOptions.typeMapping = undefined
-        }
-      } 
-      
+      const commandOptions = this._commandOptions && script.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
+
       const reply = await this.executeScript(
         script,
         firstKey,

@@ -132,24 +132,14 @@ type MapKeyValue = [key: BlobStringReply, value: unknown];
 
 type MapTuples = Array<MapKeyValue>;
 
+type ExtractMapKey<T> = T extends BlobStringReply<infer S> ? S : never;
+
 export interface TuplesToMapReply<T extends MapTuples> extends RespType<
   RESP_TYPES['MAP'],
   {
-    [P in T[number] as P[0] extends BlobStringReply<infer S> ? S : never]: P[1];
+    [P in T[number] as ExtractMapKey<P[0]>]: P[1];
   },
-  Map<T[number][0], T[number][1]> | FlattenTuples<T>
-> {}
-
-type SimpleMapKeyValue = [key: SimpleStringReply, value: unknown];
-
-type SimpleMapTuples = Array<SimpleMapKeyValue>;
-
-export interface SimpleTuplesToMapReply<T extends SimpleMapTuples> extends RespType<
-  RESP_TYPES['MAP'],
-  {
-    [P in T[number] as P[0] extends SimpleStringReply<infer S> ? S : never]: P[1];
-  },
-  Map<T[number][0], T[number][1]> | FlattenTuples<T>
+  Map<ExtractMapKey<T[number][0]>, T[number][1]> | FlattenTuples<T>
 > {}
 
 type FlattenTuples<T> = (

@@ -40,13 +40,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args);
 
-    let commandOptions: typeof this._self.commandOptions;
-    if (this._self.commandOptions) {
-      commandOptions = {...this._self.commandOptions};
-      if (command.ignoreTypeMapping) {
-        commandOptions.typeMapping = undefined
-      }
-    }
+    const commandOptions = this._self.commandOptions && command.ignoreTypeMapping ? { ...this._self.commandOptions, typeMapping: undefined} : undefined;
 
     const reply = await this._self.sendCommand(
       command.IS_READ_ONLY,
@@ -67,13 +61,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
     const fnArgs = fn.transformArguments(...args);
     const redisArgs = prefix.concat(fnArgs);
 
-    let commandOptions: typeof this._self._self.commandOptions;
-    if (this._self._self.commandOptions) {
-      commandOptions = {...this._self._self.commandOptions};
-      if (fn.ignoreTypeMapping) {
-        commandOptions.typeMapping = undefined
-      }
-    } 
+    const commandOptions = this._self._self.commandOptions && fn.ignoreTypeMapping ? { ...this._self._self.commandOptions, typeMapping: undefined} : undefined;
 
     const reply = await this._self._self.sendCommand(
       fn.IS_READ_ONLY,
@@ -92,13 +80,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args);
 
-    let commandOptions: typeof this._self._self.commandOptions;
-    if (this._self._self.commandOptions) {
-      commandOptions = {...this._self._self.commandOptions};
-      if (command.ignoreTypeMapping) {
-        commandOptions.typeMapping = undefined
-      }
-    }
+    const commandOptions = this._self._self.commandOptions && command.ignoreTypeMapping ? { ...this._self._self.commandOptions, typeMapping: undefined} : undefined;
 
     const reply = await this._self._self.sendCommand(
       command.IS_READ_ONLY,
@@ -119,13 +101,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
     const scriptArgs = script.transformArguments(...args);
     const redisArgs = prefix.concat(scriptArgs);
 
-    let commandOptions: typeof this._self.commandOptions;
-    if (this._self.commandOptions) {
-      commandOptions = {...this._self.commandOptions};
-      if (script.ignoreTypeMapping) {
-        commandOptions.typeMapping = undefined
-      }
-    }
+    const commandOptions = this._self.commandOptions && script.ignoreTypeMapping ? { ...this._self.commandOptions, typeMapping: undefined} : undefined;
 
     const reply = await this._self.executeScript(
       script,
