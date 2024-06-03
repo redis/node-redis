@@ -7,5 +7,4 @@ export default {
     return ['FT.SUGLEN', key];
   },
   transformReply: undefined as unknown as () => NumberReply,
-  unstableResp3Module: true
 } as const satisfies Command;
