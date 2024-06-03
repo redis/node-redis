@@ -65,13 +65,13 @@ describe('CLIENT KILL', () => {
       );
     });
 
-    it('MANAGE', () => {
+    it('MAXAGE', () => {
       assert.deepEqual(
         CLIENT_KILL.transformArguments({
-          filter: CLIENT_KILL_FILTERS.MANAGE,
+          filter: CLIENT_KILL_FILTERS.MAXAGE,
           maxAge: 10
         }),
-        ['CLIENT', 'KILL', 'USER', 'MANAGE', '10']
+        ['CLIENT', 'KILL', 'USER', 'MAXAGE', '10']
       );
     });
 
