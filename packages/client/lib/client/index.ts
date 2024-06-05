@@ -154,9 +154,7 @@ export default class RedisClient<
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
 
-      const commandOptions = this._commandOptions && command.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
-
-      const reply = await this.sendCommand(redisArgs, commandOptions);
+      const reply = await this.sendCommand(redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -168,9 +166,7 @@ export default class RedisClient<
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
 
-      const commandOptions = this._self._commandOptions && command.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
-
-      const reply = await this._self.sendCommand(redisArgs, commandOptions);
+      const reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -183,11 +179,9 @@ export default class RedisClient<
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args);
 
-      const commandOptions = this._self._commandOptions && fn.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
-
       const reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
-          commandOptions
+          this._self._commandOptions
         );
       return transformReply ?
         transformReply(reply, fnArgs.preserve) :
@@ -202,9 +196,7 @@ export default class RedisClient<
       const scriptArgs = script.transformArguments(...args);
       const redisArgs = prefix.concat(scriptArgs)
 
-      const commandOptions = this._commandOptions && script.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
-
-      const reply = await this.executeScript(script, redisArgs, commandOptions);
+      const reply = await this.executeScript(script, redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
         reply;
@@ -804,9 +796,9 @@ export default class RedisClient<
 
     const chainId = Symbol('Pipeline Chain'),
       promise = Promise.all(
-        commands.map(({ args, ignoreTypeMapping }) => this._self.#queue.addCommand(args, {
+        commands.map(({ args }) => this._self.#queue.addCommand(args, {
           chainId,
-          typeMapping: !ignoreTypeMapping ? this._commandOptions?.typeMapping : undefined
+          typeMapping: this._commandOptions?.typeMapping
         }))
       );
     this._self.#scheduleWrite();
@@ -849,11 +841,11 @@ export default class RedisClient<
         this._self.#queue.addCommand(['MULTI'], { chainId }),
       ];
 
-    for (const { args, ignoreTypeMapping } of commands) {
+    for (const { args} of commands) {
       promises.push(
         this._self.#queue.addCommand(args, {
           chainId: chainId,
-          typeMapping: !ignoreTypeMapping ? typeMapping : undefined
+          typeMapping: typeMapping
         })
       );
     }

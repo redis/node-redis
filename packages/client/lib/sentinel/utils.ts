@@ -40,12 +40,10 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args);
 
-    const commandOptions = this._self.commandOptions && command.ignoreTypeMapping ? { ...this._self.commandOptions, typeMapping: undefined} : undefined;
-
     const reply = await this._self.sendCommand(
       command.IS_READ_ONLY,
       redisArgs,
-      commandOptions
+      this._self.commandOptions
     );
 
     return transformReply ?
@@ -61,12 +59,10 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
     const fnArgs = fn.transformArguments(...args);
     const redisArgs = prefix.concat(fnArgs);
 
-    const commandOptions = this._self._self.commandOptions && fn.ignoreTypeMapping ? { ...this._self._self.commandOptions, typeMapping: undefined} : undefined;
-
     const reply = await this._self._self.sendCommand(
       fn.IS_READ_ONLY,
       redisArgs,
-      commandOptions
+      this._self._self.commandOptions
     );
 
     return transformReply ?
@@ -80,12 +76,10 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args);
 
-    const commandOptions = this._self._self.commandOptions && command.ignoreTypeMapping ? { ...this._self._self.commandOptions, typeMapping: undefined} : undefined;
-
     const reply = await this._self._self.sendCommand(
       command.IS_READ_ONLY,
       redisArgs,
-      commandOptions
+      this._self._self.commandOptions
     );
 
     return transformReply ?
@@ -101,13 +95,11 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
     const scriptArgs = script.transformArguments(...args);
     const redisArgs = prefix.concat(scriptArgs);
 
-    const commandOptions = this._self.commandOptions && script.ignoreTypeMapping ? { ...this._self.commandOptions, typeMapping: undefined} : undefined;
-
     const reply = await this._self.executeScript(
       script,
       script.IS_READ_ONLY,
       redisArgs,
-      commandOptions
+      this._self.commandOptions
     );
 
     return transformReply ?

@@ -104,7 +104,6 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         command.IS_READ_ONLY,
         redisArgs,
-        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -123,7 +122,6 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         command.IS_READ_ONLY,
         redisArgs,
-        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -145,7 +143,6 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         fn.IS_READ_ONLY,
         redisArgs,
-        fn.ignoreTypeMapping,
         transformReply
       );
     };
@@ -166,7 +163,6 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       this.#multi.addScript(
         script,
         scriptArgs,
-        script.ignoreTypeMapping,
         transformReply
       );
       return this;
@@ -218,11 +214,10 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     args: CommandArguments,
-    ignoreTypeMapping?: boolean,
     transformReply?: TransformReply
   ) {
     this.#setState(firstKey, isReadonly);
-    this.#multi.addCommand(args, ignoreTypeMapping, transformReply);
+    this.#multi.addCommand(args, transformReply);
     return this;
   }
 

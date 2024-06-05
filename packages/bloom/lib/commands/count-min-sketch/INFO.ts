@@ -28,7 +28,7 @@ export default {
     },
     3: (reply: UnwrapReply<CmsInfoReplyMap>): CmsInfoReply => {
       if (reply instanceof Map) {
-        throw new Error("BF.INFO shouldn't return a nap type in resp3 anymore");
+        throw new Error("CMS.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           width: reply.get("width" as unknown as BlobStringReply<'width'>),
@@ -37,7 +37,7 @@ export default {
         }
 */
       } else if (reply instanceof Array) {
-        throw new Error("BF.INFO shouldn't return a array type in resp3 anymore");
+        throw new Error("CMS.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           width: reply[1],
@@ -54,5 +54,4 @@ export default {
       }
     }
   },
-  ignoreTypeMapping: true
 } as const satisfies Command;

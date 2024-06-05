@@ -92,7 +92,6 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       return this.addCommand(
         command.IS_READ_ONLY,
         redisArgs,
-        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -108,7 +107,6 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       return this._self.addCommand(
         command.IS_READ_ONLY,
         redisArgs,
-        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -124,7 +122,6 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       return this._self.addCommand(
         fn.IS_READ_ONLY,
         redisArgs,
-        fn.ignoreTypeMapping,
         transformReply
       );
     };
@@ -140,7 +137,6 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       this._multi.addScript(
         script,
         scriptArgs,
-        script.ignoreTypeMapping,
         transformReply
       );
       return this;
@@ -183,11 +179,10 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   addCommand(
     isReadonly: boolean | undefined,
     args: CommandArguments,
-    ignoreTypeMapping?: boolean,
     transformReply?: TransformReply
   ) {
     this._setState(isReadonly);
-    this._multi.addCommand(args, ignoreTypeMapping, transformReply);
+    this._multi.addCommand(args, transformReply);
     return this;
   }
 

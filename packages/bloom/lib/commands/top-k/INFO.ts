@@ -31,7 +31,7 @@ export default {
     },
     3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply => {
       if (reply instanceof Map) {
-        throw new Error("BF.INFO shouldn't return a map type in resp3 anymore");
+        throw new Error("TOPK.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           k: reply.get('k' as unknown as BlobStringReply<'k'>) as NumberReply,
@@ -41,7 +41,7 @@ export default {
         };
 */
       } else if (reply instanceof Array) {
-        throw new Error("BF.INFO shouldn't return a array type in resp3 anymore");
+        throw new Error("TOPK.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           k: reply[1],
@@ -59,6 +59,5 @@ export default {
         };
       }
     }
-  },
-  ignoreTypeMapping: true
+  }
 } as const satisfies Command

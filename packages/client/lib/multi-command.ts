@@ -12,7 +12,6 @@ export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPL
 
 export interface RedisMultiQueuedCommand {
   args: CommandArguments;
-  ignoreTypeMapping?: boolean;
   transformReply?: TransformReply;
 }
 
@@ -21,15 +20,14 @@ export default class RedisMultiCommand {
 
   readonly scriptsInUse = new Set<string>();
 
-  addCommand(args: CommandArguments, ignoreTypeMapping?: boolean, transformReply?: TransformReply) {
+  addCommand(args: CommandArguments, transformReply?: TransformReply) {
     this.queue.push({
       args,
-      ignoreTypeMapping,
       transformReply
     });
   }
 
-  addScript(script: RedisScript, args: CommandArguments, ignoreTypeMapping?: boolean, transformReply?: TransformReply) {
+  addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
     const redisArgs: CommandArguments = [];
     redisArgs.preserve = args.preserve;
     if (this.scriptsInUse.has(script.SHA1)) {
@@ -45,7 +43,7 @@ export default class RedisMultiCommand {
 
     redisArgs.push(...args);
 
-    this.addCommand(redisArgs, ignoreTypeMapping, transformReply);
+    this.addCommand(redisArgs, transformReply);
   }
   
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {

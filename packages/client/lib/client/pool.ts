@@ -67,9 +67,7 @@ export class RedisClientPool<
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
 
-      const commandOptions = this._commandOptions && command.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
-
-      const reply = await this.sendCommand(redisArgs, commandOptions);
+      const reply = await this.sendCommand(redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -81,9 +79,7 @@ export class RedisClientPool<
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
 
-      const commandOptions = this._self._commandOptions && command.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
-
-      const reply = await this._self.sendCommand(redisArgs, commandOptions);
+      const reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -96,11 +92,9 @@ export class RedisClientPool<
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args);
 
-      const commandOptions = this._self._commandOptions && fn.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
-
       const reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
-          commandOptions
+          this._self._commandOptions
         );
       return transformReply ?
         transformReply(reply, fnArgs.preserve) :
@@ -115,9 +109,7 @@ export class RedisClientPool<
       const scriptArgs = script.transformArguments(...args);
       const redisArgs = prefix.concat(scriptArgs);
 
-      const commandOptions = this._commandOptions && script.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
-
-      const reply = await this.executeScript(script, redisArgs, commandOptions);
+      const reply = await this.executeScript(script, redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
         reply;

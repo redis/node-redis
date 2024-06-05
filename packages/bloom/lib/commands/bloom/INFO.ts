@@ -34,7 +34,7 @@ export default {
     },
     3: (reply: UnwrapReply<BfInfoReplyMap>) => {
       if (reply instanceof Map) {
-        throw new Error("BF.INFO shouldn't return a map type in resp3 anymore");
+        throw new Error("BF.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           capacity: reply.get("Capacity" as unknown as BlobStringReply<'Capacity'>),
@@ -45,7 +45,7 @@ export default {
         }
 */
       } else if (reply instanceof Array) {
-        throw new Error("BF.INFO shouldn't return a array type in resp3 anymore");
+        throw new Error("BF.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           capacity: reply[1],
@@ -66,5 +66,4 @@ export default {
       }
     },
   },
-  ignoreTypeMapping: true
 } as const satisfies Command;

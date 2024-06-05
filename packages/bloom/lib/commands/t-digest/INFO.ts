@@ -24,20 +24,6 @@ export interface TdInfoReply {
   memoryUsage?: NumberReply
 }
 
-/*
-const keyMap = {
-  'Compression': { member: 'compression', index: 1 },
-  'Capacity': { member: 'capacity', index: 3 },
-  'Merged nodes': { member: 'mergedNodes', index: 5 },
-  'Unmerged nodes': { member: 'unmergedNodes', index: 7 },
-  'Merged weight': { member: 'mergedWeight', index: 9 },
-  'Unmerged weight': { member: 'unmergedWeight', index: 11 },
-  'Observations': { member: 'observations', index: 13 },
-  'Total compressions': { member: 'totalCompression': index: 15 },
-  'Memory usage': { member: 'memoryUsage', index: 17 }
-}
-*/
-
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
@@ -60,7 +46,7 @@ export default {
     },
     3: (reply: UnwrapReply<TdInfoReplyMap>): TdInfoReply => {
       if (reply instanceof Map) {
-        throw new Error("BF.INFO shouldn't return a map type in resp3 anymore");
+        throw new Error("TDIGEST.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           compression: reply.get('Compression' as unknown as BlobStringReply<any>),
@@ -75,7 +61,7 @@ export default {
         };
 */
       } else if (reply instanceof Array) {
-        throw new Error("BF.INFO shouldn't return a array type in resp3 anymore");
+        throw new Error("TDIGEST.INFO shouldn't be used with type mapping to map or array");
 /*
         return {
           compression: reply[1],
@@ -104,5 +90,4 @@ export default {
       }
     }
   },
-  ignoreTypeMapping: true
 } as const satisfies Command;

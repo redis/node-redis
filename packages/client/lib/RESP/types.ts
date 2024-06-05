@@ -278,7 +278,6 @@ export type Command = {
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
   unstableResp3Module?: boolean;
-  ignoreTypeMapping?: boolean;
 };
 
 export type RedisCommands = Record<string, Command>;

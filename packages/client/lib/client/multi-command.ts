@@ -91,7 +91,6 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
       return this.addCommand(
         command.transformArguments(...args),
-        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -102,7 +101,6 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
       return this._self.addCommand(
         command.transformArguments(...args),
-        command.ignoreTypeMapping,
         transformReply
       );
     };
@@ -117,7 +115,6 @@ export default class RedisClientMultiCommand<REPLIES = []> {
       redisArgs.preserve = fnArgs.preserve;
       return this._self.addCommand(
         redisArgs,
-        fn.ignoreTypeMapping,
         transformReply
       );
     };
@@ -129,7 +126,6 @@ export default class RedisClientMultiCommand<REPLIES = []> {
       this.#multi.addScript(
         script,
         script.transformArguments(...args),
-        script.ignoreTypeMapping,
         transformReply
       );
       return this;
@@ -165,14 +161,14 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
   SELECT(db: number, transformReply?: TransformReply): this {
     this.#selectedDB = db;
-    this.#multi.addCommand(['SELECT', db.toString()], undefined, transformReply);
+    this.#multi.addCommand(['SELECT', db.toString()], transformReply);
     return this;
   }
 
   select = this.SELECT;
 
-  addCommand(args: CommandArguments, ignoreTypeMapping?: boolean, transformReply?: TransformReply) {
-    this.#multi.addCommand(args, ignoreTypeMapping, transformReply);
+  addCommand(args: CommandArguments, transformReply?: TransformReply) {
+    this.#multi.addCommand(args, transformReply);
     return this;
   }
 

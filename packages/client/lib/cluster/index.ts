@@ -181,13 +181,11 @@ export default class RedisCluster<
         redisArgs
       );
 
-      const commandOptions = this._commandOptions && command.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
-  
       const reply = await this.sendCommand(
         firstKey,
         command.IS_READ_ONLY,
         redisArgs,
-        commandOptions,
+        this._commandOptions,
         // command.POLICIES
       );
 
@@ -207,13 +205,11 @@ export default class RedisCluster<
         redisArgs
       );
 
-      const commandOptions = this._self._commandOptions && command.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
-
       const reply = await this._self.sendCommand(
         firstKey,
         command.IS_READ_ONLY,
         redisArgs,
-        commandOptions,
+        this._self._commandOptions,
         // command.POLICIES
       );
 
@@ -235,13 +231,11 @@ export default class RedisCluster<
       );
       const redisArgs = prefix.concat(fnArgs);
 
-      const commandOptions = this._self._commandOptions && fn.ignoreTypeMapping ? { ...this._self._commandOptions, typeMapping: undefined} : undefined;
-
       const reply = await this._self.sendCommand(
         firstKey,
         fn.IS_READ_ONLY,
         redisArgs,
-        commandOptions,
+        this._self._commandOptions,
         // fn.POLICIES
       );
 
@@ -263,14 +257,12 @@ export default class RedisCluster<
       );
       const redisArgs = prefix.concat(scriptArgs);
 
-      const commandOptions = this._commandOptions && script.ignoreTypeMapping ? { ...this._commandOptions, typeMapping: undefined} : undefined;
-
       const reply = await this.executeScript(
         script,
         firstKey,
         script.IS_READ_ONLY,
         redisArgs,
-        commandOptions,
+        this._commandOptions,
         // script.POLICIES
       );
 
