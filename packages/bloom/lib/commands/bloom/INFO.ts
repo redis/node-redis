@@ -32,7 +32,7 @@ export default {
         expansionRate: reply[9]
       }
     },
-    3: (reply: UnwrapReply<BfInfoReplyMap>) => {
+    3: (reply: UnwrapReply<BfInfoReplyMap>): BfInfoReply => {
       if (reply instanceof Map) {
         throw new Error("BF.INFO shouldn't be used with type mapping to map or array");
 /*
