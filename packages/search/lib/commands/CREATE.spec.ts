@@ -69,20 +69,6 @@ describe('FT.CREATE', () => {
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'WITHSUFFIXTRIE']
           );
         });
-
-        it('with ISEMPTY', () => {
-          assert.deepEqual(
-            CREATE.transformArguments('index', {
-              field: {
-                type: SCHEMA_FIELD_TYPE.TEXT,
-                MISSING_VAUES: {
-                  IS_EMPTY: true
-                }
-              }
-            }),
-            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISEMPTY']
-          );
-        });
       });
 
       describe('NUMERIC', () => {
@@ -93,20 +79,6 @@ describe('FT.CREATE', () => {
                 field: SCHEMA_FIELD_TYPE.NUMERIC
               }),
               ['FT.CREATE', 'index', 'SCHEMA', 'field', 'NUMERIC']
-            );
-          });
-
-          it('with ISEMPTY', () => {
-            assert.deepEqual(
-              CREATE.transformArguments('index', {
-                field: {
-                  type: SCHEMA_FIELD_TYPE.NUMERIC,
-                  MISSING_VAUES: {
-                    IS_EMPTY: true
-                  }
-                }
-              }),
-              ['FT.CREATE', 'index', 'SCHEMA', 'field', 'NUMERIC', 'ISEMPTY']
             );
           });
         });
@@ -120,20 +92,6 @@ describe('FT.CREATE', () => {
                 field: SCHEMA_FIELD_TYPE.GEO
               }),
               ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEO']
-            );
-          });
-
-          it('with ISEMPTY', () => {
-            assert.deepEqual(
-              CREATE.transformArguments('index', {
-                field: {
-                  type: SCHEMA_FIELD_TYPE.GEO,
-                  MISSING_VAUES: {
-                    IS_EMPTY: true
-                  }
-                }
-              }),
-              ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEO', 'ISEMPTY']
             );
           });
         });
@@ -197,20 +155,6 @@ describe('FT.CREATE', () => {
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'WITHSUFFIXTRIE']
           );
         });
-
-        it('with ISEMPTY', () => {
-          assert.deepEqual(
-            CREATE.transformArguments('index', {
-              field: {
-                type: SCHEMA_FIELD_TYPE.TAG,
-                MISSING_VAUES: {
-                  IS_EMPTY: true
-                }
-              }
-            }),
-            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'ISEMPTY']
-          );
-        });
       });
 
       describe('VECTOR', () => {
@@ -257,25 +201,6 @@ describe('FT.CREATE', () => {
             ]
           );
         });
-
-        it('with ISEMPTY', () => {
-          assert.deepEqual(
-            CREATE.transformArguments('index', {
-              field: {
-                type: SCHEMA_FIELD_TYPE.VECTOR,
-                ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
-                TYPE: 'FLOAT32',
-                DIM: 2,
-                DISTANCE_METRIC: 'L2',
-                MISSING_VAUES: {
-                  IS_EMPTY: true
-                }
-              }
-            }),
-            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'HNSW', '7', 'TYPE', 
-            'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'ISEMPTY']
-          );
-        });
       });
 
       describe('GEOSHAPE', () => {
@@ -312,21 +237,6 @@ describe('FT.CREATE', () => {
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE', 'COORD_SYSTEM', 'SPHERICAL']
           );
         });
-
-        it('with ISEMPTY', () => {
-          assert.deepEqual(
-            CREATE.transformArguments('index', {
-              field: {
-                type: SCHEMA_FIELD_TYPE.GEOSHAPE,
-                MISSING_VAUES: {
-                  IS_EMPTY: true
-                }
-              }
-            }),
-            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE', 'ISEMPTY']
-          );
-        });
-
       });
   
       it('with AS', () => {
@@ -533,6 +443,36 @@ describe('FT.CREATE', () => {
             STOPWORDS: ['1', '2']
           }),
           ['FT.CREATE', 'index', 'STOPWORDS', '2', '1', '2', 'SCHEMA']
+        );
+      });
+    });
+
+    describe('Missing Values', () => {
+      it('with ISNULL', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('index', {
+            field: {
+              type: SCHEMA_FIELD_TYPE.TEXT,
+              MISSING_VAUES: {
+                IS_NULL: true
+              }
+            }
+          }),
+          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISNULL']
+        );
+      });
+
+      it('with ISMISSING', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('index', {
+            field: {
+              type: SCHEMA_FIELD_TYPE.TEXT,
+              MISSING_VAUES: {
+                IS_MISSING: true
+              }
+            }
+          }),
+          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISMISSING']
         );
       });
     });

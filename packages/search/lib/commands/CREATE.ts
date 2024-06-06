@@ -13,7 +13,8 @@ export const SCHEMA_FIELD_TYPE = {
 export type SchemaFieldType = typeof SCHEMA_FIELD_TYPE[keyof typeof SCHEMA_FIELD_TYPE];
 
 export interface MissingValues {
-  IS_EMPTY?: boolean;
+  IS_NULL?: boolean;
+  IS_MISSING?: boolean;
 }
 
 type SchemaField<
@@ -118,8 +119,12 @@ function pushMissingValues(args: CommandArguments, missingValues?: MissingValues
     return;
   }
 
-  if (missingValues.IS_EMPTY) {
-    args.push("ISEMPTY");
+  if (missingValues.IS_MISSING) {
+    args.push("ISMISSING");
+  }
+
+  if (missingValues.IS_NULL) {
+    args.push("ISNULL");
   }
 }
 
