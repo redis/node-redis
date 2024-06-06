@@ -153,7 +153,6 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
-
       const reply = await this.sendCommand(redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
@@ -165,7 +164,6 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
-
       const reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
@@ -178,7 +176,6 @@ export default class RedisClient<
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args);
-
       const reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
           this._self._commandOptions
@@ -194,9 +191,8 @@ export default class RedisClient<
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args);
-      const redisArgs = prefix.concat(scriptArgs)
-
-      const reply = await this.executeScript(script, redisArgs, this._self._commandOptions);
+      const redisArgs = prefix.concat(scriptArgs);
+      const reply = await this.executeScript(script, redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
         reply;

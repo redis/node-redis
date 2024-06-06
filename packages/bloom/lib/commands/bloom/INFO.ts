@@ -23,16 +23,16 @@ export default {
     return ['BF.INFO', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<BfInfoReplyMap>>): BfInfoReply => {
+    2(reply: UnwrapReply<Resp2Reply<BfInfoReplyMap>>): BfInfoReply {
       return {
         capacity: reply[1],
         size: reply[3],
         numberOfFilters: reply[5],
         numberOfInsertedItems: reply[7],
         expansionRate: reply[9]
-      }
+      };
     },
-    3: (reply: UnwrapReply<BfInfoReplyMap>): BfInfoReply => {
+    3(reply: UnwrapReply<BfInfoReplyMap>): BfInfoReply {
       if (reply instanceof Map) {
         throw new Error("BF.INFO shouldn't be used with type mapping to map or array");
 /*
@@ -62,8 +62,8 @@ export default {
           numberOfFilters: reply["Number of filters"],
           numberOfInsertedItems: reply["Number of items inserted"],
           expansionRate: reply["Expansion rate"]
-        }
+        };
       }
-    },
-  },
+    }
+  }
 } as const satisfies Command;

@@ -28,9 +28,8 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['CF.INFO', key];
   },
- 
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>): CfInfoReply => {
+    2(reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>): CfInfoReply {
       return {
         size: reply[1],
         numberOfBuckets: reply[3],
@@ -40,7 +39,7 @@ export default {
         bucketSize: reply[11],
         expansionRate: reply[13],
         maxIteration: reply[15]
-      }
+      };
     },
     3: (reply: UnwrapReply<CfInfoReplyMap>): CfInfoReply => {
       if (reply instanceof Map) {
@@ -81,8 +80,8 @@ export default {
           bucketSize: reply['Bucket size'],
           expansionRate: reply['Expansion rate'],
           maxIteration: reply['Max iterations']
-        }
+        };
       }
     }
-  },
+  }
 } as const satisfies Command;

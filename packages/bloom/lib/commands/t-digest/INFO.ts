@@ -21,7 +21,7 @@ export interface TdInfoReply {
   unmergedWeight?: NumberReply;
   observations?: NumberReply,
   totalCompression?: NumberReply;
-  memoryUsage?: NumberReply
+  memoryUsage?: NumberReply;
 }
 
 export default {
@@ -31,7 +31,7 @@ export default {
     return ['TDIGEST.INFO', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<TdInfoReplyMap>>): TdInfoReply => {
+    2(reply: UnwrapReply<Resp2Reply<TdInfoReplyMap>>): TdInfoReply {
       return {
         compression: reply[1],
         capacity: reply[3],
@@ -44,7 +44,7 @@ export default {
         memoryUsage: reply[17]
       };
     },
-    3: (reply: UnwrapReply<TdInfoReplyMap>): TdInfoReply => {
+    3(reply: UnwrapReply<TdInfoReplyMap>): TdInfoReply {
       if (reply instanceof Map) {
         throw new Error("TDIGEST.INFO shouldn't be used with type mapping to map or array");
 /*
@@ -89,5 +89,5 @@ export default {
         };
       }
     }
-  },
+  }
 } as const satisfies Command;

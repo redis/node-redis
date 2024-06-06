@@ -19,14 +19,14 @@ export default {
     return ['CMS.INFO', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<CmsInfoReplyMap>>): CmsInfoReply => {
+    2(reply: UnwrapReply<Resp2Reply<CmsInfoReplyMap>>): CmsInfoReply {
       return {
         width: reply[1],
         depth: reply[3],
         count: reply[5]
-      }
+      };
     },
-    3: (reply: UnwrapReply<CmsInfoReplyMap>): CmsInfoReply => {
+    3(reply: UnwrapReply<CmsInfoReplyMap>): CmsInfoReply {
       if (reply instanceof Map) {
         throw new Error("CMS.INFO shouldn't be used with type mapping to map or array");
 /*
@@ -50,8 +50,8 @@ export default {
           width: reply['width'],
           depth: reply['depth'],
           count: reply['count']
-        }
+        };
       }
     }
-  },
+  }
 } as const satisfies Command;

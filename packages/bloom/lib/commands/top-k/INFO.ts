@@ -8,10 +8,10 @@ export type TopKInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export type TkInfoReply = {
-  k: NumberReply,
-  width: NumberReply,
-  depth: NumberReply,
-  decay: number,
+  k: NumberReply;
+  width: NumberReply;
+  depth: NumberReply;
+  decay: number;
 }
  
 export default {
@@ -27,7 +27,7 @@ export default {
         width: reply[3],
         depth: reply[5],
         decay: Number(reply[7])
-      }
+      };
     },
     3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply => {
       if (reply instanceof Map) {
