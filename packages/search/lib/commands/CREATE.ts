@@ -12,12 +12,17 @@ export const SCHEMA_FIELD_TYPE = {
 
 export type SchemaFieldType = typeof SCHEMA_FIELD_TYPE[keyof typeof SCHEMA_FIELD_TYPE];
 
+export interface MissingValues {
+  IS_EMPTY?: boolean;
+}
+
 type SchemaField<
   T extends SchemaFieldType,
   E = Record<PropertyKey, unknown>
 > = T | ({
   type: T;
   AS?: RedisArgument;
+  MISSING_VAUES?: MissingValues;
 } & E);
 
 type SchemaCommonField<
@@ -108,6 +113,16 @@ export interface RediSearchSchema {
   );
 }
 
+function pushMissingValues(args: CommandArguments, missingValues?: MissingValues) {
+  if (!missingValues) {
+    return;
+  }
+
+  if (missingValues.IS_EMPTY) {
+    args.push("ISEMPTY");
+  }
+}
+
 export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
   for (const [field, fieldOptions] of Object.entries(schema)) {
     args.push(field);
@@ -141,11 +156,14 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
           args.push('WITHSUFFIXTRIE');
         }
 
+        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+
         break;
 
-      // case SchemaFieldTypes.NUMERIC:
-      // case SchemaFieldTypes.GEO:
-      //     break;
+      case SCHEMA_FIELD_TYPE.NUMERIC:
+      case SCHEMA_FIELD_TYPE.GEO:
+        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+        break;
 
       case SCHEMA_FIELD_TYPE.TAG:
         if (fieldOptions.SEPARATOR) {
@@ -159,6 +177,8 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
         if (fieldOptions.WITHSUFFIXTRIE) {
           args.push('WITHSUFFIXTRIE');
         }
+
+        pushMissingValues(args, fieldOptions.MISSING_VAUES);
 
         break;
 
@@ -200,6 +220,9 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
 
             break;
         }
+
+        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+
         args[lengthIndex] = (args.length - lengthIndex - 1).toString();
 
         continue; // vector fields do not contain SORTABLE and NOINDEX options
@@ -208,6 +231,8 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
         if (fieldOptions.COORD_SYSTEM !== undefined) {
           args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
         }
+
+        pushMissingValues(args, fieldOptions.MISSING_VAUES);
 
         continue; // geo shape fields do not contain SORTABLE and NOINDEX options
     }
