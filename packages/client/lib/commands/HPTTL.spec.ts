@@ -24,7 +24,7 @@ describe('HPTTL', () => {
   testUtils.testAll('hpTTL', async client => {
     assert.equal(
       await client.hpTTL('key', 'field'),
-      null
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

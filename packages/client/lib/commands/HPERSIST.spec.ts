@@ -23,8 +23,8 @@ describe('HPERSIST', () => {
 
   testUtils.testAll('hPersist', async client => {
     assert.equal(
-      await client.hPersist('key', 'field1'),
-      null
+      await client.hPersist('key', 'field'),
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

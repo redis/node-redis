@@ -30,8 +30,8 @@ describe('HEXPIRE', () => {
 
   testUtils.testAll('hExpire', async client => {
     assert.equal(
-      await client.hExpire('key', ['field1'], 0),
-      null
+      await client.hExpire('key', 'field', 0),
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

@@ -1,4 +1,4 @@
-import { Command, NullReply, RedisArgument } from "../RESP/types";
+import { Command, NumberReply, ArrayReply, RedisArgument } from "../RESP/types";
 import { RedisVariadicArgument, pushVariadicArgument } from "./generic-transformers";
 
 export const HASH_EXPIRATION = {
@@ -13,6 +13,8 @@ export const HASH_EXPIRATION = {
 } as const;
   
 export type HashExpiration = typeof HASH_EXPIRATION[keyof typeof HASH_EXPIRATION];
+
+export type HashExpirationReply = NumberReply<HashExpiration>;
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -30,5 +32,5 @@ export default {
 
     return pushVariadicArgument(args, fields);
   },
-  transformReply: undefined as unknown as () => NullReply | Array<HashExpiration>
+  transformReply: undefined as unknown as () => ArrayReply<HashExpirationReply>
 } as const satisfies Command;

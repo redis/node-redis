@@ -1,4 +1,4 @@
-import { RedisArgument, NumberReply, Command, NullReply, ArrayReply } from '../RESP/types';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
 
 export default {
@@ -7,5 +7,5 @@ export default {
   transformArguments(key: RedisArgument, fields: RedisVariadicArgument) {
     return pushVariadicArgument(['HTTL', key], fields);
   },
-  transformReply: undefined as unknown as () => NullReply | ArrayReply<NumberReply>
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
 } as const satisfies Command;

@@ -30,8 +30,8 @@ describe('HPEXPIRE', () => {
 
   testUtils.testAll('hpRxpire', async client => {
     assert.equal(
-      await client.hpExpire('key', ['field'], 0),
-      null
+      await client.hpExpire('key', 'field', 0),
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

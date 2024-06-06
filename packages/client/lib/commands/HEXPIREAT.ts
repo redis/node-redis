@@ -1,5 +1,5 @@
-import { RedisArgument, Command, NullReply } from '../RESP/types';
-import { HashExpiration } from './HEXPIRE';
+import { RedisArgument, ArrayReply, Command } from '../RESP/types';
+import { HashExpirationReply } from './HEXPIRE';
 import { RedisVariadicArgument, pushVariadicArgument, transformEXAT } from './generic-transformers';
 
 export default {
@@ -19,5 +19,5 @@ export default {
 
     return pushVariadicArgument(args, fields);
   },
-  transformReply: undefined as unknown as () => NullReply | Array<HashExpiration>
+  transformReply: undefined as unknown as () => ArrayReply<HashExpirationReply>
 } as const satisfies Command;

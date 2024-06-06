@@ -24,7 +24,7 @@ describe('HPEXPIRETIME', () => {
   testUtils.testAll('hpExpireTime', async client => {
     assert.equal(
       await client.hpExpireTime('key', 'field'),
-      null
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

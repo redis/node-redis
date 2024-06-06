@@ -38,8 +38,8 @@ describe('HPEXPIREAT', () => {
 
   testUtils.testAll('hpExpireAt', async client => {
     assert.equal(
-      await client.hpExpireAt('key', ['field1'], 1),
-      null,
+      await client.hpExpireAt('key', 'field', 1),
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

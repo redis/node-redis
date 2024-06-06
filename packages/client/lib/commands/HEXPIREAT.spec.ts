@@ -38,8 +38,8 @@ describe('HEXPIREAT', () => {
 
   testUtils.testAll('expireAt', async client => {
     assert.equal(
-      await client.hExpireAt('key', 'field1', 1),
-      null
+      await client.hExpireAt('key', 'field', 1),
+      [-2]
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,
