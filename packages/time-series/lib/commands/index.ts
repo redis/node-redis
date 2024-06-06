@@ -69,11 +69,7 @@ export default {
 
 export function pushIgnoreArgument(args: Array<RedisArgument>, ignore?: TsIgnoreOptions) {
   if (ignore !== undefined) {
-    args.push(
-      'IGNORE', 
-      ignore.MAX_TIME_DIFF ? ignore.MAX_TIME_DIFF.toString() : '0',
-      ignore.MAX_VAL_DIFF ? ignore.MAX_VAL_DIFF.toString() : '0'
-    )
+    args.push('IGNORE', ignore.maxTimeDiff.toString(), ignore.maxValDiff.toString());
   }
 }
 

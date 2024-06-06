@@ -13,8 +13,8 @@ import {
 } from '.';
 
 export interface TsIgnoreOptions {
-  MAX_TIME_DIFF?: number;
-  MAX_VAL_DIFF?: number;
+  maxTimeDiff: number;
+  maxValDiff: number;
 }
 
 export interface TsAddOptions {
