@@ -83,6 +83,20 @@ describe('Client', () => {
             );
         });
 
+        it('unix://user:secret@/path/to/sock?db=0', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('unix://user:secret@/path/to/sock?db=0'),
+                {
+                    socket: {
+                        path: '/path/to/sock'
+                    },
+                    username: 'user',
+                    password: 'secret',
+                    database: 0
+                }
+            );
+        });
+
         it('Invalid protocol', () => {
             assert.throws(
                 () => RedisClient.parseURL('redi://user:secret@localhost:6379/0'),
