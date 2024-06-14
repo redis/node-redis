@@ -91,7 +91,7 @@ export type ClusterMultiExecute = (
 ) => Promise<Array<unknown>>;
 
 export default class RedisClusterMultiCommand<REPLIES = []> {
-  static #createCommand(command: Command, resp: RespVersions) {
+  static #createCommand(name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -109,7 +109,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     };
   }
 
-  static #createModuleCommand(command: Command, resp: RespVersions) {
+  static #createModuleCommand(moduleName: string, name: string, command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args),
@@ -127,7 +127,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     };
   }
 
-  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+  static #createFunctionCommand(libName: string, name: string, fn: RedisFunction, resp: RespVersions) {
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
@@ -148,7 +148,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     };
   }
 
-  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
+  static #createScriptCommand(name: string, script: RedisScript, resp: RespVersions) {
     const transformReply = getTransformReply(script, resp);
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args);
