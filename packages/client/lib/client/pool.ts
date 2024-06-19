@@ -7,6 +7,8 @@ import { TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
+import { BasicCommandParser } from './parser';
+import { PooledClientSideCacheProvider, ClientSideCacheConfig, BasicPooledClientSideCache } from './cache';
 
 export interface RedisPoolOptions {
   /**
@@ -25,6 +27,10 @@ export interface RedisPoolOptions {
    * TODO
    */
   cleanupDelay: number;
+  /**
+   * TODO
+  */
+  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 export type PoolTask<
@@ -60,51 +66,85 @@ export class RedisClientPool<
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.sendCommand(redisArgs, this._commandOptions);
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
+      if (command.parseCommand) {
+        const parser = new BasicCommandParser(resp);
+        command.parseCommand(parser, ...args);
+
+        return this.execute(client => client.executeCommand(parser, this._commandOptions, transformReply))
+      } else {
+        const redisArgs = command.transformArguments(...args),
+          reply = await this.sendCommand(redisArgs, this._commandOptions);
+        return transformReply ?
+          transformReply(reply, redisArgs.preserve) :
+          reply;
+      }
     };
   }
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
-        reply;
+      if (command.parseCommand) {
+        const parser = new BasicCommandParser(resp);
+        command.parseCommand(parser, ...args);
+
+        return this._self.execute(client => client.executeCommand(parser, this._self._commandOptions, transformReply))
+      } else {
+        const redisArgs = command.transformArguments(...args),
+          reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+        return transformReply ?
+          transformReply(reply, redisArgs.preserve) :
+          reply;
+      }
     };
   }
 
   static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
+    const prefix = functionArgumentsPrefix(name, fn);
+    const transformReply = getTransformReply(fn, resp);
+
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        reply = await this._self.sendCommand(
-          prefix.concat(fnArgs),
-          this._self._commandOptions
-        );
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
-        reply;
+      if (fn.parseCommand) {
+        const parser = new BasicCommandParser(resp);
+        parser.pushVariadic(prefix);
+        fn.parseCommand(parser, ...args);
+
+        return this._self.execute(client => client.executeCommand(parser, this._self._commandOptions, transformReply))
+      } else {
+        const fnArgs = fn.transformArguments(...args),
+          reply = await this._self.sendCommand(
+            prefix.concat(fnArgs),
+            this._self._commandOptions
+          );
+        return transformReply ?
+          transformReply(reply, fnArgs.preserve) :
+          reply;
+      }
     };
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
+    const prefix = scriptArgumentsPrefix(script);
+    const transformReply = getTransformReply(script, resp);
+
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(script, redisArgs, this._commandOptions);
-      return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
-        reply;
+      if (script.parseCommand) {
+        const parser = new BasicCommandParser(resp);
+        parser.pushVariadic(prefix);
+        script.parseCommand(parser, ...args);
+
+        return this.execute(client => client.executeCommand(parser, this._commandOptions, transformReply))
+      } else {
+        const scriptArgs = script.transformArguments(...args),
+          redisArgs = prefix.concat(scriptArgs),
+          reply = await this.executeScript(script, redisArgs, this._commandOptions);
+        return transformReply ?
+          transformReply(reply, scriptArgs.preserve) :
+          reply;
+      }
     };
   }
 
@@ -115,7 +155,7 @@ export class RedisClientPool<
     RESP extends RespVersions,
     TYPE_MAPPING extends TypeMapping = {}
   >(
-    clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
+    clientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, "clientSideCache">,
     options?: Partial<RedisPoolOptions>
   ) {
     const Pool = attachConfig({
@@ -133,7 +173,7 @@ export class RedisClientPool<
     // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
     return Object.create(
       new Pool(
-        RedisClient.factory(clientOptions).bind(undefined, clientOptions),
+        clientOptions,
         options
       )
     ) as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
@@ -207,22 +247,40 @@ export class RedisClientPool<
     return this._self.#isClosing;
   }
 
+  #clientSideCache?: PooledClientSideCacheProvider;
+
   /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
    * {@link RedisClientPool.fromClient `RedisClientPool.fromClient`},
    * or {@link RedisClientPool.fromOptions `RedisClientPool.fromOptions`}...
    */
   constructor(
-    clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
     options?: Partial<RedisPoolOptions>
   ) {
     super();
 
-    this.#clientFactory = clientFactory;
     this.#options = {
       ...RedisClientPool.#DEFAULTS,
       ...options
     };
+
+    if (options?.clientSideCache) {
+      if (clientOptions === undefined) {
+        clientOptions = {};
+      }
+
+      if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
+        this.#clientSideCache = clientOptions.clientSideCache = options.clientSideCache;
+      } else {
+        const cscConfig = options.clientSideCache;
+        this.#clientSideCache = clientOptions.clientSideCache = new BasicPooledClientSideCache(cscConfig);
+//        this.#clientSideCache = clientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
+//        this.#clientSideCache = clientOptions.clientSideCache = new PooledRedirectClientSideCache(cscConfig);
+      }
+    }
+
+    this.#clientFactory = RedisClient.factory(clientOptions).bind(undefined, clientOptions) as () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
   private _self = this;
@@ -289,6 +347,16 @@ export class RedisClientPool<
 
     this._self.#isOpen = true;
 
+    /* Needed if we need to do setup work for cache before clients are connected
+     * An example would be for redirect support, currently a noop for in use use-cases.
+     */
+    try {
+      this._self.#clientSideCache?.onPoolConnect(this._self.#clientFactory);
+    } catch (err) {
+      this.destroy();
+      throw err;
+   }
+
     const promises = [];
     while (promises.length < this._self.#options.minimum) {
       promises.push(this._self.#create());
@@ -310,7 +378,9 @@ export class RedisClientPool<
     );
 
     try {
-      await node.value.connect();
+      const client = node.value;
+      this.#clientSideCache?.addClient(client);
+      await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
       throw err;
@@ -399,7 +469,9 @@ export class RedisClientPool<
     const toDestroy = Math.min(this.#idleClients.length, this.totalClients - this.#options.minimum);
     for (let i = 0; i < toDestroy; i++) {
       // TODO: shift vs pop
-      this.#idleClients.shift()!.destroy();
+      const client = this.#idleClients.shift()!;
+      this.#clientSideCache?.removeClient(client);
+      client.destroy();
     }
   }
 
@@ -444,6 +516,8 @@ export class RedisClientPool<
       for (const client of this._self.#clientsInUse) {
         promises.push(client.close());
       }
+
+      promises.push(this._self.#clientSideCache?.onClose());
   
       await Promise.all(promises);
   
@@ -465,6 +539,9 @@ export class RedisClientPool<
     for (const client of this._self.#clientsInUse) {
       client.destroy();
     }
+
+    this._self.#clientSideCache?.onDestroy();
+
     this._self.#clientsInUse.reset();
 
     this._self.#isOpen = false;
