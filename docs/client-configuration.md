@@ -13,7 +13,7 @@
 | socket.keepAlive             | `true`                                   | Toggle [`keep-alive`](https://nodejs.org/api/net.html#socketsetkeepaliveenable-initialdelay) functionality                                                                                                                                          |
 | socket.keepAliveInitialDelay | `5000`                                   | If set to a positive number, it sets the initial delay before the first keepalive probe is sent on an idle socket                                                                                                                                   |
 | socket.tls                   |                                          | See explanation and examples [below](#TLS)                                                                                                                                                                                                          |
-| socket.reconnectStrategy     | `retries => Math.min(retries * 50, 500)` | A function containing the [Reconnect Strategy](#reconnect-strategy) logic                                                                                                                                                                           |
+| socket.reconnectStrategy     | Exponential backoff with a maximum of 2000 ms; plus 0-200 ms random jitter.       | A function containing the [Reconnect Strategy](#reconnect-strategy) logic                                                                                                                                                                           |
 | username                     |                                          | ACL username ([see ACL guide](https://redis.io/topics/acl))                                                                                                                                                                                         |
 | password                     |                                          | ACL password or the old "--requirepass" password                                                                                                                                                                                                    |
 | name                         |                                          | Client name ([see `CLIENT SETNAME`](https://redis.io/commands/client-setname))                                                                                                                                                                      |
@@ -35,12 +35,19 @@ When the socket closes unexpectedly (without calling `.quit()`/`.disconnect()`),
 2. `number` -> wait for `X` milliseconds before reconnecting.
 3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
 
-By default the strategy is `Math.min(retries * 50, 500)`, but it can be overwritten like so:
+By default the strategy uses exponential backoff, but it can be overwritten like so:
 
 ```javascript
 createClient({
   socket: {
-    reconnectStrategy: retries => Math.min(retries * 50, 1000)
+    reconnectStrategy: retries => {
+        // Generate a random jitter between 0 – 200 ms:
+        const jitter = Math.floor(Math.random() * 200);
+        // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
+        const delay = Math.min(Math.pow(2, retries) * 50, 2000);
+
+        return delay + jitter;
+    }
   }
 });
 ```

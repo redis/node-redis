@@ -97,12 +97,12 @@ export default class RedisSocket extends EventEmitter {
           return retryIn;
         } catch (err) {
           this.emit('error', err);
-          return Math.min(retries * 50, 500);
+          return this.defaultReconnectStrategy(retries);
         }
       };
     }
 
-    return retries => Math.min(retries * 50, 500);
+    return this.defaultReconnectStrategy;
   }
 
   #createSocketFactory(options?: RedisSocketOptions) {
@@ -332,5 +332,14 @@ export default class RedisSocket extends EventEmitter {
   unref() {
     this.#isSocketUnrefed = true;
     this.#socket?.unref();
+  }
+
+  defaultReconnectStrategy(retries: number) {
+    // Generate a random jitter between 0 – 200 ms:
+    const jitter = Math.floor(Math.random() * 200);
+    // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
+    const delay = Math.min(Math.pow(2, retries) * 50, 2000);
+  
+    return delay + jitter;
   }
 }

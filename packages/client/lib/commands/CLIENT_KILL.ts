@@ -7,7 +7,8 @@ export const CLIENT_KILL_FILTERS = {
   ID: 'ID',
   TYPE: 'TYPE',
   USER: 'USER',
-  SKIP_ME: 'SKIPME'
+  SKIP_ME: 'SKIPME',
+  MAXAGE: 'MAXAGE'
 } as const;
 
 type CLIENT_KILL_FILTERS = typeof CLIENT_KILL_FILTERS;
@@ -40,7 +41,11 @@ export type ClientKillSkipMe = CLIENT_KILL_FILTERS['SKIP_ME'] | (ClientKillFilte
   skipMe: boolean;
 });
 
-export type ClientKillFilter = ClientKillAddress | ClientKillLocalAddress | ClientKillId | ClientKillType | ClientKillUser | ClientKillSkipMe;
+export interface ClientKillMaxAge extends ClientKillFilterCommon<CLIENT_KILL_FILTERS['MANAGE']> {
+  maxAge: number;
+}
+
+export type ClientKillFilter = ClientKillAddress | ClientKillLocalAddress | ClientKillId | ClientKillType | ClientKillUser | ClientKillSkipMe | ClientKillMaxAge;
 
 export default {
   FIRST_KEY_INDEX: undefined,
@@ -96,6 +101,10 @@ function pushFilter(parser: CommandParser, filter: ClientKillFilter): void {
 
     case CLIENT_KILL_FILTERS.SKIP_ME:
       parser.push(filter.skipMe ? 'yes' : 'no');
+      break;
+    
+    case CLIENT_KILL_FILTERS.MAXAGE:
+      args.push(filter.maxAge.toString());
       break;
   }
 }
