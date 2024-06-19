@@ -1,5 +1,6 @@
 import { RedisArgument, ArrayReply, NullReply, UnwrapReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments, StreamMessageReply, transformStreamMessageNullReply } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisVariadicArgument, StreamMessageReply, transformStreamMessageNullReply } from './generic-transformers';
 
 export interface XClaimOptions {
   IDLE?: number;
@@ -12,7 +13,8 @@ export interface XClaimOptions {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     group: RedisArgument,
     consumer: RedisArgument,
@@ -20,36 +22,44 @@ export default {
     id: RedisVariadicArgument,
     options?: XClaimOptions
   ) {
-    const args = pushVariadicArguments(
-      ['XCLAIM', key, group, consumer, minIdleTime.toString()],
-      id
-    );
+    parser.push('XCLAIM');
+    parser.pushKey(key);
+    parser.pushVariadic([group, consumer, minIdleTime.toString()]);
+    parser.pushVariadic(id);
 
     if (options?.IDLE !== undefined) {
-      args.push('IDLE', options.IDLE.toString());
+      parser.pushVariadic(['IDLE', options.IDLE.toString()]);
     }
 
     if (options?.TIME !== undefined) {
-      args.push(
-        'TIME',
-        (options.TIME instanceof Date ? options.TIME.getTime() : options.TIME).toString()
+      parser.pushVariadic(
+        [
+          'TIME',
+          (options.TIME instanceof Date ? options.TIME.getTime() : options.TIME).toString()
+        ]
       );
     }
 
     if (options?.RETRYCOUNT !== undefined) {
-      args.push('RETRYCOUNT', options.RETRYCOUNT.toString());
+      parser.pushVariadic(['RETRYCOUNT', options.RETRYCOUNT.toString()]);
     }
 
     if (options?.FORCE) {
-      args.push('FORCE');
+      parser.push('FORCE');
     }
 
     if (options?.LASTID !== undefined) {
-      args.push('LASTID', options.LASTID);
+      parser.pushVariadic(['LASTID', options.LASTID]);
     }
-
-    return args;
   },
+  transformArguments(
+    key: RedisArgument,
+    group: RedisArgument,
+    consumer: RedisArgument,
+    minIdleTime: number,
+    id: RedisVariadicArgument,
+    options?: XClaimOptions
+  ) { return [] },
   transformReply(reply: UnwrapReply<ArrayReply<StreamMessageReply | NullReply>>) {
     return reply.map(transformStreamMessageNullReply);
   }

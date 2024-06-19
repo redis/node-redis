@@ -1,4 +1,5 @@
 import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command } from '../RESP/types'; 
+import { CommandParser } from '../client/parser';
 
 export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'peak.allocated'>, NumberReply],
@@ -35,9 +36,10 @@ export type MemoryStatsReply = TuplesToMapReply<[
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['MEMORY', 'STATS'];
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['MEMORY', 'STATS']);
   },
+  transformArguments() { return [] },
   transformReply: {
     2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) => {
       const reply: any = {};

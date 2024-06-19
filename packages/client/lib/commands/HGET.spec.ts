@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HGET from './HGET';
+import { parseArgs } from './generic-transformers';
 
 describe('HGET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      HGET.transformArguments('key', 'field'),
+      parseArgs(HGET, 'key', 'field'),
       ['HGET', 'key', 'field']
     );
   });

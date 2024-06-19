@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SINTERSTORE from './SINTERSTORE';
+import { parseArgs } from './generic-transformers';
 
 describe('SINTERSTORE', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        SINTERSTORE.transformArguments('destination', 'key'),
+        parseArgs(SINTERSTORE, 'destination', 'key'),
         ['SINTERSTORE', 'destination', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SINTERSTORE.transformArguments('destination', ['1', '2']),
+        parseArgs(SINTERSTORE, 'destination', ['1', '2']),
         ['SINTERSTORE', 'destination', '1', '2']
       );
     });

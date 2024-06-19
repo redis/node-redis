@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HDEL from './HDEL';
+import { parseArgs } from './generic-transformers';
 
 describe('HDEL', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        HDEL.transformArguments('key', 'field'),
+        parseArgs(HDEL, 'key', 'field'),
         ['HDEL', 'key', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        HDEL.transformArguments('key', ['1', '2']),
+        parseArgs(HDEL, 'key', ['1', '2']),
         ['HDEL', 'key', '1', '2']
       );
     });

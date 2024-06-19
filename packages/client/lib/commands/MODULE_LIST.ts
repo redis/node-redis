@@ -1,4 +1,5 @@
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export type ModuleListReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'name'>, BlobStringReply],
@@ -8,9 +9,10 @@ export type ModuleListReply = ArrayReply<TuplesToMapReply<[
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['MODULE', 'LIST'];
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['MODULE', 'LIST']);
   },
+  transformArguments() { return [] },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<ModuleListReply>>) => {
       return reply.map(module => {

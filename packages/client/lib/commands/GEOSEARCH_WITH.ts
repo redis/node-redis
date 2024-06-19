@@ -1,4 +1,5 @@
 import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import GEOSEARCH, { GeoSearchBy, GeoSearchFrom, GeoSearchOptions } from './GEOSEARCH';
 
 export const GEO_REPLY_WITH = {
@@ -22,18 +23,25 @@ export interface GeoReplyWithMember {
 export default {
   FIRST_KEY_INDEX: GEOSEARCH.FIRST_KEY_INDEX,
   IS_READ_ONLY: GEOSEARCH.IS_READ_ONLY,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     replyWith: Array<GeoReplyWith>,
     options?: GeoSearchOptions
   ) {
-    const args = GEOSEARCH.transformArguments(key, from, by, options);
-    args.push(...replyWith);
-    args.preserve = replyWith;
-    return args;
+    GEOSEARCH.parseCommand(parser, key, from, by, options);
+    parser.pushVariadic(replyWith);
+    parser.setPreserve(replyWith);
   },
+  transformArguments(
+    key: RedisArgument,
+    from: GeoSearchFrom,
+    by: GeoSearchBy,
+    replyWith: Array<GeoReplyWith>,
+    options?: GeoSearchOptions
+  ) { return [] },
   transformReply(
     reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,
     replyWith: Array<GeoReplyWith>

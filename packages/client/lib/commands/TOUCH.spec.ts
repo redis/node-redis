@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TOUCH from './TOUCH';
+import { parseArgs } from './generic-transformers';
 
 describe('TOUCH', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        TOUCH.transformArguments('key'),
+        parseArgs(TOUCH, 'key'),
         ['TOUCH', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        TOUCH.transformArguments(['1', '2']),
+        parseArgs(TOUCH, ['1', '2']),
         ['TOUCH', '1', '2']
       );
     });

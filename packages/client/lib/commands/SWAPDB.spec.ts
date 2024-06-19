@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SWAPDB from './SWAPDB';
+import { parseArgs } from './generic-transformers';
 
 describe('SWAPDB', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SWAPDB.transformArguments(0, 1),
+      parseArgs(SWAPDB, 0, 1),
       ['SWAPDB', '0', '1']
     );
   });

@@ -1,4 +1,5 @@
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export type AclLogReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'count'>, NumberReply],
@@ -19,15 +20,13 @@ export type AclLogReply = ArrayReply<TuplesToMapReply<[
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(count?: number) {
-    const args = ['ACL', 'LOG'];
-
-    if (count !== undefined) {
-      args.push(count.toString());
+  parseCommand(parser: CommandParser, count?: number) {
+    parser.pushVariadic(['ACL', 'LOG']);
+    if (count != undefined) {
+      parser.push(count.toString());
     }
-
-    return args;
   },
+  transformArguments(count?: number) { return [] },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<AclLogReply>>) => {
       return reply.map(item => {

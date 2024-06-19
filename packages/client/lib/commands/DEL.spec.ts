@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DEL from './DEL';
+import { parseArgs } from './generic-transformers';
 
 describe('DEL', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        DEL.transformArguments('key'),
+        parseArgs(DEL, 'key'),
         ['DEL', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        DEL.transformArguments(['key1', 'key2']),
+        parseArgs(DEL, ['key1', 'key2']),
         ['DEL', 'key1', 'key2']
       );
     });

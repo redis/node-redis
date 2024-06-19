@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_STATS from './FUNCTION_STATS';
+import { parseArgs } from './generic-transformers';
 
 describe('FUNCTION STATS', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      FUNCTION_STATS.transformArguments(),
+      parseArgs(FUNCTION_STATS),
       ['FUNCTION', 'STATS']
     );
   });

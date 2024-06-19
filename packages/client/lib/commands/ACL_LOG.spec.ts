@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ACL_LOG from './ACL_LOG';
+import { parseArgs } from './generic-transformers';
 
 describe('ACL LOG', () => {
   testUtils.isVersionGreaterThanHook([6]);
@@ -8,14 +9,14 @@ describe('ACL LOG', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ACL_LOG.transformArguments(),
+        parseArgs(ACL_LOG),
         ['ACL', 'LOG']
       );
     });
 
     it('with count', () => {
       assert.deepEqual(
-        ACL_LOG.transformArguments(10),
+        parseArgs(ACL_LOG, 10),
         ['ACL', 'LOG', '10']
       );
     });

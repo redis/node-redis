@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZMPOP from './ZMPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('ZMPOP', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,14 +9,14 @@ describe('ZMPOP', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ZMPOP.transformArguments('key', 'MIN'),
+        parseArgs(ZMPOP, 'key', 'MIN'),
         ['ZMPOP', '1', 'key', 'MIN']
       );
     });
 
     it('with count', () => {
       assert.deepEqual(
-        ZMPOP.transformArguments('key', 'MIN', {
+        parseArgs(ZMPOP, 'key', 'MIN', {
           COUNT: 2
         }),
         ['ZMPOP', '1', 'key', 'MIN', 'COUNT', '2']

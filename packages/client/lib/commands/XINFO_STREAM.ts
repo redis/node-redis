@@ -1,4 +1,5 @@
 import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import { isNullReply, transformTuplesReply } from './generic-transformers';
 
 export type XInfoStreamReply = TuplesToMapReply<[
@@ -20,9 +21,11 @@ export type XInfoStreamReply = TuplesToMapReply<[
 export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['XINFO', 'STREAM', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.pushVariadic(['XINFO', 'STREAM']);
+    parser.pushKey(key);
   },
+  transformArguments(key: RedisArgument) { return [] },
   transformReply: {
     // TODO: is there a "type safe" way to do it?
     2(reply: any) {

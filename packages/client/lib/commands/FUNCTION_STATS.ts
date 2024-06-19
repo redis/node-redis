@@ -1,4 +1,5 @@
 import { Command, TuplesToMapReply, BlobStringReply, NullReply, NumberReply, MapReply, Resp2Reply, UnwrapReply } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import { isNullReply } from './generic-transformers';
 
 type RunningScript = NullReply | TuplesToMapReply<[
@@ -22,9 +23,10 @@ type FunctionStatsReply = TuplesToMapReply<[
 export default {
   IS_READ_ONLY: true,
   FIRST_KEY_INDEX: undefined,
-  transformArguments() {
-    return ['FUNCTION', 'STATS'];
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['FUNCTION', 'STATS']);
   },
+  transformArguments() { return [] },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<FunctionStatsReply>>) => {
       return {

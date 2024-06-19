@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PEXPIREAT from './PEXPIREAT';
+import { parseArgs } from './generic-transformers';
 
 describe('PEXPIREAT', () => {
   describe('transformArguments', () => {
     it('number', () => {
       assert.deepEqual(
-        PEXPIREAT.transformArguments('key', 1),
+        parseArgs(PEXPIREAT, 'key', 1),
         ['PEXPIREAT', 'key', '1']
       );
     });
@@ -14,14 +15,14 @@ describe('PEXPIREAT', () => {
     it('date', () => {
       const d = new Date();
       assert.deepEqual(
-        PEXPIREAT.transformArguments('key', d),
+        parseArgs(PEXPIREAT, 'key', d),
         ['PEXPIREAT', 'key', d.getTime().toString()]
       );
     });
 
     it('with set option', () => {
       assert.deepEqual(
-        PEXPIREAT.transformArguments('key', 1, 'XX'),
+        parseArgs(PEXPIREAT, 'key', 1, 'XX'),
         ['PEXPIREAT', 'key', '1', 'XX']
       );
     });

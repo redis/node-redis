@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MEMORY_STATS from './MEMORY_STATS';
+import { parseArgs } from './generic-transformers';
 
 describe('MEMORY STATS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MEMORY_STATS.transformArguments(),
+      parseArgs(MEMORY_STATS),
       ['MEMORY', 'STATS']
     );
   });

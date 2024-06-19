@@ -1,4 +1,5 @@
 import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
 type SlowLogRawReply = ArrayReply<TuplesReply<[
   timestamp: BlobStringReply,
@@ -10,9 +11,11 @@ type SlowLogRawReply = ArrayReply<TuplesReply<[
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['GRAPH.SLOWLOG', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('GRAPH.SLOWLOG');
+    parser.pushKey(key);
   },
+  transformArguments(key: RedisArgument) { return [] },
   transformReply(reply: UnwrapReply<SlowLogRawReply>) {
     return reply.map(log => {
       const [timestamp, command, query, took] = log as unknown as UnwrapReply<typeof log>;

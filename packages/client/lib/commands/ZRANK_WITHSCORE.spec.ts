@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANK_WITHSCORE from './ZRANK_WITHSCORE';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANK WITHSCORE', () => {
   testUtils.isVersionGreaterThanHook([7, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      ZRANK_WITHSCORE.transformArguments('key', 'member'),
+      parseArgs(ZRANK_WITHSCORE, 'key', 'member'),
       ['ZRANK', 'key', 'member', 'WITHSCORE']
     );
   });

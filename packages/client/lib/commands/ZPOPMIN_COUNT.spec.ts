@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZPOPMIN_COUNT from './ZPOPMIN_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('ZPOPMIN COUNT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZPOPMIN_COUNT.transformArguments('key', 1),
+      parseArgs(ZPOPMIN_COUNT, 'key', 1),
       ['ZPOPMIN', 'key', '1']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LTRIM from './LTRIM';
+import { parseArgs } from './generic-transformers';
 
 describe('LTRIM', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LTRIM.transformArguments('key', 0, -1),
+      parseArgs(LTRIM, 'key', 0, -1),
       ['LTRIM', 'key', '0', '-1']
     );
   });

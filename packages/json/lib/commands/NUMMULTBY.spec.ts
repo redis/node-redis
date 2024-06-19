@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import NUMMULTBY from './NUMMULTBY';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.NUMMULTBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      NUMMULTBY.transformArguments('key', '$', 2),
+      parseArgs(NUMMULTBY, 'key', '$', 2),
       ['JSON.NUMMULTBY', 'key', '$', '2']
     );
   });

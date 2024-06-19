@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SSCAN from './SSCAN';
+import { parseArgs } from './generic-transformers';
 
 describe('SSCAN', () => {
   describe('transformArguments', () => {
     it('cusror only', () => {
       assert.deepEqual(
-        SSCAN.transformArguments('key', '0'),
+        parseArgs(SSCAN, 'key', '0'),
         ['SSCAN', 'key', '0']
       );
     });
 
     it('with MATCH', () => {
       assert.deepEqual(
-        SSCAN.transformArguments('key', '0', {
+        parseArgs(SSCAN, 'key', '0', {
           MATCH: 'pattern'
         }),
         ['SSCAN', 'key', '0', 'MATCH', 'pattern']
@@ -22,7 +23,7 @@ describe('SSCAN', () => {
 
     it('with COUNT', () => {
       assert.deepEqual(
-        SSCAN.transformArguments('key', '0', {
+        parseArgs(SSCAN, 'key', '0', {
           COUNT: 1
         }),
         ['SSCAN', 'key', '0', 'COUNT', '1']
@@ -31,7 +32,7 @@ describe('SSCAN', () => {
 
     it('with MATCH & COUNT', () => {
       assert.deepEqual(
-        SSCAN.transformArguments('key', '0', {
+        parseArgs(SSCAN, 'key', '0', {
           MATCH: 'pattern',
           COUNT: 1
         }),

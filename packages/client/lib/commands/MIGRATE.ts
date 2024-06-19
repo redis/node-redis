@@ -1,4 +1,5 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import { AuthOptions } from './AUTH';
 
 export interface MigrateOptions {
@@ -9,7 +10,8 @@ export interface MigrateOptions {
 
 export default {
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     host: RedisArgument,
     port: number,
     key: RedisArgument | Array<RedisArgument>,
@@ -17,51 +19,65 @@ export default {
     timeout: number,
     options?: MigrateOptions
   ) {
-    const args = ['MIGRATE', host, port.toString()],
-      isKeyArray = Array.isArray(key);
+    parser.pushVariadic(['MIGRATE', host, port.toString()]);
+    const isKeyArray = Array.isArray(key);
   
     if (isKeyArray) {
-      args.push('');
+      parser.push('');
     } else {
-      args.push(key);
+      parser.push(key);
     }
   
-    args.push(
-      destinationDb.toString(),
-      timeout.toString()
+    parser.pushVariadic(
+      [
+        destinationDb.toString(),
+        timeout.toString()
+      ]
     );
   
     if (options?.COPY) {
-      args.push('COPY');
+      parser.push('COPY');
     }
   
     if (options?.REPLACE) {
-      args.push('REPLACE');
+      parser.push('REPLACE');
     }
   
     if (options?.AUTH) {
       if (options.AUTH.username) {
-        args.push(
-          'AUTH2',
-          options.AUTH.username,
-          options.AUTH.password
+        parser.pushVariadic(
+          [
+            'AUTH2',
+            options.AUTH.username,
+            options.AUTH.password
+          ]
         );
       } else {
-        args.push(
-          'AUTH',
-          options.AUTH.password
+        parser.pushVariadic(
+          [
+            'AUTH',
+            options.AUTH.password
+          ]
         );
       }
     }
   
     if (isKeyArray) {
-      args.push(
-        'KEYS',
-        ...key
+      parser.pushVariadic(
+        [
+          'KEYS',
+          ...key
+        ]
       );
     }
-  
-    return args;
   },
+  transformArguments(
+    host: RedisArgument,
+    port: number,
+    key: RedisArgument | Array<RedisArgument>,
+    destinationDb: number,
+    timeout: number,
+    options?: MigrateOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

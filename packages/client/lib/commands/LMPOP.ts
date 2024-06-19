@@ -1,35 +1,42 @@
-import { CommandArguments, NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
-import { ListSide, RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
+import { NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
+import { ListSide, RedisVariadicArgument } from './generic-transformers';
 
 export interface LMPopOptions {
   COUNT?: number;
 }
 
-export function transformLMPopArguments(
-  args: CommandArguments,
+export function parseLMPopArguments(
+  parser: CommandParser,
   keys: RedisVariadicArgument,
   side: ListSide,
   options?: LMPopOptions
-): CommandArguments {
-  args = pushVariadicArgument(args, keys);
-
-  args.push(side);
+) {
+  parser.pushKeysLength(keys);
+  parser.push(side);
 
   if (options?.COUNT !== undefined) {
-    args.push('COUNT', options.COUNT.toString());
+    parser.pushVariadic(['COUNT', options.COUNT.toString()]);
   }
-
-  return args;
 }
 
-export type LMPopArguments = typeof transformLMPopArguments extends (_: any, ...args: infer T) => any ? T : never;
+function transformArguments(keys: RedisVariadicArgument, side: ListSide, options?: LMPopOptions) { return [] }
+
+export type LMPopArguments = Parameters<typeof transformArguments>;
 
 export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(...args: LMPopArguments) {
-    return transformLMPopArguments(['LMPOP'], ...args);
+  parseCommand(
+    parser: CommandParser,
+    keys: RedisVariadicArgument,
+    side: ListSide,
+    options?: LMPopOptions
+  ) {
+    parser.push('LMPOP');
+    parseLMPopArguments(parser, keys, side, options);
   },
+  transformArguments: transformArguments,
   transformReply: undefined as unknown as () => NullReply | TuplesReply<[
     key: BlobStringReply,
     elements: Array<BlobStringReply>

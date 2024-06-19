@@ -1,11 +1,13 @@
 import { BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['MEMORY', 'MALLOC-STATS'];
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['MEMORY', 'MALLOC-STATS']);
   },
+  transformArguments() { return [] },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;
 

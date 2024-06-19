@@ -1,5 +1,27 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
-import { GeoCoordinates, GeoUnits, GeoSearchOptions, pushGeoSearchOptions } from './GEOSEARCH';
+import { CommandParser } from '../client/parser';
+import { GeoCoordinates, GeoUnits, GeoSearchOptions, parseGeoSearchOptions } from './GEOSEARCH';
+
+export function parseGeoRadiusArguments(
+  command: RedisArgument,
+  cachable: boolean,
+  parser: CommandParser,
+  key: RedisArgument,
+  from: GeoCoordinates,
+  radius: number,
+  unit: GeoUnits,
+  options?: GeoSearchOptions
+) {
+  if (cachable) {
+    parser.setCachable();
+  }
+
+  parser.push(command);
+  parser.pushKey(key);
+  parser.pushVariadic([from.longitude.toString(), from.latitude.toString(), radius.toString(), unit]);
+
+  parseGeoSearchOptions(parser, options)
+}
 
 export function transformGeoRadiusArguments(
   command: RedisArgument,
@@ -8,24 +30,12 @@ export function transformGeoRadiusArguments(
   radius: number,
   unit: GeoUnits,
   options?: GeoSearchOptions
-) {
-  const args = [
-    command,
-    key,
-    from.longitude.toString(),
-    from.latitude.toString(),
-    radius.toString(),
-    unit
-  ];
-
-  pushGeoSearchOptions(args, options);
-
-  return args;
-}
+) { return [] }
 
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
+  parseCommand: parseGeoRadiusArguments.bind(undefined, 'GEORADIUS', false),
   transformArguments: transformGeoRadiusArguments.bind(undefined, 'GEORADIUS'),
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

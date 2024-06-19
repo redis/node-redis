@@ -1,4 +1,5 @@
 import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 type AclUser = TuplesToMapReply<[
   [BlobStringReply<'flags'>, ArrayReply<BlobStringReply>],
@@ -19,9 +20,10 @@ type AclUser = TuplesToMapReply<[
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(username: RedisArgument) {
-    return ['ACL', 'GETUSER', username];
+  parseCommand(parser: CommandParser, username: RedisArgument) {
+    parser.pushVariadic(['ACL', 'GETUSER', username]);
   },
+  transformArguments(username: RedisArgument) { return [] },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<AclUser>>) => ({
       flags: reply[1],

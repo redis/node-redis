@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LOLWUT from './LOLWUT';
+import { parseArgs } from './generic-transformers';
 
 describe('LOLWUT', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        LOLWUT.transformArguments(),
+        parseArgs(LOLWUT),
         ['LOLWUT']
       );
     });
 
     it('with version', () => {
       assert.deepEqual(
-        LOLWUT.transformArguments(5),
+        parseArgs(LOLWUT, 5),
         ['LOLWUT', 'VERSION', '5']
       );
     });
 
     it('with version and optional arguments', () => {
       assert.deepEqual(
-        LOLWUT.transformArguments(5, 1, 2, 3),
+        parseArgs(LOLWUT, 5, 1, 2, 3),
         ['LOLWUT', 'VERSION', '5', '1', '2', '3']
       );
     });

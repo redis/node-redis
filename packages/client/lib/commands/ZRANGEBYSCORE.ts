@@ -1,4 +1,5 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import { transformStringDoubleArgument } from './generic-transformers';
 
 export interface ZRangeByScoreOptions {
@@ -13,24 +14,32 @@ export declare function transformReply(): Array<RedisArgument>;
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     min: string | number,
     max: string | number,
     options?: ZRangeByScoreOptions
   ) {
-    const args = [
-      'ZRANGEBYSCORE',
-      key,
-      transformStringDoubleArgument(min),
-      transformStringDoubleArgument(max)
-    ];
+    parser.setCachable();
+    parser.push('ZRANGEBYSCORE');
+    parser.pushKey(key);
+    parser.pushVariadic(
+      [
+        transformStringDoubleArgument(min),
+        transformStringDoubleArgument(max)
+      ]
+    );
 
     if (options?.LIMIT) {
-      args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+      parser.pushVariadic(['LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString()]);
     }
-
-    return args;
   },
+  transformArguments(
+    key: RedisArgument,
+    min: string | number,
+    max: string | number,
+    options?: ZRangeByScoreOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

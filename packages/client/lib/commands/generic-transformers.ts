@@ -1,4 +1,5 @@
-import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply } from '../RESP/types';
+import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply, Command } from '../RESP/types';
+import { BasicCommandParser, CommandParser } from '../client/parser';
 
 export function isNullReply(reply: unknown): reply is NullReply {
   return reply === null;
@@ -213,16 +214,16 @@ export function pushVariadicArgument(
   return args;
 }
 
-export function pushOptionalVariadicArgument(
-  args: CommandArguments,
+export function   parseOptionalVariadicArgument(
+  parser: CommandParser,
   name: RedisArgument,
   value?: RedisVariadicArgument
-): CommandArguments {
-  if (value === undefined) return args;
+) {
+  if (value === undefined) return;
 
-  args.push(name);
+  parser.push(name);
 
-  return pushVariadicArgument(args, value);
+  parser.pushVariadicWithLength(value);
 }
 
 export enum CommandFlags {
@@ -352,28 +353,28 @@ export interface SlotRange {
 }
 
 function pushSlotRangeArguments(
-  args: CommandArguments,
+  parser: CommandParser,
   range: SlotRange
 ): void {
-  args.push(
-    range.start.toString(),
-    range.end.toString()
+  parser.pushVariadic(
+    [
+      range.start.toString(),
+      range.end.toString()
+    ]
   );
 }
 
 export function pushSlotRangesArguments(
-  args: CommandArguments,
+  parser: CommandParser,
   ranges: SlotRange | Array<SlotRange>
-): CommandArguments {
+) {
   if (Array.isArray(ranges)) {
     for (const range of ranges) {
-      pushSlotRangeArguments(args, range);
+      pushSlotRangeArguments(parser, range);
     }
   } else {
-    pushSlotRangeArguments(args, ranges);
+    pushSlotRangeArguments(parser, ranges);
   }
-
-  return args;
 }
 
 export type RawRangeReply = [
@@ -402,41 +403,36 @@ export type ZVariadicKeys<T> = T | [T, ...Array<T>];
 
 export type ZKeys = ZVariadicKeys<RedisArgument> | ZVariadicKeys<ZKeyAndWeight>;
 
-export function pushZKeysArguments(
-  args: CommandArguments,
+export function parseZKeysArguments(
+  parser: CommandParser,
   keys: ZKeys
 ) {
   if (Array.isArray(keys)) {
-    args.push(keys.length.toString());
+    parser.push(keys.length.toString());
 
     if (keys.length) {
       if (isPlainKeys(keys)) {
-        args = args.concat(keys);
+        parser.pushKeys(keys);
       } else {
-        const start = args.length;
-        args[start + keys.length] = 'WEIGHTS';
         for (let i = 0; i < keys.length; i++) {
-          const index = start + i;
-          args[index] = keys[i].key;
-          args[index + 1 + keys.length] = transformDoubleArgument(keys[i].weight);
+          parser.pushKey(keys[i].key)
+        }
+        parser.push('WEIGHTS');
+        for (let i = 0; i < keys.length; i++) {
+          parser.push(transformDoubleArgument(keys[i].weight));
         }
       }
     }
   } else {
-    args.push('1');
+    parser.push('1');
 
     if (isPlainKey(keys)) {
-      args.push(keys);
+      parser.pushKey(keys);
     } else {
-      args.push(
-        keys.key,
-        'WEIGHTS',
-        transformDoubleArgument(keys.weight)
-      );
+      parser.pushKey(keys.key);
+      parser.pushVariadic(['WEIGHTS', transformDoubleArgument(keys.weight)]);
     }
   }
-
-  return args;
 }
 
 function isPlainKey(key: RedisArgument | ZKeyAndWeight): key is RedisArgument {
@@ -445,4 +441,24 @@ function isPlainKey(key: RedisArgument | ZKeyAndWeight): key is RedisArgument {
 
 function isPlainKeys(keys: Array<RedisArgument> | Array<ZKeyAndWeight>): keys is Array<RedisArgument> {
   return isPlainKey(keys[0]);
+}
+
+export type Tail<T extends unknown[]> = T extends [infer Head, ...infer Tail] ? Tail : never;
+
+/**
+ * @deprecated
+ */
+export function parseArgs(command: Command, ...args: Array<any>): CommandArguments {
+  if (command.parseCommand) {
+    const parser = new BasicCommandParser();
+    command.parseCommand!(parser, ...args);
+
+    const redisArgs: CommandArguments = parser.redisArgs;
+    if (parser.preserve) {
+      redisArgs.preserve = parser.preserve;
+    }
+    return redisArgs;
+  } else {
+    return command.transformArguments(...args);
+  }
 }

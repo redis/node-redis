@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BZMPOP from './BZMPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('BZMPOP', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,14 +9,14 @@ describe('BZMPOP', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        BZMPOP.transformArguments(0, 'key', 'MIN'),
+        parseArgs(BZMPOP, 0, 'key', 'MIN'),
         ['BZMPOP', '0', '1', 'key', 'MIN']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        BZMPOP.transformArguments(0, 'key', 'MIN', {
+        parseArgs(BZMPOP, 0, 'key', 'MIN', {
           COUNT: 2
         }),
         ['BZMPOP', '0', '1', 'key', 'MIN', 'COUNT', '2']

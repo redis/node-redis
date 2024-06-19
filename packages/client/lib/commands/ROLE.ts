@@ -1,4 +1,5 @@
 import { BlobStringReply, NumberReply, ArrayReply, TuplesReply, UnwrapReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 type MasterRole = [
   role: BlobStringReply<'master'>,
@@ -24,9 +25,10 @@ type Role = TuplesReply<MasterRole | SlaveRole | SentinelRole>;
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['ROLE'];
+  parseCommand(parser: CommandParser) {
+    parser.push('ROLE');
   },
+  transformArguments() { return [] },
   transformReply(reply: UnwrapReply<Role>) {
     switch (reply[0] as unknown as UnwrapReply<typeof reply[0]>) {
       case 'master': {

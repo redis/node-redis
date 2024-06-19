@@ -1,17 +1,19 @@
 import { UnwrapReply, NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisVariadicArgument, timeout: number) {
+    parser.push('BLPOP');
+    parser.pushKeys(key);
+    parser.push(timeout.toString());
+  },
   transformArguments(
     key: RedisVariadicArgument,
     timeout: number
-  ) {
-    const args = pushVariadicArguments(['BLPOP'], key);
-    args.push(timeout.toString());
-    return args;
-  },
+  ) { return [] },
   transformReply(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply]>>) {
     if (reply === null) return null;
 

@@ -1,4 +1,5 @@
 import { SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 interface FailoverOptions {
   TO?: {
@@ -11,26 +12,25 @@ interface FailoverOptions {
 }
 
 export default {
-  transformArguments(options?: FailoverOptions) {
-    const args = ['FAILOVER'];
+  parseCommand(parser: CommandParser, options?: FailoverOptions) {
+    parser.push('FAILOVER');
 
     if (options?.TO) {
-      args.push('TO', options.TO.host, options.TO.port.toString());
+      parser.pushVariadic(['TO', options.TO.host, options.TO.port.toString()]);
 
       if (options.TO.FORCE) {
-        args.push('FORCE');
+        parser.push('FORCE');
       }
     }
 
     if (options?.ABORT) {
-      args.push('ABORT');
+      parser.push('ABORT');
     }
 
     if (options?.TIMEOUT) {
-      args.push('TIMEOUT', options.TIMEOUT.toString());
+      parser.pushVariadic(['TIMEOUT', options.TIMEOUT.toString()]);
     }
-
-    return args;
   },
+  transformArguments(options?: FailoverOptions) { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

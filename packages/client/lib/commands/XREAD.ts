@@ -1,4 +1,5 @@
 import { Command, RedisArgument } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface XReadStream {
   key: RedisArgument;
@@ -7,19 +8,19 @@ export interface XReadStream {
 
 export type XReadStreams = Array<XReadStream> | XReadStream;
 
-export function pushXReadStreams(args: Array<RedisArgument>, streams: XReadStreams) {
-  args.push('STREAMS');
+export function pushXReadStreams(parser: CommandParser, streams: XReadStreams) {
+  parser.push('STREAMS');
 
   if (Array.isArray(streams)) {
-    const keysStart = args.length,
-      idsStart = keysStart + streams.length;
     for (let i = 0; i < streams.length; i++) {
-      const stream = streams[i];
-      args[keysStart + i] = stream.key;
-      args[idsStart + i] = stream.id;
+      parser.pushKey(streams[i].key);
+    }
+    for (let i = 0; i < streams.length; i++) {
+      parser.push(streams[i].id);
     }
   } else {
-    args.push(streams.key, streams.id);
+    parser.pushKey(streams.key);
+    parser.push(streams.id);
   }
 }
 
@@ -33,21 +34,20 @@ export default {
     return Array.isArray(streams) ? streams[0].key : streams.key;
   },
   IS_READ_ONLY: true,
-  transformArguments(streams: XReadStreams, options?: XReadOptions) {
-    const args: Array<RedisArgument> = ['XREAD'];
+  parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
+    parser.push('XREAD');
 
     if (options?.COUNT) {
-      args.push('COUNT', options.COUNT.toString());
+      parser.pushVariadic(['COUNT', options.COUNT.toString()]);
     }
 
     if (options?.BLOCK !== undefined) {
-      args.push('BLOCK', options.BLOCK.toString());
+      parser.pushVariadic(['BLOCK', options.BLOCK.toString()]);
     }
 
-    pushXReadStreams(args, streams);
-
-    return args;
+    pushXReadStreams(parser, streams);
   },
+  transformArguments(streams: XReadStreams, options?: XReadOptions) { return [] },
   // export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
   // TODO
   transformReply: undefined as unknown as () => unknown

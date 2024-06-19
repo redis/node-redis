@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import INFO from './INFO';
+import { parseArgs } from './generic-transformers';
 
 describe('INFO', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        INFO.transformArguments(),
+        parseArgs(INFO),
         ['INFO']
       );
     });
 
     it('server section', () => {
       assert.deepEqual(
-        INFO.transformArguments('server'),
+        parseArgs(INFO, 'server'),
         ['INFO', 'server']
       );
     });

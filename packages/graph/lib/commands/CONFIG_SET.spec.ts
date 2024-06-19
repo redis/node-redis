@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CONFIG_SET from './CONFIG_SET';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.CONFIG SET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CONFIG_SET.transformArguments('TIMEOUT', 0),
+      parseArgs(CONFIG_SET, 'TIMEOUT', 0),
       ['GRAPH.CONFIG', 'SET', 'TIMEOUT', '0']
     );
   });

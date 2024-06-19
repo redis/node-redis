@@ -1,4 +1,5 @@
 import { BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export const LATENCY_EVENTS = {
   ACTIVE_DEFRAG_CYCLE: 'active-defrag-cycle',
@@ -24,8 +25,9 @@ export type LatencyEvent = typeof LATENCY_EVENTS[keyof typeof LATENCY_EVENTS];
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(event: LatencyEvent) {
-    return ['LATENCY', 'GRAPH', event];
+  parseCommand(parser: CommandParser, event: LatencyEvent) {
+    parser.pushVariadic(['LATENCY', 'GRAPH', event]);
   },
+  transformArguments(event: LatencyEvent) { return [] },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

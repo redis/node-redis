@@ -1,4 +1,5 @@
 import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
 export function transformBZPopArguments(
@@ -16,9 +17,12 @@ export type BZPopArguments = typeof transformBZPopArguments extends (_: any, ...
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(...args: BZPopArguments) {
-    return transformBZPopArguments('BZPOPMAX', ...args);
+  parseCommand(parser: CommandParser, ...args: BZPopArguments) {
+    parser.push('BZPOPMAX');
+    parser.pushKeys(args[0]);
+    parser.push(args[1].toString());
   },
+  transformArguments(...args: BZPopArguments) { return [] },
   transformReply: {
     2(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>>) {
       return reply === null ? null : {

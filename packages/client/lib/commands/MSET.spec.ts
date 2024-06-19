@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MSET from './MSET';
+import { parseArgs } from './generic-transformers';
 
 describe('MSET', () => {
   describe('transformArguments', () => {
     it("['key1', 'value1', 'key2', 'value2']", () => {
       assert.deepEqual(
-        MSET.transformArguments(['key1', 'value1', 'key2', 'value2']),
+        parseArgs(MSET, ['key1', 'value1', 'key2', 'value2']),
         ['MSET', 'key1', 'value1', 'key2', 'value2']
       );
     });
 
     it("[['key1', 'value1'], ['key2', 'value2']]", () => {
       assert.deepEqual(
-        MSET.transformArguments([['key1', 'value1'], ['key2', 'value2']]),
+        parseArgs(MSET, [['key1', 'value1'], ['key2', 'value2']]),
         ['MSET', 'key1', 'value1', 'key2', 'value2']
       );
     });
 
     it("{key1: 'value1'. key2: 'value2'}", () => {
       assert.deepEqual(
-        MSET.transformArguments({ key1: 'value1', key2: 'value2' }),
+        parseArgs(MSET, { key1: 'value1', key2: 'value2' }),
         ['MSET', 'key1', 'value1', 'key2', 'value2']
       );
     });

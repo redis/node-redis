@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ACL_DELUSER from './ACL_DELUSER';
+import { parseArgs } from './generic-transformers';
 
 describe('ACL DELUSER', () => {
   testUtils.isVersionGreaterThanHook([6]);
@@ -8,14 +9,14 @@ describe('ACL DELUSER', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        ACL_DELUSER.transformArguments('username'),
+        parseArgs(ACL_DELUSER, 'username'),
         ['ACL', 'DELUSER', 'username']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        ACL_DELUSER.transformArguments(['1', '2']),
+        parseArgs(ACL_DELUSER, ['1', '2']),
         ['ACL', 'DELUSER', '1', '2']
       );
     });

@@ -1,14 +1,19 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     member: RedisVariadicArgument
   ) {
-    return pushVariadicArguments(['ZREM', key], member);
+    parser.push('ZREM');
+    parser.pushKey(key);
+    parser.pushVariadic(member);
   },
+  transformArguments(key: RedisArgument, member: RedisVariadicArgument) { return [] },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

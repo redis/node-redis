@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_BUMPEPOCH from './CLUSTER_BUMPEPOCH';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER BUMPEPOCH', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_BUMPEPOCH.transformArguments(),
+      parseArgs(CLUSTER_BUMPEPOCH),
       ['CLUSTER', 'BUMPEPOCH']
     );
   });

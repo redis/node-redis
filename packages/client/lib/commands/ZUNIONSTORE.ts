@@ -1,5 +1,6 @@
 import { RedisArgument, NumberReply, Command, } from '../RESP/types';
-import { ZKeys, pushZKeysArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { ZKeys, parseZKeysArguments } from './generic-transformers';
 
 export interface ZUnionOptions {
   AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
@@ -8,18 +9,20 @@ export interface ZUnionOptions {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     destination: RedisArgument,
     keys: ZKeys,
     options?: ZUnionOptions
-  ) {
-    const args = pushZKeysArguments(['ZUNIONSTORE', destination], keys);
-
+  ): any {
+    parser.push('ZUNIONSTORE');
+    parser.pushKey(destination);
+    parseZKeysArguments(parser, keys);
+    
     if (options?.AGGREGATE) {
-      args.push('AGGREGATE', options.AGGREGATE);
+      parser.pushVariadic(['AGGREGATE', options.AGGREGATE]);
     }
-
-    return args;
   },
+  transformArguments(destination: RedisArgument, keys: ZKeys, options?: ZUnionOptions) { return [] },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;
