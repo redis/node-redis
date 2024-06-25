@@ -36,8 +36,8 @@ export default {
   transformReply: {
     2: (reply: AggregateWithCursorRawReply): AggregateWithCursorReply => {
       return {
-          ...AGGREGATE.transformReply[2](reply[0]),
-          cursor: reply[1]
+        ...AGGREGATE.transformReply[2](reply[0]),
+        cursor: reply[1]
       };
     },
     3: undefined as unknown as () => ReplyUnion

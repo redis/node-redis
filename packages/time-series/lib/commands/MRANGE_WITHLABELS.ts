@@ -31,15 +31,15 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2: (reply: MRangeRawReply2): Array<MRangeWithLabelsReplyItem2> => {
+    2(reply: MRangeRawReply2): Array<MRangeWithLabelsReplyItem2> {
       const args = [];
   
       for (const [key, labels, samples] of reply) {
-          args.push({
-              key,
-              labels: transformLablesReply(labels),
-              samples: samples.map(transformSampleReply[2])
-          });
+        args.push({
+          key,
+          labels: transformLablesReply(labels),
+          samples: samples.map(transformSampleReply[2])
+        });
       }
   
       return args;

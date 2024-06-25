@@ -837,11 +837,11 @@ export default class RedisClient<
         this._self.#queue.addCommand(['MULTI'], { chainId }),
       ];
 
-    for (const { args} of commands) {
+    for (const { args } of commands) {
       promises.push(
         this._self.#queue.addCommand(args, {
-          chainId: chainId,
-          typeMapping: typeMapping
+          chainId,
+          typeMapping
         })
       );
     }

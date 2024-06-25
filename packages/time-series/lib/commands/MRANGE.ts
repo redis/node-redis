@@ -78,10 +78,10 @@ export default {
       const args = [];
   
       for (const [key, _, sample] of reply) {
-          args.push({
-              key,
-              samples: sample.map(transformSampleReply[2])
-          });
+        args.push({
+          key,
+          samples: sample.map(transformSampleReply[2])
+        });
       }
   
       return args;

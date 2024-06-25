@@ -147,14 +147,14 @@ export default {
     2: (rawReply: AggregateRawReply): AggregateReply => {
       const results: Array<Record<string, BlobStringReply>> = [];
       for (let i = 1; i < rawReply.length; i++) {
-          results.push(
-              transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>)
-          );
+        results.push(
+          transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>)
+        );
       }
   
       return {
-          total: Number(rawReply[0]),
-          results
+        total: Number(rawReply[0]),
+        results
       };
     },
     3: undefined as unknown as () => ReplyUnion

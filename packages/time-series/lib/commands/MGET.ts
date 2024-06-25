@@ -32,13 +32,13 @@ export type MGetRawReply3 = Array<[
 ]>;
 
 export interface MGetReply2 {
-  key: string,
-  sample: SampleReply2
+  key: string;
+  sample: SampleReply2;
 }
 
 export interface MGetReply3 {
-  key: string,
-  sample: SampleReply3
+  key: string;
+  sample: SampleReply3;
 }
 
 export default {
@@ -49,17 +49,17 @@ export default {
     return pushFilterArgument(args, filter);
   },
   transformReply: {
-    2: (reply: MGetRawReply2): Array<MGetReply2> => {
+    2(reply: MGetRawReply2): Array<MGetReply2> {
       return reply.map(([key, _, sample]) => ({
-          key,
-          sample: transformSampleReply[2](sample)
+        key,
+        sample: transformSampleReply[2](sample)
       }));
     },
-    3: (reply: MGetRawReply3): Array<MGetReply3> => {
+    3(reply: MGetRawReply3): Array<MGetReply3> {
       return reply.map(([key, _, sample]) => ({
-          key,
-          sample: transformSampleReply[3](sample)
+        key,
+        sample: transformSampleReply[3](sample)
       }));
-    },
+    }
   }
 } as const satisfies Command;
