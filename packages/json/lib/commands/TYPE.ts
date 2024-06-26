@@ -18,7 +18,7 @@ export default {
   },
   transformReply: {
     2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply>,
-    3: undefined as unknown as () => ArrayReply<NullReply | BlobStringReply | ArrayReply<BlobStringReply>>
+    3: undefined as unknown as () => ArrayReply<NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>>
   },
   unstableResp3Module: true
 } as const satisfies Command;

@@ -109,7 +109,7 @@ export default {
   transformArguments: transformRangeArguments.bind(undefined, 'TS.RANGE'),
   transformReply: {
     2(reply: UnwrapReply<ArrayReply<SampleRawReply2>>) {
-      return reply.map(sample => transformSampleReply['2'](sample));
+      return reply.map(sample => transformSampleReply['2'](sample as unknown as UnwrapReply<SampleRawReply2>));
     },
     3(reply: UnwrapReply<ArrayReply<SampleRawReply3>>) {
       return reply.map(sample => transformSampleReply['3'](sample));

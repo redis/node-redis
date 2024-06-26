@@ -1,7 +1,7 @@
-import { Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { Command, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TsMGetOptions, pushLatestArgument, pushFilterArgument, MGetReply2, MGetRawReply2 } from './MGET';
-import { Labels, pushWithLabelsArgument, transformLablesReply, transformSampleReply } from '.';
+import { Labels, SampleRawReply2, pushWithLabelsArgument, transformLablesReply, transformSampleReply } from '.';
 
 export interface TsMGetWithLabelsOptions extends TsMGetOptions {
   SELECTED_LABELS?: RedisVariadicArgument;
@@ -20,11 +20,11 @@ export default {
     return pushFilterArgument(args, filter);
   },
   transformReply: {
-    2: (reply: MGetRawReply2): Array<MGetWithLabelsReply2> => {
+    2: (reply: UnwrapReply<MGetRawReply2>): Array<MGetWithLabelsReply2> => {
       return reply.map(([key, labels, sample]) => ({
           key,
           labels: transformLablesReply(labels),
-          sample: transformSampleReply[2](sample)
+          sample: transformSampleReply[2](sample as unknown as UnwrapReply<SampleRawReply2>)
       }));
     },
     3: undefined as unknown as () => ReplyUnion

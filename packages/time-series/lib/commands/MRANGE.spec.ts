@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import MRANGE from './MRANGE';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import MRANGE, { TIME_SERIES_REDUCERS } from './MRANGE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
 describe('TS.MRANGE', () => {
   it('transformArguments', () => {
@@ -15,12 +15,12 @@ describe('TS.MRANGE', () => {
         COUNT: 1,
         ALIGN: '-',
         AGGREGATION: {
-          type: TimeSeriesAggregationType.AVERAGE,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
           timeBucket: 1
         },
         GROUPBY: {
           label: 'label',
-          reducer: TimeSeriesReducers.SUM
+          reducer: TIME_SERIES_REDUCERS.SUM
         },
       }),
       [

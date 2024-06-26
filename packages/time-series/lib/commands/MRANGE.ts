@@ -1,6 +1,6 @@
-import { RedisArgument, Command, CommandArguments, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, CommandArguments, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels, SampleRawReply2, SampleReply2, Timestamp, transformSampleReply } from '.';
+import { RawLabels, SampleRawReply2, SampleReply2, Timestamp, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
 import { pushFilterArgument } from './MGET';
 
@@ -58,14 +58,14 @@ export function transformMRangeArguments(
   return pushGroupByArgument(args, options?.GROUPBY);
 }
 
-export type MRangeRawReply2 = Array<[
-  key: string,
+export type MRangeRawReply2 = ArrayReply<[
+  key: BlobStringReply,
   labels: RawLabels,
-  samples: Array<SampleRawReply2>
+  samples: ArrayReply<SampleRawReply2>
 ]>;
 
 export interface MRangeReplyItem2 {
-  key: string;
+  key: BlobStringReply;
   samples: Array<SampleReply2>;
 }
 
@@ -74,13 +74,13 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2: (reply: MRangeRawReply2): Array<MRangeReplyItem2> => {
+    2: (reply: UnwrapReply<MRangeRawReply2>): Array<MRangeReplyItem2> => {
       const args = [];
   
-      for (const [key, _, sample] of reply) {
+      for (const [key, _, samples] of reply) {        
         args.push({
           key,
-          samples: sample.map(transformSampleReply[2])
+          samples: transformSamplesReply(samples as unknown as UnwrapReply<ArrayReply<SampleRawReply2>>)
         });
       }
   

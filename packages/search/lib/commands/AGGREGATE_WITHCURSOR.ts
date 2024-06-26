@@ -1,4 +1,4 @@
-import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
 
 export interface FtAggregateWithCursorOptions extends FtAggregateOptions {
@@ -9,11 +9,11 @@ export interface FtAggregateWithCursorOptions extends FtAggregateOptions {
 
 type AggregateWithCursorRawReply = [
   result: AggregateRawReply,
-  cursor: number
+  cursor: NumberReply
 ];
 
 export interface AggregateWithCursorReply extends AggregateReply {
-  cursor: number;
+  cursor: NumberReply;
 }
 
 export default {

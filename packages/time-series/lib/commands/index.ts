@@ -1,4 +1,4 @@
-import type { BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands } from '@redis/client/dist/lib/RESP/types';
+import type { ArrayReply, BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -8,8 +8,8 @@ import DEL from './DEL';
 import DELETERULE from './DELETERULE';
 import GET from './GET';
 import INCRBY from './INCRBY';
-// import INFO_DEBUG from './INFO_DEBUG';
-// import INFO from './INFO';
+import INFO_DEBUG from './INFO_DEBUG';
+import INFO from './INFO';
 import MADD from './MADD';
 import MGET_WITHLABELS from './MGET_WITHLABELS';
 import MGET from './MGET';
@@ -41,10 +41,10 @@ export default {
   get: GET,
   INCRBY,
   incrBy: INCRBY,
-  // INFO_DEBUG,
-  // infoDebug: INFO_DEBUG,
-  // INFO,
-  // info: INFO,
+  INFO_DEBUG,
+  infoDebug: INFO_DEBUG,
+  INFO,
+  info: INFO,
   MADD,
   mAdd: MADD,
   MGET_WITHLABELS,
@@ -139,10 +139,7 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
   return args;
 }
 
-export interface SampleRawReply2 {
-  timestamp: NumberReply;
-  value: BlobStringReply;
-};
+export type SampleRawReply2 = TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>;
 
 export interface SampleRawReply3 {
   timestamp: NumberReply
@@ -159,11 +156,21 @@ export interface SampleReply3 {
   value: DoubleReply;
 }
 
+export function transformSamplesReply(samples: UnwrapReply<ArrayReply<SampleRawReply2>>): Array<SampleReply2> {
+  const reply = [];
+
+  for (const sample of samples) {
+    reply.push(transformSampleReply[2](sample as unknown as UnwrapReply<SampleRawReply2>));
+  }
+
+  return reply;
+}
+
 export const transformSampleReply = {
-  2(reply: SampleRawReply2): SampleReply2 {
+  2(reply: UnwrapReply<SampleRawReply2>): SampleReply2 {
     return {
-      timestamp: reply.timestamp,
-      value: Number(reply.value)
+      timestamp: reply[0],
+      value: Number(reply[1])
     };
   },
   3(reply: SampleRawReply3): SampleReply3 {
