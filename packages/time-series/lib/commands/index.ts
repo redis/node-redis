@@ -1,4 +1,4 @@
-import type { ArrayReply, BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import type { BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -141,10 +141,7 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
 
 export type SampleRawReply2 = TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>;
 
-export interface SampleRawReply3 {
-  timestamp: NumberReply
-  value: DoubleReply
-}
+export type SampleRawReply3 = TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
 
 export interface SampleReply2 {
   timestamp: NumberReply;
@@ -156,16 +153,6 @@ export interface SampleReply3 {
   value: DoubleReply;
 }
 
-export function transformSamplesReply(samples: UnwrapReply<ArrayReply<SampleRawReply2>>): Array<SampleReply2> {
-  const reply = [];
-
-  for (const sample of samples) {
-    reply.push(transformSampleReply[2](sample as unknown as UnwrapReply<SampleRawReply2>));
-  }
-
-  return reply;
-}
-
 export const transformSampleReply = {
   2(reply: UnwrapReply<SampleRawReply2>): SampleReply2 {
     return {
@@ -173,10 +160,10 @@ export const transformSampleReply = {
       value: Number(reply[1])
     };
   },
-  3(reply: SampleRawReply3): SampleReply3 {
+  3(reply: UnwrapReply<SampleRawReply3>): SampleReply3 {
     return {
-      timestamp: reply.timestamp,
-      value: reply.value
+      timestamp: reply[0],
+      value: reply[1]
     };
   }
 };

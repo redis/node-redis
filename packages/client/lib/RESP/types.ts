@@ -128,11 +128,15 @@ export interface MapReply<K, V> extends RespType<
   Map<any, any> | Array<any>
 > {}
 
-type MapKeyValue = [key: SimpleStringReply, value: unknown];
+type MapKeyValue = [key: BlobStringReply | SimpleStringReply, value: unknown];
 
 type MapTuples = Array<MapKeyValue>;
 
-type ExtractMapKey<T> = T extends SimpleStringReply<infer S> ? S : never;
+type ExtractMapKey<T> = (
+    T extends BlobStringReply<infer S> ? S :
+    T extends SimpleStringReply<infer S> ? S :
+    never
+);
 
 export interface TuplesToMapReply<T extends MapTuples> extends RespType<
   RESP_TYPES['MAP'],

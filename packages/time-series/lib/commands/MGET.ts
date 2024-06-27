@@ -58,7 +58,7 @@ export default {
     3(reply: UnwrapReply<MGetRawReply3>): Array<MGetReply3> {
       return reply.map(([key, _, sample]) => ({
         key,
-        sample: transformSampleReply[3](sample)
+        sample: transformSampleReply[3](sample as unknown as UnwrapReply<SampleRawReply3>)
       }));
     }
   }

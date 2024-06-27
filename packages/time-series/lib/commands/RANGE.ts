@@ -112,7 +112,7 @@ export default {
       return reply.map(sample => transformSampleReply['2'](sample as unknown as UnwrapReply<SampleRawReply2>));
     },
     3(reply: UnwrapReply<ArrayReply<SampleRawReply3>>) {
-      return reply.map(sample => transformSampleReply['3'](sample));
+      return reply.map(sample => transformSampleReply['3'](sample as unknown as UnwrapReply<SampleRawReply3>));
     }
   }
 } as const satisfies Command;

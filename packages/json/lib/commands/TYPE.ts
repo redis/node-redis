@@ -17,7 +17,7 @@ export default {
     return args;
   },
   transformReply: {
-    2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply>,
+    2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>,
     3: undefined as unknown as () => ArrayReply<NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>>
   },
   unstableResp3Module: true
