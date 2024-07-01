@@ -56,6 +56,37 @@ describe('TS.DECRBY', () => {
       );
     });
 
+    it ('with IGNORE', () => {
+      testUtils.isVersionGreaterThanHook([7, 4]);
+      
+      it('no values', () => {
+        assert.deepEqual(
+          DECRBY.transformArguments('key', 1, {
+            IGNORE: { }
+          }),
+          ['TS.DECRBY', 'key', '1', 'IGNORE', '0', '0']
+        )
+      });
+  
+      it('MAX_TIME_DIFF', () => {
+        assert.deepEqual(
+          DECRBY.transformArguments('key', 1, {
+            IGNORE: { MAX_TIME_DIFF: 1}
+          }),
+          ['TS.DECRBY', 'key', '1', 'IGNORE', '1', '0']
+        )
+      });
+  
+      it('MAX_VAL_DIFF', () => {
+        assert.deepEqual(
+          DECRBY.transformArguments('key', 1, {
+            IGNORE: { MAX_VAL_DIFF: 1}
+          }),
+          ['TS.DECRBY', 'key', '1', 'IGNORE', '0', '1']
+        )
+      });
+    });
+
     it('with TIMESTAMP, RETENTION, UNCOMPRESSED, CHUNK_SIZE and LABELS', () => {
       assert.deepEqual(
         DECRBY.transformArguments('key', 1, {

@@ -57,6 +57,35 @@ describe('TS.ADD', () => {
       );
     });
 
+    it ('with IGNORE', () => {
+      it('no values', () => {
+        assert.deepEqual(
+          ADD.transformArguments('key', '*', 1, {
+            IGNORE: { }
+          }),
+          ['TS.ADD', 'key', '*', '1', 'IGNORE', '0', '0']
+        )
+      });
+
+      it('with MAX_TIME_DIFF', () => {
+        assert.deepEqual(
+          ADD.transformArguments('key', '*', 1, {
+            IGNORE: { MAX_TIME_DIFF: 1}
+          }),
+          ['TS.ADD', 'key', '*', '1', 'IGNORE', '1', '0']
+        )
+      });
+
+      it('with MAX_VAL_DIFF', () => {
+        assert.deepEqual(
+          ADD.transformArguments('key', '*', 1, {
+            IGNORE: { MAX_VAL_DIFF: 1}
+          }),
+          ['TS.ADD', 'key', '*', '1', 'IGNORE', '0', '1']
+        )
+      });
+    });
+
     it('with RETENTION, ENCODING, CHUNK_SIZE, ON_DUPLICATE, LABELS', () => {
       assert.deepEqual(
         ADD.transformArguments('key', '*', 1, {
@@ -64,7 +93,7 @@ describe('TS.ADD', () => {
           ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED,
           CHUNK_SIZE: 1,
           ON_DUPLICATE: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,
-          LABELS: { label: 'value' }
+          LABELS: { label: 'value' },
         }),
         ['TS.ADD', 'key', '*', '1', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'ON_DUPLICATE', 'BLOCK', 'LABELS', 'label', 'value']
       );

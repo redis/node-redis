@@ -57,6 +57,37 @@ describe('TS.CREATE', () => {
       );
     });
 
+    it('with IGNORE', () => {
+      testUtils.isVersionGreaterThanHook([7, 4]);
+      
+      it('no values', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('key', {
+            IGNORE: { }
+          }),
+          ['TS.CREATE', 'key', 'IGNORE', '0', '0']
+        )
+      });
+
+      it('with MAX_TIME_DIFF', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('key', {
+            IGNORE: { MAX_TIME_DIFF: 1}
+          }),
+          ['TS.CREATE', 'IGNORE', '1', '0']
+        )
+      });
+
+      it('with MAX_VAL_DIFF', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('key', {
+            IGNORE: { MAX_VAL_DIFF: 1}
+          }),
+          ['TS.CREATE', 'IGNORE', '0', '1']
+        )
+      });
+    });
+
     it('with RETENTION, ENCODING, CHUNK_SIZE, DUPLICATE_POLICY, LABELS', () => {
       assert.deepEqual(
         CREATE.transformArguments('key', {
@@ -64,7 +95,7 @@ describe('TS.CREATE', () => {
           ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED,
           CHUNK_SIZE: 1,
           DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,
-          LABELS: { label: 'value' }
+          LABELS: { label: 'value' },
         }),
         ['TS.CREATE', 'key', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value']
       );

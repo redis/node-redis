@@ -8,8 +8,14 @@ import {
   TimeSeriesDuplicatePolicies,
   Labels,
   pushLabelsArgument,
-  Timestamp
+  Timestamp,
+  pushIgnoreArgument
 } from '.';
+
+export interface TsIgnoreOptions {
+  maxTimeDiff: number;
+  maxValDiff: number;
+}
 
 export interface TsAddOptions {
   RETENTION?: number;
@@ -17,6 +23,7 @@ export interface TsAddOptions {
   CHUNK_SIZE?: number;
   ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
   LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
 }
 
 export default {
@@ -46,6 +53,8 @@ export default {
     }
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
   },
