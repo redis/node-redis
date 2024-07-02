@@ -71,22 +71,30 @@ describe('FT.CREATE', () => {
         });
       });
 
-      it('NUMERIC', () => {
-        assert.deepEqual(
-          CREATE.transformArguments('index', {
-            field: SCHEMA_FIELD_TYPE.NUMERIC
-          }),
-          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'NUMERIC']
-        );
+      describe('NUMERIC', () => {
+        describe('transformArguments', () => {
+          it('no options', () => {
+            assert.deepEqual(
+              CREATE.transformArguments('index', {
+                field: SCHEMA_FIELD_TYPE.NUMERIC
+              }),
+              ['FT.CREATE', 'index', 'SCHEMA', 'field', 'NUMERIC']
+            );
+          });
+        });
       });
 
-      it('GEO', () => {
-        assert.deepEqual(
-          CREATE.transformArguments('index', {
-            field: SCHEMA_FIELD_TYPE.GEO
-          }),
-          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEO']
-        );
+      describe('GEO', () => {
+        describe('transformArguments', () => {
+          it('no options', () => {
+            assert.deepEqual(
+              CREATE.transformArguments('index', {
+                field: SCHEMA_FIELD_TYPE.GEO
+              }),
+              ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEO']
+            );
+          });
+        });
       });
 
       describe('TAG', () => {
@@ -435,6 +443,36 @@ describe('FT.CREATE', () => {
             STOPWORDS: ['1', '2']
           }),
           ['FT.CREATE', 'index', 'STOPWORDS', '2', '1', '2', 'SCHEMA']
+        );
+      });
+    });
+
+    describe('Missing Values', () => {
+      it('with ISNULL', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('index', {
+            field: {
+              type: SCHEMA_FIELD_TYPE.TEXT,
+              MISSING_VAUES: {
+                IS_NULL: true
+              }
+            }
+          }),
+          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISNULL']
+        );
+      });
+
+      it('with ISMISSING', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('index', {
+            field: {
+              type: SCHEMA_FIELD_TYPE.TEXT,
+              MISSING_VAUES: {
+                IS_MISSING: true
+              }
+            }
+          }),
+          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISMISSING']
         );
       });
     });
