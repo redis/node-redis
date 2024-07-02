@@ -8,8 +8,8 @@ import DEL from './DEL';
 import DELETERULE from './DELETERULE';
 import GET from './GET';
 import INCRBY from './INCRBY';
-// import INFO_DEBUG from './INFO_DEBUG';
-// import INFO from './INFO';
+import INFO_DEBUG from './INFO_DEBUG';
+import INFO from './INFO';
 import MADD from './MADD';
 import MGET_WITHLABELS from './MGET_WITHLABELS';
 import MGET from './MGET';
@@ -41,10 +41,10 @@ export default {
   get: GET,
   INCRBY,
   incrBy: INCRBY,
-  // INFO_DEBUG,
-  // infoDebug: INFO_DEBUG,
-  // INFO,
-  // info: INFO,
+  INFO_DEBUG,
+  infoDebug: INFO_DEBUG,
+  INFO,
+  info: INFO,
   MADD,
   mAdd: MADD,
   MGET_WITHLABELS,
@@ -121,6 +121,8 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
+export type RawLabels = Array<[label: string, value: string]>;
+
 export type Labels = {
   [label: string]: string;
 };
@@ -137,27 +139,44 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
   return args;
 }
 
-export type SampleRawReply = {
-  2: TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>;
-  3: TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
-};
+export type SampleRawReply2 = TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>;
+
+export type SampleRawReply3 = TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
+
+export interface SampleReply2 {
+  timestamp: NumberReply;
+  value: number;
+}
+
+export interface SampleReply3 {
+  timestamp: NumberReply;
+  value: DoubleReply;
+}
 
 export const transformSampleReply = {
-  2(reply: SampleRawReply[2]) {
-    const [timestamp, value] = reply as unknown as UnwrapReply<typeof reply>;
+  2(reply: UnwrapReply<SampleRawReply2>): SampleReply2 {
     return {
-      timestamp,
-      value: Number(value)
+      timestamp: reply[0],
+      value: Number(reply[1])
     };
   },
-  3(reply: SampleRawReply[3]) {
-    const [timestamp, value] = reply as unknown as UnwrapReply<typeof reply>;
+  3(reply: UnwrapReply<SampleRawReply3>): SampleReply3 {
     return {
-      timestamp,
-      value
+      timestamp: reply[0],
+      value: reply[1]
     };
   }
 };
+
+export function transformLablesReply(reply: RawLabels): Labels {
+  const labels: Labels = {};
+
+  for (const [key, value] of reply) {
+      labels[key] = value;
+  }
+
+  return labels
+}
 
 export function pushWithLabelsArgument(args: CommandArguments, selectedLabels?: RedisVariadicArgument) {
   if (!selectedLabels) {

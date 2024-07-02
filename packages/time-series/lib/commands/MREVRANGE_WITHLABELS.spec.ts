@@ -1,7 +1,8 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { TIME_SERIES_REDUCERS } from './MRANGE';
 
 describe('TS.MREVRANGE_WITHLABELS', () => {
   it('transformArguments', () => {
@@ -16,12 +17,12 @@ describe('TS.MREVRANGE_WITHLABELS', () => {
         COUNT: 1,
         ALIGN: '-',
         AGGREGATION: {
-          type: TimeSeriesAggregationType.AVERAGE,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
           timeBucket: 1
         },
         GROUPBY: {
           label: 'label',
-          reducer: TimeSeriesReducers.SUM
+          reducer: TIME_SERIES_REDUCERS.SUM
         },
       }),
       [

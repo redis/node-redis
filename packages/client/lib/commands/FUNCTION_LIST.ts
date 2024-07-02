@@ -1,16 +1,16 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command, SimpleStringReply } from '../RESP/types';
 
 export interface FunctionListOptions {
   LIBRARYNAME?: RedisArgument;
 }
 
 export type FunctionListReplyItem = [
-  [BlobStringReply<'library_name'>, BlobStringReply | NullReply],
-  [BlobStringReply<'engine'>, BlobStringReply],
-  [BlobStringReply<'functions'>, ArrayReply<TuplesToMapReply<[
-    [BlobStringReply<'name'>, BlobStringReply],
-    [BlobStringReply<'description'>, BlobStringReply | NullReply],
-    [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
+  [SimpleStringReply<'library_name'>, BlobStringReply | NullReply],
+  [SimpleStringReply<'engine'>, BlobStringReply],
+  [SimpleStringReply<'functions'>, ArrayReply<TuplesToMapReply<[
+    [SimpleStringReply<'name'>, BlobStringReply],
+    [SimpleStringReply<'description'>, BlobStringReply | NullReply],
+    [SimpleStringReply<'flags'>, SetReply<BlobStringReply>],
   ]>>]
 ];
 

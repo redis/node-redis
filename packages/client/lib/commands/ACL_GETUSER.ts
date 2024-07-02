@@ -1,18 +1,18 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 
 type AclUser = TuplesToMapReply<[
-  [BlobStringReply<'flags'>, ArrayReply<BlobStringReply>],
-  [BlobStringReply<'passwords'>, ArrayReply<BlobStringReply>],
-  [BlobStringReply<'commands'>, BlobStringReply],
+  [SimpleStringReply<'flags'>, ArrayReply<BlobStringReply>],
+  [SimpleStringReply<'passwords'>, ArrayReply<BlobStringReply>],
+  [SimpleStringReply<'commands'>, BlobStringReply],
   /** changed to BlobStringReply in 7.0 */
-  [BlobStringReply<'keys'>, ArrayReply<BlobStringReply> | BlobStringReply],
+  [SimpleStringReply<'keys'>, ArrayReply<BlobStringReply> | BlobStringReply],
   /** added in 6.2, changed to BlobStringReply in 7.0 */
-  [BlobStringReply<'channels'>, ArrayReply<BlobStringReply> | BlobStringReply],
+  [SimpleStringReply<'channels'>, ArrayReply<BlobStringReply> | BlobStringReply],
   /** added in 7.0 */
-  [BlobStringReply<'selectors'>, ArrayReply<TuplesToMapReply<[
-    [BlobStringReply<'commands'>, BlobStringReply],
-    [BlobStringReply<'keys'>, BlobStringReply],
-    [BlobStringReply<'channels'>, BlobStringReply]
+  [SimpleStringReply<'selectors'>, ArrayReply<TuplesToMapReply<[
+    [SimpleStringReply<'commands'>, BlobStringReply],
+    [SimpleStringReply<'keys'>, BlobStringReply],
+    [SimpleStringReply<'channels'>, BlobStringReply]
   ]>>],
 ]>;
 

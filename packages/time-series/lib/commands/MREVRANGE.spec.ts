@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MREVRANGE';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import MREVRANGE from './MREVRANGE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { TIME_SERIES_REDUCERS } from './MRANGE';
 
 describe('TS.MREVRANGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      transformArguments('-', '+', 'label=value', {
+      MREVRANGE.transformArguments('-', '+', 'label=value', {
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
           min: 0,
@@ -15,12 +16,12 @@ describe('TS.MREVRANGE', () => {
         COUNT: 1,
         ALIGN: '-',
         AGGREGATION: {
-          type: TimeSeriesAggregationType.AVERAGE,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
           timeBucket: 1
         },
         GROUPBY: {
           label: 'label',
-          reducer: TimeSeriesReducers.SUM
+          reducer: TIME_SERIES_REDUCERS.SUM
         },
       }),
       [

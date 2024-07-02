@@ -1,11 +1,11 @@
-import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 
 export type XInfoConsumersReply = ArrayReply<TuplesToMapReply<[
-  [BlobStringReply<'name'>, BlobStringReply],
-  [BlobStringReply<'pending'>, NumberReply],
-  [BlobStringReply<'idle'>, NumberReply],
+  [SimpleStringReply<'name'>, BlobStringReply],
+  [SimpleStringReply<'pending'>, NumberReply],
+  [SimpleStringReply<'idle'>, NumberReply],
   /** added in 7.2 */
-  [BlobStringReply<'inactive'>, NumberReply]
+  [SimpleStringReply<'inactive'>, NumberReply]
 ]>>;
 
 export default {

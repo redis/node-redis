@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NumberReply, UnwrapReply, Resp2Reply, Command, TuplesReply } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, ArrayReply, NumberReply, UnwrapReply, Resp2Reply, Command, TuplesReply, SimpleStringReply } from '../RESP/types';
 import LCS from './LCS';
 
 export interface LcsIdxOptions {
@@ -18,8 +18,8 @@ export type LcsIdxMatches = ArrayReply<
 >;
 
 export type LcsIdxReply = TuplesToMapReply<[
-  [BlobStringReply<'matches'>, LcsIdxMatches],
-  [BlobStringReply<'len'>, NumberReply]
+  [SimpleStringReply<'matches'>, LcsIdxMatches],
+  [SimpleStringReply<'len'>, NumberReply]
 ]>;
 
 export default {
