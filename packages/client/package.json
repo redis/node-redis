@@ -1,6 +1,6 @@
 {
   "name": "@redis/client",
-  "version": "1.5.16",
+  "version": "1.5.17",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
