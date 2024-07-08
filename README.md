@@ -41,11 +41,7 @@ node-redis is a modern, high performance [Redis](https://redis.io) client for No
 
 ## Installation
 
-Start a redis via docker:
-
-``` bash
-docker run -p 6379:6379 -it redis/redis-stack-server:latest
-```
+Make sure that you have a Redis server, either [locally on your machine](https://redis.io/docs/stack/get-started/install/) or [in the cloud](https://redis.com/try-free/).
 
 To install node-redis, simply:
 
