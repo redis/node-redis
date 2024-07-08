@@ -66,36 +66,17 @@ describe('TS.INCRBY', () => {
     });
 
     it ('with IGNORE', () => {
-      testUtils.isVersionGreaterThanHook([7, 4]);
-      
-      it('no values', () => {
-        assert.deepEqual(
-          INCRBY.transformArguments('key', 1, {
-            IGNORE: { }
-          }),
-          ['TS.INCRBY', 'key', '1', 'IGNORE', '0', '0']
-        )
-      });
-  
-      it('MAX_TIME_DIFF', () => {
-        assert.deepEqual(
-          INCRBY.transformArguments('key', 1, {
-            IGNORE: { MAX_TIME_DIFF: 1}
-          }),
-          ['TS.INCRBY', 'key', '1', 'IGNORE', '1', '0']
-        )
-      });
-  
-      it('MAX_VAL_DIFF', () => {
-        assert.deepEqual(
-          INCRBY.transformArguments('key', 1, {
-            IGNORE: { MAX_VAL_DIFF: 1}
-          }),
-          ['TS.INCRBY', 'key', '1', 'IGNORE', '0', '1']
-        )
-      });
+      assert.deepEqual(
+        INCRBY.transformArguments('key', 1, {
+          IGNORE: { 
+            maxTimeDiff: 1,
+            maxValDiff: 1
+          }
+        }),
+        ['TS.INCRBY', 'key', '1', 'IGNORE', '1', '1']
+      )
     });
-
+  
     it('with TIMESTAMP, RETENTION, UNCOMPRESSED, CHUNK_SIZE and LABELS', () => {
       assert.deepEqual(
         INCRBY.transformArguments('key', 1, {
@@ -103,10 +84,11 @@ describe('TS.INCRBY', () => {
           RETENTION: 1,
           UNCOMPRESSED: true,
           CHUNK_SIZE: 1,
-          LABELS: { label: 'value' }
+          LABELS: { label: 'value' },
+          IGNORE: { maxTimeDiff: 1, maxValDiff: 1 }
         }),
         ['TS.INCRBY', 'key', '1', 'TIMESTAMP', '*', 'RETENTION', '1', 'UNCOMPRESSED',
-          'CHUNK_SIZE', '1', 'LABELS', 'label', 'value']
+          'CHUNK_SIZE', '1', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
       );
     });
   });

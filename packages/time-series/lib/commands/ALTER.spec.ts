@@ -48,46 +48,28 @@ describe('TS.ALTER', () => {
       );
     });
 
-    it('with IGNORE', () => {
-      testUtils.isVersionGreaterThanHook([7, 4]);
-      
-      it('no values', () => {
-        assert.deepEqual(
-          ALTER.transformArguments('key', {
-            IGNORE: { }
-          }),
-          ['TS.ALTER', 'key', 'IGNORE', '0', '0']
-        )
-      });
-
-      it('with MAX_TIME_DIFF', () => {
-        assert.deepEqual(
-          ALTER.transformArguments('key', {
-            IGNORE: { MAX_TIME_DIFF: 1}
-          }),
-          ['TS.ALTER', 'key', 'IGNORE', '1', '0']
-        )
-      });
-
-      it('with MAX_VAL_DIFF', () => {
-        assert.deepEqual(
-          ALTER.transformArguments('key', {
-            IGNORE: { MAX_VAL_DIFF: 1}
-          }),
-          ['TS.ALTER', 'key', 'IGNORE', '0', '1']
-        )
-      });
+    it('with IGNORE', () => {    
+      assert.deepEqual(
+        ALTER.transformArguments('key', {
+          IGNORE: { 
+            maxTimeDiff: 1,
+            maxValDiff: 1
+          }
+        }),
+        ['TS.ALTER', 'key', 'IGNORE', '1', '1']
+      )
     });
 
-    it('with RETENTION, CHUNK_SIZE, DUPLICATE_POLICY, LABELS', () => {
+    it('with RETENTION, CHUNK_SIZE, DUPLICATE_POLICY, LABELS, IGNORE', () => {
       assert.deepEqual(
         ALTER.transformArguments('key', {
           RETENTION: 1,
           CHUNK_SIZE: 1,
           DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,
           LABELS: { label: 'value' },
+          IGNORE: { maxTimeDiff: 1, maxValDiff: 1}
         }),
-        ['TS.ALTER', 'key', 'RETENTION', '1', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value']
+        ['TS.ALTER', 'key', 'RETENTION', '1', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
       );
     });
   });
