@@ -122,6 +122,7 @@ import * as SWAPDB from '../commands/SWAPDB';
 import * as TIME from '../commands/TIME';
 import * as UNWATCH from '../commands/UNWATCH';
 import * as WAIT from '../commands/WAIT';
+import * as WAITAOF from '../commands/WAITAOF';
 
 export default {
     ...CLUSTER_COMMANDS,
@@ -370,5 +371,7 @@ export default {
     UNWATCH,
     unwatch: UNWATCH,
     WAIT,
-    wait: WAIT
+    wait: WAIT,
+    WAITAOF,
+    waitAOF: WAITAOF
 };
