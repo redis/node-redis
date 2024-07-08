@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BGSAVE from './BGSAVE';
+import { parseArgs } from './generic-transformers';
 
 describe('BGSAVE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        BGSAVE.transformArguments(),
+        parseArgs(BGSAVE),
         ['BGSAVE']
       );
     });
 
     it('with SCHEDULE', () => {
       assert.deepEqual(
-        BGSAVE.transformArguments({
+        parseArgs(BGSAVE, {
           SCHEDULE: true
         }),
         ['BGSAVE', 'SCHEDULE']

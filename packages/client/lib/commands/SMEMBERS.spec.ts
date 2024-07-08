@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SMEMBERS from './SMEMBERS';
+import { parseArgs } from './generic-transformers';
 
 describe('SMEMBERS', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      SMEMBERS.transformArguments('key'),
+      parseArgs(SMEMBERS, 'key'),
       ['SMEMBERS', 'key']
     );
   });

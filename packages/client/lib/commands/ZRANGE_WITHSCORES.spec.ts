@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANGE_WITHSCORES from './ZRANGE_WITHSCORES';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANGE WITHSCORES', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ZRANGE_WITHSCORES.transformArguments('src', 0, 1),
+        parseArgs(ZRANGE_WITHSCORES, 'src', 0, 1),
         ['ZRANGE', 'src', '0', '1', 'WITHSCORES']
       );
     });
 
     it('with BY', () => {
       assert.deepEqual(
-        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+        parseArgs(ZRANGE_WITHSCORES, 'src', 0, 1, {
           BY: 'SCORE'
         }),
         ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'WITHSCORES']
@@ -22,7 +23,7 @@ describe('ZRANGE WITHSCORES', () => {
 
     it('with REV', () => {
       assert.deepEqual(
-        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+        parseArgs(ZRANGE_WITHSCORES, 'src', 0, 1, {
           REV: true
         }),
         ['ZRANGE', 'src', '0', '1', 'REV', 'WITHSCORES']
@@ -31,7 +32,7 @@ describe('ZRANGE WITHSCORES', () => {
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+        parseArgs(ZRANGE_WITHSCORES, 'src', 0, 1, {
           LIMIT: {
             offset: 0,
             count: 1
@@ -43,7 +44,7 @@ describe('ZRANGE WITHSCORES', () => {
 
     it('with BY & REV & LIMIT', () => {
       assert.deepEqual(
-        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+        parseArgs(ZRANGE_WITHSCORES, 'src', 0, 1, {
           BY: 'SCORE',
           REV: true,
           LIMIT: {

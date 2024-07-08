@@ -1,4 +1,5 @@
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'direction'>, BlobStringReply],
@@ -12,9 +13,10 @@ type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLUSTER', 'LINKS'];
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['CLUSTER', 'LINKS']);
   },
+  transformArguments() { return [] },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<ClusterLinksReply>>) => reply.map(link => {
       const unwrapped = link as unknown as UnwrapReply<typeof link>;

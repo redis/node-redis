@@ -1,17 +1,16 @@
 import { BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(bits?: number) {
-    const args = ['ACL', 'GENPASS'];
-
+  parseCommand(parser: CommandParser, bits?: number) {
+    parser.pushVariadic(['ACL', 'GENPASS']);
     if (bits) {
-      args.push(bits.toString());
+      parser.push(bits.toString());
     }
-
-    return args;
   },
+  transformArguments(bits?: number) { return [] },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;
 

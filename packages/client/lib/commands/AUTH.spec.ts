@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import AUTH from './AUTH';
+import { parseArgs } from './generic-transformers';
 
 describe('AUTH', () => {
   describe('transformArguments', () => {
     it('password only', () => {
       assert.deepEqual(
-        AUTH.transformArguments({
+        parseArgs(AUTH, {
           password: 'password'
         }),
         ['AUTH', 'password']
@@ -14,7 +15,7 @@ describe('AUTH', () => {
 
     it('username & password', () => {
       assert.deepEqual(
-        AUTH.transformArguments({
+        parseArgs(AUTH, {
           username: 'username',
           password: 'password'
         }),

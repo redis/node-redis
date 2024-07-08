@@ -1,5 +1,6 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './GEOSEARCH';
+import { CommandParser } from '../client/parser';
+import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, parseGeoSearchArguments } from './GEOSEARCH';
 
 export interface GeoSearchStoreOptions extends GeoSearchOptions {
   STOREDIST?: boolean;
@@ -8,20 +9,26 @@ export interface GeoSearchStoreOptions extends GeoSearchOptions {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     destination: RedisArgument,
     source: RedisArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     options?: GeoSearchStoreOptions
   ) {
-    const args = pushGeoSearchArguments(['GEOSEARCHSTORE', destination], source, from, by, options);
+    parseGeoSearchArguments(parser, 'GEOSEARCHSTORE', source, from, by, options, destination);
 
     if (options?.STOREDIST) {
-      args.push('STOREDIST');
+      parser.push('STOREDIST');
     }
-
-    return args;
   },
+  transformArguments(
+    destination: RedisArgument,
+    source: RedisArgument,
+    from: GeoSearchFrom,
+    by: GeoSearchBy,
+    options?: GeoSearchStoreOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

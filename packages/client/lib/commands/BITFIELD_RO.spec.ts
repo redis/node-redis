@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BITFIELD_RO from './BITFIELD_RO';
+import { parseArgs } from './generic-transformers';
 
 describe('BITFIELD_RO', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
-  it('transformArguments', () => {
+  it('parseCommand', () => {
     assert.deepEqual(
-      BITFIELD_RO.transformArguments('key', [{
+      parseArgs(BITFIELD_RO, 'key', [{
         encoding: 'i8',
         offset: 0
       }]),

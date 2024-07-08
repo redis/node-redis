@@ -1,4 +1,5 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export const CLUSTER_SLOT_STATES = {
   IMPORTING: 'IMPORTING',
@@ -12,14 +13,13 @@ export type ClusterSlotState = typeof CLUSTER_SLOT_STATES[keyof typeof CLUSTER_S
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(slot: number, state: ClusterSlotState, nodeId?: RedisArgument) {
-    const args: Array<RedisArgument> = ['CLUSTER', 'SETSLOT', slot.toString(), state];
+  parseCommand(parser: CommandParser, slot: number, state: ClusterSlotState, nodeId?: RedisArgument) {
+    parser.pushVariadic(['CLUSTER', 'SETSLOT', slot.toString(), state]);
 
     if (nodeId) {
-      args.push(nodeId);
+      parser.push(nodeId);
     }
-
-    return args;
   },
+  transformArguments(slot: number, state: ClusterSlotState, nodeId?: RedisArgument) { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

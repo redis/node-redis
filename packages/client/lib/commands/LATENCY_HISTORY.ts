@@ -1,4 +1,5 @@
 import { ArrayReply, TuplesReply, NumberReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export type LatencyEventType = (
   'active-defrag-cycle' |
@@ -22,9 +23,10 @@ export type LatencyEventType = (
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(event: LatencyEventType) {
-    return ['LATENCY', 'HISTORY', event];
+  parseCommand(parser: CommandParser, event: LatencyEventType) {
+    parser.pushVariadic(['LATENCY', 'HISTORY', event]);
   },
+  transformArguments(event: LatencyEventType) { return [] },
   transformReply: undefined as unknown as () => ArrayReply<TuplesReply<[
     timestamp: NumberReply,
     latency: NumberReply

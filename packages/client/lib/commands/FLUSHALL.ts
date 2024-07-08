@@ -1,4 +1,5 @@
 import { SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export const REDIS_FLUSH_MODES = {
   ASYNC: 'ASYNC',
@@ -10,14 +11,12 @@ export type RedisFlushMode = typeof REDIS_FLUSH_MODES[keyof typeof REDIS_FLUSH_M
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
-  transformArguments(mode?: RedisFlushMode) {
-    const args = ['FLUSHALL'];
-    
+  parseCommand(parser: CommandParser, mode?: RedisFlushMode) {
+    parser.push('FLUSHALL');
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
   },
+  transformArguments(mode?: RedisFlushMode) { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

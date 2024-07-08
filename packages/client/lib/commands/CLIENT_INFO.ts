@@ -1,4 +1,5 @@
 import { Command, VerbatimStringReply } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface ClientInfoReply {
   id: number;
@@ -58,9 +59,10 @@ const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLIENT', 'INFO']
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['CLIENT', 'INFO']);
   },
+  transformArguments() { return [] },
   transformReply(rawReply: VerbatimStringReply) {
     const map: Record<string, string> = {};
     for (const item of rawReply.toString().matchAll(CLIENT_INFO_REGEX)) {

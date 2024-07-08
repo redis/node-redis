@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 import HSCAN from './HSCAN';
 
 describe('HSCAN', () => {
   describe('transformArguments', () => {
     it('cusror only', () => {
       assert.deepEqual(
-        HSCAN.transformArguments('key', '0'),
+        parseArgs(HSCAN, 'key', '0'),
         ['HSCAN', 'key', '0']
       );
     });
 
     it('with MATCH', () => {
       assert.deepEqual(
-        HSCAN.transformArguments('key', '0', {
+        parseArgs(HSCAN, 'key', '0', {
           MATCH: 'pattern'
         }),
         ['HSCAN', 'key', '0', 'MATCH', 'pattern']
@@ -22,7 +23,7 @@ describe('HSCAN', () => {
 
     it('with COUNT', () => {
       assert.deepEqual(
-        HSCAN.transformArguments('key', '0', {
+        parseArgs(HSCAN, 'key', '0', {
           COUNT: 1
         }),
         ['HSCAN', 'key', '0', 'COUNT', '1']
@@ -31,7 +32,7 @@ describe('HSCAN', () => {
 
     it('with MATCH & COUNT', () => {
       assert.deepEqual(
-        HSCAN.transformArguments('key', '0', {
+        parseArgs(HSCAN, 'key', '0', {
           MATCH: 'pattern',
           COUNT: 1
         }),

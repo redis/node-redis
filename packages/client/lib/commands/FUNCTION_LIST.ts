@@ -1,4 +1,5 @@
 import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface FunctionListOptions {
   LIBRARYNAME?: RedisArgument;
@@ -19,6 +20,13 @@ export type FunctionListReply = ArrayReply<TuplesToMapReply<FunctionListReplyIte
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, options?: FunctionListOptions) {
+    parser.pushVariadic(['FUNCTION', 'LIST']);
+
+    if (options?.LIBRARYNAME) {
+      parser.pushVariadic(['LIBRARYNAME', options.LIBRARYNAME]);
+    }
+  },
   transformArguments(options?: FunctionListOptions) {
     const args: CommandArguments = ['FUNCTION', 'LIST'];
 

@@ -1,4 +1,5 @@
 import { RedisArgument, ArrayReply, NumberReply, NullReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export type BitFieldEncoding = `${'i' | 'u'}${number}`;
 
@@ -41,47 +42,55 @@ export type BitFieldRoOperations = Array<
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, operations: BitFieldOperations) {
-    const args = ['BITFIELD', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, operations: BitFieldOperations) {
+    parser.push('BITFIELD');
+    parser.pushKey(key);
 
     for (const options of operations) {
       switch (options.operation) {
         case 'GET':
-          args.push(
-            'GET',
-            options.encoding,
-            options.offset.toString()
+          parser.pushVariadic(
+            [
+              'GET',
+              options.encoding,
+              options.offset.toString()
+            ]
           );
           break;
 
         case 'SET':
-          args.push(
-            'SET',
-            options.encoding,
-            options.offset.toString(),
-            options.value.toString()
+          parser.pushVariadic(
+            [
+              'SET',
+              options.encoding,
+              options.offset.toString(),
+              options.value.toString()
+            ]
           );
           break;
 
         case 'INCRBY':
-          args.push(
-            'INCRBY',
-            options.encoding,
-            options.offset.toString(),
-            options.increment.toString()
+          parser.pushVariadic(
+            [
+              'INCRBY',
+              options.encoding,
+              options.offset.toString(),
+              options.increment.toString()
+            ]
           );
           break;
 
         case 'OVERFLOW':
-          args.push(
-            'OVERFLOW',
-            options.behavior
+          parser.pushVariadic(
+            [
+              'OVERFLOW',
+              options.behavior
+            ]
           );
           break;
       }
     }
-
-    return args;
   },
+  transformArguments(key: RedisArgument, operations: BitFieldOperations) { return [] },
   transformReply: undefined as unknown as () => ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

@@ -1,4 +1,5 @@
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface XGroupCreateOptions {
   MKSTREAM?: boolean;
@@ -11,24 +12,31 @@ export interface XGroupCreateOptions {
 export default {
   FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     group: RedisArgument,
     id: RedisArgument,
     options?: XGroupCreateOptions
   ) {
-    const args = ['XGROUP', 'CREATE', key, group, id];
+    parser.pushVariadic(['XGROUP', 'CREATE']);
+    parser.pushKey(key);
+    parser.pushVariadic([group, id]);
 
     if (options?.MKSTREAM) {
-      args.push('MKSTREAM');
+      parser.push('MKSTREAM');
     }
 
     if (options?.ENTRIESREAD) {
-      args.push('ENTRIESREAD', options.ENTRIESREAD.toString());
+      parser.pushVariadic(['ENTRIESREAD', options.ENTRIESREAD.toString()]);
     }
-
-    return args;
   },
+  transformArguments(
+    key: RedisArgument,
+    group: RedisArgument,
+    id: RedisArgument,
+    options?: XGroupCreateOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;
 

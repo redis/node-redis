@@ -2,19 +2,20 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RESTORE from './RESTORE';
 import { RESP_TYPES } from '../RESP/decoder';
+import { parseArgs } from './generic-transformers';
 
 describe('RESTORE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        RESTORE.transformArguments('key', 0, 'value'),
+        parseArgs(RESTORE, 'key', 0, 'value'),
         ['RESTORE', 'key', '0', 'value']
       );
     });
 
     it('with REPLACE', () => {
       assert.deepEqual(
-        RESTORE.transformArguments('key', 0, 'value', {
+        parseArgs(RESTORE, 'key', 0, 'value', {
           REPLACE: true
         }),
         ['RESTORE', 'key', '0', 'value', 'REPLACE']
@@ -23,7 +24,7 @@ describe('RESTORE', () => {
 
     it('with ABSTTL', () => {
       assert.deepEqual(
-        RESTORE.transformArguments('key', 0, 'value', {
+        parseArgs(RESTORE, 'key', 0, 'value', {
           ABSTTL: true
         }),
         ['RESTORE', 'key', '0', 'value', 'ABSTTL']
@@ -32,7 +33,7 @@ describe('RESTORE', () => {
 
     it('with IDLETIME', () => {
       assert.deepEqual(
-        RESTORE.transformArguments('key', 0, 'value', {
+        parseArgs(RESTORE, 'key', 0, 'value', {
           IDLETIME: 1
         }),
         ['RESTORE', 'key', '0', 'value', 'IDLETIME', '1']
@@ -41,7 +42,7 @@ describe('RESTORE', () => {
 
     it('with FREQ', () => {
       assert.deepEqual(
-        RESTORE.transformArguments('key', 0, 'value', {
+        parseArgs(RESTORE, 'key', 0, 'value', {
           FREQ: 1
         }),
         ['RESTORE', 'key', '0', 'value', 'FREQ', '1']
@@ -50,7 +51,7 @@ describe('RESTORE', () => {
 
     it('with REPLACE, ABSTTL, IDLETIME and FREQ', () => {
       assert.deepEqual(
-        RESTORE.transformArguments('key', 0, 'value', {
+        parseArgs(RESTORE, 'key', 0, 'value', {
           REPLACE: true,
           ABSTTL: true,
           IDLETIME: 1,

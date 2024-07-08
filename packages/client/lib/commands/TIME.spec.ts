@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TIME from './TIME';
+import { parseArgs } from './generic-transformers';
 
 describe('TIME', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      TIME.transformArguments(),
+      parseArgs(TIME),
       ['TIME']
     );
   });

@@ -1,6 +1,7 @@
 import { RedisArgument, ArrayReply, NullReply, BlobStringReply, Command, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { isArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { transformRedisJsonNullReply } from '.';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
 export interface RedisArrPopOptions {
   path: RedisArgument;
@@ -10,19 +11,19 @@ export interface RedisArrPopOptions {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, options?: RedisArrPopOptions) {
-    const args = ['JSON.ARRPOP', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: RedisArrPopOptions) {
+    parser.push('JSON.ARRPOP');
+    parser.pushKey(key);
 
     if (options) {
-      args.push(options.path);
+      parser.push(options.path);
 
       if (options.index !== undefined) {
-        args.push(options.index.toString());
+        parser.push(options.index.toString());
       }
     }
-    
-    return args;
   },
+  transformArguments(key: RedisArgument, options?: RedisArrPopOptions) { return [] },
   transformReply(reply: NullReply | BlobStringReply | ArrayReply<NullReply | BlobStringReply>) {
     return isArrayReply(reply) ?
       (reply as unknown as UnwrapReply<typeof reply>).map(item => transformRedisJsonNullReply(item)) :

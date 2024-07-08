@@ -4,11 +4,11 @@ import ZRANK from './ZRANK';
 export default {
   FIRST_KEY_INDEX: ZRANK.FIRST_KEY_INDEX,
   IS_READ_ONLY: ZRANK.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof ZRANK.transformArguments>) {
-    const redisArgs = ZRANK.transformArguments(...args);
-    redisArgs.push('WITHSCORE');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof ZRANK.parseCommand>) {
+    ZRANK.parseCommand(...args);
+    args[0].push('WITHSCORE');
   },
+  transformArguments(...args: Parameters<typeof ZRANK.transformArguments>) { return [] },
   transformReply: {
     2: (reply: UnwrapReply<NullReply | TuplesReply<[NumberReply, BlobStringReply]>>) => {
       if (reply === null) return null;

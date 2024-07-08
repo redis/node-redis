@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SORT_RO from './SORT_RO';
+import { parseArgs } from './generic-transformers';
 
 describe('SORT_RO', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,14 +9,14 @@ describe('SORT_RO', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        SORT_RO.transformArguments('key'),
+        parseArgs(SORT_RO, 'key'),
         ['SORT_RO', 'key']
       );
     });
 
     it('with BY', () => {
       assert.deepEqual(
-        SORT_RO.transformArguments('key', {
+        parseArgs(SORT_RO, 'key', {
           BY: 'pattern'
         }),
         ['SORT_RO', 'key', 'BY', 'pattern']
@@ -24,7 +25,7 @@ describe('SORT_RO', () => {
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        SORT_RO.transformArguments('key', {
+        parseArgs(SORT_RO, 'key', {
           LIMIT: {
             offset: 0,
             count: 1
@@ -37,7 +38,7 @@ describe('SORT_RO', () => {
     describe('with GET', () => {
       it('string', () => {
         assert.deepEqual(
-          SORT_RO.transformArguments('key', {
+          parseArgs(SORT_RO, 'key', {
             GET: 'pattern'
           }),
           ['SORT_RO', 'key', 'GET', 'pattern']
@@ -46,7 +47,7 @@ describe('SORT_RO', () => {
 
       it('array', () => {
         assert.deepEqual(
-          SORT_RO.transformArguments('key', {
+          parseArgs(SORT_RO, 'key', {
             GET: ['1', '2']
           }),
           ['SORT_RO', 'key', 'GET', '1', 'GET', '2']
@@ -56,7 +57,7 @@ describe('SORT_RO', () => {
 
     it('with DIRECTION', () => {
       assert.deepEqual(
-        SORT_RO.transformArguments('key', {
+        parseArgs(SORT_RO, 'key', {
           DIRECTION: 'ASC'
         }),
         ['SORT_RO', 'key', 'ASC']
@@ -65,7 +66,7 @@ describe('SORT_RO', () => {
 
     it('with ALPHA', () => {
       assert.deepEqual(
-        SORT_RO.transformArguments('key', {
+        parseArgs(SORT_RO, 'key', {
           ALPHA: true
         }),
         ['SORT_RO', 'key', 'ALPHA']
@@ -74,7 +75,7 @@ describe('SORT_RO', () => {
 
     it('with BY, LIMIT, GET, DIRECTION, ALPHA', () => {
       assert.deepEqual(
-        SORT_RO.transformArguments('key', {
+        parseArgs(SORT_RO, 'key', {
           BY: 'pattern',
           LIMIT: {
             offset: 0,

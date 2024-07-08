@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils from '../test-utils';
 import CLUSTER_ADDSLOTSRANGE from './CLUSTER_ADDSLOTSRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER ADDSLOTSRANGE', () => {
   testUtils.isVersionGreaterThanHook([7, 0]);
@@ -8,7 +9,7 @@ describe('CLUSTER ADDSLOTSRANGE', () => {
   describe('transformArguments', () => {
     it('single', () => {
       assert.deepEqual(
-        CLUSTER_ADDSLOTSRANGE.transformArguments({
+        parseArgs(CLUSTER_ADDSLOTSRANGE, {
           start: 0,
           end: 1
         }),
@@ -18,7 +19,7 @@ describe('CLUSTER ADDSLOTSRANGE', () => {
 
     it('multiple', () => {
       assert.deepEqual(
-        CLUSTER_ADDSLOTSRANGE.transformArguments([{
+        parseArgs(CLUSTER_ADDSLOTSRANGE, [{
           start: 0,
           end: 1
         }, {

@@ -1,5 +1,6 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
-import { ScanCommonOptions, pushScanArguments } from './SCAN';
+import { CommandParser } from '../client/parser';
+import { ScanCommonOptions, parseScanArguments } from './SCAN';
 import { transformSortedSetReply } from './generic-transformers';
 
 export interface HScanEntry {
@@ -10,13 +11,21 @@ export interface HScanEntry {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     cursor: RedisArgument,
     options?: ScanCommonOptions
   ) {
-    return pushScanArguments(['ZSCAN', key], cursor, options);
+    parser.push('ZSCAN');
+    parser.pushKey(key);
+    parseScanArguments(parser, cursor, options);
   },
+  transformArguments(
+    key: RedisArgument,
+    cursor: RedisArgument,
+    options?: ScanCommonOptions
+  ) { return [] },
   transformReply([cursor, rawMembers]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
     return {
       cursor,

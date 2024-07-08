@@ -1,6 +1,6 @@
 import { RedisArgument, VerbatimStringReply, Command } from '../RESP/types';
-import { pushVariadicArguments } from './generic-transformers';
 import CLIENT_INFO, { ClientInfoReply } from './CLIENT_INFO';
+import { CommandParser } from '../client/parser';
 
 export interface ListFilterType {
   TYPE: 'NORMAL' | 'MASTER' | 'REPLICA' | 'PUBSUB';
@@ -17,20 +17,18 @@ export type ListFilter = ListFilterType | ListFilterId;
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(filter?: ListFilter) {
-    let args: Array<RedisArgument> = ['CLIENT', 'LIST'];
-
+  parseCommand(parser: CommandParser, filter?: ListFilter) {
+    parser.pushVariadic(['CLIENT', 'LIST']);
     if (filter) {
       if (filter.TYPE !== undefined) {
-        args.push('TYPE', filter.TYPE);
+        parser.pushVariadic(['TYPE', filter.TYPE]);
       } else {
-        args.push('ID');
-        args = pushVariadicArguments(args, filter.ID);
+        parser.push('ID');
+        parser.pushVariadic(filter.ID);
       }
     }
-
-    return args;
   },
+  transformArguments(filter?: ListFilter) { return [] },
   transformReply(rawReply: VerbatimStringReply): Array<ClientInfoReply> {
     const split = rawReply.toString().split('\n'),
       length = split.length - 1,

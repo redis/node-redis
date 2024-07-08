@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_LOAD from './FUNCTION_LOAD';
 import { RedisClientType } from '../client';
 import { NumberReply, RedisFunctions, RedisModules, RedisScripts, RespVersions } from '../RESP/types';
+import { parseArgs } from './generic-transformers';
 
 
 
@@ -53,14 +54,14 @@ describe('FUNCTION LOAD', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        FUNCTION_LOAD.transformArguments('code'),
+        parseArgs(FUNCTION_LOAD, 'code'),
         ['FUNCTION', 'LOAD', 'code']
       );
     });
 
     it('with REPLACE', () => {
       assert.deepEqual(
-        FUNCTION_LOAD.transformArguments('code', {
+        parseArgs(FUNCTION_LOAD, 'code', {
           REPLACE: true
         }),
         ['FUNCTION', 'LOAD', 'REPLACE', 'code']

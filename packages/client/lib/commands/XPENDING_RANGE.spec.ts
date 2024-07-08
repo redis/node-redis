@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XPENDING_RANGE from './XPENDING_RANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('XPENDING RANGE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        XPENDING_RANGE.transformArguments('key', 'group', '-', '+', 1),
+        parseArgs(XPENDING_RANGE, 'key', 'group', '-', '+', 1),
         ['XPENDING', 'key', 'group', '-', '+', '1']
       );
     });
 
     it('with IDLE', () => {
       assert.deepEqual(
-        XPENDING_RANGE.transformArguments('key', 'group', '-', '+', 1, {
+        parseArgs(XPENDING_RANGE, 'key', 'group', '-', '+', 1, {
           IDLE: 1,
         }),
         ['XPENDING', 'key', 'group', 'IDLE', '1', '-', '+', '1']
@@ -22,7 +23,7 @@ describe('XPENDING RANGE', () => {
 
     it('with consumer', () => {
       assert.deepEqual(
-        XPENDING_RANGE.transformArguments('key', 'group', '-', '+', 1, {
+        parseArgs(XPENDING_RANGE, 'key', 'group', '-', '+', 1, {
           consumer: 'consumer'
         }),
         ['XPENDING', 'key', 'group', '-', '+', '1', 'consumer']
@@ -31,7 +32,7 @@ describe('XPENDING RANGE', () => {
 
     it('with IDLE, consumer', () => {
       assert.deepEqual(
-        XPENDING_RANGE.transformArguments('key', 'group', '-', '+', 1, {
+        parseArgs(XPENDING_RANGE, 'key', 'group', '-', '+', 1, {
           IDLE: 1,
           consumer: 'consumer'
         }),

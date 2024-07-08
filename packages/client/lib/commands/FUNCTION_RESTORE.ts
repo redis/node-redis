@@ -1,4 +1,5 @@
 import { SimpleStringReply, Command, RedisArgument } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface FunctionRestoreOptions {
   mode?: 'FLUSH' | 'APPEND' | 'REPLACE';
@@ -7,14 +8,13 @@ export interface FunctionRestoreOptions {
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
-  transformArguments(dump: RedisArgument, options?: FunctionRestoreOptions) {
-    const args = ['FUNCTION', 'RESTORE', dump];
+  parseCommand(parser: CommandParser, dump: RedisArgument, options?: FunctionRestoreOptions) {
+    parser.pushVariadic(['FUNCTION', 'RESTORE', dump]);
 
     if (options?.mode) {
-      args.push(options.mode);
+      parser.push(options.mode);
     }
-
-    return args;
   },
+  transformArguments(dump: RedisArgument, options?: FunctionRestoreOptions) { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

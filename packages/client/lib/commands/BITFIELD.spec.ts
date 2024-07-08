@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BITFIELD from './BITFIELD';
+import { parseArgs } from './generic-transformers';
 
 describe('BITFIELD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      BITFIELD.transformArguments('key', [{
+      parseArgs(BITFIELD, 'key', [{
         operation: 'OVERFLOW',
         behavior: 'WRAP'
       }, {

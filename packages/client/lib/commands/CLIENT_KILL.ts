@@ -1,4 +1,5 @@
-import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { NumberReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export const CLIENT_KILL_FILTERS = {
   ADDRESS: 'ADDR',
@@ -49,41 +50,41 @@ export type ClientKillFilter = ClientKillAddress | ClientKillLocalAddress | Clie
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(filters: ClientKillFilter | Array<ClientKillFilter>) {
-    const args = ['CLIENT', 'KILL'];
+  parseCommand(parser: CommandParser, filters: ClientKillFilter | Array<ClientKillFilter>) {
+    parser.pushVariadic(['CLIENT', 'KILL']);
 
     if (Array.isArray(filters)) {
       for (const filter of filters) {
-        pushFilter(args, filter);
+        pushFilter(parser, filter);
       }
     } else {
-      pushFilter(args, filters);
+      pushFilter(parser, filters);
     }
 
-    return args;
   },
+  transformArguments(filters: ClientKillFilter | Array<ClientKillFilter>) { return [] },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;
 
-function pushFilter(args: Array<RedisArgument>, filter: ClientKillFilter): void {
+function pushFilter(parser: CommandParser, filter: ClientKillFilter): void {
   if (filter === CLIENT_KILL_FILTERS.SKIP_ME) {
-    args.push('SKIPME');
+    parser.push('SKIPME');
     return;
   }
 
-  args.push(filter.filter);
+  parser.push(filter.filter);
 
   switch (filter.filter) {
     case CLIENT_KILL_FILTERS.ADDRESS:
-      args.push(filter.address);
+      parser.push(filter.address);
       break;
 
     case CLIENT_KILL_FILTERS.LOCAL_ADDRESS:
-      args.push(filter.localAddress);
+      parser.push(filter.localAddress);
       break;
 
     case CLIENT_KILL_FILTERS.ID:
-      args.push(
+      parser.push(
         typeof filter.id === 'number' ?
           filter.id.toString() :
           filter.id
@@ -91,19 +92,19 @@ function pushFilter(args: Array<RedisArgument>, filter: ClientKillFilter): void 
       break;
 
     case CLIENT_KILL_FILTERS.TYPE:
-      args.push(filter.type);
+      parser.push(filter.type);
       break;
 
     case CLIENT_KILL_FILTERS.USER:
-      args.push(filter.username);
+      parser.push(filter.username);
       break;
 
     case CLIENT_KILL_FILTERS.SKIP_ME:
-      args.push(filter.skipMe ? 'yes' : 'no');
+      parser.push(filter.skipMe ? 'yes' : 'no');
       break;
     
     case CLIENT_KILL_FILTERS.MAXAGE:
-      args.push(filter.maxAge.toString());
+      parser.push(filter.maxAge.toString());
       break;
   }
 }

@@ -1,4 +1,5 @@
 import { RedisArgument, NumberReply, NullReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface LPosOptions {
   RANK?: number;
@@ -8,24 +9,31 @@ export interface LPosOptions {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     element: RedisArgument,
     options?: LPosOptions
   ) {
-    const args = ['LPOS', key, element];
+    parser.setCachable();
+    parser.push('LPOS');
+    parser.pushKey(key);
+    parser.push(element);
 
     if (options) {
       if (typeof options.RANK === 'number') {
-        args.push('RANK', options.RANK.toString());
+        parser.pushVariadic(['RANK', options.RANK.toString()]);
       }
 
       if (typeof options.MAXLEN === 'number') {
-        args.push('MAXLEN', options.MAXLEN.toString());
+        parser.pushVariadic(['MAXLEN', options.MAXLEN.toString()]);
       }
     }
-
-    return args;
   },
+  transformArguments(
+    key: RedisArgument,
+    element: RedisArgument,
+    options?: LPosOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => NumberReply | NullReply
 } as const satisfies Command;

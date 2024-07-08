@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LATENCY_DOCTOR from './LATENCY_DOCTOR';
+import { parseArgs } from './generic-transformers';
 
 describe('LATENCY DOCTOR', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LATENCY_DOCTOR.transformArguments(),
+      parseArgs(LATENCY_DOCTOR),
       ['LATENCY', 'DOCTOR']
     );
   });

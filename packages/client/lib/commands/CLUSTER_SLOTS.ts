@@ -1,4 +1,5 @@
 import { TuplesReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 type RawNode = TuplesReply<[
   host: BlobStringReply,
@@ -18,9 +19,10 @@ export type ClusterSlotsNode = ReturnType<typeof transformNode>;
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLUSTER', 'SLOTS'];
+  parseCommand(parser: CommandParser) {
+    parser.pushVariadic(['CLUSTER', 'SLOTS']);
   },
+  transformArguments() { return [] },
   transformReply(reply: UnwrapReply<ClusterSlotsRawReply>) {
     return reply.map(([from, to, master, ...replicas]) => ({
       from,

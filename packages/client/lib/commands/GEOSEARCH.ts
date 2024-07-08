@@ -1,4 +1,5 @@
-import { RedisArgument, CommandArguments, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export type GeoUnits = 'm' | 'km' | 'mi' | 'ft';
 
@@ -22,30 +23,36 @@ export interface GeoSearchByBox {
 
 export type GeoSearchBy = GeoSearchByRadius | GeoSearchByBox;
 
-export function pushGeoSearchArguments(
-  args: CommandArguments,
+export function parseGeoSearchArguments(
+  parser: CommandParser,
+  command: RedisArgument,
   key: RedisArgument,
   from: GeoSearchFrom,
   by: GeoSearchBy,
-  options?: GeoSearchOptions
+  options?: GeoSearchOptions,
+  store?: RedisArgument
 ) {
-  args.push(key);
+  parser.push(command);
+
+  if (store !== undefined) {
+    parser.pushKey(store);
+  }
+
+  parser.pushKey(key);
 
   if (typeof from === 'string' || from instanceof Buffer) {
-    args.push('FROMMEMBER', from);
+    parser.pushVariadic(['FROMMEMBER', from]);
   } else {
-    args.push('FROMLONLAT', from.longitude.toString(), from.latitude.toString());
+    parser.pushVariadic(['FROMLONLAT', from.longitude.toString(), from.latitude.toString()]);
   }
 
   if ('radius' in by) {
-    args.push('BYRADIUS', by.radius.toString(), by.unit);
+    parser.pushVariadic(['BYRADIUS', by.radius.toString(), by.unit]);
   } else {
-    args.push('BYBOX', by.width.toString(), by.height.toString(), by.unit);
+    parser.pushVariadic(['BYBOX', by.width.toString(), by.height.toString(), by.unit]);
   }
 
-  pushGeoSearchOptions(args, options);
-
-  return args;
+  parseGeoSearchOptions(parser, options);
 }
 
 export type GeoCountArgument = number | {
@@ -58,22 +65,22 @@ export interface GeoSearchOptions {
   COUNT?: GeoCountArgument;
 }
 
-export function pushGeoSearchOptions(
-  args: CommandArguments,
+export function parseGeoSearchOptions(
+  parser: CommandParser,
   options?: GeoSearchOptions
 ) {
   if (options?.SORT) {
-    args.push(options.SORT);
+    parser.push(options.SORT);
   }
 
   if (options?.COUNT) {
     if (typeof options.COUNT === 'number') {
-      args.push('COUNT', options.COUNT.toString());
+      parser.pushVariadic(['COUNT', options.COUNT.toString()]);
     } else {
-      args.push('COUNT', options.COUNT.value.toString());
+      parser.pushVariadic(['COUNT', options.COUNT.value.toString()]);
   
       if (options.COUNT.ANY) {
-        args.push('ANY');
+        parser.push('ANY');
       }
     }
   }
@@ -82,13 +89,20 @@ export function pushGeoSearchOptions(
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     options?: GeoSearchOptions
   ) {
-    return pushGeoSearchArguments(['GEOSEARCH'], key, from, by, options);
+    parseGeoSearchArguments(parser, 'GEOSEARCH', key, from, by, options);
   },
+  transformArguments(
+    key: RedisArgument,
+    from: GeoSearchFrom,
+    by: GeoSearchBy,
+    options?: GeoSearchOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

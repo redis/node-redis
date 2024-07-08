@@ -1,4 +1,5 @@
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import { transformStringDoubleArgument } from './generic-transformers';
 
 export interface ZRangeByLexOptions {
@@ -11,24 +12,32 @@ export interface ZRangeByLexOptions {
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     min: RedisArgument,
     max: RedisArgument,
     options?: ZRangeByLexOptions
   ) {
-    const args = [
-      'ZRANGEBYLEX',
-      key,
-      transformStringDoubleArgument(min),
-      transformStringDoubleArgument(max)
-    ];
+    parser.setCachable();
+    parser.push('ZRANGEBYLEX');
+    parser.pushKey(key);
+    parser.pushVariadic(
+      [
+        transformStringDoubleArgument(min),
+        transformStringDoubleArgument(max),
+      ]
+    );
 
     if (options?.LIMIT) {
-      args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+      parser.pushVariadic(['LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString()]);
     }
-
-    return args;
   },
+  transformArguments(
+    key: RedisArgument,
+    min: RedisArgument,
+    max: RedisArgument,
+    options?: ZRangeByLexOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

@@ -1,4 +1,5 @@
 import { Command, RedisArgument } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 import XREAD, { XReadStreams, pushXReadStreams } from './XREAD';
 
 export interface XReadGroupOptions {
@@ -16,30 +17,35 @@ export default {
     return XREAD.FIRST_KEY_INDEX(streams);
   },
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     group: RedisArgument,
     consumer: RedisArgument,
     streams: XReadStreams,
     options?: XReadGroupOptions
   ) {
-    const args = ['XREADGROUP', 'GROUP', group, consumer];
+    parser.pushVariadic(['XREADGROUP', 'GROUP', group, consumer]);
 
     if (options?.COUNT !== undefined) {
-      args.push('COUNT', options.COUNT.toString());
+      parser.pushVariadic(['COUNT', options.COUNT.toString()]);
     }
 
     if (options?.BLOCK !== undefined) {
-      args.push('BLOCK', options.BLOCK.toString());
+      parser.pushVariadic(['BLOCK', options.BLOCK.toString()]);
     }
 
     if (options?.NOACK) {
-      args.push('NOACK');
+      parser.push('NOACK');
     }
 
-    pushXReadStreams(args, streams);
-
-    return args;
+    pushXReadStreams(parser, streams);
   },
+  transformArguments(
+    group: RedisArgument,
+    consumer: RedisArgument,
+    streams: XReadStreams,
+    options?: XReadGroupOptions
+  ) { return [] },
   // export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
   // TODO
   transformReply: undefined as unknown as () => unknown

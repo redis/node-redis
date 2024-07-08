@@ -1,8 +1,24 @@
 import { RedisArgument, CommandArguments, BlobStringReply, ArrayReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export interface ScanCommonOptions {
   MATCH?: string;
   COUNT?: number;
+}
+
+export function parseScanArguments(
+  parser: CommandParser,
+  cursor: RedisArgument,
+  options?: ScanOptions
+) {
+  parser.push(cursor);
+  if (options?.MATCH) {
+    parser.pushVariadic(['MATCH', options.MATCH]);
+  }
+
+  if (options?.COUNT) {
+    parser.pushVariadic(['COUNT', options.COUNT.toString()]);
+  }
 }
 
 export function pushScanArguments(
@@ -30,15 +46,15 @@ export interface ScanOptions extends ScanCommonOptions {
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(cursor: RedisArgument, options?: ScanOptions) {
-    const args = pushScanArguments(['SCAN'], cursor, options);
+  parseCommand(parser: CommandParser, cursor: RedisArgument, options?: ScanOptions) {
+    parser.push('SCAN');
+    parseScanArguments(parser, cursor, options);
 
     if (options?.TYPE) {
-      args.push('TYPE', options.TYPE);
+      parser.pushVariadic(['TYPE', options.TYPE]);
     }
-
-    return args;
   },
+  transformArguments(cursor: RedisArgument, options?: ScanOptions) { return [] },
   transformReply([cursor, keys]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
     return {
       cursor,

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XACK from './XACK';
+import { parseArgs } from './generic-transformers';
 
 describe('XACK', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        XACK.transformArguments('key', 'group', '0-0'),
+        parseArgs(XACK, 'key', 'group', '0-0'),
         ['XACK', 'key', 'group', '0-0']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        XACK.transformArguments('key', 'group', ['0-0', '1-0']),
+        parseArgs(XACK, 'key', 'group', ['0-0', '1-0']),
         ['XACK', 'key', 'group', '0-0', '1-0']
       );
     });

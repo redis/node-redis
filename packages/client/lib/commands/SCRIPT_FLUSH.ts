@@ -1,16 +1,16 @@
 import { SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(mode?: 'ASYNC' | 'SYNC') {
-    const args = ['SCRIPT', 'FLUSH'];
+  parseCommand(parser: CommandParser, mode?: 'ASYNC' | 'SYNC') {
+    parser.pushVariadic(['SCRIPT', 'FLUSH']);
 
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
   },
+  transformArguments(mode?: 'ASYNC' | 'SYNC') { return [] },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

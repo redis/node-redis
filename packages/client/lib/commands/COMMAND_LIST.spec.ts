@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import COMMAND_LIST from './COMMAND_LIST';
+import { parseArgs } from './generic-transformers';
 
 describe('COMMAND LIST', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,7 +9,7 @@ describe('COMMAND LIST', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        COMMAND_LIST.transformArguments(),
+        parseArgs(COMMAND_LIST),
         ['COMMAND', 'LIST']
       );
     });
@@ -16,7 +17,7 @@ describe('COMMAND LIST', () => {
     describe('with FILTERBY', () => {
       it('MODULE', () => {
         assert.deepEqual(
-          COMMAND_LIST.transformArguments({
+          parseArgs(COMMAND_LIST, {
             FILTERBY: {
               type: 'MODULE',
               value: 'JSON'
@@ -28,7 +29,7 @@ describe('COMMAND LIST', () => {
 
       it('ACLCAT', () => {
         assert.deepEqual(
-          COMMAND_LIST.transformArguments({
+          parseArgs(COMMAND_LIST, {
             FILTERBY: {
               type: 'ACLCAT',
               value: 'admin'
@@ -40,7 +41,7 @@ describe('COMMAND LIST', () => {
 
       it('PATTERN', () => {
         assert.deepEqual(
-          COMMAND_LIST.transformArguments({
+          parseArgs(COMMAND_LIST, {
             FILTERBY: {
               type: 'PATTERN',
               value: 'a*'

@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EVAL_RO from './EVAL_RO';
+import { parseArgs } from './generic-transformers';
 
 describe('EVAL_RO', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      EVAL_RO.transformArguments('return KEYS[1] + ARGV[1]', {
+      parseArgs(EVAL_RO, 'return KEYS[1] + ARGV[1]', {
         keys: ['key'],
         arguments: ['argument']
       }),

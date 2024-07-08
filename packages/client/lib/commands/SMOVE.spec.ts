@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SMOVE from './SMOVE';
+import { parseArgs } from './generic-transformers';
 
 describe('SMOVE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SMOVE.transformArguments('source', 'destination', 'member'),
+      parseArgs(SMOVE, 'source', 'destination', 'member'),
       ['SMOVE', 'source', 'destination', 'member']
     );
   });

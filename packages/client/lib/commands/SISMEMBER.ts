@@ -1,10 +1,15 @@
 import { NumberReply, Command, RedisArgument } from '../RESP/types';
+import { CommandParser } from '../client/parser';
 
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, member: RedisArgument) {
-    return ['SISMEMBER', key, member];
+  parseCommand(parser: CommandParser, key: RedisArgument, member: RedisArgument) {
+    parser.setCachable();
+    parser.push('SISMEMBER');
+    parser.pushKey(key);
+    parser.push(member);
   },
+  transformArguments(key: RedisArgument, member: RedisArgument) { return [] },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

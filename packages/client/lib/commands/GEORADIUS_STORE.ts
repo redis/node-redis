@@ -1,5 +1,6 @@
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import GEORADIUS, { transformGeoRadiusArguments } from './GEORADIUS';
+import { CommandParser } from '../client/parser';
+import GEORADIUS, { parseGeoRadiusArguments } from './GEORADIUS';
 import { GeoCoordinates, GeoSearchOptions, GeoUnits } from './GEOSEARCH';
 
 export interface GeoRadiusStoreOptions extends GeoSearchOptions {
@@ -9,7 +10,8 @@ export interface GeoRadiusStoreOptions extends GeoSearchOptions {
 export default {
   FIRST_KEY_INDEX: GEORADIUS.FIRST_KEY_INDEX,
   IS_READ_ONLY: GEORADIUS.IS_READ_ONLY,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     from: GeoCoordinates,
     radius: number,
@@ -17,15 +19,20 @@ export default {
     destination: RedisArgument,
     options?: GeoRadiusStoreOptions
   ) {
-    const args = transformGeoRadiusArguments('GEORADIUS', key, from, radius, unit, options);
-
+    parseGeoRadiusArguments('GEORADIUS', false, parser, key, from, radius, unit, options);
     if (options?.STOREDIST) {
-      args.push('STOREDIST', destination);
+      parser.pushVariadic(['STOREDIST', destination]);
     } else {
-      args.push('STORE', destination);
+      parser.pushVariadic(['STORE', destination])
     }
-
-    return args;
   },
+  transformArguments(
+    key: RedisArgument,
+    from: GeoCoordinates,
+    radius: number,
+    unit: GeoUnits,
+    destination: RedisArgument,
+    options?: GeoRadiusStoreOptions
+  ) { return [] },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BRPOP from './BRPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('BRPOP', () => {
   describe('transformArguments', () => {
     it('single', () => {
       assert.deepEqual(
-        BRPOP.transformArguments('key', 0),
+        parseArgs(BRPOP, 'key', 0),
         ['BRPOP', 'key', '0']
       );
     });
 
     it('multiple', () => {
       assert.deepEqual(
-        BRPOP.transformArguments(['1', '2'], 0),
+        parseArgs(BRPOP, ['1', '2'], 0),
         ['BRPOP', '1', '2', '0']
       );
     });

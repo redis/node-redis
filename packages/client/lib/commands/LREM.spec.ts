@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LREM from './LREM';
+import { parseArgs } from './generic-transformers';
 
 describe('LREM', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LREM.transformArguments('key', 0, 'element'),
+      parseArgs(LREM, 'key', 0, 'element'),
       ['LREM', 'key', '0', 'element']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPOP_COUNT from './SPOP_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('SPOP_COUNT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SPOP_COUNT.transformArguments('key', 1),
+      parseArgs(SPOP_COUNT, 'key', 1),
       ['SPOP', 'key', '1']
     );
   });

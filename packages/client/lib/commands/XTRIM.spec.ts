@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XTRIM from './XTRIM';
+import { parseArgs } from './generic-transformers';
 
 describe('XTRIM', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        XTRIM.transformArguments('key', 'MAXLEN', 1),
+        parseArgs(XTRIM, 'key', 'MAXLEN', 1),
         ['XTRIM', 'key', 'MAXLEN', '1']
       );
     });
 
     it('with strategyModifier', () => {
       assert.deepEqual(
-        XTRIM.transformArguments('key', 'MAXLEN', 1, {
+        parseArgs(XTRIM, 'key', 'MAXLEN', 1, {
           strategyModifier: '='
         }),
         ['XTRIM', 'key', 'MAXLEN', '=', '1']
@@ -22,7 +23,7 @@ describe('XTRIM', () => {
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        XTRIM.transformArguments('key', 'MAXLEN', 1, {
+        parseArgs(XTRIM, 'key', 'MAXLEN', 1, {
           LIMIT: 1
         }),
         ['XTRIM', 'key', 'MAXLEN', '1', 'LIMIT', '1']
@@ -31,7 +32,7 @@ describe('XTRIM', () => {
 
     it('with strategyModifier, LIMIT', () => {
       assert.deepEqual(
-        XTRIM.transformArguments('key', 'MAXLEN', 1, {
+        parseArgs(XTRIM, 'key', 'MAXLEN', 1, {
           strategyModifier: '=',
           LIMIT: 1
         }),

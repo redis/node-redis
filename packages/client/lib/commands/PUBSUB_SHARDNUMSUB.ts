@@ -1,16 +1,18 @@
 import { ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(channels?: RedisVariadicArgument) {
-    const args = ['PUBSUB', 'SHARDNUMSUB'];
+  parseCommand(parser: CommandParser, channels?: RedisVariadicArgument) {
+    parser.pushVariadic(['PUBSUB', 'SHARDNUMSUB']);
 
-    if (channels) return pushVariadicArguments(args, channels);
-
-    return args;
+    if (channels) {
+      parser.pushVariadic(channels);
+    }
   },
+  transformArguments(channels?: RedisVariadicArgument) { return [] },
   transformReply(reply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) {
     const transformedReply: Record<string, NumberReply> = Object.create(null);
 
