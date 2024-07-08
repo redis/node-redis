@@ -1,4 +1,117 @@
-import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions } from './RESP/types';
+import { RedisArgument } from '..';
+import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply } from './RESP/types';
+
+export interface CommandParser {
+  redisArgs: Array<RedisArgument>;
+  respVersion: RespVersions;
+  preserve: unknown;
+
+  push: (arg: RedisArgument) => unknown;
+  pushKey: (key: RedisArgument) => unknown;
+  setCachable: () => unknown;
+}
+
+abstract class AbstractCommandParser implements CommandParser {
+  #redisArgs: Array<RedisArgument> = [];
+  #respVersion: RespVersions;
+  #preserve: unknown;
+
+  constructor(respVersion: RespVersions = 2) {
+    this.#respVersion = respVersion;
+  }
+
+  get redisArgs() {
+    return this.#redisArgs;
+  }
+
+  get respVersion() {
+    return this.#respVersion;
+  }
+
+  get preserve() {
+    return this.#preserve;
+  }
+
+  push(arg: RedisArgument) {
+    this.#redisArgs.push(arg);
+
+  };
+
+  pushKey(key: RedisArgument) {
+    this.#redisArgs.push(key);
+  };
+
+  setPreserve(val: unknown) {
+    this.#preserve = val;
+  }
+
+  setCachable() {};
+}
+
+export class BasicCommandParser extends AbstractCommandParser {};
+
+export class CachedCommandParser extends AbstractCommandParser {
+  keys: Array<RedisArgument> = [];
+  #cachable = false;
+  get cachable() {
+    return this.#cachable;
+  }
+
+  get cacheKey() {
+    let cacheKey = "";
+    let first = true;
+    for (const arg of this.redisArgs) {
+      if (!first) {
+        cacheKey += '_';
+      } else {
+        first = false;
+      }
+
+      if (arg instanceof Buffer) {
+        cacheKey += arg.toString('hex')
+      } else {
+        cacheKey += arg;
+      }
+    }
+
+    return cacheKey;
+  }
+
+  constructor(resp: RespVersions) {
+    super(resp);
+  }
+
+  override pushKey(key: RedisArgument) {
+    this.keys.push(key);
+    super.pushKey(key);
+  }
+
+  override setCachable() {
+    this.#cachable = true;
+  }
+}
+
+export class ClusterCommandParser extends BasicCommandParser {
+  firstKey?: RedisArgument;
+
+  override pushKey(key: RedisArgument): void {
+    if (!this.firstKey) {
+      this.firstKey = key;
+    }
+    super.pushKey(key);
+  }
+}
+
+export class ClusterCachedCommandParser extends CachedCommandParser {
+  firstKey?: RedisArgument;
+
+  override pushKey(key: RedisArgument): void {
+    if (!this.firstKey) {
+      this.firstKey = key;
+    }
+    super.pushKey(key);
+  }
+}
 
 interface AttachConfigOptions<
   M extends RedisModules,
@@ -78,7 +191,7 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   });
 }
 
-export function getTransformReply(command: Command, resp: RespVersions) {
+export function getTransformReply(command: Command, resp: RespVersions): TransformReply | undefined {
   switch (typeof command.transformReply) {
     case 'function':
       return command.transformReply;
