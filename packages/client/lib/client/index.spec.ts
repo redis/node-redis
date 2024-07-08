@@ -67,6 +67,19 @@ describe('Client', () => {
             );
         });
 
+        it('redis://localhost:6379?db=0', () => {
+            assert.deepEqual(
+                RedisClient.parseURL('redis://localhost:6379?db=0'),
+                {
+                    socket: {
+                        host: 'localhost',
+                        port: 6379
+                    },
+                    database: 0
+                }
+            );
+        });
+
         it('rediss://user:secret@localhost:6379/0', () => {
             assert.deepEqual(
                 RedisClient.parseURL('rediss://user:secret@localhost:6379/0'),
