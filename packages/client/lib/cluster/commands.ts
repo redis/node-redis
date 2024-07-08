@@ -201,11 +201,13 @@ import * as ZRANGEBYSCORE_WITHSCORES from '../commands/ZRANGEBYSCORE_WITHSCORES'
 import * as ZRANGEBYSCORE from '../commands/ZRANGEBYSCORE';
 import * as ZRANGESTORE from '../commands/ZRANGESTORE';
 import * as ZRANK from '../commands/ZRANK';
+import * as ZRANK_WITHSCORE from '../commands/ZRANK_WITHSCORE';
 import * as ZREM from '../commands/ZREM';
 import * as ZREMRANGEBYLEX from '../commands/ZREMRANGEBYLEX';
 import * as ZREMRANGEBYRANK from '../commands/ZREMRANGEBYRANK';
 import * as ZREMRANGEBYSCORE from '../commands/ZREMRANGEBYSCORE';
 import * as ZREVRANK from '../commands/ZREVRANK';
+import * as ZREVRANK_WITHSCORE from '../commands/ZREVRANK_WITHSCORE';
 import * as ZSCAN from '../commands/ZSCAN';
 import * as ZSCORE from '../commands/ZSCORE';
 import * as ZUNION_WITHSCORES from '../commands/ZUNION_WITHSCORES';
@@ -617,6 +619,8 @@ export default {
     zRangeStore: ZRANGESTORE,
     ZRANK,
     zRank: ZRANK,
+    ZRANK_WITHSCORE,
+    zRankWithScore: ZRANK_WITHSCORE,
     ZREM,
     zRem: ZREM,
     ZREMRANGEBYLEX,
@@ -627,6 +631,8 @@ export default {
     zRemRangeByScore: ZREMRANGEBYSCORE,
     ZREVRANK,
     zRevRank: ZREVRANK,
+    ZREVRANK_WITHSCORE,
+    zRevRankWithScore: ZREVRANK_WITHSCORE,
     ZSCAN,
     zScan: ZSCAN,
     ZSCORE,
