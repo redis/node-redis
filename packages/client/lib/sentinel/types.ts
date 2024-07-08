@@ -4,6 +4,7 @@ import { CommandSignature, CommanderConfig, RedisFunctions, RedisModules, RedisS
 import COMMANDS from '../commands';
 import RedisSentinel, { RedisSentinelClient } from '.';
 import { RedisTcpSocketOptions } from '../client/socket';
+import { PooledClientSideCacheProvider, ClientSideCacheConfig } from '../client/cache';
 
 export interface RedisNode {
   host: string;
@@ -32,11 +33,11 @@ export interface RedisSentinelOptions<
   /**
    * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with
    */
-  nodeClientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  nodeClientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, "url">;
   /**
    * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with
    */
-  sentinelClientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  sentinelClientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, "url">;
   /**
    * The number of clients connected to the master node
    */
@@ -59,6 +60,10 @@ export interface RedisSentinelOptions<
    * When `false`, the sentinel object will wait for the first available client from the pool.
    */
   reserveClient?: boolean;
+  /**
+   * TODO
+   */
+  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 export interface SentinelCommander<
