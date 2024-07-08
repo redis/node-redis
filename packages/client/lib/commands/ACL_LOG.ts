@@ -24,7 +24,13 @@ type AclLogRawReply = [
     _: RedisCommandArgument,
     ageSeconds: RedisCommandArgument,
     _: RedisCommandArgument,
-    clientInfo: RedisCommandArgument
+    clientInfo: RedisCommandArgument,
+    _: RedisCommandArgument,
+    entryId: number,
+    _: RedisCommandArgument,
+    timestampCreated: number,
+    _: RedisCommandArgument,
+    timestampLastUpdated: number,
 ];
 
 interface AclLog {
@@ -35,6 +41,9 @@ interface AclLog {
     username: RedisCommandArgument;
     ageSeconds: number;
     clientInfo: RedisCommandArgument;
+    entryId: number;
+    timestampCreated: number;
+    timestampLastUpdated: number;
 }
 
 export function transformReply(reply: Array<AclLogRawReply>): Array<AclLog> {
@@ -45,6 +54,9 @@ export function transformReply(reply: Array<AclLogRawReply>): Array<AclLog> {
         object: log[7],
         username: log[9],
         ageSeconds: Number(log[11]),
-        clientInfo: log[13]
+        clientInfo: log[13],
+        entryId: log[15],
+        timestampCreated: log[17],
+        timestampLastUpdated: log[19],
     }));
 }

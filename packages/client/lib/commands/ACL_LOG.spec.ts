@@ -37,7 +37,13 @@ describe('ACL LOG', () => {
                 'age-seconds',
                 '4.096',
                 'client-info',
-                'id=6 addr=127.0.0.1:63026 fd=8 name= age=9 idle=0 flags=N db=0 sub=0 psub=0 multi=-1 qbuf=48 qbuf-free=32720 obl=0 oll=0 omem=0 events=r cmd=auth user=default'
+                'id=6 addr=127.0.0.1:63026 fd=8 name= age=9 idle=0 flags=N db=0 sub=0 psub=0 multi=-1 qbuf=48 qbuf-free=32720 obl=0 oll=0 omem=0 events=r cmd=auth user=default',
+                'entry-id',
+                0,
+                'timestamp-created',
+                1675361492408,
+                'timestamp-last-updated',
+                1675361492408
             ]]),
             [{
                 count: 1,
@@ -46,7 +52,10 @@ describe('ACL LOG', () => {
                 object: 'AUTH',
                 username: 'someuser',
                 ageSeconds: 4.096,
-                clientInfo: 'id=6 addr=127.0.0.1:63026 fd=8 name= age=9 idle=0 flags=N db=0 sub=0 psub=0 multi=-1 qbuf=48 qbuf-free=32720 obl=0 oll=0 omem=0 events=r cmd=auth user=default'
+                clientInfo: 'id=6 addr=127.0.0.1:63026 fd=8 name= age=9 idle=0 flags=N db=0 sub=0 psub=0 multi=-1 qbuf=48 qbuf-free=32720 obl=0 oll=0 omem=0 events=r cmd=auth user=default',
+                entryId: 0,
+                timestampCreated: 1675361492408,
+                timestampLastUpdated: 1675361492408
             }]
         );
     });
