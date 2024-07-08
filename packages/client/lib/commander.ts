@@ -8,10 +8,10 @@ interface AttachConfigOptions<
 > {
   BaseClass: new (...args: any) => any;
   commands: RedisCommands;
-  createCommand(command: Command, resp: RespVersions): (...args: any) => any;
-  createModuleCommand(command: Command, resp: RespVersions): (...args: any) => any;
-  createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions): (...args: any) => any;
-  createScriptCommand(script: RedisScript, resp: RespVersions): (...args: any) => any;
+  createCommand(name: string, command: Command, resp: RespVersions): (...args: any) => any;
+  createModuleCommand(moduleName: string, name: string, command: Command, resp: RespVersions): (...args: any) => any;
+  createFunctionCommand(libName: string, name: string, fn: RedisFunction, resp: RespVersions): (...args: any) => any;
+  createScriptCommand(name: string, script: RedisScript, resp: RespVersions): (...args: any) => any;
   config?: CommanderConfig<M, F, S, RESP>;
 }
 
@@ -33,14 +33,14 @@ export function attachConfig<
     Class: any = class extends BaseClass {};
 
   for (const [name, command] of Object.entries(commands)) {
-    Class.prototype[name] = createCommand(command, RESP);
+    Class.prototype[name] = createCommand(name, command, RESP);
   }
 
   if (config?.modules) {
     for (const [moduleName, module] of Object.entries(config.modules)) {
       const fns = Object.create(null);
       for (const [name, command] of Object.entries(module)) {
-        fns[name] = createModuleCommand(command, RESP);
+        fns[name] = createModuleCommand(moduleName, name, command, RESP);
       }
 
       attachNamespace(Class.prototype, moduleName, fns);
@@ -51,7 +51,7 @@ export function attachConfig<
     for (const [library, commands] of Object.entries(config.functions)) {
       const fns = Object.create(null);
       for (const [name, command] of Object.entries(commands)) {
-        fns[name] = createFunctionCommand(name, command, RESP);
+        fns[name] = createFunctionCommand(library, name, command, RESP);
       }
 
       attachNamespace(Class.prototype, library, fns);
@@ -60,7 +60,7 @@ export function attachConfig<
 
   if (config?.scripts) {
     for (const [name, script] of Object.entries(config.scripts)) {
-      Class.prototype[name] = createScriptCommand(script, RESP);
+      Class.prototype[name] = createScriptCommand(name, script, RESP);
     }
   }
 
