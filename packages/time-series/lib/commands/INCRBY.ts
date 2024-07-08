@@ -1,5 +1,6 @@
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { Timestamp, transformTimestampArgument, pushRetentionArgument, pushChunkSizeArgument, Labels, pushLabelsArgument } from '.';
+import { Timestamp, transformTimestampArgument, pushRetentionArgument, pushChunkSizeArgument, Labels, pushLabelsArgument, pushIgnoreArgument } from '.';
+import { TsIgnoreOptions } from './ADD';
 
 export interface TsIncrByOptions {
   TIMESTAMP?: Timestamp;
@@ -7,6 +8,7 @@ export interface TsIncrByOptions {
   UNCOMPRESSED?: boolean;
   CHUNK_SIZE?: number;
   LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
 }
 
 export function transformIncrByArguments(
@@ -34,6 +36,8 @@ export function transformIncrByArguments(
   pushChunkSizeArgument(args, options?.CHUNK_SIZE);
 
   pushLabelsArgument(args, options?.LABELS);
+
+  pushIgnoreArgument(args, options?.IGNORE);
 
   return args;
 }

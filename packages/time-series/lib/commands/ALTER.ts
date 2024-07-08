@@ -1,8 +1,8 @@
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { TsCreateOptions } from './CREATE';
-import { pushRetentionArgument, pushChunkSizeArgument, pushDuplicatePolicy, pushLabelsArgument } from '.';
+import { pushRetentionArgument, pushChunkSizeArgument, pushDuplicatePolicy, pushLabelsArgument, pushIgnoreArgument } from '.';
 
-export type TsAlterOptions = Pick<TsCreateOptions, 'RETENTION' | 'CHUNK_SIZE' | 'DUPLICATE_POLICY' | 'LABELS'>;
+export type TsAlterOptions = Pick<TsCreateOptions, 'RETENTION' | 'CHUNK_SIZE' | 'DUPLICATE_POLICY' | 'LABELS' | 'IGNORE'>;
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -17,6 +17,8 @@ export default {
     pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
   },

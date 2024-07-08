@@ -57,16 +57,29 @@ describe('TS.ADD', () => {
       );
     });
 
-    it('with RETENTION, ENCODING, CHUNK_SIZE, ON_DUPLICATE, LABELS', () => {
+    it ('with IGNORE', () => {
+      assert.deepEqual(
+        ADD.transformArguments('key', '*', 1, {
+          IGNORE: { 
+            maxTimeDiff: 1,
+            maxValDiff: 1
+           }
+        }),
+        ['TS.ADD', 'key', '*', '1', 'IGNORE', '1', '1']
+      )
+    });
+
+    it('with RETENTION, ENCODING, CHUNK_SIZE, ON_DUPLICATE, LABELS, IGNORE', () => {
       assert.deepEqual(
         ADD.transformArguments('key', '*', 1, {
           RETENTION: 1,
           ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED,
           CHUNK_SIZE: 1,
           ON_DUPLICATE: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,
-          LABELS: { label: 'value' }
+          LABELS: { label: 'value' },
+          IGNORE: { maxTimeDiff: 1, maxValDiff: 1}
         }),
-        ['TS.ADD', 'key', '*', '1', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'ON_DUPLICATE', 'BLOCK', 'LABELS', 'label', 'value']
+        ['TS.ADD', 'key', '*', '1', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'ON_DUPLICATE', 'BLOCK', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
       );
     });
   });
