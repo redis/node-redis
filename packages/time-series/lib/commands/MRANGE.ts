@@ -1,8 +1,9 @@
 import { RedisArgument, Command, CommandArguments, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels, SampleRawReply2, SampleReply2, Timestamp, transformSampleReply } from '.';
+import { RawLabels, SampleRawReply, SamplesRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
 import { pushFilterArgument } from './MGET';
+import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 
 export const TIME_SERIES_REDUCERS = {
   AVG: 'AVG',
@@ -61,12 +62,12 @@ export function transformMRangeArguments(
 export type MRangeRawReply2 = ArrayReply<[
   key: BlobStringReply,
   labels: RawLabels,
-  samples: ArrayReply<SampleRawReply2>
+  samples: ArrayReply<Resp2Reply<SampleRawReply>>
 ]>;
 
 export interface MRangeReplyItem2 {
   key: BlobStringReply;
-  samples: Array<SampleReply2>;
+  samples: Array<ReturnType<typeof transformSampleReply[2]>>;
 }
 
 export default {
@@ -78,11 +79,9 @@ export default {
       const args = [];
   
       for (const [key, _, samples] of reply) {
-        const uSamples = samples as unknown as UnwrapReply<ArrayReply<SampleRawReply2>>;
-
         args.push({
           key,
-          samples: uSamples.map(sample => transformSampleReply['2'](sample as unknown as UnwrapReply<SampleRawReply2>))
+          samples: transformSamplesReply[2](samples as unknown as Resp2Reply<SamplesRawReply>)
         });
       }
   

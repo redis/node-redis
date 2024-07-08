@@ -1,6 +1,7 @@
 import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels, SampleRawReply2, SampleRawReply3, SampleReply2, SampleReply3, transformSampleReply } from '.';
+import { RawLabels, SampleRawReply, transformSampleReply } from '.';
+import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 
 export interface TsMGetOptions {
   LATEST?: boolean;
@@ -22,23 +23,23 @@ export function pushFilterArgument(args: CommandArguments, filter: RedisVariadic
 export type MGetRawReply2 = ArrayReply<[
   key: BlobStringReply,
   labels: RawLabels,
-  sample: SampleRawReply2
+  sample: Resp2Reply<SampleRawReply>
 ]>;
 
 export type MGetRawReply3 = ArrayReply<[
   key: BlobStringReply,
   labels: RawLabels,
-  sample: SampleRawReply3
+  sample: SampleRawReply
 ]>;
 
 export interface MGetReply2 {
   key: BlobStringReply;
-  sample: SampleReply2;
+  sample: ReturnType<typeof transformSampleReply[2]>;
 }
 
 export interface MGetReply3 {
   key: BlobStringReply;
-  sample: SampleReply3;
+  sample: ReturnType<typeof transformSampleReply[3]>;
 }
 
 export default {
@@ -52,13 +53,13 @@ export default {
     2(reply: UnwrapReply<MGetRawReply2>): Array<MGetReply2> {
       return reply.map(([key, _, sample]) => ({
         key,
-        sample: transformSampleReply[2](sample as unknown as UnwrapReply<SampleRawReply2>)
+        sample: transformSampleReply[2](sample as unknown as Resp2Reply<SampleRawReply>)
       }));
     },
     3(reply: UnwrapReply<MGetRawReply3>): Array<MGetReply3> {
       return reply.map(([key, _, sample]) => ({
         key,
-        sample: transformSampleReply[3](sample as unknown as UnwrapReply<SampleRawReply3>)
+        sample: transformSampleReply[3](sample as unknown as SampleRawReply)
       }));
     }
   }

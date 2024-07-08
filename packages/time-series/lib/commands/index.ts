@@ -1,4 +1,4 @@
-import type { BlobStringReply, CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -139,33 +139,35 @@ export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) 
   return args;
 }
 
-export type SampleRawReply2 = TuplesReply<[timestamp: NumberReply, value: BlobStringReply]>;
-
-export type SampleRawReply3 = TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
-
-export interface SampleReply2 {
-  timestamp: NumberReply;
-  value: number;
-}
-
-export interface SampleReply3 {
-  timestamp: NumberReply;
-  value: DoubleReply;
-}
+export type SampleRawReply = TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
 
 export const transformSampleReply = {
-  2(reply: UnwrapReply<SampleRawReply2>): SampleReply2 {
+  2(reply: Resp2Reply<SampleRawReply>) {
+    const [ timestamp, value ] = reply as unknown as UnwrapReply<typeof reply>;
     return {
-      timestamp: reply[0],
-      value: Number(reply[1])
+      timestamp,
+      value: Number(value)
     };
   },
-  3(reply: UnwrapReply<SampleRawReply3>): SampleReply3 {
+  3(reply: SampleRawReply) {
+    const [ timestamp, value ] = reply as unknown as UnwrapReply<typeof reply>;
     return {
-      timestamp: reply[0],
-      value: reply[1]
+      timestamp,
+      value
     };
   }
+};
+
+export type SamplesRawReply = ArrayReply<SampleRawReply>;
+
+export const transformSamplesReply = {
+  2(reply: Resp2Reply<SamplesRawReply>) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformSampleReply[2](sample));
+  },
+  3(reply: SamplesRawReply) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformSampleReply[3](sample));  }
 };
 
 export function transformLablesReply(reply: RawLabels): Labels {
