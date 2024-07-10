@@ -62,7 +62,7 @@ describe('CREATE', () => {
                 transformArguments('key', {
                     IGNORE: { MAX_TIME_DIFF: 1, MAX_VAL_DIFF: 1}
                 }),
-                ['TS.CREATE', 'IGNORE', '1', '1']
+                ['TS.CREATE', 'key', 'IGNORE', '1', '1']
             )
         });
 
