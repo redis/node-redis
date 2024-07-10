@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments } from './CREATE';
-import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages, VectorAlgorithms } from '.';
+import { SchemaFieldTypes, SchemaTextFieldPhonetics, RedisSearchLanguages, VectorAlgorithms, SCHEMA_GEO_SHAPE_COORD_SYSTEM } from '.';
 
 describe('CREATE', () => {
     describe('transformArguments', () => {
@@ -192,6 +192,42 @@ describe('CREATE', () => {
                             'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'INITIAL_CAP', '1000000',
                             'M', '40', 'EF_CONSTRUCTION', '250', 'EF_RUNTIME', '20'
                         ]
+                    );
+                });
+            });
+
+            describe('GEOSHAPE', () => {
+                describe('without options', () => {
+                    it('SCHEMA_FIELD_TYPE.GEOSHAPE', () => {
+                        assert.deepEqual(
+                            transformArguments('index', {
+                                field: SchemaFieldTypes.GEOSHAPE
+                            }),
+                            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE']
+                        );
+                    });
+
+                    it('{ type: SCHEMA_FIELD_TYPE.GEOSHAPE }', () => {
+                        assert.deepEqual(
+                            transformArguments('index', {
+                                field: {
+                                    type: SchemaFieldTypes.GEOSHAPE
+                                }
+                            }),
+                            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE']
+                        );
+                    });
+                });
+
+                it('with COORD_SYSTEM', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.GEOSHAPE,
+                                COORD_SYSTEM: SCHEMA_GEO_SHAPE_COORD_SYSTEM.SPHERICAL
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE', 'COORD_SYSTEM', 'SPHERICAL']
                     );
                 });
             });
