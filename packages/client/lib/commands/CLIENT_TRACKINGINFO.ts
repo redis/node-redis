@@ -1,9 +1,9 @@
 import { TuplesToMapReply, BlobStringReply, SetReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 
 type TrackingInfo = TuplesToMapReply<[
-  [SimpleStringReply<'flags'>, SetReply<BlobStringReply>],
-  [SimpleStringReply<'redirect'>, NumberReply],
-  [SimpleStringReply<'prefixes'>, ArrayReply<BlobStringReply>]
+  [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
+  [BlobStringReply<'redirect'>, NumberReply],
+  [BlobStringReply<'prefixes'>, ArrayReply<BlobStringReply>]
 ]>;
 
 export default {

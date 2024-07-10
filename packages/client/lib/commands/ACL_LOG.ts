@@ -1,19 +1,19 @@
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 
 export type AclLogReply = ArrayReply<TuplesToMapReply<[
-  [SimpleStringReply<'count'>, NumberReply],
-  [SimpleStringReply<'reason'>, BlobStringReply],
-  [SimpleStringReply<'context'>, BlobStringReply],
-  [SimpleStringReply<'object'>, BlobStringReply],
-  [SimpleStringReply<'username'>, BlobStringReply],
-  [SimpleStringReply<'age-seconds'>, DoubleReply],
-  [SimpleStringReply<'client-info'>, BlobStringReply],
+  [BlobStringReply<'count'>, NumberReply],
+  [BlobStringReply<'reason'>, BlobStringReply],
+  [BlobStringReply<'context'>, BlobStringReply],
+  [BlobStringReply<'object'>, BlobStringReply],
+  [BlobStringReply<'username'>, BlobStringReply],
+  [BlobStringReply<'age-seconds'>, DoubleReply],
+  [BlobStringReply<'client-info'>, BlobStringReply],
   /** added in 7.0 */
-  [SimpleStringReply<'entry-id'>, NumberReply],
+  [BlobStringReply<'entry-id'>, NumberReply],
   /** added in 7.0 */
-  [SimpleStringReply<'timestamp-created'>, NumberReply],
+  [BlobStringReply<'timestamp-created'>, NumberReply],
   /** added in 7.0 */
-  [SimpleStringReply<'timestamp-last-updated'>, NumberReply]
+  [BlobStringReply<'timestamp-last-updated'>, NumberReply]
 ]>>;
 
 export default {

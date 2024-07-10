@@ -1,4 +1,4 @@
-import { RedisArgument, RespVersions, TuplesToMapReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
+import { RedisArgument, RespVersions, TuplesToMapReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export interface HelloOptions {
   protover?: RespVersions;
@@ -10,13 +10,13 @@ export interface HelloOptions {
 }
 
 export type HelloReply = TuplesToMapReply<[
-  [SimpleStringReply<'server'>, BlobStringReply],
-  [SimpleStringReply<'version'>, BlobStringReply],
-  [SimpleStringReply<'proto'>, NumberReply<RespVersions>],
-  [SimpleStringReply<'id'>, NumberReply],
-  [SimpleStringReply<'mode'>, BlobStringReply],
-  [SimpleStringReply<'role'>, BlobStringReply],
-  [SimpleStringReply<'modules'>, ArrayReply<BlobStringReply>]
+  [BlobStringReply<'server'>, BlobStringReply],
+  [BlobStringReply<'version'>, BlobStringReply],
+  [BlobStringReply<'proto'>, NumberReply<RespVersions>],
+  [BlobStringReply<'id'>, NumberReply],
+  [BlobStringReply<'mode'>, BlobStringReply],
+  [BlobStringReply<'role'>, BlobStringReply],
+  [BlobStringReply<'modules'>, ArrayReply<BlobStringReply>]
 ]>;
 
 export default {

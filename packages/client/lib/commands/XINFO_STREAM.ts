@@ -2,19 +2,19 @@ import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullRepl
 import { isNullReply, transformTuplesReply } from './generic-transformers';
 
 export type XInfoStreamReply = TuplesToMapReply<[
-  [SimpleStringReply<'length'>, NumberReply],
-  [SimpleStringReply<'radix-tree-keys'>, NumberReply],
-  [SimpleStringReply<'radix-tree-nodes'>, NumberReply],
-  [SimpleStringReply<'last-generated-id'>, BlobStringReply],
+  [BlobStringReply<'length'>, NumberReply],
+  [BlobStringReply<'radix-tree-keys'>, NumberReply],
+  [BlobStringReply<'radix-tree-nodes'>, NumberReply],
+  [BlobStringReply<'last-generated-id'>, BlobStringReply],
   /** added in 7.2 */
-  [SimpleStringReply<'max-deleted-entry-id'>, BlobStringReply],
+  [BlobStringReply<'max-deleted-entry-id'>, BlobStringReply],
   /** added in 7.2 */
-  [SimpleStringReply<'entries-added'>, NumberReply],
+  [BlobStringReply<'entries-added'>, NumberReply],
   /** added in 7.2 */
-  [SimpleStringReply<'recorded-first-entry-id'>, BlobStringReply],
-  [SimpleStringReply<'groups'>, NumberReply],
-  [SimpleStringReply<'first-entry'>, ReturnType<typeof transformEntry>],
-  [SimpleStringReply<'last-entry'>, ReturnType<typeof transformEntry>]
+  [BlobStringReply<'recorded-first-entry-id'>, BlobStringReply],
+  [BlobStringReply<'groups'>, NumberReply],
+  [BlobStringReply<'first-entry'>, ReturnType<typeof transformEntry>],
+  [BlobStringReply<'last-entry'>, ReturnType<typeof transformEntry>]
 ]>;
 
 export default {

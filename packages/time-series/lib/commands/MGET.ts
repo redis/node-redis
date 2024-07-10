@@ -1,7 +1,6 @@
-import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RawLabels, SampleRawReply, transformSampleReply } from '.';
-import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 
 export interface TsMGetOptions {
   LATEST?: boolean;
@@ -53,13 +52,13 @@ export default {
     2(reply: UnwrapReply<MGetRawReply2>): Array<MGetReply2> {
       return reply.map(([key, _, sample]) => ({
         key,
-        sample: transformSampleReply[2](sample as unknown as Resp2Reply<SampleRawReply>)
+        sample: transformSampleReply[2](sample)
       }));
     },
     3(reply: UnwrapReply<MGetRawReply3>): Array<MGetReply3> {
       return reply.map(([key, _, sample]) => ({
         key,
-        sample: transformSampleReply[3](sample as unknown as SampleRawReply)
+        sample: transformSampleReply[3](sample)
       }));
     }
   }

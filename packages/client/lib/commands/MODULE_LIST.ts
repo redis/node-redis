@@ -1,8 +1,8 @@
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 
 export type ModuleListReply = ArrayReply<TuplesToMapReply<[
-  [SimpleStringReply<'name'>, BlobStringReply],
-  [SimpleStringReply<'ver'>, NumberReply],
+  [BlobStringReply<'name'>, BlobStringReply],
+  [BlobStringReply<'ver'>, NumberReply],
 ]>>;
 
 export default {

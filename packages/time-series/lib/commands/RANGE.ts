@@ -109,8 +109,8 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformRangeArguments.bind(undefined, 'TS.RANGE'),
   transformReply: {
-    2(reply: SamplesRawReply) {
-      return transformSamplesReply[2](reply as unknown as Resp2Reply<SamplesRawReply>);
+    2(reply: Resp2Reply<SamplesRawReply>) {
+      return transformSamplesReply[2](reply);
     },
     3(reply: SamplesRawReply) {
       return transformSamplesReply[3](reply);

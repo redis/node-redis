@@ -1,9 +1,8 @@
-import { RedisArgument, Command, CommandArguments, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, CommandArguments, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels, SampleRawReply, SamplesRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
+import { RawLabels, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
 import { pushFilterArgument } from './MGET';
-import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 
 export const TIME_SERIES_REDUCERS = {
   AVG: 'AVG',
@@ -81,7 +80,7 @@ export default {
       for (const [key, _, samples] of reply) {
         args.push({
           key,
-          samples: transformSamplesReply[2](samples as unknown as Resp2Reply<SamplesRawReply>)
+          samples: transformSamplesReply[2](samples)
         });
       }
   

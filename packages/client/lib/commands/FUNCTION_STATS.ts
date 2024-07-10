@@ -1,22 +1,22 @@
-import { Command, TuplesToMapReply, BlobStringReply, NullReply, NumberReply, MapReply, Resp2Reply, UnwrapReply, SimpleStringReply } from '../RESP/types';
+import { Command, TuplesToMapReply, BlobStringReply, NullReply, NumberReply, MapReply, Resp2Reply, UnwrapReply } from '../RESP/types';
 import { isNullReply } from './generic-transformers';
 
 type RunningScript = NullReply | TuplesToMapReply<[
-  [SimpleStringReply<'name'>, BlobStringReply],
-  [SimpleStringReply<'command'>, BlobStringReply],
-  [SimpleStringReply<'duration_ms'>, NumberReply]
+  [BlobStringReply<'name'>, BlobStringReply],
+  [BlobStringReply<'command'>, BlobStringReply],
+  [BlobStringReply<'duration_ms'>, NumberReply]
 ]>;
 
 type Engine = TuplesToMapReply<[
-  [SimpleStringReply<'libraries_count'>, NumberReply],
-  [SimpleStringReply<'functions_count'>, NumberReply]
+  [BlobStringReply<'libraries_count'>, NumberReply],
+  [BlobStringReply<'functions_count'>, NumberReply]
 ]>;
 
 type Engines = MapReply<BlobStringReply, Engine>;
 
 type FunctionStatsReply = TuplesToMapReply<[
-  [SimpleStringReply<'running_script'>, RunningScript],
-  [SimpleStringReply<'engines'>, Engines]
+  [BlobStringReply<'running_script'>, RunningScript],
+  [BlobStringReply<'engines'>, Engines]
 ]>;
 
 export default {

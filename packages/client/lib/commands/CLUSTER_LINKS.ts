@@ -1,12 +1,12 @@
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
 
 type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
-  [SimpleStringReply<'direction'>, BlobStringReply],
-  [SimpleStringReply<'node'>, BlobStringReply],
-  [SimpleStringReply<'create-time'>, NumberReply],
-  [SimpleStringReply<'events'>, BlobStringReply],
-  [SimpleStringReply<'send-buffer-allocated'>, NumberReply],
-  [SimpleStringReply<'send-buffer-used'>, NumberReply],
+  [BlobStringReply<'direction'>, BlobStringReply],
+  [BlobStringReply<'node'>, BlobStringReply],
+  [BlobStringReply<'create-time'>, NumberReply],
+  [BlobStringReply<'events'>, BlobStringReply],
+  [BlobStringReply<'send-buffer-allocated'>, NumberReply],
+  [BlobStringReply<'send-buffer-used'>, NumberReply],
 ]>>;
 
 export default {

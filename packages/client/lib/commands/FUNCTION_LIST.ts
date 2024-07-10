@@ -5,12 +5,12 @@ export interface FunctionListOptions {
 }
 
 export type FunctionListReplyItem = [
-  [SimpleStringReply<'library_name'>, BlobStringReply | NullReply],
-  [SimpleStringReply<'engine'>, BlobStringReply],
-  [SimpleStringReply<'functions'>, ArrayReply<TuplesToMapReply<[
-    [SimpleStringReply<'name'>, BlobStringReply],
-    [SimpleStringReply<'description'>, BlobStringReply | NullReply],
-    [SimpleStringReply<'flags'>, SetReply<BlobStringReply>],
+  [BlobStringReply<'library_name'>, BlobStringReply | NullReply],
+  [BlobStringReply<'engine'>, BlobStringReply],
+  [BlobStringReply<'functions'>, ArrayReply<TuplesToMapReply<[
+    [BlobStringReply<'name'>, BlobStringReply],
+    [BlobStringReply<'description'>, BlobStringReply | NullReply],
+    [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
   ]>>]
 ];
 

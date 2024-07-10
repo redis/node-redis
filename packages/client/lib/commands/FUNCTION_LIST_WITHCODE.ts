@@ -3,7 +3,7 @@ import FUNCTION_LIST, { FunctionListReplyItem } from './FUNCTION_LIST';
 
 export type FunctionListWithCodeReply = ArrayReply<TuplesToMapReply<[
   ...FunctionListReplyItem,
-  [SimpleStringReply<'library_code'>, BlobStringReply],
+  [BlobStringReply<'library_code'>, BlobStringReply],
 ]>>;
 
 export default {
