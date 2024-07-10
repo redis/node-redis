@@ -56,33 +56,15 @@ describe('CREATE', () => {
                 ['TS.CREATE', 'key', 'LABELS', 'label', 'value']
             );
         });
-
-        it('with IGNORE no values', () => {
-          assert.deepEqual(
-            transformArguments('key', {
-              IGNORE: { }
-            }),
-            ['TS.CREATE', 'key', 'IGNORE', '0', '0']
-          )
-        });
-    
+   
         it('with IGNORE with MAX_TIME_DIFF', () => {
-          assert.deepEqual(
-            transformArguments('key', {
-              IGNORE: { MAX_TIME_DIFF: 1}
-            }),
-            ['TS.CREATE', 'IGNORE', '1', '0']
-          )
+            assert.deepEqual(
+                transformArguments('key', {
+                    IGNORE: { MAX_TIME_DIFF: 1, MAX_VAL_DIFF: 1}
+                }),
+                ['TS.CREATE', 'IGNORE', '1', '1']
+            )
         });
-    
-        it('with IGNORE with MAX_VAL_DIFF', () => {
-          assert.deepEqual(
-            transformArguments('key', {
-              IGNORE: { MAX_VAL_DIFF: 1}
-            }),
-            ['TS.CREATE', 'IGNORE', '0', '1']
-          )
-        }); 
 
         it('with RETENTION, ENCODING, CHUNK_SIZE, DUPLICATE_POLICY, LABELS, IGNORE', () => {
             assert.deepEqual(

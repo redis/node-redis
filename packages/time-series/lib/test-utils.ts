@@ -2,8 +2,9 @@ import TestUtils from '@redis/test-utils';
 import TimeSeries from '.';
 
 export default new TestUtils({
-    dockerImageName: 'redislabs/redistimeseries',
-    dockerImageVersionArgument: 'timeseries-version'
+    dockerImageName: 'redis/redis-stack-server',
+    dockerImageVersionArgument: 'timeseries-version',
+    defaultDockerVersion: '7.4.0-rc2'
 });
 
 export const GLOBAL = {

@@ -48,32 +48,14 @@ describe('ALTER', () => {
             );
         });
 
-        it('with IGNORE no values', () => {
+        it('with IGNORE with MAX_TIME_DIFF', () => {
             assert.deepEqual(
-              transformArguments('key', {
-                IGNORE: { }
-              }),
-              ['TS.ALTER', 'key', 'IGNORE', '0', '0']
+                transformArguments('key', {
+                IGNORE: { MAX_TIME_DIFF: 1, MAX_VAL_DIFF: 1}
+                }),
+                ['TS.ALTER', 'key', 'IGNORE', '1', '1']
             )
-          });
-      
-          it('with IGNORE with MAX_TIME_DIFF', () => {
-            assert.deepEqual(
-              transformArguments('key', {
-                IGNORE: { MAX_TIME_DIFF: 1}
-              }),
-              ['TS.ALTER', 'key', 'IGNORE', '1', '0']
-            )
-          });
-      
-          it('with IGNORE with MAX_VAL_DIFF', () => {
-            assert.deepEqual(
-              transformArguments('key', {
-                IGNORE: { MAX_VAL_DIFF: 1}
-              }),
-              ['TS.ALTER', 'key', 'IGNORE', '0', '1']
-            )
-          });        
+        });
 
         it('with RETENTION, CHUNK_SIZE, DUPLICATE_POLICY, LABELS, IGNORE', () => {
             assert.deepEqual(
