@@ -127,6 +127,12 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
     ).toString();
 }
 
+export function pushIgnoreArgument(args: RedisCommandArguments, ignore?: ADD.TsIgnoreOptions) {
+  if (ignore !== undefined) {
+    args.push('IGNORE', ignore.MAX_TIME_DIFF.toString(), ignore.MAX_VAL_DIFF.toString());
+  }
+}
+
 export function pushRetentionArgument(args: RedisCommandArguments, retention?: number): RedisCommandArguments {
     if (retention !== undefined) {
         args.push(
