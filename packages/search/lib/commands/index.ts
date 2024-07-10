@@ -185,7 +185,8 @@ export enum SchemaFieldTypes {
     NUMERIC = 'NUMERIC',
     GEO = 'GEO',
     TAG = 'TAG',
-    VECTOR = 'VECTOR'
+    VECTOR = 'VECTOR',
+    GEOSHAPE = 'GEOSHAPE'
 }
 
 type CreateSchemaField<
@@ -257,6 +258,17 @@ type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgorithms.HNSW
     EF_RUNTIME?: number;
 }>;
 
+export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
+    SPHERICAL: 'SPHERICAL',
+    FLAT: 'FLAT'
+} as const;
+
+export type SchemaGeoShapeFieldCoordSystem = typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM[keyof typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM];
+
+type CreateSchemaGeoShapeField = CreateSchemaCommonField<SchemaFieldTypes.GEOSHAPE, {
+    COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
+}>;
+
 export interface RediSearchSchema {
     [field: string]:
         CreateSchemaTextField |
@@ -264,7 +276,8 @@ export interface RediSearchSchema {
         CreateSchemaGeoField |
         CreateSchemaTagField |
         CreateSchemaFlatVectorField |
-        CreateSchemaHNSWVectorField;
+        CreateSchemaHNSWVectorField |
+        CreateSchemaGeoShapeField
 }
 
 export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
@@ -361,6 +374,13 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                 });
 
                 continue; // vector fields do not contain SORTABLE and NOINDEX options
+
+            case SchemaFieldTypes.GEOSHAPE:
+                if (fieldOptions.COORD_SYSTEM !== undefined) {
+                    args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
+                }
+
+                continue; // geo shape fields do not contain SORTABLE and NOINDEX options
         }
 
         if (fieldOptions.SORTABLE) {
