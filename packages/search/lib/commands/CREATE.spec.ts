@@ -441,6 +441,36 @@ describe('CREATE', () => {
                 );
             });
         });
+
+        describe('Missing Values', () => {
+            it('with ISNULL', () => {
+                assert.deepEqual(
+                    transformArguments('index', {
+                        field: {
+                            type: SchemaFieldTypes.TEXT,
+                            MISSING_VALUES: {
+                                IS_NULL: true
+                            }
+                        }
+                    }),
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISNULL']
+                );
+            });
+
+            it('with ISMISSING', () => {
+                assert.deepEqual(
+                    transformArguments('index', {
+                        field: {
+                            type: SchemaFieldTypes.TEXT,
+                            MISSING_VALUES: {
+                                IS_MISSING: true
+                            }
+                        }
+                    }),
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISMISSING']
+                );
+            });
+        });
     });
 
     testUtils.testWithClient('client.ft.create', async client => {

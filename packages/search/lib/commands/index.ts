@@ -189,12 +189,32 @@ export enum SchemaFieldTypes {
     GEOSHAPE = 'GEOSHAPE'
 }
 
+export interface MissingValues {
+    IS_NULL?: boolean;
+    IS_MISSING?: boolean;
+}
+
+function pushMissingValues(args: RedisCommandArguments, missingValues?: MissingValues) {
+    if (!missingValues) {
+        return;
+    }
+  
+    if (missingValues.IS_MISSING) {
+        args.push("ISMISSING");
+    }
+  
+    if (missingValues.IS_NULL) {
+        args.push("ISNULL");
+    }
+}
+  
 type CreateSchemaField<
     T extends SchemaFieldTypes,
     E = Record<PropertyKey, unknown>
 > = T | ({
     type: T;
     AS?: string;
+    MISSING_VALUES?: MissingValues;
 } & E);
 
 type CreateSchemaCommonField<
@@ -313,11 +333,14 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('WITHSUFFIXTRIE');
                 }
 
+                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+
                 break;
 
-            // case SchemaFieldTypes.NUMERIC:
-            // case SchemaFieldTypes.GEO:
-            //     break;
+            case SchemaFieldTypes.NUMERIC:
+            case SchemaFieldTypes.GEO:
+                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                break;
 
             case SchemaFieldTypes.TAG:
                 if (fieldOptions.SEPARATOR) {
@@ -331,6 +354,8 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                 if (fieldOptions.WITHSUFFIXTRIE) {
                     args.push('WITHSUFFIXTRIE');
                 }
+
+                pushMissingValues(args, fieldOptions.MISSING_VALUES);
 
                 break;
 
@@ -373,12 +398,16 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     }
                 });
 
+                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+
                 continue; // vector fields do not contain SORTABLE and NOINDEX options
 
             case SchemaFieldTypes.GEOSHAPE:
                 if (fieldOptions.COORD_SYSTEM !== undefined) {
                     args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
                 }
+
+                pushMissingValues(args, fieldOptions.MISSING_VALUES);
 
                 continue; // geo shape fields do not contain SORTABLE and NOINDEX options
         }
