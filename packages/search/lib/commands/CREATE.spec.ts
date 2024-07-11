@@ -443,17 +443,17 @@ describe('CREATE', () => {
         });
 
         describe('Missing Values', () => {
-            it('with ISNULL', () => {
+            it('with INDEX_EMPTY', () => {
                 assert.deepEqual(
                     transformArguments('index', {
                         field: {
                             type: SchemaFieldTypes.TEXT,
                             MISSING_VALUES: {
-                                IS_NULL: true
+                                INDEX_EMPTY: true
                             }
                         }
                     }),
-                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISNULL']
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY']
                 );
             });
 
@@ -463,11 +463,11 @@ describe('CREATE', () => {
                         field: {
                             type: SchemaFieldTypes.TEXT,
                             MISSING_VALUES: {
-                                IS_MISSING: true
+                                INDEX_MISSING: true
                             }
                         }
                     }),
-                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISMISSING']
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
                 );
             });
         });
