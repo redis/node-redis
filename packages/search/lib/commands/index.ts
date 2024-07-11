@@ -190,8 +190,8 @@ export enum SchemaFieldTypes {
 }
 
 export interface MissingValues {
-    INDEX_EMPTY?: boolean;
-    INDEX_MISSING?: boolean;
+    INDEXEMPTY?: boolean;
+    INDEXMISSING?: boolean;
 }
 
 function pushMissingValues(args: RedisCommandArguments, missingValues?: MissingValues) {
@@ -199,11 +199,11 @@ function pushMissingValues(args: RedisCommandArguments, missingValues?: MissingV
         return;
     }
 
-    if (missingValues.INDEX_EMPTY) {
+    if (missingValues.INDEXEMPTY) {
         args.push("INDEXEMPTY");
     }
   
-    if (missingValues.INDEX_MISSING) {
+    if (missingValues.INDEXMISSING) {
         args.push("INDEXMISSING");
     }
 }

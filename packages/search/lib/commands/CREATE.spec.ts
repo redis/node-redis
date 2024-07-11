@@ -443,13 +443,13 @@ describe('CREATE', () => {
         });
 
         describe('Missing Values', () => {
-            it('with INDEX_EMPTY', () => {
+            it('with INDEXEMPTY', () => {
                 assert.deepEqual(
                     transformArguments('index', {
                         field: {
                             type: SchemaFieldTypes.TEXT,
                             MISSING_VALUES: {
-                                INDEX_EMPTY: true
+                                INDEXEMPTY: true
                             }
                         }
                     }),
@@ -457,13 +457,13 @@ describe('CREATE', () => {
                 );
             });
 
-            it('with ISMISSING', () => {
+            it('with INDEXMISSING', () => {
                 assert.deepEqual(
                     transformArguments('index', {
                         field: {
                             type: SchemaFieldTypes.TEXT,
                             MISSING_VALUES: {
-                                INDEX_MISSING: true
+                                INDEXMISSING: true
                             }
                         }
                     }),
