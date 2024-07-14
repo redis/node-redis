@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { transformArguments, transformReply } from './HSCAN_NOVALUES';
 
 describe('HSCAN_NOVALUES', () => {
+    testUtils.isVersionGreaterThanHook([7, 4]);
+    
     describe('transformArguments', () => {
         it('cusror only', () => {
             assert.deepEqual(
