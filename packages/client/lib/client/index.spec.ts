@@ -808,7 +808,10 @@ describe('Client', () => {
         }
 
         assert.deepEqual(keys.sort(sort), expectedKeys);
-    }, GLOBAL.SERVERS.OPEN);
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        minimumDockerVersion: [7, 4]
+    });
 
     testUtils.testWithClient('sScanIterator', async client => {
         const members = new Set<string>();
