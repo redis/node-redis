@@ -1,13 +1,15 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments, transformReply } from './HSCAN';
+import { transformArguments, transformReply } from './HSCAN_NOVALUES';
 
-describe('HSCAN', () => {
+describe('HSCAN_NOVALUES', () => {
+    testUtils.isVersionGreaterThanHook([7, 4]);
+    
     describe('transformArguments', () => {
         it('cusror only', () => {
             assert.deepEqual(
                 transformArguments('key', 0),
-                ['HSCAN', 'key', '0']
+                ['HSCAN', 'key', '0', 'NOVALUES']
             );
         });
 
@@ -16,7 +18,7 @@ describe('HSCAN', () => {
                 transformArguments('key', 0, {
                     MATCH: 'pattern'
                 }),
-                ['HSCAN', 'key', '0', 'MATCH', 'pattern']
+                ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'NOVALUES']
             );
         });
 
@@ -25,52 +27,39 @@ describe('HSCAN', () => {
                 transformArguments('key', 0, {
                     COUNT: 1
                 }),
-                ['HSCAN', 'key', '0', 'COUNT', '1']
-            );
-        });
-
-        it('with MATCH & COUNT', () => {
-            assert.deepEqual(
-                transformArguments('key', 0, {
-                    MATCH: 'pattern',
-                    COUNT: 1
-                }),
-                ['HSCAN', 'key', '0', 'MATCH', 'pattern', 'COUNT', '1']
+                ['HSCAN', 'key', '0', 'COUNT', '1', 'NOVALUES']
             );
         });
     });
 
     describe('transformReply', () => {
-        it('without tuples', () => {
+        it('without keys', () => {
             assert.deepEqual(
                 transformReply(['0', []]),
                 {
                     cursor: 0,
-                    tuples: []
+                    keys: []
                 }
             );
         });
 
-        it('with tuples', () => {
+        it('with keys', () => {
             assert.deepEqual(
-                transformReply(['0', ['field', 'value']]),
+                transformReply(['0', ['key1', 'key2']]),
                 {
                     cursor: 0,
-                    tuples: [{
-                        field: 'field',
-                        value: 'value'
-                    }]
+                    keys: ['key1', 'key2']
                 }
             );
         });
     });
 
-    testUtils.testWithClient('client.hScan', async client => {
+    testUtils.testWithClient('client.hScanNoValues', async client => {
         assert.deepEqual(
-            await client.hScan('key', 0),
+            await client.hScanNoValues('key', 0),
             {
                 cursor: 0,
-                tuples: []
+                keys: []
             }
         );
 
@@ -80,10 +69,10 @@ describe('HSCAN', () => {
         ]);
 
         assert.deepEqual(
-            await client.hScan('key', 0),
+            await client.hScanNoValues('key', 0),
             {
                 cursor: 0,
-                tuples: [{field: 'a', value: '1'}, {field: 'b', value: '2'}]
+                keys: ['a', 'b']
             }
         );
     }, GLOBAL.SERVERS.OPEN);
