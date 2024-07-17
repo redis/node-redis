@@ -1,4 +1,4 @@
-import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
+import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export type AclLogReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'count'>, NumberReply],

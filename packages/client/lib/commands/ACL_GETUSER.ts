@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type AclUser = TuplesToMapReply<[
   [BlobStringReply<'flags'>, ArrayReply<BlobStringReply>],

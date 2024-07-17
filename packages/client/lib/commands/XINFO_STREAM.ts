@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command, SimpleStringReply } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 import { isNullReply, transformTuplesReply } from './generic-transformers';
 
 export type XInfoStreamReply = TuplesToMapReply<[

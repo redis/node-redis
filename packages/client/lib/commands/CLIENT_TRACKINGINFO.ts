@@ -1,4 +1,4 @@
-import { TuplesToMapReply, BlobStringReply, SetReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
+import { TuplesToMapReply, BlobStringReply, SetReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type TrackingInfo = TuplesToMapReply<[
   [BlobStringReply<'flags'>, SetReply<BlobStringReply>],

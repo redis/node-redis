@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command, SimpleStringReply } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command } from '../RESP/types';
 
 export interface FunctionListOptions {
   LIBRARYNAME?: RedisArgument;

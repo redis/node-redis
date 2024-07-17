@@ -1,4 +1,4 @@
-import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '../RESP/types';
+import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'direction'>, BlobStringReply],

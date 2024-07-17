@@ -1,4 +1,4 @@
-import { RedisArgument, TuplesToMapReply, ArrayReply, NumberReply, UnwrapReply, Resp2Reply, Command, TuplesReply, BlobStringReply } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NumberReply, UnwrapReply, Resp2Reply, Command, TuplesReply } from '../RESP/types';
 import LCS from './LCS';
 
 export interface LcsIdxOptions {
