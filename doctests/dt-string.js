@@ -1,4 +1,4 @@
-// EXAMPLE: string_tutorial
+// EXAMPLE: set_tutorial
 // HIDE_START
 import assert from 'assert';
 import { createClient } from 'redis';
@@ -10,7 +10,7 @@ await client.connect();
 await client.flushDb();
 // REMOVE_END
 
-// STEP_START set
+// STEP_START set_get
 const res1 = await client.set("bike:1", "Deimos");
 console.log(res1);  // OK
 const res2 = await client.get("bike:1");
@@ -22,7 +22,7 @@ assert.equal(res1, 'OK');
 assert.equal(res2, 'Deimos');
 // REMOVE_END
 
-// STEP_START set_nx_xx
+// STEP_START setnx_xx
 const res3 = await client.set("bike:1", "bike", {'NX': true});
 console.log(res3);  // null
 console.log(await client.get("bike:1"));  // Deimos
