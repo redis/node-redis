@@ -6,7 +6,7 @@ import { SCHEMA_FIELD_TYPE } from './CREATE';
 describe('FT.CURSOR DEL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CURSOR_DEL.transformArguments('index', '0'),
+      CURSOR_DEL.transformArguments('index', 0),
       ['FT.CURSOR', 'DEL', 'index', '0']
     );
   });

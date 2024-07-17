@@ -1,5 +1,7 @@
 import { strict as assert } from 'node:assert';
 import EXPLAIN from './EXPLAIN';
+import testUtils, { GLOBAL } from '../test-utils';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
 
 describe('EXPLAIN', () => {
   describe('transformArguments', () => {
@@ -30,4 +32,15 @@ describe('EXPLAIN', () => {
       );
     });
   });
+
+  testUtils.testWithClient('client.ft.dropIndex', async client => {
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.explain('index', '*')
+    ]);
+
+    assert.equal('<WILDCARD>}\n', reply);
+  }, GLOBAL.SERVERS.OPEN);
 });

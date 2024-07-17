@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
-import { TimeSeriesAggregationType, TimeSeriesDuplicatePolicies } from '.';
+import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
-import { InfoReply, transformArguments } from './INFO';
+import INFO, { InfoReply } from './INFO';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
 describe('TS.INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('key'),
+            INFO.transformArguments('key'),
             ['TS.INFO', 'key']
         );
     });
@@ -15,10 +16,10 @@ describe('TS.INFO', () => {
         await Promise.all([
             client.ts.create('key', {
                 LABELS: { id: '1' },
-                DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.LAST
+                DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.LAST
             }),
             client.ts.create('key2'),
-            client.ts.createRule('key', 'key2', TimeSeriesAggregationType.COUNT, 5),
+            client.ts.createRule('key', 'key2', TIME_SERIES_AGGREGATION_TYPE.COUNT, 5),
             client.ts.add('key', 1, 10)
         ]);
 

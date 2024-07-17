@@ -396,7 +396,7 @@ describe('AGGREGATE', () => {
                 MAX: 1
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '1', '@by', 'MAX', '1']
+            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '3', '@by', 'MAX', '1']
           );
         });
       });

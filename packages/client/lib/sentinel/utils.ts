@@ -38,12 +38,13 @@ export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
 export function createCommand<T extends ProxySentinel | ProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
-    const redisArgs = command.transformArguments(...args),
-      reply = await this._self.sendCommand(
-        command.IS_READ_ONLY,
-        redisArgs,
-        this._self.commandOptions
-      );
+    const redisArgs = command.transformArguments(...args);
+
+    const reply = await this._self.sendCommand(
+      command.IS_READ_ONLY,
+      redisArgs,
+      this._self.commandOptions
+    );
 
     return transformReply ?
       transformReply(reply, redisArgs.preserve) :
@@ -55,13 +56,14 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   const prefix = functionArgumentsPrefix(name, fn),
   transformReply = getTransformReply(fn, resp);
   return async function (this: T, ...args: Array<unknown>) {
-    const fnArgs = fn.transformArguments(...args),
-      redisArgs = prefix.concat(fnArgs),
-      reply = await this._self._self.sendCommand(
-        fn.IS_READ_ONLY,
-        redisArgs,
-        this._self._self.commandOptions
-      );
+    const fnArgs = fn.transformArguments(...args);
+    const redisArgs = prefix.concat(fnArgs);
+
+    const reply = await this._self._self.sendCommand(
+      fn.IS_READ_ONLY,
+      redisArgs,
+      this._self._self.commandOptions
+    );
 
     return transformReply ?
       transformReply(reply, fnArgs.preserve) :
@@ -72,12 +74,13 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
 export function createModuleCommand<T extends NamespaceProxySentinel | NamespaceProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
-    const redisArgs = command.transformArguments(...args),
-      reply = await this._self._self.sendCommand(
-        command.IS_READ_ONLY,
-        redisArgs,
-        this._self._self.commandOptions
-      );
+    const redisArgs = command.transformArguments(...args);
+
+    const reply = await this._self._self.sendCommand(
+      command.IS_READ_ONLY,
+      redisArgs,
+      this._self._self.commandOptions
+    );
 
     return transformReply ?
       transformReply(reply, redisArgs.preserve) :
@@ -89,14 +92,15 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   const prefix = scriptArgumentsPrefix(script),
     transformReply = getTransformReply(script, resp);
   return async function (this: T, ...args: Array<unknown>) {
-    const scriptArgs = script.transformArguments(...args),
-      redisArgs = prefix.concat(scriptArgs),
-      reply = await this._self.executeScript(
-        script,
-        script.IS_READ_ONLY,
-        redisArgs,
-        this._self.commandOptions
-      );
+    const scriptArgs = script.transformArguments(...args);
+    const redisArgs = prefix.concat(scriptArgs);
+
+    const reply = await this._self.executeScript(
+      script,
+      script.IS_READ_ONLY,
+      redisArgs,
+      this._self.commandOptions
+    );
 
     return transformReply ?
       transformReply(reply, scriptArgs.preserve) :

@@ -25,6 +25,10 @@ export interface RedisPoolOptions {
    * TODO
    */
   cleanupDelay: number;
+  /**
+   * TODO
+   */
+  unstableResp3Modules?: boolean;
 }
 
 export type PoolTask<
@@ -61,8 +65,8 @@ export class RedisClientPool<
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.sendCommand(redisArgs, this._commandOptions);
+      const redisArgs = command.transformArguments(...args);
+      const reply = await this.sendCommand(redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -72,8 +76,8 @@ export class RedisClientPool<
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+      const redisArgs = command.transformArguments(...args);
+      const reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
       return transformReply ?
         transformReply(reply, redisArgs.preserve) :
         reply;
@@ -84,8 +88,8 @@ export class RedisClientPool<
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        reply = await this._self.sendCommand(
+      const fnArgs = fn.transformArguments(...args);
+      const reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
           this._self._commandOptions
         );
@@ -99,9 +103,9 @@ export class RedisClientPool<
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(script, redisArgs, this._commandOptions);
+      const scriptArgs = script.transformArguments(...args);
+      const redisArgs = prefix.concat(scriptArgs);
+      const reply = await this.executeScript(script, redisArgs, this._commandOptions);
       return transformReply ?
         transformReply(reply, scriptArgs.preserve) :
         reply;
