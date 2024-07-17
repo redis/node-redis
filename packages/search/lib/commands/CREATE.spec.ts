@@ -441,6 +441,36 @@ describe('CREATE', () => {
                 );
             });
         });
+
+        describe('Missing Values', () => {
+            it('with INDEXEMPTY', () => {
+                assert.deepEqual(
+                    transformArguments('index', {
+                        field: {
+                            type: SchemaFieldTypes.TEXT,
+                            MISSING_VALUES: {
+                                INDEXEMPTY: true
+                            }
+                        }
+                    }),
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY']
+                );
+            });
+
+            it('with INDEXMISSING', () => {
+                assert.deepEqual(
+                    transformArguments('index', {
+                        field: {
+                            type: SchemaFieldTypes.TEXT,
+                            MISSING_VALUES: {
+                                INDEXMISSING: true
+                            }
+                        }
+                    }),
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
+                );
+            });
+        });
     });
 
     testUtils.testWithClient('client.ft.create', async client => {
