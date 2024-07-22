@@ -120,6 +120,7 @@ type LoadField = PropertyName | {
 
 export interface AggregateOptions {
     VERBATIM?: true;
+    ADDSCORES?: true;
     LOAD?: LoadField | Array<LoadField>;
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
     PARAMS?: Params;
@@ -148,6 +149,10 @@ export function pushAggregatehOptions(
 ): RedisCommandArguments {
     if (options?.VERBATIM) {
         args.push('VERBATIM');
+    }
+
+    if (options?.ADDSCORES) {
+        args.push('ADDSCORES');
     }
 
     if (options?.LOAD) {
