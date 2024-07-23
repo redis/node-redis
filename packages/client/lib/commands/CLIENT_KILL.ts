@@ -38,11 +38,11 @@ type KillSkipMe = ClientKillFilters.SKIP_ME | (KillFilter<ClientKillFilters.SKIP
     skipMe: boolean;
 });
 
-interface KillMaxage extends KillFilter<ClientKillFilters.MAXAGE> {
+interface KillMaxAge extends KillFilter<ClientKillFilters.MAXAGE> {
     maxAge: number;
 }
 
-type KillFilters = KillAddress | KillLocalAddress | KillId | KillType | KillUser | KillSkipMe | KillMaxage;
+type KillFilters = KillAddress | KillLocalAddress | KillId | KillType | KillUser | KillSkipMe | KillMaxAge;
 
 export function transformArguments(filters: KillFilters | Array<KillFilters>): RedisCommandArguments {
     const args = ['CLIENT', 'KILL'];
