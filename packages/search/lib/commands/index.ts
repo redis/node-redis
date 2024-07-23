@@ -285,7 +285,7 @@ export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
 
 export type SchemaGeoShapeFieldCoordSystem = typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM[keyof typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM];
 
-type CreateSchemaGeoShapeField = CreateSchemaCommonField<SchemaFieldTypes.GEOSHAPE, {
+type CreateSchemaGeoShapeField = CreateSchemaField<SchemaFieldTypes.GEOSHAPE, {
     COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
 }>;
 
