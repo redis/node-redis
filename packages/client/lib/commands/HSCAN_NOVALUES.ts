@@ -22,6 +22,6 @@ interface HScanNoValuesReply {
 export function transformReply([cursor, rawData]: HScanRawReply): HScanNoValuesReply {
     return {
         cursor: Number(cursor),
-        keys: [...rawData]
+        keys: rawData
     };
 }
