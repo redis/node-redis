@@ -190,8 +190,8 @@ export enum SchemaFieldTypes {
 }
 
 export interface MissingValues {
-    INDEXEMPTY?: true;
-    INDEXMISSING?: true;
+    INDEXEMPTY?: boolean;
+    INDEXMISSING?: boolean;
 }
 
 function pushMissingValues(args: RedisCommandArguments, missingValues?: MissingValues) {
@@ -214,7 +214,7 @@ type CreateSchemaField<
 > = T | ({
     type: T;
     AS?: string;
-    INDEXMISSING?: true;
+    INDEXMISSING?: boolean;
 } & E);
 
 type CreateSchemaCommonField<
@@ -240,7 +240,7 @@ type CreateSchemaTextField = CreateSchemaCommonField<SchemaFieldTypes.TEXT, {
     WEIGHT?: number;
     PHONETIC?: SchemaTextFieldPhonetics;
     WITHSUFFIXTRIE?: boolean;
-    INDEXEMPTY?: true;
+    INDEXEMPTY?: boolean;
 }>;
 
 type CreateSchemaNumericField = CreateSchemaCommonField<SchemaFieldTypes.NUMERIC>;
@@ -251,7 +251,7 @@ type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     SEPARATOR?: string;
     CASESENSITIVE?: true;
     WITHSUFFIXTRIE?: boolean;
-    INDEXEMPTY?: true;
+    INDEXEMPTY?: boolean;
 }>;
 
 export enum VectorAlgorithms {
