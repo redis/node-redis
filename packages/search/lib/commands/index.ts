@@ -190,8 +190,8 @@ export enum SchemaFieldTypes {
 }
 
 export interface MissingValues {
-    INDEXEMPTY?: boolean;
-    INDEXMISSING?: boolean;
+    INDEXEMPTY?: true;
+    INDEXMISSING?: true;
 }
 
 function pushMissingValues(args: RedisCommandArguments, missingValues?: MissingValues) {
@@ -214,7 +214,7 @@ type CreateSchemaField<
 > = T | ({
     type: T;
     AS?: string;
-    MISSING_VALUES?: MissingValues;
+    INDEXMISSING?: true;
 } & E);
 
 type CreateSchemaCommonField<
@@ -240,6 +240,7 @@ type CreateSchemaTextField = CreateSchemaCommonField<SchemaFieldTypes.TEXT, {
     WEIGHT?: number;
     PHONETIC?: SchemaTextFieldPhonetics;
     WITHSUFFIXTRIE?: boolean;
+    INDEXEMPTY?: true;
 }>;
 
 type CreateSchemaNumericField = CreateSchemaCommonField<SchemaFieldTypes.NUMERIC>;
@@ -250,6 +251,7 @@ type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     SEPARATOR?: string;
     CASESENSITIVE?: true;
     WITHSUFFIXTRIE?: boolean;
+    INDEXEMPTY?: true;
 }>;
 
 export enum VectorAlgorithms {
@@ -333,13 +335,13 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('WITHSUFFIXTRIE');
                 }
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushMissingValues(args, fieldOptions);
 
                 break;
 
             case SchemaFieldTypes.NUMERIC:
             case SchemaFieldTypes.GEO:
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushMissingValues(args, fieldOptions);
                 break;
 
             case SchemaFieldTypes.TAG:
@@ -355,7 +357,7 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('WITHSUFFIXTRIE');
                 }
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushMissingValues(args, fieldOptions);
 
                 break;
 
@@ -398,7 +400,7 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     }
                 });
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushMissingValues(args, fieldOptions);
 
                 continue; // vector fields do not contain SORTABLE and NOINDEX options
 
@@ -407,7 +409,7 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
                 }
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushMissingValues(args, fieldOptions);
 
                 continue; // geo shape fields do not contain SORTABLE and NOINDEX options
         }

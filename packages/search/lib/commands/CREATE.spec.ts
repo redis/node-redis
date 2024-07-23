@@ -448,9 +448,7 @@ describe('CREATE', () => {
                     transformArguments('index', {
                         field: {
                             type: SchemaFieldTypes.TEXT,
-                            MISSING_VALUES: {
-                                INDEXEMPTY: true
-                            }
+                            INDEXEMPTY: true
                         }
                     }),
                     ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY']
@@ -462,12 +460,23 @@ describe('CREATE', () => {
                     transformArguments('index', {
                         field: {
                             type: SchemaFieldTypes.TEXT,
-                            MISSING_VALUES: {
-                                INDEXMISSING: true
-                            }
+                            INDEXMISSING: true
                         }
                     }),
                     ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
+                );
+            });
+
+            it('with INDEXEMPTY and INDEXMISSING', () => {
+                assert.deepEqual(
+                    transformArguments('index', {
+                        field: {
+                            type: SchemaFieldTypes.TEXT,
+                            INDEXEMPTY: true,
+                            INDEXMISSING: true
+                        }
+                    }),
+                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY', 'INDEXMISSING']
                 );
             });
         });
