@@ -4,10 +4,10 @@ import { pushVerdictArgument } from './generic-transformers';
 export const HASH_EXPIRATION_TIME = {
   /** @property {number} */
   /** The field does not exist */
-  FieldNotExists: -2,
+  FIELD_NOT_EXISTS: -2,
   /** @property {number} */
   /** The field exists but has no associated expire */
-  NoExpiration: -1,
+  NO_EXPIRATION: -1,
 } as const;
 
 export const FIRST_KEY_INDEX = 1
