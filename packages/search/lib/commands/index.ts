@@ -198,18 +198,20 @@ type CreateSchemaField<
     INDEXMISSING?: boolean;
 } & E);
 
+type CommonFieldArguments = {
+    SORTABLE?: boolean | 'UNF';
+    NOINDEX?: boolean;
+};
+
 type CreateSchemaCommonField<
     T extends SchemaFieldTypes,
     E = Record<PropertyKey, unknown>
 > = CreateSchemaField<
     T,
-    ({
-        SORTABLE?: true | 'UNF';
-        NOINDEX?: true;
-    } & E)
+    (CommonFieldArguments & E)
 >;
 
-function pushCommonFieldArguments(args: RedisCommandArguments, fieldOptions: CreateSchemaCommonField<SchemaFieldTypes>) {
+function pushCommonFieldArguments(args: RedisCommandArguments, fieldOptions: CommonFieldArguments) {
     if (fieldOptions.SORTABLE) {
         args.push('SORTABLE');
 
