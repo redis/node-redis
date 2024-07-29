@@ -119,8 +119,8 @@ type LoadField = PropertyName | {
 }
 
 export interface AggregateOptions {
-    VERBATIM?: true;
-    ADDSCORES?: true;
+    VERBATIM?: boolean;
+    ADDSCORES?: boolean;
     LOAD?: LoadField | Array<LoadField>;
     STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
     PARAMS?: Params;
