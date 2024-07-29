@@ -24,11 +24,11 @@
   },
   "dependencies": {
     "@redis/bloom": "1.2.0",
-    "@redis/client": "1.5.17",
+    "@redis/client": "1.6.0",
     "@redis/graph": "1.1.1",
-    "@redis/json": "1.0.6",
-    "@redis/search": "1.1.6",
-    "@redis/time-series": "1.0.5"
+    "@redis/json": "1.0.7",
+    "@redis/search": "1.2.0",
+    "@redis/time-series": "1.1.0"
   },
   "devDependencies": {
     "@tsconfig/node14": "^14.1.0",
