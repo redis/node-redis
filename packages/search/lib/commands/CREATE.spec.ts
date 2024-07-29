@@ -70,6 +70,18 @@ describe('CREATE', () => {
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'WITHSUFFIXTRIE']
                     );
                 });
+
+                it('with INDEXEMPTY', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.TEXT,
+                                INDEXEMPTY: true
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY']
+                    );
+                });
             });
 
             it('NUMERIC', () => {
@@ -146,6 +158,18 @@ describe('CREATE', () => {
                             }
                         }),
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'WITHSUFFIXTRIE']
+                    );
+                });
+
+                it('with INDEXEMPTY', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.TAG,
+                                INDEXEMPTY: true
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'INDEXEMPTY']
                     );
                 });
             });
@@ -280,6 +304,18 @@ describe('CREATE', () => {
                             }
                         }),
                         ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'NOINDEX']
+                    );
+                });
+
+                it('with INDEXMISSING', () => {
+                    assert.deepEqual(
+                        transformArguments('index', {
+                            field: {
+                                type: SchemaFieldTypes.TEXT,
+                                INDEXMISSING: true
+                            }
+                        }),
+                        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
                     );
                 });
             });
@@ -438,36 +474,6 @@ describe('CREATE', () => {
                         STOPWORDS: ['1', '2']
                     }),
                     ['FT.CREATE', 'index', 'STOPWORDS', '2', '1', '2', 'SCHEMA']
-                );
-            });
-        });
-
-        describe('Missing Values', () => {
-            it('with INDEXEMPTY', () => {
-                assert.deepEqual(
-                    transformArguments('index', {
-                        field: {
-                            type: SchemaFieldTypes.TEXT,
-                            MISSING_VALUES: {
-                                INDEXEMPTY: true
-                            }
-                        }
-                    }),
-                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY']
-                );
-            });
-
-            it('with INDEXMISSING', () => {
-                assert.deepEqual(
-                    transformArguments('index', {
-                        field: {
-                            type: SchemaFieldTypes.TEXT,
-                            MISSING_VALUES: {
-                                INDEXMISSING: true
-                            }
-                        }
-                    }),
-                    ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
                 );
             });
         });

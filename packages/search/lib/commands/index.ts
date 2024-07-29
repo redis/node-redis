@@ -188,25 +188,6 @@ export enum SchemaFieldTypes {
     VECTOR = 'VECTOR',
     GEOSHAPE = 'GEOSHAPE'
 }
-
-export interface MissingValues {
-    INDEXEMPTY?: boolean;
-    INDEXMISSING?: boolean;
-}
-
-function pushMissingValues(args: RedisCommandArguments, missingValues?: MissingValues) {
-    if (!missingValues) {
-        return;
-    }
-
-    if (missingValues.INDEXEMPTY) {
-        args.push("INDEXEMPTY");
-    }
-  
-    if (missingValues.INDEXMISSING) {
-        args.push("INDEXMISSING");
-    }
-}
   
 type CreateSchemaField<
     T extends SchemaFieldTypes,
@@ -214,19 +195,35 @@ type CreateSchemaField<
 > = T | ({
     type: T;
     AS?: string;
-    MISSING_VALUES?: MissingValues;
+    INDEXMISSING?: boolean;
 } & E);
+
+type CommonFieldArguments = {
+    SORTABLE?: boolean | 'UNF';
+    NOINDEX?: boolean;
+};
 
 type CreateSchemaCommonField<
     T extends SchemaFieldTypes,
     E = Record<PropertyKey, unknown>
 > = CreateSchemaField<
     T,
-    ({
-        SORTABLE?: true | 'UNF';
-        NOINDEX?: true;
-    } & E)
+    (CommonFieldArguments & E)
 >;
+
+function pushCommonFieldArguments(args: RedisCommandArguments, fieldOptions: CommonFieldArguments) {
+    if (fieldOptions.SORTABLE) {
+        args.push('SORTABLE');
+
+        if (fieldOptions.SORTABLE === 'UNF') {
+            args.push('UNF');
+        }
+    }
+
+    if (fieldOptions.NOINDEX) {
+        args.push('NOINDEX');
+    }
+}
 
 export enum SchemaTextFieldPhonetics {
     DM_EN = 'dm:en',
@@ -240,6 +237,7 @@ type CreateSchemaTextField = CreateSchemaCommonField<SchemaFieldTypes.TEXT, {
     WEIGHT?: number;
     PHONETIC?: SchemaTextFieldPhonetics;
     WITHSUFFIXTRIE?: boolean;
+    INDEXEMPTY?: boolean;
 }>;
 
 type CreateSchemaNumericField = CreateSchemaCommonField<SchemaFieldTypes.NUMERIC>;
@@ -250,6 +248,7 @@ type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     SEPARATOR?: string;
     CASESENSITIVE?: true;
     WITHSUFFIXTRIE?: boolean;
+    INDEXEMPTY?: boolean;
 }>;
 
 export enum VectorAlgorithms {
@@ -297,7 +296,7 @@ export interface RediSearchSchema {
         CreateSchemaTagField |
         CreateSchemaFlatVectorField |
         CreateSchemaHNSWVectorField |
-        CreateSchemaGeoShapeField
+        CreateSchemaGeoShapeField;
 }
 
 export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
@@ -333,13 +332,17 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('WITHSUFFIXTRIE');
                 }
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushCommonFieldArguments(args, fieldOptions);
+
+                if (fieldOptions.INDEXEMPTY) {
+                    args.push('INDEXEMPTY');
+                }
 
                 break;
 
             case SchemaFieldTypes.NUMERIC:
             case SchemaFieldTypes.GEO:
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushCommonFieldArguments(args, fieldOptions);
                 break;
 
             case SchemaFieldTypes.TAG:
@@ -355,7 +358,11 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('WITHSUFFIXTRIE');
                 }
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushCommonFieldArguments(args, fieldOptions);
+
+                if (fieldOptions.INDEXEMPTY) {
+                    args.push('INDEXEMPTY');
+                }
 
                 break;
 
@@ -398,30 +405,20 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     }
                 });
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
-
-                continue; // vector fields do not contain SORTABLE and NOINDEX options
+                break;
 
             case SchemaFieldTypes.GEOSHAPE:
                 if (fieldOptions.COORD_SYSTEM !== undefined) {
                     args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
                 }
 
-                pushMissingValues(args, fieldOptions.MISSING_VALUES);
+                pushCommonFieldArguments(args, fieldOptions);
 
-                continue; // geo shape fields do not contain SORTABLE and NOINDEX options
+                break;
         }
 
-        if (fieldOptions.SORTABLE) {
-            args.push('SORTABLE');
-
-            if (fieldOptions.SORTABLE === 'UNF') {
-                args.push('UNF');
-            }
-        }
-
-        if (fieldOptions.NOINDEX) {
-            args.push('NOINDEX');
+        if (fieldOptions.INDEXMISSING) {
+            args.push('INDEXMISSING');
         }
     }
 }
