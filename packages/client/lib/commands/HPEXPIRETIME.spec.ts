@@ -25,7 +25,7 @@ describe('HPEXPIRETIME', () => {
   testUtils.testWithClient('hpExpireTime', async client => {
     assert.deepEqual(
       await client.hpExpireTime('key', 'field1'),
-      [ HASH_EXPIRATION_TIME.FieldNotExists ]
+      [HASH_EXPIRATION_TIME.FIELD_NOT_EXISTS]
     );
   }, {
     ...GLOBAL.SERVERS.OPEN

@@ -41,7 +41,7 @@ describe('HEXPIREAT', () => {
   testUtils.testWithClient('expireAt', async client => {
     assert.deepEqual(
       await client.hExpireAt('key', 'field1', 1),
-      [ HASH_EXPIRATION_TIME.FieldNotExists ]
+      [HASH_EXPIRATION_TIME.FIELD_NOT_EXISTS]
     );
   }, {
     ...GLOBAL.SERVERS.OPEN,
