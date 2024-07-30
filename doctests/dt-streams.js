@@ -49,7 +49,7 @@ assert.equal(await client.xLen('race:france'), 3);
 // REMOVE_END
 
 // STEP_START xRange
-const res4 = await client.xRange('race:france', '1691765278160-0', '+', 2);
+const res4 = await client.xRange('race:france', '1691765278160-0', '+', {COUNT: 2});
 console.log(res4); // >>> [('1692629576966-0', {'rider': 'Castilla', 'speed': '30.2', 'position': '1', 'location_id': '1'}), ('1692629594113-0', {'rider': 'Norem', 'speed': '28.8', 'position': '3', 'location_id': '1'})]
 // STEP_END
 
@@ -121,22 +121,22 @@ console.log(res12); // >>> [('1692629576966-0', {'rider': 'Castilla', 'speed': '
 // STEP_END
 
 // STEP_START xRange_step_1
-const res13 = await client.xRange('race:france', '-', '+', 2);
+const res13 = await client.xRange('race:france', '-', '+', {COUNT: 2});
 console.log(res13); // >>> [('1692629576966-0', {'rider': 'Castilla', 'speed': '30.2', 'position': '1', 'location_id': '1'}), ('1692629594113-0', {'rider': 'Norem', 'speed': '28.8', 'position': '3', 'location_id': '1'})]
 // STEP_END
 
 // STEP_START xRange_step_2
-const res14 = await client.xRange('race:france', '(1692629594113-0', '+', 2);
+const res14 = await client.xRange('race:france', '(1692629594113-0', '+', {COUNT: 2});
 console.log(res14); // >>> [('1692629613374-0', {'rider': 'Prickett', 'speed': '29.7', 'position': '2', 'location_id': '1'}), ('1692629676124-0', {'rider': 'Castilla', 'speed': '29.9', 'position': '1', 'location_id': '2'})]
 // STEP_END
 
 // STEP_START xRange_empty
-const res15 = await client.xRange('race:france', '(1692629676124-0', '+', 2);
+const res15 = await client.xRange('race:france', '(1692629676124-0', '+', {COUNT: 2});
 console.log(res15); // >>> []
 // STEP_END
 
 // STEP_START xrevrange
-const res16 = await client.xRevRange('race:france', '+', '-', 1);
+const res16 = await client.xRevRange('race:france', '+', '-', {COUNT: 1});
 console.log(
   res16
 ); // >>> [('1692629676124-0', {'rider': 'Castilla', 'speed': '29.9', 'position': '1', 'location_id': '2'})]
