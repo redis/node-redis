@@ -88,7 +88,7 @@ const client = createClient();
 
 await client.connect();
 
-// Add your example code here...README
+// Add your example code here...
 
 await client.quit();
 ```
