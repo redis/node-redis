@@ -1,5 +1,5 @@
 import { RedisArgument, ArrayReply, UnwrapReply, Command } from '../RESP/types';
-import { StreamMessageReply, transformStreamMessageReply } from './generic-transformers';
+import { StreamMessageRawReply, transformStreamMessageReply } from './generic-transformers';
 
 export interface XRangeOptions {
   COUNT?: number;
@@ -25,7 +25,7 @@ export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
   transformArguments: transformXRangeArguments.bind(undefined, 'XRANGE'),
-  transformReply(reply: UnwrapReply<ArrayReply<StreamMessageReply>>) {
+  transformReply(reply: UnwrapReply<ArrayReply<StreamMessageRawReply>>) {
     return reply.map(transformStreamMessageReply);
   }
 } as const satisfies Command;

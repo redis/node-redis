@@ -1,4 +1,5 @@
 import { Command, RedisArgument } from '../RESP/types';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3 } from './generic-transformers';
 
 export interface XReadStream {
   key: RedisArgument;
@@ -48,8 +49,9 @@ export default {
 
     return args;
   },
-  // export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
-  // TODO
-  transformReply: undefined as unknown as () => unknown
+  transformReply: {
+    2: transformStreamsMessagesReplyResp2,
+    3: transformStreamsMessagesReplyResp3
+  }
 } as const satisfies Command;
 
