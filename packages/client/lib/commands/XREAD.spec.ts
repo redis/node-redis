@@ -90,22 +90,32 @@ describe('XREAD', () => {
     });
   });
 
-  // TODO
-  // testUtils.testAll('client.xRead', async client => {
-  //   const message = { field: 'value' },
-  //     [, reply] = await Promise.all([
-  //       client.xAdd('key', '*', message),
-  //       client.xRead({
-  //         key: 'key',
-  //         id: '0-0'
-  //       })
-  //     ])
-  //   assert.equal(
-  //     await client.xRead({
-  //       key: 'key',
-  //       id: '0'
-  //     }),
-  //     null
-  //   );
-  // }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testAll('client.xRead', async client => {
+    const message = { field: 'value' }, 
+    [id, reply] = await Promise.all([
+      client.xAdd('key', '*', message),
+      client.xRead({
+        key: 'key',
+        id: '0-0'
+      }),
+    ])
+    assert.deepEqual(reply, [{
+        name: 'key',
+        messages: [{
+          id,
+          message: Object.create(null, {
+            field: {
+              value: 'value',
+              configurable: true,
+              enumerable: true
+            }
+          })
+        }]
+      }]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });
