@@ -163,11 +163,6 @@ export default class RedisCluster<
         break;
     }
 
-    // TODO: remove once request & response policies are ready
-    if (key === undefined && !command.IS_FORWARD_COMMAND) {
-      throw new Error('TODO');
-    }
-
     return key;
   }
 

@@ -123,6 +123,7 @@ describe('Client', () => {
       client.connect()
     ]);
 
+    // TODO: This is failing and I don't know why.  when I run manually it seems fine.
     await Promise.all([
       once(client, 'end'),
       client.close()
