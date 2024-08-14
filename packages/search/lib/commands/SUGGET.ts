@@ -6,7 +6,7 @@ export interface FtSugGetOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
   transformArguments(key: RedisArgument, prefix: RedisArgument, options?: FtSugGetOptions) {
     const args = ['FT.SUGGET', key, prefix];

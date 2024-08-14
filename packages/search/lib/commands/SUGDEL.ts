@@ -1,7 +1,7 @@
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
   transformArguments(key: RedisArgument, string: RedisArgument) {
     return ['FT.SUGDEL', key, string];
