@@ -799,7 +799,7 @@ export default class RedisClient<
     }
 
     async* scanIterator(options?: ScanCommandOptions): AsyncIterable<string> {
-        let cursor = 0;
+        let cursor = (options && options.CURSOR) || 0;
         do {
             const reply = await (this as any).scan(cursor, options);
             cursor = reply.cursor;
@@ -810,7 +810,7 @@ export default class RedisClient<
     }
 
     async* hScanIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<HScanTuple, string>> {
-        let cursor = 0;
+        let cursor = (options && options.CURSOR) || 0;
         do {
             const reply = await (this as any).hScan(key, cursor, options);
             cursor = reply.cursor;
@@ -832,7 +832,7 @@ export default class RedisClient<
     }
 
     async* sScanIterator(key: string, options?: ScanOptions): AsyncIterable<string> {
-        let cursor = 0;
+        let cursor = (options && options.CURSOR) || 0;
         do {
             const reply = await (this as any).sScan(key, cursor, options);
             cursor = reply.cursor;
@@ -843,7 +843,7 @@ export default class RedisClient<
     }
 
     async* zScanIterator(key: string, options?: ScanOptions): AsyncIterable<ConvertArgumentType<ZMember, string>> {
-        let cursor = 0;
+        let cursor = (options && options.CURSOR) || 0;
         do {
             const reply = await (this as any).zScan(key, cursor, options);
             cursor = reply.cursor;
