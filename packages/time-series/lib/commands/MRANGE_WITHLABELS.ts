@@ -1,7 +1,7 @@
-import { RedisArgument, Command, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, UnwrapReply, MapReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { MRangeRawReply2, MRangeReplyItem2, TsMRangeOptions, pushGroupByArgument } from './MRANGE';
-import { Labels, Timestamp, pushWithLabelsArgument, transformLablesReply, transformSamplesReply } from '.';
+import { MRangeRawReply2, MRangeReplyItem2, MRangeReplyItem3, TsMRangeOptions, pushGroupByArgument } from './MRANGE';
+import { Labels, Timestamp, pushWithLabelsArgument, transformLablesReply2, transformLablesReply3, transformSamplesReply } from '.';
 import { pushFilterArgument } from './MGET';
 import { pushRangeArguments } from './RANGE';
 
@@ -26,25 +26,58 @@ export interface MRangeWithLabelsReplyItem2 extends MRangeReplyItem2 {
   labels: Labels;
 }
 
+export interface MRangeWithLabelsReplyItem3 extends MRangeReplyItem3 {
+  labels: Labels;
+}
+
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2(reply: UnwrapReply<MRangeRawReply2>): Array<MRangeWithLabelsReplyItem2> {
+    2: (reply: UnwrapReply<MRangeRawReply2>): Array<MRangeWithLabelsReplyItem2> => {
       const args = [];
-  
-      for (const [key, labels, samples] of reply) {       
+
+      for (const [key, labels, samples] of reply) {
         args.push({
           key,
-          labels: transformLablesReply(labels),
+          labels: transformLablesReply2(labels),
           samples: transformSamplesReply[2](samples)
         });
       }
-  
+
       return args;
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: (reply: UnwrapReply<MapReply<any, any>>): Array<MRangeReplyItem3> => {
+      const args = [];
+
+      if (reply instanceof Array) {
+        for (const [key, labels, samples] of reply) {
+          args.push({
+            key,
+            labels: transformLablesReply3(labels),
+            samples: transformSamplesReply[3](samples)
+          });
+        }
+      } else if (reply instanceof Map) {
+        for (const [key, value] of reply) {
+          args.push({
+            key,
+            labels: transformLablesReply3(value[0]),
+            samples: transformSamplesReply[3](value[2])
+          })
+        }
+      } else {
+        for (const [key, value] of Object.entries(reply)) {
+          args.push({
+            key,
+            labels: transformLablesReply3(value[0]),
+            samples: transformSamplesReply[3](value[2])
+          })
+        }
+      }
+
+      return args;
+    }
   },
-  unstableResp3Module: true
 } as const satisfies Command;

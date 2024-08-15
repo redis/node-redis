@@ -1,4 +1,4 @@
-import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, MapReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RawLabels, SampleRawReply, transformSampleReply } from '.';
 
@@ -25,19 +25,15 @@ export type MGetRawReply2 = ArrayReply<[
   sample: Resp2Reply<SampleRawReply>
 ]>;
 
-export type MGetRawReply3 = ArrayReply<[
-  key: BlobStringReply,
-  labels: RawLabels,
-  sample: SampleRawReply
-]>;
+export type MGetRawReply3 = MapReply<BlobStringReply, TuplesReply<[labels: RawLabels, sample: SampleRawReply]>>;
 
 export interface MGetReply2 {
-  key: BlobStringReply;
+  key: string | BlobStringReply;
   sample: ReturnType<typeof transformSampleReply[2]>;
 }
 
 export interface MGetReply3 {
-  key: BlobStringReply;
+  key: string;
   sample: ReturnType<typeof transformSampleReply[3]>;
 }
 
@@ -51,15 +47,37 @@ export default {
   transformReply: {
     2(reply: UnwrapReply<MGetRawReply2>): Array<MGetReply2> {
       return reply.map(([key, _, sample]) => ({
-        key,
+        key: key.toString(),
         sample: transformSampleReply[2](sample)
       }));
     },
-    3(reply: UnwrapReply<MGetRawReply3>): Array<MGetReply3> {
-      return reply.map(([key, _, sample]) => ({
-        key,
-        sample: transformSampleReply[3](sample)
-      }));
+    3(reply: UnwrapReply<MapReply<any, any>>): Array<MGetReply3> {
+      const args: Array<MGetReply3> = [];
+
+      if (reply instanceof Array) {
+        for (const [key, value] of reply) {
+          args.push({
+            key,
+            sample: transformSampleReply[3](value[1])
+          });
+        }
+      } else if (reply instanceof Map) {
+        for (const [key, value] of reply) {
+          args.push({
+            key,
+            sample: transformSampleReply[3](value[1])
+          });
+        }
+      } else {
+        for (const [key, value] of Object.entries(reply)) {
+          args.push({
+            key,
+            sample: transformSampleReply[3](value[1])
+          });
+        }
+      }
+
+      return args;
     }
   }
 } as const satisfies Command;

@@ -1,4 +1,4 @@
-import { RedisArgument, Command, CommandArguments, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, CommandArguments, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RawLabels, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
@@ -69,6 +69,11 @@ export interface MRangeReplyItem2 {
   samples: Array<ReturnType<typeof transformSampleReply[2]>>;
 }
 
+export interface MRangeReplyItem3 {
+  key: BlobStringReply;
+  samples: Array<ReturnType<typeof transformSampleReply[3]>>;
+}
+
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
@@ -76,17 +81,43 @@ export default {
   transformReply: {
     2: (reply: UnwrapReply<MRangeRawReply2>): Array<MRangeReplyItem2> => {
       const args = [];
-  
+
       for (const [key, _, samples] of reply) {
         args.push({
           key,
           samples: transformSamplesReply[2](samples)
         });
       }
-  
+
       return args;
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: (reply: UnwrapReply<MapReply<any, any>>): Array<MRangeReplyItem3> => {
+      const args = [];
+
+      if (reply instanceof Array) {
+        for (const [key, _, samples] of reply) {
+          args.push({
+            key,
+            samples: transformSamplesReply[3](samples)
+          });
+        }
+      } else if (reply instanceof Map) {
+        for (const [key, value] of reply) {
+          args.push({
+            key,
+            samples: transformSamplesReply[3](value[2])
+          })
+        }
+      } else {
+        for (const [key, value] of Object.entries(reply)) {
+          args.push({
+            key,
+            samples: transformSamplesReply[3](value[2])
+          })
+        }
+      }
+
+      return args;
+    }
   },
-  unstableResp3Module: true
 } as const satisfies Command;

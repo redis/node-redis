@@ -1,4 +1,4 @@
-import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply } from '@redis/client/dist/lib/RESP/types';
+import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -121,7 +121,7 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
-export type RawLabels = Array<[label: string, value: string]>;
+export type RawLabels = Array<[label: BlobStringReply, value: BlobStringReply]>;
 
 export type Labels = {
   [label: string]: string;
@@ -170,11 +170,31 @@ export const transformSamplesReply = {
       .map(sample => transformSampleReply[3](sample));  }
 };
 
-export function transformLablesReply(reply: RawLabels): Labels {
+export function transformLablesReply2(reply: RawLabels): Labels {
   const labels: Labels = {};
 
-  for (const [key, value] of reply) {
+  for (const [k, v] of reply) {
+    const key = k as unknown as UnwrapReply<BlobStringReply>;
+    const value = v as unknown as UnwrapReply<BlobStringReply>;
+      labels[key.toString()] = value.toString()
+  }
+
+  return labels
+}
+
+export function transformLablesReply3(reply: UnwrapReply<MapReply<any, any>>): Labels {
+  const labels: Labels = {};
+
+  if (reply instanceof Map) {
+    for (const [key, value] of reply) {
+      labels[key.toString()] = value.toString();
+    }
+  } else if (reply instanceof Array) {
+    return transformLablesReply2(reply);
+  } else {
+    for (const [key, value] of Object.entries(reply)) {
       labels[key] = value;
+    }
   }
 
   return labels
