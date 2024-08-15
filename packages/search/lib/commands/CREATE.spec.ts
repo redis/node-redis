@@ -69,6 +69,17 @@ describe('FT.CREATE', () => {
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'WITHSUFFIXTRIE']
           );
         });
+        it('with INDEXEMPTY', () => {
+          assert.deepEqual(
+            CREATE.transformArguments('index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.TEXT,
+                INDEXEMPTY: true
+              }
+            }),
+            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXEMPTY']
+          );
+        });  
       });
 
       describe('NUMERIC', () => {
@@ -155,6 +166,18 @@ describe('FT.CREATE', () => {
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'WITHSUFFIXTRIE']
           );
         });
+
+        it('with INDEXEMPTY', () => {
+          assert.deepEqual(
+            CREATE.transformArguments('index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.TAG,
+                INDEXEMPTY: true
+              }
+            }),
+            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'INDEXEMPTY']
+          );
+        });  
       });
 
       describe('VECTOR', () => {
@@ -289,6 +312,18 @@ describe('FT.CREATE', () => {
         );
       });
     });
+
+    it('with INDEXMISSING', () => {
+      assert.deepEqual(
+        CREATE.transformArguments('index', {
+          field: {
+            type: SCHEMA_FIELD_TYPE.TEXT,
+            INDEXMISSING: true
+          }
+        }),
+        ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
+      );
+    });  
 
     it('with ON', () => {
       assert.deepEqual(
@@ -443,36 +478,6 @@ describe('FT.CREATE', () => {
             STOPWORDS: ['1', '2']
           }),
           ['FT.CREATE', 'index', 'STOPWORDS', '2', '1', '2', 'SCHEMA']
-        );
-      });
-    });
-
-    describe('Missing Values', () => {
-      it('with ISNULL', () => {
-        assert.deepEqual(
-          CREATE.transformArguments('index', {
-            field: {
-              type: SCHEMA_FIELD_TYPE.TEXT,
-              MISSING_VAUES: {
-                IS_NULL: true
-              }
-            }
-          }),
-          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISNULL']
-        );
-      });
-
-      it('with ISMISSING', () => {
-        assert.deepEqual(
-          CREATE.transformArguments('index', {
-            field: {
-              type: SCHEMA_FIELD_TYPE.TEXT,
-              MISSING_VAUES: {
-                IS_MISSING: true
-              }
-            }
-          }),
-          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'ISMISSING']
         );
       });
     });

@@ -12,31 +12,42 @@ export const SCHEMA_FIELD_TYPE = {
 
 export type SchemaFieldType = typeof SCHEMA_FIELD_TYPE[keyof typeof SCHEMA_FIELD_TYPE];
 
-export interface MissingValues {
-  IS_NULL?: boolean;
-  IS_MISSING?: boolean;
-}
-
 type SchemaField<
   T extends SchemaFieldType,
   E = Record<PropertyKey, unknown>
 > = T | ({
   type: T;
   AS?: RedisArgument;
-  MISSING_VAUES?: MissingValues;
+  INDEXMISSING?: boolean;
 } & E);
+
+type CommonFieldArguments = {
+  SORTABLE?: boolean | 'UNF';
+  NOINDEX?: boolean;
+};  
 
 type SchemaCommonField<
   T extends SchemaFieldType,
   E = Record<PropertyKey, unknown>
 > = SchemaField<
-  T,
-  ({
-    SORTABLE?: boolean | 'UNF';
-    NOINDEX?: boolean;
-  } & E)
+  T, 
+  (CommonFieldArguments & E)
 >;
 
+function pushCommonFieldArguments(args: CommandArguments, fieldOptions: CommonFieldArguments) {
+  if (fieldOptions.SORTABLE) {
+    args.push('SORTABLE');
+
+    if (fieldOptions.SORTABLE === 'UNF') {
+      args.push('UNF');
+    }
+  }
+
+  if (fieldOptions.NOINDEX) {
+    args.push('NOINDEX');
+  }
+}
+  
 export const SCHEMA_TEXT_FIELD_PHONETIC = {
   DM_EN: 'dm:en',
   DM_FR: 'dm:fr',
@@ -51,6 +62,7 @@ type SchemaTextField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TEXT'], {
   WEIGHT?: number;
   PHONETIC?: SchemaTextFieldPhonetic;
   WITHSUFFIXTRIE?: boolean;
+  INDEXEMPTY?: boolean;
 }>;
 
 type SchemaNumericField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']>;
@@ -61,6 +73,7 @@ type SchemaTagField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TAG'], {
   SEPARATOR?: RedisArgument;
   CASESENSITIVE?: boolean;
   WITHSUFFIXTRIE?: boolean;
+  INDEXEMPTY?: boolean;
 }>;
 
 export const SCHEMA_VECTOR_FIELD_ALGORITHM = {
@@ -98,7 +111,7 @@ export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
 
 export type SchemaGeoShapeFieldCoordSystem = typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM[keyof typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM];
 
-type SchemaGeoShapeField = SchemaField<typeof SCHEMA_FIELD_TYPE['GEOSHAPE'], {
+type SchemaGeoShapeField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEOSHAPE'], {
   COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
 }>;
 
@@ -112,20 +125,6 @@ export interface RediSearchSchema {
     SchemaHNSWVectorField |
     SchemaGeoShapeField
   );
-}
-
-function pushMissingValues(args: CommandArguments, missingValues?: MissingValues) {
-  if (!missingValues) {
-    return;
-  }
-
-  if (missingValues.IS_MISSING) {
-    args.push("ISMISSING");
-  }
-
-  if (missingValues.IS_NULL) {
-    args.push("ISNULL");
-  }
 }
 
 export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
@@ -161,13 +160,17 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
           args.push('WITHSUFFIXTRIE');
         }
 
-        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+        pushCommonFieldArguments(args, fieldOptions);
+
+        if (fieldOptions.INDEXEMPTY) {
+          args.push('INDEXEMPTY');
+        }
 
         break;
 
       case SCHEMA_FIELD_TYPE.NUMERIC:
       case SCHEMA_FIELD_TYPE.GEO:
-        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+        pushCommonFieldArguments(args, fieldOptions);
         break;
 
       case SCHEMA_FIELD_TYPE.TAG:
@@ -183,7 +186,11 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
           args.push('WITHSUFFIXTRIE');
         }
 
-        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+        pushCommonFieldArguments(args, fieldOptions);
+
+        if (fieldOptions.INDEXEMPTY) {
+          args.push('INDEXEMPTY');
+        }
 
         break;
 
@@ -226,32 +233,22 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
             break;
         }
 
-        pushMissingValues(args, fieldOptions.MISSING_VAUES);
-
         args[lengthIndex] = (args.length - lengthIndex - 1).toString();
 
-        continue; // vector fields do not contain SORTABLE and NOINDEX options
+        break;
     
       case SCHEMA_FIELD_TYPE.GEOSHAPE:
         if (fieldOptions.COORD_SYSTEM !== undefined) {
           args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
         }
 
-        pushMissingValues(args, fieldOptions.MISSING_VAUES);
+        pushCommonFieldArguments(args, fieldOptions);
 
-        continue; // geo shape fields do not contain SORTABLE and NOINDEX options
+        break; // geo shape fields do not contain SORTABLE and NOINDEX options
     }
 
-    if (fieldOptions.SORTABLE) {
-      args.push('SORTABLE');
-
-      if (fieldOptions.SORTABLE === 'UNF') {
-        args.push('UNF');
-      }
-    }
-
-    if (fieldOptions.NOINDEX) {
-      args.push('NOINDEX');
+    if (fieldOptions.INDEXMISSING) {
+      args.push('INDEXMISSING');
     }
   }
 }
