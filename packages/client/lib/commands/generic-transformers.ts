@@ -475,8 +475,8 @@ export function transformStreamsMessagesReplyResp2(reply: Array<any> | null): St
 export function transformStreamsMessagesReplyResp3(reply: any | null): StreamsMessagesReply | null {
   if (reply === null) return null;
   
+  const ret: StreamsMessagesReply = [];
   if (reply instanceof Map) {
-    const ret: StreamsMessagesReply = [];
     for (const [name, rawMessages] of reply) {
       ret.push({
         name,
@@ -486,9 +486,16 @@ export function transformStreamsMessagesReplyResp3(reply: any | null): StreamsMe
 
     return ret;
   } else if (reply instanceof Array) {
-    return transformStreamsMessagesReplyResp2(reply);
+    for (let i=0; i < reply.length; i += 2) {
+      const name = reply[i];
+      const rawMessages = reply[i+1];
+
+      ret.push({
+        name,
+        messages: transformStreamMessagesReply(rawMessages)
+      });
+    }
   } else {
-    const ret: StreamsMessagesReply = [];
     for (const [name, rawMessages] of Object.entries(reply)) {
       const m = rawMessages as Array<any>;
       ret.push({
@@ -496,7 +503,7 @@ export function transformStreamsMessagesReplyResp3(reply: any | null): StreamsMe
         messages: transformStreamMessagesReply(m),
       })
     }
-    
-    return ret;
   }
+
+  return ret;
 }
