@@ -13,15 +13,15 @@ export type TdInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export interface TdInfoReply {
-  compression?: NumberReply;
-  capacity?: NumberReply;
-  mergedNodes?: NumberReply;
-  unmergedNodes?: NumberReply;
-  mergedWeight?: NumberReply;
-  unmergedWeight?: NumberReply;
-  observations?: NumberReply,
-  totalCompression?: NumberReply;
-  memoryUsage?: NumberReply;
+  compression: NumberReply;
+  capacity: NumberReply;
+  mergedNodes: NumberReply;
+  unmergedNodes: NumberReply;
+  mergedWeight: NumberReply;
+  unmergedWeight: NumberReply;
+  observations: NumberReply,
+  totalCompression: NumberReply;
+  memoryUsage: NumberReply;
 }
 
 export default {
@@ -46,23 +46,18 @@ export default {
     },
     3(reply: UnwrapReply<TdInfoReplyMap>): TdInfoReply {
       if (reply instanceof Map) {
-        throw new Error("TDIGEST.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
-          compression: reply.get('Compression' as unknown as BlobStringReply<any>),
-          capacity: reply.get('Capacity' as unknown as BlobStringReply<any>),
-          mergedNodes: reply.get('Merged nodes' as unknown as BlobStringReply<any>),
-          unmergedNodes: reply.get('Unmerged nodes' as unknown as BlobStringReply<any>),
-          mergedWeight: reply.get('Merged weight' as unknown as BlobStringReply<any>),
-          unmergedWeight: reply.get('Unmerged weight' as unknown as BlobStringReply<any>),
-          observations: reply.get('Observations' as unknown as BlobStringReply<any>),
-          totalCompression: reply.get('Total compressions' as unknown as BlobStringReply<any>),
-          memoryUsage: reply.get('Memory usage' as unknown as BlobStringReply<any>)
+          compression: reply.get('Compression') as NumberReply,
+          capacity: reply.get('Capacity') as NumberReply,
+          mergedNodes: reply.get('Merged nodes') as NumberReply,
+          unmergedNodes: reply.get('Unmerged nodes') as NumberReply,
+          mergedWeight: reply.get('Merged weight') as NumberReply,
+          unmergedWeight: reply.get('Unmerged weight') as NumberReply,
+          observations: reply.get('Observations') as NumberReply,
+          totalCompression: reply.get('Total compressions') as NumberReply,
+          memoryUsage: reply.get('Memory usage') as NumberReply
         };
-*/
       } else if (reply instanceof Array) {
-        throw new Error("TDIGEST.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
           compression: reply[1],
           capacity: reply[3],
@@ -74,7 +69,6 @@ export default {
           totalCompression: reply[15],
           memoryUsage: reply[17]
         };
-*/
       } else {
         return {
           compression: reply['Compression'],

@@ -31,25 +31,19 @@ export default {
     },
     3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply => {
       if (reply instanceof Map) {
-        throw new Error("TOPK.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
-          k: reply.get('k' as unknown as BlobStringReply<'k'>) as NumberReply,
-          width: reply.get('width' as unknown as BlobStringReply<'width'>) as NumberReply,
-          depth: reply.get('depth' as unknown as BlobStringReply<'depth'>) as NumberReply,
-          decay: Number(reply.get('decay' as unknown as BlobStringReply<'decay'>) as DoubleReply)
+          k: reply.get('k') as NumberReply,
+          width: reply.get('width') as NumberReply,
+          depth: reply.get('depth') as NumberReply,
+          decay: Number(reply.get('decay') as DoubleReply)
         };
-*/
       } else if (reply instanceof Array) {
-        throw new Error("TOPK.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
           k: reply[1],
           width: reply[3],
           depth: reply[5],
           decay: Number(reply[7])
         };
-*/
       } else {
         return {
           k: reply['k'],

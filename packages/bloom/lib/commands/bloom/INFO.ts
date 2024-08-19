@@ -9,11 +9,11 @@ export type BfInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export interface BfInfoReply {
-  capacity?: NumberReply;
-  size?: NumberReply;
-  numberOfFilters?: NumberReply;
-  numberOfInsertedItems?: NumberReply;
-  expansionRate?: NullReply | NumberReply;
+  capacity: NumberReply;
+  size: NumberReply;
+  numberOfFilters: NumberReply;
+  numberOfInsertedItems: NumberReply;
+  expansionRate: NullReply | NumberReply;
 }
 
 export default {
@@ -34,19 +34,14 @@ export default {
     },
     3(reply: UnwrapReply<BfInfoReplyMap>): BfInfoReply {
       if (reply instanceof Map) {
-        throw new Error("BF.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
-          capacity: reply.get("Capacity" as unknown as BlobStringReply<'Capacity'>),
-          size: reply.get("Size" as unknown as BlobStringReply<"Size">),
-          numberOfFilters: reply.get("Number of filters" as unknown as BlobStringReply<"Number of filters">),
-          numberOfInsertedItems: reply.get('Number of items inserted' as unknown as BlobStringReply<'Number of items inserted'>),
-          expansionRate: reply.get('Expansion rate' as unknown as BlobStringReply<'Expansion rate'>),
+          capacity: reply.get('Capacity') as NumberReply,
+          size: reply.get('Size') as NumberReply,
+          numberOfFilters: reply.get('Number of filters') as NumberReply,
+          numberOfInsertedItems: reply.get('Number of items inserted') as NumberReply,
+          expansionRate: reply.get('Expansion rate') as NullReply | NumberReply
         }
-*/
       } else if (reply instanceof Array) {
-        throw new Error("BF.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
           capacity: reply[1],
           size: reply[3],
@@ -54,7 +49,6 @@ export default {
           numberOfInsertedItems: reply[7],
           expansionRate: reply[9]
         }
-*/
       } else {
         return {
           capacity: reply["Capacity"],

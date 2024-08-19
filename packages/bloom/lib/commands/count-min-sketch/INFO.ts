@@ -7,9 +7,9 @@ export type CmsInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export interface CmsInfoReply {
-  width?: NumberReply;
-  depth?: NumberReply;
-  count?: NumberReply;
+  width: NumberReply;
+  depth: NumberReply;
+  count: NumberReply;
 }
  
 export default {
@@ -28,23 +28,18 @@ export default {
     },
     3(reply: UnwrapReply<CmsInfoReplyMap>): CmsInfoReply {
       if (reply instanceof Map) {
-        throw new Error("CMS.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
-          width: reply.get("width" as unknown as BlobStringReply<'width'>),
-          depth: reply.get("depth" as unknown as BlobStringReply<"depth">),
-          count: reply.get("count" as unknown as BlobStringReply<"count">)
+          width: reply.get('width') as NumberReply,
+          depth: reply.get('depth') as NumberReply,
+          count: reply.get('count') as NumberReply,
         }
-*/
+
       } else if (reply instanceof Array) {
-        throw new Error("CMS.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
           width: reply[1],
           depth: reply[3],
           count: reply[5]
         }
-*/
       } else {
         return {
           width: reply['width'],

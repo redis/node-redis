@@ -43,22 +43,17 @@ export default {
     },
     3: (reply: UnwrapReply<CfInfoReplyMap>): CfInfoReply => {
       if (reply instanceof Map) {
-        throw new Error("CF.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
-          size: reply.get("Size" as unknown as BlobStringReply<"Size">)!,
-          numberOfBuckets: reply.get('Number of buckets' as unknown as BlobStringReply<'Number of buckets'>)!,
-          numberOfFilters: reply.get('Number of filters' as unknown as BlobStringReply<"Number of filters">)!,
-          numberOfInsertedItems: reply.get('Number of items inserted' as unknown as BlobStringReply<'Number of items inserted'>)!,
-          numberOfDeletedItems: reply.get('Number of items deleted' as unknown as BlobStringReply<'Number of items deleted'>)!,
-          bucketSize: reply.get('Bucket size' as unknown as BlobStringReply<'Bucket size'>)!,
-          expansionRate: reply.get('Expansion rate' as unknown as BlobStringReply<'Expansion rate'>)!,
-          maxIteration: reply.get('Max iterations' as unknown as BlobStringReply<'Max iterations'>)!
+          size: reply.get('Size') as NumberReply,
+          numberOfBuckets: reply.get('Number of buckets') as NumberReply,
+          numberOfFilters: reply.get('Number of filters') as NumberReply,
+          numberOfInsertedItems: reply.get('Number of items inserted') as NumberReply,
+          numberOfDeletedItems: reply.get('Number of items deleted') as NumberReply,
+          bucketSize: reply.get('Bucket size') as NumberReply,
+          expansionRate: reply.get('Expansion rate') as NumberReply,
+          maxIteration: reply.get('Max iterations') as NumberReply
         }
-*/
       } else if (reply instanceof Array) {
-        throw new Error("CF.INFO shouldn't be used with type mapping to map or array");
-/*
         return {
           size: reply[1],
           numberOfBuckets: reply[3],
@@ -69,7 +64,6 @@ export default {
           expansionRate: reply[13],
           maxIteration: reply[15]
         }
-*/
       } else {
         return {
           size: reply['Size'],
