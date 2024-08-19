@@ -1,6 +1,6 @@
-import { RedisArgument, Command, CommandArguments, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, CommandArguments, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
+import { RawLabels2, RawLabels3, resp3MapToValue, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
 import { pushFilterArgument } from './MGET';
 
@@ -34,6 +34,8 @@ export function pushGroupByArgument(args: CommandArguments, groupBy?: TsMRangeOp
       'REDUCE',
       groupBy.reducer
     );
+
+    args.preserve = true;
   }
 
   return args;
@@ -60,9 +62,29 @@ export function transformMRangeArguments(
 
 export type MRangeRawReply2 = ArrayReply<[
   key: BlobStringReply,
-  labels: RawLabels,
+  labels: RawLabels2,
   samples: ArrayReply<Resp2Reply<SampleRawReply>>
 ]>;
+
+
+export type MrangeRawReplyValue3 = TuplesReply<[
+  labels: RawLabels3,
+  // TODO: unsure what tod with this element, not part of resp2 at all
+  _: MapReply<BlobStringReply, ArrayReply<unknown>>,
+  samples: ArrayReply<SampleRawReply>
+]>;
+
+export type MrangeRawReplyValueGrouped3 = TuplesReply<[
+  labels: RawLabels3,
+  reducers: MapReply<BlobStringReply, ArrayReply<unknown>>,
+  sources: MapReply<BlobStringReply, ArrayReply<unknown>>,
+  samples: ArrayReply<SampleRawReply>
+]>;
+
+export type MRangeRawReply3 = MapReply<
+  BlobStringReply,
+  MrangeRawReplyValue3 | MrangeRawReplyValueGrouped3
+>;
 
 export interface MRangeReplyItem2 {
   key: BlobStringReply;
@@ -70,8 +92,32 @@ export interface MRangeReplyItem2 {
 }
 
 export interface MRangeReplyItem3 {
-  key: BlobStringReply;
+  key: BlobStringReply | string;
   samples: Array<ReturnType<typeof transformSampleReply[3]>>;
+}
+
+export function getSamples(
+  v: UnwrapReply<MrangeRawReplyValue3> | UnwrapReply<MrangeRawReplyValueGrouped3>,
+  grouped?: boolean
+): ArrayReply<SampleRawReply> {
+  if (grouped) {
+    const value = v as unknown as UnwrapReply<MrangeRawReplyValueGrouped3>;
+    return value[3];
+  } else {
+    const value = v as unknown as UnwrapReply<MrangeRawReplyValue3>;
+    return value[2];
+  }
+}
+
+export function parseResp3Mrange(
+  key: BlobStringReply | string,
+  value: UnwrapReply<MrangeRawReplyValue3> | UnwrapReply<MrangeRawReplyValueGrouped3>,
+  grouped?: boolean
+): MRangeReplyItem3 {
+  return {
+    key,
+    samples: transformSamplesReply[3](getSamples(value, grouped))
+  }
 }
 
 export default {
@@ -79,7 +125,7 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2: (reply: UnwrapReply<MRangeRawReply2>): Array<MRangeReplyItem2> => {
+    2(reply: UnwrapReply<MRangeRawReply2>): Array<MRangeReplyItem2> {
       const args = [];
 
       for (const [key, _, samples] of reply) {
@@ -91,33 +137,8 @@ export default {
 
       return args;
     },
-    3: (reply: UnwrapReply<MapReply<any, any>>): Array<MRangeReplyItem3> => {
-      const args = [];
-
-      if (reply instanceof Array) {
-        for (const [key, _, samples] of reply) {
-          args.push({
-            key,
-            samples: transformSamplesReply[3](samples)
-          });
-        }
-      } else if (reply instanceof Map) {
-        for (const [key, value] of reply) {
-          args.push({
-            key,
-            samples: transformSamplesReply[3](value[2])
-          })
-        }
-      } else {
-        for (const [key, value] of Object.entries(reply)) {
-          args.push({
-            key,
-            samples: transformSamplesReply[3](value[2])
-          })
-        }
-      }
-
-      return args;
+    3(reply: UnwrapReply<MRangeRawReply3>, grouped?: boolean): Array<MRangeReplyItem3> {
+      return resp3MapToValue(reply, parseResp3Mrange, grouped)
     }
   },
 } as const satisfies Command;

@@ -1,7 +1,7 @@
-import { RedisArgument, Command, UnwrapReply, MapReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, UnwrapReply, BlobStringReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { MRangeRawReply2, MRangeReplyItem2, MRangeReplyItem3, TsMRangeOptions, pushGroupByArgument } from './MRANGE';
-import { Labels, Timestamp, pushWithLabelsArgument, transformLablesReply2, transformLablesReply3, transformSamplesReply } from '.';
+import { MRangeRawReply2, MRangeRawReply3, MRangeReplyItem2, MRangeReplyItem3, MrangeRawReplyValue3, MrangeRawReplyValueGrouped3, TsMRangeOptions, parseResp3Mrange, pushGroupByArgument } from './MRANGE';
+import { Labels, Timestamp, pushWithLabelsArgument, resp3MapToValue, transformLablesReply2, transformLablesReply3, transformSamplesReply } from '.';
 import { pushFilterArgument } from './MGET';
 import { pushRangeArguments } from './RANGE';
 
@@ -30,12 +30,23 @@ export interface MRangeWithLabelsReplyItem3 extends MRangeReplyItem3 {
   labels: Labels;
 }
 
+function parseResp3MrangeWithLabels(
+  key: BlobStringReply | string,
+  value: UnwrapReply<MrangeRawReplyValue3> | UnwrapReply<MrangeRawReplyValueGrouped3>,
+  grouped?: boolean
+): MRangeWithLabelsReplyItem3 {
+  const ret = parseResp3Mrange(key, value, grouped) as MRangeWithLabelsReplyItem3;
+  ret.labels = transformLablesReply3(value[0])
+
+  return ret;
+}
+
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2: (reply: UnwrapReply<MRangeRawReply2>): Array<MRangeWithLabelsReplyItem2> => {
+    2(reply: UnwrapReply<MRangeRawReply2>): Array<MRangeWithLabelsReplyItem2> {
       const args = [];
 
       for (const [key, labels, samples] of reply) {
@@ -48,36 +59,8 @@ export default {
 
       return args;
     },
-    3: (reply: UnwrapReply<MapReply<any, any>>): Array<MRangeReplyItem3> => {
-      const args = [];
-
-      if (reply instanceof Array) {
-        for (const [key, labels, samples] of reply) {
-          args.push({
-            key,
-            labels: transformLablesReply3(labels),
-            samples: transformSamplesReply[3](samples)
-          });
-        }
-      } else if (reply instanceof Map) {
-        for (const [key, value] of reply) {
-          args.push({
-            key,
-            labels: transformLablesReply3(value[0]),
-            samples: transformSamplesReply[3](value[2])
-          })
-        }
-      } else {
-        for (const [key, value] of Object.entries(reply)) {
-          args.push({
-            key,
-            labels: transformLablesReply3(value[0]),
-            samples: transformSamplesReply[3](value[2])
-          })
-        }
-      }
-
-      return args;
+    3(reply: UnwrapReply<MRangeRawReply3>, grouped?: boolean): Array<MRangeWithLabelsReplyItem3> {
+      return resp3MapToValue(reply, parseResp3MrangeWithLabels, grouped);
     }
   },
 } as const satisfies Command;

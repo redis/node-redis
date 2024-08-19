@@ -1,6 +1,6 @@
 import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, MapReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels, SampleRawReply, transformSampleReply } from '.';
+import { RawLabels2, RawLabels3, resp3MapToValue, SampleRawReply, transformSampleReply } from '.';
 
 export interface TsMGetOptions {
   LATEST?: boolean;
@@ -21,20 +21,39 @@ export function pushFilterArgument(args: CommandArguments, filter: RedisVariadic
 
 export type MGetRawReply2 = ArrayReply<[
   key: BlobStringReply,
-  labels: RawLabels,
+  labels: RawLabels2,
   sample: Resp2Reply<SampleRawReply>
 ]>;
 
-export type MGetRawReply3 = MapReply<BlobStringReply, TuplesReply<[labels: RawLabels, sample: SampleRawReply]>>;
+export type MGetRawReplyValue3 = TuplesReply<[
+  labels: RawLabels3,
+  sample: SampleRawReply
+]>;
+
+export type MGetRawReply3 = MapReply<
+  BlobStringReply,
+  MGetRawReplyValue3
+>
 
 export interface MGetReply2 {
-  key: string | BlobStringReply;
+  key: BlobStringReply;
   sample: ReturnType<typeof transformSampleReply[2]>;
 }
 
 export interface MGetReply3 {
-  key: string;
+  key: BlobStringReply | string
   sample: ReturnType<typeof transformSampleReply[3]>;
+}
+
+export function parseResp3Mget(
+  key: BlobStringReply | string,
+  value: UnwrapReply<MGetRawReplyValue3>
+): MGetReply3 {
+
+  return {
+    key: key,
+    sample: transformSampleReply[3](value[1])
+  }
 }
 
 export default {
@@ -47,37 +66,12 @@ export default {
   transformReply: {
     2(reply: UnwrapReply<MGetRawReply2>): Array<MGetReply2> {
       return reply.map(([key, _, sample]) => ({
-        key: key.toString(),
+        key: key,
         sample: transformSampleReply[2](sample)
       }));
     },
-    3(reply: UnwrapReply<MapReply<any, any>>): Array<MGetReply3> {
-      const args: Array<MGetReply3> = [];
-
-      if (reply instanceof Array) {
-        for (const [key, value] of reply) {
-          args.push({
-            key,
-            sample: transformSampleReply[3](value[1])
-          });
-        }
-      } else if (reply instanceof Map) {
-        for (const [key, value] of reply) {
-          args.push({
-            key,
-            sample: transformSampleReply[3](value[1])
-          });
-        }
-      } else {
-        for (const [key, value] of Object.entries(reply)) {
-          args.push({
-            key,
-            sample: transformSampleReply[3](value[1])
-          });
-        }
-      }
-
-      return args;
+    3(reply: UnwrapReply<MGetRawReply3>): Array<MGetReply3> {
+      return resp3MapToValue(reply, parseResp3Mget)
     }
   }
 } as const satisfies Command;
