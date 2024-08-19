@@ -66,7 +66,7 @@ export interface RedisClusterOptions<
   /**
    * TODO
    */
-  unstableResp3Modules?: boolean;
+  unstableResp3SearchModule?: boolean;
 }
 
 // remove once request & response policies are ready

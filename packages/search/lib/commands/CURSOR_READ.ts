@@ -18,5 +18,5 @@ export default {
     return args;
   },
   transformReply: AGGREGATE_WITHCURSOR.transformReply,
-  unstableResp3Module: true
+  unstableResp3SearchModule: true
 } as const satisfies Command;

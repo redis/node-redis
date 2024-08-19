@@ -2,7 +2,7 @@ import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import { RedisSentinelOptions, RedisSentinelType } from './types';
+import { RedisSentinelType } from './types';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -100,9 +100,6 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      if (command.unstableResp3Module && resp == 3 && !this._self.#options?.unstableResp3Modules) {
-        throw new Error("unstable resp3 module, client not configured with proper flag");
-      }
       const redisArgs = command.transformArguments(...args);
       return this._self.addCommand(
         command.IS_READ_ONLY,
@@ -163,11 +160,9 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   private readonly _multi = new RedisMultiCommand();
   private readonly _sentinel: RedisSentinelType
   private _isReadonly: boolean | undefined = true;
-  readonly #options?: RedisSentinelOptions;
 
-  constructor(sentinel: RedisSentinelType, options?: RedisSentinelOptions) {
+  constructor(sentinel: RedisSentinelType) {
     this._sentinel = sentinel;
-    this.#options = options;
   }
 
   private _setState(

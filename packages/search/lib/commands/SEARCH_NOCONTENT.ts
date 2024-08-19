@@ -18,7 +18,7 @@ export default {
     },
     3: undefined as unknown as () => ReplyUnion
   },
-  unstableResp3Module: true
+  unstableResp3SearchModule: true
 } as const satisfies Command;
 
 export interface SearchNoContentReply {

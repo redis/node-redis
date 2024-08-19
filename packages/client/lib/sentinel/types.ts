@@ -62,7 +62,7 @@ export interface RedisSentinelOptions<
   /**
    * TODO
    */
-  unstableResp3Modules?: boolean;
+  unstableResp3SearchModule?: boolean;
 }
 
 export interface SentinelCommander<

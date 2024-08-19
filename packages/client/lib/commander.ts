@@ -16,8 +16,8 @@ interface AttachConfigOptions<
 }
 
 /* FIXME: better error message / link */
-function throwResp3ModuleUnstableError() {
-  throw new Error("unstable resp3 module, client not configured with proper flag");
+function throwResp3SearchModuleUnstableError() {
+  throw new Error('Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance');
 }
 
 export function attachConfig<
@@ -45,8 +45,8 @@ export function attachConfig<
     for (const [moduleName, module] of Object.entries(config.modules)) {
       const fns = Object.create(null);
       for (const [name, command] of Object.entries(module)) {
-        if (config.RESP == 3 && command.unstableResp3Module && !config.unstableResp3Modules) {
-          fns[name] = throwResp3ModuleUnstableError;
+        if (config.RESP == 3 && command.unstableResp3SearchModule && !config.unstableResp3SearchModule) {
+          fns[name] = throwResp3SearchModuleUnstableError;
         } else {
           fns[name] = createModuleCommand(command, RESP);
         }
