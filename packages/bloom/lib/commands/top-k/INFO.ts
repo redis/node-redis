@@ -7,11 +7,18 @@ export type TopKInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'decay'>, DoubleReply]
 ]>;
 
-export type TkInfoReply = {
+export type TkInfoReply2 = {
   k: NumberReply;
   width: NumberReply;
   depth: NumberReply;
   decay: number;
+}
+
+export type TkInfoReply3 = {
+  k: NumberReply;
+  width: NumberReply;
+  depth: NumberReply;
+  decay: DoubleReply;
 }
  
 export default {
@@ -21,7 +28,7 @@ export default {
     return ['TOPK.INFO', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>): TkInfoReply => {
+    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>): TkInfoReply2 => {
       return {
         k: reply[1],
         width: reply[3],
@@ -29,27 +36,27 @@ export default {
         decay: Number(reply[7])
       };
     },
-    3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply => {
+    3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply3 => {
       if (reply instanceof Map) {
         return {
           k: reply.get('k') as NumberReply,
           width: reply.get('width') as NumberReply,
           depth: reply.get('depth') as NumberReply,
-          decay: Number(reply.get('decay') as DoubleReply)
+          decay: reply.get('decay') as DoubleReply
         };
       } else if (reply instanceof Array) {
         return {
           k: reply[1],
           width: reply[3],
           depth: reply[5],
-          decay: Number(reply[7])
+          decay: reply[7]
         };
       } else {
         return {
           k: reply['k'],
           width: reply['width'],
           depth: reply['depth'],
-          decay: Number(reply['decay'])
+          decay: reply['decay']
         };
       }
     }
