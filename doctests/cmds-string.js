@@ -9,7 +9,6 @@ import { createClient } from 'redis';
 const client = createClient();
 client.on('error', err => console.log('Redis Client Error', err));
 await client.connect();
-await client.del('bike:1')
 // HIDE_END
 
 // STEP_START set_and_get
