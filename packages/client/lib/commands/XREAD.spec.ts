@@ -100,20 +100,21 @@ describe('XREAD', () => {
         id: '0-0'
       }),
     ])
-    assert.deepEqual(reply, [{
-        name: 'key',
-        messages: [{
-          id,
-          message: Object.create(null, {
-            field: {
-              value: 'value',
-              configurable: true,
-              enumerable: true
-            }
-          })
-        }]
+
+    const obj = Object.assign(Object.create(null), {
+      'key': [{
+        id: id,
+        message: Object.create(null, {
+          field: {
+            value: 'value',
+            configurable: true,
+            enumerable: true
+          }
+        })
       }]
-    );
+    });
+
+    assert.deepStrictEqual(reply, obj);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

@@ -3,9 +3,18 @@ import testUtils, { GLOBAL } from '../test-utils';
 import MREVRANGE from './MREVRANGE';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 import { TIME_SERIES_REDUCERS } from './MRANGE';
+import { CommandArguments } from '@redis/client/lib/RESP/types';
+import { createClient } from '@redis/client';
 
 describe('TS.MREVRANGE', () => {
   it('transformArguments', () => {
+    const expectedReply: CommandArguments = [
+      'TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
+      'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
+      'GROUPBY', 'label', 'REDUCE', 'SUM'
+    ];
+    expectedReply.preserve = true;
+
     assert.deepEqual(
       MREVRANGE.transformArguments('-', '+', 'label=value', {
         FILTER_BY_TS: [0],
@@ -24,11 +33,7 @@ describe('TS.MREVRANGE', () => {
           reducer: TIME_SERIES_REDUCERS.SUM
         },
       }),
-      [
-        'TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-        'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
-        'GROUPBY', 'label', 'REDUCE', 'SUM'
-      ]
+      expectedReply
     );
   });
 
@@ -42,12 +47,15 @@ describe('TS.MREVRANGE', () => {
       })
     ]);
 
-    assert.deepEqual(reply, [{
-      key: 'key',
-      samples: [{
-        timestamp: 0,
-        value: 0
-      }]
-    }]);
+    const obj = Object.assign(Object.create(null), {
+      'key': {
+        samples: [{
+          timestamp: 0,
+          value: 0
+        }]
+      }
+    });
+
+    assert.deepStrictEqual(reply, obj);
   }, GLOBAL.SERVERS.OPEN);
 });

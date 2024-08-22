@@ -121,7 +121,7 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
-export type RawLabels2 = Array<[label: BlobStringReply, value: BlobStringReply]>;
+export type RawLabels2 = ArrayReply<TuplesReply<[label: BlobStringReply, value: BlobStringReply]>>;
 export type RawLabels3 = MapReply<BlobStringReply, BlobStringReply>;
 
 export type Labels = {
@@ -171,13 +171,17 @@ export const transformSamplesReply = {
       .map(sample => transformSampleReply[3](sample));  }
 };
 
-export function transformLablesReply2(reply: RawLabels2): Labels {
+export function transformLablesReply2(r: RawLabels2): Labels {
   const labels: Labels = {};
 
-  for (const [k, v] of reply) {
+  const reply = r as unknown as UnwrapReply<typeof r>;
+
+  for (const t of reply) {
+    const [k, v] = t as unknown as UnwrapReply<typeof t>;
     const key = k as unknown as UnwrapReply<BlobStringReply>;
     const value = v as unknown as UnwrapReply<BlobStringReply>;
-      labels[key.toString()] = value.toString()
+
+    labels[key.toString()] = value.toString()
   }
 
   return labels
@@ -215,35 +219,64 @@ export function pushWithLabelsArgument(args: CommandArguments, selectedLabels?: 
   }
 }
 
+export function resp2MapToValue<
+  V extends TuplesReply<[key: BlobStringReply, ...rest: any]>,
+  T
+>(
+  reply: UnwrapReply<ArrayReply<V>>,
+  parseFunc: (v: UnwrapReply<V>) => T
+): Record<string, T> {
+  const ret: Record<string, T> = Object.create(null);
+
+  for (let i=0; i < reply.length; i++) {
+    const s = reply[i];
+    const sample = s as unknown as UnwrapReply<typeof s>;
+    const key = sample[0] as unknown as UnwrapReply<BlobStringReply>;
+
+    ret[key.toString()] = parseFunc(sample);
+  }
+
+  return ret;
+}
+
 export function resp3MapToValue<
   V extends TuplesReply<any>,
   T,
   P
 >(
   reply: UnwrapReply<MapReply<BlobStringReply, V>>,
-  parseFunc: (key: BlobStringReply | string, v: UnwrapReply<V>, preserved?: P) => T,
+  parseFunc: (v: UnwrapReply<V>, preserved?: P) => T,
   preserved?: P
-): Array<T> {
-  const args: Array<T> = [];
-
+): MapReply<BlobStringReply | string, T> {
   if (reply instanceof Array) {
+    const ret: Array<BlobStringReply | T> = [];
+    
     for (let i=0; i < reply.length; i += 2) {
       const key = reply[i] as BlobStringReply;
       const value = reply[i+1] as unknown as UnwrapReply<V>;
 
-      args.push(parseFunc(key, value, preserved));
+      ret.push(key);
+      ret.push(parseFunc(value, preserved));
     }
+
+    return ret as unknown as MapReply<BlobStringReply, T>;
   } else if (reply instanceof Map) {
+    const ret = new Map<BlobStringReply, T>();
+
     for (const [key, v] of reply) {
       const value = v as unknown as UnwrapReply<V>;
-      args.push(parseFunc(key, value, preserved));
+      ret.set(key, parseFunc(value, preserved));
     }
+
+    return ret as unknown as MapReply<BlobStringReply, T>;
   } else {
+    const ret = Object.create(null);
     for (const [key, v] of Object.entries(reply)) {
       const value = v as unknown as UnwrapReply<V>;
-      args.push(parseFunc(key.toString(), value, preserved));
-    }
-  }
 
-  return args;
+      ret[key] = parseFunc(value, preserved);
+    }
+
+    return ret as unknown as MapReply<BlobStringReply, T>;
+  }
 }

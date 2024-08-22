@@ -117,15 +117,18 @@ describe('Client', () => {
   });
 
   testUtils.testWithClient('connect, ready and end events', async client => {
+    const p1 = once(client, 'connect');
+    const p2 = once(client, 'ready');
+    const p3 = once(client, 'end');
+
     await Promise.all([
-      once(client, 'connect'),
-      once(client, 'ready'),
+      p1,
+      p2,
       client.connect()
     ]);
 
-    // TODO: This is failing and I don't know why.  when I run manually it seems fine.
     await Promise.all([
-      once(client, 'end'),
+      p3,
       client.close()
     ]);
   }, {

@@ -1,6 +1,6 @@
 import { RedisArgument, Command, CommandArguments, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RawLabels2, RawLabels3, resp3MapToValue, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
+import { RawLabels2, RawLabels3, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
 import { pushFilterArgument } from './MGET';
 
@@ -60,12 +60,13 @@ export function transformMRangeArguments(
   return pushGroupByArgument(args, options?.GROUPBY);
 }
 
-export type MRangeRawReply2 = ArrayReply<[
+export type MrangeRawReplyValue2 = TuplesReply<[
   key: BlobStringReply,
   labels: RawLabels2,
   samples: ArrayReply<Resp2Reply<SampleRawReply>>
 ]>;
 
+export type MRangeRawReply2 = ArrayReply<MrangeRawReplyValue2>;
 
 export type MrangeRawReplyValue3 = TuplesReply<[
   labels: RawLabels3,
@@ -87,12 +88,10 @@ export type MRangeRawReply3 = MapReply<
 >;
 
 export interface MRangeReplyItem2 {
-  key: BlobStringReply;
   samples: Array<ReturnType<typeof transformSampleReply[2]>>;
 }
 
 export interface MRangeReplyItem3 {
-  key: BlobStringReply | string;
   samples: Array<ReturnType<typeof transformSampleReply[3]>>;
 }
 
@@ -109,15 +108,19 @@ export function getSamples(
   }
 }
 
+export function parseResp2Mrange(value: UnwrapReply<MrangeRawReplyValue2>): MRangeReplyItem2 {
+  return {
+    samples: transformSamplesReply[2](value[2])
+  }
+}
+
 export function parseResp3Mrange(
-  key: BlobStringReply | string,
   value: UnwrapReply<MrangeRawReplyValue3> | UnwrapReply<MrangeRawReplyValueGrouped3>,
   grouped?: boolean
 ): MRangeReplyItem3 {
-  return {
-    key,
-    samples: transformSamplesReply[3](getSamples(value, grouped))
-  }
+    return {
+      samples: transformSamplesReply[3](getSamples(value, grouped))
+    };
 }
 
 export default {
@@ -125,19 +128,10 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2(reply: UnwrapReply<MRangeRawReply2>): Array<MRangeReplyItem2> {
-      const args = [];
-
-      for (const [key, _, samples] of reply) {
-        args.push({
-          key,
-          samples: transformSamplesReply[2](samples)
-        });
-      }
-
-      return args;
+    2(reply: UnwrapReply<MRangeRawReply2>) {
+      return resp2MapToValue(reply, parseResp2Mrange);
     },
-    3(reply: UnwrapReply<MRangeRawReply3>, grouped?: boolean): Array<MRangeReplyItem3> {
+    3(reply: UnwrapReply<MRangeRawReply3>, grouped?: boolean) {
       return resp3MapToValue(reply, parseResp3Mrange, grouped)
     }
   },

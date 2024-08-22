@@ -468,52 +468,58 @@ export function transformStreamMessagesReply(r: ArrayReply<StreamMessageRawReply
 type StreamMessagesRawReply = TuplesReply<[name: BlobStringReply, ArrayReply<StreamMessageRawReply>]>;
 type StreamsMessagesRawReply2 = ArrayReply<StreamMessagesRawReply>;
 
-export function transformStreamsMessagesReplyResp2(reply: UnwrapReply<StreamsMessagesRawReply2> | UnwrapReply<NullReply>): StreamsMessagesReply | null {
-  if (reply === null) return null;
+export function transformStreamsMessagesReplyResp2(
+  reply: UnwrapReply<StreamsMessagesRawReply2 | NullReply>
+): Record<string, StreamMessagesReply> | NullReply {
+  if (reply === null) return null as unknown as NullReply;
 
-  return reply.map((s) => {
-    const stream = s as unknown as UnwrapReply<typeof s>;
+  const ret: Record<string, StreamMessagesReply> = Object.create(null);
 
-    return {
-      name: stream[0],
-      messages: transformStreamMessagesReply(stream[1])
-    }
-  })
+  for (let i=0; i < reply.length; i ++) {
+    const stream = reply[i] as unknown as UnwrapReply<StreamMessagesRawReply>;
+
+    const name = stream[0] as unknown as UnwrapReply<BlobStringReply>;
+    const rawMessages = stream[1];
+
+    ret[name.toString()] = transformStreamMessagesReply(rawMessages);
+  }
+
+  return ret;
 }
 
 type StreamsMessagesRawReply3 = MapReply<BlobStringReply, ArrayReply<StreamMessageRawReply>>;
 
-export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMessagesRawReply3> | UnwrapReply<NullReply>): StreamsMessagesReply | null {
-  if (reply === null) return null;
+export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMessagesRawReply3 | NullReply>): MapReply<BlobStringReply, StreamMessagesReply> | NullReply {
+  if (reply === null) return null as unknown as NullReply;
   
-  const ret: StreamsMessagesReply = [];
   if (reply instanceof Map) {
-    for (const [name, rawMessages] of reply) {
-      ret.push({
-        name,
-        messages: transformStreamMessagesReply(rawMessages),
-      })
+    const ret = new Map<string, StreamMessagesReply>();
+
+    for (const [n, rawMessages] of reply) {
+      const name = n as unknown as UnwrapReply<BlobStringReply>;
+
+      ret.set(name.toString(), transformStreamMessagesReply(rawMessages));
     }
 
-    return ret;
+    return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   } else if (reply instanceof Array) {
+    const ret = [];
+
     for (let i=0; i < reply.length; i += 2) {
-      const name = reply[i] as BlobStringReply
+      const name = reply[i] as BlobStringReply;
       const rawMessages = reply[i+1] as ArrayReply<StreamMessageRawReply>;
 
-      ret.push({
-        name,
-        messages: transformStreamMessagesReply(rawMessages)
-      });
+      ret.push(name);
+      ret.push(transformStreamMessagesReply(rawMessages));
     }
-  } else {
-    for (const [name, rawMessages] of Object.entries(reply)) {
-      ret.push({
-        name,
-        messages: transformStreamMessagesReply(rawMessages),
-      })
-    }
-  }
 
-  return ret;
+    return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
+  } else {
+    const ret = Object.create(null);
+    for (const [name, rawMessages] of Object.entries(reply)) {
+      ret[name] = transformStreamMessagesReply(rawMessages);
+    }
+
+    return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
+  }
 }
