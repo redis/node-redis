@@ -32,7 +32,7 @@ describe('GRAPH.QUERY', () => {
         assert.throws(() => {
           QUERY.transformArguments('key', 'query', {
             params: {
-              a: Buffer.from('a')
+              a: Symbol()
             }
           })
         }, TypeError);
