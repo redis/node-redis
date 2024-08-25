@@ -1,4 +1,4 @@
-import { RedisArgument, Command, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, UnwrapReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { MRangeRawReply2, MRangeRawReply3, MRangeReplyItem2, MRangeReplyItem3, MrangeRawReplyValue2, MrangeRawReplyValue3, MrangeRawReplyValueGrouped3, TsMRangeOptions, parseResp2Mrange, parseResp3Mrange, pushGroupByArgument } from './MRANGE';
 import { Labels, Timestamp, pushWithLabelsArgument, resp2MapToValue, resp3MapToValue, transformLablesReply2, transformLablesReply3 } from '.';
@@ -54,8 +54,8 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeWithLabelsArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2(reply: UnwrapReply<MRangeRawReply2>) {
-      return resp2MapToValue(reply, parseResp2MrangeWithLabels);
+    2(reply: UnwrapReply<MRangeRawReply2>, preserve?: any, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, parseResp2MrangeWithLabels, typeMapping);
     },
     3(reply: UnwrapReply<MRangeRawReply3>, grouped?: boolean) {
       return resp3MapToValue(reply, parseResp3MrangeWithLabels, grouped);

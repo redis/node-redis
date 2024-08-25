@@ -77,7 +77,9 @@ export interface BlobStringReply<
   T,
   Buffer,
   string | Buffer
-> {}
+> {
+  toString(): string
+}
 
 export interface VerbatimStringReply<
   T extends string = string
@@ -216,7 +218,7 @@ export type ReplyWithTypeMapping<
   )
 );
 
-export type TransformReply = (this: void, reply: any, preserve?: any) => any; // TODO;
+export type TransformReply = (this: void, reply: any, preserve?: any, typeMapping?: TypeMapping) => any; // TODO;
 
 export type RedisArgument = string | Buffer;
 

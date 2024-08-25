@@ -1,4 +1,4 @@
-import { CommandArguments, RedisScript, ReplyUnion, TransformReply } from './RESP/types';
+import { CommandArguments, RedisScript, ReplyUnion, TransformReply, TypeMapping } from './RESP/types';
 import { ErrorReply, MultiErrorReply } from './errors';
 
 export type MULTI_REPLY = {
@@ -46,7 +46,7 @@ export default class RedisMultiCommand {
     this.addCommand(redisArgs, transformReply);
   }
   
-  transformReplies(rawReplies: Array<unknown>): Array<unknown> {
+  transformReplies(rawReplies: Array<unknown>, typeMapping?: TypeMapping): Array<unknown> {
     const errorIndexes: Array<number> = [],
       replies = rawReplies.map((reply, i) => {
         if (reply instanceof ErrorReply) {
@@ -55,7 +55,7 @@ export default class RedisMultiCommand {
         }
 
         const { transformReply, args } = this.queue[i];
-        return transformReply ? transformReply(reply, args.preserve) : reply;
+        return transformReply ? transformReply(reply, args.preserve, typeMapping) : reply;
       });
 
     if (errorIndexes.length) throw new MultiErrorReply(replies, errorIndexes);

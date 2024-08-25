@@ -1,4 +1,4 @@
-import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply } from '@redis/client/dist/lib/RESP/types';
+import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -21,6 +21,7 @@ import QUERYINDEX from './QUERYINDEX';
 import RANGE from './RANGE';
 import REVRANGE from './REVRANGE';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RESP_TYPES } from '@redis/client';
 
 export default {
   ADD,
@@ -224,19 +225,50 @@ export function resp2MapToValue<
   T
 >(
   reply: UnwrapReply<ArrayReply<V>>,
-  parseFunc: (v: UnwrapReply<V>) => T
-): Record<string, T> {
-  const ret: Record<string, T> = Object.create(null);
+  parseFunc: (v: UnwrapReply<V>) => T,
+  typeMapping?: TypeMapping
+): MapReply<BlobStringReply | string, T> {
+  switch (typeMapping? typeMapping[RESP_TYPES.MAP] : undefined) {
+    case Map: {
+      const ret: Map<BlobStringReply, T> = new Map<BlobStringReply, T>();
 
-  for (let i=0; i < reply.length; i++) {
-    const s = reply[i];
-    const sample = s as unknown as UnwrapReply<typeof s>;
-    const key = sample[0] as unknown as UnwrapReply<BlobStringReply>;
+      for (let i=0; i < reply.length; i++) {
+        const s = reply[i];
+        const sample = s as unknown as UnwrapReply<typeof s>;
+    
+        ret.set(sample[0], parseFunc(sample));
+      }
+    
+      return ret as unknown as MapReply<string, T>;
+    }
+    case Array: {
+      const ret: Array<BlobStringReply | T> = [];
 
-    ret[key.toString()] = parseFunc(sample);
+      for (let i=0; i < reply.length; i++) {
+        const s = reply[i];
+        const sample = s as unknown as UnwrapReply<typeof s>;
+    
+        ret.push(sample[0], parseFunc(sample));
+      }
+    
+      return ret as unknown as MapReply<string, T>;
+    }
+    default: {
+      const ret: Record<string, T> = Object.create(null);
+
+      for (let i=0; i < reply.length; i++) {
+        const s = reply[i];
+        const sample = s as unknown as UnwrapReply<typeof s>;
+        //const key = sample[0] as unknown as UnwrapReply<BlobStringReply>;
+    
+        ret[sample[0].toString()] = parseFunc(sample);
+        //ret[key.toString()] = parseFunc(sample);
+      }
+    
+      return ret as unknown as MapReply<string, T>;
+    }
   }
-
-  return ret;
+  
 }
 
 export function resp3MapToValue<
@@ -245,8 +277,8 @@ export function resp3MapToValue<
   P
 >(
   reply: UnwrapReply<MapReply<BlobStringReply, V>>,
-  parseFunc: (v: UnwrapReply<V>, preserved?: P) => T,
-  preserved?: P
+  parseFunc: (v: UnwrapReply<V>, preserve?: P) => T,
+  preserve?: P
 ): MapReply<BlobStringReply | string, T> {
   if (reply instanceof Array) {
     const ret: Array<BlobStringReply | T> = [];
@@ -256,7 +288,7 @@ export function resp3MapToValue<
       const value = reply[i+1] as unknown as UnwrapReply<V>;
 
       ret.push(key);
-      ret.push(parseFunc(value, preserved));
+      ret.push(parseFunc(value, preserve));
     }
 
     return ret as unknown as MapReply<BlobStringReply, T>;
@@ -265,7 +297,7 @@ export function resp3MapToValue<
 
     for (const [key, v] of reply) {
       const value = v as unknown as UnwrapReply<V>;
-      ret.set(key, parseFunc(value, preserved));
+      ret.set(key, parseFunc(value, preserve));
     }
 
     return ret as unknown as MapReply<BlobStringReply, T>;
@@ -274,7 +306,7 @@ export function resp3MapToValue<
     for (const [key, v] of Object.entries(reply)) {
       const value = v as unknown as UnwrapReply<V>;
 
-      ret[key] = parseFunc(value, preserved);
+      ret[key] = parseFunc(value, preserve);
     }
 
     return ret as unknown as MapReply<BlobStringReply, T>;

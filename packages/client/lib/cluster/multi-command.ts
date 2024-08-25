@@ -191,15 +191,18 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   readonly #executePipeline: ClusterMultiExecute;
   #firstKey: RedisArgument | undefined;
   #isReadonly: boolean | undefined = true;
+  readonly #typeMapping?: TypeMapping;
 
   constructor(
     executeMulti: ClusterMultiExecute,
     executePipeline: ClusterMultiExecute,
-    routing: RedisArgument | undefined
+    routing: RedisArgument | undefined,
+    typeMapping?: TypeMapping
   ) {
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
     this.#firstKey = routing;
+    this.#typeMapping = typeMapping;
   }
 
   #setState(
@@ -229,7 +232,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         this.#firstKey,
         this.#isReadonly,
         this.#multi.queue
-      )
+      ),
+      this.#typeMapping
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -247,7 +251,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         this.#firstKey,
         this.#isReadonly,
         this.#multi.queue
-      )
+      ),
+      this.#typeMapping
     ) as MultiReplyType<T, REPLIES>;
   }
 

@@ -1,4 +1,4 @@
-import { RedisArgument, Command, CommandArguments, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, CommandArguments, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RawLabels2, RawLabels3, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSampleReply, transformSamplesReply } from '.';
 import { TsRangeOptions, pushRangeArguments } from './RANGE';
@@ -128,8 +128,8 @@ export default {
   IS_READ_ONLY: true,
   transformArguments: transformMRangeArguments.bind(undefined, 'TS.MRANGE'),
   transformReply: {
-    2(reply: UnwrapReply<MRangeRawReply2>) {
-      return resp2MapToValue(reply, parseResp2Mrange);
+    2(reply: UnwrapReply<MRangeRawReply2>, preserve?: any, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, parseResp2Mrange, typeMapping);
     },
     3(reply: UnwrapReply<MRangeRawReply3>, grouped?: boolean) {
       return resp3MapToValue(reply, parseResp3Mrange, grouped)

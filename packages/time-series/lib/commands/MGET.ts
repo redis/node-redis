@@ -1,4 +1,4 @@
-import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, MapReply, TuplesReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandArguments, Command, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RawLabels2, RawLabels3, resp2MapToValue, resp3MapToValue, SampleRawReply, transformSampleReply } from '.';
 
@@ -67,8 +67,8 @@ export default {
     return pushFilterArgument(args, filter);
   },
   transformReply: {
-    2(reply: UnwrapReply<MGetRawReply2>) {
-      return resp2MapToValue(reply, parseResp2Mget);
+    2(reply: UnwrapReply<MGetRawReply2>, preserve?: any, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, parseResp2Mget, typeMapping);
     },
     3(reply: UnwrapReply<MGetRawReply3>) {
       return resp3MapToValue(reply, parseResp3Mget)

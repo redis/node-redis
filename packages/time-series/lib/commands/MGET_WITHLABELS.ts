@@ -1,4 +1,4 @@
-import { Command, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { Command, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TsMGetOptions, pushLatestArgument, pushFilterArgument, MGetReply2, MGetRawReply2, MGetReply3, MGetRawReplyValue3, MGetRawReply3, parseResp3Mget, parseResp2Mget, MGetRawReplyValue2 } from './MGET';
 import { Labels, pushWithLabelsArgument, resp2MapToValue, resp3MapToValue, transformLablesReply2, transformLablesReply3 } from '.';
@@ -40,8 +40,8 @@ export default {
     return pushFilterArgument(args, filter);
   },
   transformReply: {
-    2(reply: UnwrapReply<MGetRawReply2>) {
-      return resp2MapToValue(reply, parseResp2MgetWithLabels);
+    2(reply: UnwrapReply<MGetRawReply2>, preserve?: any, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, parseResp2MgetWithLabels, typeMapping);
     },
     3(reply: UnwrapReply<MGetRawReply3>) {
       return resp3MapToValue(reply, parseResp3MgetWithLabels);

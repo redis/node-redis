@@ -170,6 +170,8 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._commandOptions?.typeMapping;
+
       const firstKey = RedisCluster.extractFirstKey(
         command,
         args,
@@ -185,7 +187,7 @@ export default class RedisCluster<
       );
 
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -194,6 +196,8 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
       const firstKey = RedisCluster.extractFirstKey(
         command,
         args,
@@ -209,7 +213,7 @@ export default class RedisCluster<
       );
 
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -219,12 +223,14 @@ export default class RedisCluster<
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args);
+      const redisArgs = prefix.concat(fnArgs);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
       const firstKey = RedisCluster.extractFirstKey(
         fn,
         args,
         fnArgs
       );
-      const redisArgs = prefix.concat(fnArgs);
 
       const reply = await this._self.sendCommand(
         firstKey,
@@ -235,7 +241,7 @@ export default class RedisCluster<
       );
 
       return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
+        transformReply(reply, fnArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -245,12 +251,14 @@ export default class RedisCluster<
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args);
+      const redisArgs = prefix.concat(scriptArgs);
+      const typeMapping = this._commandOptions?.typeMapping;
+
       const firstKey = RedisCluster.extractFirstKey(
         script,
         args,
         scriptArgs
       );
-      const redisArgs = prefix.concat(scriptArgs);
 
       const reply = await this.executeScript(
         script,
@@ -262,7 +270,7 @@ export default class RedisCluster<
       );
 
       return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
+        transformReply(reply, scriptArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -520,7 +528,8 @@ export default class RedisCluster<
         const client = await this._self.#slots.getClient(firstKey, isReadonly);
         return client._executePipeline(commands);
       },
-      routing
+      routing,
+      this._commandOptions?.typeMapping
     );
   }
 

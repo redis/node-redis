@@ -1,10 +1,11 @@
-import { Command, RedisFunction, RedisScript, RespVersions } from '../RESP/types';
+import { ArrayReply, Command, RedisFunction, RedisScript, RespVersions, UnwrapReply } from '../RESP/types';
 import { RedisSocketOptions, RedisTcpSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeInfo, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
+import { NamespaceProxySentinel, NamespaceProxySentinelClient, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
 
 /* TODO: should use map interface, would need a transform reply probably? as resp2 is list form, which this depends on */
-export function parseNode(node: NodeInfo): RedisNode | undefined{
+export function parseNode(node: Record<string, string>): RedisNode | undefined{
+ 
   if (node.flags.includes("s_down") || node.flags.includes("disconnected") || node.flags.includes("failover_in_progress")) {
     return undefined;
   }
@@ -12,7 +13,7 @@ export function parseNode(node: NodeInfo): RedisNode | undefined{
   return { host: node.ip, port: Number(node.port) };
 }
 
-export function createNodeList(nodes: Array<NodeInfo>) {
+export function createNodeList(nodes: UnwrapReply<ArrayReply<Record<string, string>>>) {
   var nodeList: Array<RedisNode> = [];
 
   for (const nodeData of nodes) {
@@ -39,6 +40,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args);
+    const typeMapping = this._self.commandOptions?.typeMapping;
 
     const reply = await this._self.sendCommand(
       command.IS_READ_ONLY,
@@ -47,7 +49,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
     );
 
     return transformReply ?
-      transformReply(reply, redisArgs.preserve) :
+      transformReply(reply, redisArgs.preserve, typeMapping) :
       reply;
   };
 }
@@ -58,6 +60,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   return async function (this: T, ...args: Array<unknown>) {
     const fnArgs = fn.transformArguments(...args);
     const redisArgs = prefix.concat(fnArgs);
+    const typeMapping = this._self._self.commandOptions?.typeMapping;
 
     const reply = await this._self._self.sendCommand(
       fn.IS_READ_ONLY,
@@ -66,7 +69,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
     );
 
     return transformReply ?
-      transformReply(reply, fnArgs.preserve) :
+      transformReply(reply, fnArgs.preserve, typeMapping) :
       reply;
   }
 };
@@ -75,6 +78,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   const transformReply = getTransformReply(command, resp);
   return async function (this: T, ...args: Array<unknown>) {
     const redisArgs = command.transformArguments(...args);
+    const typeMapping = this._self._self.commandOptions?.typeMapping;
 
     const reply = await this._self._self.sendCommand(
       command.IS_READ_ONLY,
@@ -83,7 +87,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
     );
 
     return transformReply ?
-      transformReply(reply, redisArgs.preserve) :
+      transformReply(reply, redisArgs.preserve, typeMapping) :
       reply;
   }
 };
@@ -94,6 +98,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   return async function (this: T, ...args: Array<unknown>) {
     const scriptArgs = script.transformArguments(...args);
     const redisArgs = prefix.concat(scriptArgs);
+    const typeMapping = this._self.commandOptions?.typeMapping;
 
     const reply = await this._self.executeScript(
       script,
@@ -103,7 +108,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
     );
 
     return transformReply ?
-      transformReply(reply, scriptArgs.preserve) :
+      transformReply(reply, scriptArgs.preserve, typeMapping) :
       reply;
   };
 }

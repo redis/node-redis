@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, NullReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, NullReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import { RedisVariadicArgument, pushVariadicArguments, StreamMessageRawReply, transformStreamMessageNullReply } from './generic-transformers';
 
 export interface XClaimOptions {
@@ -50,7 +50,11 @@ export default {
 
     return args;
   },
-  transformReply(reply: UnwrapReply<ArrayReply<StreamMessageRawReply | NullReply>>) {
-    return reply.map(transformStreamMessageNullReply);
+  transformReply(
+    reply: UnwrapReply<ArrayReply<StreamMessageRawReply | NullReply>>, 
+    preserve?: any,
+    typeMapping?: TypeMapping
+  ) {
+    return reply.map(transformStreamMessageNullReply.bind(undefined, typeMapping));
   }
 } as const satisfies Command;

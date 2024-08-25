@@ -966,26 +966,21 @@ class RedisSentinelInternal<
   // observe/analyze/transform remediation functions
   async observe() {
     for (const node of this.#sentinelRootNodes) {
-      let client: RedisClientType<RedisModules, {}, {}, RespVersions, {}> | undefined;
+      let client: RedisClientType<typeof RedisSentinelModule, {}, {}, RespVersions, {}> | undefined;
       try {
         this.#trace(`observe: trying to connect to sentinel: ${node.host}:${node.port}`)
-        client = this.#createClient(node, this.#sentinelClientOptions, false)
-          .on('error', (err) => this.emit('error', `obseve client error: ${err}`));
+        client = this.#createClient(node, this.#sentinelClientOptions, false) as unknown as RedisClientType<typeof RedisSentinelModule, {}, {}, RespVersions, {}>;
+        client.on('error', (err) => this.emit('error', `obseve client error: ${err}`));
         await client.connect();
         this.#trace(`observe: connected to sentinel`)
 
-        const promises = [];
-        promises.push(client.sentinel.sentinelSentinels(this.#name));
-        promises.push(client.sentinel.sentinelMaster(this.#name));
-        promises.push(client.sentinel.sentinelReplicas(this.#name));
-
-        const [sd, md, rd] = await Promise.all(promises);
+        const [sentinelData, masterData, replicaData] = await Promise.all([
+          client.sentinel.sentinelSentinels(this.#name),
+          client.sentinel.sentinelMaster(this.#name),
+          client.sentinel.sentinelReplicas(this.#name)
+        ]);
 
         this.#trace("observe: got all sentinel data");
-
-        const sentinelData = sd as Array<any>;
-        const masterData = md as any;
-        const replicaData = rd as Array<any>;
 
         const ret = {
           sentinelConnected: node,
@@ -1352,7 +1347,7 @@ export class RedisSentinelFactory extends EventEmitter {
       }
 
       try {
-        const sentinelData = await client.sentinel.sentinelSentinels(this.options.name) as Array<any>;
+        const sentinelData = await client.sentinel.sentinelSentinels(this.options.name);
         this.#sentinelRootNodes = [node].concat(createNodeList(sentinelData));
         return;
       } finally {
@@ -1390,7 +1385,7 @@ export class RedisSentinelFactory extends EventEmitter {
       connected = true;
 
       try {
-        const masterData = await client.sentinel.sentinelMaster(this.options.name) as any;
+        const masterData = await client.sentinel.sentinelMaster(this.options.name);
 
         let master = parseNode(masterData);
         if (master === undefined) {
@@ -1449,7 +1444,7 @@ export class RedisSentinelFactory extends EventEmitter {
       connected = true;
 
       try {
-        const replicaData = await client.sentinel.sentinelReplicas(this.options.name) as Array<any>;
+        const replicaData = await client.sentinel.sentinelReplicas(this.options.name);
 
         const replicas = createNodeList(replicaData);
         if (replicas.length == 0) {

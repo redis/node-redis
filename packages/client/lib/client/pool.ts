@@ -66,9 +66,12 @@ export class RedisClientPool<
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._commandOptions?.typeMapping;
+
       const reply = await this.sendCommand(redisArgs, this._commandOptions);
+
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -77,9 +80,12 @@ export class RedisClientPool<
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
       const reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -89,12 +95,15 @@ export class RedisClientPool<
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const fnArgs = fn.transformArguments(...args);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
       const reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
           this._self._commandOptions
         );
+
       return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
+        transformReply(reply, fnArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -105,9 +114,12 @@ export class RedisClientPool<
     return async function (this: ProxyPool, ...args: Array<unknown>) {
       const scriptArgs = script.transformArguments(...args);
       const redisArgs = prefix.concat(scriptArgs);
+      const typeMapping = this._commandOptions?.typeMapping;
+
       const reply = await this.executeScript(script, redisArgs, this._commandOptions);
+      
       return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
+        transformReply(reply, scriptArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -426,7 +438,8 @@ export class RedisClientPool<
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
-      commands => this.execute(client => client._executePipeline(commands))
+      commands => this.execute(client => client._executePipeline(commands)),
+      this._commandOptions?.typeMapping
     );
   }
 
