@@ -14,6 +14,7 @@ export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'lua.caches'>, NumberReply],
   /** added in 7.0 */
   [BlobStringReply<'functions.caches'>, NumberReply],
+  // FIXME: 'db.0', and perhaps others' is here and is a map that should be handled?
   [BlobStringReply<'overhead.total'>, NumberReply],
   [BlobStringReply<'keys.count'>, NumberReply],
   [BlobStringReply<'keys.bytes-per-key'>, NumberReply],
@@ -45,13 +46,13 @@ export default {
 
       let i = 0;
       while (i < rawReply.length) {
-        switch(i) {
-          case 28:
-          case 30:
-          case 38:
-          case 42:
-          case 46:
-          case 50:
+        switch(rawReply[i].toString()) {
+          case 'dataset.percentage':
+          case 'peak.percentage':
+          case 'allocator-fragmentation.ratio':
+          case 'allocator-rss.ratio':
+          case 'rss-overhead.ratio':
+          case 'fragmentation':
             reply[rawReply[i++] as any] = transformDoubleReply[2](rawReply[i++] as unknown as BlobStringReply, preserve, typeMapping);
             break;
           default:
@@ -60,7 +61,7 @@ export default {
         
       }
 
-      return reply as MemoryStatsReply['DEFAULT'];
+      return reply as MemoryStatsReply;
     },
     3: undefined as unknown as () => MemoryStatsReply
   }

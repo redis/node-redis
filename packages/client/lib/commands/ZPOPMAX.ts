@@ -13,13 +13,7 @@ export default {
 
       return {
         value: reply[0],
-        _score: transformDoubleReply[2](reply[1], preserve, typeMapping),
-        get score() {
-          return this._score;
-        },
-        set score(value) {
-          this._score = value;
-        },
+        score: transformDoubleReply[2](reply[1], preserve, typeMapping),
       };
     },
     3: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, DoubleReply]>>) => {

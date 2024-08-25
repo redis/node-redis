@@ -51,7 +51,7 @@ export const transformDoubleReply = {
         return reply as unknown as DoubleReply;
       }
       default: {
-        let ret: Number;
+        let ret: number;
 
         switch (reply.toString()) {
           case 'inf':
