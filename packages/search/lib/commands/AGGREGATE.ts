@@ -1,4 +1,4 @@
-import { ArrayReply, BlobStringReply, Command, NumberReply, RedisArgument, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgument, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, pushParamsArgument } from './SEARCH';
 import { pushVariadicArgument, transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
@@ -132,7 +132,7 @@ export type AggregateRawReply = [
 
 export interface AggregateReply {
   total: number;
-  results: Array<Record<string, BlobStringReply>>;
+  results: Array<MapReply<BlobStringReply, BlobStringReply>>;
 };
 
 export default {
@@ -144,11 +144,11 @@ export default {
     return pushAggregateOptions(args, options);
   },
   transformReply: {
-    2: (rawReply: AggregateRawReply): AggregateReply => {
-      const results: Array<Record<string, BlobStringReply>> = [];
+    2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
+      const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
       for (let i = 1; i < rawReply.length; i++) {
         results.push(
-          transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>)
+          transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
         );
       }
   

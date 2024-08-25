@@ -1,4 +1,5 @@
-import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command } from '../RESP/types'; 
+import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types'; 
+import { transformDoubleReply } from './generic-transformers';
 
 export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'peak.allocated'>, NumberReply],
@@ -39,12 +40,24 @@ export default {
     return ['MEMORY', 'STATS'];
   },
   transformReply: {
-    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) => {
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>, preserve?: any, typeMapping?: TypeMapping) => {
       const reply: any = {};
 
       let i = 0;
       while (i < rawReply.length) {
-        reply[rawReply[i++] as any] = rawReply[i++];
+        switch(i) {
+          case 28:
+          case 30:
+          case 38:
+          case 42:
+          case 46:
+          case 50:
+            reply[rawReply[i++] as any] = transformDoubleReply[2](rawReply[i++] as unknown as BlobStringReply, preserve, typeMapping);
+            break;
+          default:
+            reply[rawReply[i++] as any] = rawReply[i++];
+        }
+        
       }
 
       return reply as MemoryStatsReply['DEFAULT'];

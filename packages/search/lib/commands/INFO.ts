@@ -1,6 +1,6 @@
 import { RedisArgument } from "@redis/client";
-import { ArrayReply, BlobStringReply, Command, NumberReply, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
-import { transformTuplesReply } from "@redis/client/dist/lib/commands/generic-transformers";
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, ReplyUnion, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { createTransformTuplesReplyFunc } from "@redis/client/dist/lib/commands/generic-transformers";
 
 export default {
   FIRST_KEY_INDEX: undefined,
@@ -95,8 +95,8 @@ type InfoRawReply = [
 export interface InfoReply {
   indexName: BlobStringReply;
   indexOptions: ArrayReply<BlobStringReply>;
-  indexDefinition: Record<string, BlobStringReply>;
-  attributes: Array<Record<string, BlobStringReply>>;
+  indexDefinition: MapReply<BlobStringReply, BlobStringReply>;
+  attributes: Array<MapReply<BlobStringReply, BlobStringReply>>;
   numDocs: BlobStringReply
   maxDocId: BlobStringReply;
   numTerms: BlobStringReply;
@@ -133,12 +133,14 @@ export interface InfoReply {
   stopWords: ArrayReply<BlobStringReply> | undefined;
 }
 
-function transformV2Reply(rawReply: InfoRawReply): InfoReply {
+function transformV2Reply(rawReply: InfoRawReply, preserve?: any, typeMapping?: TypeMapping): InfoReply {
+  const myTransformFunc = createTransformTuplesReplyFunc(preserve, typeMapping);
+
   return {
     indexName: rawReply[1],
     indexOptions: rawReply[3],
-    indexDefinition: transformTuplesReply(rawReply[5]),
-    attributes: rawReply[7].map(attribute => transformTuplesReply(attribute)),
+    indexDefinition: myTransformFunc(rawReply[5]),
+    attributes: rawReply[7].map(attribute => myTransformFunc(attribute)),
     numDocs: rawReply[9],
     maxDocId: rawReply[11],
     numTerms: rawReply[13],

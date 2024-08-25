@@ -1,4 +1,5 @@
-import { RedisArgument, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisArgument, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { transformDoubleReply } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -7,12 +8,18 @@ export default {
     return ['ZPOPMAX', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>) => {
+    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>, preserve?: any, typeMapping?: TypeMapping) => {
       if (reply.length === 0) return null;
 
       return {
         value: reply[0],
-        score: Number(reply[1])
+        _score: transformDoubleReply[2](reply[1], preserve, typeMapping),
+        get score() {
+          return this._score;
+        },
+        set score(value) {
+          this._score = value;
+        },
       };
     },
     3: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, DoubleReply]>>) => {

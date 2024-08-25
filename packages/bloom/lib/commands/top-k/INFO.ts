@@ -1,4 +1,5 @@
-import { RedisArgument, TuplesToMapReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
+import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisArgument, TuplesToMapReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 
 export type TopKInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'k'>, NumberReply],
@@ -7,14 +8,7 @@ export type TopKInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'decay'>, DoubleReply]
 ]>;
 
-export type TkInfoReply2 = {
-  k: NumberReply;
-  width: NumberReply;
-  depth: NumberReply;
-  decay: number;
-}
-
-export type TkInfoReply3 = {
+export type TkInfoReply = {
   k: NumberReply;
   width: NumberReply;
   depth: NumberReply;
@@ -28,15 +22,15 @@ export default {
     return ['TOPK.INFO', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>): TkInfoReply2 => {
+    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>, preserve?: any, typeMapping?: TypeMapping): TkInfoReply => {
       return {
         k: reply[1],
         width: reply[3],
         depth: reply[5],
-        decay: Number(reply[7])
+        decay: transformDoubleReply[2](reply[7], preserve, typeMapping)
       };
     },
-    3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply3 => {
+    3: (reply: UnwrapReply<TopKInfoReplyMap>): TkInfoReply => {
       if (reply instanceof Map) {
         return {
           k: reply.get('k') as NumberReply,
