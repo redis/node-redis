@@ -59,7 +59,38 @@ export default class RESP2Decoder {
         this.currentStringComposer = this.stringComposer;
     }
 
+    wantStream(want: boolean) {
+        this.#wantStream = want;
+    }
+
+    private writeStream(chunk: Buffer): void {
+        while (this.cursor < chunk.length) {
+            if (!this.type) {
+                this.currentStringComposer = this.streamComposer;   /* TODO to be implemented */
+
+                this.type = chunk[this.cursor];
+                if (++this.cursor >= chunk.length) break;
+            }
+
+            if (!this.currentStream) {
+                this.currentStream = this.streamComposer.getStream();
+                this.options.onReply(this.currentStream);
+            }
+
+            const done = this.parseType(chunk, this.type);
+            if (done === undefined) break;
+
+            this.type = undefined;
+            this.currentStream = undefined;
+        }
+
+        this.cursor -= chunk.length;
+    }
+
     write(chunk: Buffer): void {
+        if (this.#wantStream)
+            this.writeStream(chunk);
+
         while (this.cursor < chunk.length) {
             if (!this.type) {
                 this.currentStringComposer = this.options.returnStringsAsBuffers() ?
