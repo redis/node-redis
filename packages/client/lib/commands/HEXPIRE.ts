@@ -1,21 +1,13 @@
 import { Command, RedisArgument } from '../RESP/types';
 import { pushVariadicArgument } from './generic-transformers';
 
-/**
- * @readonly
- * @enum {number}
- */
 export const HASH_EXPIRATION = {
-  /** @property {number} */
   /** The field does not exist */
   FIELD_NOT_EXISTS: -2,
-  /** @property {number} */
   /** Specified NX | XX | GT | LT condition not met */
   CONDITION_NOT_MET: 0,
-  /** @property {number} */
   /** Expiration time was set or updated */
   UPDATED: 1,
-  /** @property {number} */
   /** Field deleted because the specified expiration time is in the past */
   DELETED: 2
 } as const;
