@@ -12,7 +12,7 @@ export default {
   transformArguments(
     key: RedisArgument,
     strategy: 'MAXLEN' | 'MINID',
-    threshold: number,
+    threshold: number | string,
     options?: XTrimOptions
   ) {
     const args = ['XTRIM', key, strategy];
