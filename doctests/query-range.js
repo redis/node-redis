@@ -1,12 +1,12 @@
 // EXAMPLE: query_range
 // HIDE_START
-import assert from 'assert';
-import fs from 'fs';
+import assert from 'node:assert';
+import fs from 'node:fs';
 import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps} from 'redis';
 
 const client = createClient();
 
-await client.connect();
+await client.connect().catch(console.error);
 
 // create index
 await client.ft.create('idx:bicycle', {
@@ -23,7 +23,7 @@ await client.ft.create('idx:bicycle', {
     AS: 'condition'
   }
 }, {
-  ON: 'JSON',
+    ON: 'JSON',
     PREFIX: 'bicycle:'
 })
 
@@ -38,45 +38,45 @@ await Promise.all(
 // HIDE_END
 
 // STEP_START range1
-let res = await client.ft.search('idx:bicycle', '@price:[500 1000]');
-console.log(res.total); // >>> 3
+const res1 = await client.ft.search('idx:bicycle', '@price:[500 1000]');
+console.log(res1.total); // >>> 3
 // REMOVE_START
-assert.strictEqual(res.total, 3);
+assert.strictEqual(res1.total, 3);
 // REMOVE_END
 // STEP_END
 
 // STEP_START range2
 // FILTER is not supported
-// res = await client.ft.search('idx:bicycle', '*', {
+// const res2 = await client.ft.search('idx:bicycle', '*', {
 //   FILTER: {
 //     field: 'price',
 //     min: 500,
 //     max: 1000,
 //   }
 // });
-// console.log(res.total); // >>> 3
+// console.log(res2.total); // >>> 3
 // REMOVE_START
-// assert.strictEqual(res.total, 3);
+// assert.strictEqual(res2.total, 3);
 // REMOVE_END
 // STEP_END
 
 // STEP_START range3
 // FILTER is not supported
-// res = await client.ft.search('idx:bicycle', '*', {
+// const res3 = await client.ft.search('idx:bicycle', '*', {
 //   FILTER: {
 //     field: 'price',
 //     min: '(1000',
 //     max: '+inf,
 //   }
 // });
-// console.log(res.total); // >>> 5
+// console.log(res3.total); // >>> 5
 // REMOVE_START
-// assert.strictEqual(res.total, 5);
+// assert.strictEqual(res3.total, 5);
 // REMOVE_END
 // STEP_END
 
 // STEP_START range4
-res = await client.ft.search(
+const res4 = await client.ft.search(
   'idx:bicycle',
   '@price:[-inf 2000]',
   {
@@ -84,10 +84,10 @@ res = await client.ft.search(
     LIMIT: { from: 0, size: 5 }
   }
 );
-console.log(res.total); // >>> 7
-console.log(res); // >>> { total: 7, documents: [ { id: 'bicycle:0', value: [Object: null prototype] }, { id: 'bicycle:7', value: [Object: null prototype] }, { id: 'bicycle:5', value: [Object: null prototype] }, { id: 'bicycle:2', value: [Object: null prototype] }, { id: 'bicycle:9', value: [Object: null prototype] } ] }
+console.log(res4.total); // >>> 7
+console.log(res4); // >>> { total: 7, documents: [ { id: 'bicycle:0', value: [Object: null prototype] }, { id: 'bicycle:7', value: [Object: null prototype] }, { id: 'bicycle:5', value: [Object: null prototype] }, { id: 'bicycle:2', value: [Object: null prototype] }, { id: 'bicycle:9', value: [Object: null prototype] } ] }
 // REMOVE_START
-assert.strictEqual(res.total, 7);
+assert.strictEqual(res4.total, 7);
 // REMOVE_END
 // STEP_END
 
