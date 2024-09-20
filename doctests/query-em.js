@@ -1,12 +1,12 @@
 // EXAMPLE: query_em
 // HIDE_START
-import assert from 'assert';
-import fs from 'fs';
+import assert from 'node:assert';
+import fs from 'node:fs';
 import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps} from 'redis';
 
 const client = createClient();
 
-await client.connect();
+await client.connect().catch(console.error);
 
 // create index
 await client.ft.create('idx:bicycle', {
@@ -23,7 +23,7 @@ await client.ft.create('idx:bicycle', {
     AS: 'condition'
   }
 }, {
-  ON: 'JSON',
+    ON: 'JSON',
     PREFIX: 'bicycle:'
 })
 
@@ -38,47 +38,47 @@ await Promise.all(
 // HIDE_END
 
 // STEP_START em1
-let res = await client.ft.search('idx:bicycle', '@price:[270 270]');
-console.log(res.total); // >>> 1
+const res1 = await client.ft.search('idx:bicycle', '@price:[270 270]');
+console.log(res1.total); // >>> 1
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res1.total, 1);
 // REMOVE_END
 
 try {
-    res = await client.ft.search('idx:bicycle', '@price:[270]');
-    console.log(res.total); // >>> 1
-    assert.strictEqual(res.total, 1);
+    const res2 = await client.ft.search('idx:bicycle', '@price:[270]');
+    console.log(res2.total); // >>> 1
+    assert.strictEqual(res2.total, 1);
 } catch (err) {
     console.log("'@price:[270]' syntax not yet supported.");
 }
 
 try {
-    res = await client.ft.search('idx:bicycle', '@price==270');
-    console.log(res.total); // >>> 1
-    assert.strictEqual(res.total, 1);
+    const res3 = await client.ft.search('idx:bicycle', '@price==270');
+    console.log(res3.total); // >>> 1
+    assert.strictEqual(res3.total, 1);
 } catch (err) {
     console.log("'@price==270' syntax not yet supported.");
 }
 
 // FILTER is not supported
-// res = await client.ft.search('idx:bicycle', '*', {
+// const res4 = await client.ft.search('idx:bicycle', '*', {
 //   FILTER: {
 //       field: 'price',
 //       min: 270,
 //       max: 270,
 //   }
 // });
-// console.log(res.total); // >>> 1
+// console.log(res4.total); // >>> 1
 // REMOVE_START
-// assert.strictEqual(res.total, 10);
+// assert.strictEqual(res4.total, 10);
 // REMOVE_END
 // STEP_END
 
 // STEP_START em2
-res = await client.ft.search('idx:bicycle', '@condition:{new}');
-console.log(res.total); // >>> 5
+const res5 = await client.ft.search('idx:bicycle', '@condition:{new}');
+console.log(res5.total); // >>> 5
 // REMOVE_START
-assert.strictEqual(res.total, 5);
+assert.strictEqual(res5.total, 5);
 // REMOVE_END
 // STEP_END
 
@@ -96,8 +96,8 @@ await client.ft.create('idx:email', {
 await client.json.set('key:1', '$', { email: 'test@redis.com' });
 
 try {
-    res = await client.ft.search('idx:email', 'test@redis.com', { DIALECT: 2 });
-    console.log(res);
+    const res6 = await client.ft.search('idx:email', 'test@redis.com', { DIALECT: 2 });
+    console.log(res6);
 } catch (err) {
     console.log("'test@redis.com' syntax not yet supported.");
 }
@@ -107,10 +107,10 @@ await client.ft.dropIndex('idx:email', { DD: true });
 // STEP_END
 
 // STEP_START em4
-res = await client.ft.search('idx:bicycle', '@description:"rough terrain"');
-console.log(res.total); // >>> 1 (Result{1 total, docs: [Document {'id': 'bicycle:8'...)
+const res7 = await client.ft.search('idx:bicycle', '@description:"rough terrain"');
+console.log(res7.total); // >>> 1 (Result{1 total, docs: [Document {'id': 'bicycle:8'...)
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res7.total, 1);
 // REMOVE_END
 // STEP_END
 
