@@ -1,6 +1,6 @@
 // EXAMPLE: set_and_get
 // REMOVE_START
-import assert from "assert";
+import assert from "node:assert";
 // REMOVE_END
 
 // HIDE_START
@@ -10,7 +10,7 @@ const client = createClient();
 
 client.on('error', err => console.log('Redis Client Error', err));
 
-await client.connect();
+await client.connect().catch(console.error);
 
 // HIDE_END
 await client.set('bike:1', 'Process 134');
@@ -19,6 +19,7 @@ console.log(value);
 // returns 'Process 134'
 //REMOVE_START
 assert.equal(value, 'Process 134');
+await client.del('bike:1');
 //REMOVE_END
 
 // HIDE_START
