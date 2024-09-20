@@ -1,16 +1,16 @@
 // EXAMPLE: query_combined
 // HIDE_START
-import assert from 'assert';
-import fs from 'fs';
+import assert from 'node:assert';
+import fs from 'node:fs';
 import { createClient } from 'redis';
 import { SchemaFieldTypes, VectorAlgorithms } from '@redis/search';
 import { pipeline } from '@xenova/transformers';
 
-const float32Buffer = (arr) => {
+function float32Buffer(arr) {
   const floatArray = new Float32Array(arr);
   const float32Buffer = Buffer.from(floatArray.buffer);
   return float32Buffer;
-};
+}
 
 async function embedText(sentence) {
   let modelName = 'Xenova/all-MiniLM-L6-v2';
@@ -26,28 +26,25 @@ async function embedText(sentence) {
   return embedding;
 }
 
-let query = "Bike for small kids";
-let vector_query = float32Buffer(await embedText("That is a very happy person"));
+let query = 'Bike for small kids';
+let vector_query = float32Buffer(await embedText('That is a very happy person'));
 
 const client = createClient();
-await client.connect();
+await client.connect().catch(console.error);
 
 // create index
 await client.ft.create('idx:bicycle', {
     '$.description': {
       type: SchemaFieldTypes.TEXT,
-      AS: 'description',
-      sortable: false
+      AS: 'description'
     },
     '$.condition': {
       type: SchemaFieldTypes.TAG,
-      AS: 'condition',
-      sortable: false
+      AS: 'condition'
     },
     '$.price': {
       type: SchemaFieldTypes.NUMERIC,
-      AS: 'price',
-      sortable: false
+      AS: 'price'
     },
     '$.description_embeddings': {
         type: SchemaFieldTypes.VECTOR,
@@ -73,35 +70,35 @@ await Promise.all(
 // HIDE_END
 
 // STEP_START combined1
-let res = await client.ft.search('idx:bicycle', '@price:[500 1000] @condition:{new}');
-console.log(res.total); // >>> 1
-console.log(res); // >>>
+const res1 = await client.ft.search('idx:bicycle', '@price:[500 1000] @condition:{new}');
+console.log(res1.total); // >>> 1
+console.log(res1); // >>>
 //{
 //  total: 1,
 //  documents: [ { id: 'bicycle:5', value: [Object: null prototype] } ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res1.total, 1);
 // REMOVE_END
 // STEP_END
 
 // STEP_START combined2
-res = await client.ft.search('idx:bicycle', 'kids @price:[500 1000] @condition:{used}');
-console.log(res.total); // >>> 1
-console.log(res); // >>>
+const res2 = await client.ft.search('idx:bicycle', 'kids @price:[500 1000] @condition:{used}');
+console.log(res2.total); // >>> 1
+console.log(res2); // >>>
 // {
 //   total: 1,
 //   documents: [ { id: 'bicycle:2', value: [Object: null prototype] } ]
 // }
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res2.total, 1);
 // REMOVE_END
 // STEP_END
 
 // STEP_START combined3
-res = await client.ft.search('idx:bicycle', '(kids | small) @condition:{used}');
-console.log(res.total); // >>> 2
-console.log(res); // >>>
+const res3 = await client.ft.search('idx:bicycle', '(kids | small) @condition:{used}');
+console.log(res3.total); // >>> 2
+console.log(res3); // >>>
 //{
 //  total: 2,
 //  documents: [
@@ -110,14 +107,14 @@ console.log(res); // >>>
 //  ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 2);
+assert.strictEqual(res3.total, 2);
 // REMOVE_END
 // STEP_END
 
 // STEP_START combined4
-res = await client.ft.search('idx:bicycle', '@description:(kids | small) @condition:{used}');
-console.log(res.total); // >>> 2
-console.log(res); // >>>
+const res4 = await client.ft.search('idx:bicycle', '@description:(kids | small) @condition:{used}');
+console.log(res4.total); // >>> 2
+console.log(res4); // >>>
 //{
 //  total: 2,
 //  documents: [
@@ -126,14 +123,14 @@ console.log(res); // >>>
 //  ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 2);
+assert.strictEqual(res4.total, 2);
 // REMOVE_END
 // STEP_END
 
 // STEP_START combined5
-res = await client.ft.search('idx:bicycle', '@description:(kids | small) @condition:{new | used}');
-console.log(res.total); // >>> 3
-console.log(res); // >>>
+const res5 = await client.ft.search('idx:bicycle', '@description:(kids | small) @condition:{new | used}');
+console.log(res5.total); // >>> 3
+console.log(res5); // >>>
 //{
 //  total: 3,
 //  documents: [
@@ -143,14 +140,14 @@ console.log(res); // >>>
 //  ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 3);
+assert.strictEqual(res5.total, 3);
 // REMOVE_END
 // STEP_END
 
 // STEP_START combined6
-res = await client.ft.search('idx:bicycle', '@price:[500 1000] -@condition:{new}');
-console.log(res.total); // >>> 2
-console.log(res); // >>>
+const res6 = await client.ft.search('idx:bicycle', '@price:[500 1000] -@condition:{new}');
+console.log(res6.total); // >>> 2
+console.log(res6); // >>>
 //{
 //  total: 2,
 //  documents: [
@@ -159,19 +156,19 @@ console.log(res); // >>>
 //  ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 2);
+assert.strictEqual(res6.total, 2);
 // REMOVE_END
 // STEP_END
 
 // STEP_START combined7
-res = await client.ft.search('idx:bicycle', 
+const res7 = await client.ft.search('idx:bicycle', 
   '(@price:[500 1000] -@condition:{new})=>[KNN 3 @vector $query_vector]', {
     PARAMS: { query_vector: vector_query },
     DIALECT: 2
   }
 );
-console.log(res.total); // >>> 2
-console.log(res); // >>>
+console.log(res7.total); // >>> 2
+console.log(res7); // >>>
 //{
 //  total: 2,
 //  documents: [
@@ -180,7 +177,7 @@ console.log(res); // >>>
 //  ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 2);
+assert.strictEqual(res7.total, 2);
 // REMOVE_END
 // STEP_END
 
