@@ -1,13 +1,13 @@
 // EXAMPLE: query_geo
 // HIDE_START
-import assert from 'assert';
-import fs from 'fs';
+import assert from 'node:assert';
+import fs from 'node:fs';
 import { createClient } from 'redis';
 import { SchemaFieldTypes } from '@redis/search';
 
 const client = createClient();
 
-await client.connect();
+await client.connect().catch(console.error);
 
 // create index
 await client.ft.create('idx:bicycle', {
@@ -15,12 +15,12 @@ await client.ft.create('idx:bicycle', {
     type: SchemaFieldTypes.GEO,
     AS: 'store_location'
   },
-  '$.pickup_zone': {
+   '$.pickup_zone': {
     type: SchemaFieldTypes.GEOSHAPE,
     AS: 'pickup_zone'
   }
 }, {
-  ON: 'JSON',
+    ON: 'JSON',
     PREFIX: 'bicycle:'
 })
 
@@ -35,31 +35,31 @@ await Promise.all(
 // HIDE_END
 
 // STEP_START geo1
-let res = await client.ft.search('idx:bicycle', '@store_location:[-0.1778 51.5524 20 mi]');
-console.log(res.total); // >>> 1
-console.log(res); // >>> {total: 1, documents: [ { id: 'bicycle:5', value: [Object: null prototype] } ]}
+const res1= await client.ft.search('idx:bicycle', '@store_location:[-0.1778 51.5524 20 mi]');
+console.log(res1.total); // >>> 1
+console.log(res1); // >>> {total: 1, documents: [ { id: 'bicycle:5', value: [Object: null prototype] } ]}
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res1.total, 1);
 // REMOVE_END
 // STEP_END
 
 // STEP_START geo2
 const params_dict_geo2 = { bike: 'POINT(-0.1278 51.5074)' };
 const q_geo2 = '@pickup_zone:[CONTAINS $bike]';
-res = await client.ft.search('idx:bicycle', q_geo2, { PARAMS: params_dict_geo2, DIALECT: 3 });
-console.log(res.total); // >>> 1
-console.log(res); // >>> {total: 1, documents: [ { id: 'bicycle:5', value: [Object: null prototype] } ]}
+const res2 = await client.ft.search('idx:bicycle', q_geo2, { PARAMS: params_dict_geo2, DIALECT: 3 });
+console.log(res2.total); // >>> 1
+console.log(res2); // >>> {total: 1, documents: [ { id: 'bicycle:5', value: [Object: null prototype] } ]}
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res2.total, 1);
 // REMOVE_END
 // STEP_END
 
 // STEP_START geo3
 const params_dict_geo3 = { europe: 'POLYGON((-25 35, 40 35, 40 70, -25 70, -25 35))' };
 const q_geo3 = '@pickup_zone:[WITHIN $europe]';
-res = await client.ft.search('idx:bicycle', q_geo3, { PARAMS: params_dict_geo3, DIALECT: 3 });
-console.log(res.total); // >>> 5
-console.log(res); // >>>
+const res3 = await client.ft.search('idx:bicycle', q_geo3, { PARAMS: params_dict_geo3, DIALECT: 3 });
+console.log(res3.total); // >>> 5
+console.log(res3); // >>>
 // {
 //   total: 5,
 //   documents: [
@@ -71,7 +71,7 @@ console.log(res); // >>>
 //   ]
 // }
 // REMOVE_START
-assert.strictEqual(res.total, 5);
+assert.strictEqual(res3.total, 5);
 // REMOVE_END
 // STEP_END
 
