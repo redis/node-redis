@@ -1,12 +1,12 @@
 // EXAMPLE: query_ft
 // HIDE_START
-import assert from 'assert';
-import fs from 'fs';
+import assert from 'node:assert';
+import fs from 'node:fs';
 import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps} from 'redis';
 
 const client = createClient();
 
-await client.connect();
+await client.connect().catch(console.error);
 
 // create index
 await client.ft.create('idx:bicycle', {
@@ -23,7 +23,7 @@ await client.ft.create('idx:bicycle', {
     AS: 'description'
   }
 }, {
-  ON: 'JSON',
+    ON: 'JSON',
     PREFIX: 'bicycle:'
 })
 
@@ -38,42 +38,42 @@ await Promise.all(
 // HIDE_END
 
 // STEP_START ft1
-let res = await client.ft.search('idx:bicycle', '@description: kids');
-console.log(res.total); // >>> 2
+const res1 = await client.ft.search('idx:bicycle', '@description: kids');
+console.log(res1.total); // >>> 2
 // REMOVE_START
-assert.strictEqual(res.total, 2);
+assert.strictEqual(res1.total, 2);
 // REMOVE_END
 // STEP_END
 
 // STEP_START ft2
-res = await client.ft.search('idx:bicycle', '@model: ka*');
-console.log(res.total); // >>> 1
+const res2 = await client.ft.search('idx:bicycle', '@model: ka*');
+console.log(res2.total); // >>> 1
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res2.total, 1);
 // REMOVE_END
 // STEP_END
 
 // STEP_START ft3
-res = await client.ft.search('idx:bicycle', '@brand: *bikes');
-console.log(res.total); // >>> 2
+const res3 = await client.ft.search('idx:bicycle', '@brand: *bikes');
+console.log(res3.total); // >>> 2
 // REMOVE_START
-assert.strictEqual(res.total, 2);
+assert.strictEqual(res3.total, 2);
 // REMOVE_END
 // STEP_END
 
 // STEP_START ft4
-res = await client.ft.search('idx:bicycle', '%optamized%');
-console.log(res); // >>> { total: 1, documents: [ { id: 'bicycle:3', value: [Object: null prototype] } ]}
+const res4 = await client.ft.search('idx:bicycle', '%optamized%');
+console.log(res4); // >>> { total: 1, documents: [ { id: 'bicycle:3', value: [Object: null prototype] } ]}
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res4.total, 1);
 // REMOVE_END
 // STEP_END
 
 // STEP_START ft5
-res = await client.ft.search('idx:bicycle', '%%optamised%%');
-console.log(res); // >>> { total: 1, documents: [ { id: 'bicycle:3', value: [Object: null prototype] } ]}
+const res5 = await client.ft.search('idx:bicycle', '%%optamised%%');
+console.log(res5); // >>> { total: 1, documents: [ { id: 'bicycle:3', value: [Object: null prototype] } ]}
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res5.total, 1);
 // REMOVE_END
 // STEP_END
 
