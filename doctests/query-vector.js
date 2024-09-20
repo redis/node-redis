@@ -1,16 +1,16 @@
 // EXAMPLE: query_vector
 // HIDE_START
-import assert from 'assert';
-import fs from 'fs';
+import assert from 'node:assert';
+import fs from 'node:fs';
 import { createClient } from 'redis';
 import { SchemaFieldTypes, VectorAlgorithms } from '@redis/search';
 import { pipeline } from '@xenova/transformers';
 
-const float32Buffer = (arr) => {
+function float32Buffer(arr) {
   const floatArray = new Float32Array(arr);
   const float32Buffer = Buffer.from(floatArray.buffer);
   return float32Buffer;
-};
+}
 
 async function embedText(sentence) {
   let modelName = 'Xenova/all-MiniLM-L6-v2';
@@ -26,17 +26,17 @@ async function embedText(sentence) {
   return embedding;
 }
 
-let query = "Bike for small kids";
-let vector_query = float32Buffer(await embedText("That is a very happy person"));
+let query = 'Bike for small kids';
+let vector_query = float32Buffer(await embedText('That is a very happy person'));
 
 const client = createClient();
-await client.connect();
+await client.connect().catch(console.error);
 
 // create index
 await client.ft.create('idx:bicycle', {
     '$.description': {
       type: SchemaFieldTypes.TEXT,
-      sortable: false
+      AS: 'description'
     },
     '$.description_embeddings': {
         type: SchemaFieldTypes.VECTOR,
@@ -44,10 +44,10 @@ await client.ft.create('idx:bicycle', {
         ALGORITHM: VectorAlgorithms.FLAT,
         DIM: 384,
         DISTANCE_METRIC: 'COSINE',
-        AS: 'vector',
+        AS: 'vector'
     }
 }, {
-  ON: 'JSON',
+    ON: 'JSON',
     PREFIX: 'bicycle:'
 });
 
@@ -62,15 +62,15 @@ await Promise.all(
 // HIDE_END
 
 // STEP_START vector1
-let res = await client.ft.search('idx:bicycle', 
+const res1 = await client.ft.search('idx:bicycle', 
   '*=>[KNN 3 @vector $query_vector AS score]', {
     PARAMS: { query_vector: vector_query },
     RETURN: ['description'],
     DIALECT: 2
   }
 );
-console.log(res.total); // >>> 3
-console.log(res); // >>>
+console.log(res1.total); // >>> 3
+console.log(res1); // >>>
 //{
 //  total: 3,
 //  documents: [
@@ -80,12 +80,12 @@ console.log(res); // >>>
 //  ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 3);
+assert.strictEqual(res1.total, 3);
 // REMOVE_END
 // STEP_END
 
 // STEP_START vector2
-res = await client.ft.search('idx:bicycle', 
+const res2 = await client.ft.search('idx:bicycle', 
   '@vector:[VECTOR_RANGE 0.9 $query_vector]=>{$YIELD_DISTANCE_AS: vector_dist}', {
     PARAMS: { query_vector: vector_query },
     SORTBY: 'vector_dist',
@@ -93,14 +93,14 @@ res = await client.ft.search('idx:bicycle',
     DIALECT: 2
   }
 );
-console.log(res.total); // >>> 1
-console.log(res); // >>>
+console.log(res2.total); // >>> 1
+console.log(res2); // >>>
 //{
 //  total: 1,
 //  documents: [ { id: 'bicycle:0', value: [Object: null prototype] } ]
 //}
 // REMOVE_START
-assert.strictEqual(res.total, 1);
+assert.strictEqual(res2.total, 1);
 // REMOVE_END
 // STEP_END
 
