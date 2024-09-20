@@ -55,7 +55,7 @@ await client.ft.create('idx:bicycle', {
         AS: 'vector',
     }
 }, {
-  ON: 'JSON',
+    ON: 'JSON',
     PREFIX: 'bicycle:'
 });
 
