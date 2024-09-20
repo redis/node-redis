@@ -1,7 +1,7 @@
 // EXAMPLE: cmds_hash
 // HIDE_START
 import assert from 'node:assert';
-import { createClient } from 'node:redis';
+import { createClient } from 'redis';
 
 const client = createClient();
 await client.connect().catch(console.error);
