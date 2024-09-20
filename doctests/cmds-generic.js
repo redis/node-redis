@@ -1,103 +1,103 @@
 // EXAMPLE: cmds_generic
 // REMOVE_START
-import assert from "assert";
+import assert from "node:assert";
 // REMOVE_END
 
 // HIDE_START
 import { createClient } from 'redis';
 
 const client = createClient();
-await client.connect();
+await client.connect().catch(console.error);
 // HIDE_END
 
 // STEP_START del
-let res = await client.set('key1', 'Hello');
-console.log(res); // OK
+const delRes1 = await client.set('key1', 'Hello');
+console.log(delRes1); // OK
 
-res = await client.set('key2', 'World');
-console.log(res); // OK
+const delRes2 = await client.set('key2', 'World');
+console.log(delRes2); // OK
 
-res = await client.del(['key1', 'key2', 'key3']);
-console.log(res); // 2
+const delRes3 = await client.del(['key1', 'key2', 'key3']);
+console.log(delRes3); // 2
 // REMOVE_START
-assert.equal(res, 2);
+assert.equal(delRes3, 2);
 // REMOVE_END
 // STEP_END
 
 // STEP_START expire
-res = await client.set('mykey', 'Hello');
-console.log(res); // OK
+const expireRes1 = await client.set('mykey', 'Hello');
+console.log(expireRes1); // OK
 
-res = await client.expire('mykey', 10);
-console.log(res); // true
+const expireRes2 = await client.expire('mykey', 10);
+console.log(expireRes2); // true
 
-res = await client.ttl('mykey');
-console.log(res); // 10
+const expireRes3 = await client.ttl('mykey');
+console.log(expireRes3); // 10
 // REMOVE_START
-assert.equal(res, 10);
+assert.equal(expireRes3, 10);
 // REMOVE_END
 
-res = await client.set('mykey', 'Hello World');
-console.log(res); // OK
+const expireRes4 = await client.set('mykey', 'Hello World');
+console.log(expireRes4); // OK
 
-res = await client.ttl('mykey');
-console.log(res); // -1
+const expireRes5 = await client.ttl('mykey');
+console.log(expireRes5); // -1
 // REMOVE_START
-assert.equal(res, -1);
+assert.equal(expireRes5, -1);
 // REMOVE_END
 
-res = await client.expire('mykey', 10, "XX");
-console.log(res); // false
+const expireRes6 = await client.expire('mykey', 10, "XX");
+console.log(expireRes6); // false
 // REMOVE_START
-assert.equal(res, false)
+assert.equal(expireRes6, false)
 // REMOVE_END
 
-res = await client.ttl('mykey');
-console.log(res); // -1
+const expireRes7 = await client.ttl('mykey');
+console.log(expireRes7); // -1
 // REMOVE_START
-assert.equal(res, -1);
+assert.equal(expireRes7, -1);
 // REMOVE_END
 
-res = await client.expire('mykey', 10, "NX");
-console.log(res); // true
+const expireRes8 = await client.expire('mykey', 10, "NX");
+console.log(expireRes8); // true
 // REMOVE_START
-assert.equal(res, true);
+assert.equal(expireRes8, true);
 // REMOVE_END
 
-res = await client.ttl('mykey');
-console.log(res); // 10
+const expireRes9 = await client.ttl('mykey');
+console.log(expireRes9); // 10
 // REMOVE_START
-assert.equal(res, 10);
+assert.equal(expireRes9, 10);
 await client.del('mykey');
 // REMOVE_END
 // STEP_END
 
 // STEP_START ttl
-res = await client.set('mykey', 'Hello');
-console.log(res); // OK
+const ttlRes1 = await client.set('mykey', 'Hello');
+console.log(ttlRes1); // OK
 
-res = await client.expire('mykey', 10);
-console.log(res); // true
+const ttlRes2 = await client.expire('mykey', 10);
+console.log(ttlRes2); // true
 
-res = await client.ttl('mykey');
-console.log(res); // 10
+const ttlRes3 = await client.ttl('mykey');
+console.log(ttlRes3); // 10
 // REMOVE_START
-assert.equal(res, 10);
+assert.equal(ttlRes3, 10);
 await client.del('mykey');
 // REMOVE_END
 // STEP_END
 
 // STEP_START scan1
-res = await client.sAdd('myset', ['1', '2', '3', 'foo', 'foobar', 'feelsgood']);
-console.log(res); // 6
+const scan1Res1 = await client.sAdd('myset', ['1', '2', '3', 'foo', 'foobar', 'feelsgood']);
+console.log(scan1Res1); // 6
 
-res = [];
+const scan1Res2 = [];
 for await (const value of client.sScanIterator('myset', { MATCH: 'f*' })) {
-    res.push(value);
+    scan1Res2.push(value);
 }
-console.log(res); // ['foo', 'foobar', 'feelsgood']
+console.log(scan1Res2); // ['foo', 'foobar', 'feelsgood']
 // REMOVE_START
-console.assert(res.sort().toString() === ['foo', 'foobar', 'feelsgood'].sort().toString());
+console.assert(scan1Res2.sort().toString() === ['foo', 'foobar', 'feelsgood'].sort().toString());
 await client.del('myset');
 // REMOVE_END
 // STEP_END
@@ -142,47 +142,47 @@ while (cursor !== 0) {
 // STEP_END
 
 // STEP_START scan3
-res = await client.geoAdd('geokey', { longitude: 0, latitude: 0, member: 'value' });
-console.log(res); // 1
+const scan3Res1 = await client.geoAdd('geokey', { longitude: 0, latitude: 0, member: 'value' });
+console.log(scan3Res1); // 1
 
-res = await client.zAdd('zkey', [{ score: 1000, value: 'value' }]);
-console.log(res); // 1
+const scan3Res2 = await client.zAdd('zkey', [{ score: 1000, value: 'value' }]);
+console.log(scan3Res2); // 1
 
-res = await client.type('geokey');
-console.log(res); // zset
+const scan3Res3 = await client.type('geokey');
+console.log(scan3Res3); // zset
 // REMOVE_START
-console.assert(res === 'zset');
+console.assert(scan3Res3 === 'zset');
 // REMOVE_END
 
-res = await client.type('zkey');
-console.log(res); // zset
+const scan3Res4 = await client.type('zkey');
+console.log(scan3Res4); // zset
 // REMOVE_START
-console.assert(res === 'zset');
+console.assert(scan3Res4 === 'zset');
 // REMOVE_END
 
-scanResult = await client.scan('0', { TYPE: 'zset' });
-console.log(scanResult.keys); // ['zkey', 'geokey']
+const scan3Res5 = await client.scan('0', { TYPE: 'zset' });
+console.log(scan3Res5.keys); // ['zkey', 'geokey']
 // REMOVE_START
-console.assert(scanResult.keys.sort().toString() === ['zkey', 'geokey'].sort().toString());
+console.assert(scan3Res5.keys.sort().toString() === ['zkey', 'geokey'].sort().toString());
 await client.del(['geokey', 'zkey']);
 // REMOVE_END
 // STEP_END
 
 // STEP_START scan4
-res = await client.hSet('myhash', { a: 1, b: 2 });
-console.log(res); // 2
+const scan4Res1 = await client.hSet('myhash', { a: 1, b: 2 });
+console.log(scan4Res1); // 2
 
-scanResult = await client.hScan('myhash', 0);
-console.log(scanResult.tuples); // [{field: 'a', value: '1'}, {field: 'b', value: '2'}]
+const scan4Res2 = await client.hScan('myhash', 0);
+console.log(scan4Res2.tuples); // [{field: 'a', value: '1'}, {field: 'b', value: '2'}]
 // REMOVE_START
-assert.deepEqual(scanResult.tuples, [
+assert.deepEqual(scan4Res2.tuples, [
   { field: 'a', value: '1' },
   { field: 'b', value: '2' }
 ]);
 // REMOVE_END
 
-scanResult = await client.hScan('myhash', 0, { COUNT: 10 });
-let items = scanResult.tuples.map((item) => item.field)
+const scan4Res3 = await client.hScan('myhash', 0, { COUNT: 10 });
+const items = scan4Res3.tuples.map((item) => item.field)
 console.log(items); // ['a', 'b']
 // REMOVE_START
 assert.deepEqual(items, ['a', 'b'])

@@ -1,6 +1,6 @@
 // EXAMPLE: cmds_sorted_set
 // REMOVE_START
-import assert from "assert";
+import assert from "node:assert";
 // REMOVE_END
 
 // HIDE_START
@@ -8,7 +8,7 @@ import { createClient } from 'redis';
 
 const client = createClient();
 client.on('error', err => console.log('Redis Client Error', err));
-await client.connect();
+await client.connect().catch(console.error);
 // HIDE_END
 
 // STEP_START zadd

@@ -1,10 +1,10 @@
 // EXAMPLE: cmds_hash
 // HIDE_START
-import assert from 'assert';
-import { createClient } from 'redis';
+import assert from 'node:assert';
+import { createClient } from 'node:redis';
 
 const client = createClient();
-await client.connect();
+await client.connect().catch(console.error);
 // HIDE_END
 
 // STEP_START hset
@@ -25,7 +25,6 @@ console.log(res3) // 2
 
 const res4 = await client.hGet('myhash', 'field2')
 console.log(res4) // Hi
-
 
 const res5 = await client.hGet('myhash', 'field3')
 console.log(res5) // World
