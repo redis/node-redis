@@ -3,7 +3,6 @@ import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
 import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
-import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 const execAsync = promisify(exec);
@@ -46,17 +45,10 @@ export interface RedisServerDocker {
   dockerId: string;
 }
 
-// extra ".." cause it'll be in `./dist`
-const DOCKER_FODLER_PATH = path.join(__dirname, '../../docker');
-
 async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
   const port = (await portIterator.next()).value,
     { stdout, stderr } = await execAsync(
-      'docker run -d --network host $(' +
-      `docker build ${DOCKER_FODLER_PATH} -q ` +
-      `--build-arg IMAGE=${image}:${version} ` +
-      `--build-arg REDIS_ARGUMENTS="--save '' --port ${port.toString()} ${serverArguments.join(' ')}"` +
-      ')'
+      `docker run -d --network host ${image}:${version} --port ${port.toString()} ${serverArguments.join(' ')}`
     );
 
   if (!stdout) {
