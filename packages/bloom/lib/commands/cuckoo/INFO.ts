@@ -12,17 +12,6 @@ export type CfInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'Max iterations'>, NumberReply]
 ]>;
 
-export interface CfInfoReply {
-  size: NumberReply;
-  numberOfBuckets: NumberReply;
-  numberOfFilters: NumberReply;
-  numberOfInsertedItems: NumberReply;
-  numberOfDeletedItems: NumberReply;
-  bucketSize: NumberReply;
-  expansionRate: NumberReply;
-  maxIteration: NumberReply;
-}
-
 export default {
   FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
@@ -30,9 +19,9 @@ export default {
     return ['CF.INFO', key];
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>, _, typeMapping?: TypeMapping): CfInfoReply => {
-      return transformInfoV2Reply<CfInfoReply>(reply, typeMapping);
+    2: (reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>, _, typeMapping?: TypeMapping): CfInfoReplyMap => {
+      return transformInfoV2Reply<CfInfoReplyMap>(reply, typeMapping);
     },
-    3: undefined as unknown as () => CfInfoReply
+    3: undefined as unknown as () => CfInfoReplyMap
   }
 } as const satisfies Command;
