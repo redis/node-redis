@@ -1,4 +1,5 @@
-import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '.';
 
 export type BfInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'Capacity'>, NumberReply],
@@ -23,41 +24,9 @@ export default {
     return ['BF.INFO', key];
   },
   transformReply: {
-    2(reply: UnwrapReply<Resp2Reply<BfInfoReplyMap>>): BfInfoReply {
-      return {
-        capacity: reply[1],
-        size: reply[3],
-        numberOfFilters: reply[5],
-        numberOfInsertedItems: reply[7],
-        expansionRate: reply[9]
-      };
+    2: (reply: UnwrapReply<Resp2Reply<BfInfoReplyMap>>, _, typeMapping?: TypeMapping): BfInfoReplyMap => {
+      return transformInfoV2Reply<BfInfoReplyMap>(reply, typeMapping);
     },
-    3(reply: UnwrapReply<BfInfoReplyMap>): BfInfoReply {
-      if (reply instanceof Map) {
-        return {
-          capacity: reply.get('Capacity') as NumberReply,
-          size: reply.get('Size') as NumberReply,
-          numberOfFilters: reply.get('Number of filters') as NumberReply,
-          numberOfInsertedItems: reply.get('Number of items inserted') as NumberReply,
-          expansionRate: reply.get('Expansion rate') as NullReply | NumberReply
-        }
-      } else if (reply instanceof Array) {
-        return {
-          capacity: reply[1],
-          size: reply[3],
-          numberOfFilters: reply[5],
-          numberOfInsertedItems: reply[7],
-          expansionRate: reply[9]
-        }
-      } else {
-        return {
-          capacity: reply["Capacity"],
-          size: reply["Size"],
-          numberOfFilters: reply["Number of filters"],
-          numberOfInsertedItems: reply["Number of items inserted"],
-          expansionRate: reply["Expansion rate"]
-        };
-      }
-    }
+    3: undefined as unknown as () => BfInfoReplyMap
   }
 } as const satisfies Command;

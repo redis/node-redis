@@ -1,4 +1,5 @@
-import { RedisArgument, TuplesToMapReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesToMapReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '../bloom';
 
 export type CmsInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'width'>, NumberReply],
@@ -19,34 +20,9 @@ export default {
     return ['CMS.INFO', key];
   },
   transformReply: {
-    2(reply: UnwrapReply<Resp2Reply<CmsInfoReplyMap>>): CmsInfoReply {
-      return {
-        width: reply[1],
-        depth: reply[3],
-        count: reply[5]
-      };
+    2: (reply: UnwrapReply<Resp2Reply<CmsInfoReplyMap>>, _, typeMapping?: TypeMapping): CmsInfoReply => {
+      return transformInfoV2Reply<CmsInfoReply>(reply, typeMapping);
     },
-    3(reply: UnwrapReply<CmsInfoReplyMap>): CmsInfoReply {
-      if (reply instanceof Map) {
-        return {
-          width: reply.get('width') as NumberReply,
-          depth: reply.get('depth') as NumberReply,
-          count: reply.get('count') as NumberReply,
-        }
-
-      } else if (reply instanceof Array) {
-        return {
-          width: reply[1],
-          depth: reply[3],
-          count: reply[5]
-        }
-      } else {
-        return {
-          width: reply['width'],
-          depth: reply['depth'],
-          count: reply['count']
-        };
-      }
-    }
+    3: undefined as unknown as () => CmsInfoReply
   }
 } as const satisfies Command;

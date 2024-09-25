@@ -1,4 +1,5 @@
-import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '../bloom';
 
 export type TdInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'Compression'>, NumberReply],
@@ -31,57 +32,9 @@ export default {
     return ['TDIGEST.INFO', key];
   },
   transformReply: {
-    2(reply: UnwrapReply<Resp2Reply<TdInfoReplyMap>>): TdInfoReply {
-      return {
-        compression: reply[1],
-        capacity: reply[3],
-        mergedNodes: reply[5],
-        unmergedNodes: reply[7],
-        mergedWeight: reply[9],
-        unmergedWeight: reply[11],
-        observations: reply[13],
-        totalCompression: reply[15],
-        memoryUsage: reply[17]
-      };
+    2: (reply: UnwrapReply<Resp2Reply<TdInfoReplyMap>>, _, typeMapping?: TypeMapping): TdInfoReply => {
+      return transformInfoV2Reply<TdInfoReply>(reply, typeMapping);
     },
-    3(reply: UnwrapReply<TdInfoReplyMap>): TdInfoReply {
-      if (reply instanceof Map) {
-        return {
-          compression: reply.get('Compression') as NumberReply,
-          capacity: reply.get('Capacity') as NumberReply,
-          mergedNodes: reply.get('Merged nodes') as NumberReply,
-          unmergedNodes: reply.get('Unmerged nodes') as NumberReply,
-          mergedWeight: reply.get('Merged weight') as NumberReply,
-          unmergedWeight: reply.get('Unmerged weight') as NumberReply,
-          observations: reply.get('Observations') as NumberReply,
-          totalCompression: reply.get('Total compressions') as NumberReply,
-          memoryUsage: reply.get('Memory usage') as NumberReply
-        };
-      } else if (reply instanceof Array) {
-        return {
-          compression: reply[1],
-          capacity: reply[3],
-          mergedNodes: reply[5],
-          unmergedNodes: reply[7],
-          mergedWeight: reply[9],
-          unmergedWeight: reply[11],
-          observations: reply[13],
-          totalCompression: reply[15],
-          memoryUsage: reply[17]
-        };
-      } else {
-        return {
-          compression: reply['Compression'],
-          capacity: reply['Capacity'],
-          mergedNodes: reply['Merged nodes'],
-          unmergedNodes: reply['Unmerged nodes'],
-          mergedWeight: reply['Merged weight'],
-          unmergedWeight: reply['Unmerged weight'],
-          observations: reply['Observations'],
-          totalCompression: reply['Total compressions'],
-          memoryUsage: reply['Memory usage']
-        };
-      }
-    }
+    3: undefined as unknown as () => TdInfoReply
   }
 } as const satisfies Command;

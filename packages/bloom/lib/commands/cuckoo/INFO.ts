@@ -1,4 +1,5 @@
-import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '../bloom';
 
 export type CfInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'Size'>, NumberReply],
@@ -29,53 +30,9 @@ export default {
     return ['CF.INFO', key];
   },
   transformReply: {
-    2(reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>): CfInfoReply {
-      return {
-        size: reply[1],
-        numberOfBuckets: reply[3],
-        numberOfFilters: reply[5],
-        numberOfInsertedItems: reply[7],
-        numberOfDeletedItems: reply[9],
-        bucketSize: reply[11],
-        expansionRate: reply[13],
-        maxIteration: reply[15]
-      };
+    2: (reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>, _, typeMapping?: TypeMapping): CfInfoReply => {
+      return transformInfoV2Reply<CfInfoReply>(reply, typeMapping);
     },
-    3: (reply: UnwrapReply<CfInfoReplyMap>): CfInfoReply => {
-      if (reply instanceof Map) {
-        return {
-          size: reply.get('Size') as NumberReply,
-          numberOfBuckets: reply.get('Number of buckets') as NumberReply,
-          numberOfFilters: reply.get('Number of filters') as NumberReply,
-          numberOfInsertedItems: reply.get('Number of items inserted') as NumberReply,
-          numberOfDeletedItems: reply.get('Number of items deleted') as NumberReply,
-          bucketSize: reply.get('Bucket size') as NumberReply,
-          expansionRate: reply.get('Expansion rate') as NumberReply,
-          maxIteration: reply.get('Max iterations') as NumberReply
-        }
-      } else if (reply instanceof Array) {
-        return {
-          size: reply[1],
-          numberOfBuckets: reply[3],
-          numberOfFilters: reply[5],
-          numberOfInsertedItems: reply[7],
-          numberOfDeletedItems: reply[9],
-          bucketSize: reply[11],
-          expansionRate: reply[13],
-          maxIteration: reply[15]
-        }
-      } else {
-        return {
-          size: reply['Size'],
-          numberOfBuckets: reply['Number of buckets'],
-          numberOfFilters: reply['Number of filters'],
-          numberOfInsertedItems: reply['Number of items inserted'],
-          numberOfDeletedItems: reply['Number of items deleted'],
-          bucketSize: reply['Bucket size'],
-          expansionRate: reply['Expansion rate'],
-          maxIteration: reply['Max iterations']
-        };
-      }
-    }
+    3: undefined as unknown as () => CfInfoReply
   }
 } as const satisfies Command;
