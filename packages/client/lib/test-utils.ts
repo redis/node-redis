@@ -2,19 +2,25 @@ import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
 import { promiseTimeout } from './utils';
 
-export default new TestUtils({
-    defaultDockerVersion: '7.0.2',
-    dockerImageName: 'redis',
-    dockerImageVersionArgument: 'redis-version'
+const utils = new TestUtils({
+  dockerImageName: 'redis',
+  dockerImageVersionArgument: 'redis-version',
+  defaultDockerVersion: '7.4-rc2'
 });
+
+export default utils;
+
+const DEBUG_MODE_ARGS = utils.isVersionGreaterThan([7]) ?
+  ['--enable-debug-command', 'yes'] :
+  [];
 
 export const GLOBAL = {
     SERVERS: {
         OPEN: {
-            serverArguments: []
+            serverArguments: [...DEBUG_MODE_ARGS]
         },
         PASSWORD: {
-            serverArguments: ['--requirepass', 'password'],
+            serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
             clientOptions: {
                 password: 'password'
             }
@@ -22,14 +28,22 @@ export const GLOBAL = {
     },
     CLUSTERS: {
         OPEN: {
-            serverArguments: []
+            serverArguments: [...DEBUG_MODE_ARGS]
         },
         PASSWORD: {
-            serverArguments: ['--requirepass', 'password'],
+            serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
             clusterConfiguration: {
                 defaults: {
                     password: 'password'
                 }
+            }
+        },
+        WITH_REPLICAS: {
+            serverArguments: [...DEBUG_MODE_ARGS],
+            numberOfMasters: 2,
+            numberOfReplicas: 1,
+            clusterConfiguration: {
+                useReplicas: true
             }
         }
     }

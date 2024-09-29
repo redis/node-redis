@@ -11,8 +11,9 @@ describe('CLUSTER SAVECONFIG', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterSaveConfig', async cluster => {
+        const client = await cluster.nodeClient(cluster.masters[0]);
         assert.equal(
-            await cluster.getSlotMaster(0).client.clusterSaveConfig(),
+            await client.clusterSaveConfig(),
             'OK'
         );
     }, GLOBAL.CLUSTERS.OPEN);

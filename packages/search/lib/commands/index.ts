@@ -20,6 +20,7 @@ import * as INFO from './INFO';
 import * as PROFILESEARCH from './PROFILE_SEARCH';
 import * as PROFILEAGGREGATE from './PROFILE_AGGREGATE';
 import * as SEARCH from './SEARCH';
+import * as SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
 import * as SPELLCHECK from './SPELLCHECK';
 import * as SUGADD from './SUGADD';
 import * as SUGDEL from './SUGDEL';
@@ -80,6 +81,8 @@ export default {
     profileAggregate: PROFILEAGGREGATE,
     SEARCH,
     search: SEARCH,
+    SEARCH_NOCONTENT,
+    searchNoContent: SEARCH_NOCONTENT,
     SPELLCHECK,
     spellCheck: SPELLCHECK,
     SUGADD,
@@ -182,27 +185,45 @@ export enum SchemaFieldTypes {
     NUMERIC = 'NUMERIC',
     GEO = 'GEO',
     TAG = 'TAG',
-    VECTOR = 'VECTOR'
+    VECTOR = 'VECTOR',
+    GEOSHAPE = 'GEOSHAPE'
 }
-
+  
 type CreateSchemaField<
     T extends SchemaFieldTypes,
     E = Record<PropertyKey, unknown>
 > = T | ({
     type: T;
     AS?: string;
+    INDEXMISSING?: boolean;
 } & E);
+
+type CommonFieldArguments = {
+    SORTABLE?: boolean | 'UNF';
+    NOINDEX?: boolean;
+};
 
 type CreateSchemaCommonField<
     T extends SchemaFieldTypes,
     E = Record<PropertyKey, unknown>
 > = CreateSchemaField<
     T,
-    ({
-        SORTABLE?: true | 'UNF';
-        NOINDEX?: true;
-    } & E)
+    (CommonFieldArguments & E)
 >;
+
+function pushCommonFieldArguments(args: RedisCommandArguments, fieldOptions: CommonFieldArguments) {
+    if (fieldOptions.SORTABLE) {
+        args.push('SORTABLE');
+
+        if (fieldOptions.SORTABLE === 'UNF') {
+            args.push('UNF');
+        }
+    }
+
+    if (fieldOptions.NOINDEX) {
+        args.push('NOINDEX');
+    }
+}
 
 export enum SchemaTextFieldPhonetics {
     DM_EN = 'dm:en',
@@ -216,6 +237,7 @@ type CreateSchemaTextField = CreateSchemaCommonField<SchemaFieldTypes.TEXT, {
     WEIGHT?: number;
     PHONETIC?: SchemaTextFieldPhonetics;
     WITHSUFFIXTRIE?: boolean;
+    INDEXEMPTY?: boolean;
 }>;
 
 type CreateSchemaNumericField = CreateSchemaCommonField<SchemaFieldTypes.NUMERIC>;
@@ -226,6 +248,7 @@ type CreateSchemaTagField = CreateSchemaCommonField<SchemaFieldTypes.TAG, {
     SEPARATOR?: string;
     CASESENSITIVE?: true;
     WITHSUFFIXTRIE?: boolean;
+    INDEXEMPTY?: boolean;
 }>;
 
 export enum VectorAlgorithms {
@@ -254,6 +277,17 @@ type CreateSchemaHNSWVectorField = CreateSchemaVectorField<VectorAlgorithms.HNSW
     EF_RUNTIME?: number;
 }>;
 
+export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
+    SPHERICAL: 'SPHERICAL',
+    FLAT: 'FLAT'
+} as const;
+
+export type SchemaGeoShapeFieldCoordSystem = typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM[keyof typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM];
+
+type CreateSchemaGeoShapeField = CreateSchemaCommonField<SchemaFieldTypes.GEOSHAPE, {
+    COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
+}>;
+
 export interface RediSearchSchema {
     [field: string]:
         CreateSchemaTextField |
@@ -261,7 +295,8 @@ export interface RediSearchSchema {
         CreateSchemaGeoField |
         CreateSchemaTagField |
         CreateSchemaFlatVectorField |
-        CreateSchemaHNSWVectorField;
+        CreateSchemaHNSWVectorField |
+        CreateSchemaGeoShapeField;
 }
 
 export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema) {
@@ -297,11 +332,18 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     args.push('WITHSUFFIXTRIE');
                 }
 
+                pushCommonFieldArguments(args, fieldOptions);
+
+                if (fieldOptions.INDEXEMPTY) {
+                    args.push('INDEXEMPTY');
+                }
+
                 break;
 
-            // case SchemaFieldTypes.NUMERIC:
-            // case SchemaFieldTypes.GEO:
-            //     break;
+            case SchemaFieldTypes.NUMERIC:
+            case SchemaFieldTypes.GEO:
+                pushCommonFieldArguments(args, fieldOptions);
+                break;
 
             case SchemaFieldTypes.TAG:
                 if (fieldOptions.SEPARATOR) {
@@ -314,6 +356,12 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
 
                 if (fieldOptions.WITHSUFFIXTRIE) {
                     args.push('WITHSUFFIXTRIE');
+                }
+
+                pushCommonFieldArguments(args, fieldOptions);
+
+                if (fieldOptions.INDEXEMPTY) {
+                    args.push('INDEXEMPTY');
                 }
 
                 break;
@@ -357,19 +405,20 @@ export function pushSchema(args: RedisCommandArguments, schema: RediSearchSchema
                     }
                 });
 
-                continue; // vector fields do not contain SORTABLE and NOINDEX options
+                break;
+
+            case SchemaFieldTypes.GEOSHAPE:
+                if (fieldOptions.COORD_SYSTEM !== undefined) {
+                    args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
+                }
+
+                pushCommonFieldArguments(args, fieldOptions);
+
+                break;
         }
 
-        if (fieldOptions.SORTABLE) {
-            args.push('SORTABLE');
-
-            if (fieldOptions.SORTABLE === 'UNF') {
-                args.push('UNF');
-            }
-        }
-
-        if (fieldOptions.NOINDEX) {
-            args.push('NOINDEX');
+        if (fieldOptions.INDEXMISSING) {
+            args.push('INDEXMISSING');
         }
     }
 }
@@ -504,6 +553,14 @@ export function pushSearchOptions(
 
     if (options?.DIALECT) {
         args.push('DIALECT', options.DIALECT.toString());
+    }
+
+    if (options?.RETURN?.length === 0) {
+        args.preserve = true;
+    }
+
+    if (options?.TIMEOUT !== undefined) {
+        args.push('TIMEOUT', options.TIMEOUT.toString());
     }
 
     return args;

@@ -15,7 +15,7 @@ try {
   await client.ft.create('idx:users', {
     '$.name': {
       type: SchemaFieldTypes.TEXT,
-      SORTABLE: 'UNF'
+      SORTABLE: true
     },
     '$.age': {
       type: SchemaFieldTypes.NUMERIC,

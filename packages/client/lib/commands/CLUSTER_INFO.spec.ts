@@ -46,8 +46,9 @@ describe('CLUSTER INFO', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterInfo', async cluster => {
+        const client = await cluster.nodeClient(cluster.masters[0]);
         assert.notEqual(
-            await cluster.getSlotMaster(0).client.clusterInfo(),
+            await client.clusterInfo(),
             null
         );
     }, GLOBAL.CLUSTERS.OPEN);

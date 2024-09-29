@@ -92,19 +92,27 @@ export interface StreamMessageReply {
     message: Record<string, RedisCommandArgument>;
 }
 
+export function transformStreamMessageReply([id, message]: Array<any>): StreamMessageReply {
+    return {
+        id,
+        message: transformTuplesReply(message)
+    };
+}
+
+export function transformStreamMessageNullReply(reply: Array<any>): StreamMessageReply | null {
+    if (reply === null) return null;
+    return transformStreamMessageReply(reply);
+}
+
+
 export type StreamMessagesReply = Array<StreamMessageReply>;
-
 export function transformStreamMessagesReply(reply: Array<any>): StreamMessagesReply {
-    const messages = [];
+    return reply.map(transformStreamMessageReply);
+}
 
-    for (const [id, message] of reply) {
-        messages.push({
-            id,
-            message: transformTuplesReply(message)
-        });
-    }
-
-    return messages;
+export type StreamMessagesNullReply = Array<StreamMessageReply | null>;
+export function transformStreamMessagesNullReply(reply: Array<any>): StreamMessagesNullReply {
+    return reply.map(transformStreamMessageNullReply);
 }
 
 export type StreamsMessagesReply = Array<{
@@ -137,7 +145,6 @@ export function transformSortedSetMemberNullReply(
 export function transformSortedSetMemberReply(
     reply: [RedisCommandArgument, RedisCommandArgument]
 ): ZMember {
-
     return {
         value: reply[0],
         score: transformNumberInfinityReply(reply[1])

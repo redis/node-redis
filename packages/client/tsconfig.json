@@ -5,7 +5,8 @@
   },
   "include": [
     "./index.ts",
-    "./lib/**/*.ts"
+    "./lib/**/*.ts",
+    "./package.json"
   ],
   "exclude": [
     "./lib/test-utils.ts",

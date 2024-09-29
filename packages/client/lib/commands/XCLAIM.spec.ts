@@ -83,8 +83,38 @@ describe('XCLAIM', () => {
         });
 
         assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 1, '0-0'),
+            await client.xClaim('key', 'group', 'consumer', 0, '0-0'),
             []
+        );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('client.xClaim with a message', async client => {
+        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
+        const id = await client.xAdd('key', '*', { foo: 'bar' });
+        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
+
+        assert.deepEqual(
+            await client.xClaim('key', 'group', 'consumer', 0, id),
+            [{
+                id,
+                message: Object.create(null, { 'foo': {
+                    value: 'bar',
+                    configurable: true,
+                    enumerable: true
+                } })
+            }]
+        );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('client.xClaim with a trimmed message', async client => {
+        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
+        const id = await client.xAdd('key', '*', { foo: 'bar' });
+        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
+        await client.xTrim('key', 'MAXLEN', 0);
+
+        assert.deepEqual(
+            await client.xClaim('key', 'group', 'consumer', 0, id),
+            testUtils.isVersionGreaterThan([7, 0]) ? []: [null]
         );
     }, GLOBAL.SERVERS.OPEN);
 });

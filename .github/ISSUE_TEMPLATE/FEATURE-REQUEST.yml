@@ -1,0 +1,19 @@
+name: Feature Request
+description: Suggest an idea for this project
+labels: [Feature]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: How would Node Redis users benefit from this feature?
+    validations:
+      required: true
+  - type: textarea
+    id: basic-code-example
+    attributes:
+      label: Basic Code Example
+      description: Provide examples of how you imagine the API for this feature might be implemented. This will be automatically formatted into code, so no need for backticks.
+      render: JavaScript
+    validations:
+      required: false

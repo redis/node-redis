@@ -6,4 +6,4 @@ export function transformArguments(key: string, query: string): Array<string> {
     return ['GRAPH.EXPLAIN', key, query];
 }
 
-export declare function transfromReply(): Array<string>;
+export declare function transformReply(): Array<string>;
