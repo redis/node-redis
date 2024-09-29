@@ -1,0 +1,123 @@
+[
+  {
+    "model": "Jigger",
+    "brand": "Velorim",
+    "price": 270,
+    "type": "Kids bikes",
+    "specs": {
+      "material": "aluminium",
+      "weight": "10"
+    },
+    "description": "Small and powerful, the Jigger is the best ride for the smallest of tikes! This is the tiniest kids’ pedal bike on the market available without a coaster brake, the Jigger is the vehicle of choice for the rare tenacious little rider raring to go. We say rare because this smokin’ little bike is not ideal for a nervous first-time rider, but it’s a true giddy up for a true speedster. The Jigger is a 12 inch lightweight kids bicycle and it will meet your little one’s need for speed. It’s a single speed bike that makes learning to pump pedals simple and intuitive. It even has  a handle in the bottom of the saddle so you can easily help your child during training!  The Jigger is among the most lightweight children’s bikes on the planet. It is designed so that 2-3 year-olds fit comfortably in a molded ride position that allows for efficient riding, balanced handling and agility. The Jigger’s frame design and gears work together so your buddingbiker can stand up out of the seat, stop rapidly, rip over trails and pump tracks. The Jigger’s is amazing on dirt or pavement. Your tike will speed down the bike path in no time. The Jigger will ship with a coaster brake. A freewheel kit is provided at no cost. "
+  },
+  {
+    "model": "Hillcraft",
+    "brand": "Bicyk",
+    "price": 1200,
+    "type": "Kids Mountain Bikes",
+    "specs": {
+      "material": "carbon",
+      "weight": "11"
+    },
+    "description": "Kids want to ride with as little weight as possible. Especially on an incline! They may be at the age when a 27.5\" wheel bike is just too clumsy coming off a 24\" bike. The Hillcraft 26 is just the solution they need! Imagine 120mm travel. Boost front/rear.  You have NOTHING to tweak because it is easy to assemble right out of the box. The Hillcraft 26 is an efficient trail trekking machine. Up or down does not matter - dominate the trails going both down and up with this amazing bike. The name Monarch comes from Monarch trail in Colorado where we love to ride.  It’s a highly technical, steep and rocky trail but the rip on the waydown is so fulfilling.  Don’t ride the trail on a hardtail! It is so much more fun on the full suspension Hillcraft!  Hit your local trail with the Hillcraft Monarch 26 to get to where you want to go.  "
+  },
+  {
+    "model": "Chook air 5",
+    "brand": "Nord",
+    "price": 815,
+    "type": "Kids Mountain Bikes",
+    "specs": {
+      "material": "alloy",
+      "weight": "9.1"
+    },
+    "description": "The Chook Air 5  gives kids aged six years and older a durable and uberlight mountain bike for their first experience on tracks and easy cruising through forests and fields. The lower  top tube makes it easy to mount and dismount in any situation, giving your kids greater safety on the trails. The Chook Air 5 is the perfect intro to mountain biking."
+  },
+  {
+    "model": "Eva 291",
+    "brand": "Eva",
+    "price": 3400,
+    "type": "Mountain Bikes",
+    "specs": {
+      "material": "carbon",
+      "weight": "9.1"
+    },
+    "description": "The sister company to Nord, Eva launched in 2005 as the first and only women-dedicated bicycle brand. Designed by women for women, allEva bikes are optimized for the feminine physique using analytics from a body metrics database. If you like 29ers, try the Eva 291. It’s a brand new bike for 2022.. This full-suspension, cross-country ride has been designed for velocity. The 291 has 100mm of front and rear travel, a superlight aluminum frame and fast-rolling 29-inch wheels. Yippee!"
+  },
+  {
+    "model": "Kahuna",
+    "brand": "Noka Bikes",
+    "price": 3200,
+    "type": "Mountain Bikes",
+    "specs": {
+      "material": "alloy",
+      "weight": "9.8"
+    },
+    "description": "Whether you want to try your hand at XC racing or are looking for a lively trail bike that's just as inspiring on the climbs as it is over rougher ground, the Wilder is one heck of a bike built specifically for short women. Both the frames and components have been tweaked to include a women’s saddle, different bars and unique colourway."
+  },
+  {
+    "model": "XBN 2.1 Alloy",
+    "brand": "Breakout",
+    "price": 810,
+    "type": "Road Bikes",
+    "specs": {
+      "material": "alloy",
+      "weight": "7.2"
+    },
+    "description": "The XBN 2.1 Alloy is our entry-level road bike – but that’s not to say that it’s a basic machine. With an internal weld aluminium frame, a full carbon fork, and the slick-shifting Claris gears from Shimano’s, this is a bike which doesn’t break the bank and delivers craved performance. The 6061 alloy frame is triple-butted which ensures a lighter weight and smoother ride. And it’s comfortable with dropped seat stays and the carbon fork. The carefully crafted 50-34 tooth chainset and 11-32 tooth cassette give an easy-on-the-legs bottom gear for climbing, and the high-quality Vittoria Zaffiro tires balance grip, rolling friction and puncture protection when coasting down the other side.  "
+  },
+  {
+    "model": "WattBike",
+    "brand": "ScramBikes",
+    "price": 2300,
+    "type": "eBikes",
+    "specs": {
+      "material": "alloy",
+      "weight": "15"
+    },
+    "description": "The WattBike is the best e-bike for people who still feel young at heart. It has a  Bafang 500 watt geared hub motor that can reach 20 miles per hour on both steep inclines and city streets. The lithium-ion battery, which gets nearly 40 miles per charge, has a lightweight form factor, making it easier for seniors to use. It comes fully assembled (no convoluted instructions!) and includes a sturdy helmet at no cost. The Plush saddle softens over time with use. The included Seatpost, however, is easily adjustable and adds to this bike’s fantastic rating for seniors, as do the hydraulic disc brakes from Tektro.  "
+  },
+  {
+    "model": "Soothe Electric bike",
+    "brand": "Peaknetic",
+    "price": 1950,
+    "type": "eBikes",
+    "specs": {
+      "material": "alloy",
+      "weight": "14.7"
+    },
+    "description": "The Soothe is an everyday electric bike, from the makers of Exercycle  bikes, that conveys style while you get around the city. The Soothe lives up to its name by keeping your posture upright and relaxed for the ride ahead, keeping those aches and pains from riding at bay. It includes a low-step frame , our memory foam seat, bump-resistant shocks and conveniently placed thumb throttle. "
+  },
+  {
+    "model": "Secto",
+    "brand": "Peaknetic",
+    "price": 430,
+    "type": "Commuter bikes",
+    "specs": {
+      "material": "aluminium",
+      "weight": "10.0"
+    },
+    "description": "If you struggle with stiff fingers or a kinked neck or back after a few minutes on the road, this lightweight, aluminum bike alleviates those issues and allows you to enjoy the ride. From the ergonomic grips to the lumbar-supporting seat position, the Roll Low-Entry offers incredible comfort. The rear-inclined seat tube facilitates stability by allowing you to put a foot on the ground to balance at a stop, and the low step-over frame makes it accessible for all ability and mobility levels. The saddle is very soft, with a wide back to support your hip joints and a cutout in the center to redistribute that pressure. Rim brakes deliver satisfactory braking control, and the wide tires provide a smooth, stable ride on paved roads and gravel. Rack and fender mounts facilitate setting up the Roll Low-Entry as your preferred commuter, and the BMX-like handlebar offers space for mounting a flashlight, bell, or phone holder."
+  },
+  {
+    "model": "Summit",
+    "brand": "nHill",
+    "price": 1200,
+    "type": "Mountain Bike",
+    "specs": {
+      "material": "alloy",
+      "weight": "11.3"
+    },
+    "description": "This budget mountain bike from nHill performs well both on bike paths and on the trail. The fork with 100mm of travel absorbs rough terrain. Fat Kenda Booster tires give you grip in corners and on wet trails. The Shimano Tourney drivetrain offered enough gears for finding a comfortable pace to ride uphill, and the Tektro hydraulic disc brakes break smoothly. Whether you want an affordable bike that you can take to work, but also take trail riding on the weekends or you’re just after a stable, comfortable ride for the bike path, the Summit gives a good value for money."
+  },
+  {
+    "model": "ThrillCycle",
+    "brand": "BikeShind",
+    "price": 815,
+    "type": "Commuter Bikes",
+    "specs": {
+      "material": "alloy",
+      "weight": "12.7"
+    },
+    "description": "An artsy,  retro-inspired bicycle that’s as functional as it is pretty: The ThrillCycle steel frame offers a smooth ride. A 9-speed drivetrain has enough gears for coasting in the city, but we wouldn’t suggest taking it to the mountains. Fenders protect you from mud, and a rear basket lets you transport groceries, flowers and books. The ThrillCycle comes with a limited lifetime warranty, so this little guy will last you long past graduation."
+  }
+]
