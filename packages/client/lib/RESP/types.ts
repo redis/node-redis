@@ -283,7 +283,7 @@ export type Command = {
   transformArguments(this: void, ...args: Array<any>): CommandArguments;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
-  unstableResp3SearchModule?: boolean;
+  unstableResp3?: boolean;
 };
 
 export type RedisCommands = Record<string, Command>;
@@ -317,7 +317,7 @@ export interface CommanderConfig<
   /**
    * TODO
    */
-  unstableResp3SearchModule?: boolean;
+  unstableResp3?: boolean;
 }
 
 type Resp2Array<T> = (

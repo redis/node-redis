@@ -45,7 +45,7 @@ export function attachConfig<
     for (const [moduleName, module] of Object.entries(config.modules)) {
       const fns = Object.create(null);
       for (const [name, command] of Object.entries(module)) {
-        if (config.RESP == 3 && command.unstableResp3SearchModule && !config.unstableResp3SearchModule) {
+        if (config.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
           fns[name] = throwResp3SearchModuleUnstableError;
         } else {
           fns[name] = createModuleCommand(command, RESP);

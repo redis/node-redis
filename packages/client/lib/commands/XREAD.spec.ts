@@ -101,6 +101,14 @@ describe('XREAD', () => {
       }),
     ])
 
+    const arr = ['key', [{
+      'id': id,
+      'message': [
+        'field',
+        'value',
+      ]
+    }]];
+
     const obj = Object.assign(Object.create(null), {
       'key': [{
         id: id,
@@ -114,7 +122,7 @@ describe('XREAD', () => {
       }]
     });
 
-    assert.deepStrictEqual(reply, obj);
+    assert.deepStrictEqual(reply, arr);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

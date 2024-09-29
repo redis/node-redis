@@ -59,10 +59,6 @@ export interface RedisSentinelOptions<
    * When `false`, the sentinel object will wait for the first available client from the pool.
    */
   reserveClient?: boolean;
-  /**
-   * TODO
-   */
-  unstableResp3SearchModule?: boolean;
 }
 
 export interface SentinelCommander<

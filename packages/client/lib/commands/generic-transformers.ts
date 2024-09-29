@@ -534,6 +534,7 @@ export function transformStreamsMessagesReplyResp2(
   if (reply === null) return null as unknown as NullReply;
 
   switch (typeMapping? typeMapping[RESP_TYPES.MAP] : undefined) {
+/*    
     case Map: {
       const ret = new Map<string, StreamMessagesReply>();
 
@@ -548,6 +549,14 @@ export function transformStreamsMessagesReplyResp2(
     
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
+*/
+    /* work around for now */
+    default:
+      if (!typeMapping) {
+        typeMapping = {};
+      }
+      // console.log("forcing map type map to array");
+      // typeMapping[RESP_TYPES.MAP] = Array;
     case Array: {
       const ret: Array<BlobStringReply | StreamMessagesReply> = [];
 
@@ -558,11 +567,12 @@ export function transformStreamsMessagesReplyResp2(
         const rawMessages = stream[1];
     
         ret.push(name); 
-        ret.push(transformStreamMessagesReply(rawMessages));
+        ret.push(transformStreamMessagesReply(rawMessages, typeMapping));
       }
 
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
+/*    
     default: {
       const ret: Record<string, StreamMessagesReply> = Object.create(null);
 
@@ -577,6 +587,7 @@ export function transformStreamsMessagesReplyResp2(
     
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
+*/
   }
 }
 

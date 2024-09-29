@@ -12,7 +12,7 @@ export default {
     2: transformV2Reply,
     3: undefined as unknown as () => ReplyUnion
   },
-  unstableResp3SearchModule: true
+  unstableResp3: true
 } as const satisfies Command;
 
 type InfoRawReply = [

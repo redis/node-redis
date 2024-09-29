@@ -63,10 +63,6 @@ export interface RedisClusterOptions<
    * Useful when the cluster is running on another network
    */
   nodeAddressMap?: NodeAddressMap;
-  /**
-   * TODO
-   */
-  unstableResp3SearchModule?: boolean;
 }
 
 // remove once request & response policies are ready

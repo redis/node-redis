@@ -182,7 +182,7 @@ export default {
     },
     3: undefined as unknown as () => ReplyUnion
   },
-  unstableResp3SearchModule: true
+  unstableResp3: true
 } as const satisfies Command;
 
 export type SearchRawReply = Array<any>;
