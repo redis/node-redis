@@ -10,7 +10,7 @@ If don't want to queue commands in memory until a new socket is established, set
 
 ## How are commands batched?
 
-Commands are pipelined using [`queueMicrotask`](https://nodejs.org/api/globals.html#globals_queuemicrotask_callback).
+Commands are pipelined using [`setImmediate`](https://nodejs.org/api/timers.html#setimmediatecallback-args).
 
 If `socket.write()` returns `false`—meaning that ["all or part of the data was queued in user memory"](https://nodejs.org/api/net.html#net_socket_write_data_encoding_callback:~:text=all%20or%20part%20of%20the%20data%20was%20queued%20in%20user%20memory)—the commands will stack in memory until the [`drain`](https://nodejs.org/api/net.html#net_event_drain) event is fired.
 

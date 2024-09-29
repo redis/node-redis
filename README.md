@@ -11,6 +11,19 @@
 
 node-redis is a modern, high performance [Redis](https://redis.io) client for Node.js.
 
+## How do I Redis?
+
+[Learn for free at Redis University](https://university.redis.com/)
+
+[Build faster with the Redis Launchpad](https://launchpad.redis.com/)
+
+[Try the Redis Cloud](https://redis.com/try-free/)
+
+[Dive in developer tutorials](https://developer.redis.com/)
+
+[Join the Redis community](https://redis.com/community/)
+
+[Work at Redis](https://redis.com/company/careers/jobs/)
 
 ## Packages
 
@@ -51,11 +64,9 @@ Looking for a high-level library to handle object mapping? See [redis-om-node](h
 ```typescript
 import { createClient } from 'redis';
 
-const client = createClient();
-
-client.on('error', (err) => console.log('Redis Client Error', err));
-
-await client.connect();
+const client = await createClient()
+  .on('error', err => console.log('Redis Client Error', err))
+  .connect();
 
 await client.set('key', 'value');
 const value = await client.get('key');
@@ -166,47 +177,7 @@ To learn more about isolated execution, check out the [guide](./docs/isolated-ex
 
 ### Pub/Sub
 
-Subscribing to a channel requires a dedicated stand-alone connection. You can easily get one by `.duplicate()`ing an existing Redis connection.
-
-```typescript
-const subscriber = client.duplicate();
-
-await subscriber.connect();
-```
-
-Once you have one, simply subscribe and unsubscribe as needed:
-
-```typescript
-await subscriber.subscribe('channel', (message) => {
-  console.log(message); // 'message'
-});
-
-await subscriber.pSubscribe('channe*', (message, channel) => {
-  console.log(message, channel); // 'message', 'channel'
-});
-
-await subscriber.unsubscribe('channel');
-
-await subscriber.pUnsubscribe('channe*');
-```
-
-Publish a message on a channel:
-
-```typescript
-await publisher.publish('channel', 'message');
-```
-
-There is support for buffers as well:
-
-```typescript
-await subscriber.subscribe('channel', (message) => {
-  console.log(message); // <Buffer 6d 65 73 73 61 67 65>
-}, true);
-
-await subscriber.pSubscribe('channe*', (message, channel) => {
-  console.log(message, channel); // <Buffer 6d 65 73 73 61 67 65>, <Buffer 63 68 61 6e 6e 65 6c>
-}, true);
-```
+See the [Pub/Sub overview](./docs/pub-sub.md).
 
 ### Scan Iterator
 
@@ -373,15 +344,18 @@ Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to 
 
 The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
 
-| Event name     | Scenes                                                                                                            | Arguments to be passed to the listener                                                                                                         |
-|----------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| `connect`      | The client is initiating a connection to the server.                                                              | _No argument_                                                                                                                                  |
-| `ready`        | The client successfully initiated the connection to the server.                                                   | _No argument_                                                                                                                                  |
-| `end`          | The client disconnected the connection to the server via `.quit()` or `.disconnect()`.                            | _No argument_                                                                                                                                  |
-| `error`        | When a network error has occurred, such as unable to connect to the server or the connection closed unexpectedly. | 1 argument: The error object, such as `SocketClosedUnexpectedlyError: Socket closed unexpectedly` or `Error: connect ECONNREFUSED [IP]:[PORT]` |
-| `reconnecting` | The client is trying to reconnect to the server.                                                                  | _No argument_                                                                                                                                  |
+| Name                    | When                                                                               | Listener arguments                                         |
+|-------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------|
+| `connect`               | Initiating a connection to the server                                              | *No arguments*                                             |
+| `ready`                 | Client is ready to use                                                             | *No arguments*                                             |
+| `end`                   | Connection has been closed (via `.quit()` or `.disconnect()`)                      | *No arguments*                                             |
+| `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                           |
+| `reconnecting`          | Client is trying to reconnect to the server                                        | *No arguments*                                             |
+| `sharded-channel-moved` | See [here](./docs/pub-sub.md#sharded-channel-moved-event)                          | See  [here](./docs/pub-sub.md#sharded-channel-moved-event) |
 
-The client will not emit [any other events](./docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
+> :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and an `error` occurs, that error will be thrown and the Node.js process will exit. See the [`EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
+
+> The client will not emit [any other events](./docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
 
 ## Supported Redis versions
 

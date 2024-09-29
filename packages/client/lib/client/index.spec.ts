@@ -2,13 +2,15 @@ import { strict as assert } from 'assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { RedisClientMultiCommandType } from './multi-command';
-import { RedisCommandArguments, RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { RedisCommandRawReply, RedisModules, RedisFunctions, RedisScripts } from '../commands';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'events';
 import { ClientKillFilters } from '../commands/CLIENT_KILL';
 import { promisify } from 'util';
+
+import {version} from '../../package.json';
 
 export const SQUARE_SCRIPT = defineScript({
     SCRIPT: 'return ARGV[1] * ARGV[1];',
@@ -107,6 +109,57 @@ describe('Client', () => {
         });
     });
 
+    describe('connect', () => {
+        testUtils.testWithClient('connect should return the client instance', async client => {
+            try {
+                assert.equal(await client.connect(), client);
+            } finally {
+                if (client.isOpen) await client.disconnect();
+            }
+        }, {
+            ...GLOBAL.SERVERS.PASSWORD,
+            disableClientSetup: true
+        });
+
+        testUtils.testWithClient('should set default lib name and version', async client => {
+            const clientInfo = await client.clientInfo();
+
+            assert.equal(clientInfo.libName, 'node-redis');
+            assert.equal(clientInfo.libVer, version);
+        }, {
+            ...GLOBAL.SERVERS.PASSWORD,
+            minimumDockerVersion: [7, 2]
+        });
+
+        testUtils.testWithClient('disable sending lib name and version', async client => {
+            const clientInfo = await client.clientInfo();
+
+            assert.equal(clientInfo.libName, '');
+            assert.equal(clientInfo.libVer, '');
+        }, {
+            ...GLOBAL.SERVERS.PASSWORD,
+            clientOptions: {
+                ...GLOBAL.SERVERS.PASSWORD.clientOptions,
+                disableClientInfo: true
+            },
+            minimumDockerVersion: [7, 2]
+        });
+
+        testUtils.testWithClient('send client name tag', async client => {
+            const clientInfo = await client.clientInfo();
+
+            assert.equal(clientInfo.libName, 'node-redis(test)');
+            assert.equal(clientInfo.libVer, version);
+        }, {
+            ...GLOBAL.SERVERS.PASSWORD,
+            clientOptions: {
+                ...GLOBAL.SERVERS.PASSWORD.clientOptions,
+                clientInfoTag: "test"
+            },
+            minimumDockerVersion: [7, 2]
+        });
+    });
+
     describe('authentication', () => {
         testUtils.testWithClient('Client should be authenticated', async client => {
             assert.equal(
@@ -165,9 +218,43 @@ describe('Client', () => {
             }
         });
 
+        testUtils.testWithClient('client.sendCommand should reply with error', async client => {
+            await assert.rejects(
+                promisify(client.sendCommand).call(client, '1', '2')
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
+        testUtils.testWithClient('client.hGetAll should reply with error', async client => {
+            await assert.rejects(
+                promisify(client.hGetAll).call(client)
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
         testUtils.testWithClient('client.v4.sendCommand should return a promise', async client => {
             assert.equal(
                 await client.v4.sendCommand(['PING']),
+                'PONG'
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            clientOptions: {
+                legacyMode: true
+            }
+        });
+
+        testUtils.testWithClient('client.v4.{command} should return a promise', async client => {
+            assert.equal(
+                await client.v4.ping(),
                 'PONG'
             );
         }, {
@@ -484,14 +571,23 @@ describe('Client', () => {
             );
         }, GLOBAL.SERVERS.OPEN);
 
-        testUtils.testWithClient('execAsPipeline', async client => {
-            assert.deepEqual(
-                await client.multi()
-                    .ping()
-                    .exec(true),
-                ['PONG']
-            );
-        }, GLOBAL.SERVERS.OPEN);
+        describe('execAsPipeline', () => {
+            testUtils.testWithClient('exec(true)', async client => {
+                assert.deepEqual(
+                    await client.multi()
+                        .ping()
+                        .exec(true),
+                    ['PONG']
+                );
+            }, GLOBAL.SERVERS.OPEN);
+
+            testUtils.testWithClient('empty execAsPipeline', async client => {
+                assert.deepEqual(
+                    await client.multi().execAsPipeline(),
+                    []
+                );
+            }, GLOBAL.SERVERS.OPEN);
+        });
 
         testUtils.testWithClient('should remember selected db', async client => {
             await client.multi()
@@ -506,6 +602,23 @@ describe('Client', () => {
             ...GLOBAL.SERVERS.OPEN,
             minimumDockerVersion: [6, 2] // CLIENT INFO
         });
+
+        testUtils.testWithClient('should handle error replies (#2665)', async client => {
+            await assert.rejects(
+                client.multi()
+                    .set('key', 'value')
+                    .hGetAll('key')
+                    .exec(),
+                err => {
+                    assert.ok(err instanceof MultiErrorReply);
+                    assert.equal(err.replies.length, 2);
+                    assert.deepEqual(err.errorIndexes, [1]);
+                    assert.ok(err.replies[1] instanceof ErrorReply);
+                    assert.deepEqual([...err.errors()], [err.replies[1]]);
+                    return true;
+                }
+            );
+        }, GLOBAL.SERVERS.OPEN);
     });
 
     testUtils.testWithClient('scripts', async client => {
@@ -564,11 +677,41 @@ describe('Client', () => {
         }
     });
 
-    testUtils.testWithClient('executeIsolated', async client => {
-        const id = await client.clientId(),
-            isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
-        assert.ok(id !== isolatedId);
-    }, GLOBAL.SERVERS.OPEN);
+    describe('isolationPool', () => {
+        testUtils.testWithClient('executeIsolated', async client => {
+            const id = await client.clientId(),
+                isolatedId = await client.executeIsolated(isolatedClient => isolatedClient.clientId());
+            assert.ok(id !== isolatedId);
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should be able to use pool even before connect', async client => {
+            await client.executeIsolated(() => Promise.resolve());
+            // make sure to destroy isolation pool
+            await client.connect();
+            await client.disconnect();
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+
+        testUtils.testWithClient('should work after reconnect (#2406)', async client => {
+            await client.disconnect();
+            await client.connect();
+            await client.executeIsolated(() => Promise.resolve());
+        }, GLOBAL.SERVERS.OPEN);
+
+        testUtils.testWithClient('should throw ClientClosedError after disconnect', async client => {
+            await client.connect();
+            await client.disconnect();
+            await assert.rejects(
+                client.executeIsolated(() => Promise.resolve()),
+                ClientClosedError
+            );
+        }, {
+            ...GLOBAL.SERVERS.OPEN,
+            disableClientSetup: true
+        });
+    });
 
     async function killClient<
         M extends RedisModules,
@@ -604,6 +747,9 @@ describe('Client', () => {
     });
 
     testUtils.testWithClient('should propagated errors from "isolated" clients', client => {
+        client.on('error', () => {
+            // ignore errors
+        });
         return client.executeIsolated(isolated => killClient(isolated, client));
     }, GLOBAL.SERVERS.OPEN);
 
@@ -641,6 +787,31 @@ describe('Client', () => {
 
         assert.deepEqual(hash, results);
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('hScanNoValuesIterator', async client => {
+        const hash: Record<string, string> = {};
+        const expectedKeys: Array<string> = [];
+        for (let i = 0; i < 100; i++) {
+            hash[i.toString()] = i.toString();
+            expectedKeys.push(i.toString());
+        }
+
+        await client.hSet('key', hash);
+
+        const keys: Array<string> = [];
+        for await (const key of client.hScanNoValuesIterator('key')) {
+            keys.push(key);
+        }
+
+        function sort(a: string, b: string) {
+            return Number(a) - Number(b);
+        }
+
+        assert.deepEqual(keys.sort(sort), expectedKeys);
+    }, {
+        ...GLOBAL.SERVERS.OPEN,
+        minimumDockerVersion: [7, 4]
+    });
 
     testUtils.testWithClient('sScanIterator', async client => {
         const members = new Set<string>();
@@ -685,7 +856,7 @@ describe('Client', () => {
             members.map<MemberTuple>(member => [member.value, member.score]).sort(sort)
         );
     }, GLOBAL.SERVERS.OPEN);
-
+    
     describe('PubSub', () => {
         testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
             function assertStringListener(message: string, channel: string) {

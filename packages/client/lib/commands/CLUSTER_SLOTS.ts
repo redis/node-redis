@@ -13,7 +13,7 @@ type ClusterSlotsRawReply = Array<[
     ...replicas: Array<ClusterSlotsRawNode>
 ]>;
 
-type ClusterSlotsNode = {
+export interface ClusterSlotsNode {
     ip: string;
     port: number;
     id: string;

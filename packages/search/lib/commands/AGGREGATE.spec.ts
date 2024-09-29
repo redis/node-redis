@@ -19,6 +19,13 @@ describe('AGGREGATE', () => {
             );
         });
 
+        it('with ADDSCORES', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', { ADDSCORES: true }),
+                ['FT.AGGREGATE', 'index', '*', 'ADDSCORES']
+            );
+        });
+
         describe('with LOAD', () => {
             describe('single', () => {
                 describe('without alias', () => {
@@ -452,6 +459,13 @@ describe('AGGREGATE', () => {
                     DIALECT: 1
                 }),
                 ['FT.AGGREGATE', 'index', '*', 'DIALECT', '1']
+            );
+        });
+
+        it('with TIMEOUT', () => {
+            assert.deepEqual(
+                transformArguments('index', '*', { TIMEOUT: 10 }),
+                ['FT.AGGREGATE', 'index', '*', 'TIMEOUT', '10']
             );
         });
     });

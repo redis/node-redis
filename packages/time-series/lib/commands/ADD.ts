@@ -8,7 +8,13 @@ import {
     Labels,
     pushLabelsArgument,
     Timestamp,
+    pushIgnoreArgument,
 } from '.';
+
+export interface TsIgnoreOptions {
+  MAX_TIME_DIFF: number;
+  MAX_VAL_DIFF: number;
+}
 
 interface AddOptions {
     RETENTION?: number;
@@ -16,6 +22,7 @@ interface AddOptions {
     CHUNK_SIZE?: number;
     ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
     LABELS?: Labels;
+    IGNORE?: TsIgnoreOptions;
 }
 
 export const FIRST_KEY_INDEX = 1;
@@ -39,6 +46,8 @@ export function transformArguments(key: string, timestamp: Timestamp, value: num
     }
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
 }

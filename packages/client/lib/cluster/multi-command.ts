@@ -120,11 +120,8 @@ export default class RedisClusterMultiCommand {
             return this.execAsPipeline();
         }
 
-        const commands = this.#multi.exec();
-        if (!commands) return [];
-
         return this.#multi.handleExecReplies(
-            await this.#executor(commands, this.#firstKey, RedisMultiCommand.generateChainId())
+            await this.#executor(this.#multi.queue, this.#firstKey, RedisMultiCommand.generateChainId())
         );
     }
 

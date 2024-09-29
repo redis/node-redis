@@ -1,0 +1,49 @@
+name-template: 'graph@$NEXT_PATCH_VERSION'
+tag-template: 'graph@$NEXT_PATCH_VERSION'
+autolabeler:
+  - label: 'chore'
+    files:
+      - '*.md'
+      - '.github/*'
+  - label: 'bug'
+    branch:
+      - '/bug-.+'
+  - label: 'chore'
+    branch:
+      - '/chore-.+'
+  - label: 'feature'
+    branch:
+      - '/feature-.+'
+categories:
+  - title: 'Breaking Changes'
+    labels:
+      - 'breakingchange'
+  - title: '🚀 New Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '🧰 Maintenance'
+    label:
+      - 'chore'
+      - 'maintenance'
+      - 'documentation'
+      - 'docs'
+change-template: '- $TITLE (#$NUMBER)'
+include-paths:
+  - 'packages/graph'
+exclude-labels:
+  - 'skip-changelog'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+  We'd like to thank all the contributors who worked on this release!
+
+  $CONTRIBUTORS

@@ -73,5 +73,18 @@ describe('HSCAN', () => {
                 tuples: []
             }
         );
+
+        await Promise.all([
+            client.hSet('key', 'a', '1'),
+            client.hSet('key', 'b', '2')
+        ]);
+
+        assert.deepEqual(
+            await client.hScan('key', 0),
+            {
+                cursor: 0,
+                tuples: [{field: 'a', value: '1'}, {field: 'b', value: '2'}]
+            }
+        );
     }, GLOBAL.SERVERS.OPEN);
 });

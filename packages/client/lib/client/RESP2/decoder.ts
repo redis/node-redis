@@ -203,9 +203,9 @@ export default class RESP2Decoder {
             this.arrayItemType = undefined;
 
             if (length === -1) {
-                return this.returnArrayReply(null, arraysToKeep);
+                return this.returnArrayReply(null, arraysToKeep, chunk);
             } else if (length === 0) {
-                return this.returnArrayReply([], arraysToKeep);
+                return this.returnArrayReply([], arraysToKeep, chunk);
             }
 
             this.arraysInProcess.push({
@@ -235,20 +235,23 @@ export default class RESP2Decoder {
         }
     }
 
-    private returnArrayReply(reply: ArrayReply, arraysToKeep: number): ArrayReply | undefined {
+    private returnArrayReply(reply: ArrayReply, arraysToKeep: number, chunk?: Buffer): ArrayReply | undefined {
         if (this.arraysInProcess.length <= arraysToKeep) return reply;
 
-        return this.pushArrayItem(reply, arraysToKeep);
+        return this.pushArrayItem(reply, arraysToKeep, chunk);
     }
 
-    private pushArrayItem(item: Reply, arraysToKeep: number): ArrayReply | undefined {
+    private pushArrayItem(item: Reply, arraysToKeep: number, chunk?: Buffer): ArrayReply | undefined {
         const to = this.arraysInProcess[this.arraysInProcess.length - 1]!;
         to.array[to.pushCounter] = item;
         if (++to.pushCounter === to.array.length) {
             return this.returnArrayReply(
                 this.arraysInProcess.pop()!.array,
-                arraysToKeep
+                arraysToKeep,
+                chunk
             );
+        } else if (chunk && chunk.length > this.cursor) {
+            return this.parseArray(chunk, arraysToKeep);
         }
     }
 }

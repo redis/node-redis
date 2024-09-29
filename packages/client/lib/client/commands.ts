@@ -21,7 +21,9 @@ import * as CLIENT_GETNAME from '../commands/CLIENT_GETNAME';
 import * as CLIENT_GETREDIR from '../commands/CLIENT_GETREDIR';
 import * as CLIENT_ID from '../commands/CLIENT_ID';
 import * as CLIENT_KILL from '../commands/CLIENT_KILL';
+import * as CLIENT_LIST from '../commands/CLIENT_LIST';
 import * as CLIENT_NO_EVICT from '../commands/CLIENT_NO-EVICT';
+import * as CLIENT_NO_TOUCH from '../commands/CLIENT_NO-TOUCH';
 import * as CLIENT_PAUSE from '../commands/CLIENT_PAUSE';
 import * as CLIENT_SETNAME from '../commands/CLIENT_SETNAME';
 import * as CLIENT_TRACKING from '../commands/CLIENT_TRACKING';
@@ -44,6 +46,7 @@ import * as CLUSTER_KEYSLOT from '../commands/CLUSTER_KEYSLOT';
 import * as CLUSTER_LINKS from '../commands/CLUSTER_LINKS';
 import * as CLUSTER_MEET from '../commands/CLUSTER_MEET';
 import * as CLUSTER_MYID from '../commands/CLUSTER_MYID';
+import * as CLUSTER_MYSHARDID from '../commands/CLUSTER_MYSHARDID';
 import * as CLUSTER_NODES from '../commands/CLUSTER_NODES';
 import * as CLUSTER_REPLICAS from '../commands/CLUSTER_REPLICAS';
 import * as CLUSTER_REPLICATE from '../commands/CLUSTER_REPLICATE';
@@ -83,6 +86,8 @@ import * as KEYS from '../commands/KEYS';
 import * as LASTSAVE from '../commands/LASTSAVE';
 import * as LATENCY_DOCTOR from '../commands/LATENCY_DOCTOR';
 import * as LATENCY_GRAPH from '../commands/LATENCY_GRAPH';
+import * as LATENCY_HISTORY from '../commands/LATENCY_HISTORY';
+import * as LATENCY_LATEST from '../commands/LATENCY_LATEST';
 import * as LOLWUT from '../commands/LOLWUT';
 import * as MEMORY_DOCTOR from '../commands/MEMORY_DOCTOR';
 import * as MEMORY_MALLOC_STATS from '../commands/MEMORY_MALLOC-STATS';
@@ -97,6 +102,8 @@ import * as PING from '../commands/PING';
 import * as PUBSUB_CHANNELS from '../commands/PUBSUB_CHANNELS';
 import * as PUBSUB_NUMPAT from '../commands/PUBSUB_NUMPAT';
 import * as PUBSUB_NUMSUB from '../commands/PUBSUB_NUMSUB';
+import * as PUBSUB_SHARDCHANNELS from '../commands/PUBSUB_SHARDCHANNELS';
+import * as PUBSUB_SHARDNUMSUB from '../commands/PUBSUB_SHARDNUMSUB';
 import * as RANDOMKEY from '../commands/RANDOMKEY';
 import * as READONLY from '../commands/READONLY';
 import * as READWRITE from '../commands/READWRITE';
@@ -164,6 +171,10 @@ export default {
     clientKill: CLIENT_KILL,
     'CLIENT_NO-EVICT': CLIENT_NO_EVICT,
     clientNoEvict: CLIENT_NO_EVICT,
+    'CLIENT_NO-TOUCH': CLIENT_NO_TOUCH,
+    clientNoTouch: CLIENT_NO_TOUCH,
+    CLIENT_LIST,
+    clientList: CLIENT_LIST,
     CLIENT_PAUSE,
     clientPause: CLIENT_PAUSE,
     CLIENT_SETNAME,
@@ -208,6 +219,8 @@ export default {
     clusterMeet: CLUSTER_MEET,
     CLUSTER_MYID,
     clusterMyId: CLUSTER_MYID,
+    CLUSTER_MYSHARDID,
+    clusterMyShardId: CLUSTER_MYSHARDID,
     CLUSTER_NODES,
     clusterNodes: CLUSTER_NODES,
     CLUSTER_REPLICAS,
@@ -286,6 +299,10 @@ export default {
     latencyDoctor: LATENCY_DOCTOR,
     LATENCY_GRAPH,
     latencyGraph: LATENCY_GRAPH,
+    LATENCY_HISTORY,
+    latencyHistory: LATENCY_HISTORY,
+    LATENCY_LATEST,
+    latencyLatest: LATENCY_LATEST,
     LOLWUT,
     lolwut: LOLWUT,
     MEMORY_DOCTOR,
@@ -314,6 +331,10 @@ export default {
     pubSubNumPat: PUBSUB_NUMPAT,
     PUBSUB_NUMSUB,
     pubSubNumSub: PUBSUB_NUMSUB,
+    PUBSUB_SHARDCHANNELS,
+    pubSubShardChannels: PUBSUB_SHARDCHANNELS,
+    PUBSUB_SHARDNUMSUB,
+    pubSubShardNumSub: PUBSUB_SHARDNUMSUB,
     RANDOMKEY,
     randomKey: RANDOMKEY,
     READONLY,
