@@ -6,7 +6,6 @@ export const FIRST_KEY_INDEX = 1;
 export const IS_READ_ONLY = true;
 
 export interface SearchOptions {
-    // NOCONTENT?: true; TODO
     VERBATIM?: true;
     NOSTOPWORDS?: true;
     // WITHSCORES?: true;
@@ -55,6 +54,7 @@ export interface SearchOptions {
     };
     PARAMS?: Params;
     DIALECT?: number;
+    TIMEOUT?: number;
 }
 
 export function transformArguments(
@@ -70,13 +70,13 @@ export function transformArguments(
 
 export type SearchRawReply = Array<any>;
 
-export function transformReply(reply: SearchRawReply): SearchReply {
+export function transformReply(reply: SearchRawReply, withoutDocuments: boolean): SearchReply {
     const documents = [];
     let i = 1;
     while (i < reply.length) {
         documents.push({
             id: reply[i++],
-            value: documentValue(reply[i++])
+            value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
         });
     }
 
@@ -88,7 +88,6 @@ export function transformReply(reply: SearchRawReply): SearchReply {
 
 function documentValue(tuples: any) {
     const message = Object.create(null);
-    if (tuples === undefined) return message;
 
     let i = 0;
     while (i < tuples.length) {
