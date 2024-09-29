@@ -48,15 +48,25 @@ describe('ALTER', () => {
             );
         });
 
-        it('with RETENTION, CHUNK_SIZE, DUPLICATE_POLICY, LABELS', () => {
+        it('with IGNORE with MAX_TIME_DIFF', () => {
+            assert.deepEqual(
+                transformArguments('key', {
+                IGNORE: { MAX_TIME_DIFF: 1, MAX_VAL_DIFF: 1}
+                }),
+                ['TS.ALTER', 'key', 'IGNORE', '1', '1']
+            )
+        });
+
+        it('with RETENTION, CHUNK_SIZE, DUPLICATE_POLICY, LABELS, IGNORE', () => {
             assert.deepEqual(
                 transformArguments('key', {
                     RETENTION: 1,
                     CHUNK_SIZE: 1,
                     DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK,
-                    LABELS: { label: 'value' }
+                    LABELS: { label: 'value' },
+                    IGNORE: { MAX_TIME_DIFF: 1, MAX_VAL_DIFF: 1}
                 }),
-                ['TS.ALTER', 'key', 'RETENTION', '1', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value']
+                ['TS.ALTER', 'key', 'RETENTION', '1', 'CHUNK_SIZE', '1', 'DUPLICATE_POLICY', 'BLOCK', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
             );
         });
     });

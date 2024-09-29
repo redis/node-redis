@@ -9,7 +9,7 @@ import { hideBin } from 'yargs/helpers';
 interface TestUtilsConfig {
     dockerImageName: string;
     dockerImageVersionArgument: string;
-    defaultDockerVersion: string;
+    defaultDockerVersion?: string;
 }
 
 interface CommonTestOptions {
@@ -33,7 +33,8 @@ interface ClusterTestOptions<
 > extends CommonTestOptions {
     serverArguments: Array<string>;
     clusterConfiguration?: Partial<RedisClusterOptions<M, F, S>>;
-    numberOfNodes?: number;
+    numberOfMasters?: number;
+    numberOfReplicas?: number;
 }
 
 interface Version {
@@ -43,7 +44,7 @@ interface Version {
 
 export default class TestUtils {
     static #parseVersionNumber(version: string): Array<number> {
-        if (version === 'edge') return [Infinity];
+        if (version === 'latest' || version === 'edge') return [Infinity];
 
         const dashIndex = version.indexOf('-');
         return (dashIndex === -1 ? version : version.substring(0, dashIndex))
@@ -58,7 +59,7 @@ export default class TestUtils {
             });
     }
 
-    static #getVersion(argumentName: string, defaultVersion: string): Version {
+    static #getVersion(argumentName: string, defaultVersion = 'latest'): Version {
         return yargs(hideBin(process.argv))
             .option(argumentName, {
                 type: 'string',
@@ -163,9 +164,13 @@ export default class TestUtils {
         M extends RedisModules,
         F extends RedisFunctions,
         S extends RedisScripts
-    >(cluster: RedisClusterType<M, F, S>): Promise<void> {
-        await Promise.all(
-            cluster.getMasters().map(({ client }) => client.flushAll())
+    >(cluster: RedisClusterType<M, F, S>): Promise<unknown> {
+        return Promise.all(
+            cluster.masters.map(async ({ client }) => {
+                if (client) {
+                    await (await client).flushAll();
+                }
+            })
         );
     }
 
@@ -186,7 +191,8 @@ export default class TestUtils {
 
                 dockersPromise = spawnRedisCluster({
                     ...dockerImage,
-                    numberOfNodes: options?.numberOfNodes
+                    numberOfMasters: options?.numberOfMasters,
+                    numberOfReplicas: options?.numberOfReplicas 
                 }, options.serverArguments);
                 return dockersPromise;
             });
@@ -197,14 +203,14 @@ export default class TestUtils {
 
             const dockers = await dockersPromise,
                 cluster = RedisCluster.create({
-                    ...options.clusterConfiguration,
                     rootNodes: dockers.map(({ port }) => ({
                         socket: {
                             port
                         }
-                    }))
+                    })),
+                    minimizeConnections: true,
+                    ...options.clusterConfiguration
                 });
-
 
             await cluster.connect();
 

@@ -11,8 +11,9 @@ describe('CLUSTER COUNTKEYSINSLOT', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterCountKeysInSlot', async cluster => {
+        const client = await cluster.nodeClient(cluster.masters[0]);
         assert.equal(
-            typeof await cluster.getSlotMaster(0).client.clusterCountKeysInSlot(0),
+            typeof await client.clusterCountKeysInSlot(0),
             'number'
         );
     }, GLOBAL.CLUSTERS.OPEN);

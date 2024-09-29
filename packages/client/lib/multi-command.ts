@@ -1,6 +1,6 @@
 import { fCallArguments } from './commander';
 import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunction, RedisScript } from './commands';
-import { WatchError } from './errors';
+import { ErrorReply, MultiErrorReply, WatchError } from './errors';
 
 export interface RedisMultiQueuedCommand {
     args: RedisCommandArguments;
@@ -69,19 +69,7 @@ export default class RedisMultiCommand {
         return transformedArguments;
     }
 
-    exec(): undefined | Array<RedisMultiQueuedCommand> {
-        if (!this.queue.length) {
-            return;
-        }
-
-        return [
-            { args: ['MULTI'] },
-            ...this.queue,
-            { args: ['EXEC'] }
-        ];
-    }
-
-    handleExecReplies(rawReplies: Array<RedisCommandRawReply>): Array<RedisCommandRawReply> {
+    handleExecReplies(rawReplies: Array<RedisCommandRawReply | ErrorReply>): Array<RedisCommandRawReply> {
         const execReply = rawReplies[rawReplies.length - 1] as (null | Array<RedisCommandRawReply>);
         if (execReply === null) {
             throw new WatchError();
@@ -90,10 +78,18 @@ export default class RedisMultiCommand {
         return this.transformReplies(execReply);
     }
 
-    transformReplies(rawReplies: Array<RedisCommandRawReply>): Array<RedisCommandRawReply> {
-        return rawReplies.map((reply, i) => {
-            const { transformReply, args } = this.queue[i];
-            return transformReply ? transformReply(reply, args.preserve) : reply;
-        });
+    transformReplies(rawReplies: Array<RedisCommandRawReply | ErrorReply>): Array<RedisCommandRawReply> {
+        const errorIndexes: Array<number> = [],
+            replies = rawReplies.map((reply, i) => {
+                if (reply instanceof ErrorReply) {
+                    errorIndexes.push(i);
+                    return reply;
+                }
+                const { transformReply, args } = this.queue[i];
+                return transformReply ? transformReply(reply, args.preserve) : reply;
+            });
+
+        if (errorIndexes.length) throw new MultiErrorReply(replies, errorIndexes);
+        return replies;
     }
 }

@@ -1,3 +1,5 @@
+import { RedisCommandRawReply } from './commands';
+
 export class AbortError extends Error {
     constructor() {
         super('The command was aborted');
@@ -61,5 +63,22 @@ export class ErrorReply extends Error {
     constructor(message: string) {
         super(message);
         this.stack = undefined;
+    }
+}
+
+export class MultiErrorReply extends ErrorReply {
+    replies;
+    errorIndexes;
+
+    constructor(replies: Array<RedisCommandRawReply | ErrorReply>, errorIndexes: Array<number>) {
+        super(`${errorIndexes.length} commands failed, see .replies and .errorIndexes for more information`);
+        this.replies = replies;
+        this.errorIndexes = errorIndexes;
+    }
+
+    *errors() {
+        for (const index of this.errorIndexes) {
+            yield this.replies[index];
+        }
     }
 }

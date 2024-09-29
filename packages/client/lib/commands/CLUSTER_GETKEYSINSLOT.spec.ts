@@ -11,7 +11,8 @@ describe('CLUSTER GETKEYSINSLOT', () => {
     });
 
     testUtils.testWithCluster('clusterNode.clusterGetKeysInSlot', async cluster => {
-        const reply = await cluster.getSlotMaster(0).client.clusterGetKeysInSlot(0, 1);
+        const client = await cluster.nodeClient(cluster.masters[0]),
+            reply = await client.clusterGetKeysInSlot(0, 1);
         assert.ok(Array.isArray(reply));
         for (const item of reply) {
             assert.equal(typeof item, 'string');
