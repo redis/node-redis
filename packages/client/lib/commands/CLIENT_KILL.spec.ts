@@ -65,6 +65,16 @@ describe('CLIENT KILL', () => {
             );
         });
 
+        it('MAXAGE', () => {
+            assert.deepEqual(
+                transformArguments({
+                    filter: ClientKillFilters.MAXAGE,
+                    maxAge: 10
+                }),
+                ['CLIENT', 'KILL', 'MAXAGE', '10']
+            );
+        });
+
         describe('SKIP_ME', () => {
             it('undefined', () => {
                 assert.deepEqual(

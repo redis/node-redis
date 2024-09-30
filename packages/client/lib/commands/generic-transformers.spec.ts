@@ -9,6 +9,7 @@ import {
     transformStringNumberInfinityArgument,
     transformTuplesReply,
     transformStreamMessagesReply,
+    transformStreamMessagesNullReply,
     transformStreamsMessagesReply,
     transformSortedSetWithScoresReply,
     pushGeoCountArgument,
@@ -211,6 +212,38 @@ describe('Generic Transformers', () => {
                 message: Object.create(null, {
                     '1key': {
                         value: '1value',
+                        configurable: true,
+                        enumerable: true
+                    }
+                })
+            }]
+        );
+    });
+
+    it('transformStreamMessagesNullReply', () => {
+        assert.deepEqual(
+            transformStreamMessagesNullReply([null, ['0-0', ['0key', '0value']]]),
+            [null, {
+                id: '0-0',
+                message: Object.create(null, {
+                    '0key': {
+                        value: '0value',
+                        configurable: true,
+                        enumerable: true
+                    }
+                })
+            }]
+        );
+    });
+
+    it('transformStreamMessagesNullReply', () => {
+        assert.deepEqual(
+            transformStreamMessagesNullReply([null, ['0-1', ['11key', '11value']]]),
+            [null, {
+                id: '0-1',
+                message: Object.create(null, {
+                    '11key': {
+                        value: '11value',
                         configurable: true,
                         enumerable: true
                     }

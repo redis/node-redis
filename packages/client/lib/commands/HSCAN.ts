@@ -16,7 +16,7 @@ export function transformArguments(
     ], cursor, options);
 }
 
-type HScanRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
+export type HScanRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
 
 export interface HScanTuple {
     field: RedisCommandArgument;

@@ -53,6 +53,9 @@ import * as GETRANGE from '../commands/GETRANGE';
 import * as GETSET from '../commands/GETSET';
 import * as HDEL from '../commands/HDEL';
 import * as HEXISTS from '../commands/HEXISTS';
+import * as HEXPIRE from '../commands/HEXPIRE';
+import * as HEXPIREAT from '../commands/HEXPIREAT';
+import * as HEXPIRETIME from '../commands/HEXPIRETIME';
 import * as HGET from '../commands/HGET';
 import * as HGETALL from '../commands/HGETALL';
 import * as HINCRBY from '../commands/HINCRBY';
@@ -60,13 +63,20 @@ import * as HINCRBYFLOAT from '../commands/HINCRBYFLOAT';
 import * as HKEYS from '../commands/HKEYS';
 import * as HLEN from '../commands/HLEN';
 import * as HMGET from '../commands/HMGET';
+import * as HPERSIST from '../commands/HPERSIST';
+import * as HPEXPIRE from '../commands/HPEXPIRE';
+import * as HPEXPIREAT from '../commands/HPEXPIREAT';
+import * as HPEXPIRETIME from '../commands/HPEXPIRETIME';
+import * as HPTTL from '../commands/HPTTL';
 import * as HRANDFIELD_COUNT_WITHVALUES from '../commands/HRANDFIELD_COUNT_WITHVALUES';
 import * as HRANDFIELD_COUNT from '../commands/HRANDFIELD_COUNT';
 import * as HRANDFIELD from '../commands/HRANDFIELD';
 import * as HSCAN from '../commands/HSCAN';
+import * as HSCAN_NOVALUES from '../commands/HSCAN_NOVALUES';
 import * as HSET from '../commands/HSET';
 import * as HSETNX from '../commands/HSETNX';
 import * as HSTRLEN from '../commands/HSTRLEN';
+import * as HTTL from '../commands/HTTL';
 import * as HVALS from '../commands/HVALS';
 import * as INCR from '../commands/INCR';
 import * as INCRBY from '../commands/INCRBY';
@@ -110,6 +120,7 @@ import * as PTTL from '../commands/PTTL';
 import * as PUBLISH from '../commands/PUBLISH';
 import * as RENAME from '../commands/RENAME';
 import * as RENAMENX from '../commands/RENAMENX';
+import * as RESTORE from '../commands/RESTORE';
 import * as RPOP_COUNT from '../commands/RPOP_COUNT';
 import * as RPOP from '../commands/RPOP';
 import * as RPOPLPUSH from '../commands/RPOPLPUSH';
@@ -135,6 +146,7 @@ import * as SORT_RO from '../commands/SORT_RO';
 import * as SORT_STORE from '../commands/SORT_STORE';
 import * as SORT from '../commands/SORT';
 import * as SPOP from '../commands/SPOP';
+import * as SPUBLISH from '../commands/SPUBLISH';
 import * as SRANDMEMBER_COUNT from '../commands/SRANDMEMBER_COUNT';
 import * as SRANDMEMBER from '../commands/SRANDMEMBER';
 import * as SREM from '../commands/SREM';
@@ -319,6 +331,12 @@ export default {
     hDel: HDEL,
     HEXISTS,
     hExists: HEXISTS,
+    HEXPIRE,
+    hExpire: HEXPIRE,
+    HEXPIREAT,
+    hExpireAt: HEXPIREAT,
+    HEXPIRETIME,
+    hExpireTime: HEXPIRETIME,
     HGET,
     hGet: HGET,
     HGETALL,
@@ -333,6 +351,16 @@ export default {
     hLen: HLEN,
     HMGET,
     hmGet: HMGET,
+    HPERSIST,
+    hPersist: HPERSIST,
+    HPEXPIRE,
+    hpExpire: HPEXPIRE,
+    HPEXPIREAT,
+    hpExpireAt: HPEXPIREAT,
+    HPEXPIRETIME,
+    hpExpireTime: HPEXPIRETIME,
+    HPTTL,
+    hpTTL: HPTTL,
     HRANDFIELD_COUNT_WITHVALUES,
     hRandFieldCountWithValues: HRANDFIELD_COUNT_WITHVALUES,
     HRANDFIELD_COUNT,
@@ -341,12 +369,16 @@ export default {
     hRandField: HRANDFIELD,
     HSCAN,
     hScan: HSCAN,
+    HSCAN_NOVALUES,
+    hScanNoValues: HSCAN_NOVALUES,
     HSET,
     hSet: HSET,
     HSETNX,
     hSetNX: HSETNX,
     HSTRLEN,
     hStrLen: HSTRLEN,
+    HTTL,
+    hTTL: HTTL,
     HVALS,
     hVals: HVALS,
     INCR,
@@ -433,6 +465,8 @@ export default {
     rename: RENAME,
     RENAMENX,
     renameNX: RENAMENX,
+    RESTORE,
+    restore: RESTORE,
     RPOP_COUNT,
     rPopCount: RPOP_COUNT,
     RPOP,
@@ -483,6 +517,8 @@ export default {
     sort: SORT,
     SPOP,
     sPop: SPOP,
+    SPUBLISH,
+    sPublish: SPUBLISH,
     SRANDMEMBER_COUNT,
     sRandMemberCount: SRANDMEMBER_COUNT,
     SRANDMEMBER,

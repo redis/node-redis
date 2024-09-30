@@ -1,0 +1,39 @@
+name: Bug Report
+description: Tell us about something that isn't working as expected
+labels: [Bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please enter a detailed description of your issue. If possible, please provide example code to reproduce the issue.
+    validations:
+      required: true
+  - type: input
+    id: node-js-version
+    attributes:
+      label: Node.js Version
+      description: Please enter your Node.js version `node --version`
+  - type: input
+    id: redis-server-version
+    attributes:
+      label: Redis Server Version
+      description: Please enter your Redis server version ([`INFO server`](https://redis.io/commands/info/))
+  - type: input
+    id: node-redis-version
+    attributes:
+      label: Node Redis Version
+      description: Please enter your node redis version `npm ls redis`
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Please enter the platform you are using e.g. Linux, macOS, Windows
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: bash
+    validations:
+      required: false

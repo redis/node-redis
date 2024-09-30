@@ -127,8 +127,14 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
     ).toString();
 }
 
+export function pushIgnoreArgument(args: RedisCommandArguments, ignore?: ADD.TsIgnoreOptions) {
+  if (ignore !== undefined) {
+    args.push('IGNORE', ignore.MAX_TIME_DIFF.toString(), ignore.MAX_VAL_DIFF.toString());
+  }
+}
+
 export function pushRetentionArgument(args: RedisCommandArguments, retention?: number): RedisCommandArguments {
-    if (retention) {
+    if (retention !== undefined) {
         args.push(
             'RETENTION',
             retention.toString()
@@ -144,7 +150,7 @@ export enum TimeSeriesEncoding {
 }
 
 export function pushEncodingArgument(args: RedisCommandArguments, encoding?: TimeSeriesEncoding): RedisCommandArguments {
-    if (encoding) {
+    if (encoding !== undefined) {
         args.push(
             'ENCODING',
             encoding
@@ -155,7 +161,7 @@ export function pushEncodingArgument(args: RedisCommandArguments, encoding?: Tim
 }
 
 export function pushChunkSizeArgument(args: RedisCommandArguments, chunkSize?: number): RedisCommandArguments {
-    if (chunkSize) {
+    if (chunkSize !== undefined) {
         args.push(
             'CHUNK_SIZE',
             chunkSize.toString()
@@ -166,7 +172,7 @@ export function pushChunkSizeArgument(args: RedisCommandArguments, chunkSize?: n
 }
 
 export function pushDuplicatePolicy(args: RedisCommandArguments, duplicatePolicy?: TimeSeriesDuplicatePolicies): RedisCommandArguments {
-    if (duplicatePolicy) {
+    if (duplicatePolicy !== undefined) {
         args.push(
             'DUPLICATE_POLICY',
             duplicatePolicy
