@@ -21,7 +21,11 @@ async function embedText(sentence) {
       normalize: true,
   });
 
-  const embedding = Object.values(vectorOutput?.data);
+  if (vectorOutput == null) {
+    throw new Error('vectorOutput is undefined');
+  }
+
+  const embedding = Object.values(vectorOutput.data);
 
   return embedding;
 }
