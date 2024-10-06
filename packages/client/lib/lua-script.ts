@@ -13,7 +13,8 @@ export interface SHA1 {
 export function defineScript<S extends RedisScriptConfig>(script: S): S & SHA1 {
   return {
     ...script,
-    SHA1: scriptSha1(script.SCRIPT)
+    SHA1: scriptSha1(script.SCRIPT),
+    FIRST_KEY_INDEX: script['NUMBER_OF_KEYS'] > 0 ? 0 : undefined,
   };
 }
 
