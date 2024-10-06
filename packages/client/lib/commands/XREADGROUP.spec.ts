@@ -123,14 +123,8 @@ describe('XREADGROUP', () => {
       })
     ]);
 
-    const arr = ['key', [{
-      'id': id,
-      'message': [
-        'field',
-        'value',
-      ]
-    }]];    
 
+    // FUTURE resp3 compatible
     const obj = Object.assign(Object.create(null), {
       'key': [{
         id: id,
@@ -144,7 +138,18 @@ describe('XREADGROUP', () => {
       }]
     });
 
-    assert.deepStrictEqual(readGroupReply, arr);
+    // v4 compatible
+    const expected = [{
+      name: 'key',
+      messages: [{
+        id: id,
+        message: Object.assign(Object.create(null), {
+          field: 'value'
+        })
+      }]
+    }];
+
+    assert.deepStrictEqual(readGroupReply, expected);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

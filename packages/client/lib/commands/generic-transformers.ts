@@ -530,11 +530,13 @@ export function transformStreamsMessagesReplyResp2(
   reply: UnwrapReply<StreamsMessagesRawReply2 | NullReply>,
   preserve?: any,
   typeMapping?: TypeMapping
-): MapReply<BlobStringReply | string, StreamMessagesReply> | NullReply {
+): StreamsMessagesReply | NullReply { 
+  // FUTURE: resposne type if resp3 was working, reverting to old v4 for now
+  //: MapReply<BlobStringReply | string, StreamMessagesReply> | NullReply {
   if (reply === null) return null as unknown as NullReply;
 
   switch (typeMapping? typeMapping[RESP_TYPES.MAP] : undefined) {
-/*    
+/* FUTURE: a response type for when resp3 is working properly
     case Map: {
       const ret = new Map<string, StreamMessagesReply>();
 
@@ -549,14 +551,6 @@ export function transformStreamsMessagesReplyResp2(
     
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
-*/
-    /* work around for now */
-    default:
-      if (!typeMapping) {
-        typeMapping = {};
-      }
-      // console.log("forcing map type map to array");
-      // typeMapping[RESP_TYPES.MAP] = Array;
     case Array: {
       const ret: Array<BlobStringReply | StreamMessagesReply> = [];
 
@@ -572,7 +566,6 @@ export function transformStreamsMessagesReplyResp2(
 
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
-/*    
     default: {
       const ret: Record<string, StreamMessagesReply> = Object.create(null);
 
@@ -588,6 +581,21 @@ export function transformStreamsMessagesReplyResp2(
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
 */
+    // V4 compatible response type
+    default: {
+      const ret: StreamsMessagesReply = [];
+
+      for (let i=0; i < reply.length; i++) {
+        const stream = reply[i] as unknown as UnwrapReply<StreamMessagesRawReply>;
+
+        ret.push({
+          name: stream[0],
+          messages: transformStreamMessagesReply(stream[1])
+        });
+      }
+
+      return ret;
+    }
   }
 }
 
