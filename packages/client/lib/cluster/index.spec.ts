@@ -3,7 +3,7 @@ import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { ClusterSlotStates } from '../commands/CLUSTER_SETSLOT';
 import { commandOptions } from '../command-options';
-import { SQUARE_SCRIPT } from '../client/index.spec';
+import { SQUARE_KEY_SCRIPT, SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
 import { promiseTimeout } from '../utils';
@@ -49,6 +49,25 @@ describe('Cluster', () => {
             scripts: {
                 square: SQUARE_SCRIPT
             }
+        }
+    });
+
+    testUtils.testWithCluster('scripts with keys', async cluster => {
+        const key = 'key';
+        await cluster.set(key, 2);
+        assert.equal(
+            await cluster.square_key(key),
+            4
+        );
+    }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: {
+            scripts: {
+                square_key: SQUARE_KEY_SCRIPT
+            },
+            // Ensure we send the script to the correct node and not getting
+            // MOVED responses.
+            maxCommandRedirections: 0
         }
     });
 

@@ -20,6 +20,21 @@ export const SQUARE_SCRIPT = defineScript({
     }
 });
 
+export const SQUARE_KEY_SCRIPT = defineScript({
+    SCRIPT: `
+local value = tonumber(redis.call("GET", KEYS[1]))
+if value then
+    return value * value
+else
+    return nil
+end
+`,
+    NUMBER_OF_KEYS: 1,
+    transformArguments(key): Array<string> {
+        return [key];
+    }
+});
+
 export const MATH_FUNCTION = {
     name: 'math',
     engine: 'LUA',
