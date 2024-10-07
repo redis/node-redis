@@ -41,6 +41,6 @@ describe('EXPLAIN', () => {
       client.ft.explain('index', '*')
     ]);
 
-    assert.equal('<WILDCARD>}\n', reply);
+    assert.equal(reply, '<WILDCARD>\n');
   }, GLOBAL.SERVERS.OPEN);
 });
