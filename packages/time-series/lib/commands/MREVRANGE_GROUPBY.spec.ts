@@ -1,12 +1,16 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import MREVRANGE from './MREVRANGE';
+import MREVRANGE_GROUPBY from './MREVRANGE_GROUPBY';
+import { TIME_SERIES_REDUCERS } from './MRANGE_GROUPBY';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
-describe('TS.MREVRANGE', () => {
+describe('TS.MREVRANGE_GROUPBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MREVRANGE.transformArguments('-', '+', 'label=value', {
+      MREVRANGE_GROUPBY.transformArguments('-', '+', 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.AVG,
+        label: 'label'
+      }, {
         LATEST: true,
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
@@ -26,35 +30,36 @@ describe('TS.MREVRANGE', () => {
         'FILTER_BY_TS', '0',
         'FILTER_BY_VALUE', '0', '1',
         'COUNT', '1',
-        'ALIGN', '-',
-        'AGGREGATION', 'AVG', '1',
-        'FILTER', 'label=value'
+        'ALIGN', '-', 'AGGREGATION', 'AVG', '1',
+        'FILTER', 'label=value',
+        'GROUPBY', 'label', 'REDUCE', 'AVG'
       ]
     );
   });
 
-  testUtils.testWithClient('client.ts.mRevRange', async client => {
+  testUtils.testWithClient('client.ts.mRevRangeGroupBy', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
-        LABELS: {
-          label: 'value'
-        }
+        LABELS: { label: 'value' }
       }),
-      client.ts.mRevRange('-', '+', 'label=value', {
-        COUNT: 1
+      client.ts.mRevRangeGroupBy('-', '+', 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.AVG,
+        label: 'label'
       })
     ]);
 
     assert.deepStrictEqual(
       reply,
       Object.create(null, {
-        key: {
+        'label=value': {
           configurable: true,
           enumerable: true,
-          value: [{
-            timestamp: 0,
-            value: 0
-          }]
+          value: {  
+            samples: [{
+              timestamp: 0,
+              value: 0
+            }]
+          }
         }
       })
     );

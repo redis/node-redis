@@ -1,50 +1,61 @@
-import { Command, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { TsMGetOptions, pushLatestArgument, pushFilterArgument, MGetReply2, MGetRawReply2, MGetReply3, MGetRawReplyValue3, MGetRawReply3, parseResp3Mget, parseResp2Mget, MGetRawReplyValue2 } from './MGET';
-import { Labels, pushWithLabelsArgument, resp2MapToValue, resp3MapToValue, transformLablesReply2, transformLablesReply3 } from '.';
+import { TsMGetOptions, pushLatestArgument, pushFilterArgument } from './MGET';
+import { RawLabelValue, resp2MapToValue, resp3MapToValue, SampleRawReply, transformRESP2Labels, transformSampleReply } from '.';
 
 export interface TsMGetWithLabelsOptions extends TsMGetOptions {
   SELECTED_LABELS?: RedisVariadicArgument;
 }
 
-export interface MGetWithLabelsReply2 extends MGetReply2 {
-  labels: Labels;
-};
+export type MGetLabelsRawReply2<T extends RawLabelValue> = ArrayReply<
+  TuplesReply<[
+    key: BlobStringReply,
+    labels: ArrayReply<
+      TuplesReply<[
+        label: BlobStringReply,
+        value: T
+      ]>
+    >,
+    sample: Resp2Reply<SampleRawReply>
+  ]>
+>;
 
-export interface MGetWithLabelsReply3 extends MGetReply3 {
-  labels: Labels;
-};
+export type MGetLabelsRawReply3<T extends RawLabelValue> = MapReply<
+  BlobStringReply,
+  TuplesReply<[
+    labels: MapReply<BlobStringReply, T>,
+    sample: SampleRawReply
+  ]>
+>;
 
-function parseResp2MgetWithLabels(
-  value: UnwrapReply<MGetRawReplyValue2>,
-): MGetWithLabelsReply3 {
-  const ret = parseResp2Mget(value) as unknown as MGetWithLabelsReply3;
-  ret.labels = transformLablesReply2(value[1]);
-
-  return ret;
-}
-
-function parseResp3MgetWithLabels(value: UnwrapReply<MGetRawReplyValue3>): MGetWithLabelsReply3 {
-  const ret = parseResp3Mget(value) as MGetWithLabelsReply3;
-  ret.labels = transformLablesReply3(value[0]);
-
-  return ret;
+export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
+  return {
+    2(reply: MGetLabelsRawReply2<T>, _, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, ([, labels, sample]) => {
+        return {
+          labels: transformRESP2Labels(labels),
+          sample: transformSampleReply[2](sample)
+        };
+      }, typeMapping);
+    },
+    3(reply: MGetLabelsRawReply3<T>) {
+      return resp3MapToValue(reply, ([labels, sample]) => {
+        return {
+          labels,
+          sample: transformSampleReply[3](sample)
+        };
+      });
+    }
+  } satisfies Command['transformReply'];
 }
 
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(filter: RedisVariadicArgument, options?: TsMGetWithLabelsOptions) {
-    let args = pushLatestArgument(['TS.MGET'], options?.LATEST);
-    args = pushWithLabelsArgument(args, options?.SELECTED_LABELS);
+  transformArguments(filter: RedisVariadicArgument, options?: TsMGetOptions) {
+    const args = pushLatestArgument(['TS.MGET'], options?.LATEST);
+    args.push('WITHLABELS');
     return pushFilterArgument(args, filter);
   },
-  transformReply: {
-    2(reply: UnwrapReply<MGetRawReply2>, preserve?: any, typeMapping?: TypeMapping) {
-      return resp2MapToValue(reply, parseResp2MgetWithLabels, typeMapping);
-    },
-    3(reply: UnwrapReply<MGetRawReply3>) {
-      return resp3MapToValue(reply, parseResp3MgetWithLabels);
-    }
-  },
+  transformReply: createTransformMGetLabelsReply<BlobStringReply>(),
 } as const satisfies Command;

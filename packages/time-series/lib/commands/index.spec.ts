@@ -336,22 +336,6 @@
 //     });
 // });
 
-// describe('pushWithLabelsArgument', () => {
-//     it('without selected labels', () => {
-//         assert.deepEqual(
-//             pushWithLabelsArgument([]),
-//             ['WITHLABELS']
-//         );
-//     });
-
-//     it('with selected labels', () => {
-//         assert.deepEqual(
-//             pushWithLabelsArgument([], ['label']),
-//             ['SELECTED_LABELS', 'label']
-//         );
-//     });
-// });
-
 // it('pushMRangeWithLabelsArguments', () => {
 //     assert.deepEqual(
 //         pushMRangeWithLabelsArguments([], '-', '+', 'label=value'),

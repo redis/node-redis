@@ -1,4 +1,4 @@
-import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import type { CommandArguments, DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/dist/lib/RESP/types';
 import ADD from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -11,10 +11,19 @@ import INCRBY from './INCRBY';
 import INFO_DEBUG from './INFO_DEBUG';
 import INFO from './INFO';
 import MADD from './MADD';
+import MGET_SELECTED_LABELS from './MGET_SELECTED_LABELS';
 import MGET_WITHLABELS from './MGET_WITHLABELS';
 import MGET from './MGET';
+import MRANGE_GROUPBY from './MRANGE_GROUPBY';
+import MRANGE_SELECTED_LABELS_GROUPBY from './MRANGE_SELECTED_LABELS_GROUPBY';
+import MRANGE_SELECTED_LABELS from './MRANGE_SELECTED_LABELS';
+import MRANGE_WITHLABELS_GROUPBY from './MRANGE_WITHLABELS_GROUPBY';
 import MRANGE_WITHLABELS from './MRANGE_WITHLABELS';
 import MRANGE from './MRANGE';
+import MREVRANGE_GROUPBY from './MREVRANGE_GROUPBY';
+import MREVRANGE_SELECTED_LABELS_GROUPBY from './MREVRANGE_SELECTED_LABELS_GROUPBY';
+import MREVRANGE_SELECTED_LABELS from './MREVRANGE_SELECTED_LABELS';
+import MREVRANGE_WITHLABELS_GROUPBY from './MREVRANGE_WITHLABELS_GROUPBY';
 import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
 import MREVRANGE from './MREVRANGE';
 import QUERYINDEX from './QUERYINDEX';
@@ -48,14 +57,32 @@ export default {
   info: INFO,
   MADD,
   mAdd: MADD,
+  MGET_SELECTED_LABELS,
+  mGetSelectedLabels: MGET_SELECTED_LABELS,
   MGET_WITHLABELS,
   mGetWithLabels: MGET_WITHLABELS,
   MGET,
   mGet: MGET,
+  MRANGE_GROUPBY,
+  mRangeGroupBy: MRANGE_GROUPBY,
+  MRANGE_SELECTED_LABELS_GROUPBY,
+  mRangeSelectedLabelsGroupBy: MRANGE_SELECTED_LABELS_GROUPBY,
+  MRANGE_SELECTED_LABELS,
+  mRangeSelectedLabels: MRANGE_SELECTED_LABELS,
+  MRANGE_WITHLABELS_GROUPBY,
+  mRangeWithLabelsGroupBy: MRANGE_WITHLABELS_GROUPBY,
   MRANGE_WITHLABELS,
   mRangeWithLabels: MRANGE_WITHLABELS,
   MRANGE,
   mRange: MRANGE,
+  MREVRANGE_GROUPBY,
+  mRevRangeGroupBy: MREVRANGE_GROUPBY,
+  MREVRANGE_SELECTED_LABELS_GROUPBY,
+  mRevRangeSelectedLabelsGroupBy: MREVRANGE_SELECTED_LABELS_GROUPBY,
+  MREVRANGE_SELECTED_LABELS,
+  mRevRangeSelectedLabels: MREVRANGE_SELECTED_LABELS,
+  MREVRANGE_WITHLABELS_GROUPBY,
+  mRevRangeWithLabelsGroupBy: MREVRANGE_WITHLABELS_GROUPBY,
   MREVRANGE_WITHLABELS,
   mRevRangeWithLabels: MREVRANGE_WITHLABELS,
   MREVRANGE,
@@ -122,9 +149,6 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
-export type RawLabels2 = ArrayReply<TuplesReply<[label: BlobStringReply, value: BlobStringReply]>>;
-export type RawLabels3 = MapReply<BlobStringReply, BlobStringReply>;
-
 export type Labels = {
   [label: string]: string;
 };
@@ -148,7 +172,7 @@ export const transformSampleReply = {
     const [ timestamp, value ] = reply as unknown as UnwrapReply<typeof reply>;
     return {
       timestamp,
-      value: Number(value)
+      value: Number(value) // TODO: use double type mapping instead
     };
   },
   3(reply: SampleRawReply) {
@@ -169,146 +193,201 @@ export const transformSamplesReply = {
   },
   3(reply: SamplesRawReply) {
     return (reply as unknown as UnwrapReply<typeof reply>)
-      .map(sample => transformSampleReply[3](sample));  }
+      .map(sample => transformSampleReply[3](sample));
+  }
 };
 
-export function transformLablesReply2(r: RawLabels2): Labels {
-  const labels: Labels = {};
-
-  const reply = r as unknown as UnwrapReply<typeof r>;
-
-  for (const t of reply) {
-    const [k, v] = t as unknown as UnwrapReply<typeof t>;
-    const key = k as unknown as UnwrapReply<BlobStringReply>;
-    const value = v as unknown as UnwrapReply<BlobStringReply>;
-
-    labels[key.toString()] = value.toString()
-  }
-
-  return labels
-}
-
-export function transformLablesReply3(r: RawLabels3): Labels {
-  const reply = r as unknown as UnwrapReply<RawLabels3>;
-
-  const labels: Labels = {};
-
-  if (reply instanceof Map) {
-    for (const [key, value] of reply) {
-      labels[key.toString()] = value.toString();
-    }
-  } else if (reply instanceof Array) {
-    for (let i=0; i < reply.length; i += 2) {
-      labels[reply[i].toString()] = reply[i+1].toString()
-    }
-  } else {
-    for (const [key, value] of Object.entries(reply)) {
-      labels[key] = value.toString();
-    }
-  }
-
-  return labels
-}
-
-export function pushWithLabelsArgument(args: CommandArguments, selectedLabels?: RedisVariadicArgument) {
-  if (!selectedLabels) {
-    args.push('WITHLABELS');
-    return args;
-  } else {
-    args.push('SELECTED_LABELS');
-    return pushVariadicArguments(args, selectedLabels);
-  }
-}
-
+// TODO: move to @redis/client?
 export function resp2MapToValue<
-  V extends TuplesReply<[key: BlobStringReply, ...rest: any]>,
-  T
+  RAW_VALUE extends TuplesReply<[key: BlobStringReply, ...rest: Array<ReplyUnion>]>,
+  TRANSFORMED
 >(
-  reply: UnwrapReply<ArrayReply<V>>,
-  parseFunc: (v: UnwrapReply<V>) => T,
+  wrappedReply: ArrayReply<RAW_VALUE>,
+  parseFunc: (rawValue: UnwrapReply<RAW_VALUE>) => TRANSFORMED,
   typeMapping?: TypeMapping
-): MapReply<BlobStringReply | string, T> {
-  switch (typeMapping? typeMapping[RESP_TYPES.MAP] : undefined) {
+): MapReply<BlobStringReply, TRANSFORMED> {
+  const reply = wrappedReply as unknown as UnwrapReply<typeof wrappedReply>;
+  switch (typeMapping?.[RESP_TYPES.MAP]) {
     case Map: {
-      const ret: Map<BlobStringReply, T> = new Map<BlobStringReply, T>();
-
-      for (let i=0; i < reply.length; i++) {
-        const s = reply[i];
-        const sample = s as unknown as UnwrapReply<typeof s>;
-    
-        ret.set(sample[0], parseFunc(sample));
+      const ret = new Map<string, TRANSFORMED>();
+      for (const wrappedTuple of reply) {
+        const tuple = wrappedTuple as unknown as UnwrapReply<typeof wrappedTuple>;
+        const key = tuple[0] as unknown as UnwrapReply<typeof tuple[0]>;
+        ret.set(key.toString(), parseFunc(tuple));
       }
-    
-      return ret as unknown as MapReply<string, T>;
+      return ret as never;
     }
     case Array: {
-      const ret: Array<BlobStringReply | T> = [];
-
-      for (let i=0; i < reply.length; i++) {
-        const s = reply[i];
-        const sample = s as unknown as UnwrapReply<typeof s>;
-    
-        ret.push(sample[0], parseFunc(sample));
+      for (const wrappedTuple of reply) {
+        const tuple = wrappedTuple as unknown as UnwrapReply<typeof wrappedTuple>;
+        (tuple[1] as unknown as TRANSFORMED) = parseFunc(tuple);
       }
-    
-      return ret as unknown as MapReply<string, T>;
+      return reply as never;
     }
     default: {
-      const ret: Record<string, T> = Object.create(null);
-
-      for (let i=0; i < reply.length; i++) {
-        const s = reply[i];
-        const sample = s as unknown as UnwrapReply<typeof s>;
-        //const key = sample[0] as unknown as UnwrapReply<BlobStringReply>;
-    
-        ret[sample[0].toString()] = parseFunc(sample);
-        //ret[key.toString()] = parseFunc(sample);
+      const ret: Record<string, TRANSFORMED> = Object.create(null);
+      for (const wrappedTuple of reply) {
+        const tuple = wrappedTuple as unknown as UnwrapReply<typeof wrappedTuple>;
+        const key = tuple[0] as unknown as UnwrapReply<typeof tuple[0]>;
+        ret[key.toString()] = parseFunc(tuple);
       }
-    
-      return ret as unknown as MapReply<string, T>;
+      return ret as never;
     }
-  }
-  
+  } 
 }
 
 export function resp3MapToValue<
-  V extends TuplesReply<any>,
-  T,
-  P
+  RAW_VALUE extends RespType<any, any, any, any>, // TODO: simplify types
+  TRANSFORMED
 >(
-  reply: UnwrapReply<MapReply<BlobStringReply, V>>,
-  parseFunc: (v: UnwrapReply<V>, preserve?: P) => T,
-  preserve?: P
-): MapReply<BlobStringReply | string, T> {
+  wrappedReply: MapReply<BlobStringReply, RAW_VALUE>,
+  parseFunc: (rawValue: UnwrapReply<RAW_VALUE>) => TRANSFORMED
+): MapReply<BlobStringReply, TRANSFORMED> {
+  const reply = wrappedReply as unknown as UnwrapReply<typeof wrappedReply>;  
   if (reply instanceof Array) {
-    const ret: Array<BlobStringReply | T> = [];
-    
-    for (let i=0; i < reply.length; i += 2) {
-      const key = reply[i] as BlobStringReply;
-      const value = reply[i+1] as unknown as UnwrapReply<V>;
-
-      ret.push(key);
-      ret.push(parseFunc(value, preserve));
+    for (let i = 1; i < reply.length; i += 2) {
+      (reply[i] as unknown as TRANSFORMED) = parseFunc(reply[i] as unknown as UnwrapReply<RAW_VALUE>);
     }
-
-    return ret as unknown as MapReply<BlobStringReply, T>;
   } else if (reply instanceof Map) {
-    const ret = new Map<BlobStringReply, T>();
-
-    for (const [key, v] of reply) {
-      const value = v as unknown as UnwrapReply<V>;
-      ret.set(key, parseFunc(value, preserve));
+    for (const [key, value] of reply.entries()) {
+      (reply as unknown as Map<BlobStringReply, TRANSFORMED>).set(
+        key,
+        parseFunc(value as unknown as UnwrapReply<typeof value>)
+      );
     }
-
-    return ret as unknown as MapReply<BlobStringReply, T>;
   } else {
-    const ret = Object.create(null);
-    for (const [key, v] of Object.entries(reply)) {
-      const value = v as unknown as UnwrapReply<V>;
+    for (const [key, value] of Object.entries(reply)) {
+      (reply[key] as unknown as TRANSFORMED) = parseFunc(value as unknown as UnwrapReply<typeof value>);
+    }
+  }
+  return reply as never;
+}
 
-      ret[key] = parseFunc(value, preserve);
+export function pushSelectedLabelsArguments(
+  args: Array<RedisArgument>,
+  selectedLabels: RedisVariadicArgument
+) {
+  args.push('SELECTED_LABELS');
+  return pushVariadicArguments(args, selectedLabels);
+}
+
+export type RawLabelValue = BlobStringReply | NullReply;
+
+export type RawLabels<T extends RawLabelValue> = ArrayReply<TuplesReply<[
+  label: BlobStringReply,
+  value: T
+]>>;
+
+export function transformRESP2Labels<T extends RawLabelValue>(
+  labels: RawLabels<T>,
+  typeMapping?: TypeMapping
+): MapReply<BlobStringReply, T> {
+  const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
+  switch (typeMapping?.[RESP_TYPES.MAP]) {
+    case Map:
+      const map = new Map<string, T>();
+      for (const tuple of unwrappedLabels) {
+        const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
+        const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
+        map.set(unwrappedKey.toString(), value);
+      }
+      return map as never;
+
+    case Array:
+      return unwrappedLabels.flat() as never;
+
+    case Object:
+    default:
+      const labelsObject: Record<string, T> = Object.create(null);
+      for (const tuple of unwrappedLabels) {
+        const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
+        const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
+        labelsObject[unwrappedKey.toString()] = value;
+      }
+      return labelsObject as never;
+  }
+}
+
+export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
+  labels: RawLabels<T>,
+  typeMapping?: TypeMapping
+) {
+  const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
+  const to = unwrappedLabels.length - 2; // ignore __reducer__ and __source__
+  let transformedLabels: MapReply<BlobStringReply, T>;
+  switch (typeMapping?.[RESP_TYPES.MAP]) {
+    case Map:
+      const map = new Map<string, T>();
+      for (let i = 0; i < to; i++) {
+        const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
+        const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
+        map.set(unwrappedKey.toString(), value);
+      }
+      transformedLabels = map as never;
+      break;
+
+    case Array:
+      transformedLabels = unwrappedLabels.slice(0, to).flat() as never;
+      break;
+
+    case Object:
+    default:
+      const labelsObject: Record<string, T> = Object.create(null);
+      for (let i = 0; i < to; i++) {
+        const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
+        const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
+        labelsObject[unwrappedKey.toString()] = value;
+      }
+      transformedLabels = labelsObject as never;
+      break;
+  }
+
+  const sourcesTuple = unwrappedLabels[unwrappedLabels.length - 1];
+  const unwrappedSourcesTuple = sourcesTuple as unknown as UnwrapReply<typeof sourcesTuple>;
+  // the __source__ label will never be null
+  const transformedSources = transformRESP2Sources(unwrappedSourcesTuple[1] as BlobStringReply);
+
+  return {
+    labels: transformedLabels,
+    sources: transformedSources
+  };
+}
+
+function transformRESP2Sources(sourcesRaw: BlobStringReply) {
+  // if a label contains "," this function will produce incorrcet results..
+  // there is not much we can do about it, and we assume most users won't be using "," in their labels..
+  
+  const unwrappedSources = sourcesRaw as unknown as UnwrapReply<typeof sourcesRaw>;
+  if (typeof unwrappedSources === 'string') {
+    return unwrappedSources.split(',');
+  }
+
+  const indexOfComma = unwrappedSources.indexOf(',');
+  if (indexOfComma === -1) {
+    return [unwrappedSources];
+  }
+
+  const sourcesArray = [
+    unwrappedSources.subarray(0, indexOfComma)
+  ];
+
+  let previousComma = indexOfComma + 1;
+  while (true) {
+    const indexOf = unwrappedSources.indexOf(',', previousComma);
+    if (indexOf === -1) {
+      sourcesArray.push(
+        unwrappedSources.subarray(previousComma)
+      );
+      break;
     }
 
-    return ret as unknown as MapReply<BlobStringReply, T>;
+    const source = unwrappedSources.subarray(
+      previousComma,
+      indexOf
+    );
+    sourcesArray.push(source);
+    previousComma = indexOf + 1;
   }
+
+  return sourcesArray;
 }

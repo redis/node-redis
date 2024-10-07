@@ -1,21 +1,21 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import MGET_WITHLABELS from './MGET_WITHLABELS';
+import MGET_SELECTED_LABELS from './MGET_SELECTED_LABELS';
 
-describe('TS.MGET_WITHLABELS', () => {
+describe('TS.MGET_SELECTED_LABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MGET_WITHLABELS.transformArguments('label=value'),
-      ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
+      MGET_SELECTED_LABELS.transformArguments('label=value', 'label'),
+      ['TS.MGET', 'SELECTED_LABELS', 'label', 'FILTER', 'label=value']
     );
   });
 
-  testUtils.testWithClient('client.ts.mGetWithLabels', async client => {
+  testUtils.testWithClient('client.ts.mGetSelectedLabels', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }
       }),
-      client.ts.mGetWithLabels('label=value')
+      client.ts.mGetSelectedLabels('label=value', ['label', 'NX'])
     ]);
     
     assert.deepStrictEqual(reply, Object.create(null, {
@@ -28,6 +28,11 @@ describe('TS.MGET_WITHLABELS', () => {
               configurable: true,
               enumerable: true,
               value: 'value'
+            },
+            NX: {
+              configurable: true,
+              enumerable: true,
+              value: null
             }
           }),
           sample: {

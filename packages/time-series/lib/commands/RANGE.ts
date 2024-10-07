@@ -117,4 +117,3 @@ export default {
     }
   }
 } as const satisfies Command;
-

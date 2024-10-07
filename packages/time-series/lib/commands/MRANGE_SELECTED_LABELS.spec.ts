@@ -1,13 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import MRANGE from './MRANGE';
+import MRANGE_SELECTED_LABELS from './MRANGE_SELECTED_LABELS';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
-describe('TS.MRANGE', () => {
+describe('TS.MRANGE_SELECTED_LABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MRANGE.transformArguments('-', '+', 'label=value', {
-        LATEST: true,
+      MRANGE_SELECTED_LABELS.transformArguments('-', '+', 'label', 'label=value', {
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
           min: 0,
@@ -22,25 +21,22 @@ describe('TS.MRANGE', () => {
       }),
       [
         'TS.MRANGE', '-', '+',
-        'LATEST',
         'FILTER_BY_TS', '0',
         'FILTER_BY_VALUE', '0', '1',
         'COUNT', '1',
-        'ALIGN', '-',
-        'AGGREGATION', 'AVG', '1',
+        'ALIGN', '-', 'AGGREGATION', 'AVG', '1',
+        'SELECTED_LABELS', 'label',
         'FILTER', 'label=value'
       ]
     );
   });
 
-  testUtils.testWithClient('client.ts.mRange', async client => {
+  testUtils.testWithClient('client.ts.mRangeSelectedLabels', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
-        LABELS: {
-          label: 'value'
-        }
+        LABELS: { label: 'value' }
       }),
-      client.ts.mRange('-', '+', 'label=value', {
+      client.ts.mRangeSelectedLabels('-', '+', ['label', 'NX'], 'label=value', {
         COUNT: 1
       })
     ]);
@@ -51,10 +47,24 @@ describe('TS.MRANGE', () => {
         key: {
           configurable: true,
           enumerable: true,
-          value: [{
-            timestamp: 0,
-            value: 0
-          }]
+          value: {
+            labels: Object.create(null, {
+              label: {
+                configurable: true,
+                enumerable: true,
+                value: 'value'
+              },
+              NX: {
+                configurable: true,
+                enumerable: true,
+                value: null
+              }
+            }),
+            samples: [{
+              timestamp: 0,
+              value: 0
+            }]
+          }
         }
       })
     );
