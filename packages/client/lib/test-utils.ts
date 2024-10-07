@@ -3,9 +3,9 @@ import { SinonSpy } from 'sinon';
 import { setTimeout } from 'node:timers/promises';
 
 const utils = new TestUtils({
-  dockerImageName: 'redis',
+  dockerImageName: 'redis/redis-stack',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.0-M01'
+  defaultDockerVersion: '7.4.0-v1'
 });
 
 export default utils;
