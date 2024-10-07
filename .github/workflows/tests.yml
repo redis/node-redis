@@ -5,11 +5,12 @@ on:
     branches:
       - master
       - v4.0
+      - v5
   pull_request:
     branches:
       - master
       - v4.0
-
+      - v5
 jobs:
   tests:
     runs-on: ubuntu-latest
