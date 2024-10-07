@@ -2,14 +2,15 @@ import TestUtils from '@redis/test-utils';
 import TimeSeries from '.';
 
 export default new TestUtils({
-  dockerImageName: 'redislabs/redistimeseries',
-  dockerImageVersionArgument: 'timeseries-version'
+  dockerImageName: 'redis',
+  dockerImageVersionArgument: 'timeseries-version',
+  defaultDockerVersion: '8.0-M01'
 });
 
 export const GLOBAL = {
   SERVERS: {
     OPEN: {
-      serverArguments: ['--loadmodule /usr/lib/redis/modules/redistimeseries.so'],
+      serverArguments: [],
       clientOptions: {
         modules: {
           ts: TimeSeries
