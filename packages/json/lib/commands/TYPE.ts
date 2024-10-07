@@ -1,4 +1,4 @@
-import { NullReply, BlobStringReply, ArrayReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { NullReply, BlobStringReply, ArrayReply, Command, RedisArgument, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 
 export interface JsonTypeOptions {
   path?: RedisArgument;
@@ -17,9 +17,11 @@ export default {
     return args;
   },
   transformReply: {
-    2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply>,
-    // TODO: ?!??!
-    3: undefined as unknown as () => any
-  }
+    2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>,
+    // TODO: RESP3 wraps the response in another array, but only returns 1 
+    3: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>>>) => {
+      return reply[0];
+    }
+  },
 } as const satisfies Command;
 

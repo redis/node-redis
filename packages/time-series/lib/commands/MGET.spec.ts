@@ -29,12 +29,15 @@ describe('TS.MGET', () => {
       client.ts.mGet('label=value')
     ]);
 
-    assert.deepEqual(reply, [{
-      key: 'key',
-      sample: {
-        timestamp: 0,
-        value: 0
+    const obj = Object.assign(Object.create(null), {
+      'key': {
+        sample: {
+          timestamp: 0,
+          value: 0
+        }
       }
-    }]);
+    });
+
+    assert.deepStrictEqual(reply, obj);
   }, GLOBAL.SERVERS.OPEN);
 });

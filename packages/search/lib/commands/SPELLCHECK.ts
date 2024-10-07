@@ -1,4 +1,4 @@
-import { RedisArgument, CommandArguments, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, CommandArguments, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
 
 export interface Terms {
   mode: 'INCLUDE' | 'EXCLUDE';
@@ -37,32 +37,34 @@ export default {
 
     return args;
   },
-  // TODO
-  // type SpellCheckRawReply = Array<[
-  //   _: string,
-  //   term: string,
-  //   suggestions: Array<[score: string, suggestion: string]>
-  // ]>;
-
-  // type SpellCheckReply = Array<{
-  //   term: string,
-  //   suggestions: Array<{
-  //     score: number,
-  //     suggestion: string
-  //   }>
-  // }>;
-
-  // export function transformReply(rawReply: SpellCheckRawReply): SpellCheckReply {
-  //   return rawReply.map(([, term, suggestions]) => ({
-  //     term,
-  //     suggestions: suggestions.map(([score, suggestion]) => ({
-  //       score: Number(score),
-  //       suggestion
-  //     }))
-  //   }));
-  // }
-  transformReply: undefined as unknown as () => any
+  transformReply: {
+    2: (rawReply: SpellCheckRawReply): SpellCheckReply => {
+      return rawReply.map(([, term, suggestions]) => ({
+        term,
+        suggestions: suggestions.map(([score, suggestion]) => ({
+          score: Number(score),
+          suggestion
+        }))
+      }));
+    },
+    3: undefined as unknown as () => ReplyUnion,
+  },
+  unstableResp3: true
 } as const satisfies Command;
+
+type SpellCheckRawReply = Array<[
+  _: string,
+  term: string,
+  suggestions: Array<[score: string, suggestion: string]>
+]>;
+
+type SpellCheckReply = Array<{
+  term: string,
+  suggestions: Array<{
+    score: number,
+    suggestion: string
+  }>
+}>;
 
 function pushTerms(args: CommandArguments, { mode, dictionary }: Terms) {
   args.push('TERMS', mode, dictionary);

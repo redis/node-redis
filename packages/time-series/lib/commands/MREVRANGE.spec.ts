@@ -1,12 +1,22 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MREVRANGE';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import MREVRANGE from './MREVRANGE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { TIME_SERIES_REDUCERS } from './MRANGE';
+import { CommandArguments } from '@redis/client/lib/RESP/types';
+import { createClient } from '@redis/client';
 
 describe('TS.MREVRANGE', () => {
   it('transformArguments', () => {
+    const expectedReply: CommandArguments = [
+      'TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
+      'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
+      'GROUPBY', 'label', 'REDUCE', 'SUM'
+    ];
+    expectedReply.preserve = true;
+
     assert.deepEqual(
-      transformArguments('-', '+', 'label=value', {
+      MREVRANGE.transformArguments('-', '+', 'label=value', {
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
           min: 0,
@@ -15,19 +25,15 @@ describe('TS.MREVRANGE', () => {
         COUNT: 1,
         ALIGN: '-',
         AGGREGATION: {
-          type: TimeSeriesAggregationType.AVERAGE,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
           timeBucket: 1
         },
         GROUPBY: {
           label: 'label',
-          reducer: TimeSeriesReducers.SUM
+          reducer: TIME_SERIES_REDUCERS.SUM
         },
       }),
-      [
-        'TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-        'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
-        'GROUPBY', 'label', 'REDUCE', 'SUM'
-      ]
+      expectedReply
     );
   });
 
@@ -41,12 +47,15 @@ describe('TS.MREVRANGE', () => {
       })
     ]);
 
-    assert.deepEqual(reply, [{
-      key: 'key',
-      samples: [{
-        timestamp: 0,
-        value: 0
-      }]
-    }]);
+    const obj = Object.assign(Object.create(null), {
+      'key': {
+        samples: [{
+          timestamp: 0,
+          value: 0
+        }]
+      }
+    });
+
+    assert.deepStrictEqual(reply, obj);
   }, GLOBAL.SERVERS.OPEN);
 });

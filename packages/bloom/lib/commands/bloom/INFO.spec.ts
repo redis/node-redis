@@ -17,10 +17,10 @@ describe('BF.INFO', () => {
     ]);
 
     assert.equal(typeof reply, 'object');
-    assert.equal(reply.capacity, 100);
-    assert.equal(typeof reply.size, 'number');
-    assert.equal(typeof reply.numberOfFilters, 'number');
-    assert.equal(typeof reply.numberOfInsertedItems, 'number');
-    assert.equal(typeof reply.expansionRate, 'number');
+    assert.equal(reply['Capacity'], 100);
+    assert.equal(typeof reply['Size'], 'number');
+    assert.equal(typeof reply['Number of filters'], 'number');
+    assert.equal(typeof reply['Number of items inserted'], 'number');
+    assert.equal(typeof reply['Expansion rate'], 'number');
   }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,10 +1,18 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import MRANGE from './MRANGE';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import MRANGE, { TIME_SERIES_REDUCERS } from './MRANGE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { CommandArguments } from '@redis/client/lib/RESP/types';
 
 describe('TS.MRANGE', () => {
   it('transformArguments', () => {
+    const expectedReply: CommandArguments = [
+      'TS.MRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
+      'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
+      'GROUPBY', 'label', 'REDUCE', 'SUM'
+    ];
+    expectedReply.preserve = true;
+    
     assert.deepEqual(
       MRANGE.transformArguments('-', '+', 'label=value', {
         FILTER_BY_TS: [0],
@@ -15,19 +23,15 @@ describe('TS.MRANGE', () => {
         COUNT: 1,
         ALIGN: '-',
         AGGREGATION: {
-          type: TimeSeriesAggregationType.AVERAGE,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
           timeBucket: 1
         },
         GROUPBY: {
           label: 'label',
-          reducer: TimeSeriesReducers.SUM
+          reducer: TIME_SERIES_REDUCERS.SUM
         },
       }),
-      [
-        'TS.MRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-        'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
-        'GROUPBY', 'label', 'REDUCE', 'SUM'
-      ]
+      expectedReply
     );
   });
 
@@ -43,12 +47,15 @@ describe('TS.MRANGE', () => {
       })
     ]);
 
-    assert.deepEqual(reply, [{
-      key: 'key',
-      samples: [{
-        timestamp: 0,
-        value: 0
-      }]
-    }]);
+    const obj = Object.assign(Object.create(null), {
+      'key': {
+        samples: [{
+          timestamp: 0,
+          value: 0
+        }]
+      }
+    });
+
+    assert.deepStrictEqual(reply, obj);
   }, GLOBAL.SERVERS.OPEN);
 });

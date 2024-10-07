@@ -152,10 +152,13 @@ export default class RedisClient<
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this.sendCommand(redisArgs, this._commandOptions);
+      const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._commandOptions?.typeMapping;
+
+      const reply = await this.sendCommand(redisArgs, this._commandOptions);
+
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -163,10 +166,13 @@ export default class RedisClient<
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+      const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._self._commandOptions?.typeMapping
+
+      const reply = await this._self.sendCommand(redisArgs, this._self._commandOptions);
+
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -175,14 +181,17 @@ export default class RedisClient<
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        reply = await this._self.sendCommand(
+      const fnArgs = fn.transformArguments(...args);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
+      const reply = await this._self.sendCommand(
           prefix.concat(fnArgs),
           this._self._commandOptions
         );
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
-        reply;
+
+        return transformReply ?
+          transformReply(reply, fnArgs.preserve, typeMapping) :
+          reply;
     };
   }
 
@@ -190,11 +199,14 @@ export default class RedisClient<
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(script, redisArgs, this._commandOptions);
+      const scriptArgs = script.transformArguments(...args);
+      const redisArgs = prefix.concat(scriptArgs);
+      const typeMapping = this._commandOptions?.typeMapping;
+
+      const reply = await this.executeScript(script, redisArgs, this._commandOptions);
+      
       return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
+        transformReply(reply, scriptArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -831,9 +843,9 @@ export default class RedisClient<
       throw new WatchError('Client reconnected after WATCH');
     }
 
-    const typeMapping = this._commandOptions?.typeMapping,
-      chainId = Symbol('MULTI Chain'),
-      promises = [
+    const typeMapping = this._commandOptions?.typeMapping;
+    const chainId = Symbol('MULTI Chain');
+    const promises = [
         this._self.#queue.addCommand(['MULTI'], { chainId }),
       ];
 
@@ -867,10 +879,11 @@ export default class RedisClient<
   }
 
   MULTI() {
-    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;;
+    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       this._executeMulti.bind(this),
-      this._executePipeline.bind(this)
+      this._executePipeline.bind(this),
+      this._commandOptions?.typeMapping
     );
   }
 

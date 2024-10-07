@@ -29,13 +29,16 @@ describe('TS.MGET_WITHLABELS', () => {
       client.ts.mGetWithLabels('label=value')
     ]);
 
-    assert.deepEqual(reply, [{
-      key: 'key',
-      labels: { label: 'value' },
-      sample: {
-        timestamp: 0,
-        value: 0
+    const obj = Object.assign(Object.create(null), {
+      'key': {
+        labels: { label: 'value' },
+        sample: {
+          timestamp: 0,
+          value: 0
+        }
       }
-    }]);
+    });
+    
+    assert.deepStrictEqual(reply, obj);
   }, GLOBAL.SERVERS.OPEN);
 });

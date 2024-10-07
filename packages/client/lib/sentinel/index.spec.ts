@@ -13,6 +13,7 @@ import { RESP_TYPES } from '../RESP/decoder';
 import { defineScript } from '../lua-script';
 import { MATH_FUNCTION } from '../commands/FUNCTION_LOAD.spec';
 import RedisBloomModules from '@redis/bloom';
+import { RedisTcpSocketOptions } from '../client/socket';
 
 const execAsync = promisify(exec);
 
@@ -46,9 +47,9 @@ async function steadyState(frame: SentinelFramework) {
     }
 
     if (!checkedReplicas) {
-      const replicas = (await frame.sentinelReplicas()) as Array<any>;
+      const replicas = (await frame.sentinelReplicas());
       checkedReplicas = true;
-      for (const replica of replicas) {
+      for (const replica of replicas!) {
         checkedReplicas &&= (replica.flags === 'slave');
       }
     }
@@ -335,7 +336,7 @@ async function steadyState(frame: SentinelFramework) {
           await setTimeout(1000);
         }
   
-        const promises: Array<Promise<any>> = [];
+        const promises: Array<Promise<string | null>> = [];
         for (let i = 0; i < 500; i++) {
           promises.push(sentinel.get("x"));
         }
@@ -1162,7 +1163,7 @@ async function steadyState(frame: SentinelFramework) {
       })
   
       afterEach(async function () {
-        if (this!.currentTest.state === 'failed') {
+        if (this!.currentTest!.state === 'failed') {
           console.log(`longest event loop blocked delta: ${longestDelta}`);
           console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
           console.log("trace:");
@@ -1227,7 +1228,8 @@ async function steadyState(frame: SentinelFramework) {
   
         const masterNode = await factory.getMasterNode();
         replica = await factory.getReplicaClient();
-        assert.notEqual(masterNode.port, replica.options?.socket?.port)
+        const replicaSocketOptions = replica.options?.socket as unknown as RedisTcpSocketOptions | undefined;
+        assert.notEqual(masterNode.port, replicaSocketOptions?.port)
       })
   
       it('sentinel factory - bad node', async function () {

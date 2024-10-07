@@ -15,6 +15,11 @@ interface AttachConfigOptions<
   config?: CommanderConfig<M, F, S, RESP>;
 }
 
+/* FIXME: better error message / link */
+function throwResp3SearchModuleUnstableError() {
+  throw new Error('Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance');
+}
+
 export function attachConfig<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -40,7 +45,11 @@ export function attachConfig<
     for (const [moduleName, module] of Object.entries(config.modules)) {
       const fns = Object.create(null);
       for (const [name, command] of Object.entries(module)) {
-        fns[name] = createModuleCommand(command, RESP);
+        if (config.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
+          fns[name] = throwResp3SearchModuleUnstableError;
+        } else {
+          fns[name] = createModuleCommand(command, RESP);
+        }
       }
 
       attachNamespace(Class.prototype, moduleName, fns);

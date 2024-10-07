@@ -1,4 +1,5 @@
-import { Command, RedisArgument } from '../RESP/types';
+import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
+import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
 import XREAD, { XReadStreams, pushXReadStreams } from './XREAD';
 
 export interface XReadGroupOptions {
@@ -40,7 +41,9 @@ export default {
 
     return args;
   },
-  // export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
-  // TODO
-  transformReply: undefined as unknown as () => unknown
+  transformReply: {
+    2: transformStreamsMessagesReplyResp2,
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true,
 } as const satisfies Command;

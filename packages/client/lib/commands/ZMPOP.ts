@@ -1,4 +1,4 @@
-import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, UnwrapReply, Resp2Reply, Command, TypeMapping } from '../RESP/types';
 import { pushVariadicArgument, RedisVariadicArgument, SortedSetSide, transformSortedSetReply, transformDoubleReply } from './generic-transformers';
 
 export interface ZMPopOptions {
@@ -39,14 +39,14 @@ export default {
     return transformZMPopArguments(['ZMPOP'], ...args);
   },
   transformReply: {
-    2(reply: UnwrapReply<Resp2Reply<ZMPopRawReply>>) {
+    2(reply: UnwrapReply<Resp2Reply<ZMPopRawReply>>, preserve?: any, typeMapping?: TypeMapping) {
       return reply === null ? null : {
         key: reply[0],
         members: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(member => {
           const [value, score] = member as unknown as UnwrapReply<typeof member>;
           return {
             value,
-            score: transformDoubleReply[2](score)
+            score: transformDoubleReply[2](score, preserve, typeMapping)
           };
         })
       };

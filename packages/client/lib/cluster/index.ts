@@ -159,33 +159,31 @@ export default class RedisCluster<
         break;
     }
 
-    // TODO: remove once request & response policies are ready
-    if (key === undefined && !command.IS_FORWARD_COMMAND) {
-      throw new Error('TODO');
-    }
-
     return key;
   }
 
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        firstKey = RedisCluster.extractFirstKey(
-          command,
-          args,
-          redisArgs
-        ),
-        reply = await this.sendCommand(
-          firstKey,
-          command.IS_READ_ONLY,
-          redisArgs,
-          this._commandOptions,
-          // command.POLICIES
-        );
+      const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._commandOptions?.typeMapping;
+
+      const firstKey = RedisCluster.extractFirstKey(
+        command,
+        args,
+        redisArgs
+      );
+
+      const reply = await this.sendCommand(
+        firstKey,
+        command.IS_READ_ONLY,
+        redisArgs,
+        this._commandOptions,
+        // command.POLICIES
+      );
 
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -193,22 +191,25 @@ export default class RedisCluster<
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args),
-        firstKey = RedisCluster.extractFirstKey(
-          command,
-          args,
-          redisArgs
-        ),
-        reply = await this._self.sendCommand(
-          firstKey,
-          command.IS_READ_ONLY,
-          redisArgs,
-          this._self._commandOptions,
-          // command.POLICIES
-        );
+      const redisArgs = command.transformArguments(...args);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
+      const firstKey = RedisCluster.extractFirstKey(
+        command,
+        args,
+        redisArgs
+      );
+
+      const reply = await this._self.sendCommand(
+        firstKey,
+        command.IS_READ_ONLY,
+        redisArgs,
+        this._self._commandOptions,
+        // command.POLICIES
+      );
 
       return transformReply ?
-        transformReply(reply, redisArgs.preserve) :
+        transformReply(reply, redisArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -217,23 +218,26 @@ export default class RedisCluster<
     const prefix = functionArgumentsPrefix(name, fn),
       transformReply = getTransformReply(fn, resp);
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args),
-        firstKey = RedisCluster.extractFirstKey(
-          fn,
-          args,
-          fnArgs
-        ),
-        redisArgs = prefix.concat(fnArgs),
-        reply = await this._self.sendCommand(
-          firstKey,
-          fn.IS_READ_ONLY,
-          redisArgs,
-          this._self._commandOptions,
-          // fn.POLICIES
-        );
+      const fnArgs = fn.transformArguments(...args);
+      const redisArgs = prefix.concat(fnArgs);
+      const typeMapping = this._self._commandOptions?.typeMapping;
+
+      const firstKey = RedisCluster.extractFirstKey(
+        fn,
+        args,
+        fnArgs
+      );
+
+      const reply = await this._self.sendCommand(
+        firstKey,
+        fn.IS_READ_ONLY,
+        redisArgs,
+        this._self._commandOptions,
+        // fn.POLICIES
+      );
 
       return transformReply ?
-        transformReply(reply, fnArgs.preserve) :
+        transformReply(reply, fnArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -242,24 +246,27 @@ export default class RedisCluster<
     const prefix = scriptArgumentsPrefix(script),
       transformReply = getTransformReply(script, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args),
-        firstKey = RedisCluster.extractFirstKey(
-          script,
-          args,
-          scriptArgs
-        ),
-        redisArgs = prefix.concat(scriptArgs),
-        reply = await this.executeScript(
-          script,
-          firstKey,
-          script.IS_READ_ONLY,
-          redisArgs,
-          this._commandOptions,
-          // script.POLICIES
-        );
+      const scriptArgs = script.transformArguments(...args);
+      const redisArgs = prefix.concat(scriptArgs);
+      const typeMapping = this._commandOptions?.typeMapping;
+
+      const firstKey = RedisCluster.extractFirstKey(
+        script,
+        args,
+        scriptArgs
+      );
+
+      const reply = await this.executeScript(
+        script,
+        firstKey,
+        script.IS_READ_ONLY,
+        redisArgs,
+        this._commandOptions,
+        // script.POLICIES
+      );
 
       return transformReply ?
-        transformReply(reply, scriptArgs.preserve) :
+        transformReply(reply, scriptArgs.preserve, typeMapping) :
         reply;
     };
   }
@@ -517,7 +524,8 @@ export default class RedisCluster<
         const client = await this._self.#slots.getClient(firstKey, isReadonly);
         return client._executePipeline(commands);
       },
-      routing
+      routing,
+      this._commandOptions?.typeMapping
     );
   }
 

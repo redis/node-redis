@@ -1,7 +1,7 @@
-import { Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgument, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, pushParamsArgument } from './SEARCH';
-import { pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { pushVariadicArgument, transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;
@@ -125,99 +125,129 @@ export interface FtAggregateOptions {
   DIALECT?: number;
 }
 
+export type AggregateRawReply = [
+  total: UnwrapReply<NumberReply>,
+  ...results: UnwrapReply<ArrayReply<ArrayReply<BlobStringReply>>>
+];
+
+export interface AggregateReply {
+  total: number;
+  results: Array<MapReply<BlobStringReply, BlobStringReply>>;
+};
+
 export default {
   FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
   transformArguments(index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
     const args = ['FT.AGGREGATE', index, query];
 
-    if (options?.VERBATIM) {
-      args.push('VERBATIM');
-    }
-
-    if (options?.LOAD) {
-      const length = args.push('LOAD', '');
-
-      if (Array.isArray(options.LOAD)) {
-        for (const load of options.LOAD) {
-          pushLoadField(args, load);
-        }
-      } else {
-        pushLoadField(args, options.LOAD);
-      }
-
-      args[length - 1] = (args.length - length).toString();
-    }
-
-    if (options?.TIMEOUT !== undefined) {
-      args.push('TIMEOUT', options.TIMEOUT.toString());
-    }
-
-    if (options?.STEPS) {
-      for (const step of options.STEPS) {
-        args.push(step.type);
-        switch (step.type) {
-          case FT_AGGREGATE_STEPS.GROUPBY:
-            if (!step.properties) {
-              args.push('0');
-            } else {
-              pushVariadicArgument(args, step.properties);
-            }
-
-            if (Array.isArray(step.REDUCE)) {
-              for (const reducer of step.REDUCE) {
-                pushGroupByReducer(args, reducer);
-              }
-            } else {
-              pushGroupByReducer(args, step.REDUCE);
-            }
-
-            break;
-
-          case FT_AGGREGATE_STEPS.SORTBY:
-            const length = args.push('');
-
-            if (Array.isArray(step.BY)) {
-              for (const by of step.BY) {
-                pushSortByProperty(args, by);
-              }
-            } else {
-              pushSortByProperty(args, step.BY);
-            }
-
-            if (step.MAX) {
-              args.push('MAX', step.MAX.toString());
-            }
-
-            args[length - 1] = (args.length - length).toString();
-
-            break;
-
-          case FT_AGGREGATE_STEPS.APPLY:
-            args.push(step.expression, 'AS', step.AS);
-            break;
-
-          case FT_AGGREGATE_STEPS.LIMIT:
-            args.push(step.from.toString(), step.size.toString());
-            break;
-
-          case FT_AGGREGATE_STEPS.FILTER:
-            args.push(step.expression);
-            break;
-        }
-      }
-    }
-
-    pushParamsArgument(args, options?.PARAMS);
-
-    if (options?.DIALECT !== undefined) {
-      args.push('DIALECT', options.DIALECT.toString());
-    }
-
-    return args;
+    return pushAggregateOptions(args, options);
   },
-  transformReply: undefined as unknown as () => any
+  transformReply: {
+    2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
+      const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
+      for (let i = 1; i < rawReply.length; i++) {
+        results.push(
+          transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
+        );
+      }
+  
+      return {
+        total: Number(rawReply[0]),
+        results
+      };
+    },
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true
 } as const satisfies Command;
+
+export function pushAggregateOptions(args: Array<RedisArgument>, options?: FtAggregateOptions) {
+  if (options?.VERBATIM) {
+    args.push('VERBATIM');
+  }
+
+  if (options?.LOAD) {
+    const length = args.push('LOAD', '');
+
+    if (Array.isArray(options.LOAD)) {
+      for (const load of options.LOAD) {
+        pushLoadField(args, load);
+      }
+    } else {
+      pushLoadField(args, options.LOAD);
+    }
+
+    args[length - 1] = (args.length - length).toString();
+  }
+
+  if (options?.TIMEOUT !== undefined) {
+    args.push('TIMEOUT', options.TIMEOUT.toString());
+  }
+
+  if (options?.STEPS) {
+    for (const step of options.STEPS) {
+      args.push(step.type);
+      switch (step.type) {
+        case FT_AGGREGATE_STEPS.GROUPBY:
+          if (!step.properties) {
+            args.push('0');
+          } else {
+            pushVariadicArgument(args, step.properties);
+          }
+
+          if (Array.isArray(step.REDUCE)) {
+            for (const reducer of step.REDUCE) {
+              pushGroupByReducer(args, reducer);
+            }
+          } else {
+            pushGroupByReducer(args, step.REDUCE);
+          }
+
+          break;
+
+        case FT_AGGREGATE_STEPS.SORTBY:
+          const length = args.push('');
+
+          if (Array.isArray(step.BY)) {
+            for (const by of step.BY) {
+              pushSortByProperty(args, by);
+            }
+          } else {
+            pushSortByProperty(args, step.BY);
+          }
+
+          if (step.MAX) {
+            args.push('MAX', step.MAX.toString());
+          }
+
+          args[length - 1] = (args.length - length).toString();
+
+          break;
+
+        case FT_AGGREGATE_STEPS.APPLY:
+          args.push(step.expression, 'AS', step.AS);
+          break;
+
+        case FT_AGGREGATE_STEPS.LIMIT:
+          args.push(step.from.toString(), step.size.toString());
+          break;
+
+        case FT_AGGREGATE_STEPS.FILTER:
+          args.push(step.expression);
+          break;
+      }
+    }
+  }
+
+  pushParamsArgument(args, options?.PARAMS);
+
+  if (options?.DIALECT !== undefined) {
+    args.push('DIALECT', options.DIALECT.toString());
+  }
+
+  return args;
+}
 
 function pushLoadField(args: Array<RedisArgument>, toLoad: LoadField) {
   if (typeof toLoad === 'string' || toLoad instanceof Buffer) {

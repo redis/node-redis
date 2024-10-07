@@ -94,44 +94,64 @@ describe('XREADGROUP', () => {
     });
   });
 
-  // testUtils.testAll('xReadGroup - null', async client => {
-  //   const [, readGroupReply] = await Promise.all([
-  //     client.xGroupCreate('key', 'group', '$', {
-  //       MKSTREAM: true
-  //     }),
-  //     client.xReadGroup('group', 'consumer', {
-  //       key: 'key',
-  //       id: '>'
-  //     })
-  //   ]);
+  testUtils.testAll('xReadGroup - null', async client => {
+    const [, readGroupReply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      })
+    ]);
 
-  //   assert.equal(readGroupReply, null);
-  // }, GLOBAL.SERVERS.OPEN);
+    assert.equal(readGroupReply, null);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 
-  // testUtils.testAll('xReadGroup - with a message', async client => {
-  //   const [, id, readGroupReply] = await Promise.all([
-  //     client.xGroupCreate('key', 'group', '$', {
-  //       MKSTREAM: true
-  //     }),
-  //     client.xAdd('key', '*', { field: 'value' }),
-  //     client.xReadGroup('group', 'consumer', {
-  //       key: 'key',
-  //       id: '>'
-  //     })
-  //   ]);
+  testUtils.testAll('xReadGroup - with a message', async client => {
+    const [, id, readGroupReply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xAdd('key', '*', { field: 'value' }),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      })
+    ]);
 
-  //   assert.deepEqual(readGroupReply, [{
-  //     name: 'key',
-  //     messages: [{
-  //       id,
-  //       message: Object.create(null, {
-  //         field: {
-  //           value: 'value',
-  //           configurable: true,
-  //           enumerable: true
-  //         }
-  //       })
-  //     }]
-  //   }]);
-  // }, GLOBAL.SERVERS.OPEN);
+
+    // FUTURE resp3 compatible
+    const obj = Object.assign(Object.create(null), {
+      'key': [{
+        id: id,
+        message: Object.create(null, {
+          field: {
+            value: 'value',
+            configurable: true,
+            enumerable: true
+          }
+        })
+      }]
+    });
+
+    // v4 compatible
+    const expected = [{
+      name: 'key',
+      messages: [{
+        id: id,
+        message: Object.assign(Object.create(null), {
+          field: 'value'
+        })
+      }]
+    }];
+
+    assert.deepStrictEqual(readGroupReply, expected);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,4 +1,4 @@
-import { RedisArgument, ArrayReply, MapReply, BlobStringReply, Command } from '../../RESP/types';
+import { RedisArgument, ArrayReply, MapReply, BlobStringReply, Command, TypeMapping, UnwrapReply } from '../../RESP/types';
 import { transformTuplesReply } from '../../commands/generic-transformers';
 
 export default {
@@ -6,9 +6,17 @@ export default {
     return ['SENTINEL', 'SENTINELS', dbname];
   },
   transformReply: {
-    2: (reply: any) => {
-      const initial: Array<Record<string, BlobStringReply>> = [];
-      return reply.reduce((sentinels: Array<Record<string, BlobStringReply>>, x: any) => { sentinels.push(transformTuplesReply(x)); return sentinels }, initial);
+    2: (reply: ArrayReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+      const inferred = reply as unknown as UnwrapReply<typeof reply>;
+      const initial: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
+      
+      return inferred.reduce(
+        (sentinels: Array<MapReply<BlobStringReply, BlobStringReply>>, x: ArrayReply<BlobStringReply>) => {
+          sentinels.push(transformTuplesReply(x, undefined, typeMapping)); 
+          return sentinels;
+        }, 
+        initial
+      );
     },
     3: undefined as unknown as () => ArrayReply<MapReply<BlobStringReply, BlobStringReply>>
   }
