@@ -48,7 +48,7 @@ export interface RedisServerDocker {
 async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
   const port = (await portIterator.next()).value,
     { stdout, stderr } = await execAsync(
-      `docker run -d --network host ${image}:${version} --port ${port.toString()} ${serverArguments.join(' ')}`
+      `docker run -e REDIS_ARGS="--port ${port.toString()} ${serverArguments.join(' ')}" -d --network host ${image}:${version}`
     );
 
   if (!stdout) {
