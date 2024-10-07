@@ -1,6 +1,7 @@
-import { BlobStringReply, Command, NumberReply, SimpleStringReply } from "@redis/client/dist/lib/RESP/types";
+import { BlobStringReply, Command, DoubleReply, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { TimeSeriesDuplicatePolicies } from ".";
 import { TimeSeriesAggregationType } from "./CREATERULE";
+import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export type InfoRawReply = [
   'totalSamples',
@@ -26,7 +27,11 @@ export type InfoRawReply = [
   'sourceKey',
   BlobStringReply | null,
   'rules',
-  Array<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>
+  Array<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>,
+  'ignoreMaxTimeDiff',
+  NumberReply,
+  'ignoreMaxValDiff',
+  DoubleReply,
 ];
 
 export interface InfoReply {
@@ -49,6 +54,8 @@ export interface InfoReply {
     timeBucket: NumberReply;
     aggregationType: TimeSeriesAggregationType
   }>;
+  ignoreMaxTimeDiff: NumberReply;
+  ignoreMaxValDiff: DoubleReply;
 }
 
 export default {
@@ -58,7 +65,7 @@ export default {
       return ['TS.INFO', key];
     },
     transformReply: {
-      2: (reply: InfoRawReply): InfoReply => {
+      2: (reply: InfoRawReply, _, typeMapping?: TypeMapping): InfoReply => {
         return {
           totalSamples: reply[1],
           memoryUsage: reply[3],
@@ -78,7 +85,9 @@ export default {
             key,
             timeBucket,
             aggregationType
-          }))
+          })),
+          ignoreMaxTimeDiff: reply[25],
+          ignoreMaxValDiff: transformDoubleReply[2](reply[27] as unknown as BlobStringReply, undefined, typeMapping)
         };
       },
       3: undefined as unknown as () => InfoReply

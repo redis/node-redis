@@ -25,7 +25,7 @@ describe('TS.INFO_DEBUG', () => {
         ]);
 
         const infoDebug = await client.ts.infoDebug('key');
-        assertInfo(infoDebug);
+        assertInfo(infoDebug as any);
         assert.equal(typeof infoDebug.keySelfName, 'string');
         assert.ok(Array.isArray(infoDebug.chunks));
         for (const chunk of infoDebug.chunks) {

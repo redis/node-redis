@@ -1,6 +1,3 @@
-import { RESP_TYPES } from '@redis/client';
-import { ArrayReply, BlobStringReply, MapReply, NullReply, TuplesReply, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
-
 export {
   default,
   TIME_SERIES_ENCODING, TimeSeriesEncoding,
