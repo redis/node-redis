@@ -3,7 +3,7 @@ import RediSearch from '.';
 
 export default new TestUtils({
     dockerImageName: 'redis',
-    dockerImageVersionArgument: 'redis-version',
+    dockerImageVersionArgument: 'redisearch-version',
     defaultDockerVersion: '8.0-M01'
 });
 

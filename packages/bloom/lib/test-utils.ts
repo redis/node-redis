@@ -3,7 +3,7 @@ import RedisBloomModules from '.';
 
 export default new TestUtils({
   dockerImageName: 'redis',
-  dockerImageVersionArgument: 'redis-version',
+  dockerImageVersionArgument: 'redisbloom-version',
   defaultDockerVersion: '8.0-M01'
 });
 

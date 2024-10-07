@@ -3,7 +3,7 @@ import RedisJSON from '.';
 
 export default new TestUtils({
   dockerImageName: 'redis',
-  dockerImageVersionArgument: 'redis-version',
+  dockerImageVersionArgument: 'redisgraph-version',
   defaultDockerVersion: '8.0-M01'
 });
 

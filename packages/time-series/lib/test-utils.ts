@@ -3,7 +3,7 @@ import TimeSeries from '.';
 
 export default new TestUtils({
   dockerImageName: 'redis',
-  dockerImageVersionArgument: 'redis-version',
+  dockerImageVersionArgument: 'timeseries-version',
   defaultDockerVersion: '8.0-M01'
 });
 
