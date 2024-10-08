@@ -29,7 +29,7 @@ describe('PROFILE AGGREGATE', () => {
         });
     });
 
-    testUtils.testWithClient('client.ft.search', async client => {
+    testUtils.testWithClient('client.ft.search', async client => {1
         await Promise.all([
             client.ft.create('index', {
                 field: SCHEMA_FIELD_TYPE.NUMERIC
@@ -39,6 +39,7 @@ describe('PROFILE AGGREGATE', () => {
         ]);
         
         const res = await client.ft.profileAggregate('index', '*');
+        assert.deepEqual('None', res.profile.warning);
         assert.ok(typeof res.profile.iteratorsProfile.counter === 'number');
         assert.ok(typeof res.profile.parsingTime === 'string');
         assert.ok(res.results.total == 1);

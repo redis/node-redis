@@ -82,6 +82,7 @@ interface ProfileData {
   totalProfileTime: string,
   parsingTime: string,
   pipelineCreationTime: string,
+  warning: string,
   iteratorsProfile: IteratorsProfile
 }
 
@@ -90,7 +91,8 @@ export function transformProfile(reply: Array<any>): ProfileData{
     totalProfileTime: reply[0][1],
     parsingTime: reply[1][1],
     pipelineCreationTime: reply[2][1],
-    iteratorsProfile: transformIterators(reply[3][1])
+    warning: reply[3][1] ? reply[3][1] : 'None',
+    iteratorsProfile: transformIterators(reply[4][1])
   };
 }
 

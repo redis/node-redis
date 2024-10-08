@@ -35,6 +35,7 @@ describe('PROFILE SEARCH', () => {
         ]);
         
         const res = await client.ft.profileSearch('index', '*');
+        assert.strictEqual('None', res.profile.warning);
         assert.ok(typeof res.profile.iteratorsProfile.counter === 'number');
         assert.ok(typeof res.profile.parsingTime === 'string');
         assert.ok(res.results.total == 1);
