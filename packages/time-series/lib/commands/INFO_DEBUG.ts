@@ -1,5 +1,6 @@
 import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import INFO, { InfoRawReply, InfoRawReplyTypes, InfoReply } from "./INFO";
+import { ReplyUnion } from '@redis/client/lib/RESP/types';
 
 type chunkType = Array<[
   'startTimestamp',
@@ -18,7 +19,7 @@ type InfoDebugRawReply = [
   ...InfoRawReply,
   'keySelfName',
   BlobStringReply,
-  'chunks',
+  'Chunks',
   chunkType
 ];
 
@@ -44,24 +45,35 @@ export default {
 		return args;
   },
   transformReply: {
-    2: (rawReply: InfoDebugRawReply, _, typeMapping?: TypeMapping): InfoDebugReply => {
-      const reply = INFO.transformReply[2](rawReply as unknown as InfoRawReply, _, typeMapping) as unknown as InfoDebugReply;
-      // decide if > 7.4 or < 7.4
-      const debugBaseIndex = reply.ignoreMaxTimeDiff === undefined ? 25 : 29;
+    2: (reply: InfoDebugRawReply, _, typeMapping?: TypeMapping): InfoDebugReply => {
+      const ret = INFO.transformReply[2](reply as unknown as InfoRawReply, _, typeMapping) as any;
 
-      reply.keySelfName = rawReply[debugBaseIndex] as BlobStringReply;
-      reply.chunks = (rawReply[debugBaseIndex+2] as chunkType).map(
-        chunk => ({
-          startTimestamp: chunk[1],
-          endTimestamp: chunk[3],
-          samples: chunk[5],
-          size: chunk[7],
-          bytesPerSample: chunk[9]
-        })
-      );
+      for (let i=0; i < reply.length; i += 2) {
+        const key = (reply[i] as any).toString();
+      
+        switch (key) {
+          case 'keySelfName': {
+            ret[key] = reply[i+1];
+            break;
+          }
+          case 'Chunks': {
+            ret['chunks'] = (reply[i+1] as chunkType).map(
+              chunk => ({
+                startTimestamp: chunk[1],
+                endTimestamp: chunk[3],
+                samples: chunk[5],
+                size: chunk[7],
+                bytesPerSample: chunk[9]
+              })
+            );
+            break;
+          }
+        }
+      }
 
-      return reply;
-		},
-    3: undefined as unknown as () => InfoDebugReply
-  }
+      return ret;
+    },
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true
 } as const satisfies Command;

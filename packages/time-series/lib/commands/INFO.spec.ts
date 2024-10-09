@@ -23,7 +23,7 @@ describe('TS.INFO', () => {
             client.ts.add('key', 1, 10)
         ]);
 
-        assertInfo(await client.ts.info('key'));
+        assertInfo(await client.ts.info('key') as any);
     }, GLOBAL.SERVERS.OPEN);
 });
 

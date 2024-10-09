@@ -1,4 +1,4 @@
-import { BlobStringReply, Command, DoubleReply, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
 import { TimeSeriesDuplicatePolicies } from ".";
 import { TimeSeriesAggregationType } from "./CREATERULE";
 import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
@@ -33,11 +33,11 @@ export type InfoRawReplyOld = [
   'duplicatePolicy',
   TimeSeriesDuplicatePolicies | null,
   'labels',
-  Array<[name: BlobStringReply, value: BlobStringReply]>,
+  ArrayReply<[name: BlobStringReply, value: BlobStringReply]>,
   'sourceKey',
   BlobStringReply | null,
   'rules',
-  Array<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>,
+  ArrayReply<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>,
   'ignoreMaxTimeDiff',
   NumberReply,
   'ignoreMaxValDiff',
@@ -77,42 +77,51 @@ export default {
     },
     transformReply: {
       2: (reply: InfoRawReply, _, typeMapping?: TypeMapping): InfoReply => {
-        const ret: InfoReply = {
-          totalSamples: reply[1] as NumberReply,
-          memoryUsage: reply[3] as NumberReply,
-          firstTimestamp: reply[5] as NumberReply,
-          lastTimestamp: reply[7] as NumberReply,
-          retentionTime: reply[9] as NumberReply,
-          chunkCount: reply[11] as NumberReply,
-          chunkSize: reply[13] as NumberReply,
-          chunkType: reply[15] as SimpleStringReply,
-          duplicatePolicy: reply[17] as TimeSeriesDuplicatePolicies | null,
-          labels: (reply[19] as Array<[name: BlobStringReply, value: BlobStringReply]>).map(
-            ([name, value]) => ({
-              name,
-              value
-            })
-          ),
-          sourceKey: reply[21] as BlobStringReply | null,
-          rules: (reply[23] as Array<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>).map(
-            ([key, timeBucket, aggregationType]) => ({
-              key,
-              timeBucket,
-              aggregationType
-            })
-          ),
-          ignoreMaxTimeDiff: undefined,
-          ignoreMaxValDiff: undefined
-        };
+        const ret = {} as any;
 
-        if (reply[24] != null && reply[24].toString() == 'ignoreMaxTimeDiff') {
-          // > 7.4
-          ret.ignoreMaxTimeDiff = reply[25] as NumberReply;
-          ret.ignoreMaxValDiff = transformDoubleReply[2](reply[27] as unknown as BlobStringReply, undefined, typeMapping)
+        for (let i=0; i < reply.length; i += 2) {
+          const key = (reply[i] as any).toString();
+
+          switch (key) {
+            case 'totalSamples':
+            case 'memoryUsage':
+            case 'firstTimestamp':
+            case 'lastTimestamp':
+            case 'retentionTime':
+            case 'chunkCount':
+            case 'chunkSize':
+            case 'chunkType':
+            case 'duplicatePolicy':
+            case 'sourceKey':
+            case 'ignoreMaxTimeDiff':    
+              ret[key] = reply[i+1];
+              break;
+            case 'labels':
+              ret[key] = (reply[i+1] as Array<[name: BlobStringReply, value: BlobStringReply]>).map(
+                ([name, value]) => ({
+                  name,
+                  value
+                })
+              )
+              break;
+            case 'rules':
+              ret[key] = (reply[i+1] as Array<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>).map(
+                ([key, timeBucket, aggregationType]) => ({
+                  key,
+                  timeBucket,
+                  aggregationType
+                })
+              )
+              break;
+            case 'ignoreMaxValDiff':
+              ret[key] = transformDoubleReply[2](reply[27] as unknown as BlobStringReply, undefined, typeMapping)
+              break;
+          }
         }
 
         return ret;
       },
-      3: undefined as unknown as () => InfoReply
-    }
+      3: undefined as unknown as () => ReplyUnion
+    },
+    unstableResp3: true
   } as const satisfies Command;
