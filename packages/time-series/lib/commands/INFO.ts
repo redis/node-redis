@@ -1,7 +1,7 @@
 import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
 import { TimeSeriesDuplicatePolicies } from ".";
 import { TimeSeriesAggregationType } from "./CREATERULE";
-import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformDoubleReply } from '@redis/client/lib/commands/generic-transformers';
 
 export type InfoRawReplyTypes = SimpleStringReply | 
   NumberReply | 
@@ -93,7 +93,7 @@ export default {
             case 'chunkType':
             case 'duplicatePolicy':
             case 'sourceKey':
-            case 'ignoreMaxTimeDiff':    
+            case 'ignoreMaxTimeDiff':
               ret[key] = reply[i+1];
               break;
             case 'labels':

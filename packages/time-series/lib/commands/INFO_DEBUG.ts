@@ -1,4 +1,4 @@
-import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
 import INFO, { InfoRawReply, InfoRawReplyTypes, InfoReply } from "./INFO";
 import { ReplyUnion } from '@redis/client/lib/RESP/types';
 
@@ -50,7 +50,7 @@ export default {
 
       for (let i=0; i < reply.length; i += 2) {
         const key = (reply[i] as any).toString();
-      
+
         switch (key) {
           case 'keySelfName': {
             ret[key] = reply[i+1];

@@ -15,7 +15,9 @@ describe('INFO', () => {
         await client.ft.create('index', {
             field: SCHEMA_FIELD_TYPE.TEXT
         });
-        // just test that it doesn't throw an error
-        await client.ft.info('index');
+        const reply = await client.ft.info('index');
+        assert.deepEqual(reply.indexName, 'index');
+        assert.deepEqual(reply.indexOptions, []);
+        assert.deepEqual(reply.numDocs, '0');
     }, GLOBAL.SERVERS.OPEN);
 });

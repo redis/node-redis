@@ -33,7 +33,7 @@ jobs:
       - name: Install Packages
         run: npm ci
       - name: Build
-        run: npm run build -- ./packages/client ./packages/test-utils ./packages/bloom ./packages/graph ./packages/json ./packages/search ./packages/time-series ./packages/redis
+        run: npm run build
       - name: Run Tests
         run: npm run test -ws --if-present -- --forbid-only --redis-version=${{ matrix.redis-version }}
       - name: Upload to Codecov
