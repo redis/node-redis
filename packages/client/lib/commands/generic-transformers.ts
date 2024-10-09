@@ -103,42 +103,46 @@ export const transformNullableDoubleReply = {
   3: undefined as unknown as () => DoubleReply | NullReply
 };
 
-export function createTransformTuplesReplyFunc(preserve?: any, typeMapping?: TypeMapping) {
-  return (reply: ArrayReply<BlobStringReply>) => {
-    return transformTuplesReply(reply, preserve, typeMapping);
+export interface Stringable {
+  toString(): string;
+}
+
+export function createTransformTuplesReplyFunc<T extends Stringable>(preserve?: any, typeMapping?: TypeMapping) {
+  return (reply: ArrayReply<T>) => {
+    return transformTuplesReply<T>(reply, preserve, typeMapping);
   };
 }
 
-export function transformTuplesReply(
-  reply: ArrayReply<BlobStringReply>,
+export function transformTuplesReply<T extends Stringable>(
+  reply: ArrayReply<T>,
   preserve?: any,
   typeMapping?: TypeMapping
-): MapReply<BlobStringReply, BlobStringReply> {
+): MapReply<T , T> {
   const mapType = typeMapping ? typeMapping[RESP_TYPES.MAP] : undefined;
 
   const inferred = reply as unknown as UnwrapReply<typeof reply>
 
   switch (mapType) {
     case Array: {
-      return reply as unknown as MapReply<BlobStringReply, BlobStringReply>;
+      return reply as unknown as MapReply<T, T>;
     }
     case Map: {
       const ret = new Map<string, BlobStringReply>;
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret.set(inferred[i].toString(), inferred[i + 1]);
+        ret.set(inferred[i].toString(), inferred[i + 1] as any);
       }
 
-      return ret as unknown as MapReply<BlobStringReply, BlobStringReply>;;
+      return ret as unknown as MapReply<T, T>;;
     }
     default: {
       const ret: Record<string, BlobStringReply> = Object.create(null);
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret[inferred[i].toString()] = inferred[i + 1];
+        ret[inferred[i].toString()] = inferred[i + 1] as any;
       }
 
-      return ret as unknown as MapReply<BlobStringReply, BlobStringReply>;;
+      return ret as unknown as MapReply<T, T>;;
     }
   }
 }
