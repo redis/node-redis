@@ -15,9 +15,92 @@ describe('INFO', () => {
         await client.ft.create('index', {
             field: SCHEMA_FIELD_TYPE.TEXT
         });
-        const reply = await client.ft.info('index');
-        assert.deepEqual(reply.indexName, 'index');
-        assert.deepEqual(reply.indexOptions, []);
-        assert.deepEqual(reply.numDocs, '0');
+        assert.deepEqual(
+            await client.ft.info('index'),
+            {
+                indexName: 'index',
+                indexOptions: [],
+                indexDefinition: Object.create(null, {
+                    default_score: {
+                        value: '1',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    key_type: {
+                        value: 'HASH',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    prefixes: {
+                        value: [''],
+                        configurable: true,
+                        enumerable: true
+                    }
+                }),
+                attributes: [Object.create(null, {
+                    identifier: {
+                        value: 'field',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    attribute: {
+                        value: 'field',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    type: {
+                        value: 'TEXT',
+                        configurable: true,
+                        enumerable: true
+                    },
+                    WEIGHT: {
+                        value: '1',
+                        configurable: true,
+                        enumerable: true
+                    }
+                })],
+                numDocs: 0,
+                maxDocId: 0,
+                numTerms: 0,
+                numRecords: 0,
+                invertedSzMb: 0,
+                vectorIndexSzMb: 0,
+                totalInvertedIndexBlocks: 0,
+                offsetVectorsSzMb: 0,
+                docTableSizeMb: 0,
+                sortableValuesSizeMb: 0,
+                keyTableSizeMb: 0,
+                recordsPerDocAvg: NaN,
+                bytesPerRecordAvg: NaN,
+                cleaning: 0,
+                offsetsPerTermAvg: NaN,
+                offsetBitsPerRecordAvg: NaN,
+                geoshapeSizeMb: 0,
+                hashIndexingFailures: 0,
+                indexing: 0,
+                percentIndexed: 1,
+                numberOfUses: 1,
+                tagOverheadSizeMb: 0,
+                textOverheadSizeMb: 0,
+                totalIndexMemorySizeMb: 0,
+                totalIndexingTime: 0,
+                gcStats: {
+                    bytesCollected: 0,
+                    totalMsRun: 0,
+                    totalCycles: 0,
+                    averageCycleTimeMs: NaN,
+                    lastRunTimeMs: 0,
+                    gcNumericTreesMissed: 0,
+                    gcBlocksDenied: 0
+                },
+                cursorStats: {
+                    globalIdle: 0,
+                    globalTotal: 0,
+                    indexCapacity: 128,
+                    indexTotal: 0
+                },
+                stopWords: undefined
+            }
+        );
     }, GLOBAL.SERVERS.OPEN);
 });
