@@ -29,7 +29,7 @@ describe('PROFILE AGGREGATE', () => {
         });
     });
 
-    testUtils.testWithClient('client.ft.search', async client => {1
+    testUtils.testWithClient('client.ft.search', async client => {
         await Promise.all([
             client.ft.create('index', {
                 field: SCHEMA_FIELD_TYPE.NUMERIC
