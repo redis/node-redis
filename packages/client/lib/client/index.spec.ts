@@ -388,11 +388,10 @@ describe('Client', () => {
   ): Promise<void> {
     const onceErrorPromise = once(errorClient, 'error');
     await client.sendCommand(['QUIT']);
-    await onceErrorPromise;
-//    await Promise.all([
-//      onceErrorPromise,
-//      assert.rejects(client.ping(), SocketClosedUnexpectedlyError)
-//    ]);
+    await Promise.all([
+      onceErrorPromise,
+      assert.rejects(client.ping())
+    ]);
   }
 
   testUtils.testWithClient('should reconnect when socket disconnects', async client => {
