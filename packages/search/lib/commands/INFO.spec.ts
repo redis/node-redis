@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import INFO from './INFO';
+import INFO, { InfoReply } from './INFO';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
 
 describe('INFO', () => {
@@ -15,8 +15,10 @@ describe('INFO', () => {
         await client.ft.create('index', {
             field: SCHEMA_FIELD_TYPE.TEXT
         });
+        const ret = await client.ft.info('index');
+        assert.deepEqual(ret.stopWords, undefined);
         assert.deepEqual(
-            await client.ft.info('index'),
+            ret,
             {
                 indexName: 'index',
                 indexOptions: [],
@@ -99,8 +101,8 @@ describe('INFO', () => {
                     indexCapacity: 128,
                     indexTotal: 0
                 },
-                stopWords: undefined
             }
         );
+
     }, GLOBAL.SERVERS.OPEN);
 });

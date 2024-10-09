@@ -60,15 +60,13 @@ export interface InfoReply {
     indexCapacity: NumberReply;
     indexTotal: NumberReply;
   };
-  stopWords: ArrayReply<BlobStringReply | NullReply> | undefined;
+  stopWords?: ArrayReply<BlobStringReply | NullReply>;
 }
 
 function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeMapping): InfoReply {
   const myTransformFunc = createTransformTuplesReplyFunc<SimpleStringReply>(preserve, typeMapping);
 
   const ret = {} as unknown as InfoReply;
-
-  ret.stopWords = undefined;
 
   for (let i=0; i < reply.length; i += 2) {
     const key = reply[i].toString();
