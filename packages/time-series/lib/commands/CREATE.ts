@@ -7,8 +7,10 @@ import {
   TimeSeriesDuplicatePolicies,
   pushDuplicatePolicy,
   Labels,
-  pushLabelsArgument
+  pushLabelsArgument,
+  pushIgnoreArgument
 } from '.';
+import { TsIgnoreOptions } from './ADD';
 
 export interface TsCreateOptions {
   RETENTION?: number;
@@ -16,6 +18,7 @@ export interface TsCreateOptions {
   CHUNK_SIZE?: number;
   DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
   LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
 }
 
 export default {
@@ -33,6 +36,8 @@ export default {
     pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
 
     pushLabelsArgument(args, options?.LABELS);
+
+    pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
   },

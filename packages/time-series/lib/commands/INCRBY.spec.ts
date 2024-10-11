@@ -65,6 +65,18 @@ describe('TS.INCRBY', () => {
       );
     });
 
+    it ('with IGNORE', () => {
+      assert.deepEqual(
+        INCRBY.transformArguments('key', 1, {
+          IGNORE: { 
+            maxTimeDiff: 1,
+            maxValDiff: 1
+          }
+        }),
+        ['TS.INCRBY', 'key', '1', 'IGNORE', '1', '1']
+      )
+    });
+  
     it('with TIMESTAMP, RETENTION, UNCOMPRESSED, CHUNK_SIZE and LABELS', () => {
       assert.deepEqual(
         INCRBY.transformArguments('key', 1, {
@@ -72,10 +84,11 @@ describe('TS.INCRBY', () => {
           RETENTION: 1,
           UNCOMPRESSED: true,
           CHUNK_SIZE: 1,
-          LABELS: { label: 'value' }
+          LABELS: { label: 'value' },
+          IGNORE: { maxTimeDiff: 1, maxValDiff: 1 }
         }),
         ['TS.INCRBY', 'key', '1', 'TIMESTAMP', '*', 'RETENTION', '1', 'UNCOMPRESSED',
-          'CHUNK_SIZE', '1', 'LABELS', 'label', 'value']
+          'CHUNK_SIZE', '1', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
       );
     });
   });

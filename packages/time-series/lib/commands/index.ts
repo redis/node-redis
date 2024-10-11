@@ -1,5 +1,5 @@
-import type { DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/dist/lib/RESP/types';
-import ADD from './ADD';
+import type { DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/lib/RESP/types';
+import ADD, { TsIgnoreOptions } from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
 import CREATERULE from './CREATERULE';
@@ -94,6 +94,12 @@ export default {
   REVRANGE,
   revRange: REVRANGE
 } as const satisfies RedisCommands;
+
+export function pushIgnoreArgument(args: Array<RedisArgument>, ignore?: TsIgnoreOptions) {
+  if (ignore !== undefined) {
+    args.push('IGNORE', ignore.maxTimeDiff.toString(), ignore.maxValDiff.toString());
+  }
+}
 
 export function pushRetentionArgument(args: Array<RedisArgument>, retention?: number) {
   if (retention !== undefined) {

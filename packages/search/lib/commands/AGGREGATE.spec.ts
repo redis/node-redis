@@ -20,6 +20,13 @@ describe('AGGREGATE', () => {
       );
     });
 
+    it('with ADDSCORES', () => {
+      assert.deepEqual(
+        AGGREGATE.transformArguments('index', '*', { ADDSCORES: true }),
+        ['FT.AGGREGATE', 'index', '*', 'ADDSCORES']
+      );
+    });  
+
     describe('with LOAD', () => {
       describe('single', () => {
         describe('without alias', () => {
