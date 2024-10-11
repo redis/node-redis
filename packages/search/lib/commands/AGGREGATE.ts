@@ -118,6 +118,7 @@ interface FilterStep extends AggregateStep<FT_AGGREGATE_STEPS['FILTER']> {
 
 export interface FtAggregateOptions {
   VERBATIM?: boolean;
+  ADDSCORES?: boolean;
   LOAD?: LoadField | Array<LoadField>;
   TIMEOUT?: number;
   STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
@@ -134,6 +135,10 @@ export default {
     if (options?.VERBATIM) {
       args.push('VERBATIM');
     }
+
+    if (options?.ADDSCORES) {
+      args.push('ADDSCORES');
+    }  
 
     if (options?.LOAD) {
       const length = args.push('LOAD', '');
