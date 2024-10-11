@@ -1,4 +1,17 @@
-import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '../bloom';
+
+export type TdInfoReplyMap = TuplesToMapReply<[
+  [SimpleStringReply<'Compression'>, NumberReply],
+  [SimpleStringReply<'Capacity'>, NumberReply],
+  [SimpleStringReply<'Merged nodes'>, NumberReply],
+  [SimpleStringReply<'Unmerged nodes'>, NumberReply],
+  [SimpleStringReply<'Merged weight'>, NumberReply],
+  [SimpleStringReply<'Unmerged weight'>, NumberReply],
+  [SimpleStringReply<'Observations'>, NumberReply],
+  [SimpleStringReply<'Total compressions'>, NumberReply],
+  [SimpleStringReply<'Memory usage'>, NumberReply]
+]>;
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -6,44 +19,10 @@ export default {
   transformArguments(key: RedisArgument) {
     return ['TDIGEST.INFO', key];
   },
-  // TODO
-  // type InfoRawReply = [
-  //     'Compression',
-  //     number,
-  //     'Capacity',
-  //     number,
-  //     'Merged nodes',
-  //     number,
-  //     'Unmerged nodes',
-  //     number,
-  //     'Merged weight',
-  //     string,
-  //     'Unmerged weight',
-  //     string,
-  //     'Total compressions',
-  //     number
-  // ];
-
-  // interface InfoReply {
-  //     comperssion: number;
-  //     capacity: number;
-  //     mergedNodes: number;
-  //     unmergedNodes: number;
-  //     mergedWeight: number;
-  //     unmergedWeight: number;
-  //     totalCompression: number;
-  // }
-
-  // export function transformReply(reply: InfoRawReply): InfoReply {
-  //     return {
-  //         comperssion: reply[1],
-  //         capacity: reply[3],
-  //         mergedNodes: reply[5],
-  //         unmergedNodes: reply[7],
-  //         mergedWeight: Number(reply[9]),
-  //         unmergedWeight: Number(reply[11]),
-  //         totalCompression: reply[13]
-  //     };
-  // }
-  transformReply: undefined as unknown as () => any
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<TdInfoReplyMap>>, _, typeMapping?: TypeMapping): TdInfoReplyMap => {
+      return transformInfoV2Reply<TdInfoReplyMap>(reply, typeMapping);
+    },
+    3: undefined as unknown as () => TdInfoReplyMap
+  }
 } as const satisfies Command;

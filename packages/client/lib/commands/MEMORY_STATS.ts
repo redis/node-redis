@@ -1,4 +1,5 @@
-import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command } from '../RESP/types'; 
+import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types'; 
+import { transformDoubleReply } from './generic-transformers';
 
 export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'peak.allocated'>, NumberReply],
@@ -13,6 +14,7 @@ export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'lua.caches'>, NumberReply],
   /** added in 7.0 */
   [BlobStringReply<'functions.caches'>, NumberReply],
+  // FIXME: 'db.0', and perhaps others' is here and is a map that should be handled?
   [BlobStringReply<'overhead.total'>, NumberReply],
   [BlobStringReply<'keys.count'>, NumberReply],
   [BlobStringReply<'keys.bytes-per-key'>, NumberReply],
@@ -39,15 +41,27 @@ export default {
     return ['MEMORY', 'STATS'];
   },
   transformReply: {
-    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) => {
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>, preserve?: any, typeMapping?: TypeMapping) => {
       const reply: any = {};
 
       let i = 0;
       while (i < rawReply.length) {
-        reply[rawReply[i++] as any] = rawReply[i++];
+        switch(rawReply[i].toString()) {
+          case 'dataset.percentage':
+          case 'peak.percentage':
+          case 'allocator-fragmentation.ratio':
+          case 'allocator-rss.ratio':
+          case 'rss-overhead.ratio':
+          case 'fragmentation':
+            reply[rawReply[i++] as any] = transformDoubleReply[2](rawReply[i++] as unknown as BlobStringReply, preserve, typeMapping);
+            break;
+          default:
+            reply[rawReply[i++] as any] = rawReply[i++];
+        }
+        
       }
 
-      return reply as MemoryStatsReply['DEFAULT'];
+      return reply as MemoryStatsReply;
     },
     3: undefined as unknown as () => MemoryStatsReply
   }

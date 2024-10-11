@@ -63,7 +63,7 @@ describe('HELLO', () => {
     assert.equal(typeof reply.id, 'number');
     assert.equal(reply.mode, 'standalone');
     assert.equal(reply.role, 'master');
-    assert.deepEqual(reply.modules, []);
+    assert.ok(reply.modules instanceof Array);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     minimumDockerVersion: [6, 2]

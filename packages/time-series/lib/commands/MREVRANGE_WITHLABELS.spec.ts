@@ -1,33 +1,35 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
 describe('TS.MREVRANGE_WITHLABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       MREVRANGE_WITHLABELS.transformArguments('-', '+', 'label=value', {
+        LATEST: true,
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
           min: 0,
           max: 1
         },
-        SELECTED_LABELS: ['label'],
         COUNT: 1,
         ALIGN: '-',
         AGGREGATION: {
-          type: TimeSeriesAggregationType.AVERAGE,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
           timeBucket: 1
-        },
-        GROUPBY: {
-          label: 'label',
-          reducer: TimeSeriesReducers.SUM
-        },
+        }
       }),
       [
-        'TS.MREVRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-        'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'SELECTED_LABELS', 'label',
-        'FILTER', 'label=value', 'GROUPBY', 'label', 'REDUCE', 'SUM'
+        'TS.MREVRANGE', '-', '+',
+        'LATEST',
+        'FILTER_BY_TS', '0',
+        'FILTER_BY_VALUE', '0', '1',
+        'COUNT', '1',
+        'ALIGN', '-',
+        'AGGREGATION', 'AVG', '1',
+        'WITHLABELS',
+        'FILTER', 'label=value'
       ]
     );
   });
@@ -37,18 +39,30 @@ describe('TS.MREVRANGE_WITHLABELS', () => {
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }
       }),
-      client.ts.mRevRangeWithLabels('-', '+', 'label=value', {
-        COUNT: 1
-      })
+      client.ts.mRevRangeWithLabels('-', '+', 'label=value')
     ]);
 
-    assert.deepEqual(reply, [{
-      key: 'key',
-      labels: { label: 'value' },
-      samples: [{
-        timestamp: 0,
-        value: 0
-      }]
-    }]);
+    assert.deepStrictEqual(
+      reply,
+      Object.create(null, {
+        key: {
+          configurable: true,
+          enumerable: true,
+          value: {
+            labels: Object.create(null, {
+              label: {
+                configurable: true,
+                enumerable: true,
+                value: 'value'
+              }
+            }),
+            samples: [{
+              timestamp: 0,
+              value: 0
+            }]
+          }
+        }
+      })
+    );
   }, GLOBAL.SERVERS.OPEN);
 });

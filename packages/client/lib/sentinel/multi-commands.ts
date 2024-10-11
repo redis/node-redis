@@ -160,9 +160,11 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   private readonly _multi = new RedisMultiCommand();
   private readonly _sentinel: RedisSentinelType
   private _isReadonly: boolean | undefined = true;
+  private readonly _typeMapping?: TypeMapping;
 
-  constructor(sentinel: RedisSentinelType) {
+  constructor(sentinel: RedisSentinelType, typeMapping: TypeMapping) {
     this._sentinel = sentinel;
+    this._typeMapping = typeMapping;
   }
 
   private _setState(
@@ -188,7 +190,8 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       await this._sentinel._executeMulti(
         this._isReadonly,
         this._multi.queue
-      )
+      ),
+      this._typeMapping
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -205,7 +208,8 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       await this._sentinel._executePipeline(
         this._isReadonly,
         this._multi.queue
-      )
+      ),
+      this._typeMapping
     ) as MultiReplyType<T, REPLIES>;
   }
 

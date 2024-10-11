@@ -152,11 +152,14 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   readonly #multi = new RedisMultiCommand();
   readonly #executeMulti: ExecuteMulti;
   readonly #executePipeline: ExecuteMulti;
+  readonly #typeMapping?: TypeMapping;
+
   #selectedDB?: number;
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti) {
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping) {
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
+    this.#typeMapping = typeMapping;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {
@@ -176,7 +179,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
     return this.#multi.transformReplies(
-      await this.#executeMulti(this.#multi.queue, this.#selectedDB)
+      await this.#executeMulti(this.#multi.queue, this.#selectedDB),
+      this.#typeMapping
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -190,7 +194,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
     return this.#multi.transformReplies(
-      await this.#executePipeline(this.#multi.queue, this.#selectedDB)
+      await this.#executePipeline(this.#multi.queue, this.#selectedDB),
+      this.#typeMapping
     ) as MultiReplyType<T, REPLIES>;
   }
 

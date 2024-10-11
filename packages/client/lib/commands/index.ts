@@ -72,9 +72,9 @@ import CLUSTER_SLOTS from './CLUSTER_SLOTS';
 import COMMAND_COUNT from './COMMAND_COUNT';
 import COMMAND_GETKEYS from './COMMAND_GETKEYS';
 import COMMAND_GETKEYSANDFLAGS from './COMMAND_GETKEYSANDFLAGS';
-// import COMMAND_INFO from './COMMAND_INFO';
+import COMMAND_INFO from './COMMAND_INFO';
 import COMMAND_LIST from './COMMAND_LIST';
-// import COMMAND from './COMMAND';
+import COMMAND from './COMMAND';
 import CONFIG_GET from './CONFIG_GET';
 import CONFIG_RESETASTAT from './CONFIG_RESETSTAT';
 import CONFIG_REWRITE from './CONFIG_REWRITE';
@@ -133,6 +133,9 @@ import FUNCTION_STATS from './FUNCTION_STATS';
 import HDEL from './HDEL';
 import HELLO from './HELLO';
 import HEXISTS from './HEXISTS';
+import HEXPIRE from './HEXPIRE';
+import HEXPIREAT from './HEXPIREAT';
+import HEXPIRETIME from './HEXPIRETIME';
 import HGET from './HGET';
 import HGETALL from './HGETALL';
 import HINCRBY from './HINCRBY';
@@ -140,6 +143,11 @@ import HINCRBYFLOAT from './HINCRBYFLOAT';
 import HKEYS from './HKEYS';
 import HLEN from './HLEN';
 import HMGET from './HMGET';
+import HPERSIST from './HPERSIST';
+import HPEXPIRE from './HPEXPIRE';
+import HPEXPIREAT from './HPEXPIREAT';
+import HPEXPIRETIME from './HPEXPIRETIME';
+import HPTTL from './HPTTL';
 import HRANDFIELD_COUNT_WITHVALUES from './HRANDFIELD_COUNT_WITHVALUES';
 import HRANDFIELD_COUNT from './HRANDFIELD_COUNT';
 import HRANDFIELD from './HRANDFIELD';
@@ -148,6 +156,7 @@ import HSCAN_NOVALUES from './HSCAN_NOVALUES';
 import HSET from './HSET';
 import HSETNX from './HSETNX';
 import HSTRLEN from './HSTRLEN';
+import HTTL from './HTTL';
 import HVALS from './HVALS';
 import INCR from './INCR';
 import INCRBY from './INCRBY';
@@ -480,12 +489,12 @@ export default {
   commandGetKeys: COMMAND_GETKEYS,
   COMMAND_GETKEYSANDFLAGS,
   commandGetKeysAndFlags: COMMAND_GETKEYSANDFLAGS,
-  // COMMAND_INFO,
-  // commandInfo: COMMAND_INFO,
+  COMMAND_INFO,
+  commandInfo: COMMAND_INFO,
   COMMAND_LIST,
   commandList: COMMAND_LIST,
-  // COMMAND,
-  // command: COMMAND,
+  COMMAND,
+  command: COMMAND,
   CONFIG_GET,
   configGet: CONFIG_GET,
   CONFIG_RESETASTAT,
@@ -602,6 +611,12 @@ export default {
   hello: HELLO,
   HEXISTS,
   hExists: HEXISTS,
+  HEXPIRE,
+  hExpire: HEXPIRE,
+  HEXPIREAT,
+  hExpireAt: HEXPIREAT,
+  HEXPIRETIME,
+  hExpireTime: HEXPIRETIME,
   HGET,
   hGet: HGET,
   HGETALL,
@@ -616,6 +631,16 @@ export default {
   hLen: HLEN,
   HMGET,
   hmGet: HMGET,
+  HPERSIST,
+  hPersist: HPERSIST,
+  HPEXPIRE,
+  hpExpire: HPEXPIRE,
+  HPEXPIREAT,
+  hpExpireAt: HPEXPIREAT,
+  HPEXPIRETIME,
+  hpExpireTime: HPEXPIRETIME,
+  HPTTL,
+  hpTTL: HPTTL,
   HRANDFIELD_COUNT_WITHVALUES,
   hRandFieldCountWithValues: HRANDFIELD_COUNT_WITHVALUES,
   HRANDFIELD_COUNT,
@@ -632,6 +657,8 @@ export default {
   hSetNX: HSETNX,
   HSTRLEN,
   hStrLen: HSTRLEN,
+  HTTL,
+  hTTL: HTTL,
   HVALS,
   hVals: HVALS,
   INCR,

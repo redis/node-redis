@@ -14,11 +14,11 @@ import DICTADD from './DICTADD';
 import DICTDEL from './DICTDEL';
 import DICTDUMP from './DICTDUMP';
 import DROPINDEX from './DROPINDEX';
-// import EXPLAIN from './EXPLAIN';
-// import EXPLAINCLI from './EXPLAINCLI';
-// import INFO from './INFO';
-// import PROFILESEARCH from './PROFILE_SEARCH';
-// import PROFILEAGGREGATE from './PROFILE_AGGREGATE';
+import EXPLAIN from './EXPLAIN';
+import EXPLAINCLI from './EXPLAINCLI';
+import INFO from './INFO';
+import PROFILESEARCH from './PROFILE_SEARCH';
+import PROFILEAGGREGATE from './PROFILE_AGGREGATE';
 import SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
 import SEARCH from './SEARCH';
 import SPELLCHECK from './SPELLCHECK';
@@ -66,16 +66,16 @@ export default {
   dictDump: DICTDUMP,
   DROPINDEX,
   dropIndex: DROPINDEX,
-  // EXPLAIN,
-  // explain: EXPLAIN,
-  // EXPLAINCLI,
-  // explainCli: EXPLAINCLI,
-  // INFO,
-  // info: INFO,
-  // PROFILESEARCH,
-  // profileSearch: PROFILESEARCH,
-  // PROFILEAGGREGATE,
-  // profileAggregate: PROFILEAGGREGATE,
+  EXPLAIN,
+  explain: EXPLAIN,
+  EXPLAINCLI,
+  explainCli: EXPLAINCLI,
+  INFO,
+  info: INFO,
+  PROFILESEARCH,
+  profileSearch: PROFILESEARCH,
+  PROFILEAGGREGATE,
+  profileAggregate: PROFILEAGGREGATE,
   SEARCH_NOCONTENT,
   searchNoContent: SEARCH_NOCONTENT,
   SEARCH,

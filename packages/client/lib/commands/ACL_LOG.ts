@@ -1,4 +1,5 @@
-import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command, TypeMapping } from '../RESP/types';
+import { transformDoubleReply } from './generic-transformers';
 
 export type AclLogReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'count'>, NumberReply],
@@ -29,7 +30,7 @@ export default {
     return args;
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<AclLogReply>>) => {
+    2: (reply: UnwrapReply<Resp2Reply<AclLogReply>>, preserve?: any, typeMapping?: TypeMapping) => {
       return reply.map(item => {
         const inferred = item as unknown as UnwrapReply<typeof item>;
         return {
@@ -38,7 +39,7 @@ export default {
           context: inferred[5],
           object: inferred[7],
           username: inferred[9],
-          'age-seconds': Number(inferred[11]),
+          'age-seconds': transformDoubleReply[2](inferred[11], preserve, typeMapping),
           'client-info': inferred[13],
           'entry-id': inferred[15],
           'timestamp-created': inferred[17],

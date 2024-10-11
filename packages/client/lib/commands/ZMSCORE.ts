@@ -1,5 +1,5 @@
-import { RedisArgument, ArrayReply, NullReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
-import { pushVariadicArguments, RedisVariadicArgument, transformNullableDoubleReply } from './generic-transformers';
+import { RedisArgument, ArrayReply, NullReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { createTransformNullableDoubleReplyResp2Func, pushVariadicArguments, RedisVariadicArgument } from './generic-transformers';
 
 export default {
   FIRST_KEY_INDEX: 1,
@@ -11,8 +11,8 @@ export default {
     return pushVariadicArguments(['ZMSCORE', key], member);
   },
   transformReply: {
-    2: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>) => {
-      return reply.map(transformNullableDoubleReply[2]);
+    2: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+      return reply.map(createTransformNullableDoubleReplyResp2Func(preserve, typeMapping));
     },
     3: undefined as unknown as () => ArrayReply<NullReply | DoubleReply>
   }

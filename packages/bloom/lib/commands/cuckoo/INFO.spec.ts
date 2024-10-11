@@ -17,13 +17,13 @@ describe('CF.INFO', () => {
     ]);
 
     assert.equal(typeof reply, 'object');
-    assert.equal(typeof reply.size, 'number');
-    assert.equal(typeof reply.numberOfBuckets, 'number');
-    assert.equal(typeof reply.numberOfFilters, 'number');
-    assert.equal(typeof reply.numberOfInsertedItems, 'number');
-    assert.equal(typeof reply.numberOfDeletedItems, 'number');
-    assert.equal(typeof reply.bucketSize, 'number');
-    assert.equal(typeof reply.expansionRate, 'number');
-    assert.equal(typeof reply.maxIteration, 'number');
+    assert.equal(typeof reply['Size'], 'number');
+    assert.equal(typeof reply['Number of buckets'], 'number');
+    assert.equal(typeof reply['Number of filters'], 'number');
+    assert.equal(typeof reply['Number of items inserted'], 'number');
+    assert.equal(typeof reply['Number of items deleted'], 'number');
+    assert.equal(typeof reply['Bucket size'], 'number');
+    assert.equal(typeof reply['Expansion rate'], 'number');
+    assert.equal(typeof reply['Max iterations'], 'number');
   }, GLOBAL.SERVERS.OPEN);
 });

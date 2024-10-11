@@ -1,9 +1,19 @@
-import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import AGGREGATE, { FtAggregateOptions } from './AGGREGATE';
+import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
+import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
 
 export interface FtAggregateWithCursorOptions extends FtAggregateOptions {
   COUNT?: number;
   MAXIDLE?: number;
+}
+
+
+type AggregateWithCursorRawReply = [
+  result: AggregateRawReply,
+  cursor: NumberReply
+];
+
+export interface AggregateWithCursorReply extends AggregateReply {
+  cursor: NumberReply;
 }
 
 export default {
@@ -23,6 +33,15 @@ export default {
 
     return args;
   },
-  transformReply: undefined as unknown as () => any
+  transformReply: {
+    2: (reply: AggregateWithCursorRawReply): AggregateWithCursorReply => {
+      return {
+        ...AGGREGATE.transformReply[2](reply[0]),
+        cursor: reply[1]
+      };
+    },
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true
 } as const satisfies Command;
 

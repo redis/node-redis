@@ -77,7 +77,9 @@ export interface BlobStringReply<
   T,
   Buffer,
   string | Buffer
-> {}
+> {
+  toString(): string
+}
 
 export interface VerbatimStringReply<
   T extends string = string
@@ -128,16 +130,22 @@ export interface MapReply<K, V> extends RespType<
   Map<any, any> | Array<any>
 > {}
 
-type MapKeyValue = [key: BlobStringReply, value: unknown];
+type MapKeyValue = [key: BlobStringReply | SimpleStringReply, value: unknown];
 
 type MapTuples = Array<MapKeyValue>;
+
+type ExtractMapKey<T> = (
+    T extends BlobStringReply<infer S> ? S :
+    T extends SimpleStringReply<infer S> ? S :
+    never
+);
 
 export interface TuplesToMapReply<T extends MapTuples> extends RespType<
   RESP_TYPES['MAP'],
   {
-    [P in T[number] as P[0] extends BlobStringReply<infer S> ? S : never]: P[1];
+    [P in T[number] as ExtractMapKey<P[0]>]: P[1];
   },
-  Map<T[number][0], T[number][1]> | FlattenTuples<T>
+  Map<ExtractMapKey<T[number][0]>, T[number][1]> | FlattenTuples<T>
 > {}
 
 type FlattenTuples<T> = (
@@ -210,7 +218,7 @@ export type ReplyWithTypeMapping<
   )
 );
 
-export type TransformReply = (this: void, reply: any, preserve?: any) => any; // TODO;
+export type TransformReply = (this: void, reply: any, preserve?: any, typeMapping?: TypeMapping) => any; // TODO;
 
 export type RedisArgument = string | Buffer;
 
@@ -275,6 +283,7 @@ export type Command = {
   transformArguments(this: void, ...args: Array<any>): CommandArguments;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
+  unstableResp3?: boolean;
 };
 
 export type RedisCommands = Record<string, Command>;
@@ -305,6 +314,10 @@ export interface CommanderConfig<
    * TODO
    */
   RESP?: RESP;
+  /**
+   * TODO
+   */
+  unstableResp3?: boolean;
 }
 
 type Resp2Array<T> = (

@@ -90,22 +90,45 @@ describe('XREAD', () => {
     });
   });
 
-  // TODO
-  // testUtils.testAll('client.xRead', async client => {
-  //   const message = { field: 'value' },
-  //     [, reply] = await Promise.all([
-  //       client.xAdd('key', '*', message),
-  //       client.xRead({
-  //         key: 'key',
-  //         id: '0-0'
-  //       })
-  //     ])
-  //   assert.equal(
-  //     await client.xRead({
-  //       key: 'key',
-  //       id: '0'
-  //     }),
-  //     null
-  //   );
-  // }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testAll('client.xRead', async client => {
+    const message = { field: 'value' }, 
+    [id, reply] = await Promise.all([
+      client.xAdd('key', '*', message),
+      client.xRead({
+        key: 'key',
+        id: '0-0'
+      }),
+    ])
+
+    // FUTURE resp3 compatible
+    const obj = Object.assign(Object.create(null), {
+      'key': [{
+        id: id,
+        message: Object.create(null, {
+          field: {
+            value: 'value',
+            configurable: true,
+            enumerable: true
+          }
+        })
+      }]
+    });
+
+    // v4 compatible
+    const expected = [{
+      name: 'key',
+      messages: [{
+        id: id,
+        message: Object.assign(Object.create(null), {
+          field: 'value'
+        })
+      }]
+    }];
+
+    assert.deepStrictEqual(reply, expected);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

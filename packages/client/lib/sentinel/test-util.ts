@@ -1,4 +1,4 @@
-import { createConnection } from 'node:net';
+import { createConnection, Socket } from 'node:net';
 import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { promisify } from 'node:util';
@@ -15,7 +15,7 @@ interface ErrorWithCode extends Error {
 }
 
 async function isPortAvailable(port: number): Promise<boolean> {
-  var socket = undefined;
+  var socket: Socket | undefined = undefined;
   try {
     socket = createConnection({ port });
     await once(socket, 'connect');
@@ -419,7 +419,7 @@ export class SentinelFramework extends DockerBase {
           continue;
         }
 
-        info = await sentinel.client.sentinel.sentinelMaster(this.config.sentinelName) as any;
+        info = await sentinel.client.sentinel.sentinelMaster(this.config.sentinelName);
         if (tracer) {
           tracer.push('getMaster: master data returned from sentinel');
           tracer.push(JSON.stringify(info, undefined, '\t'))

@@ -3,22 +3,11 @@ import testUtils, { GLOBAL } from '../test-utils';
 import MGET_WITHLABELS from './MGET_WITHLABELS';
 
 describe('TS.MGET_WITHLABELS', () => {
-  describe('transformArguments', () => {
-    it('without options', () => {
-      assert.deepEqual(
-        MGET_WITHLABELS.transformArguments('label=value'),
-        ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
-      );
-    });
-
-    it('with SELECTED_LABELS', () => {
-      assert.deepEqual(
-        MGET_WITHLABELS.transformArguments('label=value', {
-          SELECTED_LABELS: 'label'
-        }),
-        ['TS.MGET', 'SELECTED_LABELS', 'label', 'FILTER', 'label=value']
-      );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      MGET_WITHLABELS.transformArguments('label=value'),
+      ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
+    );
   });
 
   testUtils.testWithClient('client.ts.mGetWithLabels', async client => {
@@ -28,14 +17,25 @@ describe('TS.MGET_WITHLABELS', () => {
       }),
       client.ts.mGetWithLabels('label=value')
     ]);
-
-    assert.deepEqual(reply, [{
-      key: 'key',
-      labels: { label: 'value' },
-      sample: {
-        timestamp: 0,
-        value: 0
+    
+    assert.deepStrictEqual(reply, Object.create(null, {
+      key: {
+        configurable: true,
+        enumerable: true,
+        value: {
+          labels: Object.create(null, {
+            label: {
+              configurable: true,
+              enumerable: true,
+              value: 'value'
+            }
+          }),
+          sample: {
+            timestamp: 0,
+            value: 0
+          }
+        }
       }
-    }]);
+    }));
   }, GLOBAL.SERVERS.OPEN);
 });

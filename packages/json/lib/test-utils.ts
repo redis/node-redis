@@ -2,14 +2,15 @@ import TestUtils from '@redis/test-utils';
 import RedisJSON from '.';
 
 export default new TestUtils({
-  dockerImageName: 'redislabs/rejson',
-  dockerImageVersionArgument: 'rejson-version'
+  dockerImageName: 'redis/redis-stack',
+  dockerImageVersionArgument: 'redisgraph-version',
+  defaultDockerVersion: '7.4.0-v1'
 });
 
 export const GLOBAL = {
   SERVERS: {
     OPEN: {
-      serverArguments: ['--loadmodule /usr/lib/redis/modules/rejson.so'],
+      serverArguments: [],
       clientOptions: {
         modules: {
           json: RedisJSON

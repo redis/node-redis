@@ -16,12 +16,15 @@ describe('TDIGEST.INFO', () => {
       client.tDigest.info('key')
     ]);
 
-    assert(typeof reply.capacity, 'number');
-    assert(typeof reply.mergedNodes, 'number');
-    assert(typeof reply.unmergedNodes, 'number');
-    assert(typeof reply.mergedWeight, 'number');
-    assert(typeof reply.unmergedWeight, 'number');
-    assert(typeof reply.totalCompression, 'number');
-    assert(typeof reply.totalCompression, 'number');
+    assert(typeof reply, 'object');
+    assert(typeof reply['Compression'], 'number');
+    assert(typeof reply['Capacity'], 'number');
+    assert(typeof reply['Merged nodes'], 'number');
+    assert(typeof reply['Unmerged nodes'], 'number');
+    assert(typeof reply['Merged weight'], 'number');
+    assert(typeof reply['Unmerged weight'], 'number');
+    assert(typeof reply['Observations'], 'number');
+    assert(typeof reply['Total compressions'], 'number');
+    assert(typeof reply['Memory usage'], 'number');
   }, GLOBAL.SERVERS.OPEN);
 });

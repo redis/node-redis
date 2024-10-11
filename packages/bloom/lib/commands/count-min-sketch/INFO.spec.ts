@@ -18,10 +18,11 @@ describe('CMS.INFO', () => {
         client.cms.info('key')
       ]);
 
-    assert.deepEqual(reply, {
-      width,
-      depth,
-      count: 0
-    });
+    const expected = Object.create(null);
+    expected['width'] = width;
+    expected['depth'] = depth;
+    expected['count'] = 0;
+
+    assert.deepEqual(reply, expected);
   }, GLOBAL.SERVERS.OPEN);
 });
