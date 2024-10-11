@@ -56,6 +56,18 @@ describe('TS.DECRBY', () => {
       );
     });
 
+    it ('with IGNORE', () => {     
+      assert.deepEqual(
+        DECRBY.transformArguments('key', 1, {
+          IGNORE: { 
+            maxTimeDiff: 1,
+            maxValDiff: 1
+          }
+        }),
+        ['TS.DECRBY', 'key', '1', 'IGNORE', '1', '1']
+      )
+    });
+  
     it('with TIMESTAMP, RETENTION, UNCOMPRESSED, CHUNK_SIZE and LABELS', () => {
       assert.deepEqual(
         DECRBY.transformArguments('key', 1, {
@@ -63,9 +75,10 @@ describe('TS.DECRBY', () => {
           RETENTION: 1,
           UNCOMPRESSED: true,
           CHUNK_SIZE: 2,
-          LABELS: { label: 'value' }
+          LABELS: { label: 'value' },
+          IGNORE: { maxTimeDiff: 1, maxValDiff: 1 }
         }),
-        ['TS.DECRBY', 'key', '1', 'TIMESTAMP', '*', 'RETENTION', '1', 'UNCOMPRESSED', 'CHUNK_SIZE', '2', 'LABELS', 'label', 'value']
+        ['TS.DECRBY', 'key', '1', 'TIMESTAMP', '*', 'RETENTION', '1', 'UNCOMPRESSED', 'CHUNK_SIZE', '2', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
       );
     });
   });
