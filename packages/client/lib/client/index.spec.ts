@@ -450,6 +450,33 @@ describe('Client', () => {
     assert.deepEqual(hash, results);
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('hScanNoValuesIterator', async client => {
+    const hash: Record<string, string> = {};
+    const expectedFields: Array<string> = [];
+    for (let i = 0; i < 100; i++) {
+       hash[i.toString()] = i.toString();
+       expectedFields.push(i.toString());
+    }
+
+    await client.hSet('key', hash);
+
+    const actualFields: Array<string> = [];
+    for await (const fields of client.hScanNoValuesIterator('key')) {
+      for (const field of fields) {
+        actualFields.push(field);
+      }
+    }
+
+    function sort(a: string, b: string) {
+      return Number(a) - Number(b);
+    }
+
+    assert.deepEqual(actualFields.sort(sort), expectedFields);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [7, 4]
+  });
+
   testUtils.testWithClient('sScanIterator', async client => {
     const members = new Set<string>();
     for (let i = 0; i < 100; i++) {

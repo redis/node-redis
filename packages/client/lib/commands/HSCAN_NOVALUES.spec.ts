@@ -1,9 +1,10 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HSCAN_NOVALUES from './HSCAN_NOVALUES';
+import { BlobStringReply } from '../RESP/types';
 
 describe('HSCAN_NOVALUES', () => {
-  testUtils.isVersionGreaterThanHook([7.4]);
+  testUtils.isVersionGreaterThanHook([7,4]);
   
   describe('transformArguments', () => {
     it('cusror only', () => {
@@ -41,6 +42,29 @@ describe('HSCAN_NOVALUES', () => {
       );
     });
   });
+
+  describe('transformReply', () => {
+    it('without keys', () => {
+      assert.deepEqual(
+        HSCAN_NOVALUES.transformReply(['0' as any, []]),
+        {
+          cursor: '0',
+          fields: []
+        }
+      );
+    });
+
+    it('with keys', () => {
+      assert.deepEqual(
+        HSCAN_NOVALUES.transformReply(['0' as any, ['key1', 'key2'] as any]),
+        {
+           cursor: '0',
+           fields: ['key1', 'key2']
+        }
+      );
+    });
+  });
+
 
   testUtils.testWithClient('client.hScanNoValues', async client => {
     const [, reply] = await Promise.all([

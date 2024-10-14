@@ -64,9 +64,10 @@ export interface InfoReply {
     timeBucket: NumberReply;
     aggregationType: TimeSeriesAggregationType
   }>;
-  /* Added in 7.4 */
-  ignoreMaxTimeDiff: NumberReply | undefined;
-  ignoreMaxValDiff: DoubleReply | undefined;
+  /** Added in 7.4 */
+  ignoreMaxTimeDiff: NumberReply;
+  /** Added in 7.4 */
+  ignoreMaxValDiff: DoubleReply;
 }
 
 export default {
@@ -102,7 +103,7 @@ export default {
                   name,
                   value
                 })
-              )
+              );
               break;
             case 'rules':
               ret[key] = (reply[i+1] as Array<[key: BlobStringReply, timeBucket: NumberReply, aggregationType: TimeSeriesAggregationType]>).map(
@@ -111,10 +112,10 @@ export default {
                   timeBucket,
                   aggregationType
                 })
-              )
+              );
               break;
             case 'ignoreMaxValDiff':
-              ret[key] = transformDoubleReply[2](reply[27] as unknown as BlobStringReply, undefined, typeMapping)
+              ret[key] = transformDoubleReply[2](reply[27] as unknown as BlobStringReply, undefined, typeMapping);
               break;
           }
         }

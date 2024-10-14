@@ -147,6 +147,18 @@ describe('FT.CREATE', () => {
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'WITHSUFFIXTRIE']
           );
         });
+
+	it('with INDEXEMPTY', () => {
+          assert.deepEqual(
+            CREATE.transformArguments('index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.TAG,
+                INDEXEMPTY: true
+              }
+            }),
+            ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG', 'INDEXEMPTY']
+          );
+        });
       });
 
       describe('VECTOR', () => {
@@ -278,6 +290,18 @@ describe('FT.CREATE', () => {
             }
           }),
           ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'NOINDEX']
+        );
+      });
+
+      it('with INDEXMISSING', () => {
+        assert.deepEqual(
+          CREATE.transformArguments('index', {
+            field: {
+              type: SCHEMA_FIELD_TYPE.TEXT,
+              INDEXMISSING: true
+            }
+          }),
+          ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
         );
       });
     });

@@ -40,6 +40,31 @@ describe('HSCAN', () => {
     });
   });
 
+  describe('transformReply', () => {
+    it('without tuples', () => {
+      assert.deepEqual(
+        HSCAN.transformReply(['0' as any, []]),
+        {
+          cursor: '0',
+          entries: []
+        }
+      );
+    });
+    
+    it('with tuples', () => {
+      assert.deepEqual(
+        HSCAN.transformReply(['0' as any, ['field', 'value'] as any]),
+        {
+          cursor: '0',
+          entries: [{
+            field: 'field',
+            value: 'value'
+          }]
+        }
+      );
+    });
+  });
+
   testUtils.testWithClient('client.hScan', async client => {
     const [, reply] = await Promise.all([
       client.hSet('key', 'field', 'value'),

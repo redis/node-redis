@@ -48,7 +48,7 @@ describe('TS.ALTER', () => {
       );
     });
 
-    it('with IGNORE', () => {    
+    it('with IGNORE with MAX_TIME_DIFF', () => {
       assert.deepEqual(
         ALTER.transformArguments('key', {
           IGNORE: { 

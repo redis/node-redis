@@ -1,6 +1,7 @@
 import { RedisArgument } from "@redis/client";
 import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
+import { TuplesReply } from '@redis/client/lib/RESP/types';
 
 export default {
   FIRST_KEY_INDEX: undefined,
@@ -16,51 +17,51 @@ export default {
 } as const satisfies Command;
 
 export interface InfoReply {
-  indexName: SimpleStringReply;
-  indexOptions: ArrayReply<SimpleStringReply>;
-  indexDefinition: MapReply<SimpleStringReply, SimpleStringReply>;
+  index_name: SimpleStringReply;
+  index_options: ArrayReply<SimpleStringReply>;
+  index_definition: MapReply<SimpleStringReply, SimpleStringReply>;
   attributes: Array<MapReply<SimpleStringReply, SimpleStringReply>>;
-  numDocs: NumberReply
-  maxDocId: NumberReply;
-  numTerms: NumberReply;
-  numRecords: NumberReply;
-  invertedSzMb: DoubleReply;
-  vectorIndexSzMb: DoubleReply;
-  totalInvertedIndexBlocks: NumberReply;
-  offsetVectorsSzMb: DoubleReply;
-  docTableSizeMb: DoubleReply;
-  sortableValuesSizeMb: DoubleReply;
-  keyTableSizeMb: DoubleReply;
-  tagOverheadSizeMb: DoubleReply;
-  textOverheadSizeMb: DoubleReply;
-  totalIndexMemorySizeMb: DoubleReply;
-  geoshapeSizeMb: DoubleReply;
-  recordsPerDocAvg: DoubleReply;
-  bytesPerRecordAvg: DoubleReply;
-  offsetsPerTermAvg: DoubleReply;
-  offsetBitsPerRecordAvg: DoubleReply;
-  hashIndexingFailures: NumberReply;
-  totalIndexingTime: DoubleReply;
+  num_docs: NumberReply
+  max_doc_id: NumberReply;
+  num_terms: NumberReply;
+  num_records: NumberReply;
+  inverted_sz_mb: DoubleReply;
+  vector_index_sz_mb: DoubleReply;
+  total_inverted_index_blocks: NumberReply;
+  offset_vectors_sz_mb: DoubleReply;
+  doc_table_size_mb: DoubleReply;
+  sortable_values_size_mb: DoubleReply;
+  key_table_size_mb: DoubleReply;
+  tag_overhead_sz_mb: DoubleReply;
+  text_overhead_sz_mb: DoubleReply;
+  total_index_memory_sz_mb: DoubleReply;
+  geoshapes_sz_mb: DoubleReply;
+  records_per_doc_avg: DoubleReply;
+  bytes_per_record_avg: DoubleReply;
+  offsets_per_term_avg: DoubleReply;
+  offset_bits_per_record_avg: DoubleReply;
+  hash_indexing_failures: NumberReply;
+  total_indexing_time: DoubleReply;
   indexing: NumberReply;
-  percentIndexed: DoubleReply;
-  numberOfUses: NumberReply;
+  percent_indexed: DoubleReply;
+  number_of_uses: NumberReply;
   cleaning: NumberReply;
-  gcStats: {
-    bytesCollected: DoubleReply;
-    totalMsRun: DoubleReply;
-    totalCycles: DoubleReply;
-    averageCycleTimeMs: DoubleReply;
-    lastRunTimeMs: DoubleReply;
-    gcNumericTreesMissed: DoubleReply;
-    gcBlocksDenied: DoubleReply;
+  gc_stats: {
+    bytes_collected: DoubleReply;
+    total_ms_run: DoubleReply;
+    total_cycles: DoubleReply;
+    average_cycle_time_ms: DoubleReply;
+    last_run_time_ms: DoubleReply;
+    gc_numeric_trees_missed: DoubleReply;
+    gc_blocks_denied: DoubleReply;
   };
-  cursorStats: {
-    globalIdle: NumberReply;
-    globalTotal: NumberReply;
-    indexCapacity: NumberReply;
-    indexTotal: NumberReply;
+  cursor_stats: {
+    global_idle: NumberReply;
+    global_total: NumberReply;
+    index_capacity: NumberReply;
+    index_total: NumberReply;
   };
-  stopWords?: ArrayReply<BlobStringReply | NullReply>;
+  stopwords_list?: ArrayReply<BlobStringReply> | TuplesReply<[NullReply]>;
 }
 
 function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeMapping): InfoReply {
@@ -69,163 +70,92 @@ function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeM
   const ret = {} as unknown as InfoReply;
 
   for (let i=0; i < reply.length; i += 2) {
-    const key = reply[i].toString();
+    const key = reply[i].toString() as keyof InfoReply;
 
     switch (key) {
       case 'index_name':
-        ret.indexName = reply[i+1];
-        break;
       case 'index_options':
-        ret.indexOptions = reply[i+1];
-        break;
-      case 'index_definition':
-        ret.indexDefinition = myTransformFunc(reply[i+1]);
-        break;
-      case 'attributes':
-        ret.attributes = (reply[i+1] as Array<ArrayReply<SimpleStringReply>>).map(attribute => myTransformFunc(attribute));
-        break;
       case 'num_docs':
-        ret.numDocs = reply[i+1];
-        break;
       case 'max_doc_id':
-        ret.maxDocId = reply[i+1];
-        break;
       case 'num_terms':
-        ret.numTerms = reply[i+1];
-        break;
       case 'num_records':
-        ret.numRecords = reply[i+1];
+      case 'total_inverted_index_blocks':
+      case 'hash_indexing_failures':
+      case 'indexing':
+      case 'number_of_uses':
+      case 'cleaning':  
+      case 'stopwords_list':
+        ret[key] = reply[i+1];
         break;
       case 'inverted_sz_mb':
-        ret.invertedSzMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'vector_index_sz_mb':
-        ret.vectorIndexSzMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
-      case 'total_inverted_index_blocks':
-        ret.totalInvertedIndexBlocks = reply[i+1];
-        break;
       case 'offset_vectors_sz_mb':
-        ret.offsetVectorsSzMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'doc_table_size_mb':
-        ret.docTableSizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'sortable_values_size_mb':
-        ret.sortableValuesSizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'key_table_size_mb':
-        ret.keyTableSizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
-      case 'tag_overhead_sz_mb':
-        ret.tagOverheadSizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'text_overhead_sz_mb':
-        ret.textOverheadSizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
+      case 'tag_overhead_sz_mb':
       case 'total_index_memory_sz_mb':
-        ret.totalIndexMemorySizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'geoshapes_sz_mb':
-        ret.geoshapeSizeMb = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'records_per_doc_avg':
-        ret.recordsPerDocAvg = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'bytes_per_record_avg':
-        ret.bytesPerRecordAvg = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'offsets_per_term_avg':
-        ret.offsetsPerTermAvg = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
       case 'offset_bits_per_record_avg':
-        ret.offsetBitsPerRecordAvg = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
-      case 'hash_indexing_failures':
-        ret.hashIndexingFailures = reply[i+1];
-        break;
       case 'total_indexing_time':
-        ret.totalIndexingTime = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
+      case 'percent_indexed':        
+        ret[key] = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
         break;
-      case 'indexing':
-        ret.indexing = reply[i+1];
+      case 'index_definition':
+        ret[key] = myTransformFunc(reply[i+1]);
         break;
-      case 'percent_indexed':
-        ret.percentIndexed = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
-        break;
-      case 'number_of_uses':
-        ret.numberOfUses = reply[i+1];
-        break;
-      case 'cleaning':
-        ret.cleaning = reply[i+1];
+      case 'attributes':
+        ret[key] = (reply[i+1] as Array<ArrayReply<SimpleStringReply>>).map(attribute => myTransformFunc(attribute));
         break;
       case 'gc_stats': {
-        const func = (array: Array<any>) => {
-          const innerRet = {} as unknown as InfoReply['gcStats'];
+        const innerRet = {} as unknown as InfoReply['gc_stats'];
 
-          for (let i=0; i < array.length; i += 2) {
-            const innerKey = array[i].toString();
+        const array = reply[i+1];
 
-            switch (innerKey) {
-              case 'bytes_collected':
-                innerRet.bytesCollected = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-              case 'total_ms_run':
-                innerRet.totalMsRun = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-              case 'total_cycles':
-                innerRet.totalCycles = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-              case 'average_cycle_time_ms':
-                innerRet.averageCycleTimeMs = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-              case 'last_run_time_ms':
-                innerRet.lastRunTimeMs = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-              case 'gc_numeric_trees_missed':
-                innerRet.gcNumericTreesMissed = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-              case 'gc_blocks_denied':
-                innerRet.gcBlocksDenied = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
-                break;
-            }
+        for (let i=0; i < array.length; i += 2) {
+          const innerKey = array[i].toString() as keyof InfoReply['gc_stats'];
+
+          switch (innerKey) {
+            case 'bytes_collected':
+            case 'total_ms_run':
+            case 'total_cycles':
+            case 'average_cycle_time_ms':
+            case 'last_run_time_ms':
+            case 'gc_numeric_trees_missed':
+            case 'gc_blocks_denied':
+              innerRet[innerKey] = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
+              break;
           }
-
-          return innerRet;
         }
-        ret.gcStats = func(reply[i+1]);
+        
+        ret[key] = innerRet;
         break;
       }
       case 'cursor_stats': {
-        const func = (array: Array<any>) => {
-          const innerRet = {} as unknown as InfoReply['cursorStats'];
+        const innerRet = {} as unknown as InfoReply['cursor_stats'];
 
-          for (let i=0; i < array.length; i += 2) {
-            const innerKey = array[i].toString();
+        const array = reply[i+1];
 
-            switch (innerKey) {
-              case 'global_idle':
-                innerRet.globalIdle = array[i+1];
-                break;
-              case 'global_total':
-                innerRet.globalTotal = array[i+1];
-                break;
-              case 'index_capacity':
-                innerRet.indexCapacity = array[i+1];
-                break;
-              case 'index_total':
-                innerRet.indexTotal = array[i+1];
-                break;
-            }
+        for (let i=0; i < array.length; i += 2) {
+          const innerKey = array[i].toString() as keyof InfoReply['cursor_stats'];
+
+          switch (innerKey) {
+            case 'global_idle':
+            case 'global_total':
+            case 'index_capacity':
+            case 'index_total':
+              innerRet[innerKey] = array[i+1];
+              break;
           }
-
-          return innerRet;
         }
-        ret.cursorStats = func(reply[i+1]);
+
+        ret[key] = innerRet;
         break;
       }
-      case 'stopwords_list':
-        ret.stopWords = reply[i+1];
     }  
   }
 

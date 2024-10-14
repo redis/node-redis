@@ -1,5 +1,5 @@
-import { RedisArgument, SimpleStringReply, Command, CommandArguments } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisArgument, SimpleStringReply, Command, CommandArguments } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument, pushOptionalVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 
 export const SCHEMA_FIELD_TYPE = {
   TEXT: 'TEXT',
@@ -12,24 +12,16 @@ export const SCHEMA_FIELD_TYPE = {
 
 export type SchemaFieldType = typeof SCHEMA_FIELD_TYPE[keyof typeof SCHEMA_FIELD_TYPE];
 
-type SchemaField<
-  T extends SchemaFieldType,
-  E = Record<PropertyKey, unknown>
-> = T | ({
+interface SchemaField<T extends SchemaFieldType = SchemaFieldType> {
   type: T;
   AS?: RedisArgument;
-} & E);
+  INDEXMISSING?: boolean;
+}
 
-type SchemaCommonField<
-  T extends SchemaFieldType,
-  E = Record<PropertyKey, unknown>
-> = SchemaField<
-  T,
-  ({
-    SORTABLE?: boolean | 'UNF';
-    NOINDEX?: boolean;
-  } & E)
->;
+interface SchemaCommonField<T extends SchemaFieldType = SchemaFieldType> extends SchemaField<T> {
+  SORTABLE?: boolean | 'UNF'
+  NOINDEX?: boolean;
+}
 
 export const SCHEMA_TEXT_FIELD_PHONETIC = {
   DM_EN: 'dm:en',
@@ -40,22 +32,24 @@ export const SCHEMA_TEXT_FIELD_PHONETIC = {
 
 export type SchemaTextFieldPhonetic = typeof SCHEMA_TEXT_FIELD_PHONETIC[keyof typeof SCHEMA_TEXT_FIELD_PHONETIC];
 
-type SchemaTextField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TEXT'], {
+interface SchemaTextField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TEXT']> {
   NOSTEM?: boolean;
   WEIGHT?: number;
   PHONETIC?: SchemaTextFieldPhonetic;
   WITHSUFFIXTRIE?: boolean;
-}>;
+  INDEXEMPTY?: boolean;
+}
 
-type SchemaNumericField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']>;
+interface SchemaNumericField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']> {}
 
-type SchemaGeoField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEO']>;
+interface SchemaGeoField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEO']> {}
 
-type SchemaTagField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TAG'], {
+interface SchemaTagField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TAG']> {
   SEPARATOR?: RedisArgument;
   CASESENSITIVE?: boolean;
   WITHSUFFIXTRIE?: boolean;
-}>;
+  INDEXEMPTY?: boolean;
+}
 
 export const SCHEMA_VECTOR_FIELD_ALGORITHM = {
   FLAT: 'FLAT',
@@ -64,26 +58,25 @@ export const SCHEMA_VECTOR_FIELD_ALGORITHM = {
 
 export type SchemaVectorFieldAlgorithm = typeof SCHEMA_VECTOR_FIELD_ALGORITHM[keyof typeof SCHEMA_VECTOR_FIELD_ALGORITHM];
 
-type SchemaVectorField<
-  T extends SchemaVectorFieldAlgorithm,
-  A extends Record<string, unknown>
-> = SchemaField<typeof SCHEMA_FIELD_TYPE['VECTOR'], {
-  ALGORITHM: T;
+interface SchemaVectorField extends SchemaField<typeof SCHEMA_FIELD_TYPE['VECTOR']> {
+  ALGORITHM: SchemaVectorFieldAlgorithm;
   TYPE: string;
   DIM: number;
   DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE';
   INITIAL_CAP?: number;
-} & A>;
+}
 
-type SchemaFlatVectorField = SchemaVectorField<typeof SCHEMA_VECTOR_FIELD_ALGORITHM['FLAT'], {
+interface SchemaFlatVectorField extends SchemaVectorField {
+  ALGORITHM: typeof SCHEMA_VECTOR_FIELD_ALGORITHM['FLAT'];
   BLOCK_SIZE?: number;
-}>;
+}
 
-type SchemaHNSWVectorField = SchemaVectorField<typeof SCHEMA_VECTOR_FIELD_ALGORITHM['HNSW'], {
+interface SchemaHNSWVectorField extends SchemaVectorField {
+  ALGORITHM: typeof SCHEMA_VECTOR_FIELD_ALGORITHM['HNSW'];
   M?: number;
   EF_CONSTRUCTION?: number;
   EF_RUNTIME?: number;
-}>;
+}
 
 export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
   SPHERICAL: 'SPHERICAL',
@@ -92,20 +85,35 @@ export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
 
 export type SchemaGeoShapeFieldCoordSystem = typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM[keyof typeof SCHEMA_GEO_SHAPE_COORD_SYSTEM];
 
-type SchemaGeoShapeField = SchemaField<typeof SCHEMA_FIELD_TYPE['GEOSHAPE'], {
+interface SchemaGeoShapeField extends SchemaField<typeof SCHEMA_FIELD_TYPE['GEOSHAPE']> {
   COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
-}>;
+}
 
 export interface RediSearchSchema {
-  [field: string]:(
+  [field: string]: (
     SchemaTextField |
     SchemaNumericField |
     SchemaGeoField |
     SchemaTagField |
     SchemaFlatVectorField |
     SchemaHNSWVectorField |
-    SchemaGeoShapeField
+    SchemaGeoShapeField |
+    SchemaFieldType
   );
+}
+
+function pushCommonSchemaFieldOptions(args: CommandArguments, fieldOptions: SchemaCommonField) {
+  if (fieldOptions.SORTABLE) {
+    args.push('SORTABLE');
+
+    if (fieldOptions.SORTABLE === 'UNF') {
+      args.push('UNF');
+    }
+  }
+
+  if (fieldOptions.NOINDEX) {
+    args.push('NOINDEX');
+  }
 }
 
 export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
@@ -122,6 +130,10 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
     }
 
     args.push(fieldOptions.type);
+
+    if (fieldOptions.INDEXMISSING) {
+      args.push('INDEXMISSING');
+    }
 
     switch (fieldOptions.type) {
       case SCHEMA_FIELD_TYPE.TEXT:
@@ -141,11 +153,17 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
           args.push('WITHSUFFIXTRIE');
         }
 
+        if (fieldOptions.INDEXEMPTY) {
+          args.push('INDEXEMPTY');
+        }
+
+        pushCommonSchemaFieldOptions(args, fieldOptions)
         break;
 
-      // case SchemaFieldTypes.NUMERIC:
-      // case SchemaFieldTypes.GEO:
-      //     break;
+      case SCHEMA_FIELD_TYPE.NUMERIC:
+      case SCHEMA_FIELD_TYPE.GEO:
+        pushCommonSchemaFieldOptions(args, fieldOptions)
+        break;
 
       case SCHEMA_FIELD_TYPE.TAG:
         if (fieldOptions.SEPARATOR) {
@@ -160,6 +178,11 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
           args.push('WITHSUFFIXTRIE');
         }
 
+        if (fieldOptions.INDEXEMPTY) {
+          args.push('INDEXEMPTY');
+        }
+
+        pushCommonSchemaFieldOptions(args, fieldOptions)
         break;
 
       case SCHEMA_FIELD_TYPE.VECTOR:
@@ -202,26 +225,14 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
         }
         args[lengthIndex] = (args.length - lengthIndex - 1).toString();
 
-        continue; // vector fields do not contain SORTABLE and NOINDEX options
+        break;
     
       case SCHEMA_FIELD_TYPE.GEOSHAPE:
         if (fieldOptions.COORD_SYSTEM !== undefined) {
           args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
         }
 
-        continue; // geo shape fields do not contain SORTABLE and NOINDEX options
-    }
-
-    if (fieldOptions.SORTABLE) {
-      args.push('SORTABLE');
-
-      if (fieldOptions.SORTABLE === 'UNF') {
-        args.push('UNF');
-      }
-    }
-
-    if (fieldOptions.NOINDEX) {
-      args.push('NOINDEX');
+        break;
     }
   }
 }

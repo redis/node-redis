@@ -57,7 +57,7 @@ describe('TS.CREATE', () => {
       );
     });
 
-    it('with IGNORE', () => {    
+    it('with IGNORE with MAX_TIME_DIFF', () => {
       assert.deepEqual(
         CREATE.transformArguments('key', {
           IGNORE: { 

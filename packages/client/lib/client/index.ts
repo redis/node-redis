@@ -927,6 +927,19 @@ export default class RedisClient<
     } while (cursor !== '0');
   }
 
+  async* hScanNoValuesIterator(
+    this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    key: RedisArgument,
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await this.hScanNoValues(key, cursor, options);
+      cursor = reply.cursor;
+      yield reply.fields;
+    } while (cursor !== '0');
+  }
+
   async* sScanIterator(
     this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     key: RedisArgument,
