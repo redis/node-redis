@@ -1,17 +1,13 @@
-import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
-import { ScanCommonOptions, pushScanArguments } from './SCAN';
+import { BlobStringReply, Command } from '../RESP/types';
+import HSCAN from './HSCAN';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
-    key: RedisArgument,
-    cursor: RedisArgument,
-    options?: ScanCommonOptions
-  ) {
-    const args = pushScanArguments(['HSCAN', key], cursor, options);
-    args.push('NOVALUES');
-    return args;
+  parseCommand(...args: Parameters<typeof HSCAN.parseCommand>) {
+    const parser = args[0];
+
+    HSCAN.parseCommand(...args);
+    parser.push('NOVALUES');
   },
   transformReply([cursor, fields]: [BlobStringReply, Array<BlobStringReply>]) {
     return {

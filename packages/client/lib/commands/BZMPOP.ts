@@ -1,11 +1,12 @@
+import { CommandParser } from '../client/parser';
 import { Command } from '../RESP/types';
-import ZMPOP, { ZMPopArguments, transformZMPopArguments } from './ZMPOP';
+import ZMPOP, { parseZMPopArguments, ZMPopArguments } from './ZMPOP';
 
 export default {
-  FIRST_KEY_INDEX: 3,
   IS_READ_ONLY: false,
-  transformArguments(timeout: number, ...args: ZMPopArguments) {
-    return transformZMPopArguments(['BZMPOP', timeout.toString()], ...args);
+  parseCommand(parser: CommandParser, timeout: number, ...args: ZMPopArguments) {
+    parser.push('BZMPOP', timeout.toString());
+    parseZMPopArguments(parser, ...args);
   },
   transformReply: ZMPOP.transformReply
 } as const satisfies Command;

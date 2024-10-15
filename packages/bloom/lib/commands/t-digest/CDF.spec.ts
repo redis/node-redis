@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import CDF from './CDF';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.CDF', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CDF.transformArguments('key', [1, 2]),
+      parseArgs(CDF, 'key', [1, 2]),
       ['TDIGEST.CDF', 'key', '1', '2']
     );
   });

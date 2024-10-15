@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TTL from './TTL';
+import { parseArgs } from './generic-transformers';
 
 describe('TTL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      TTL.transformArguments('key'),
+      parseArgs(TTL, 'key'),
       ['TTL', 'key']
     );
   });

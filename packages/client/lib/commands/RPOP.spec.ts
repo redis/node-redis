@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RPOP from './RPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('RPOP', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RPOP.transformArguments('key'),
+      parseArgs(RPOP, 'key'),
       ['RPOP', 'key']
     );
   });

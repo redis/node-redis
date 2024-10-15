@@ -1,4 +1,5 @@
 import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, NullReply, TuplesReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
 type Headers = ArrayReply<BlobStringReply>;
 
@@ -25,30 +26,28 @@ export interface QueryOptions {
   TIMEOUT?: number;
 }
 
-export function transformQueryArguments(
+export function parseQueryArguments(
   command: RedisArgument,
+  parser: CommandParser,
   graph: RedisArgument,
   query: RedisArgument,
   options?: QueryOptions,
   compact?: boolean
 ) {
-  const args = [
-    command,
-    graph,
-    options?.params ?
-      `CYPHER ${queryParamsToString(options.params)} ${query}` :
-      query
-  ];
+  parser.push(command);
+  parser.pushKey(graph);
+  const param = options?.params ?
+    `CYPHER ${queryParamsToString(options.params)} ${query}` :
+    query;
+  parser.push(param);
 
   if (options?.TIMEOUT !== undefined) {
-    args.push('TIMEOUT', options.TIMEOUT.toString());
+    parser.push('TIMEOUT', options.TIMEOUT.toString());
   }
 
   if (compact) {
-    args.push('--compact');
+    parser.push('--compact');
   }
-
-  return args;
 }
 
 function queryParamsToString(params: QueryParams) {
@@ -85,9 +84,8 @@ function queryParamToString(param: QueryParam): string {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments: transformQueryArguments.bind(undefined, 'GRAPH.QUERY'),
+  parseCommand: parseQueryArguments.bind(undefined, 'GRAPH.QUERY'),
   transformReply(reply: UnwrapReply<QueryRawReply>) {
     return reply.length === 1 ? {
       headers: undefined,

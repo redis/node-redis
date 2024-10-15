@@ -1,28 +1,26 @@
-import { Command, RedisArgument } from '../RESP/types';
-import { pushVariadicArgument, RedisVariadicArgument, transformEXAT } from './generic-transformers';
-import { HashExpiration } from './HEXPIRE';
+import { CommandParser } from '../client/parser';
+import { RedisVariadicArgument, transformEXAT } from './generic-transformers';
+import { ArrayReply, Command, NumberReply, RedisArgument } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     fields: RedisVariadicArgument,
     timestamp: number | Date,
     mode?: 'NX' | 'XX' | 'GT' | 'LT'
   ) {
-    const args = [
-      'HEXPIREAT',
-      key,
-      transformEXAT(timestamp)
-    ];
-  
+    parser.push('HEXPIREAT');
+    parser.pushKey(key);
+    parser.push(transformEXAT(timestamp));
+
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
-  
-    args.push('FIELDS')
-  
-    return pushVariadicArgument(args, fields);
+
+    parser.push('FIELDS')
+
+    parser.pushVariadicWithLength(fields);
   },
-  transformReply: undefined as unknown as () => Array<HashExpiration>
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LRANGE from './LRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('LRANGE', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      LRANGE.transformArguments('key', 0, -1),
+      parseArgs(LRANGE, 'key', 0, -1),
       ['LRANGE', 'key', '0', '-1']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import RESET from './RESET';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.RESET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RESET.transformArguments('key'),
+      parseArgs(RESET, 'key'),
       ['TDIGEST.RESET', 'key']
     );
   });

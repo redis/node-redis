@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { transformInfoV2Reply } from '../bloom';
 
@@ -14,10 +15,10 @@ export type TdInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['TDIGEST.INFO', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('TDIGEST.INFO');
+    parser.pushKey(key);
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<TdInfoReplyMap>>, _, typeMapping?: TypeMapping): TdInfoReplyMap => {

@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, SetReply, UnwrapReply, Command } from '../RESP/types';
 
 export type CommandGetKeysAndFlagsRawReply = ArrayReply<TuplesReply<[
@@ -6,10 +7,11 @@ export type CommandGetKeysAndFlagsRawReply = ArrayReply<TuplesReply<[
 ]>>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(args: Array<RedisArgument>) {
-    return ['COMMAND', 'GETKEYSANDFLAGS', ...args];
+  parseCommand(parser: CommandParser, args: Array<RedisArgument>) {
+    parser.push('COMMAND', 'GETKEYSANDFLAGS');
+    parser.pushVariadic(args);
   },
   transformReply(reply: UnwrapReply<CommandGetKeysAndFlagsRawReply>) {
     return reply.map(entry => {

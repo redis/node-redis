@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import ADDNX from './ADDNX';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('CF.ADDNX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ADDNX.transformArguments('key', 'item'),
+      parseArgs(ADDNX, 'key', 'item'),
       ['CF.ADDNX', 'key', 'item']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LSET from './LSET';
+import { parseArgs } from './generic-transformers';
 
 describe('LSET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LSET.transformArguments('key', 0, 'element'),
+      parseArgs(LSET, 'key', 0, 'element'),
       ['LSET', 'key', '0', 'element']
     );
   });

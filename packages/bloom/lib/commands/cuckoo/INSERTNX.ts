@@ -1,9 +1,11 @@
 import { Command } from '@redis/client/dist/lib/RESP/types';
-import INSERT, { transofrmCfInsertArguments } from './INSERT';
+import INSERT, { parseCfInsertArguments } from './INSERT';
 
 export default {
-  FIRST_KEY_INDEX: INSERT.FIRST_KEY_INDEX,
   IS_READ_ONLY: INSERT.IS_READ_ONLY,
-  transformArguments: transofrmCfInsertArguments.bind(undefined, 'CF.INSERTNX'),
+  parseCommand(...args: Parameters<typeof parseCfInsertArguments>) {
+    args[0].push('CF.INSERTNX');
+    parseCfInsertArguments(...args);
+  },
   transformReply: INSERT.transformReply
 } as const satisfies Command;

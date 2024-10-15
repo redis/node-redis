@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 import { isNullReply, transformTuplesReply } from './generic-transformers';
 
@@ -18,10 +19,10 @@ export type XInfoStreamReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['XINFO', 'STREAM', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('XINFO', 'STREAM');
+    parser.pushKey(key);
   },
   transformReply: {
     // TODO: is there a "type safe" way to do it?

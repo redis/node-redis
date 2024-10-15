@@ -1,11 +1,13 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { pushVariadicArguments, RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(dictionary: RedisArgument, term: RedisVariadicArgument) {
-    return pushVariadicArguments(['FT.DICTDEL', dictionary], term);
+  parseCommand(parser: CommandParser, dictionary: RedisArgument, term: RedisVariadicArgument) {
+    parser.push('FT.DICTDEL', dictionary);
+    parser.pushVariadic(term);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

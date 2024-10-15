@@ -1,10 +1,11 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, MapReply, BlobStringReply, ArrayReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument) {
-    return ['FT.SYNDUMP', index];
+  parseCommand(parser: CommandParser, index: RedisArgument) {
+    parser.push('FT.SYNDUMP', index);
   },
   transformReply: {
     2: (reply: UnwrapReply<ArrayReply<BlobStringReply | ArrayReply<BlobStringReply>>>) => {

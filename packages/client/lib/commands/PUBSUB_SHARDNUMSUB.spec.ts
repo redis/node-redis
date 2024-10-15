@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PUBSUB_SHARDNUMSUB from './PUBSUB_SHARDNUMSUB';
+import { parseArgs } from './generic-transformers';
 
 describe('PUBSUB SHARDNUMSUB', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,21 +9,21 @@ describe('PUBSUB SHARDNUMSUB', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        PUBSUB_SHARDNUMSUB.transformArguments(),
+        parseArgs(PUBSUB_SHARDNUMSUB),
         ['PUBSUB', 'SHARDNUMSUB']
       );
     });
 
     it('string', () => {
       assert.deepEqual(
-        PUBSUB_SHARDNUMSUB.transformArguments('channel'),
+        parseArgs(PUBSUB_SHARDNUMSUB, 'channel'),
         ['PUBSUB', 'SHARDNUMSUB', 'channel']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        PUBSUB_SHARDNUMSUB.transformArguments(['1', '2']),
+        parseArgs(PUBSUB_SHARDNUMSUB, ['1', '2']),
         ['PUBSUB', 'SHARDNUMSUB', '1', '2']
       );
     });

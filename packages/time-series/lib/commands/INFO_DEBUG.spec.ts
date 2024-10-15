@@ -4,11 +4,12 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { assertInfo } from './INFO.spec';
 import INFO_DEBUG from './INFO_DEBUG';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.INFO_DEBUG', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            INFO_DEBUG.transformArguments('key'),
+            parseArgs(INFO_DEBUG, 'key'),
             ['TS.INFO', 'key', 'DEBUG']
         );
     });

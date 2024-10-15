@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XINFO_STREAM from './XINFO_STREAM';
+import { parseArgs } from './generic-transformers';
 
 describe('XINFO STREAM', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      XINFO_STREAM.transformArguments('key'),
+      parseArgs(XINFO_STREAM, 'key'),
       ['XINFO', 'STREAM', 'key']
     );
   });

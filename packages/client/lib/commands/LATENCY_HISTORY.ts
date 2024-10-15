@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { ArrayReply, TuplesReply, NumberReply, Command } from '../RESP/types';
 
 export type LatencyEventType = (
@@ -20,10 +21,10 @@ export type LatencyEventType = (
 );
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(event: LatencyEventType) {
-    return ['LATENCY', 'HISTORY', event];
+  parseCommand(parser: CommandParser, event: LatencyEventType) {
+    parser.push('LATENCY', 'HISTORY', event);
   },
   transformReply: undefined as unknown as () => ArrayReply<TuplesReply<[
     timestamp: NumberReply,

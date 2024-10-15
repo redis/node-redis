@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 import SCAN from './SCAN';
 
 describe('SCAN', () => {
   describe('transformArguments', () => {
     it('cusror only', () => {
       assert.deepEqual(
-        SCAN.transformArguments('0'),
+        parseArgs(SCAN, '0'),
         ['SCAN', '0']
       );
     });
 
     it('with MATCH', () => {
       assert.deepEqual(
-        SCAN.transformArguments('0', {
+        parseArgs(SCAN, '0', {
           MATCH: 'pattern'
         }),
         ['SCAN', '0', 'MATCH', 'pattern']
@@ -22,7 +23,7 @@ describe('SCAN', () => {
 
     it('with COUNT', () => {
       assert.deepEqual(
-        SCAN.transformArguments('0', {
+        parseArgs(SCAN, '0', {
           COUNT: 1
         }),
         ['SCAN', '0', 'COUNT', '1']
@@ -31,7 +32,7 @@ describe('SCAN', () => {
 
     it('with TYPE', () => {
       assert.deepEqual(
-        SCAN.transformArguments('0', {
+        parseArgs(SCAN, '0', {
           TYPE: 'stream'
         }),
         ['SCAN', '0', 'TYPE', 'stream']
@@ -40,7 +41,7 @@ describe('SCAN', () => {
 
     it('with MATCH & COUNT & TYPE', () => {
       assert.deepEqual(
-        SCAN.transformArguments('0', {
+        parseArgs(SCAN, '0', {
           MATCH: 'pattern',
           COUNT: 1,
           TYPE: 'stream'

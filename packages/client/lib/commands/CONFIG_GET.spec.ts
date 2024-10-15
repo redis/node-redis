@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CONFIG_GET from './CONFIG_GET';
+import { parseArgs } from './generic-transformers';
 
 describe('CONFIG GET', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        CONFIG_GET.transformArguments('*'),
+        parseArgs(CONFIG_GET, '*'),
         ['CONFIG', 'GET', '*']
       );
     });
 
     it('Array', () => {
       assert.deepEqual(
-        CONFIG_GET.transformArguments(['1', '2']),
+        parseArgs(CONFIG_GET, ['1', '2']),
         ['CONFIG', 'GET', '1', '2']
       );
     });

@@ -1,4 +1,5 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, CommandArguments, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NullReply, SetReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export interface FunctionListOptions {
   LIBRARYNAME?: RedisArgument;
@@ -17,16 +18,14 @@ export type FunctionListReplyItem = [
 export type FunctionListReply = ArrayReply<TuplesToMapReply<FunctionListReplyItem>>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  transformArguments(options?: FunctionListOptions) {
-    const args: CommandArguments = ['FUNCTION', 'LIST'];
+  parseCommand(parser: CommandParser, options?: FunctionListOptions) {
+    parser.push('FUNCTION', 'LIST');
 
     if (options?.LIBRARYNAME) {
-      args.push('LIBRARYNAME', options.LIBRARYNAME);
+      parser.push('LIBRARYNAME', options.LIBRARYNAME);
     }
-
-    return args;
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<FunctionListReply>>) => {

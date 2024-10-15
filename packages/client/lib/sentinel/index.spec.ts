@@ -10,24 +10,13 @@ import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, 
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { RESP_TYPES } from '../RESP/decoder';
-import { defineScript } from '../lua-script';
 import { MATH_FUNCTION } from '../commands/FUNCTION_LOAD.spec';
 import RedisBloomModules from '@redis/bloom';
+import { BasicPooledClientSideCache } from '../client/cache';
 import { RedisTcpSocketOptions } from '../client/socket';
+import { SQUARE_SCRIPT } from '../client/index.spec';
 
 const execAsync = promisify(exec);
-
-const SQUARE_SCRIPT = defineScript({
-  SCRIPT:
-    `local number = redis.call('GET', KEYS[1])
-    return number * number`,
-  NUMBER_OF_KEYS: 1,
-  FIRST_KEY_INDEX: 0,
-  transformArguments(key: string) {
-    return [key];
-  },
-  transformReply: undefined as unknown as () => NumberReply
-});
 
 /* used to ensure test environment resets to normal state
    i.e. 
@@ -1146,6 +1135,45 @@ async function steadyState(frame: SentinelFramework) {
         await frame.addNode();
         tracer.push("added node and waiting on added promise");
         await nodeAddedPromise; 
+      })
+
+      it('with client side caching', async function() {
+        let invalidateResolve;
+        const invalidatePromise = new Promise((res, rej) => {
+          invalidateResolve = res;
+        })
+      
+        this.timeout(30000);
+        const csc = new BasicPooledClientSideCache();
+
+        csc.on("invalidate", (cacheKey: string) => {
+          if (cacheKey === "GET_x") {
+            console.log(`invalidating ${cacheKey}`);
+            invalidateResolve(true);
+          }
+        })
+
+        sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3}, clientSideCache: csc, masterPoolSize: 5});
+        await sentinel.connect();
+
+        await sentinel.set('x', 1);
+        await sentinel.get('x');
+        await sentinel.get('x');
+        await sentinel.get('x');
+        await sentinel.get('x');
+
+        assert.equal(1, csc.cacheMisses());
+        assert.equal(3, csc.cacheHits());
+
+        await sentinel.set('x', 2);
+        await invalidatePromise;
+        await sentinel.get('x');
+        await sentinel.get('x');
+        await sentinel.get('x');
+        await sentinel.get('x');
+
+        assert.equal(csc.cacheMisses(), 2);
+        assert.equal(csc.cacheHits(), 6);
       })
     })
   

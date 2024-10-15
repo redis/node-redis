@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGGET from './SUGGET';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.SUGGET', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        SUGGET.transformArguments('key', 'prefix'),
+        parseArgs(SUGGET, 'key', 'prefix'),
         ['FT.SUGGET', 'key', 'prefix']
       );
     });
 
     it('with FUZZY', () => {
       assert.deepEqual(
-        SUGGET.transformArguments('key', 'prefix', { FUZZY: true }),
+        parseArgs(SUGGET, 'key', 'prefix', { FUZZY: true }),
         ['FT.SUGGET', 'key', 'prefix', 'FUZZY']
       );
     });
 
     it('with MAX', () => {
       assert.deepEqual(
-        SUGGET.transformArguments('key', 'prefix', { MAX: 10 }),
+        parseArgs(SUGGET, 'key', 'prefix', { MAX: 10 }),
         ['FT.SUGGET', 'key', 'prefix', 'MAX', '10']
       );
     });

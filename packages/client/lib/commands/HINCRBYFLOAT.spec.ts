@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HINCRBYFLOAT from './HINCRBYFLOAT';
+import { parseArgs } from './generic-transformers';
 
 describe('HINCRBYFLOAT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      HINCRBYFLOAT.transformArguments('key', 'field', 1.5),
+      parseArgs(HINCRBYFLOAT, 'key', 'field', 1.5),
       ['HINCRBYFLOAT', 'key', 'field', '1.5']
     );
   });

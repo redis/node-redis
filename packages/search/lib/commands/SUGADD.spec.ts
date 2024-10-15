@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGADD from './SUGADD';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.SUGADD', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        SUGADD.transformArguments('key', 'string', 1),
+        parseArgs(SUGADD, 'key', 'string', 1),
         ['FT.SUGADD', 'key', 'string', '1']
       );
     });
 
     it('with INCR', () => {
       assert.deepEqual(
-        SUGADD.transformArguments('key', 'string', 1, { INCR: true }),
+        parseArgs(SUGADD, 'key', 'string', 1, { INCR: true }),
         ['FT.SUGADD', 'key', 'string', '1', 'INCR']
       );
     });
 
     it('with PAYLOAD', () => {
       assert.deepEqual(
-        SUGADD.transformArguments('key', 'string', 1, { PAYLOAD: 'payload' }),
+        parseArgs(SUGADD, 'key', 'string', 1, { PAYLOAD: 'payload' }),
         ['FT.SUGADD', 'key', 'string', '1', 'PAYLOAD', 'payload']
       );
     });

@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { BlobStringReply, Command, RedisArgument } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(script: RedisArgument) {
-    return ['SCRIPT', 'LOAD', script];
+  parseCommand(parser: CommandParser, script: RedisArgument) {
+    parser.push('SCRIPT', 'LOAD', script);
   },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

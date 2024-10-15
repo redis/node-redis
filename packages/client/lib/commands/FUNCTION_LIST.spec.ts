@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_LIST from './FUNCTION_LIST';
 import { MATH_FUNCTION, loadMathFunction } from './FUNCTION_LOAD.spec';
+import { parseArgs } from './generic-transformers';
 
 describe('FUNCTION LIST', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -9,14 +10,14 @@ describe('FUNCTION LIST', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        FUNCTION_LIST.transformArguments(),
+        parseArgs(FUNCTION_LIST),
         ['FUNCTION', 'LIST']
       );
     });
 
     it('with LIBRARYNAME', () => {
       assert.deepEqual(
-        FUNCTION_LIST.transformArguments({
+        parseArgs(FUNCTION_LIST, {
           LIBRARYNAME: 'patter*'
         }),
         ['FUNCTION', 'LIST', 'LIBRARYNAME', 'patter*']

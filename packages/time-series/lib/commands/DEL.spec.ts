@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DEL from './DEL';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TS.DEL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      DEL.transformArguments('key', '-', '+'),
+      parseArgs(DEL, 'key', '-', '+'),
       ['TS.DEL', 'key', '-', '+']
     );
   });

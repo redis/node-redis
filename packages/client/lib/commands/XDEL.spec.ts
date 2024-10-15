@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XDEL from './XDEL';
+import { parseArgs } from './generic-transformers';
 
 describe('XDEL', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        XDEL.transformArguments('key', '0-0'),
+        parseArgs(XDEL, 'key', '0-0'),
         ['XDEL', 'key', '0-0']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        XDEL.transformArguments('key', ['0-0', '1-0']),
+        parseArgs(XDEL, 'key', ['0-0', '1-0']),
         ['XDEL', 'key', '0-0', '1-0']
       );
     });

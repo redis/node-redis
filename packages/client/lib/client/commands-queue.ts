@@ -1,7 +1,7 @@
 import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
-import { CommandArguments, TypeMapping, ReplyUnion, RespVersions } from '../RESP/types';
+import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply } from '../errors';
 import { MonitorCallback } from '.';
@@ -17,7 +17,7 @@ export interface CommandOptions<T = TypeMapping> {
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
-  args: CommandArguments;
+  args: ReadonlyArray<RedisArgument>;
   chainId: symbol | undefined;
   abort: {
     signal: AbortSignal;
@@ -55,6 +55,8 @@ export default class RedisCommandsQueue {
   get isPubSubActive() {
     return this.#pubSub.isActive;
   }
+
+  #invalidateCallback?: (key: RedisArgument | null) => unknown;
 
   constructor(
     respVersion: RespVersions,
@@ -109,15 +111,33 @@ export default class RedisCommandsQueue {
       onErrorReply: err => this.#onErrorReply(err),
       onPush: push => {
         if (!this.#onPush(push)) {
-
+          switch (push[0].toString()) {
+            case "invalidate": {
+              console.log("invalidate push message");
+              if (this.#invalidateCallback) {
+                if (push[1] !== null) {
+                  for (const key of push[1]) {
+                    this.#invalidateCallback(key);
+                  }
+                } else {
+                  this.#invalidateCallback(null);
+                }
+              }
+              break;
+            }
+          }
         }
       },
       getTypeMapping: () => this.#getTypeMapping()
     });
   }
 
+  setInvalidateCallback(callback?: (key: RedisArgument | null) => unknown) {
+    this.#invalidateCallback = callback;
+  }
+
   addCommand<T>(
-    args: CommandArguments,
+    args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
     if (this.#maxLength && this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength) {
@@ -346,7 +366,7 @@ export default class RedisCommandsQueue {
   *commandsToWrite() {
     let toSend = this.#toWrite.shift();
     while (toSend) {
-      let encoded: CommandArguments;
+      let encoded: ReadonlyArray<RedisArgument>
       try {
         encoded = encodeCommand(toSend.args);
       } catch (err) {

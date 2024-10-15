@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export interface AuthOptions {
@@ -6,18 +7,14 @@ export interface AuthOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments({ username, password }: AuthOptions) {
-    const args: Array<RedisArgument> = ['AUTH'];
-
+  parseCommand(parser: CommandParser, { username, password }: AuthOptions) {
+    parser.push('AUTH');
     if (username !== undefined) {
-      args.push(username);
+      parser.push(username);
     }
-
-    args.push(password);
-
-    return args;
+    parser.push(password);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

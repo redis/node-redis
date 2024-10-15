@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(host: string, port: number) {
-    return ['CLUSTER', 'MEET', host, port.toString()];
+  parseCommand(parser: CommandParser, host: string, port: number) {
+    parser.push('CLUSTER', 'MEET', host, port.toString());
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

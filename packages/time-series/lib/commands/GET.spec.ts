@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GET from './GET';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TS.GET', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        GET.transformArguments('key'),
+        parseArgs(GET, 'key'),
         ['TS.GET', 'key']
       );
     });
 
     it('with LATEST', () => {
       assert.deepEqual(
-        GET.transformArguments('key', {
+        parseArgs(GET, 'key', {
           LATEST: true
         }),
         ['TS.GET', 'key', 'LATEST']

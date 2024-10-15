@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PFCOUNT from './PFCOUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('PFCOUNT', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        PFCOUNT.transformArguments('key'),
+        parseArgs(PFCOUNT, 'key'),
         ['PFCOUNT', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        PFCOUNT.transformArguments(['1', '2']),
+        parseArgs(PFCOUNT, ['1', '2']),
         ['PFCOUNT', '1', '2']
       );
     });

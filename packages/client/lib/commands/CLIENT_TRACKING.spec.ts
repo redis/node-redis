@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_TRACKING from './CLIENT_TRACKING';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT TRACKING', () => {
   testUtils.isVersionGreaterThanHook([6]);
@@ -9,14 +10,14 @@ describe('CLIENT TRACKING', () => {
     describe('true', () => {
       it('simple', () => {
         assert.deepEqual(
-          CLIENT_TRACKING.transformArguments(true),
+          parseArgs(CLIENT_TRACKING, true),
           ['CLIENT', 'TRACKING', 'ON']
         );
       });
 
       it('with REDIRECT', () => {
         assert.deepEqual(
-          CLIENT_TRACKING.transformArguments(true, {
+          parseArgs(CLIENT_TRACKING, true, {
             REDIRECT: 1
           }),
           ['CLIENT', 'TRACKING', 'ON', 'REDIRECT', '1']
@@ -26,7 +27,7 @@ describe('CLIENT TRACKING', () => {
       describe('with BCAST', () => {
         it('simple', () => {
           assert.deepEqual(
-            CLIENT_TRACKING.transformArguments(true, {
+            parseArgs(CLIENT_TRACKING, true, {
               BCAST: true
             }),
             ['CLIENT', 'TRACKING', 'ON', 'BCAST']
@@ -36,7 +37,7 @@ describe('CLIENT TRACKING', () => {
         describe('with PREFIX', () => {
           it('string', () => {
             assert.deepEqual(
-              CLIENT_TRACKING.transformArguments(true, {
+              parseArgs(CLIENT_TRACKING, true, {
                 BCAST: true,
                 PREFIX: 'prefix'
               }),
@@ -46,7 +47,7 @@ describe('CLIENT TRACKING', () => {
 
           it('array', () => {
             assert.deepEqual(
-              CLIENT_TRACKING.transformArguments(true, {
+              parseArgs(CLIENT_TRACKING, true, {
                 BCAST: true,
                 PREFIX: ['1', '2']
               }),
@@ -58,7 +59,7 @@ describe('CLIENT TRACKING', () => {
 
       it('with OPTIN', () => {
         assert.deepEqual(
-          CLIENT_TRACKING.transformArguments(true, {
+          parseArgs(CLIENT_TRACKING, true, {
             OPTIN: true
           }),
           ['CLIENT', 'TRACKING', 'ON', 'OPTIN']
@@ -67,7 +68,7 @@ describe('CLIENT TRACKING', () => {
 
       it('with OPTOUT', () => {
         assert.deepEqual(
-          CLIENT_TRACKING.transformArguments(true, {
+          parseArgs(CLIENT_TRACKING, true, {
             OPTOUT: true
           }),
           ['CLIENT', 'TRACKING', 'ON', 'OPTOUT']
@@ -76,7 +77,7 @@ describe('CLIENT TRACKING', () => {
 
       it('with NOLOOP', () => {
         assert.deepEqual(
-          CLIENT_TRACKING.transformArguments(true, {
+          parseArgs(CLIENT_TRACKING, true, {
             NOLOOP: true
           }),
           ['CLIENT', 'TRACKING', 'ON', 'NOLOOP']
@@ -86,7 +87,7 @@ describe('CLIENT TRACKING', () => {
 
     it('false', () => {
       assert.deepEqual(
-        CLIENT_TRACKING.transformArguments(false),
+        parseArgs(CLIENT_TRACKING, false),
         ['CLIENT', 'TRACKING', 'OFF']
       );
     });

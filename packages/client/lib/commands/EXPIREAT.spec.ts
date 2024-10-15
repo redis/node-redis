@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EXPIREAT from './EXPIREAT';
+import { parseArgs } from './generic-transformers';
 
 describe('EXPIREAT', () => {
   describe('transformArguments', () => {
     it('number', () => {
       assert.deepEqual(
-        EXPIREAT.transformArguments('key', 1),
+        parseArgs(EXPIREAT, 'key', 1),
         ['EXPIREAT', 'key', '1']
       );
     });
@@ -14,14 +15,14 @@ describe('EXPIREAT', () => {
     it('date', () => {
       const d = new Date();
       assert.deepEqual(
-        EXPIREAT.transformArguments('key', d),
+        parseArgs(EXPIREAT, 'key', d),
         ['EXPIREAT', 'key', Math.floor(d.getTime() / 1000).toString()]
       );
     });
 
     it('with set option', () => {
       assert.deepEqual(
-        EXPIREAT.transformArguments('key', 1, 'GT'),
+        parseArgs(EXPIREAT, 'key', 1, 'GT'),
         ['EXPIREAT', 'key', '1', 'GT']
       );
     });

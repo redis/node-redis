@@ -1,14 +1,14 @@
+import { CommandParser } from '../client/parser';
 import { Command } from '../RESP/types';
+import { RedisVariadicArgument, transformSortedSetReply } from './generic-transformers';
 import ZDIFF from './ZDIFF';
-import { transformSortedSetReply } from './generic-transformers';
+
 
 export default {
-  FIRST_KEY_INDEX: ZDIFF.FIRST_KEY_INDEX,
   IS_READ_ONLY: ZDIFF.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof ZDIFF.transformArguments>) {
-    const redisArgs = ZDIFF.transformArguments(...args);
-    redisArgs.push('WITHSCORES');
-    return redisArgs;
+  parseCommand(parser: CommandParser, keys: RedisVariadicArgument) {
+    ZDIFF.parseCommand(parser, keys);
+    parser.push('WITHSCORES');
   },
   transformReply: transformSortedSetReply
 } as const satisfies Command;

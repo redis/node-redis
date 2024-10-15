@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types'; 
 import { transformDoubleReply } from './generic-transformers';
 
@@ -35,10 +36,10 @@ export type MemoryStatsReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['MEMORY', 'STATS'];
+  parseCommand(parser: CommandParser) {
+    parser.push('MEMORY', 'STATS');
   },
   transformReply: {
     2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>, preserve?: any, typeMapping?: TypeMapping) => {

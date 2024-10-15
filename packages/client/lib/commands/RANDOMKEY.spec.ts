@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RANDOMKEY from './RANDOMKEY';
+import { parseArgs } from './generic-transformers';
 
 describe('RANDOMKEY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RANDOMKEY.transformArguments(),
+      parseArgs(RANDOMKEY),
       ['RANDOMKEY']
     );
   });

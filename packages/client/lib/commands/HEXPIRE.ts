@@ -1,5 +1,6 @@
-import { Command, RedisArgument } from '../RESP/types';
-import { pushVariadicArgument } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { ArrayReply, Command, RedisArgument } from '../RESP/types';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export const HASH_EXPIRATION = {
   /** The field does not exist */
@@ -11,25 +12,28 @@ export const HASH_EXPIRATION = {
   /** Field deleted because the specified expiration time is in the past */
   DELETED: 2
 } as const;
-  
+
 export type HashExpiration = typeof HASH_EXPIRATION[keyof typeof HASH_EXPIRATION];
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(key: RedisArgument, 
-    fields: RedisArgument | Array<RedisArgument>,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    fields: RedisVariadicArgument,
     seconds: number,
-    mode?: 'NX' | 'XX' | 'GT' | 'LT',
+    mode?: 'NX' | 'XX' | 'GT' | 'LT'
   ) {
-    const args = ['HEXPIRE', key, seconds.toString()];
-
+    parser.push('HEXPIRE');
+    parser.pushKey(key);
+    parser.push(seconds.toString());
+    
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
 
-    args.push('FIELDS');
+    parser.push('FIELDS');
 
-    return pushVariadicArgument(args, fields);
+    parser.pushVariadicWithLength(fields);
   },
-  transformReply: undefined as unknown as () => Array<HashExpiration>
+  transformReply: undefined as unknown as () => ArrayReply<HashExpiration>
 } as const satisfies Command;

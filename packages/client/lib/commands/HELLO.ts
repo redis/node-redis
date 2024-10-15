@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, RespVersions, TuplesToMapReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export interface HelloOptions {
@@ -20,14 +21,14 @@ export type HelloReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  transformArguments(protover?: RespVersions, options?: HelloOptions) {
-    const args: Array<RedisArgument> = ['HELLO'];
+  parseCommand(parser: CommandParser, protover?: RespVersions, options?: HelloOptions) {
+    parser.push('HELLO');
 
     if (protover) {
-      args.push(protover.toString());
+      parser.push(protover.toString());
 
       if (options?.AUTH) {
-        args.push(
+        parser.push(
           'AUTH',
           options.AUTH.username,
           options.AUTH.password
@@ -35,14 +36,12 @@ export default {
       }
   
       if (options?.SETNAME) {
-        args.push(
+        parser.push(
           'SETNAME',
           options.SETNAME
         );
       }
     }
-    
-    return args;
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<HelloReply>>) => ({

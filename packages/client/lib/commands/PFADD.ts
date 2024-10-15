@@ -1,14 +1,15 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, element?: RedisVariadicArgument) {
-    const args = ['PFADD', key];
-    if (!element) return args;
-
-    return pushVariadicArguments(args, element);
+  parseCommand(parser: CommandParser, key: RedisArgument, element?: RedisVariadicArgument) {
+    parser.push('PFADD')
+    parser.pushKey(key);
+    if (element) {
+      parser.pushVariadic(element);
+    }
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

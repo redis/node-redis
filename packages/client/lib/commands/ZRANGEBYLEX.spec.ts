@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANGEBYLEX from './ZRANGEBYLEX';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANGEBYLEX', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ZRANGEBYLEX.transformArguments('src', '-', '+'),
+        parseArgs(ZRANGEBYLEX, 'src', '-', '+'),
         ['ZRANGEBYLEX', 'src', '-', '+']
       );
     });
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        ZRANGEBYLEX.transformArguments('src', '-', '+', {
+        parseArgs(ZRANGEBYLEX, 'src', '-', '+', {
           LIMIT: {
             offset: 0,
             count: 1
