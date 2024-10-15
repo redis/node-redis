@@ -12,7 +12,7 @@
     "test-disable": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
   },
   "peerDependencies": {
-    "@redis/client": "^2.0.0-next.4"
+    "@redis/client": "^5.0.0-next.5"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
